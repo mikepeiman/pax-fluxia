@@ -157,6 +157,102 @@ function buildGeometry(): ResolvedGeometrySnapshot {
             topologyReliable: true,
             identityReliable: true,
             closureReliable: true,
+            stageLadder: {
+                authoritativeSeamFingerprint: "seam-v1",
+                displayBorderFingerprint: "display-v1",
+                appliedMarginPx: 8,
+                rawSharedFrontiers: [
+                    {
+                        frontierId: "raw-frontier-0",
+                        ownerA: "a",
+                        ownerB: "b",
+                        ownerPairKey: "a|b",
+                        points: [
+                            [210, 310],
+                            [510, 310],
+                        ],
+                        confidence: 1,
+                    },
+                ],
+                rawWorldBorders: [
+                    {
+                        frontierId: "raw-world-0",
+                        ownerA: "a",
+                        ownerB: "__world__",
+                        ownerPairKey: "__world__|a",
+                        points: [
+                            [200, 300],
+                            [200, 600],
+                        ],
+                        confidence: 1,
+                    },
+                ],
+                resolvedSharedBoundaryFrontiers: [
+                    {
+                        frontierId: "resolved-frontier-0",
+                        ownerA: "a",
+                        ownerB: "b",
+                        ownerPairKey: "a|b",
+                        points: [
+                            [220, 320],
+                            [520, 320],
+                        ],
+                        confidence: 1,
+                    },
+                ],
+                resolvedWorldBorders: [
+                    {
+                        frontierId: "resolved-world-0",
+                        ownerA: "a",
+                        ownerB: "__world__",
+                        ownerPairKey: "__world__|a",
+                        points: [
+                            [230, 330],
+                            [230, 630],
+                        ],
+                        confidence: 1,
+                    },
+                ],
+                resolvedRegions: [
+                    {
+                        regionId: "resolved-region-0",
+                        ownerId: "a",
+                        points: [
+                            [240, 340],
+                            [540, 340],
+                            [540, 640],
+                        ],
+                        confidence: 1,
+                    },
+                ],
+                displayFrontierPolylines: [
+                    {
+                        frontierId: "display-frontier-0",
+                        ownerA: "a",
+                        ownerB: "b",
+                        ownerPairKey: "a|b",
+                        points: [
+                            [250, 350],
+                            [550, 350],
+                        ],
+                        confidence: 1,
+                    },
+                ],
+                displayWorldBorderPolylines: [
+                    {
+                        frontierId: "display-world-0",
+                        ownerA: "a",
+                        ownerB: "__world__",
+                        ownerPairKey: "__world__|a",
+                        points: [
+                            [260, 360],
+                            [260, 660],
+                        ],
+                        confidence: 1,
+                    },
+                ],
+                notes: [],
+            },
             notes: [],
         },
     };
@@ -232,5 +328,16 @@ describe("territoryPresentationSpace", () => {
         expect(localizedA.frontierTopology.sections.get("s0")?.points[2]).toEqual(
             [300, 200],
         );
+        expect(
+            localizedA.diagnostics.stageLadder?.displayFrontierPolylines[0]
+                .points[0],
+        ).toEqual([50, 250]);
+        expect(
+            localizedA.diagnostics.stageLadder?.displayWorldBorderPolylines[0]
+                .points[1],
+        ).toEqual([60, 560]);
+        expect(
+            localizedA.diagnostics.stageLadder?.resolvedRegions[0].points[2],
+        ).toEqual([340, 540]);
     });
 });
