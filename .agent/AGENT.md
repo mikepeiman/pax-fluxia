@@ -47,6 +47,18 @@ Stop using the term "canonical". Absolutely and completely.
 - Do not claim something is fixed without evidence.
 - Prefer: "implemented; please verify."
 
+### 2.2a Forward-Fix Rule
+
+When the user reports that a new feature does not show, regresses visually, or behaves incorrectly:
+
+- Do not broadly revert or throw away unverified implementation work as the default response.
+- Treat the report as a request to diagnose and continue developing the feature forward.
+- First identify the exact code path that is failing, including the UI control, config value, dispatch path, runtime path, and render primitive involved.
+- Make targeted fixes that preserve the intended feature direction and user-visible progress.
+- If a risky subpath must be disabled temporarily, keep the feature path intact, document the disabled subpath, and state what remains to complete.
+- Revert only when the user explicitly asks for a revert, when a change is unsafe/destructive, or when a tiny last-change revert is the clearly smallest targeted fix. State the reason before doing it.
+- Never replace a broken new implementation with an older untested path and present that as progress.
+
 ### 2.3 Precision
 
 - User wording is specification, not vague symptom text.
