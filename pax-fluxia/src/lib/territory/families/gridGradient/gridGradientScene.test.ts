@@ -4,6 +4,7 @@ import {
     buildGridGradientBorderDots,
     buildGridGradientNoisePolygon,
     resolveGridGradientCellSize,
+    resolveGridGradientTransitionScale,
 } from './gridGradientScene';
 
 function makeClassification(): GridClassification {
@@ -140,6 +141,24 @@ describe('grid gradient scene helpers', () => {
         });
 
         expect(gentle).toBeGreaterThan(steep);
+    });
+
+    it('scales changing cells with their transition alpha while leaving native cells stable', () => {
+        expect(resolveGridGradientTransitionScale({ role: 'native', alpha: 0 })).toBe(1);
+        expect(resolveGridGradientTransitionScale({ role: 'dispossessed', alpha: 0 })).toBe(0);
+
+        const low = resolveGridGradientTransitionScale({
+            role: 'dispossessed',
+            alpha: 0.25,
+        });
+        const high = resolveGridGradientTransitionScale({
+            role: 'dispossessed',
+            alpha: 1,
+        });
+
+        expect(low).toBeGreaterThan(0);
+        expect(low).toBeLessThan(high);
+        expect(high).toBeCloseTo(1);
     });
 
     it('builds one blended dot per differing grid edge', () => {

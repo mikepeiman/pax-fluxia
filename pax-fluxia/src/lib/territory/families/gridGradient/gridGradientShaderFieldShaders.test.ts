@@ -39,4 +39,19 @@ describe('gridGradientShaderFieldBitGl', () => {
         expect(source).not.toContain('sin(uTimeSec * uPulseSpeed + noiseSeed * 6.2831)');
         expect(source).not.toContain('vec2(jitter, -jitter * 0.37)');
     });
+
+    it('renders fill transitions as two scaled dot-grid passes instead of one color-mixed mark', () => {
+        const source = [
+            gridGradientShaderFieldBitGl.fragment.header,
+            gridGradientShaderFieldBitGl.fragment.main,
+        ].join('\n');
+
+        expect(source).toContain('uniform float uFlipWindow');
+        expect(source).toContain('transitionMarkScale');
+        expect(source).toContain('shadeCellSide');
+        expect(source).toContain('shadeCellSide(');
+        expect(source).toContain('1.0 - t');
+        expect(source).toContain('radius * scale');
+        expect(source).not.toContain('vec4 color = mix(prevColor, nextColor, t)');
+    });
 });

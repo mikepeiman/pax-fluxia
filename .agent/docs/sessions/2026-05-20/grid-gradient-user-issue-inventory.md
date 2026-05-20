@@ -22,7 +22,7 @@ This note preserves every Grid Gradient issue and follow-up surfaced by the user
 | 14 | Shader compile failure: `vUV` redefinition and Pixi `roundPixels` type/dimension errors. | No | Documentation gap corrected here; resolved earlier in code, but not preserved in May 20 notes. |
 | 15 | Borders were offset right and slightly down relative to fills, matching an older coordinate-space problem. | Partial | May 20 correction note says borders should remain aligned, but the surfaced offset symptom and cause were not fully preserved. |
 | 16 | No gradient-dot fill transitions were visible on conquest. | Yes | Captured in May 20 notes; implementation remains user-verification sensitive. |
-| 17 | Need a conquest fill transition for Grid Gradient fills. | Yes | Captured; current implementation uses a conservative color-blend transition over per-cell flip timing. |
+| 17 | Need a conquest fill transition for Grid Gradient fills. | Yes | Captured; current implementation uses the existing per-cell flip timing to shrink/fade old-owner dots and grow/fade new-owner dots. |
 | 18 | Need a way to blend circles touched by borders or within a configured border range. | Yes | Captured as deferred; the first attempt was removed because it contributed risk in the shader-field path. |
 | 19 | `Border Offset` did not behave correctly; it looked like a subtle alpha adjustment rather than a clear border-offset band. | Yes | Captured and corrected in May 20 notes as a shader discard/exclusion-band fix. |
 | 20 | `Shader Noise` appeared to do nothing. | Partial | Hotfix notes renamed it to `Shader Noise Roughness (Noise)`. It only affects shader-field pointillist noise marks, so the control is now disabled when the active shape/backend/fill style cannot consume it. |

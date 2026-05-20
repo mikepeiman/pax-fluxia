@@ -2,6 +2,7 @@ import { blendColors } from '$lib/utils/colorUtils';
 import type {
     GridClassification,
     GridRenderCell,
+    GridVRole,
     GridVStar,
 } from '../metaballGrid/metaballGridTypes';
 import type {
@@ -73,6 +74,16 @@ export function resolveGridGradientCellSize(
     const rawT = (distancePx - borderOffsetPx) / (usableMax - borderOffsetPx);
     const curved = Math.pow(clamp01(rawT), Math.max(0.05, params.curvePower));
     return edgeSizePx + (centerSizePx - edgeSizePx) * curved;
+}
+
+export function resolveGridGradientTransitionScale(params: {
+    readonly role: GridVRole;
+    readonly alpha: number;
+}): number {
+    if (params.role === 'native') return 1;
+    const alpha = clamp01(params.alpha);
+    if (alpha <= 0) return 0;
+    return 0.28 + 0.72 * Math.sqrt(alpha);
 }
 
 export function buildGridGradientOwnerDistanceSummary(params: {

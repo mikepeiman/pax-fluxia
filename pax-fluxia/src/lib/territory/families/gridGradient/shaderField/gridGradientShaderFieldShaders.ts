@@ -29,6 +29,7 @@ export const gridGradientShaderFieldBitGl = {
             uniform float uEdgeSizePx;
             uniform float uBorderOffsetPx;
             uniform float uCurvePower;
+            uniform float uFlipWindow;
             uniform float uMarkSoftness;
             uniform float uEdgeSoftnessPx;
             uniform float uNoiseStrength;
@@ -143,6 +144,59 @@ export const gridGradientShaderFieldBitGl = {
                 return vec4(rgb, a);
             }
 
+            float transitionMarkScale(float role, float sideAlpha) {
+                if (role < 1.5) return 1.0;
+                float a = saturate(sideAlpha);
+                if (a <= 0.0001) return 0.0;
+                return 0.28 + 0.72 * sqrt(a);
+            }
+
+            vec4 shadeCellSide(
+                vec2 cell,
+                vec2 worldPos,
+                float owner,
+                float role,
+                float sideAlpha,
+                float side,
+                float distanceBand,
+                float noiseSeed,
+                vec2 center,
+                float radius,
+                vec2 ownerSalt
+            ) {
+                float allowed = roleAllowsSide(role, side);
+                if (allowed <= 0.001 || sideAlpha <= 0.001) return vec4(0.0);
+
+                vec4 color = readPalette(owner);
+                if (color.a <= 0.001) return vec4(0.0);
+
+                float scale = transitionMarkScale(role, sideAlpha);
+                if (scale <= 0.001) return vec4(0.0);
+
+                float mask = markMask(worldPos - center, radius * scale, noiseSeed + side * 0.173);
+                if (mask <= 0.001) return vec4(0.0);
+
+                float pulse = 1.0;
+                if (uPulseStrength > 0.0) {
+                    vec2 pulseSalt =
+                        ownerSalt + vec2(owner * 7.0 + side * 23.0, owner * 13.0 + side * 47.0);
+                    float phase = cellPhaseHash(cell, pulseSalt) * 6.2831853;
+                    float amplitude =
+                        mix(0.72, 1.0, cellPhaseHash(cell.yx, pulseSalt.yx + vec2(5.0, 11.0)));
+                    pulse += sin(uTimeSec * uPulseSpeed + phase) * uPulseStrength * amplitude;
+                }
+
+                float alphaBoost = mix(uEdgeAlphaBoost, uInteriorAlphaBoost, distanceBand);
+                float alpha = mask * color.a * uFillAlpha * alphaBoost * sideAlpha;
+                vec3 rgb = color.rgb * pulse;
+
+                if (uGlowStrength > 0.0) {
+                    rgb += color.rgb * mask * uGlowStrength;
+                }
+
+                return vec4(rgb, alpha);
+            }
+
             vec4 shadeCell(vec2 cell, vec2 worldPos) {
                 vec4 ownerPacked = readOwnerTex(cell);
                 vec4 metrics = readMetricsTex(cell);
@@ -158,17 +212,6 @@ export const gridGradientShaderFieldBitGl = {
                 if (uBorderOffsetPx > 0.001 && distanceBand <= 0.001) {
                     return vec4(0.0);
                 }
-
-                float blendWindow = 0.08;
-                float t = smoothstep(flipTime - blendWindow, flipTime + blendWindow, uProgress);
-
-                float prevAllowed = roleAllowsSide(role, 0.0);
-                float nextAllowed = roleAllowsSide(role, 1.0);
-                vec4 prevColor = readPalette(prevOwner) * prevAllowed;
-                vec4 nextColor = readPalette(nextOwner) * nextAllowed;
-                vec4 color = mix(prevColor, nextColor, t);
-
-                if (color.a <= 0.001) return vec4(0.0);
 
                 float distanceT = pow(saturate(distanceBand), max(0.01, uCurvePower));
                 float sizePx = mix(uEdgeSizePx, uCenterSizePx, distanceT);
@@ -193,26 +236,58 @@ export const gridGradientShaderFieldBitGl = {
                     center += vec2(cos(phase), sin(phase * 1.17)) * uFieldDriftPx;
                 }
 
-                float mask = markMask(worldPos - center, radius, noiseSeed);
-                if (mask <= 0.001) return vec4(0.0);
-
-                float pulse = 1.0;
-                if (uPulseStrength > 0.0) {
-                    float phase = cellPhaseHash(cell, ownerSalt) * 6.2831853;
-                    float amplitude =
-                        mix(0.72, 1.0, cellPhaseHash(cell.yx, ownerSalt.yx + vec2(5.0, 11.0)));
-                    pulse += sin(uTimeSec * uPulseSpeed + phase) * uPulseStrength * amplitude;
+                if (role < 1.5) {
+                    return shadeCellSide(
+                        cell,
+                        worldPos,
+                        nextOwner,
+                        role,
+                        1.0,
+                        1.0,
+                        distanceBand,
+                        noiseSeed,
+                        center,
+                        radius,
+                        ownerSalt
+                    );
                 }
 
-                float alphaBoost = mix(uEdgeAlphaBoost, uInteriorAlphaBoost, distanceBand);
-                float alpha = mask * color.a * uFillAlpha * alphaBoost;
-                vec3 rgb = color.rgb * pulse;
-
-                if (uGlowStrength > 0.0) {
-                    rgb += color.rgb * mask * uGlowStrength;
-                }
-
-                return vec4(rgb, alpha);
+                float blendWindow = max(0.001, uFlipWindow);
+                float t = smoothstep(flipTime - blendWindow, flipTime + blendWindow, uProgress);
+                vec4 accum = vec4(0.0);
+                accum = alphaOver(
+                    accum,
+                    shadeCellSide(
+                        cell,
+                        worldPos,
+                        prevOwner,
+                        role,
+                        1.0 - t,
+                        0.0,
+                        distanceBand,
+                        noiseSeed,
+                        center,
+                        radius,
+                        ownerSalt
+                    )
+                );
+                accum = alphaOver(
+                    accum,
+                    shadeCellSide(
+                        cell,
+                        worldPos,
+                        nextOwner,
+                        role,
+                        t,
+                        1.0,
+                        distanceBand,
+                        noiseSeed,
+                        center,
+                        radius,
+                        ownerSalt
+                    )
+                );
+                return accum;
             }
         `,
         main: /* glsl */ `

@@ -21,6 +21,7 @@ import {
     buildGridGradientOwnerDistanceSummary,
     buildOwnerIndexByCell,
     resolveGridGradientCellSize,
+    resolveGridGradientTransitionScale,
     type GridGradientOwnerDistanceSummary,
 } from './gridGradientScene';
 import {
@@ -713,13 +714,18 @@ export class GridGradientFamily implements RenderFamily {
                 borderOffsetPx: params.settings.borderOffsetPx,
             });
             if (sizePx <= 0) continue;
+            const transitionScale = resolveGridGradientTransitionScale({
+                role: cell.role,
+                alpha: cell.alpha,
+            });
+            if (transitionScale <= 0) continue;
             drawGridGradientCell({
                 graphics: this.fillGraphics,
                 shape: params.settings.cellShape,
                 id: cell.vId,
                 x: cell.x,
                 y: cell.y,
-                sizePx,
+                sizePx: sizePx * transitionScale,
                 color,
                 alpha: params.settings.fillAlpha * cell.alpha,
             });

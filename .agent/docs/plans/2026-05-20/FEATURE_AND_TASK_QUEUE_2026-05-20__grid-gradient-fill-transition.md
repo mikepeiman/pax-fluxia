@@ -3,8 +3,10 @@
 ## Completed
 
 - Implement Grid Gradient conquest fill transition in the existing render-family shader-field path.
-- Back out the failed dual-mark shader transition, border-proximity blend, and Grid Gradient plan-worker handoff after user verification found no visible update, a large blue overlay, and intermittent multi-second loading stalls.
-- Restore the shader-field presentation to the simpler texture-packed color-blend path that previously rendered without the blue overlay.
+- Rework the current fill transition from one color-mixed mark into two dot-grid presentation passes: old-owner marks shrink/fade out while new-owner marks grow/fade in.
+- Apply the same transition scale semantics to the graphics fallback so backend changes do not erase the fill transition.
+- Earlier stabilization removed the border-proximity blend and plan-worker handoff after user verification found no visible update, a large blue overlay, and intermittent multi-second loading stalls.
+- Keep the current two-pass fill transition independent from the removed border-distance alpha packing that caused the large blue overlay.
 - Add a narrow local visual transition clock inside `GridGradientFamily` so a freshly built transition plan animates from progress `0` after the plan is available.
 - Keep Grid Gradient on the render-family runtime path; no direct renderer path was added.
 - Hide the player-facing backend selector; shader field is the normal path, graphics remains an internal fallback visible in diagnostics.
@@ -30,6 +32,7 @@
 - Keep Grid Gradient pinned to `power_voronoi_0319`; do not expose the shared `Geometry Source` selector inside Grid Gradient controls unless the mode explicitly supports and validates alternate geometry sources.
 - Treat vector-border defects separately from optional dotted-border presentation. Real borders must use joined owner-pair display-border chains with one blended owner-pair stroke.
 - Reconsider border-proximity color blending only after the baseline shader path is stable again. Do not reuse the reverted alpha-channel border-distance shader as-is.
+- Start border transitions only after the fill transition is visually accepted. Borders have been more brittle, and this pass intentionally leaves border timing unchanged.
 - If conquest should feel more directional, tune the existing wave seeding/geometry settings before adding any new transition source.
 - Decide whether separate interior/edge alpha boosts should remain exposed, move to diagnostics-only, or be removed if they do not produce readable changes.
 - Main-thread classification/wave planning is still a performance risk during conquest; any future off-main-thread attempt needs a Grid Gradient-specific worker contract and proof that it cannot leave the old plan visible indefinitely.
