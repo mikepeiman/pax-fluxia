@@ -19,6 +19,8 @@
 
 ## Follow-Up Candidates
 
+- Preserve the issue inventory in `.agent/docs/sessions/2026-05-20/grid-gradient-user-issue-inventory.md`; update it whenever new Grid Gradient feedback arrives.
+- Add a Grid Gradient fill-style switch for geometry verification: solid resolved-region fill versus pointillist grid fill, inside the existing render-family path.
 - Reconsider border-proximity color blending only after the baseline shader path is stable again. Do not reuse the reverted alpha-channel border-distance shader as-is.
 - If conquest should feel more directional, tune the existing wave seeding/geometry settings before adding any new transition source.
 - Decide whether `Color Gamma` and separate interior/edge alpha boosts should remain exposed, move to diagnostics-only, or be removed if they do not produce readable changes.
