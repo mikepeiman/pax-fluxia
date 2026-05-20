@@ -27,6 +27,8 @@
 ## Follow-Up Candidates
 
 - Preserve the issue inventory in `.agent/docs/sessions/2026-05-20/grid-gradient-user-issue-inventory.md`; update it whenever new Grid Gradient feedback arrives.
+- Keep Grid Gradient pinned to `power_voronoi_0319`; do not expose the shared `Geometry Source` selector inside Grid Gradient controls unless the mode explicitly supports and validates alternate geometry sources.
+- Treat vector-border defects separately from optional dotted-border presentation. Real borders must use joined owner-pair display-border chains with one blended owner-pair stroke.
 - Reconsider border-proximity color blending only after the baseline shader path is stable again. Do not reuse the reverted alpha-channel border-distance shader as-is.
 - If conquest should feel more directional, tune the existing wave seeding/geometry settings before adding any new transition source.
 - Decide whether separate interior/edge alpha boosts should remain exposed, move to diagnostics-only, or be removed if they do not produce readable changes.

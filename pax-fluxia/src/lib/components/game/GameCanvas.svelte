@@ -1936,6 +1936,15 @@
         };
     }
 
+    function buildGridGradientRenderFamilyConfigSource(): Record<string, unknown> {
+        return {
+            ...(GAME_CONFIG as unknown as Record<string, unknown>),
+            ...metaballGridPhaseEdgesGeometryDefaults,
+            ...metaballGridPhaseEdgesModeDefaults,
+            PERIMETER_FIELD_GEOMETRY_SOURCE: "power_voronoi_0319",
+        };
+    }
+
     function buildPhaseFieldRenderFamilyConfigSource(): Record<string, unknown> {
         return {
             ...metaballGridPhaseFieldGeometryDefaults,
@@ -1955,6 +1964,9 @@
         }
         if (mode === "metaball_grid_phase_field") {
             return buildPhaseFieldRenderFamilyConfigSource();
+        }
+        if (mode === "grid_gradient") {
+            return buildGridGradientRenderFamilyConfigSource();
         }
         return undefined;
     }
@@ -6109,6 +6121,7 @@
                                     transitionSessions:
                                         renderFamilyTransitionState.activeSessions,
                                     tunableKeys: gg.tunableKeys,
+                                    configSource: renderFamilyConfigSource,
                                 }),
                         );
                         gg.update(ggInput);

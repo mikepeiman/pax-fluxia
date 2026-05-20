@@ -14,6 +14,170 @@ export interface GridGradientPalette {
     readonly colorByOwnerId: Map<string, number>;
 }
 
+interface GridGradientBorderPolyline {
+    readonly ownerA: string;
+    readonly ownerB: string;
+    readonly ownerPairKey?: string;
+    readonly points: readonly [number, number][];
+    readonly closed?: boolean;
+}
+
+export interface GridGradientVectorBorderChain {
+    readonly ownerPairKey: string;
+    readonly ownerA: string;
+    readonly ownerB: string;
+    readonly points: readonly [number, number][];
+    readonly closed: boolean;
+}
+
+const WORLD_OWNER_IDS = new Set(['world', '__world__']);
+const BORDER_JOIN_KEY_SCALE = 1000;
+
+function isWorldOwner(ownerId: string | null | undefined): boolean {
+    return !ownerId || WORLD_OWNER_IDS.has(ownerId);
+}
+
+function normalizeOwnerPair(
+    polyline: GridGradientBorderPolyline,
+): { ownerPairKey: string; ownerA: string; ownerB: string } {
+    const keyOwners = polyline.ownerPairKey
+        ?.split('|')
+        .filter((ownerId) => ownerId.length > 0);
+    const owners = (keyOwners?.length ? keyOwners : [polyline.ownerA, polyline.ownerB])
+        .filter((ownerId) => !isWorldOwner(ownerId));
+    const uniqueOwners = [...new Set(owners)];
+    if (uniqueOwners.length <= 1) {
+        const ownerA = uniqueOwners[0] ?? polyline.ownerA;
+        return {
+            ownerPairKey: `${ownerA}|world`,
+            ownerA,
+            ownerB: 'world',
+        };
+    }
+    const [ownerA, ownerB] = uniqueOwners.sort((a, b) => a.localeCompare(b));
+    return {
+        ownerPairKey: `${ownerA}|${ownerB}`,
+        ownerA: ownerA!,
+        ownerB: ownerB!,
+    };
+}
+
+function borderPointKey(point: readonly [number, number]): string {
+    return [
+        Math.round(point[0] * BORDER_JOIN_KEY_SCALE),
+        Math.round(point[1] * BORDER_JOIN_KEY_SCALE),
+    ].join(':');
+}
+
+function reversedPoints(
+    points: readonly [number, number][],
+): [number, number][] {
+    return [...points].reverse().map(([x, y]) => [x, y]);
+}
+
+export function buildGridGradientVectorBorderChains(
+    polylines: readonly GridGradientBorderPolyline[],
+): GridGradientVectorBorderChain[] {
+    const groups = new Map<string, GridGradientBorderPolyline[]>();
+    const ownerByKey = new Map<string, { ownerA: string; ownerB: string }>();
+    for (const polyline of polylines) {
+        if (polyline.points.length < 2) continue;
+        const normalized = normalizeOwnerPair(polyline);
+        const group = groups.get(normalized.ownerPairKey);
+        if (group) {
+            group.push(polyline);
+        } else {
+            groups.set(normalized.ownerPairKey, [polyline]);
+            ownerByKey.set(normalized.ownerPairKey, {
+                ownerA: normalized.ownerA,
+                ownerB: normalized.ownerB,
+            });
+        }
+    }
+
+    const chains: GridGradientVectorBorderChain[] = [];
+    for (const [ownerPairKey, group] of groups) {
+        const owners = ownerByKey.get(ownerPairKey);
+        if (!owners) continue;
+        const used = new Set<number>();
+        const endpointMap = new Map<string, Array<{ index: number; at: 'start' | 'end' }>>();
+        for (let index = 0; index < group.length; index += 1) {
+            const points = group[index]!.points;
+            const startKey = borderPointKey(points[0]!);
+            const endKey = borderPointKey(points[points.length - 1]!);
+            const startEntries = endpointMap.get(startKey) ?? [];
+            startEntries.push({ index, at: 'start' });
+            endpointMap.set(startKey, startEntries);
+            const endEntries = endpointMap.get(endKey) ?? [];
+            endEntries.push({ index, at: 'end' });
+            endpointMap.set(endKey, endEntries);
+        }
+
+        const takeNext = (key: string): { index: number; at: 'start' | 'end' } | null =>
+            endpointMap.get(key)?.find((entry) => !used.has(entry.index)) ?? null;
+
+        const appendConnected = (points: [number, number][]): void => {
+            while (points.length > 0) {
+                const endKey = borderPointKey(points[points.length - 1]!);
+                const next = takeNext(endKey);
+                if (!next) return;
+                used.add(next.index);
+                const nextPoints = group[next.index]!.points;
+                const oriented =
+                    next.at === 'start' ? [...nextPoints] : reversedPoints(nextPoints);
+                points.push(...oriented.slice(1).map(([x, y]) => [x, y] as [number, number]));
+            }
+        };
+
+        const prependConnected = (points: [number, number][]): void => {
+            while (points.length > 0) {
+                const startKey = borderPointKey(points[0]!);
+                const next = takeNext(startKey);
+                if (!next) return;
+                used.add(next.index);
+                const nextPoints = group[next.index]!.points;
+                const oriented =
+                    next.at === 'start' ? reversedPoints(nextPoints) : [...nextPoints];
+                points.unshift(
+                    ...oriented
+                        .slice(0, -1)
+                        .map(([x, y]) => [x, y] as [number, number]),
+                );
+            }
+        };
+
+        for (let index = 0; index < group.length; index += 1) {
+            if (used.has(index)) continue;
+            const polyline = group[index]!;
+            used.add(index);
+            const points = polyline.points.map(([x, y]) => [x, y] as [number, number]);
+            if (!polyline.closed) {
+                appendConnected(points);
+                prependConnected(points);
+            }
+            const endpointCloses =
+                points.length > 2 &&
+                borderPointKey(points[0]!) === borderPointKey(points[points.length - 1]!);
+            const closed =
+                Boolean(polyline.closed) ||
+                endpointCloses;
+            if (endpointCloses) {
+                points.pop();
+            }
+            if (points.length < 2) continue;
+            chains.push({
+                ownerPairKey,
+                ownerA: owners.ownerA,
+                ownerB: owners.ownerB,
+                points,
+                closed,
+            });
+        }
+    }
+
+    return chains;
+}
+
 export function buildGridGradientPalette(params: {
     readonly colorUtils: ColorUtils;
     readonly input: RenderFamilyInput;
@@ -114,30 +278,24 @@ export function drawGridGradientVectorBorders(params: {
     const worldPolylines =
         ladder?.displayWorldBorderPolylines ?? params.geometry.worldBorderPolylines;
     let count = 0;
-    const strokePolyline = (polyline: {
-        ownerA: string;
-        ownerB: string;
-        points: readonly [number, number][];
-        closed?: boolean;
-    }): void => {
-        if (polyline.points.length < 2) return;
-        const colorA = params.colorByOwnerId.get(polyline.ownerA);
-        const colorB =
-            polyline.ownerB === '__world__'
-                ? colorA
-                : params.colorByOwnerId.get(polyline.ownerB);
+    const strokeChain = (chain: GridGradientVectorBorderChain): void => {
+        if (chain.points.length < 2) return;
+        const colorA = params.colorByOwnerId.get(chain.ownerA);
+        const colorB = isWorldOwner(chain.ownerB)
+            ? colorA
+            : params.colorByOwnerId.get(chain.ownerB);
         if (colorA === undefined && colorB === undefined) return;
         const color =
             colorA !== undefined && colorB !== undefined && colorA !== colorB
                 ? blendColors(colorA, colorB, 0.5)
                 : colorA ?? colorB ?? 0xffffff;
-        const [startX, startY] = polyline.points[0];
+        const [startX, startY] = chain.points[0];
         params.graphics.moveTo(startX, startY);
-        for (let i = 1; i < polyline.points.length; i += 1) {
-            const [x, y] = polyline.points[i];
+        for (let i = 1; i < chain.points.length; i += 1) {
+            const [x, y] = chain.points[i];
             params.graphics.lineTo(x, y);
         }
-        if (polyline.closed) params.graphics.closePath();
+        if (chain.closed) params.graphics.closePath();
         params.graphics.stroke({
             color,
             alpha: params.settings.borderAlpha,
@@ -148,8 +306,12 @@ export function drawGridGradientVectorBorders(params: {
         count += 1;
     };
 
-    for (const polyline of frontierPolylines) strokePolyline(polyline);
-    for (const polyline of worldPolylines) strokePolyline(polyline);
+    for (const chain of buildGridGradientVectorBorderChains([
+        ...frontierPolylines,
+        ...worldPolylines,
+    ])) {
+        strokeChain(chain);
+    }
     return count;
 }
 

@@ -578,7 +578,7 @@
   });
 
   function showsDerivedGeometryInput(): boolean {
-    return isMetaballGridStyle() || isGridGradientStyle();
+    return isMetaballGridStyle();
   }
   function resolveActiveTransitionModeId(): string {
     return coerceVsTransitionModeForRenderMode(

@@ -788,11 +788,13 @@ export class GridGradientFamily implements RenderFamily {
     }): number {
         const signature = [
             params.geometry.version,
+            params.geometry.diagnostics.stageLadder?.displayBorderFingerprint ?? '',
             params.settings.vectorBordersEnabled,
             params.settings.borderWidthPx,
             params.settings.borderAlpha,
             params.settings.borderSaturation,
             params.settings.borderLightness,
+            params.settings.fillHueShiftDeg,
             [...params.palette.colorByOwnerId.entries()]
                 .sort(([a], [b]) => a.localeCompare(b))
                 .map(([ownerId, color]) => `${ownerId}:${color.toString(16)}`)
