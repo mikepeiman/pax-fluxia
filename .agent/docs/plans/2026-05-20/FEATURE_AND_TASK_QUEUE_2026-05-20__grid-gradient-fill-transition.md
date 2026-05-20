@@ -10,6 +10,7 @@
 - Hide the player-facing backend selector; shader field is the normal path, graphics remains an internal fallback visible in diagnostics.
 - Remove the failed transition-scale and border-blend controls from the surfaced settings metadata/UI.
 - Fix shader-field border offset so a nonzero offset suppresses marks inside the offset band instead of only changing gradient size.
+- Adjust `Shader Pulse` to use layered 2D shader noise over grid cell coordinates after user verification showed the first pulse pass still looked column-grouped.
 
 ## Validation
 

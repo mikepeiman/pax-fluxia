@@ -42,6 +42,17 @@ Grid Gradient remains a render-family mode. It does not use a direct legacy rend
 - The visible fill transition is a conservative color blend over the existing per-cell flip timing. It is not the previously attempted old-mark-shrink/new-mark-grow effect.
 - Border-proximity color blending is deferred until the baseline shader-field path is stable in user testing.
 
+## Follow-Up: Pulse Field
+
+User verification after the correction still saw `Shader Pulse` as vertically grouped. The shader pulse path now derives phase and amplitude from layered 2D value noise over grid cell coordinates, with owner-index salt, instead of directly using only the packed per-cell seed as the sine phase. This is a presentation-only change in `gridGradientShaderFieldShaders.ts`; ownership, geometry, and transition data are unchanged.
+
+Validation for this follow-up:
+
+- `bun test ./src/lib/territory/families/gridGradient/gridGradientShaderFieldShaders.test.ts`
+  - Passed: 2 tests.
+- `bun run build`
+  - Passed. Existing CSS/chunk warnings remain.
+
 ## Validation
 
 - `rg` verification:

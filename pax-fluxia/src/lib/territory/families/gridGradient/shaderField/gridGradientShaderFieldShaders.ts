@@ -98,6 +98,23 @@ export const gridGradientShaderFieldBitGl = {
                 return 1.0 - smoothstep(halfSize, halfSize + softness, d);
             }
 
+            float hash12(vec2 p) {
+                vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+                p3 += dot(p3, p3.yzx + 33.33);
+                return fract((p3.x + p3.y) * p3.z);
+            }
+
+            float valueNoise2d(vec2 p) {
+                vec2 i = floor(p);
+                vec2 f = fract(p);
+                f = f * f * (3.0 - 2.0 * f);
+                float a = hash12(i);
+                float b = hash12(i + vec2(1.0, 0.0));
+                float c = hash12(i + vec2(0.0, 1.0));
+                float d = hash12(i + vec2(1.0, 1.0));
+                return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+            }
+
             float noiseMask(vec2 p, float radius, float softness, float seed) {
                 float a = atan(p.y, p.x);
                 float n = 0.0;
@@ -175,7 +192,13 @@ export const gridGradientShaderFieldBitGl = {
 
                 float pulse = 1.0;
                 if (uPulseStrength > 0.0) {
-                    pulse += sin(uTimeSec * uPulseSpeed + noiseSeed * 6.2831) * uPulseStrength;
+                    vec2 ownerSalt = vec2(prevOwner * 0.071, nextOwner * 0.113);
+                    float broadPhase = valueNoise2d(cell * 0.11 + ownerSalt);
+                    float midPhase = valueNoise2d(cell * 0.29 + ownerSalt.yx + vec2(17.0, 43.0));
+                    float finePhase = hash12(cell + ownerSalt * 97.0);
+                    float phase = (broadPhase * 0.58 + midPhase * 0.32 + finePhase * 0.10) * 6.2831853;
+                    float amplitude = mix(0.72, 1.0, valueNoise2d(cell * 0.17 + ownerSalt + vec2(5.0, 11.0)));
+                    pulse += sin(uTimeSec * uPulseSpeed + phase) * uPulseStrength * amplitude;
                 }
 
                 float alphaBoost = mix(uEdgeAlphaBoost, uInteriorAlphaBoost, distanceBand);

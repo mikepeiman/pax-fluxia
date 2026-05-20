@@ -26,7 +26,7 @@ This note preserves every Grid Gradient issue and follow-up surfaced by the user
 | 18 | Need a way to blend circles touched by borders or within a configured border range. | Yes | Captured as deferred; the first attempt was removed because it contributed risk in the shader-field path. |
 | 19 | `Border Offset` did not behave correctly; it looked like a subtle alpha adjustment rather than a clear border-offset band. | Yes | Captured and corrected in May 20 notes as a shader discard/exclusion-band fix. |
 | 20 | `Shader Noise` appeared to do nothing. | Partial | Hotfix notes renamed/disabled it unless shape is Noise, but the original complaint was only partially itemized. |
-| 21 | `Shader Pulse` created vertical column grouping; desired effect is organic 2D, not 1D. | Yes | Captured; hotfix notes say pulse was reworked into a 2D value-noise phase field. |
+| 21 | `Shader Pulse` created vertical column grouping; desired effect is organic 2D, not 1D. | Yes | Reopened by user verification after the first attempt still looked column-grouped. Current patch changes shader pulse to layered 2D value noise over cell coordinates instead of using only the packed per-cell seed as the sine phase. |
 | 22 | `Edge Size` seemed to have the same effect as `Center Size`. | No | Documentation gap corrected here; still needs behavioral verification or control redesign. |
 | 23 | `Shader Mark Softness` seemed identical to `Shader Edge Softness`. | No | Documentation gap corrected here; still needs shader/control semantics verification. |
 | 24 | `Shader Pulse Speed` seemed to have no effect and lacked units. | Yes | Captured; UI now labels it as rad/s, but the visual-effect complaint still needs user verification. |
@@ -53,5 +53,5 @@ The May 20 notes were too implementation-centered. They captured the main fix lo
 
 - Implement the solid-geometry versus pointillist fill switch inside the existing Grid Gradient render-family path.
 - Keep the performance backlog explicit: raw Chrome trace, cell-count measurements, visual-quality target counts, and a refreshed hotspot report.
-- Revisit control semantics after the solid fill verifier exists, especially `Edge Size`, `Shader Mark Softness`, `Shader Interior Alpha`, pulse behavior, and color response.
+- Revisit control semantics after the solid fill verifier exists, especially `Edge Size`, `Shader Mark Softness`, `Shader Interior Alpha`, and color response.
 - Revisit border-proximity blending only after the stable shader-field baseline and geometry-verification toggle are user-verified.
