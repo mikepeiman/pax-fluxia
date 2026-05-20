@@ -444,6 +444,7 @@ interface GameConfigType {
     METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END: number; // Normalized conquest time when the frontier accent fully fades
     GRID_GRADIENT_ENABLED: boolean; // Master gate for the Grid Gradient render family
     GRID_GRADIENT_DRAW_BACKEND: 'graphics' | 'shader_field' | 'mesh_quads'; // Grid Gradient fill presentation backend
+    GRID_GRADIENT_FILL_STYLE: 'pointillist' | 'solid'; // Fill style: point marks or resolved-region solid fill
     GRID_GRADIENT_SPACING_PX: number; // Requested invisible grid spacing in world px
     GRID_GRADIENT_MAX_CELLS: number; // Optional cell cap; coarsens spacing upward when exceeded
     GRID_GRADIENT_ORIGIN_MODE: 'centered' | 'corner'; // Grid anchor mode in world space

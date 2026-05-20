@@ -13,12 +13,14 @@ import {
     type GridGradientBorderDotStyle,
     type GridGradientCellShape,
     type GridGradientDrawBackend,
+    type GridGradientFillStyle,
     type GridGradientShaderNeighborMode,
 } from './config';
 import { isGridGradientCellShape } from './gridGradientScene';
 
 export const GRID_GRADIENT_TUNABLE_KEYS = [
     'GRID_GRADIENT_ENABLED',
+    'GRID_GRADIENT_FILL_STYLE',
     'GRID_GRADIENT_SPACING_PX',
     'GRID_GRADIENT_MAX_CELLS',
     'GRID_GRADIENT_ORIGIN_MODE',
@@ -62,6 +64,7 @@ export const GRID_GRADIENT_TUNABLE_KEYS = [
 export interface GridGradientSettings {
     readonly enabled: boolean;
     readonly drawBackend: GridGradientDrawBackend;
+    readonly fillStyle: GridGradientFillStyle;
     readonly spacingPx: number;
     readonly maxCells: number;
     readonly originMode: GridOriginMode;
@@ -176,6 +179,12 @@ export function resolveGridGradientSettings(input: RenderFamilyInput): GridGradi
             'GRID_GRADIENT_DRAW_BACKEND',
             defaults.GRID_GRADIENT_DRAW_BACKEND,
             ['graphics', 'shader_field', 'mesh_quads'],
+        ),
+        fillStyle: readTunableString(
+            input,
+            'GRID_GRADIENT_FILL_STYLE',
+            defaults.GRID_GRADIENT_FILL_STYLE,
+            ['pointillist', 'solid'],
         ),
         spacingPx: clamp(
             readTunableNumber(

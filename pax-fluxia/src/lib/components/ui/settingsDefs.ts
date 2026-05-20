@@ -617,6 +617,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_START' },
     { configKey: 'METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END' },
     { configKey: 'GRID_GRADIENT_ENABLED' },
+    { configKey: 'GRID_GRADIENT_FILL_STYLE' },
     { configKey: 'GRID_GRADIENT_SPACING_PX' },
     { configKey: 'GRID_GRADIENT_MAX_CELLS' },
     { configKey: 'GRID_GRADIENT_ORIGIN_MODE' },

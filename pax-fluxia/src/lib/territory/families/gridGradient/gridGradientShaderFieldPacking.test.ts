@@ -53,6 +53,7 @@ describe('buildGridGradientShaderFieldTexturePlan', () => {
             palette: {
                 ownerColorIdx: new Map([['red', 0], ['blue', 1]]),
                 fillHexByColorIdx: [0xff0000, 0x0000ff],
+                fillColorByOwnerId: new Map([['red', 0xff0000], ['blue', 0x0000ff]]),
                 colorByOwnerId: new Map([['red', 0xff0000], ['blue', 0x0000ff]]),
             },
             settings: {

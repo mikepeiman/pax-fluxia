@@ -242,6 +242,7 @@ Required pattern:
 
 - Never delete, simplify, or hardcode over a surfaced user control without explicit instruction.
 - User configurability is part of the product.
+- Before removing, hiding, renaming, disabling, or making irrelevant any visible control, inventory the control, its config key, its runtime consumer, and its diagnostic/product status. Preserve product controls unless the user explicitly retires them. Diagnostic-only controls must move to diagnostics, not silently disappear.
 
 ### 4.7 Comments
 

@@ -22,6 +22,7 @@
 
     const spacingPx = $derived(valueOf<number>('gridGradientSpacingPx', 6));
     const maxCells = $derived(valueOf<number>('gridGradientMaxCells', 160000));
+    const fillStyle = $derived(valueOf<string>('gridGradientFillStyle', 'pointillist'));
     const centerSizePx = $derived(valueOf<number>('gridGradientCenterSizePx', 10));
     const edgeSizePx = $derived(valueOf<number>('gridGradientEdgeSizePx', 1.5));
     const curvePower = $derived(valueOf<number>('gridGradientCurvePower', 1.6));
@@ -64,6 +65,22 @@
 </div>
 
 <div class="sub-heading">Grid Fill</div>
+
+<div class="var-row">
+    <div class="row-top">
+        <span class="var-name">Fill Style</span>
+        <span class="val">{fillStyle === 'solid' ? 'solid' : 'pointillist'}</span>
+    </div>
+    <select
+        class="mode-select"
+        value={fillStyle}
+        onchange={(event) => {
+            writeConfig('GRID_GRADIENT_FILL_STYLE', 'gridGradientFillStyle', (event.target as HTMLSelectElement).value);
+        }}>
+        <option value="pointillist">Pointillist</option>
+        <option value="solid">Solid Fill</option>
+    </select>
+</div>
 
 <div class="var-row">
     <div class="row-top">
@@ -434,6 +451,8 @@
 <div class="perf-grid">
     <div class="perf-label">Backend</div>
     <div class="perf-value">{$gridGradientStats.drawBackend}{#if $gridGradientStats.backendFallbackReason} / {$gridGradientStats.backendFallbackReason}{/if}</div>
+    <div class="perf-label">Fill</div>
+    <div class="perf-value">{$gridGradientStats.fillStyle}</div>
     <div class="perf-label">Cells</div>
     <div class="perf-value">{$gridGradientStats.paintedCells.toLocaleString()} / {$gridGradientStats.emittableCells.toLocaleString()} / {$gridGradientStats.totalCells.toLocaleString()}</div>
     <div class="perf-label">Spacing</div>

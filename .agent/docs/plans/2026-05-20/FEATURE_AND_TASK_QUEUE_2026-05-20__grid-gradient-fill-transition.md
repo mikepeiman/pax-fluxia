@@ -10,18 +10,19 @@
 - Hide the player-facing backend selector; shader field is the normal path, graphics remains an internal fallback visible in diagnostics.
 - Remove the failed transition-scale and border-blend controls from the surfaced settings metadata/UI.
 - Fix shader-field border offset so a nonzero offset suppresses marks inside the offset band instead of only changing gradient size.
-- Adjust `Shader Pulse` to use layered 2D shader noise over grid cell coordinates after user verification showed the first pulse pass still looked column-grouped.
+- Adjust `Shader Pulse`, mark jitter, field drift, and packed seed generation to use two-axis cell hashes after user verification showed the first pulse pass still looked column-grouped.
+- Add `Fill Style` under Grid Gradient controls so the user can switch between `Pointillist` and `Solid Fill` for geometry verification.
+- Add an agent rule requiring visible control inventory before removing, hiding, renaming, disabling, or making a surfaced control irrelevant.
 
 ## Validation
 
-- Focused Grid Gradient packing/scene tests passed.
-- `bun run build` in `pax-fluxia/` passed.
+- Focused Grid Gradient shader/packing/scene tests passed: 9 tests.
+- `bun run build` in `pax-fluxia/` passed with existing unused-CSS and chunk-size warnings.
 - Browser smoke confirmed: no blue overlay in screenshot, Grid Gradient selectable and dispatched as `grid_gradient`, WebGL shader-field backend active with no fallback, forced conquest changed ownership, and diagnostics showed `local / transition` with 221 active transition cells before returning to steady.
 
 ## Follow-Up Candidates
 
 - Preserve the issue inventory in `.agent/docs/sessions/2026-05-20/grid-gradient-user-issue-inventory.md`; update it whenever new Grid Gradient feedback arrives.
-- Add a Grid Gradient fill-style switch for geometry verification: solid resolved-region fill versus pointillist grid fill, inside the existing render-family path.
 - Reconsider border-proximity color blending only after the baseline shader path is stable again. Do not reuse the reverted alpha-channel border-distance shader as-is.
 - If conquest should feel more directional, tune the existing wave seeding/geometry settings before adding any new transition source.
 - Decide whether `Color Gamma` and separate interior/edge alpha boosts should remain exposed, move to diagnostics-only, or be removed if they do not produce readable changes.

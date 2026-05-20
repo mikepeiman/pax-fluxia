@@ -1,4 +1,5 @@
 export type GridGradientCellShape = 'circle' | 'square' | 'noise';
+export type GridGradientFillStyle = 'pointillist' | 'solid';
 export type GridGradientBorderDotStyle = 'blended' | 'butted';
 export type GridGradientDrawBackend = 'graphics' | 'shader_field' | 'mesh_quads';
 export type GridGradientShaderNeighborMode = 'center' | 'cross' | 'eight';
@@ -6,6 +7,7 @@ export type GridGradientShaderNeighborMode = 'center' | 'cross' | 'eight';
 export const gridGradientFamilyConfigDefaults = {
     GRID_GRADIENT_ENABLED: true,
     GRID_GRADIENT_DRAW_BACKEND: 'shader_field' as const,
+    GRID_GRADIENT_FILL_STYLE: 'pointillist' as const,
     GRID_GRADIENT_SPACING_PX: 6,
     GRID_GRADIENT_MAX_CELLS: 160000,
     GRID_GRADIENT_ORIGIN_MODE: 'centered' as const,

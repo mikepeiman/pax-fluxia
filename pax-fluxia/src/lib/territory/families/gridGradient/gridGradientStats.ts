@@ -24,6 +24,7 @@ export interface GridGradientStats {
     readonly outsideCells: number;
     readonly borderDotCount: number;
     readonly vectorBorderCount: number;
+    readonly fillStyle: string;
     readonly cellShape: string;
     readonly borderDotStyle: string;
     readonly borderDotsEnabled: boolean;
@@ -88,6 +89,7 @@ const INITIAL: GridGradientStats = {
     outsideCells: 0,
     borderDotCount: 0,
     vectorBorderCount: 0,
+    fillStyle: 'pointillist',
     cellShape: 'circle',
     borderDotStyle: 'blended',
     borderDotsEnabled: false,

@@ -44,14 +44,23 @@ Grid Gradient remains a render-family mode. It does not use a direct legacy rend
 
 ## Follow-Up: Pulse Field
 
-User verification after the correction still saw `Shader Pulse` as vertically grouped. The shader pulse path now derives phase and amplitude from layered 2D value noise over grid cell coordinates, with owner-index salt, instead of directly using only the packed per-cell seed as the sine phase. This is a presentation-only change in `gridGradientShaderFieldShaders.ts`; ownership, geometry, and transition data are unchanged.
+User verification after the correction still saw `Shader Pulse` as vertically grouped. The first follow-up still used a smoothed low-frequency phase field and did not remove the visible grouping. The shader pulse path now derives phase from a per-cell hash that mixes both grid axes strongly, with owner-index salt. Mark center jitter and field-drift phase now use the same two-axis cell-hash approach instead of a single packed seed scalar. The packed metrics seed also now hashes `ix,iy` directly instead of hashing the string id `g:ix:iy`. These are presentation-only changes in `gridGradientShaderFieldShaders.ts` and `gridGradientShaderFieldPacking.ts`; ownership, geometry, and transition data are unchanged.
+
+## Follow-Up: Solid Fill Verifier
+
+User asked for a simple way to compare the resolved territory geometry against the pointillist fill. Grid Gradient now exposes `Fill Style` in the Grid Fill subsection:
+
+- `Pointillist`: normal Grid Gradient dot/mark fill.
+- `Solid Fill`: draws the resolved region polygons from `ResolvedGeometrySnapshot` using the same fill alpha and palette, with existing vector/dotted borders still drawn normally.
+
+This stays inside the existing render-family path. It does not add ownership truth, fabricate geometry, or create a direct renderer path.
 
 Validation for this follow-up:
 
-- `bun test ./src/lib/territory/families/gridGradient/gridGradientShaderFieldShaders.test.ts`
-  - Passed: 2 tests.
+- `bun test ./src/lib/territory/families/gridGradient/gridGradientShaderFieldShaders.test.ts ./src/lib/territory/families/gridGradient/gridGradientShaderFieldPacking.test.ts ./src/lib/territory/families/gridGradient/gridGradientScene.test.ts`
+  - Passed: 9 tests.
 - `bun run build`
-  - Passed. Existing CSS/chunk warnings remain.
+  - Passed. Existing unused-CSS and chunk-size warnings remain.
 
 ## Validation
 

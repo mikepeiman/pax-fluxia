@@ -10,6 +10,7 @@ import type { GridGradientSettings } from './settings';
 export interface GridGradientPalette {
     readonly ownerColorIdx: Map<string, number>;
     readonly fillHexByColorIdx: number[];
+    readonly fillColorByOwnerId: Map<string, number>;
     readonly colorByOwnerId: Map<string, number>;
 }
 
@@ -21,6 +22,7 @@ export function buildGridGradientPalette(params: {
 }): GridGradientPalette {
     const ownerColorIdx = new Map<string, number>();
     const fillHexByColorIdx: number[] = [];
+    const fillColorByOwnerId = new Map<string, number>();
     const colorByOwnerId = new Map<string, number>();
     const ensureOwner = (ownerId: string | null | undefined): void => {
         if (!ownerId || ownerColorIdx.has(ownerId)) return;
@@ -37,6 +39,7 @@ export function buildGridGradientPalette(params: {
             params.settings.borderLightness,
         );
         ownerColorIdx.set(ownerId, idx);
+        fillColorByOwnerId.set(ownerId, fill);
         colorByOwnerId.set(ownerId, border);
         fillHexByColorIdx.push(fill);
     };
@@ -49,6 +52,7 @@ export function buildGridGradientPalette(params: {
     return {
         ownerColorIdx,
         fillHexByColorIdx,
+        fillColorByOwnerId,
         colorByOwnerId,
     };
 }
@@ -144,5 +148,39 @@ export function drawGridGradientVectorBorders(params: {
 
     for (const polyline of frontierPolylines) strokePolyline(polyline);
     for (const polyline of worldPolylines) strokePolyline(polyline);
+    return count;
+}
+
+export function drawGridGradientSolidFill(params: {
+    readonly graphics: PIXI.Graphics;
+    readonly geometry: ResolvedGeometrySnapshot;
+    readonly settings: GridGradientSettings;
+    readonly fillColorByOwnerId: ReadonlyMap<string, number>;
+}): number {
+    if (params.settings.fillAlpha <= 0) return 0;
+
+    const regions =
+        params.geometry.diagnostics.stageLadder?.resolvedRegions ??
+        params.geometry.territoryRegions;
+    let count = 0;
+    for (const region of regions) {
+        if (region.points.length < 3) continue;
+        const color = params.fillColorByOwnerId.get(region.ownerId);
+        if (color === undefined) continue;
+
+        params.graphics.beginPath();
+        const [startX, startY] = region.points[0];
+        params.graphics.moveTo(startX, startY);
+        for (let i = 1; i < region.points.length; i += 1) {
+            const [x, y] = region.points[i];
+            params.graphics.lineTo(x, y);
+        }
+        params.graphics.closePath();
+        params.graphics.fill({
+            color,
+            alpha: params.settings.fillAlpha,
+        });
+        count += 1;
+    }
     return count;
 }

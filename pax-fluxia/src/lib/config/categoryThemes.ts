@@ -282,6 +282,7 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'METABALL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT',
         // Grid Gradient
         'GRID_GRADIENT_ENABLED',
+        'GRID_GRADIENT_FILL_STYLE',
         'GRID_GRADIENT_SPACING_PX',
         'GRID_GRADIENT_MAX_CELLS',
         'GRID_GRADIENT_ORIGIN_MODE',

@@ -487,6 +487,7 @@ const SCOPE_LABEL_META: LabelScopeMap = {
             key: 'GRID_GRADIENT_VECTOR_BORDERS_ENABLED',
         },
         'Grid Gradient Border Dots': { key: 'GRID_GRADIENT_BORDER_DOTS_ENABLED' },
+        'Fill Style': { key: 'GRID_GRADIENT_FILL_STYLE' },
         'Grid Gradient Dot Size': { key: 'GRID_GRADIENT_BORDER_DOT_SIZE_PX' },
         'Grid Gradient Dot Style': { key: 'GRID_GRADIENT_BORDER_DOT_STYLE' },
         'Shader Neighbor Mode': { key: 'GRID_GRADIENT_SHADER_NEIGHBOR_MODE' },

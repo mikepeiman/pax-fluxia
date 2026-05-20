@@ -31,12 +31,11 @@ function packHexColor(hex: number, alpha: number, out: Uint8Array, offset: numbe
     out[offset + 3] = Math.round(clamp01(alpha) * 255);
 }
 
-function hashByte(value: string): number {
-    let h = 0x811c9dc5;
-    for (let i = 0; i < value.length; i += 1) {
-        h ^= value.charCodeAt(i);
-        h = Math.imul(h, 0x01000193);
-    }
+function hashCellByte(ix: number, iy: number): number {
+    let h = Math.imul(ix | 0, 374761393) ^ Math.imul(iy | 0, 668265263);
+    h ^= h >>> 13;
+    h = Math.imul(h, 1274126177);
+    h ^= h >>> 16;
     return (h >>> 24) & 0xff;
 }
 
@@ -156,7 +155,7 @@ export function buildGridGradientShaderFieldTexturePlan(
         const flipTime = params.wavePlan.flipTimeByVId.get(v.id) ?? (v.role === 'native' ? 1 : 0);
         metricsTextureData[metricsOffset + 1] = Math.round(clamp01(flipTime) * 255);
         metricsTextureData[metricsOffset + 2] = ROLE_BYTE[v.role] ?? 0;
-        metricsTextureData[metricsOffset + 3] = hashByte(v.id);
+        metricsTextureData[metricsOffset + 3] = hashCellByte(v.ix, v.iy);
 
         if (v.role !== 'native' && v.role !== 'outside') activeTransitionCells += 1;
         if (v.role === 'outside') outsideCells += 1;

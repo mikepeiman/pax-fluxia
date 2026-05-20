@@ -26,6 +26,7 @@ import {
 import {
     buildGridGradientPalette,
     drawGridGradientCell,
+    drawGridGradientSolidFill,
     drawGridGradientVectorBorders,
     type GridGradientPalette,
 } from './paint';
@@ -334,6 +335,8 @@ export class GridGradientFamily implements RenderFamily {
             distanceBuildMs: 0,
             ownerSummaryBuildMs: 0,
         };
+        const pointFillEnabled = settings.fillStyle === 'pointillist';
+        const solidFillEnabled = settings.fillStyle === 'solid';
 
         if (requestedDrawBackend === 'mesh_quads') {
             drawBackend = 'graphics';
@@ -348,7 +351,12 @@ export class GridGradientFamily implements RenderFamily {
             backendFallbackReason = 'webgpu_gl_shader_unavailable';
         }
 
-        if (drawBackend === 'shader_field') {
+        if (solidFillEnabled && drawBackend === 'shader_field') {
+            drawBackend = 'graphics';
+            backendFallbackReason = 'solid_fill_style';
+        }
+
+        if (pointFillEnabled && drawBackend === 'shader_field') {
             try {
                 shaderTextureResult = this.resolveShaderTexturePlan({
                     input,
@@ -399,7 +407,28 @@ export class GridGradientFamily implements RenderFamily {
             this.shaderFieldRenderer.hide();
         }
 
-        if (drawBackend === 'graphics') {
+        if (solidFillEnabled) {
+            const paintStartMs = performance.now();
+            this.fillGraphics.clear();
+            graphicsPaint = {
+                paintedCells: drawGridGradientSolidFill({
+                    graphics: this.fillGraphics,
+                    geometry,
+                    settings,
+                    fillColorByOwnerId: palette.fillColorByOwnerId,
+                }),
+                sceneBuildMs: 0,
+                paintMs: performance.now() - paintStartMs,
+            };
+            this.fillGraphics.visible = true;
+            shaderStats = {
+                ...shaderStats,
+                drawBackend: 'graphics',
+                neighborMode: settings.shaderNeighborMode,
+                totalCells: plan.classification.vstars.length,
+                emittableCells: plan.classification.emittableVstars.length,
+            };
+        } else if (drawBackend === 'graphics') {
             const distanceInputs = this.buildDistanceInputs({
                 plan,
                 palette,
@@ -831,6 +860,7 @@ export class GridGradientFamily implements RenderFamily {
             paintedCells: params.paintedCells,
             borderDotCount: params.borderDotCount,
             vectorBorderCount: params.vectorBorderCount,
+            fillStyle: params.settings.fillStyle,
             cellShape: params.settings.cellShape,
             borderDotStyle: params.settings.borderDotStyle,
             shaderNeighborMode: params.settings.shaderNeighborMode,
@@ -866,6 +896,7 @@ export class GridGradientFamily implements RenderFamily {
             outsideCells: params.outsideCells,
             borderDotCount: params.borderDotCount,
             vectorBorderCount: params.vectorBorderCount,
+            fillStyle: params.settings.fillStyle,
             cellShape: params.settings.cellShape,
             borderDotStyle: params.settings.borderDotStyle,
             borderDotsEnabled: params.settings.borderDotsEnabled,

@@ -26,7 +26,7 @@ This note preserves every Grid Gradient issue and follow-up surfaced by the user
 | 18 | Need a way to blend circles touched by borders or within a configured border range. | Yes | Captured as deferred; the first attempt was removed because it contributed risk in the shader-field path. |
 | 19 | `Border Offset` did not behave correctly; it looked like a subtle alpha adjustment rather than a clear border-offset band. | Yes | Captured and corrected in May 20 notes as a shader discard/exclusion-band fix. |
 | 20 | `Shader Noise` appeared to do nothing. | Partial | Hotfix notes renamed/disabled it unless shape is Noise, but the original complaint was only partially itemized. |
-| 21 | `Shader Pulse` created vertical column grouping; desired effect is organic 2D, not 1D. | Yes | Reopened by user verification after the first attempt still looked column-grouped. Current patch changes shader pulse to layered 2D value noise over cell coordinates instead of using only the packed per-cell seed as the sine phase. |
+| 21 | `Shader Pulse` created vertical column grouping; desired effect is organic 2D, not 1D. | Yes | Reopened by user verification after the first attempt still looked column-grouped. Current patch replaces the smoothed low-frequency phase field with a per-cell two-axis hash using both grid coordinates strongly, moves mark jitter/drift off the single packed seed scalar, and changes packed seed generation from string-id hash to direct `ix,iy` hash. |
 | 22 | `Edge Size` seemed to have the same effect as `Center Size`. | No | Documentation gap corrected here; still needs behavioral verification or control redesign. |
 | 23 | `Shader Mark Softness` seemed identical to `Shader Edge Softness`. | No | Documentation gap corrected here; still needs shader/control semantics verification. |
 | 24 | `Shader Pulse Speed` seemed to have no effect and lacked units. | Yes | Captured; UI now labels it as rad/s, but the visual-effect complaint still needs user verification. |
@@ -42,8 +42,9 @@ This note preserves every Grid Gradient issue and follow-up surfaced by the user
 | 34 | User identified a process failure: when feedback says a feature does not show or regresses, do not broadly discard unverified implementation; trace and fix it forward. | Partial | `.agent/AGENT.md` was updated with the Forward-Fix Rule, but May 20 session notes did not explicitly list the user-surfaced process issue. |
 | 35 | User asked exactly when and why the persistent player-facing shader debug overlay was introduced. | Partial | Cause was documented, but not the exact prompt exchange. It was introduced while responding to the May 16 "Proceed with full implementation..." prompt after external shader-field files were committed and planned. |
 | 36 | Browser-verified screenshot and user's running app disagreed on fill visibility; user later found `Shader Interior Alpha` was set to zero. | No | Documentation gap corrected here; this is a control/readability issue, not just a user setting issue. |
-| 37 | User cannot tell whether pointillist fills are filling correct geometry and requested a toggle between solid geometry fill and pointillist fill. | No | Documentation gap corrected here; implementation pending. |
+| 37 | User cannot tell whether pointillist fills are filling correct geometry and requested a toggle between solid geometry fill and pointillist fill. | No | Implemented after user correctly pointed out the earlier miss. UI path: Grid Gradient controls -> Grid Fill -> Fill Style -> `Pointillist` or `Solid Fill`. |
 | 38 | User asked to process all messages received and not ignore older messages just because new ones came in. | No | Documentation gap corrected here; treat this inventory as the active carry-forward list. |
+| 39 | User noticed another top Grid Gradient control disappeared and asked what it was, why it was removed, and what mechanism caused this pattern. | No | Documentation gap corrected here. The removed top control was the public `Grid Gradient Backend` selector. It was removed from player-facing controls after user objected to the extra backend option; backend state remains in diagnostics/internal fallback. `.agent/AGENT.md` now requires visible-control inventory before removing/hiding/renaming/disabling controls. |
 
 ## Process Correction
 
@@ -51,7 +52,6 @@ The May 20 notes were too implementation-centered. They captured the main fix lo
 
 ## Active Carry-Forward
 
-- Implement the solid-geometry versus pointillist fill switch inside the existing Grid Gradient render-family path.
 - Keep the performance backlog explicit: raw Chrome trace, cell-count measurements, visual-quality target counts, and a refreshed hotspot report.
 - Revisit control semantics after the solid fill verifier exists, especially `Edge Size`, `Shader Mark Softness`, `Shader Interior Alpha`, and color response.
 - Revisit border-proximity blending only after the stable shader-field baseline and geometry-verification toggle are user-verified.
