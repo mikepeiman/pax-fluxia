@@ -256,7 +256,6 @@
         min="0"
         max="2"
         step="0.01"
-        disabled={cellShape !== 'noise'}
         value={shaderNoiseStrength}
         oninput={(event) => {
             writeConfig('GRID_GRADIENT_SHADER_NOISE_STRENGTH', 'gridGradientShaderNoiseStrength', parseFloat((event.target as HTMLInputElement).value));

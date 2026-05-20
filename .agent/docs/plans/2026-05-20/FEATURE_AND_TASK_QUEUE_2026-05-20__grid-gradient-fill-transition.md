@@ -13,6 +13,7 @@
 - Adjust `Shader Pulse`, mark jitter, field drift, and packed seed generation to use two-axis cell hashes after user verification showed the first pulse pass still looked column-grouped.
 - Add `Fill Style` under Grid Gradient controls so the user can switch between `Pointillist` and `Solid Fill` for geometry verification.
 - Align shader-field point fill to the same localized presentation coordinates as solid fill and borders.
+- Keep `Noise Roughness` draggable even when the current mark shape is not `Noise`.
 - Add an agent rule requiring visible control inventory before removing, hiding, renaming, disabling, or making a surfaced control irrelevant.
 
 ## Validation

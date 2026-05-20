@@ -25,7 +25,7 @@ This note preserves every Grid Gradient issue and follow-up surfaced by the user
 | 17 | Need a conquest fill transition for Grid Gradient fills. | Yes | Captured; current implementation uses a conservative color-blend transition over per-cell flip timing. |
 | 18 | Need a way to blend circles touched by borders or within a configured border range. | Yes | Captured as deferred; the first attempt was removed because it contributed risk in the shader-field path. |
 | 19 | `Border Offset` did not behave correctly; it looked like a subtle alpha adjustment rather than a clear border-offset band. | Yes | Captured and corrected in May 20 notes as a shader discard/exclusion-band fix. |
-| 20 | `Shader Noise` appeared to do nothing. | Partial | Hotfix notes renamed/disabled it unless shape is Noise, but the original complaint was only partially itemized. |
+| 20 | `Shader Noise` appeared to do nothing. | Partial | Hotfix notes renamed it to `Noise Roughness`. It only affects `Shape = Noise`; the slider is no longer disabled when another shape is selected. |
 | 21 | `Shader Pulse` created vertical column grouping; desired effect is organic 2D, not 1D. | Yes | Reopened by user verification after the first attempt still looked column-grouped. Current patch replaces the smoothed low-frequency phase field with a per-cell two-axis hash using both grid coordinates strongly, moves mark jitter/drift off the single packed seed scalar, and changes packed seed generation from string-id hash to direct `ix,iy` hash. |
 | 22 | `Edge Size` seemed to have the same effect as `Center Size`. | No | Documentation gap corrected here; still needs behavioral verification or control redesign. |
 | 23 | `Shader Mark Softness` seemed identical to `Shader Edge Softness`. | No | Documentation gap corrected here; still needs shader/control semantics verification. |
@@ -46,6 +46,7 @@ This note preserves every Grid Gradient issue and follow-up surfaced by the user
 | 38 | User asked to process all messages received and not ignore older messages just because new ones came in. | No | Documentation gap corrected here; treat this inventory as the active carry-forward list. |
 | 39 | User noticed another top Grid Gradient control disappeared and asked what it was, why it was removed, and what mechanism caused this pattern. | No | Documentation gap corrected here. The removed top control was the public `Grid Gradient Backend` selector. It was removed from player-facing controls after user objected to the extra backend option; backend state remains in diagnostics/internal fallback. `.agent/AGENT.md` now requires visible-control inventory before removing/hiding/renaming/disabling controls. |
 | 40 | Pure fill and point fill did not use the same coordinates; point fill was mistranslated like the earlier border localization bug. | No | Corrected in shader-field packing/renderer: mesh bounds are local to the presentation frame and the shader uses a separate grid origin derived from classified cell coordinates. Needs user visual verification. |
+| 41 | `Noise Roughness` slider was not draggable. | No | Corrected: the UI no longer disables the slider when Shape is not `Noise`. It remains visually meaningful only for noise-shaped marks. |
 
 ## Process Correction
 
