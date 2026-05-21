@@ -208,12 +208,19 @@ export const gridGradientShaderFieldBitGl = {
                 float nextOwner = unpackOwner(ownerPacked.ba);
                 float distanceBand = metrics.r;
                 float noiseSeed = metrics.a;
-                if (uBorderOffsetPx > 0.001 && distanceBand <= 0.001) {
+                bool transitionRole = role >= 1.5;
+                if (!transitionRole && uBorderOffsetPx > 0.001 && distanceBand <= 0.001) {
                     return vec4(0.0);
                 }
 
-                float distanceT = pow(saturate(distanceBand), max(0.01, uCurvePower));
+                float drawableDistanceBand = transitionRole ? max(distanceBand, 0.18) : distanceBand;
+                float distanceT = pow(saturate(drawableDistanceBand), max(0.01, uCurvePower));
                 float sizePx = mix(uEdgeSizePx, uCenterSizePx, distanceT);
+                if (transitionRole) {
+                    float transitionFloorPx =
+                        min(uCenterSizePx, max(uEdgeSizePx, min(3.0, uSpacingPx * 0.5)));
+                    sizePx = max(sizePx, transitionFloorPx);
+                }
                 float radius = sizePx * 0.5;
 
                 vec2 ownerSalt = vec2(prevOwner * 17.0, nextOwner * 31.0);

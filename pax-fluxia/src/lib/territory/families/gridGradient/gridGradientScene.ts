@@ -76,6 +76,39 @@ export function resolveGridGradientCellSize(
     return edgeSizePx + (centerSizePx - edgeSizePx) * curved;
 }
 
+export function isGridGradientTransitionRole(role: GridVRole): boolean {
+    return role !== 'native' && role !== 'outside';
+}
+
+export function resolveGridGradientTransitionFloorSizePx(params: {
+    readonly spacingPx: number;
+    readonly edgeSizePx: number;
+    readonly centerSizePx: number;
+}): number {
+    const edgeSizePx = Math.max(0.5, params.edgeSizePx);
+    const centerSizePx = Math.max(edgeSizePx, params.centerSizePx);
+    const spacingFloorPx = Math.max(edgeSizePx, Math.min(3, params.spacingPx * 0.5));
+    return Math.min(centerSizePx, spacingFloorPx);
+}
+
+export function resolveGridGradientDrawableCellSize(
+    params: GridGradientSizingParams & {
+        readonly role: GridVRole;
+        readonly spacingPx: number;
+    },
+): number {
+    const baseSizePx = resolveGridGradientCellSize(params);
+    if (!isGridGradientTransitionRole(params.role)) return baseSizePx;
+    return Math.max(
+        baseSizePx,
+        resolveGridGradientTransitionFloorSizePx({
+            spacingPx: params.spacingPx,
+            edgeSizePx: params.edgeSizePx,
+            centerSizePx: params.centerSizePx,
+        }),
+    );
+}
+
 export function resolveGridGradientTransitionScale(params: {
     readonly role: GridVRole;
     readonly alpha: number;

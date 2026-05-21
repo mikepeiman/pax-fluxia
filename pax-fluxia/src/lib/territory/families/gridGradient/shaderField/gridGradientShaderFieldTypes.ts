@@ -58,6 +58,8 @@ export interface GridGradientShaderFieldTexturePlan {
     readonly totalCells: number;
     readonly emittableCells: number;
     readonly activeTransitionCells: number;
+    readonly activeDrawableTransitionCells: number;
+    readonly activeOffsetZoneTransitionCells: number;
     readonly outsideCells: number;
 
     readonly texturePackMs: number;
@@ -88,6 +90,8 @@ export interface GridGradientShaderFieldStats {
     readonly totalCells: number;
     readonly emittableCells: number;
     readonly activeTransitionCells: number;
+    readonly activeDrawableTransitionCells: number;
+    readonly activeOffsetZoneTransitionCells: number;
     readonly outsideCells: number;
     readonly fallbackReason: string | null;
 }

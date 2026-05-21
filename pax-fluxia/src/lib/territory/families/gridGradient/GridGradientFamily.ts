@@ -19,7 +19,8 @@ import {
     buildGridGradientBorderDots,
     buildGridGradientOwnerDistanceSummary,
     buildOwnerIndexByCell,
-    resolveGridGradientCellSize,
+    isGridGradientTransitionRole,
+    resolveGridGradientDrawableCellSize,
     resolveGridGradientTransitionSideAlphas,
     resolveGridGradientTransitionScale,
     type GridGradientOwnerDistanceSummary,
@@ -91,12 +92,16 @@ interface ShaderTextureResolveResult {
 
 interface GraphicsPaintResult {
     readonly paintedCells: number;
+    readonly activeDrawableTransitionCells: number;
+    readonly activeOffsetZoneTransitionCells: number;
     readonly sceneBuildMs: number;
     readonly paintMs: number;
 }
 
 interface RoleCounts {
     readonly activeTransitionCells: number;
+    readonly activeDrawableTransitionCells: number;
+    readonly activeOffsetZoneTransitionCells: number;
     readonly outsideCells: number;
 }
 
@@ -113,6 +118,8 @@ const EMPTY_SHADER_STATS: GridGradientShaderFieldStats = {
     totalCells: 0,
     emittableCells: 0,
     activeTransitionCells: 0,
+    activeDrawableTransitionCells: 0,
+    activeOffsetZoneTransitionCells: 0,
     outsideCells: 0,
     fallbackReason: null,
 };
@@ -329,6 +336,8 @@ export class GridGradientFamily implements RenderFamily {
         let shaderStats: GridGradientShaderFieldStats = EMPTY_SHADER_STATS;
         let graphicsPaint: GraphicsPaintResult = {
             paintedCells: 0,
+            activeDrawableTransitionCells: 0,
+            activeOffsetZoneTransitionCells: 0,
             sceneBuildMs: 0,
             paintMs: 0,
         };
@@ -417,6 +426,8 @@ export class GridGradientFamily implements RenderFamily {
                     settings,
                     fillColorByOwnerId: palette.fillColorByOwnerId,
                 }),
+                activeDrawableTransitionCells: 0,
+                activeOffsetZoneTransitionCells: 0,
                 sceneBuildMs: 0,
                 paintMs: performance.now() - paintStartMs,
             };
@@ -492,6 +503,16 @@ export class GridGradientFamily implements RenderFamily {
             activeTransitionCells:
                 shaderTextureResult?.texturePlan.activeTransitionCells ??
                 roleCounts.activeTransitionCells,
+            activeDrawableTransitionCells:
+                shaderTextureResult?.texturePlan.activeDrawableTransitionCells ??
+                (drawBackend === 'graphics' && pointFillEnabled
+                    ? graphicsPaint.activeDrawableTransitionCells
+                    : roleCounts.activeDrawableTransitionCells),
+            activeOffsetZoneTransitionCells:
+                shaderTextureResult?.texturePlan.activeOffsetZoneTransitionCells ??
+                (drawBackend === 'graphics' && pointFillEnabled
+                    ? graphicsPaint.activeOffsetZoneTransitionCells
+                    : roleCounts.activeOffsetZoneTransitionCells),
             outsideCells:
                 shaderTextureResult?.texturePlan.outsideCells ?? roleCounts.outsideCells,
             borderDotCount,
@@ -544,15 +565,22 @@ export class GridGradientFamily implements RenderFamily {
 
     private countRoles(plan: CachedGridGradientPlan): RoleCounts {
         let activeTransitionCells = 0;
+        let activeDrawableTransitionCells = 0;
         let outsideCells = 0;
         for (const cell of plan.classification.vstars) {
             if (cell.role === 'outside') {
                 outsideCells += 1;
             } else if (cell.role !== 'native') {
                 activeTransitionCells += 1;
+                activeDrawableTransitionCells += 1;
             }
         }
-        return { activeTransitionCells, outsideCells };
+        return {
+            activeTransitionCells,
+            activeDrawableTransitionCells,
+            activeOffsetZoneTransitionCells: 0,
+            outsideCells,
+        };
     }
 
     private buildDistanceInputs(params: {
@@ -682,6 +710,8 @@ export class GridGradientFamily implements RenderFamily {
         const paintStartMs = performance.now();
         this.fillGraphics.clear();
         let paintedCells = 0;
+        let activeDrawableTransitionCells = 0;
+        let activeOffsetZoneTransitionCells = 0;
         for (const cell of params.plan.classification.emittableVstars) {
             const sideAlphas = resolveGridGradientTransitionSideAlphas({
                 role: cell.role,
@@ -690,23 +720,38 @@ export class GridGradientFamily implements RenderFamily {
             if (sideAlphas.prevAlpha <= 0 && sideAlphas.nextAlpha <= 0) continue;
 
             const cellIndex = cell.iy * params.plan.classification.cols + cell.ix;
+            const activeRole = isGridGradientTransitionRole(cell.role);
             const ownerIndex =
                 params.distanceInputs.distanceSummary.ownerIndexByCell[cellIndex];
-            if (ownerIndex < 0) continue;
+            if (ownerIndex < 0 && !activeRole) continue;
             const distancePx =
                 params.distanceInputs.distanceField.nearestBoundaryPxByCell[cellIndex];
-            const sizePx = resolveGridGradientCellSize({
+            const ownerMaxDistancePx =
+                ownerIndex >= 0
+                    ? params.distanceInputs.distanceSummary.ownerMaxDistancePxByIndex[
+                          ownerIndex
+                      ] ?? distancePx
+                    : distancePx;
+            const sizePx = resolveGridGradientDrawableCellSize({
                 distancePx,
-                ownerMaxDistancePx:
-                    params.distanceInputs.distanceSummary.ownerMaxDistancePxByIndex[
-                        ownerIndex
-                    ] ?? distancePx,
+                ownerMaxDistancePx,
                 edgeSizePx: params.settings.edgeSizePx,
                 centerSizePx: params.settings.centerSizePx,
                 curvePower: params.settings.curvePower,
                 borderOffsetPx: params.settings.borderOffsetPx,
+                role: cell.role,
+                spacingPx: params.plan.classification.spacingPx,
             });
             if (sizePx <= 0) continue;
+            if (activeRole) {
+                activeDrawableTransitionCells += 1;
+                if (
+                    params.settings.borderOffsetPx > 0 &&
+                    distancePx < params.settings.borderOffsetPx
+                ) {
+                    activeOffsetZoneTransitionCells += 1;
+                }
+            }
 
             const drawSide = (
                 ownerId: string | null,
@@ -742,6 +787,8 @@ export class GridGradientFamily implements RenderFamily {
 
         return {
             paintedCells,
+            activeDrawableTransitionCells,
+            activeOffsetZoneTransitionCells,
             sceneBuildMs,
             paintMs: performance.now() - paintStartMs,
         };
@@ -844,6 +891,8 @@ export class GridGradientFamily implements RenderFamily {
         readonly shaderStats: GridGradientShaderFieldStats;
         readonly paintedCells: number;
         readonly activeTransitionCells: number;
+        readonly activeDrawableTransitionCells: number;
+        readonly activeOffsetZoneTransitionCells: number;
         readonly outsideCells: number;
         readonly borderDotCount: number;
         readonly vectorBorderCount: number;
@@ -873,6 +922,9 @@ export class GridGradientFamily implements RenderFamily {
             totalCells: params.plan.classification.vstars.length,
             emittableCells: params.plan.classification.emittableVstars.length,
             paintedCells: params.paintedCells,
+            activeTransitionCells: params.activeTransitionCells,
+            activeDrawableTransitionCells: params.activeDrawableTransitionCells,
+            activeOffsetZoneTransitionCells: params.activeOffsetZoneTransitionCells,
             borderDotCount: params.borderDotCount,
             vectorBorderCount: params.vectorBorderCount,
             fillStyle: params.settings.fillStyle,
@@ -908,6 +960,8 @@ export class GridGradientFamily implements RenderFamily {
             emittableCells: params.plan.classification.emittableVstars.length,
             paintedCells: params.paintedCells,
             activeTransitionCells: params.activeTransitionCells,
+            activeDrawableTransitionCells: params.activeDrawableTransitionCells,
+            activeOffsetZoneTransitionCells: params.activeOffsetZoneTransitionCells,
             outsideCells: params.outsideCells,
             borderDotCount: params.borderDotCount,
             vectorBorderCount: params.vectorBorderCount,

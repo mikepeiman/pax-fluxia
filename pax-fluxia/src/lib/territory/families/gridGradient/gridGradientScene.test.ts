@@ -4,6 +4,8 @@ import {
     buildGridGradientBorderDots,
     buildGridGradientNoisePolygon,
     resolveGridGradientCellSize,
+    resolveGridGradientDrawableCellSize,
+    resolveGridGradientTransitionFloorSizePx,
     resolveGridGradientTransitionSideAlphas,
     resolveGridGradientTransitionScale,
 } from './gridGradientScene';
@@ -121,6 +123,39 @@ describe('grid gradient scene helpers', () => {
 
         expect(hidden).toBe(0);
         expect(visible).toBeGreaterThan(0);
+    });
+
+    it('keeps changing cells drawable inside the border offset band', () => {
+        const hiddenNative = resolveGridGradientDrawableCellSize({
+            role: 'native',
+            distancePx: 4,
+            ownerMaxDistancePx: 100,
+            edgeSizePx: 0.5,
+            centerSizePx: 4,
+            curvePower: 2.7,
+            borderOffsetPx: 8,
+            spacingPx: 6,
+        });
+        const visibleTransition = resolveGridGradientDrawableCellSize({
+            role: 'dispossessed',
+            distancePx: 4,
+            ownerMaxDistancePx: 100,
+            edgeSizePx: 0.5,
+            centerSizePx: 4,
+            curvePower: 2.7,
+            borderOffsetPx: 8,
+            spacingPx: 6,
+        });
+
+        expect(hiddenNative).toBe(0);
+        expect(visibleTransition).toBe(
+            resolveGridGradientTransitionFloorSizePx({
+                spacingPx: 6,
+                edgeSizePx: 0.5,
+                centerSizePx: 4,
+            }),
+        );
+        expect(visibleTransition).toBeGreaterThan(2);
     });
 
     it('lets curve power change size progression', () => {

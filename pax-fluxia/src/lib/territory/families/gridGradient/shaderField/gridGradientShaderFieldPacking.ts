@@ -138,6 +138,8 @@ export function buildGridGradientShaderFieldTexturePlan(
     const metricsTextureData = new Uint8Array(totalCells * 4);
 
     let activeTransitionCells = 0;
+    let activeDrawableTransitionCells = 0;
+    let activeOffsetZoneTransitionCells = 0;
     let outsideCells = 0;
 
     for (const v of params.classification.vstars) {
@@ -153,18 +155,25 @@ export function buildGridGradientShaderFieldTexturePlan(
         const ownerIndex = params.ownerIndexByCell[cellIndex] ?? -1;
         const distancePx = params.distanceField.nearestBoundaryPxByCell[cellIndex] ?? 0;
         const maxDistance = ownerIndex >= 0 ? params.ownerMaxDistancePxByIndex[ownerIndex] ?? distancePx : distancePx;
-        metricsTextureData[metricsOffset] = resolveDistanceBand({
+        const distanceBand = resolveDistanceBand({
             distancePx,
             ownerMaxDistancePx: maxDistance,
             borderOffsetPx: params.settings.borderOffsetPx,
         });
+        metricsTextureData[metricsOffset] = distanceBand;
 
         const flipTime = params.wavePlan.flipTimeByVId.get(v.id) ?? (v.role === 'native' ? 1 : 0);
         metricsTextureData[metricsOffset + 1] = Math.round(clamp01(flipTime) * 255);
         metricsTextureData[metricsOffset + 2] = ROLE_BYTE[v.role] ?? 0;
         metricsTextureData[metricsOffset + 3] = hashCellByte(v.ix, v.iy);
 
-        if (v.role !== 'native' && v.role !== 'outside') activeTransitionCells += 1;
+        if (v.role !== 'native' && v.role !== 'outside') {
+            activeTransitionCells += 1;
+            activeDrawableTransitionCells += 1;
+            if (params.settings.borderOffsetPx > 0 && distanceBand <= 0) {
+                activeOffsetZoneTransitionCells += 1;
+            }
+        }
         if (v.role === 'outside') outsideCells += 1;
     }
 
@@ -189,6 +198,8 @@ export function buildGridGradientShaderFieldTexturePlan(
         totalCells,
         emittableCells: params.classification.emittableVstars.length,
         activeTransitionCells,
+        activeDrawableTransitionCells,
+        activeOffsetZoneTransitionCells,
         outsideCells,
         texturePackMs: performance.now() - packStartMs,
         distanceBuildMs: params.distanceBuildMs ?? 0,

@@ -21,6 +21,8 @@ export interface GridGradientStats {
     readonly emittableCells: number;
     readonly paintedCells: number;
     readonly activeTransitionCells: number;
+    readonly activeDrawableTransitionCells: number;
+    readonly activeOffsetZoneTransitionCells: number;
     readonly outsideCells: number;
     readonly borderDotCount: number;
     readonly vectorBorderCount: number;
@@ -86,6 +88,8 @@ const INITIAL: GridGradientStats = {
     emittableCells: 0,
     paintedCells: 0,
     activeTransitionCells: 0,
+    activeDrawableTransitionCells: 0,
+    activeOffsetZoneTransitionCells: 0,
     outsideCells: 0,
     borderDotCount: 0,
     vectorBorderCount: 0,

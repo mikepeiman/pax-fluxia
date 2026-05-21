@@ -82,8 +82,43 @@ describe('buildGridGradientShaderFieldTexturePlan', () => {
         expect(plan.metricsTextureData).toHaveLength(16);
         expect(plan.paletteTextureData).toHaveLength(12);
         expect(plan.activeTransitionCells).toBe(2);
+        expect(plan.activeDrawableTransitionCells).toBe(2);
+        expect(plan.activeOffsetZoneTransitionCells).toBe(0);
         expect(plan.outsideCells).toBe(1);
         expect(resolvePackedOwnerIndexAtProgress({ plan, cellIndex: 1, progress: 0.25 })).toBe(1);
         expect(resolvePackedOwnerIndexAtProgress({ plan, cellIndex: 1, progress: 0.75 })).toBe(2);
+    });
+
+    it('reports transition cells that sit inside the border offset zone', () => {
+        const classification = makeClassification();
+        const plan = buildGridGradientShaderFieldTexturePlan({
+            planKey: 'p1',
+            presentationKey: 'v1',
+            classification,
+            wavePlan: makeWavePlan(),
+            palette: {
+                ownerColorIdx: new Map([['red', 0], ['blue', 1]]),
+                fillHexByColorIdx: [0xff0000, 0x0000ff],
+                fillColorByOwnerId: new Map([['red', 0xff0000], ['blue', 0x0000ff]]),
+                colorByOwnerId: new Map([['red', 0xff0000], ['blue', 0x0000ff]]),
+            },
+            settings: {
+                fillAlpha: 0.5,
+                borderOffsetPx: 8,
+                edgeSizePx: 0.5,
+                centerSizePx: 4,
+                curvePower: 2.7,
+            } as never,
+            distanceField: {
+                nearestBoundaryPxByCell: new Float32Array([0, 5, 10, 0]),
+            } as never,
+            ownerIndexByCell: new Int32Array([0, 1, 1, -1]),
+            ownerMaxDistancePxByIndex: [10, 10],
+            world: { width: 20, height: 20, minX: 100, minY: 50 },
+        });
+
+        expect(plan.activeTransitionCells).toBe(2);
+        expect(plan.activeDrawableTransitionCells).toBe(2);
+        expect(plan.activeOffsetZoneTransitionCells).toBe(1);
     });
 });

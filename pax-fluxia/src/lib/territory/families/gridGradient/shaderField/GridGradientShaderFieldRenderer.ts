@@ -166,6 +166,9 @@ export class GridGradientShaderFieldRenderer {
             totalCells: params.plan.totalCells,
             emittableCells: params.plan.emittableCells,
             activeTransitionCells: params.plan.activeTransitionCells,
+            activeDrawableTransitionCells: params.plan.activeDrawableTransitionCells,
+            activeOffsetZoneTransitionCells:
+                params.plan.activeOffsetZoneTransitionCells,
             outsideCells: params.plan.outsideCells,
             fallbackReason: null,
         };

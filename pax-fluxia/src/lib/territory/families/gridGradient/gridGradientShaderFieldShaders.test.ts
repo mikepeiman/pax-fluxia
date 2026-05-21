@@ -52,6 +52,9 @@ describe('gridGradientShaderFieldBitGl', () => {
         expect(source).toContain('shadeCellSide(');
         expect(source).toContain('1.0 - t');
         expect(source).toContain('radius * scale');
+        expect(source).toContain('bool transitionRole = role >= 1.5;');
+        expect(source).toContain('!transitionRole && uBorderOffsetPx > 0.001');
+        expect(source).toContain('transitionFloorPx');
         expect(source).not.toContain('smoothstep(flipTime - blendWindow');
         expect(source).not.toContain('vec4 color = mix(prevColor, nextColor, t)');
     });
