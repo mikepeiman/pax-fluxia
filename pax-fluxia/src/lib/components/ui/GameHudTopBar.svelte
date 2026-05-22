@@ -96,26 +96,16 @@
     });
 
     const collapsedLeaderboardPlayer = $derived.by(() => {
-        const sortedPlayers = [...players].sort(
-            (left, right) => (right.totalShips ?? 0) - (left.totalShips ?? 0),
-        );
+        const sortedPlayers = [...players].sort((left, right) => (right.totalShips ?? 0) - (left.totalShips ?? 0));
         return sortedPlayers.find((player) => isLocalPlayer(player)) ?? sortedPlayers[0] ?? null;
     });
 
-    const perfLabel = $derived(
-        `${$gameHudStatsStore.fps} FPS | ${$gameHudStatsStore.visualShips.toLocaleString()} ships drawn`,
-    );
+    const perfLabel = $derived(`${$gameHudStatsStore.fps} FPS | ${$gameHudStatsStore.visualShips.toLocaleString()} ships drawn`);
 </script>
 
 <div class="game-hud-topbar" role="toolbar" aria-label="Game quick controls">
     <div class="topbar-brand">
-        <button
-            class="topbar-icon-button"
-            type="button"
-            onclick={onMenuClick}
-            title="Return to menu"
-            aria-label="Return to menu"
-        >
+        <button class="topbar-icon-button" type="button" onclick={onMenuClick} title="Return to menu" aria-label="Return to menu">
             <HudIcon name="menu" />
         </button>
         <div class="brand-mark" aria-hidden="true">
@@ -161,6 +151,11 @@
         </div>
 
         <div class="topbar-actions">
+            <a class="topbar-chip topbar-chip--test" href="/dev/ui-test" title="Open UI layout test">
+                <HudIcon name="diagnostics" />
+                <span>UI test</span>
+            </a>
+
             {#if onSettingsClick}
                 <button
                     type="button"
@@ -253,12 +248,7 @@
         background: rgba(10, 18, 34, 0.82);
         color: var(--hud-text);
         cursor: pointer;
-        transition:
-            transform 0.14s ease,
-            border-color 0.14s ease,
-            background 0.14s ease,
-            color 0.14s ease,
-            box-shadow 0.14s ease;
+        transition: transform 0.14s ease, border-color 0.14s ease, background 0.14s ease, color 0.14s ease, box-shadow 0.14s ease;
     }
 
     .topbar-icon-button:hover,
@@ -388,28 +378,19 @@
     }
 
     .mode-shortcut[data-appearance="pvv4"]::before {
-        background:
-            radial-gradient(circle at 18% 22%, rgba(125, 211, 252, 0.28), transparent 44%),
-            linear-gradient(135deg, rgba(30, 64, 175, 0.88), rgba(15, 23, 42, 0.9));
+        background: radial-gradient(circle at 18% 22%, rgba(125, 211, 252, 0.28), transparent 44%), linear-gradient(135deg, rgba(30, 64, 175, 0.88), rgba(15, 23, 42, 0.9));
     }
 
     .mode-shortcut[data-appearance="perimeter"]::before {
-        background:
-            radial-gradient(circle at 82% 24%, rgba(45, 212, 191, 0.28), transparent 38%),
-            linear-gradient(135deg, rgba(13, 148, 136, 0.88), rgba(15, 23, 42, 0.9));
+        background: radial-gradient(circle at 82% 24%, rgba(45, 212, 191, 0.28), transparent 38%), linear-gradient(135deg, rgba(13, 148, 136, 0.88), rgba(15, 23, 42, 0.9));
     }
 
     .mode-shortcut[data-appearance="metaball"]::before {
-        background:
-            radial-gradient(circle at 22% 76%, rgba(251, 191, 36, 0.28), transparent 38%),
-            linear-gradient(135deg, rgba(180, 83, 9, 0.86), rgba(30, 41, 59, 0.9));
+        background: radial-gradient(circle at 22% 76%, rgba(251, 191, 36, 0.28), transparent 38%), linear-gradient(135deg, rgba(180, 83, 9, 0.86), rgba(30, 41, 59, 0.9));
     }
 
     .mode-shortcut[data-appearance="grid"]::before {
-        background:
-            linear-gradient(90deg, rgba(34, 197, 94, 0.12) 1px, transparent 1px),
-            linear-gradient(rgba(34, 197, 94, 0.12) 1px, transparent 1px),
-            linear-gradient(135deg, rgba(22, 101, 52, 0.92), rgba(15, 23, 42, 0.9));
+        background: linear-gradient(90deg, rgba(34, 197, 94, 0.12) 1px, transparent 1px), linear-gradient(rgba(34, 197, 94, 0.12) 1px, transparent 1px), linear-gradient(135deg, rgba(22, 101, 52, 0.92), rgba(15, 23, 42, 0.9));
         background-size: 8px 8px, 8px 8px, auto;
     }
 
@@ -460,6 +441,7 @@
         letter-spacing: 0.08em;
         text-transform: uppercase;
         white-space: nowrap;
+        text-decoration: none;
     }
 
     .topbar-chip--active {
@@ -501,38 +483,17 @@
     }
 
     @media (max-width: 1540px) {
-        .game-hud-topbar {
-            grid-template-columns: auto minmax(320px, 1fr) auto;
-        }
-
-        .topbar-modes {
-            display: none;
-        }
+        .game-hud-topbar { grid-template-columns: auto minmax(320px, 1fr) auto; }
+        .topbar-modes { display: none; }
     }
 
     @media (max-width: 1260px) {
-        .game-hud-topbar {
-            grid-template-columns: auto minmax(0, 1fr) auto;
-            gap: 10px;
-        }
-
-        .topbar-meta {
-            grid-template-columns: repeat(3, minmax(84px, 1fr));
-        }
-
-        .topbar-meta-item:nth-child(1),
-        .topbar-meta-item:nth-child(3) {
-            display: none;
-        }
-
-        .topbar-kpis {
-            display: none;
-        }
+        .game-hud-topbar { grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; }
+        .topbar-meta { grid-template-columns: repeat(3, minmax(84px, 1fr)); }
+        .topbar-meta-item:nth-child(1), .topbar-meta-item:nth-child(3), .topbar-kpis { display: none; }
     }
 
     @media (max-width: 1024px) {
-        .game-hud-topbar {
-            display: none;
-        }
+        .game-hud-topbar { display: none; }
     }
 </style>

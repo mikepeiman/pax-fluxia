@@ -2,7 +2,7 @@
 
 ## Active
 
-- Catch up the `4b02` HUD/UI redesign worktree with branch and commit protocol after prior work was left uncommitted on a detached HEAD.
+- Continue UI/HUD development on `codex/ui-hud-development`, including test surfaces for external HUD layout work.
 
 ## Completed
 
@@ -13,6 +13,11 @@
 - Planned commits so all existing source and documentation work is included, with no exclusions.
 - Created organized commits for layout shell, settings/theme surfaces, tactical HUD widgets, documentation/handoff history, and validation reporting.
 - Ran `bun run --cwd pax-fluxia check`; it failed with 329 errors and 842 warnings across 66 files.
+- Assessed external HUD layout mockup/design doc from `C:/Users/mikep/Downloads/`.
+- Added an in-game topbar `UI test` link to `/dev/ui-test`.
+- Added `/dev/ui-test` with a back link to `/?showGame=1`.
+- Adapted the external mockup into a local Svelte test harness without Tailwind dependencies or corrupted glyphs.
+- Ran `bun run --cwd pax-fluxia build`; it passed with existing warnings.
 
 ## Commit Plan
 
@@ -26,3 +31,4 @@
 - `git status --short` was clean after the first four commits.
 - `bun run --cwd pax-fluxia check` failed.
 - Representative failures included missing `GameConfigType` keys in `game.config.ts`, map/authored-lane type mismatches in `gameStore.svelte.ts`, corrupted type/import names under `src/lib/territory/orchestrator/`, archived HUD prop type errors, `MainMenu.svelte` missing new command props, and missing `upsertSavedMapDefinition` on `gameStore` in the map editor route.
+- `bun run --cwd pax-fluxia build` passed after adding the UI test route.
