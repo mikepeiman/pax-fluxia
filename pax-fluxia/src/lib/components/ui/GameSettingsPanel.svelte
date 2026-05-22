@@ -87,6 +87,8 @@
         searchSettings,
         type SettingsSearchResult,
     } from "./settings/settingsSearch";
+    import GameThemeManager from "./GameThemeManager.svelte";
+    import HudIcon from "./hud/HudIcon.svelte";
 
     // Aliases for the imported arrays (matches existing template references)
     const logCategories = LOG_CATEGORIES;
@@ -761,11 +763,19 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     interface Props {
         forceOpenSection?: SectionId | null;
         forceOpenSectionNonce?: number;
+        ribbonExpanded?: boolean;
+        onToggleRibbonExpanded?: () => void;
+        dockSide?: "left" | "right";
+        onToggleDockSide?: () => void;
     }
 
     let {
         forceOpenSection = null,
         forceOpenSectionNonce = 0,
+        ribbonExpanded = false,
+        onToggleRibbonExpanded,
+        dockSide = "right",
+        onToggleDockSide,
     }: Props = $props();
 
     const ACTIVE_SECTION_KEY = "pax-fluxia-open-sections";
@@ -1097,7 +1107,11 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 </script>
 
-<div class="controls-panel" use:nudgeSliders>
+<div
+    class="controls-panel"
+    class:controls-panel--ribbon-expanded={ribbonExpanded}
+    class:controls-panel--dock-left={dockSide === "left"}
+    use:nudgeSliders>
     <!-- Tier Toggle (hidden — F-164: show all sections by default) -->
     <div class="tier-bar" style="display: none;">
         {#each ["basic", "advanced", "developer"] as const as tier}
@@ -1115,9 +1129,33 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     </div>
 
     <div class="settings-header-tools">
-        <label class="settings-search-label" for="settings-search-input">
-            Search Settings
-        </label>
+        <div class="settings-search-head">
+            <label class="settings-search-label" for="settings-search-input">
+                Search Settings
+            </label>
+            <div class="settings-ribbon-actions">
+                {#if onToggleRibbonExpanded}
+                    <button
+                        type="button"
+                        class="settings-ribbon-btn"
+                        onclick={onToggleRibbonExpanded}
+                        title={ribbonExpanded ? "Collapse section ribbon" : "Expand section ribbon"}
+                    >
+                        {ribbonExpanded ? "Compact Rail" : "Expand Rail"}
+                    </button>
+                {/if}
+                {#if onToggleDockSide}
+                    <button
+                        type="button"
+                        class="settings-ribbon-btn"
+                        onclick={onToggleDockSide}
+                        title={dockSide === "right" ? "Move controls to left side" : "Move controls to right side"}
+                    >
+                        {dockSide === "right" ? "Dock Left" : "Dock Right"}
+                    </button>
+                {/if}
+            </div>
+        </div>
         <div class="settings-search-row">
             <input
                 id="settings-search-input"
@@ -1142,7 +1180,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                     onclick={clearSettingsSearch}
                     title="Clear search"
                 >
-                    ✕
+                    <HudIcon name="close" size={14} />
                 </button>
             {/if}
         </div>
@@ -1187,14 +1225,14 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 }}
                 title="Export the current game config as JSON"
             >
-                📥 Export JSON
+                <HudIcon name="export" size={15} /> Export JSON
             </button>
             <button
                 class="full-io-btn full-export-btn"
                 onclick={exportConfigMD}
                 title="Export the current game config as Markdown"
             >
-                📄 Export MD
+                <HudIcon name="library" size={15} /> Export MD
             </button>
             <button
                 class="full-io-btn full-import-btn"
@@ -1206,7 +1244,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 }}
                 title="Import a saved game config from JSON"
             >
-                📤 Import JSON
+                <HudIcon name="import" size={15} /> Import JSON
             </button>
             <button
                 class="full-io-btn full-load-map-btn"
@@ -1215,14 +1253,14 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 }}
                 title="Load a saved map and restart the current game"
             >
-                🗺 Load Map
+                <HudIcon name="load-map" size={15} /> Load Map
             </button>
             <button
                 class="full-io-btn full-reset-btn"
                 onclick={resetToDefaults}
                 title="Clear all localStorage and reset to factory defaults (Phase Field Default)"
             >
-                🗑️ Clear All
+                <HudIcon name="reset" size={15} /> Clear All
             </button>
         </div>
         <input
@@ -1260,10 +1298,37 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 {/if}
             </div>
         {/if}
+
+        <div class="settings-theme-utility" id="settings-theme-anchor">
+            <GameThemeManager variant="utility" />
+        </div>
     </div>
 
+    <div class="settings-shell">
     <!-- Icon Toolbar -->
     <div class="icon-toolbar" class:has-active={hasVisibleOpenSections}>
+        <div class="icon-toolbar__controls">
+            {#if onToggleRibbonExpanded}
+                <button
+                    type="button"
+                    class="icon-toolbar-control"
+                    onclick={onToggleRibbonExpanded}
+                    title={ribbonExpanded ? "Collapse section ribbon" : "Expand section ribbon"}
+                >
+                    <HudIcon name={ribbonExpanded ? "chevron-left" : "chevron-right"} size={15} />
+                </button>
+            {/if}
+            {#if onToggleDockSide}
+                <button
+                    type="button"
+                    class="icon-toolbar-control"
+                    onclick={onToggleDockSide}
+                    title={dockSide === "right" ? "Move controls to left side" : "Move controls to right side"}
+                >
+                    <HudIcon name={dockSide === "right" ? "dock-left" : "dock-right"} size={15} />
+                </button>
+            {/if}
+        </div>
         {#each visibleSections as s}
             <button
                 class="icon-btn"
@@ -1274,10 +1339,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 onclick={() => toggleSection(s.id)}
                 title={s.label}
             >
-                <span class="icon-emoji">{s.icon}</span>
-                {#if !hasVisibleOpenSections}
-                    <span class="icon-label">{s.label}</span>
-                {/if}
+                <span class="icon-emoji"><HudIcon name={s.icon} /></span>
+                <span class="icon-label">{s.label}</span>
             </button>
         {/each}
         <button
@@ -1285,21 +1348,31 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             title="Reset All"
             onclick={resetToDefaults}
         >
-            <span class="icon-emoji">↺</span>
-            {#if !hasVisibleOpenSections}
-                <span class="icon-label">Reset</span>
-            {/if}
+            <span class="icon-emoji"><HudIcon name="reset" /></span>
+            <span class="icon-label">Reset</span>
         </button>
     </div>
+
+    <div class="settings-content">
+    {#if !hasVisibleOpenSections}
+        <div class="settings-empty-state">
+            <div class="settings-empty-state__eyebrow">Settings Ribbon</div>
+            <h3 class="settings-empty-state__title">Choose a system to tune.</h3>
+            <p class="settings-empty-state__copy">
+                Use the ribbon to open timing, economy, combat, frontier, or diagnostics controls.
+                Search stays available above if you already know the setting name.
+            </p>
+        </div>
+    {/if}
 
     <!-- Stacked Section Panels -->
     {#each orderedOpenSections as sec (sec.id)}
         <div class="section-panel" style="--accent: {sec.color}">
             <div class="section-head-wrap">
                 <button class="section-head" onclick={() => toggleSection(sec.id)}>
-                    <span class="head-icon">{sec.icon}</span>
+                    <span class="head-icon"><HudIcon name={sec.icon} /></span>
                     <span class="head-label">{sec.label}</span>
-                    <span class="head-close">✕</span>
+                    <span class="head-close"><HudIcon name="close" size={14} /></span>
                 </button>
                 {#if (sectionSubsections[sec.id]?.length ?? 0) > 0}
                     <div class="section-subnav">
@@ -1309,7 +1382,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                             type="button"
                             onclick={() => toggleSubsection(sec.id, "all")}
                         >
-                            <span class="subsection-chip__icon">◌</span>
+                            <span class="subsection-chip__icon"><HudIcon name="phase-field" size={14} /></span>
                             <span>All</span>
                         </button>
                         {#each sectionSubsections[sec.id] ?? [] as subsection}
@@ -1320,7 +1393,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                                 onclick={() => toggleSubsection(sec.id, subsection.id)}
                                 title={subsection.label}
                             >
-                                <span class="subsection-chip__icon">{subsection.icon}</span>
+                                <span class="subsection-chip__icon"><HudIcon name={subsection.icon} size={14} /></span>
                                 <span>{subsection.label}</span>
                             </button>
                         {/each}
@@ -1518,61 +1591,177 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             </div>
         </div>
     {/each}
+    </div>
+    </div>
 </div>
 
 <style>
     .controls-panel {
+        --settings-ribbon-width: 68px;
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        color: #ccc;
-        font-family: inherit;
+        gap: 10px;
+        color: var(--hud-text);
+        font-family: var(--hud-font-ui);
         height: 100%;
         min-height: 0;
     }
 
+    .controls-panel--ribbon-expanded {
+        --settings-ribbon-width: 176px;
+    }
+
+    .settings-shell {
+        flex: 1;
+        min-height: 0;
+        display: grid;
+        grid-template-columns: var(--settings-ribbon-width) minmax(0, 1fr);
+        grid-template-areas: "rail content";
+        gap: 14px;
+        align-items: stretch;
+    }
+
+    .controls-panel--dock-left .settings-shell {
+        grid-template-columns: minmax(0, 1fr) var(--settings-ribbon-width);
+        grid-template-areas: "content rail";
+    }
+
+    .settings-content {
+        grid-area: content;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-height: 0;
+        overflow-y: auto;
+        padding-right: 2px;
+    }
+
+    .settings-empty-state {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-height: 220px;
+        padding: var(--hud-pad-lg);
+        border: 1px solid var(--hud-border);
+        border-radius: var(--hud-radius-md);
+        background: var(--hud-panel-bg);
+        box-shadow: var(--hud-shadow-soft);
+        justify-content: center;
+    }
+
+    .settings-empty-state__eyebrow {
+        font-family: var(--hud-font-ui);
+        font-size: 0.58rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--hud-accent);
+    }
+
+    .settings-empty-state__title {
+        margin: 0;
+        font-family: var(--hud-font-ui);
+        font-size: 1.02rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--hud-text-strong);
+    }
+
+    .settings-empty-state__copy {
+        margin: 0;
+        font-family: var(--hud-font-ui);
+        font-size: 0.82rem;
+        line-height: 1.55;
+        color: var(--hud-text-soft);
+        max-width: 44ch;
+    }
+
     /* ── Icon Toolbar ── */
     .icon-toolbar {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 6px;
-        padding: 4px;
+        grid-area: rail;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 4px 4px 4px 0;
+        min-height: 0;
+        overflow-y: auto;
     }
+
+    .icon-toolbar__controls {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .icon-toolbar-control {
+        width: 100%;
+        min-height: 38px;
+        border: 1px solid var(--hud-border);
+        border-radius: 12px;
+        background: var(--hud-button-bg);
+        color: var(--hud-text-soft);
+        font-family: var(--hud-font-ui);
+        font-size: 0.64rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition:
+            background 0.18s,
+            border-color 0.18s,
+            color 0.18s,
+            transform 0.18s;
+    }
+
+    .icon-toolbar-control:hover {
+        background: var(--hud-button-bg-hover);
+        border-color: var(--hud-border-strong);
+        color: var(--hud-text-strong);
+        transform: translateY(-1px);
+    }
+
     .icon-toolbar.has-active {
-        grid-template-columns: repeat(8, 1fr);
-        gap: 4px;
+        gap: 8px;
     }
     .icon-btn {
         display: flex;
-        flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 4px;
-        padding: 8px 4px;
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 8px;
+        gap: 10px;
+        width: 100%;
+        min-height: 46px;
+        padding: 10px 0;
+        background: rgba(7, 13, 26, 0.78);
+        border: 1px solid var(--hud-border);
+        border-radius: 14px;
         cursor: pointer;
-        color: #aaa;
+        color: var(--hud-text-soft);
         transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        text-align: left;
     }
     .icon-toolbar.has-active .icon-btn {
-        padding: 6px 2px;
-        border-radius: 6px;
+        padding: 10px 0;
+        border-radius: 12px;
+    }
+    .controls-panel--ribbon-expanded .icon-btn,
+    .controls-panel--ribbon-expanded .icon-toolbar.has-active .icon-btn {
+        justify-content: flex-start;
+        padding: 10px 12px;
     }
     .icon-btn:hover {
-        background: rgba(255, 255, 255, 0.08);
-        border-color: var(--accent, #555);
-        color: var(--accent, #fff);
+        background: rgba(14, 24, 43, 0.92);
+        border-color: color-mix(in srgb, var(--accent) 55%, var(--hud-border));
+        color: var(--hud-text-strong);
         transform: translateY(-1px);
-        box-shadow: 0 2px 12px
-            color-mix(in srgb, var(--accent) 30%, transparent);
+        box-shadow: 0 10px 24px
+            color-mix(in srgb, var(--accent) 20%, transparent);
     }
     .icon-btn.active {
-        background: color-mix(in srgb, var(--accent) 15%, transparent);
-        border-color: var(--accent);
-        color: var(--accent);
-        box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 25%, transparent);
+        background: color-mix(in srgb, var(--accent) 13%, rgba(8, 12, 24, 0.9));
+        border-color: color-mix(in srgb, var(--accent) 75%, rgba(255, 255, 255, 0.12));
+        color: var(--hud-text-strong);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
     }
     .icon-btn.search-hit {
         border-color: color-mix(in srgb, var(--accent) 58%, rgba(255, 255, 255, 0.18));
@@ -1582,21 +1771,33 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         opacity: 0.46;
     }
     .icon-emoji {
-        font-size: 22px;
-        line-height: 1;
-        filter: saturate(1.3);
+        width: 20px;
+        height: 20px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
     }
-    .icon-toolbar.has-active .icon-emoji {
-        font-size: 16px;
+
+    .icon-emoji :global(svg) {
+        width: 18px;
+        height: 18px;
     }
+
     .icon-label {
-        font-size: 10px;
-        font-weight: 600;
+        display: none;
+        flex: 1;
+        font-family: var(--hud-font-ui);
+        font-size: 0.62rem;
+        font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
-        opacity: 0.7;
-        text-align: center;
-        line-height: 1.1;
+        letter-spacing: 0.11em;
+        color: inherit;
+        opacity: 0.92;
+        line-height: 1.25;
+    }
+    .controls-panel--ribbon-expanded .icon-label {
+        display: block;
     }
     .reset-icon {
         --accent: #ff5555;
@@ -1607,9 +1808,10 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
 
     /* ── Section Panel ── */
     .section-panel {
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 8px;
+        background: var(--hud-panel-bg);
+        border: 1px solid var(--hud-border);
+        border-radius: var(--hud-radius-md);
+        box-shadow: var(--hud-shadow-soft);
         overflow: hidden;
         animation: slideIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         flex: 1;
@@ -1623,8 +1825,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .section-head-wrap {
         display: flex;
         flex-direction: column;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-        background: color-mix(in srgb, var(--accent) 9%, transparent);
+        border-bottom: 1px solid var(--hud-divider);
+        background: color-mix(in srgb, var(--accent) 8%, rgba(5, 9, 20, 0.45));
     }
     @keyframes slideIn {
         from {
@@ -1656,30 +1858,36 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         align-items: center;
         gap: 8px;
         width: 100%;
-        padding: 10px 12px 8px;
+        padding: 12px 14px 10px;
         background: transparent;
         border: none;
         cursor: pointer;
         color: var(--accent);
-        font-family: inherit;
+        font-family: var(--hud-font-ui);
         transition: background 0.15s;
     }
     .section-head:hover {
         background: color-mix(in srgb, var(--accent) 18%, transparent);
     }
     .head-icon {
-        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
     }
     .head-label {
         flex: 1;
-        font-size: 15px;
+        font-size: 0.84rem;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 1.1px;
+        letter-spacing: 0.09em;
         text-align: left;
     }
     .head-close {
-        font-size: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         opacity: 0.5;
         transition: opacity 0.15s;
     }
@@ -1688,7 +1896,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     .section-body {
-        padding: 10px;
+        padding: 12px;
         display: flex;
         flex-direction: column;
         gap: 10px;
@@ -1709,10 +1917,11 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         min-height: 30px;
         padding: 0 12px;
         border-radius: 999px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(7, 12, 24, 0.45);
-        color: rgba(226, 232, 240, 0.84);
-        font-size: 10px;
+        border: 1px solid var(--hud-border);
+        background: rgba(7, 12, 24, 0.62);
+        color: var(--hud-text);
+        font-family: var(--hud-font-ui);
+        font-size: 0.6rem;
         font-weight: 700;
         letter-spacing: 0.1em;
         text-transform: uppercase;
@@ -1930,17 +2139,60 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .settings-header-tools {
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        padding: 8px 10px 10px;
+        gap: 10px;
+        padding: 10px 10px 12px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        background:
+            linear-gradient(180deg, rgba(10, 15, 28, 0.86), rgba(8, 12, 22, 0.72)),
+            rgba(255, 255, 255, 0.02);
+        border-radius: 12px;
+    }
+
+    .settings-search-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
     }
 
     .settings-search-label {
-        font-size: 11px;
+        font-family: var(--hud-font-ui);
+        font-size: 0.58rem;
         font-weight: 700;
-        letter-spacing: 0.12em;
+        letter-spacing: 0.16em;
         text-transform: uppercase;
-        color: rgba(226, 232, 240, 0.74);
+        color: var(--hud-accent);
+    }
+
+    .settings-ribbon-actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    .settings-ribbon-btn {
+        border: 1px solid var(--hud-border);
+        border-radius: 999px;
+        background: var(--hud-button-bg);
+        color: var(--hud-text-soft);
+        padding: 5px 10px;
+        font-family: var(--hud-font-ui);
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition:
+            background 0.18s,
+            border-color 0.18s,
+            color 0.18s;
+    }
+
+    .settings-ribbon-btn:hover {
+        background: var(--hud-button-bg-hover);
+        border-color: var(--hud-border-strong);
+        color: var(--hud-text-strong);
     }
 
     .settings-search-row {
@@ -1952,31 +2204,32 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .settings-search-input {
         flex: 1;
         min-width: 0;
-        padding: 10px 12px;
-        border: 1px solid rgba(148, 163, 184, 0.24);
-        border-radius: 10px;
-        background: rgba(15, 23, 42, 0.66);
-        color: #f8fafc;
-        font-size: 13px;
+        padding: 11px 14px;
+        border: 1px solid var(--hud-border);
+        border-radius: 14px;
+        background: rgba(9, 16, 31, 0.88);
+        color: var(--hud-text-strong);
+        font-family: var(--hud-font-ui);
+        font-size: 0.84rem;
     }
 
     .settings-search-input:focus {
         outline: none;
-        border-color: rgba(96, 165, 250, 0.68);
-        box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.18);
+        border-color: var(--hud-border-strong);
+        box-shadow: 0 0 0 1px rgba(94, 230, 255, 0.16);
     }
 
     .settings-search-input::placeholder {
-        color: rgba(148, 163, 184, 0.74);
+        color: var(--hud-text-dim);
     }
 
     .settings-search-clear {
         width: 34px;
         height: 34px;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        border-radius: 8px;
-        background: rgba(255, 255, 255, 0.05);
-        color: rgba(226, 232, 240, 0.74);
+        border: 1px solid var(--hud-border);
+        border-radius: 12px;
+        background: var(--hud-button-bg);
+        color: var(--hud-text-soft);
         cursor: pointer;
         transition:
             background 0.18s,
@@ -1985,9 +2238,9 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     .settings-search-clear:hover {
-        background: rgba(255, 255, 255, 0.08);
-        border-color: rgba(255, 255, 255, 0.24);
-        color: #fff;
+        background: var(--hud-button-bg-hover);
+        border-color: var(--hud-border-strong);
+        color: var(--hud-text-strong);
     }
 
     .settings-search-results {
@@ -2000,20 +2253,22 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     .settings-search-summary {
-        font-size: 10px;
+        font-family: var(--hud-font-ui);
+        font-size: 0.58rem;
         font-weight: 700;
-        letter-spacing: 0.08em;
+        letter-spacing: 0.16em;
         text-transform: uppercase;
-        color: rgba(148, 163, 184, 0.88);
+        color: var(--hud-text-soft);
     }
 
     .settings-search-empty {
         padding: 10px 12px;
-        border: 1px solid rgba(148, 163, 184, 0.14);
-        border-radius: 10px;
-        background: rgba(15, 23, 42, 0.42);
-        color: rgba(203, 213, 225, 0.78);
-        font-size: 12px;
+        border: 1px solid var(--hud-border);
+        border-radius: 14px;
+        background: rgba(9, 16, 31, 0.72);
+        color: var(--hud-text-soft);
+        font-family: var(--hud-font-ui);
+        font-size: 0.76rem;
         line-height: 1.45;
     }
 
@@ -2024,10 +2279,10 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         gap: 4px;
         width: 100%;
         padding: 10px 12px;
-        border: 1px solid rgba(148, 163, 184, 0.14);
-        border-radius: 10px;
-        background: rgba(15, 23, 42, 0.46);
-        color: #e2e8f0;
+        border: 1px solid var(--hud-border);
+        border-radius: 14px;
+        background: rgba(9, 16, 31, 0.78);
+        color: var(--hud-text);
         cursor: pointer;
         text-align: left;
         transition:
@@ -2037,28 +2292,35 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     .settings-search-result:hover {
-        background: rgba(30, 41, 59, 0.8);
-        border-color: rgba(96, 165, 250, 0.34);
+        background: rgba(14, 24, 43, 0.94);
+        border-color: var(--hud-border-strong);
         transform: translateY(-1px);
     }
 
     .settings-search-result__title {
-        font-size: 12px;
+        font-family: var(--hud-font-ui);
+        font-size: 0.76rem;
         font-weight: 700;
-        color: #f8fafc;
+        color: var(--hud-text-strong);
     }
 
     .settings-search-result__meta {
-        font-size: 10px;
-        letter-spacing: 0.06em;
+        font-family: var(--hud-font-ui);
+        font-size: 0.56rem;
+        letter-spacing: 0.14em;
         text-transform: uppercase;
-        color: #93c5fd;
+        color: var(--hud-accent);
     }
 
     .settings-search-result__snippet {
-        font-size: 11px;
+        font-family: var(--hud-font-ui);
+        font-size: 0.68rem;
         line-height: 1.4;
-        color: rgba(203, 213, 225, 0.8);
+        color: var(--hud-text-soft);
+    }
+
+    .settings-theme-utility {
+        min-width: 0;
     }
 
     .settings-utility-row {
@@ -2068,24 +2330,36 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
     .full-io-btn {
         flex: 1 1 140px;
-        padding: 3px 8px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 6px;
-        background: rgba(255, 255, 255, 0.04);
-        color: #aaa;
-        font-size: 11px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 34px;
+        padding: 0 12px;
+        border: 1px solid var(--hud-border);
+        border-radius: 12px;
+        background: var(--hud-button-bg);
+        color: var(--hud-text);
+        font-family: var(--hud-font-ui);
+        font-size: 0.64rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
         cursor: pointer;
         transition: all 0.15s;
     }
     .full-io-btn:hover {
-        background: rgba(255, 255, 255, 0.08);
-        border-color: rgba(255, 255, 255, 0.2);
-        color: #fff;
+        background: var(--hud-button-bg-hover);
+        border-color: var(--hud-border-strong);
+        color: var(--hud-text-strong);
     }
     .settings-utility-status {
         margin-top: 4px;
-        font-size: 10px;
+        font-family: var(--hud-font-ui);
+        font-size: 0.6rem;
         line-height: 1.35;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
     }
     .full-export-btn {
         border-color: rgba(74, 222, 128, 0.22);
@@ -2177,6 +2451,41 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     /* ── Nudge slider buttons (injected via nudgeSliders action) ── */
+    @media (max-width: 720px) {
+        .settings-shell {
+            grid-template-columns: 1fr;
+            grid-template-areas:
+                "rail"
+                "content";
+        }
+
+        .icon-toolbar {
+            flex-direction: row;
+            flex-wrap: wrap;
+            padding: 0;
+        }
+
+        .icon-toolbar__controls {
+            flex-direction: row;
+            flex: 1 1 100%;
+        }
+
+        .icon-btn {
+            flex: 1 1 140px;
+            justify-content: flex-start;
+            padding: 10px 12px;
+        }
+
+        .icon-label {
+            display: block;
+        }
+
+        .settings-content {
+            overflow: visible;
+            padding-right: 0;
+        }
+    }
+
     :global(.nudge-slider-wrap) {
         display: flex;
         align-items: center;

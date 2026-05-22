@@ -10,6 +10,7 @@
     idBase?: string;
     labelledBy?: string;
     variant?: "default" | "shell";
+    showGroupLabels?: boolean;
     getThemeOptionLabel: (theme: GameTheme) => string;
     onSelectTheme: (name: string) => void;
   }
@@ -31,6 +32,7 @@
     idBase = "theme-select-dropdown",
     labelledBy,
     variant = "default",
+    showGroupLabels = true,
     getThemeOptionLabel,
     onSelectTheme,
   }: Props = $props();
@@ -264,9 +266,11 @@
           class="theme-select-dropdown__group"
           role="group"
           aria-label={`${group.label} (${group.options.length})`}>
-          <div class="theme-select-dropdown__group-label">
-            {group.label} ({group.options.length})
-          </div>
+          {#if showGroupLabels}
+            <div class="theme-select-dropdown__group-label">
+              {group.label} ({group.options.length})
+            </div>
+          {/if}
 
           {#each group.options as option}
             <button
@@ -313,16 +317,18 @@
     justify-content: space-between;
     gap: 10px;
     width: 100%;
-    min-height: 32px;
+    min-height: 38px;
     min-width: 0;
     box-sizing: border-box;
-    background: rgba(255, 255, 255, 0.06);
-    color: #ccc;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 6px;
+    background: rgba(9, 16, 31, 0.88);
+    color: var(--hud-text);
+    border: 1px solid var(--hud-border);
+    border-radius: 14px;
     padding: 0 12px;
-    font-size: 13px;
-    font-family: inherit;
+    font-size: 0.82rem;
+    font-family: var(--hud-font-ui);
+    font-weight: 700;
+    letter-spacing: 0.03em;
     cursor: pointer;
     outline: none;
     text-align: left;
@@ -333,13 +339,14 @@
   }
 
   .theme-select-dropdown__trigger:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.25);
+    background: rgba(14, 24, 43, 0.94);
+    border-color: var(--hud-border-strong);
+    color: var(--hud-text-strong);
   }
 
   .theme-select-dropdown__trigger:focus-visible {
-    border-color: #4ade80;
-    box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.2);
+    border-color: var(--hud-border-strong);
+    box-shadow: 0 0 0 1px rgba(94, 230, 255, 0.18);
   }
 
   .theme-select-dropdown__trigger:disabled {
@@ -359,7 +366,7 @@
     flex: 0 0 auto;
     width: 12px;
     height: 12px;
-    color: #8892a8;
+    color: var(--hud-text-soft);
   }
 
   .theme-select-dropdown__chevron::before {
@@ -389,13 +396,13 @@
     max-width: 100%;
     box-sizing: border-box;
     z-index: 20;
-    max-height: min(420px, 50vh);
+    max-height: min(320px, 42vh);
     overflow: auto;
     overscroll-behavior: contain;
-    background: #151a25;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 8px;
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+    background: rgba(5, 10, 22, 0.98);
+    border: 1px solid var(--hud-border);
+    border-radius: 16px;
+    box-shadow: var(--hud-shadow);
     padding: 6px;
     outline: none;
   }
@@ -403,54 +410,57 @@
   .theme-select-dropdown__group + .theme-select-dropdown__group {
     margin-top: 8px;
     padding-top: 8px;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid var(--hud-divider);
   }
 
   .theme-select-dropdown__group-label {
     padding: 6px 8px;
-    color: #7dd3fc;
-    font-size: 11px;
+    color: var(--hud-accent);
+    font-family: var(--hud-font-ui);
+    font-size: 0.58rem;
     font-weight: 700;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
   }
 
   .theme-select-dropdown__option {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
     gap: 10px;
     width: 100%;
     min-width: 0;
     box-sizing: border-box;
     background: transparent;
-    color: #eee;
+    color: var(--hud-text);
     border: 0;
-    border-radius: 6px;
-    padding: 8px 10px;
+    border-radius: 12px;
+    padding: 10px 12px;
     text-align: left;
     cursor: pointer;
     transition:
       background 0.15s,
-      color 0.15s;
+      color 0.15s,
+      border-color 0.15s;
   }
 
   .theme-select-dropdown__option:hover,
   .theme-select-dropdown__option.is-active {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(14, 24, 43, 0.94);
+    color: var(--hud-text-strong);
   }
 
   .theme-select-dropdown__option.is-selected {
-    background: rgba(74, 222, 128, 0.12);
-    color: #d9ffe7;
+    background: rgba(255, 200, 107, 0.14);
+    color: var(--hud-accent-warm);
   }
 
   .theme-select-dropdown__option-text {
     flex: 1 1 auto;
     min-width: 0;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    word-break: break-word;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     line-height: 1.25;
   }
 
@@ -460,7 +470,7 @@
     height: 10px;
     margin-top: 4px;
     border-radius: 999px;
-    border: 1px solid rgba(74, 222, 128, 0.55);
+    border: 1px solid rgba(255, 200, 107, 0.55);
     background: transparent;
     opacity: 0;
     transition: opacity 0.15s ease;
@@ -468,45 +478,44 @@
 
   .theme-select-dropdown__option-indicator.visible {
     opacity: 1;
-    background: #4ade80;
-    box-shadow: 0 0 8px rgba(74, 222, 128, 0.4);
+    background: var(--hud-accent-warm);
+    box-shadow: 0 0 8px rgba(255, 200, 107, 0.35);
   }
 
   .theme-select-dropdown--shell .theme-select-dropdown__trigger {
-    background: rgba(20, 20, 35, 0.9);
-    color: #fff;
-    border-color: rgba(255, 200, 60, 0.3);
-    font-family: "Montserrat", sans-serif;
-    font-size: 0.8rem;
-    font-weight: 600;
+    background: rgba(11, 18, 34, 0.92);
+    color: var(--hud-text-strong);
+    border-color: var(--hud-border-warm);
+    font-size: 0.82rem;
+    font-weight: 700;
   }
 
   .theme-select-dropdown--shell .theme-select-dropdown__trigger:hover {
-    background: rgba(28, 28, 46, 0.94);
-    border-color: rgba(255, 200, 60, 0.55);
+    background: rgba(18, 28, 48, 0.96);
+    border-color: rgba(255, 200, 107, 0.55);
   }
 
   .theme-select-dropdown--shell .theme-select-dropdown__trigger:focus-visible {
-    border-color: rgba(255, 200, 60, 0.75);
-    box-shadow: 0 0 0 1px rgba(255, 200, 60, 0.22);
+    border-color: rgba(255, 200, 107, 0.75);
+    box-shadow: 0 0 0 1px rgba(255, 200, 107, 0.18);
   }
 
   .theme-select-dropdown--shell .theme-select-dropdown__chevron {
-    color: rgba(255, 220, 120, 0.8);
+    color: rgba(255, 220, 120, 0.88);
   }
 
   .theme-select-dropdown--shell .theme-select-dropdown__menu {
-    background: rgba(12, 14, 28, 0.98);
-    border-color: rgba(255, 200, 60, 0.25);
-    box-shadow: 0 16px 34px rgba(0, 0, 0, 0.45);
+    background: rgba(7, 12, 24, 0.98);
+    border-color: rgba(255, 200, 107, 0.24);
+    box-shadow: var(--hud-shadow);
   }
 
   .theme-select-dropdown--shell .theme-select-dropdown__group + .theme-select-dropdown__group {
-    border-top-color: rgba(255, 255, 255, 0.06);
+    border-top-color: rgba(255, 200, 107, 0.12);
   }
 
   .theme-select-dropdown--shell .theme-select-dropdown__group-label {
-    color: rgba(255, 210, 110, 0.9);
+    color: rgba(255, 210, 110, 0.92);
   }
 
   .theme-select-dropdown--shell .theme-select-dropdown__option:hover,

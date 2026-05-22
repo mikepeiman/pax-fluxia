@@ -2,15 +2,15 @@
   import {
     auditThemeRouting,
     groupThemesByRenderFamily,
-    type ThemeFamilyGroup,
     type ThemeRoutingStatus,
   } from "$lib/config/themeRouting";
   import type { GameTheme } from "$lib/config/themes";
   import { themeStore } from "$lib/stores/themeStore.svelte";
   import ThemeSelectDropdown from "./settings/ThemeSelectDropdown.svelte";
+  import HudIcon from "./hud/HudIcon.svelte";
 
   interface Props {
-    variant?: "menu" | "drawer";
+    variant?: "menu" | "drawer" | "utility";
   }
 
   let { variant = "menu" }: Props = $props();
@@ -30,11 +30,22 @@
     groupThemesByRenderFamily(themeStore.allThemes as GameTheme[]),
   );
 
+  let libraryThemes = $derived.by(() =>
+    [...(themeStore.allThemes as GameTheme[])].sort((left, right) => {
+      const leftTime = Date.parse(left.created ?? "");
+      const rightTime = Date.parse(right.created ?? "");
+      const safeLeft = Number.isFinite(leftTime) ? leftTime : 0;
+      const safeRight = Number.isFinite(rightTime) ? rightTime : 0;
+      if (safeRight !== safeLeft) return safeRight - safeLeft;
+      return left.name.localeCompare(right.name);
+    }),
+  );
+
   const THEME_STATUS_LABELS: Record<ThemeRoutingStatus, string> = {
     wired: "wired",
-    "compat-inferred": "compat inferred",
+    "compat-inferred": "compat",
     agnostic: "agnostic",
-    "needs-editing": "needs edit",
+    "needs-editing": "edit",
   };
 
   function getThemeAudit(theme: GameTheme) {
@@ -66,29 +77,9 @@
     }
   }
 
-  function getThemeChipTitle(theme: GameTheme): string {
+  function getThemeChipTitle(theme: GameTheme) {
     const audit = getThemeAudit(theme);
     return `${audit.familyLabel}: ${audit.notes.join(" ")}`;
-  }
-
-  function getThemeGroupSummary(group: ThemeFamilyGroup<GameTheme>): string {
-    const counts: Partial<Record<ThemeRoutingStatus, number>> = {};
-    for (const theme of group.themes) {
-      const status = getThemeAudit(theme).status;
-      counts[status] = (counts[status] ?? 0) + 1;
-    }
-    return [
-      counts.wired ? `${counts.wired} wired` : "",
-      counts["compat-inferred"]
-        ? `${counts["compat-inferred"]} compat inferred`
-        : "",
-      counts["needs-editing"]
-        ? `${counts["needs-editing"]} needs edit`
-        : "",
-      counts.agnostic ? `${counts.agnostic} agnostic` : "",
-    ]
-      .filter(Boolean)
-      .join(" · ");
   }
 
   function setStatus(
@@ -177,490 +168,456 @@
 
 <div
   class="game-theme-manager"
-  class:game-theme-manager--drawer={variant === "drawer"}>
+  class:game-theme-manager--drawer={variant === "drawer"}
+  class:game-theme-manager--utility={variant === "utility"}>
   <div class="game-theme-manager__header">
-    <span class="game-theme-manager__icon">🎨</span>
-    <span class="game-theme-manager__title">Theme</span>
-    <button
-      type="button"
-      class="game-theme-manager__toggle"
-      onclick={() => {
-        showThemeChips = !showThemeChips;
-      }}>
-      {showThemeChips ? "Hide Library" : "Browse Library"}
-    </button>
-  </div>
-
-  <div class="game-theme-manager__top-row">
-    <div class="game-theme-manager__actions" class:hidden={showSaveInput}>
-      <ThemeSelectDropdown
-        idBase={variant === "drawer" ? "mobile-theme-manager" : "menu-theme-manager"}
-        variant="shell"
-        {themeFamilyGroups}
-        {selectedThemeName}
-        placeholder="Select theme..."
-        getThemeOptionLabel={getThemeOptionLabel}
-        onSelectTheme={handleApplyTheme} />
-      {#if selectedThemeName}
-        <button
-          type="button"
-          class="theme-manager-btn theme-manager-btn--update"
-          class:flash={saveFlash}
-          disabled={!selectedThemeIsUserTheme}
-          onclick={handleUpdateTheme}
-          title={selectedThemeIsUserTheme
-            ? `Update ${selectedThemeName} with current settings`
-            : "Built-in themes cannot be overwritten. Use Add to save a new theme."}>
-          Update
-        </button>
-      {/if}
-      <button
-        type="button"
-        class="theme-manager-btn"
-        onclick={() => {
-          showSaveInput = true;
-        }}
-        title="Create a new theme from the current game settings">
-        Add
-      </button>
+    <div class="game-theme-manager__title-block">
+      <span class="game-theme-manager__eyebrow">Theme</span>
+      <span class="game-theme-manager__title">Library</span>
     </div>
 
-    <div class="game-theme-manager__save-row" class:open={showSaveInput}>
-      <input
-        class="game-theme-manager__save-input"
-        type="text"
-        placeholder="Theme name..."
-        bind:value={saveName}
-        onkeydown={(event) => {
-          if (event.key === "Enter") handleSaveTheme();
-          if (event.key === "Escape") {
-            showSaveInput = false;
-            saveName = "";
-          }
-        }} />
+    <div class="game-theme-manager__header-actions">
       <button
         type="button"
-        class="theme-manager-btn theme-manager-btn--ghost"
+        class="theme-manager-toggle"
         onclick={() => {
-          showSaveInput = false;
-          saveName = "";
+          showThemeChips = !showThemeChips;
         }}>
-        Cancel
+        <HudIcon name="library" size={15} />
+        <span>{showThemeChips ? "Hide Library" : "Browse Library"}</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="game-theme-manager__body">
+    <div class="game-theme-manager__top-row">
+      {#if !showSaveInput}
+        <div class="game-theme-manager__actions">
+          <ThemeSelectDropdown
+            idBase={variant === "drawer" ? "mobile-theme-manager" : "menu-theme-manager"}
+            variant="shell"
+            {themeFamilyGroups}
+            {selectedThemeName}
+            placeholder="Select theme..."
+            showGroupLabels={false}
+            getThemeOptionLabel={getThemeOptionLabel}
+            onSelectTheme={handleApplyTheme} />
+
+          {#if selectedThemeName}
+            <button
+              type="button"
+              class="theme-manager-btn theme-manager-btn--accent"
+              class:flash={saveFlash}
+              disabled={!selectedThemeIsUserTheme}
+              onclick={handleUpdateTheme}
+              title={selectedThemeIsUserTheme
+                ? `Update ${selectedThemeName} with current settings`
+                : "Built-in themes cannot be overwritten. Use Add to save a new theme."}>
+              <HudIcon name="reset" size={15} />
+              <span>Update</span>
+            </button>
+          {/if}
+
+          <button
+            type="button"
+            class="theme-manager-btn"
+            onclick={() => {
+              showSaveInput = true;
+            }}
+            title="Create a new theme from the current game settings">
+            <HudIcon name="add" size={15} />
+            <span>Add</span>
+          </button>
+        </div>
+      {:else}
+        <div class="game-theme-manager__save-row">
+          <input
+            class="game-theme-manager__save-input"
+            type="text"
+            placeholder="Theme name..."
+            bind:value={saveName}
+            onkeydown={(event) => {
+              if (event.key === "Enter") handleSaveTheme();
+              if (event.key === "Escape") {
+                showSaveInput = false;
+                saveName = "";
+              }
+            }} />
+          <button
+            type="button"
+            class="theme-manager-btn theme-manager-btn--ghost"
+            onclick={() => {
+              showSaveInput = false;
+              saveName = "";
+            }}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="theme-manager-btn theme-manager-btn--accent"
+            class:flash={saveFlash}
+            onclick={handleSaveTheme}>
+            Save
+          </button>
+        </div>
+      {/if}
+    </div>
+
+    <div class="game-theme-manager__utility-row">
+      <button
+        type="button"
+        class="theme-manager-mini-btn"
+        onclick={handleExportTheme}>
+        <HudIcon name="export" size={14} />
+        <span>Export</span>
       </button>
       <button
         type="button"
-        class="theme-manager-btn theme-manager-btn--confirm"
-        class:flash={saveFlash}
-        onclick={handleSaveTheme}>
-        Save
+        class="theme-manager-mini-btn"
+        onclick={handleImportTheme}>
+        <HudIcon name="import" size={14} />
+        <span>Import</span>
       </button>
     </div>
+
+    {#if statusMessage}
+      <div class={`game-theme-manager__status game-theme-manager__status--${statusTone}`}>
+        {statusMessage}
+      </div>
+    {/if}
+
+    {#if showThemeChips}
+      <div class="theme-library-list">
+        {#each libraryThemes as theme}
+          {@const routing = getThemeAudit(theme)}
+          <button
+            type="button"
+            class="theme-chip theme-chip--list"
+            class:active={themeStore.selectedThemeName === theme.name}
+            onclick={() => handleApplyTheme(theme.name)}
+            title={getThemeChipTitle(theme)}>
+            <span class={`theme-chip-status ${getThemeStatusClass(routing.status)}`}>
+              {THEME_STATUS_LABELS[routing.status]}
+            </span>
+            <span class="theme-chip-name">{theme.name}</span>
+            {#if themeStore.isUserTheme(theme.name)}
+              <span
+                role="button"
+                tabindex="0"
+                class="theme-chip-delete"
+                onclick={(event) => {
+                  event.stopPropagation();
+                  handleDeleteTheme(theme.name);
+                }}
+                onkeydown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    handleDeleteTheme(theme.name);
+                  }
+                }}>
+                <HudIcon name="close" size={12} />
+              </span>
+            {/if}
+          </button>
+        {/each}
+      </div>
+    {/if}
   </div>
-
-  <div class="game-theme-manager__utility-row">
-    <button
-      type="button"
-      class="theme-manager-mini-btn"
-      onclick={handleExportTheme}>
-      Export
-    </button>
-    <button
-      type="button"
-      class="theme-manager-mini-btn"
-      onclick={handleImportTheme}>
-      Import
-    </button>
-  </div>
-
-  {#if statusMessage}
-    <div class={`game-theme-manager__status game-theme-manager__status--${statusTone}`}>
-      {statusMessage}
-    </div>
-  {/if}
-
-  {#if showThemeChips}
-    <div class="theme-family-groups">
-      {#each themeFamilyGroups as group}
-        <section class="theme-family-section">
-          <div class="theme-family-header">
-            <div class="theme-family-title-row">
-              <span class="theme-family-name">{group.label}</span>
-              <span class="theme-family-count">{group.themes.length}</span>
-            </div>
-            <p class="theme-family-description">{group.description}</p>
-            <p class="theme-family-summary">{getThemeGroupSummary(group)}</p>
-          </div>
-          <div class="theme-chip-row">
-            {#each group.themes as theme}
-              {@const routing = getThemeAudit(theme)}
-              <button
-                type="button"
-                class="theme-chip"
-                class:active={themeStore.selectedThemeName === theme.name}
-                onclick={() => handleApplyTheme(theme.name)}
-                title={getThemeChipTitle(theme)}>
-                <span class={`theme-chip-status ${getThemeStatusClass(routing.status)}`}>
-                  {THEME_STATUS_LABELS[routing.status]}
-                </span>
-                <span class="theme-chip-name">{theme.name}</span>
-                {#if themeStore.isUserTheme(theme.name)}
-                  <span
-                    role="button"
-                    tabindex="0"
-                    class="theme-chip-delete"
-                    onclick={(event) => {
-                      event.stopPropagation();
-                      handleDeleteTheme(theme.name);
-                    }}
-                    onkeydown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        handleDeleteTheme(theme.name);
-                      }
-                    }}>&times;</span>
-                {/if}
-              </button>
-            {/each}
-          </div>
-        </section>
-      {/each}
-    </div>
-  {/if}
 </div>
 
 <style>
   .game-theme-manager {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+    display: grid;
+    gap: 10px;
     width: 100%;
-    padding: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
-    background:
-      linear-gradient(180deg, rgba(17, 24, 39, 0.9), rgba(8, 12, 20, 0.92)),
-      rgba(255, 255, 255, 0.02);
     min-width: 0;
+    padding: var(--hud-pad-sm);
+    border: 1px solid var(--hud-border);
+    border-radius: var(--hud-radius-md);
+    background: var(--hud-panel-bg);
+    box-shadow: var(--hud-shadow-soft);
   }
 
   .game-theme-manager--drawer {
-    width: 100%;
     max-width: 420px;
   }
 
-  .game-theme-manager__header {
+  .game-theme-manager__header,
+  .game-theme-manager__title-block,
+  .game-theme-manager__actions,
+  .game-theme-manager__save-row,
+  .game-theme-manager__utility-row,
+  .theme-manager-btn,
+  .theme-manager-mini-btn,
+  .theme-chip {
     display: flex;
     align-items: center;
-    gap: 8px;
-    min-width: 0;
   }
 
-  .game-theme-manager__icon {
-    font-size: 0.95rem;
+  .game-theme-manager__header {
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .game-theme-manager__title-block {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+
+  .game-theme-manager__eyebrow {
+    color: var(--hud-accent);
+    font-family: var(--hud-font-ui);
+    font-size: 0.56rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
   }
 
   .game-theme-manager__title {
-    font-family: "Exo", sans-serif;
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: rgba(255, 214, 102, 0.95);
-  }
-
-  .game-theme-manager__toggle {
-    margin-left: auto;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.04);
-    color: rgba(226, 232, 240, 0.72);
-    padding: 4px 10px;
-    font-size: 0.65rem;
+    color: var(--hud-accent-warm);
+    font-family: var(--hud-font-ui);
+    font-size: 0.88rem;
     font-weight: 700;
-    letter-spacing: 0.06em;
-    cursor: pointer;
-    transition:
-      background 0.18s,
-      border-color 0.18s,
-      color 0.18s;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
   }
 
-  .game-theme-manager__toggle:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.22);
-    color: #fff;
+  .game-theme-manager__body {
+    display: grid;
+    gap: 10px;
   }
 
   .game-theme-manager__top-row {
-    position: relative;
-    min-height: 36px;
+    min-width: 0;
   }
 
   .game-theme-manager__actions,
   .game-theme-manager__save-row {
-    display: flex;
-    align-items: stretch;
-    gap: 6px;
-    width: 100%;
+    gap: 8px;
     min-width: 0;
   }
 
-  .game-theme-manager__actions.hidden {
-    display: none;
+  .game-theme-manager__actions {
+    align-items: stretch;
   }
 
-  .game-theme-manager__save-row {
-    display: none;
+  .theme-manager-toggle,
+  .theme-manager-btn,
+  .theme-manager-mini-btn {
+    min-height: 34px;
+    border-radius: 12px;
+    border: 1px solid var(--hud-border);
+    background: var(--hud-button-bg);
+    color: var(--hud-text);
+    font-family: var(--hud-font-ui);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition:
+      border-color 0.16s ease,
+      background 0.16s ease,
+      color 0.16s ease,
+      transform 0.16s ease;
   }
 
-  .game-theme-manager__save-row.open {
-    display: flex;
+  .theme-manager-toggle,
+  .theme-manager-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 12px;
+  }
+
+  .theme-manager-toggle {
+    min-height: 32px;
+    padding-inline: 10px 12px;
+  }
+
+  .theme-manager-toggle:hover,
+  .theme-manager-btn:hover,
+  .theme-manager-mini-btn:hover {
+    border-color: var(--hud-border-strong);
+    background: var(--hud-button-bg-hover);
+    color: var(--hud-text-strong);
+    transform: translateY(-1px);
+  }
+
+  .theme-manager-btn--accent,
+  .theme-manager-btn.flash {
+    border-color: var(--hud-border-warm);
+    color: var(--hud-accent-warm);
+  }
+
+  .theme-manager-btn--ghost {
+    color: var(--hud-text-soft);
+  }
+
+  .theme-manager-btn:disabled {
+    opacity: 0.48;
+    cursor: default;
+    transform: none;
   }
 
   .game-theme-manager__save-input {
-    flex: 1;
+    flex: 1 1 auto;
     min-width: 0;
-    border: 1px solid rgba(74, 222, 128, 0.3);
-    border-radius: 8px;
-    background: rgba(0, 0, 0, 0.22);
-    color: #fff;
+    min-height: 38px;
+    border-radius: 12px;
+    border: 1px solid var(--hud-border);
+    background: rgba(7, 13, 26, 0.96);
+    color: var(--hud-text-strong);
     padding: 0 12px;
-    font-size: 0.8rem;
+    font-family: var(--hud-font-ui);
+    font-size: 0.82rem;
   }
 
   .game-theme-manager__save-input:focus {
     outline: none;
-    border-color: rgba(74, 222, 128, 0.7);
-    box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.18);
-  }
-
-  .theme-manager-btn,
-  .theme-manager-mini-btn {
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.05);
-    color: rgba(226, 232, 240, 0.74);
-    cursor: pointer;
-    transition:
-      background 0.18s,
-      border-color 0.18s,
-      color 0.18s,
-      transform 0.18s;
-  }
-
-  .theme-manager-btn {
-    padding: 0 12px;
-    font-size: 0.76rem;
-    font-weight: 700;
-    white-space: nowrap;
-  }
-
-  .theme-manager-mini-btn {
-    padding: 5px 10px;
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-  }
-
-  .theme-manager-btn:hover,
-  .theme-manager-mini-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.24);
-    color: #fff;
-  }
-
-  .theme-manager-btn--update {
-    border-color: rgba(96, 165, 250, 0.28);
-    color: #bfdbfe;
-  }
-
-  .theme-manager-btn:disabled,
-  .theme-manager-mini-btn:disabled {
-    opacity: 0.48;
-    cursor: default;
-  }
-
-  .theme-manager-btn--confirm {
-    border-color: rgba(74, 222, 128, 0.3);
-    color: #86efac;
-  }
-
-  .theme-manager-btn--ghost {
-    color: rgba(203, 213, 225, 0.74);
-  }
-
-  .theme-manager-btn.flash {
-    transform: scale(0.97);
-    background: rgba(74, 222, 128, 0.22);
-    border-color: rgba(74, 222, 128, 0.55);
-    color: #ecfdf5;
+    border-color: var(--hud-border-strong);
+    box-shadow: 0 0 0 1px rgba(94, 230, 255, 0.18);
   }
 
   .game-theme-manager__utility-row {
-    display: flex;
-    gap: 6px;
+    gap: 8px;
+  }
+
+  .theme-manager-mini-btn {
+    gap: 8px;
+    padding: 0 12px;
   }
 
   .game-theme-manager__status {
-    font-size: 0.68rem;
-    line-height: 1.4;
+    padding: 7px 10px;
+    border-radius: 12px;
+    background: rgba(8, 14, 29, 0.9);
+    font-family: var(--hud-font-ui);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
   }
 
   .game-theme-manager__status--success {
-    color: #86efac;
+    color: #90e0b8;
   }
 
   .game-theme-manager__status--error {
-    color: #fca5a5;
+    color: #ffb4be;
   }
 
   .game-theme-manager__status--muted {
-    color: rgba(191, 219, 254, 0.82);
+    color: var(--hud-text-soft);
   }
 
-  .theme-family-groups {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .theme-family-section {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding: 8px;
-    border-radius: 10px;
-    border: 1px solid rgba(125, 211, 252, 0.12);
-    background: rgba(15, 23, 42, 0.5);
-  }
-
-  .theme-family-header {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .theme-family-title-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .theme-family-name {
-    font-size: 0.69rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #e2e8f0;
-  }
-
-  .theme-family-count {
-    padding: 1px 6px;
-    border-radius: 999px;
-    background: rgba(125, 211, 252, 0.12);
-    color: #7dd3fc;
-    font-size: 0.62rem;
-    font-weight: 700;
-  }
-
-  .theme-family-description,
-  .theme-family-summary {
-    margin: 0;
-    font-size: 0.7rem;
-    line-height: 1.35;
-  }
-
-  .theme-family-description {
-    color: rgba(203, 213, 225, 0.72);
-  }
-
-  .theme-family-summary {
-    color: rgba(148, 163, 184, 0.9);
-  }
-
-  .theme-chip-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+  .theme-library-list {
+    max-height: min(260px, 34vh);
+    display: grid;
+    gap: 7px;
+    overflow: auto;
+    padding-right: 2px;
   }
 
   .theme-chip {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 12px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.04);
-    color: #cbd5e1;
-    font-size: 0.72rem;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
+    padding: 10px 12px;
+    border-radius: 14px;
+    border: 1px solid var(--hud-border);
+    background: rgba(8, 14, 28, 0.86);
+    color: var(--hud-text);
+    text-align: left;
     cursor: pointer;
     transition:
-      background 0.18s,
-      border-color 0.18s,
-      color 0.18s;
+      border-color 0.16s ease,
+      background 0.16s ease,
+      color 0.16s ease,
+      transform 0.16s ease;
   }
 
   .theme-chip:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.24);
-    color: #fff;
+    border-color: var(--hud-border-strong);
+    background: rgba(12, 23, 43, 0.94);
+    color: var(--hud-text-strong);
+    transform: translateY(-1px);
   }
 
   .theme-chip.active {
-    background: rgba(74, 222, 128, 0.12);
-    border-color: rgba(74, 222, 128, 0.4);
-    color: #86efac;
+    border-color: var(--hud-border-warm);
+    box-shadow: inset 0 0 0 1px rgba(255, 200, 107, 0.16);
   }
 
   .theme-chip-status {
-    padding: 1px 6px;
+    flex: 0 0 auto;
+    min-width: 54px;
+    padding: 2px 8px;
     border-radius: 999px;
-    font-size: 0.55rem;
-    font-weight: 800;
-    letter-spacing: 0.06em;
+    background: rgba(255, 255, 255, 0.05);
+    font-family: var(--hud-font-ui);
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    border: 1px solid transparent;
-  }
-
-  .theme-chip-name {
-    white-space: nowrap;
+    text-align: center;
   }
 
   .status-wired {
-    background: rgba(74, 222, 128, 0.12);
-    border-color: rgba(74, 222, 128, 0.28);
-    color: #86efac;
+    color: #8ae0ff;
   }
 
   .status-compat {
-    background: rgba(251, 191, 36, 0.12);
-    border-color: rgba(251, 191, 36, 0.28);
-    color: #fcd34d;
+    color: #ffd792;
   }
 
   .status-needs-edit {
-    background: rgba(248, 113, 113, 0.12);
-    border-color: rgba(248, 113, 113, 0.28);
-    color: #fca5a5;
+    color: #ff97a7;
   }
 
   .status-agnostic {
-    background: rgba(148, 163, 184, 0.12);
-    border-color: rgba(148, 163, 184, 0.24);
-    color: #cbd5e1;
+    color: var(--hud-text-soft);
+  }
+
+  .theme-chip-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--hud-font-ui);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
   }
 
   .theme-chip-delete {
-    font-size: 0.9rem;
-    line-height: 1;
-    opacity: 0.38;
-    padding-left: 2px;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 999px;
+    color: var(--hud-text-soft);
   }
 
   .theme-chip-delete:hover {
-    opacity: 1;
-    color: #f87171;
+    color: var(--hud-danger);
+  }
+
+  @media (max-width: 980px) {
+    .game-theme-manager__actions,
+    .game-theme-manager__save-row {
+      flex-wrap: wrap;
+    }
+
+    .theme-manager-toggle {
+      width: 100%;
+      justify-content: center;
+    }
   }
 </style>
