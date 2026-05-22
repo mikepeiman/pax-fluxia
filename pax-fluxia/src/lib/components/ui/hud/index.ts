@@ -1,4 +1,5 @@
 export { default as Leaderboard } from "./Leaderboard.svelte";
+export { default as HudIcon } from "./HudIcon.svelte";
 export { default as ResultsModal } from "./ResultsModal.svelte";
 export { default as SpeedControls } from "./SpeedControls.svelte";
 export { default as StarInfoPanel } from "./StarInfoPanel.svelte";

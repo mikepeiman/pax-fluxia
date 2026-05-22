@@ -1,32 +1,61 @@
 <script lang="ts">
-    import type { PlayerState } from "$lib/types/game.types";
     import { browser } from "$app/environment";
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
+    import type { PlayerState } from "$lib/types/game.types";
+    import HudIcon from "./HudIcon.svelte";
 
     interface Props {
         players: PlayerState[];
+        dockSide?: "left" | "right";
+        onToggleDockSide?: () => void;
+        onCollapse?: () => void;
     }
 
-    let { players = [] }: Props = $props();
+    type ShipFocus = "active" | "total";
 
-    // Collapsible state with localStorage persistence
-    const LS_KEY = "pax-leaderboard-collapsed";
-    let isCollapsed = $state(
-        browser ? localStorage.getItem(LS_KEY) === "true" : false,
+    let {
+        players = [],
+        dockSide = "right",
+        onToggleDockSide,
+        onCollapse,
+    }: Props = $props();
+
+    const FOCUS_KEY = "pax-leaderboard-ship-focus";
+
+    let shipFocus = $state<ShipFocus>(
+        browser && localStorage.getItem(FOCUS_KEY) === "active"
+            ? "active"
+            : "total",
     );
 
-    function toggleCollapsed() {
-        isCollapsed = !isCollapsed;
+    function setShipFocus(nextFocus: ShipFocus) {
+        shipFocus = nextFocus;
         if (browser) {
-            localStorage.setItem(LS_KEY, String(isCollapsed));
+            localStorage.setItem(FOCUS_KEY, nextFocus);
         }
     }
 
-    // Check if player is the local player (works for single and multiplayer)
     function isLocalPlayer(player: PlayerState): boolean {
         const localId = activeGameStore.localPlayerId;
-        // In SP, localId matches player.id. In MP, localId is sessionId.
         return player.id === localId || (player as any).sessionId === localId;
+    }
+
+    function getActiveShips(player: PlayerState): number {
+        return player.activeShips ?? 0;
+    }
+
+    function getDamagedShips(player: PlayerState): number {
+        return player.damagedShips ?? 0;
+    }
+
+    function getTotalShips(player: PlayerState): number {
+        return player.totalShips ?? getActiveShips(player) + getDamagedShips(player);
+    }
+
+    function getSortValue(player: PlayerState): number {
+        return shipFocus === "active"
+            ? getActiveShips(player)
+            : getTotalShips(player);
     }
 
     function formatProduction(value: number | undefined): string {
@@ -37,24 +66,33 @@
             : rounded.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
     }
 
-    // Derived to ensure reactivity with updated player data
     const sortedPlayers = $derived(
-        [...players].sort((a, b) => (b.totalShips ?? 0) - (a.totalShips ?? 0)),
+        [...players].sort((a, b) => {
+            const focusDelta = getSortValue(b) - getSortValue(a);
+            if (focusDelta !== 0) return focusDelta;
+            return getTotalShips(b) - getTotalShips(a);
+        }),
     );
 
-    // Game-wide totals
     const gameTotals = $derived.by(() => {
-        let active = 0,
-            damaged = 0;
-        for (const p of players) {
-            active += p.activeShips ?? 0;
-            damaged += p.damagedShips ?? 0;
+        let active = 0;
+        let damaged = 0;
+        for (const player of players) {
+            active += getActiveShips(player);
+            damaged += getDamagedShips(player);
         }
-        return { active, damaged, total: active + damaged };
+        return {
+            active,
+            damaged,
+            total: active + damaged,
+        };
     });
 
-    // Tick progress: driven by CSS animation keyed on tick number
-    // No rAF loop needed — CSS handles smooth 0→100% fill over tickDuration
+    const primaryLabel = $derived(shipFocus === "active" ? "Active" : "Total");
+    const primaryTotal = $derived(
+        shipFocus === "active" ? gameTotals.active : gameTotals.total,
+    );
+
     const tickDurationMs = $derived(activeGameStore.effectiveTickMs ?? 1000);
     const tickKey = $derived(activeGameStore.currentTick ?? 0);
     const isRunning = $derived(
@@ -62,287 +100,457 @@
     );
 </script>
 
-<div class="leaderboard glass-panel">
-    <button class="leaderboard__header" onclick={toggleCollapsed}>
-        <h3 class="leaderboard__title font-display">Commanders</h3>
-        <span class="collapse-icon">{isCollapsed ? "▶" : "▼"}</span>
-    </button>
-
-    {#if !isCollapsed}
-        <!-- Game-wide totals row -->
-        <div class="flex flex-row justify-between items-baseline">
-            <div class="game-totals font-data">
-                <span class="totals-label">Ships:</span>
-                <span class="totals-total">{gameTotals.total}</span>
-                <span class="totals-breakdown items-baseline">
-                    <span class="totals-active">{gameTotals.active}</span><span
-                        class="stat-dim">/{gameTotals.damaged}</span
-                    >
-                </span>
-            </div>
-            <div class="tick-counter font-data">
-                <span class="tick-label">Tick</span>
-                <span class="tick-value">{activeGameStore.currentTick}</span>
-            </div>
+<section class="leaderboard">
+    <div class="leaderboard__header">
+        <div class="leaderboard__title-block">
+            <span class="leaderboard__eyebrow">Command</span>
+            <h3 class="leaderboard__title">Leaderboard</h3>
         </div>
-        <!-- Tick progress bar (CSS-animated, no JS rAF needed) -->
-        {#key tickKey}
-            <div class="tick-progress-bar">
-                <div
-                    class="tick-progress-fill"
-                    class:running={isRunning}
-                    style="animation-duration: {tickDurationMs}ms"
-                ></div>
-            </div>
-        {/key}
 
-        <ul class="leaderboard__list">
-            {#each sortedPlayers as player, index}
-                {@const totalShips =
-                    (player.activeShips ?? 0) + (player.damagedShips ?? 0)}
-                <li
-                    class="leaderboard__item"
-                    class:is-self={isLocalPlayer(player)}
+        <div class="leaderboard__actions">
+            <div class="leaderboard__focus-toggle" role="group" aria-label="Ship emphasis">
+                <button
+                    type="button"
+                    class="focus-pill"
+                    class:focus-pill--active={shipFocus === "active"}
+                    onclick={() => setShipFocus("active")}
+                    title="Emphasize active ships"
                 >
-                    <span
-                        class="player-dot"
-                        class:player-dot--self={isLocalPlayer(player)}
-                        style="background-color: {player.color}"
-                    ></span>
-                    <span
-                        class="player-name"
-                        class:player-name--self={isLocalPlayer(player)}
-                    >
-                        {isLocalPlayer(player) ? "★ " : ""}{player.name}
-                    </span>
-                    <span class="player-stats font-data">
-                        <span class="stat-total" title="Total Ships"
-                            >{totalShips}</span
-                        >
-                        <span class="stat-breakdown" title="Active / Damaged"
-                            >{player.activeShips ?? 0}<span class="stat-dim"
-                                >/{player.damagedShips ?? 0}</span
-                            ></span
-                        >
-                        <span class="stat-stars" title="Stars Owned"
-                            >⭐{player.starCount ?? 0}</span
-                        >
-                        <span class="stat-prod" title="Production per tick"
-                            >+{formatProduction(player.production)}</span
-                        >
-                    </span>
-                </li>
-            {:else}
-                <li class="leaderboard__empty">No players</li>
-            {/each}
-        </ul>
-    {/if}
-</div>
+                    <HudIcon name="active-focus" size={13} />
+                    <span>Active</span>
+                </button>
+                <button
+                    type="button"
+                    class="focus-pill"
+                    class:focus-pill--active={shipFocus === "total"}
+                    onclick={() => setShipFocus("total")}
+                    title="Emphasize total ships"
+                >
+                    <HudIcon name="total-focus" size={13} />
+                    <span>Total</span>
+                </button>
+            </div>
+
+            {#if onToggleDockSide}
+                <button
+                    type="button"
+                    class="leaderboard__icon-btn"
+                    onclick={onToggleDockSide}
+                    title={dockSide === "right"
+                        ? "Move leaderboard to left side"
+                        : "Move leaderboard to right side"}
+                >
+                    <HudIcon name={dockSide === "right" ? "dock-left" : "dock-right"} size={15} />
+                </button>
+            {/if}
+
+            {#if onCollapse}
+                <button
+                    type="button"
+                    class="leaderboard__icon-btn"
+                    onclick={onCollapse}
+                    title="Collapse leaderboard to compact badge"
+                >
+                    <HudIcon name="chevron-up" size={15} />
+                </button>
+            {/if}
+        </div>
+    </div>
+
+    <div class="leaderboard__summary">
+        <div class="summary-chip">
+            <span class="summary-chip__label">Ships</span>
+            <span class="summary-chip__value font-hud-data">{primaryTotal}</span>
+            <span class="summary-chip__meta">Focus: {primaryLabel}</span>
+        </div>
+        <div class="summary-chip summary-chip--tick">
+            <span class="summary-chip__label">Tick</span>
+            <span class="summary-chip__value font-hud-data">{activeGameStore.currentTick}</span>
+            <span class="summary-chip__meta">Live cycle</span>
+        </div>
+    </div>
+
+    {#key tickKey}
+        <div class="tick-progress-bar">
+            <div
+                class="tick-progress-fill"
+                class:running={isRunning}
+                style={`animation-duration:${tickDurationMs}ms;`}
+            ></div>
+        </div>
+    {/key}
+
+    <div class="leaderboard__columns font-hud-data">
+        <span class="leaderboard__col leaderboard__col--name">Commander</span>
+        <span class="leaderboard__col leaderboard__col--primary">{primaryLabel}</span>
+        <span class="leaderboard__col leaderboard__col--detail">
+            <HudIcon name="ship-active" size={12} />
+            <HudIcon name="ship-damaged" size={12} />
+        </span>
+        <span class="leaderboard__col leaderboard__col--stars">Stars</span>
+        <span class="leaderboard__col leaderboard__col--prod">Prod</span>
+    </div>
+
+    <ul class="leaderboard__list">
+        {#each sortedPlayers as player}
+            {@const activeShips = getActiveShips(player)}
+            {@const damagedShips = getDamagedShips(player)}
+            {@const totalShips = getTotalShips(player)}
+            {@const primaryShips = shipFocus === "active" ? activeShips : totalShips}
+
+            <li class="leaderboard__item" class:is-self={isLocalPlayer(player)}>
+                <span
+                    class="player-dot"
+                    class:player-dot--self={isLocalPlayer(player)}
+                    style={`background-color:${player.color};`}
+                ></span>
+                <span class="player-name" class:player-name--self={isLocalPlayer(player)}>
+                    {isLocalPlayer(player) ? "You" : player.name}
+                </span>
+                <span class="stat stat-primary font-hud-data" title={`${primaryLabel} ships`}>
+                    {primaryShips}
+                </span>
+                <span class="stat stat-detail font-hud-data" title="Active / Damaged ships">
+                    <span class="stat-detail__active">{activeShips}</span>
+                    <span class="stat-detail__slash">/</span>
+                    <span class="stat-detail__damaged">{damagedShips}</span>
+                </span>
+                <span class="stat stat-stars font-hud-data" title="Stars owned">
+                    {player.starCount ?? 0}
+                </span>
+                <span class="stat stat-prod font-hud-data" title="Production per tick">
+                    +{formatProduction(player.production)}
+                </span>
+            </li>
+        {:else}
+            <li class="leaderboard__empty">No players</li>
+        {/each}
+    </ul>
+</section>
 
 <style>
     .leaderboard {
-        padding: var(--space-4);
-        min-width: 200px;
+        display: grid;
+        gap: 12px;
+        min-width: 0;
+        padding: var(--hud-pad-md);
+        border: 1px solid var(--hud-border);
+        border-radius: var(--hud-radius-md);
+        background: var(--hud-panel-bg);
+        box-shadow: var(--hud-shadow-soft);
     }
 
-    .leaderboard__title {
-        font-size: var(--text-xs);
-        color: var(--color-text-muted);
-        margin: 0;
-        letter-spacing: 0.15em;
+    .leaderboard__header,
+    .leaderboard__actions,
+    .leaderboard__summary,
+    .summary-chip,
+    .leaderboard__focus-toggle,
+    .leaderboard__item,
+    .leaderboard__columns,
+    .leaderboard__col--detail,
+    .stat-detail {
+        display: flex;
+        align-items: center;
     }
 
     .leaderboard__header {
-        display: flex;
-        align-items: center;
         justify-content: space-between;
-        width: 100%;
-        background: none;
-        border: none;
-        padding: 0;
-        margin-bottom: var(--space-3);
+        gap: 12px;
+    }
+
+    .leaderboard__title-block {
+        display: grid;
+        gap: 2px;
+    }
+
+    .leaderboard__eyebrow {
+        color: var(--hud-accent);
+        font-family: var(--hud-font-ui);
+        font-size: 0.56rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+    }
+
+    .leaderboard__title {
+        margin: 0;
+        color: var(--hud-text-strong);
+        font-family: var(--hud-font-ui);
+        font-size: 0.96rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    }
+
+    .leaderboard__actions {
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .leaderboard__icon-btn,
+    .focus-pill {
+        min-height: 34px;
+        border-radius: 12px;
+        border: 1px solid var(--hud-border);
+        background: var(--hud-button-bg);
+        color: var(--hud-text);
         cursor: pointer;
-        color: inherit;
+        transition:
+            border-color 0.16s ease,
+            background 0.16s ease,
+            color 0.16s ease,
+            transform 0.16s ease;
     }
 
-    .leaderboard__header:hover .collapse-icon {
-        color: var(--color-accent-cyan);
+    .leaderboard__icon-btn:hover,
+    .focus-pill:hover {
+        border-color: var(--hud-border-strong);
+        background: var(--hud-button-bg-hover);
+        color: var(--hud-text-strong);
+        transform: translateY(-1px);
     }
 
-    .collapse-icon {
-        font-size: var(--text-xs);
-        color: var(--color-text-dim);
-        transition: color var(--transition-fast);
+    .leaderboard__icon-btn {
+        width: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+    }
+
+    .leaderboard__focus-toggle {
+        gap: 6px;
+        padding: 4px;
+        border: 1px solid rgba(112, 142, 186, 0.16);
+        border-radius: 14px;
+        background: rgba(9, 16, 31, 0.88);
+    }
+
+    .focus-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 0 12px;
+        font-family: var(--hud-font-ui);
+        font-size: 0.64rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .focus-pill--active {
+        border-color: var(--hud-border-warm);
+        color: var(--hud-accent-warm);
+        box-shadow: inset 0 0 0 1px rgba(255, 200, 107, 0.14);
+    }
+
+    .leaderboard__summary {
+        gap: 10px;
+    }
+
+    .summary-chip {
+        flex: 1 1 0;
+        justify-content: space-between;
+        gap: 10px;
+        min-height: 58px;
+        padding: 0 14px;
+        border-radius: var(--hud-radius-sm);
+        border: 1px solid rgba(112, 142, 186, 0.14);
+        background: rgba(7, 13, 26, 0.88);
+    }
+
+    .summary-chip__label,
+    .summary-chip__meta {
+        font-family: var(--hud-font-ui);
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+    }
+
+    .summary-chip__label {
+        color: var(--hud-text-soft);
+    }
+
+    .summary-chip__value {
+        color: var(--hud-text-strong);
+        font-size: 1rem;
+    }
+
+    .summary-chip__meta {
+        color: var(--hud-accent);
+        text-align: right;
+    }
+
+    .summary-chip--tick .summary-chip__meta {
+        color: var(--hud-text-soft);
+    }
+
+    .tick-progress-bar {
+        height: 4px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(94, 230, 255, 0.08);
+    }
+
+    .tick-progress-fill {
+        height: 100%;
+        width: 100%;
+        transform-origin: left center;
+        background: linear-gradient(90deg, var(--hud-accent), var(--hud-accent-warm));
+    }
+
+    .tick-progress-fill.running {
+        animation-name: tick-progress;
+        animation-timing-function: linear;
+        animation-iteration-count: infinite;
+    }
+
+    @keyframes tick-progress {
+        from {
+            transform: scaleX(0);
+        }
+
+        to {
+            transform: scaleX(1);
+        }
+    }
+
+    .leaderboard__columns {
+        gap: 10px;
+        padding: 0 10px;
+        color: var(--hud-text-soft);
+        font-size: 0.62rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+
+    .leaderboard__col {
+        min-width: 0;
+    }
+
+    .leaderboard__col--name {
+        flex: 1 1 auto;
+    }
+
+    .leaderboard__col--primary,
+    .leaderboard__col--detail,
+    .leaderboard__col--stars,
+    .leaderboard__col--prod {
+        justify-content: flex-end;
+    }
+
+    .leaderboard__col--primary,
+    .stat-primary {
+        width: 58px;
+    }
+
+    .leaderboard__col--detail,
+    .stat-detail {
+        width: 74px;
+        gap: 6px;
+    }
+
+    .leaderboard__col--stars,
+    .stat-stars {
+        width: 46px;
+    }
+
+    .leaderboard__col--prod,
+    .stat-prod {
+        width: 58px;
     }
 
     .leaderboard__list {
+        display: grid;
+        gap: 6px;
         list-style: none;
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-2);
+        padding: 0;
+        margin: 0;
     }
 
     .leaderboard__item {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        padding: var(--space-2);
-        border-radius: var(--radius-sm);
-        background: rgba(255, 255, 255, 0.02);
+        gap: 10px;
+        min-height: 42px;
+        padding: 0 10px;
+        border-radius: 14px;
+        border: 1px solid transparent;
+        background: rgba(7, 13, 26, 0.82);
+        color: var(--hud-text);
     }
 
-    /* First place styling (rank 1, not player identity) */
-    .leaderboard__item:first-child {
-        background: rgba(255, 255, 255, 0.04);
+    .leaderboard__item.is-self {
+        border-color: rgba(255, 200, 107, 0.24);
+        background:
+            linear-gradient(180deg, rgba(28, 24, 14, 0.52), rgba(11, 14, 23, 0.82)),
+            rgba(7, 13, 26, 0.82);
     }
 
     .player-dot {
         width: 10px;
         height: 10px;
-        border-radius: 50%;
-        flex-shrink: 0;
-        transition: all 0.2s ease;
-    }
-
-    /* Self (human player) visual flair */
-    .is-self {
-        background: rgba(68, 136, 255, 0.15);
-        border: 1px solid rgba(68, 136, 255, 0.4);
-        box-shadow: 0 0 8px rgba(68, 136, 255, 0.2);
+        border-radius: 999px;
+        flex: 0 0 auto;
+        box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.04);
     }
 
     .player-dot--self {
-        width: 14px;
-        height: 14px;
-        box-shadow: 0 0 6px currentColor;
-    }
-
-    .player-name--self {
-        font-weight: 600;
-        color: #6af;
+        box-shadow:
+            0 0 0 3px rgba(255, 200, 107, 0.08),
+            0 0 0 1px rgba(255, 200, 107, 0.42);
     }
 
     .player-name {
-        flex: 1;
-        font-size: var(--text-sm);
-        color: var(--color-text-primary);
-        white-space: nowrap;
+        flex: 1 1 auto;
+        min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
+        white-space: nowrap;
+        font-family: var(--hud-font-ui);
+        font-size: 0.84rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        color: var(--hud-text-strong);
     }
 
-    .player-stats {
-        font-size: var(--text-xs);
-        color: var(--color-text-muted);
+    .player-name--self {
+        color: var(--hud-accent-warm);
+    }
+
+    .stat {
+        display: inline-flex;
+        justify-content: flex-end;
+        color: var(--hud-text-strong);
+        font-size: 0.76rem;
+    }
+
+    .stat-detail__active {
+        color: var(--hud-text-strong);
+    }
+
+    .stat-detail__slash {
+        color: var(--hud-text-dim);
+    }
+
+    .stat-detail__damaged {
+        color: var(--hud-text-soft);
     }
 
     .leaderboard__empty {
-        font-size: var(--text-sm);
-        color: var(--color-text-dim);
+        padding: 16px;
+        border-radius: var(--hud-radius-sm);
+        border: 1px dashed rgba(112, 142, 186, 0.24);
+        color: var(--hud-text-soft);
         text-align: center;
-        padding: var(--space-4);
+        font-family: var(--hud-font-ui);
+        font-size: 0.84rem;
     }
 
-    .stat-total {
-        font-weight: 700;
-        font-size: var(--text-sm);
-        color: var(--color-text-primary);
-        min-width: 2.5em;
-        text-align: right;
-    }
-
-    .stat-breakdown {
-        font-size: 0.65rem;
-        opacity: 0.6;
-        min-width: 3em;
-    }
-
-    .stat-dim {
-        opacity: 0.5;
-    }
-
-    .stat-stars {
-        min-width: 2.5em;
-    }
-
-    .stat-prod {
-        color: #8f8;
-        min-width: 2.5em;
-    }
-
-    .game-totals {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 4px 8px;
-        margin-bottom: 4px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-        font-size: 0.7rem;
-        color: var(--color-text-muted, #888);
-    }
-    .totals-label {
-        opacity: 0.7;
-    }
-    .totals-total {
-        font-weight: 700;
-        color: var(--color-text-primary, #fff);
-        font-size: 0.8rem;
-    }
-    .totals-active {
-        color: #4ade80;
-    }
-    .totals-breakdown {
-        font-size: 0.65rem;
-        opacity: 0.7;
-    }
-    .tick-counter {
-        display: flex;
-        align-items: baseline;
-        gap: 6px;
-        padding: 0;
-        margin-top: 2px;
-        border-top: 1px solid rgba(255, 255, 255, 0.06);
-    }
-    .tick-label {
-        font-size: 0.75rem;
-        color: var(--color-text-muted, #888);
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-    }
-    .tick-value {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: var(--color-accent-cyan, #4fd1c5);
-        text-shadow: 0 0 8px rgba(79, 209, 197, 0.4);
-    }
-    .tick-progress-bar {
-        width: 100%;
-        height: 4px;
-        background: rgba(255, 255, 255, 0.06);
-        border-radius: 2px;
-        overflow: hidden;
-        margin: 4px 0 6px 0;
-    }
-    .tick-progress-fill {
-        height: 100%;
-        width: 0%;
-        background: linear-gradient(90deg, #4fd1c5, #63b3ed);
-        border-radius: 2px;
-        box-shadow: 0 0 6px rgba(79, 209, 197, 0.5);
-        animation-name: tick-fill;
-        animation-timing-function: linear;
-        animation-fill-mode: forwards;
-        animation-play-state: paused;
-    }
-    .tick-progress-fill.running {
-        animation-play-state: running;
-    }
-    @keyframes tick-fill {
-        from {
-            width: 0%;
-        }
-        to {
-            width: 100%;
+    @media (max-width: 1100px) {
+        .leaderboard__summary {
+            grid-template-columns: 1fr;
+            display: grid;
         }
     }
 </style>
