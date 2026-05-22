@@ -1,3 +1,7 @@
+@import "tailwindcss" source(none);
+@source "./routes";
+@source "./lib/components";
+
 /* ==========================================================================
    PAX FLUXIA - Cyber-Flux Design System
    ========================================================================== */

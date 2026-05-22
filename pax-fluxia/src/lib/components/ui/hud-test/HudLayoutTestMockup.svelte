@@ -168,14 +168,14 @@
         </nav>
         <div class="panel-body">
           {#if utilityMode === "overview"}
-            <InfoCard title="Empire Snapshot" rows={[["Stars", "18"], ["Ships", "1,248"], ["Income", "+62/tick"]]} />
-            <InfoCard title="Pressure" rows={[["North Front", "Stable"], ["East Front", "Hot"], ["Reserves", "Low"]]} />
+            {@render InfoCard("Empire Snapshot", [["Stars", "18"], ["Ships", "1,248"], ["Income", "+62/tick"]])}
+            {@render InfoCard("Pressure", [["North Front", "Stable"], ["East Front", "Hot"], ["Reserves", "Low"]])}
           {:else if utilityMode === "settings"}
-            <ControlCard title="Visual Tuning" rows={["Territory opacity", "Lane glow", "UI scale"]} />
+            {@render ControlCard("Visual Tuning", ["Territory opacity", "Lane glow", "UI scale"])}
           {:else if utilityMode === "overlays"}
-            <ControlCard title="Overlay Controls" rows={["Territory", "Borders", "Orders", "Labels"]} />
+            {@render ControlCard("Overlay Controls", ["Territory", "Borders", "Orders", "Labels"])}
           {:else}
-            <InfoCard title="Legend" rows={[["Cyan", "Player space"], ["Gold", "Selected"], ["Red", "Enemy pressure"]]} />
+            {@render InfoCard("Legend", [["Cyan", "Player space"], ["Gold", "Selected"], ["Red", "Enemy pressure"]])}
           {/if}
         </div>
       {/if}
@@ -252,7 +252,7 @@
               <span><HudIcon name="yellow" size={34} /></span>
               <div><strong>{selectedStar.name}</strong><small>{selectedStar.owner}</small></div>
             </div>
-            <InfoCard rows={[["Ships", String(selectedStar.ships)], ["Type", "Neutron"], ["Stability", "92%"]]} />
+            {@render InfoCard("", [["Ships", String(selectedStar.ships)], ["Type", "Neutron"], ["Stability", "92%"]])}
           </section>
           <section class="mini-card">
             <h3>Current Order</h3>

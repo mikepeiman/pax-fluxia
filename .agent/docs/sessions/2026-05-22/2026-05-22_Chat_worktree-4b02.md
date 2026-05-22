@@ -34,3 +34,36 @@ Ok. I got some external work, let's see how it looks; make a link in the topbar 
 ## Assistant
 
 Read the external mockup and design doc, assessed the mockup as useful but not drop-in due to Tailwind dependency and corrupted glyphs, added an in-game topbar `UI test` link, added `/dev/ui-test` with a back link to `/?showGame=1`, and verified the route with `bun run --cwd pax-fluxia build`.
+
+## User
+
+INstall and setup Tailwindcss
+
+## Assistant
+
+Installed Tailwind CSS v4 and `@tailwindcss/vite` with Bun, wired the Tailwind Vite plugin into `pax-fluxia/vite.config.js`, and added the Tailwind import to `pax-fluxia/src/app.css`.
+
+## User
+
+Error
+
+Uncaught (in promise) Svelte error: invalid_snippet_arguments
+A snippet function was passed invalid arguments. Snippets should only be instantiated via `{@render ...}`
+https://svelte.dev/e/invalid_snippet_arguments
+
+	in <unknown>
+	in HudLayoutTestMockup.svelte
+	in +page.svelte
+	in layout.svelte
+	in root.svelte
+	in undefined
+
+    at invalid_snippet_arguments (errors.js:44:17)
+    at Module.validate_snippet_args (validation.js:13:6)
+    at HudLayoutTestMockup.svelte:291:19
+    at snippet2 (snippet.js:53:11)
+    at $.add_svelte_meta.componentTag (HudLayoutTestMockup.svelte:171:14)
+
+## Assistant
+
+Fixed the Svelte 5 snippet invocation error in `HudLayoutTestMockup.svelte` by replacing component-style snippet usage with `{@render ...}`. Re-ran `bun run --cwd pax-fluxia build`; it passed with existing unused-CSS and chunk-size warnings.

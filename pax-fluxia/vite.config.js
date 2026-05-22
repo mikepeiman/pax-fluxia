@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import { sveltekit } from "@sveltejs/kit/vite";
+import tailwindcss from "@tailwindcss/vite";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -152,7 +153,7 @@ const extraFsAllow = [
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [browserBenchPlugin(), sveltekit(), settingsDumpPlugin(), mapPersistPlugin()],
+  plugins: [tailwindcss(), browserBenchPlugin(), sveltekit(), settingsDumpPlugin(), mapPersistPlugin()],
   optimizeDeps: {
     include: [
       "txtgen",
