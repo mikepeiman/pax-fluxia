@@ -6,9 +6,11 @@
   } from "$lib/utils/navigationCompat";
   import { gameStore } from "$lib/stores/gameStore.svelte";
   import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
+  import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
   import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
   import MainMenu, { type MenuTheme } from "$lib/components/ui/main-menu";
   import {
+    HudIcon,
     Leaderboard,
     ResultsModal,
     SpeedControls,
@@ -22,9 +24,8 @@
   import AudioSettings from "$lib/components/ui/AudioSettings.svelte";
   import TopBar from "$lib/components/ui/TopBar.svelte";
   import GameHudTopBar from "$lib/components/ui/GameHudTopBar.svelte";
-  import GameThemeManager from "$lib/components/ui/GameThemeManager.svelte";
   import type { SettingsSectionId } from "$lib/components/ui/settings/settingsRegistry";
-  import type { PlayerState } from "$lib/types/game.types";
+  import type { PlayerState, StarState } from "$lib/types/game.types";
   import { audioManager } from "$lib/services/audioManager.svelte";
   import { sentence as txtSentence } from 'txtgen';
   import { rulerTool } from "$lib/territory/devtools/rulerTool";
@@ -82,6 +83,24 @@
     typeof window !== "undefined" && window.innerWidth < 1024;
   let isMobileNow = $state(isMobileAtLoad);
 
+  type DockSide = "left" | "right";
+
+  function loadBooleanPreference(key: string, fallback: boolean): boolean {
+    if (typeof localStorage === "undefined") return fallback;
+    const value = localStorage.getItem(key);
+    if (value == null) return fallback;
+    return value === "true";
+  }
+
+  function loadDockSidePreference(
+    key: string,
+    fallback: DockSide,
+  ): DockSide {
+    if (typeof localStorage === "undefined") return fallback;
+    const value = localStorage.getItem(key);
+    return value === "left" || value === "right" ? value : fallback;
+  }
+
   // Track mobile state reactively for FAB visibility
   if (typeof window !== "undefined") {
     window.addEventListener("resize", () => {
@@ -89,7 +108,25 @@
     });
   }
 
-  let showSettingsPanel = $state(false);
+  let showSettingsPanel = $state(
+    isMobileAtLoad ? false : loadBooleanPreference("pax-settings-open", false),
+  );
+  let sidebarSide = $state<DockSide>(
+    loadDockSidePreference("pax-sidebar-side", "right"),
+  );
+  let controlsSide = $state<DockSide>(
+    loadDockSidePreference("pax-controls-side", "left"),
+  );
+  let leaderboardCollapsed = $state(
+    loadBooleanPreference("pax-leaderboard-collapsed", false),
+  );
+  let settingsRibbonExpanded = $state(
+    loadBooleanPreference("pax-settings-ribbon-expanded", false),
+  );
+  let quickAccessDrawerOpen = $state(false);
+  let commandTrayCollapsed = $state(
+    loadBooleanPreference("pax-command-tray-collapsed", false),
+  );
   // Auto-pause: pause game when settings open, restore on close
   let pauseOnSettings = $state(
     typeof localStorage === "undefined" ||
@@ -119,15 +156,58 @@
     setSettingsPanelOpen(!showSettingsPanel);
   }
 
+  function toggleSidebarSide() {
+    sidebarSide = sidebarSide === "right" ? "left" : "right";
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem("pax-sidebar-side", sidebarSide);
+    }
+  }
+
+  function toggleControlsSide() {
+    controlsSide = controlsSide === "right" ? "left" : "right";
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem("pax-controls-side", controlsSide);
+    }
+  }
+
+  function toggleSettingsRibbonExpanded() {
+    settingsRibbonExpanded = !settingsRibbonExpanded;
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(
+        "pax-settings-ribbon-expanded",
+        String(settingsRibbonExpanded),
+      );
+    }
+  }
+
+  function toggleLeaderboardCollapsed() {
+    leaderboardCollapsed = !leaderboardCollapsed;
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(
+        "pax-leaderboard-collapsed",
+        String(leaderboardCollapsed),
+      );
+    }
+  }
+
+  function toggleCommandTrayCollapsed() {
+    commandTrayCollapsed = !commandTrayCollapsed;
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(
+        "pax-command-tray-collapsed",
+        String(commandTrayCollapsed),
+      );
+    }
+  }
+
   function openAudioSettings() {
     menuTheme = loadMenuTheme();
     showAudioSettings = true;
   }
 
+  const menuExpanded = true;
+
   // ── In-game menu collapse ──
-  let menuExpanded = $state(true);
-  let menuThemeManagerElement: HTMLDivElement | null = $state(null);
-  let drawerThemePanelElement: HTMLDivElement | null = $state(null);
 
   // ── F-62: Results overlay dismiss ──
   let resultsDismissed = $state(false);
@@ -269,9 +349,14 @@
     forceOpenSettingsSectionNonce += 1;
   }
 
-  function openDiagnostics() {
+  function openSettingsSection(section: SettingsSectionId) {
     setSettingsPanelOpen(true);
-    revealSettingsSection("diagnostics");
+    settingsRibbonExpanded = true;
+    revealSettingsSection(section);
+  }
+
+  function openDiagnostics() {
+    openSettingsSection("diagnostics");
   }
 
   function toggleRulerDiagnostics() {
@@ -289,7 +374,10 @@
     const startWidth = sidebarWidth;
 
     function onMove(ev: PointerEvent) {
-      const delta = startX - ev.clientX;
+      const delta =
+        sidebarSide === "right"
+          ? startX - ev.clientX
+          : ev.clientX - startX;
       sidebarWidth = Math.max(
         SIDEBAR_MIN,
         Math.min(SIDEBAR_MAX, startWidth + delta),
@@ -314,7 +402,10 @@
     const startWidth = settingsPanelWidth;
 
     function onMove(ev: PointerEvent) {
-      const delta = startX - ev.clientX;
+      const delta =
+        controlsSide === "right"
+          ? startX - ev.clientX
+          : ev.clientX - startX;
       settingsPanelWidth = Math.max(
         SETTINGS_PANEL_MIN,
         Math.min(SETTINGS_PANEL_MAX, startWidth + delta),
@@ -348,6 +439,35 @@
       );
   });
 
+  function getPlayerById(playerId: string | null | undefined): PlayerState | null {
+    if (!playerId) return null;
+    return (
+      (activeGameStore.players as PlayerState[]).find(
+        (player) => player.id === playerId,
+      ) ?? null
+    );
+  }
+
+  function starLabel(star: StarState | null | undefined): string {
+    return star ? `Star ${star.id.replace(/^star-/, "")}` : "No Star";
+  }
+
+  const selectedCommandStar = $derived(
+    selectedStarStore.id
+      ? ((activeGameStore.stars as StarState[]).find(
+          (star) => star.id === selectedStarStore.id,
+        ) ?? null)
+      : null,
+  );
+
+  const selectedCommandOwner = $derived(
+    selectedCommandStar ? getPlayerById(selectedCommandStar.ownerId) : null,
+  );
+
+  const tacticalOverviewPlayers = $derived(
+    leaderboardPlayers.slice(0, 5),
+  );
+
   // ── Mobile drawer (icon-activated, no swipe) ──
   let mobileDrawerOpen = $state(false);
   let showSettingsFab = $state(false);
@@ -357,6 +477,32 @@
   let topbarActiveTerritoryModeId = $state(GAME_CONFIG.TERRITORY_RENDER_MODE);
   const currentThemeName = $derived(
     themeStore.selectedThemeName || "Phase Field Default",
+  );
+
+  const leftRailWidth = $derived.by(() => {
+    let width = 0;
+    if (showSettingsPanel && controlsSide === "left") {
+      width = Math.max(width, settingsPanelWidth);
+    }
+    if (!leaderboardCollapsed && sidebarSide === "left") {
+      width = Math.max(width, sidebarWidth);
+    }
+    return width;
+  });
+
+  const rightRailWidth = $derived.by(() => {
+    let width = 0;
+    if (showSettingsPanel && controlsSide === "right") {
+      width = Math.max(width, settingsPanelWidth);
+    }
+    if (!leaderboardCollapsed && sidebarSide === "right") {
+      width = Math.max(width, sidebarWidth);
+    }
+    return width;
+  });
+
+  const quickAccessWidth = $derived(
+    showSettingsPanel ? Math.min(settingsPanelWidth, 320) : 272,
   );
 
   // ── Back button navigation: close overlays instead of exiting ──
@@ -434,21 +580,12 @@
   }
 
   async function openThemeShortcuts() {
-    if (isMobileNow) {
-      mobileDrawerOpen = true;
-      await tick();
-      drawerThemePanelElement?.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
-      });
-      return;
-    }
-
-    menuExpanded = true;
+    setSettingsPanelOpen(true);
+    settingsRibbonExpanded = true;
     await tick();
-    menuThemeManagerElement?.scrollIntoView({
+    document.getElementById("settings-theme-anchor")?.scrollIntoView({
       behavior: "smooth",
-      block: "nearest",
+      block: "start",
     });
   }
 
@@ -460,6 +597,10 @@
   $effect(() => {
     if (typeof localStorage !== "undefined") {
       localStorage.setItem("pax-fluxia-menuTheme", JSON.stringify(menuTheme));
+      localStorage.setItem(
+        "pax-settings-ribbon-expanded",
+        String(settingsRibbonExpanded),
+      );
     }
   });
 
@@ -515,29 +656,7 @@
 </script>
 
 <div class="app-container">
-  {#if gameStore.currentView === "game"}
-    <GameHudTopBar
-      onMenuClick={() => gameStore.setView("menu")}
-      onSettingsClick={toggleSettingsPanel}
-      onDiagnosticsClick={openDiagnostics}
-      onThemesClick={openThemeShortcuts}
-      onRulerToggle={toggleRulerDiagnostics}
-      onAuthoredMeasurementsToggle={activeGameStore.mapDiagnostics.measurements.length > 0
-        ? () => authoredMeasurementsUi.toggle()
-        : undefined}
-      onFitViewport={() => gameCanvasRef?.centerAndFit?.()}
-      onHelpClick={() => alert("Help & controls guide coming soon!")}
-      diagnosticsActive={showSettingsPanel &&
-        forceOpenSettingsSection === "diagnostics"}
-      rulerActive={$rulerTool.enabled}
-      authoredMeasurementsActive={$authoredMeasurementsUi.visible}
-      authoredMeasurementsAvailable={activeGameStore.mapDiagnostics.measurements.length > 0}
-      onModeSelect={handleTopbarTerritoryModeSelect}
-      modeOptions={topbarTerritoryModeOptions}
-      fallbackActiveModeId={topbarActiveTerritoryModeId}
-      currentThemeName={currentThemeName}
-    />
-  {:else}
+  {#if gameStore.currentView !== "game"}
     <TopBar
       onSettingsClick={openAudioSettings}
       onHelpClick={() => alert("Help & controls guide coming soon!")}
@@ -554,7 +673,26 @@
       onClose={() => (showAudioSettings = false)}
     />
 
-    <div class="game-layout" class:settings-open={showSettingsPanel}>
+    <div
+      class="game-layout"
+      class:settings-open={showSettingsPanel}
+      class:layout-sidebar-left={sidebarSide === "left"}
+      class:layout-controls-left={controlsSide === "left"}
+      style={`--left-rail-width:${leftRailWidth}px; --right-rail-width:${rightRailWidth}px; --quick-access-width:${quickAccessWidth}px;`}>
+      <div class="area-topbar">
+        <GameHudTopBar
+          onMenuClick={() => gameStore.setView("menu")}
+          onSettingsClick={toggleSettingsPanel}
+          onToggleLeaderboard={toggleLeaderboardCollapsed}
+          settingsActive={showSettingsPanel}
+          leaderboardCollapsed={leaderboardCollapsed}
+          players={leaderboardPlayers}
+          localPlayerId={activeGameStore.localPlayerId ?? undefined}
+          onModeSelect={handleTopbarTerritoryModeSelect}
+          modeOptions={topbarTerritoryModeOptions}
+          fallbackActiveModeId={topbarActiveTerritoryModeId}
+        />
+      </div>
       <!-- STATUSBAR (info display) -->
       <StatusBar
         players={leaderboardPlayers}
@@ -577,7 +715,9 @@
             >
               <span class="room-id-label">ROOM</span>
               <code class="room-id-code">{multiplayerStore.roomId}</code>
-              <span class="room-id-icon">{roomIdCopied ? "✓" : "📋"}</span>
+              <span class="room-id-icon">
+                <HudIcon name={roomIdCopied ? "active-focus" : "logging"} size={12} />
+              </span>
             </button>
           </div>
         {/if}
@@ -595,12 +735,106 @@
             <ResultsModal onClose={() => (resultsDismissed = true)} />
           </div>
         {/if}
+
+        {#if selectedCommandStar}
+          <div
+            class="selected-command-tray"
+            class:selected-command-tray--collapsed={commandTrayCollapsed}
+            aria-label="Selected star command tray"
+          >
+            <div class="selected-command-tray__identity">
+              <span
+                class="selected-command-tray__orb"
+                style={`--player-color:${selectedCommandOwner?.color ?? "var(--hud-accent)"};`}
+                aria-hidden="true"
+              >
+                <HudIcon name={selectedCommandStar.starType || "grey"} size={20} />
+              </span>
+              <div class="selected-command-tray__copy">
+                <span class="selected-command-tray__label">Selected</span>
+                <span class="selected-command-tray__name">{starLabel(selectedCommandStar)}</span>
+              </div>
+              <div class="selected-command-tray__ships">
+                <span class="font-hud-data">{selectedCommandStar.activeShips}</span>
+                <span>ships</span>
+              </div>
+            </div>
+
+            {#if !commandTrayCollapsed}
+              <div class="selected-command-tray__section">
+                <span class="selected-command-tray__section-label">Orders</span>
+                <button
+                  class="command-tray-button command-tray-button--primary"
+                  onclick={() => gameCanvasRef?.navigateToStar?.(selectedCommandStar.id)}
+                  title="Center selected star"
+                  aria-label="Center selected star"
+                >
+                  <HudIcon name="fit" />
+                </button>
+                <button
+                  class="command-tray-button"
+                  class:active={$rulerTool.enabled}
+                  onclick={toggleRulerDiagnostics}
+                  title={$rulerTool.enabled ? "Turn ruler off" : "Turn ruler on"}
+                  aria-label={$rulerTool.enabled ? "Turn ruler off" : "Turn ruler on"}
+                >
+                  <HudIcon name="ruler" />
+                </button>
+                <button
+                  class="command-tray-button"
+                  onclick={() => openSettingsSection("travel_orders")}
+                  title="Open travel and order tuning"
+                  aria-label="Open travel and order tuning"
+                >
+                  <HudIcon name="travel" />
+                </button>
+              </div>
+
+              <div class="selected-command-tray__section">
+                <span class="selected-command-tray__section-label">Formation</span>
+                <button
+                  class="command-tray-button"
+                  onclick={() => openSettingsSection("fleet_star_visuals")}
+                  title="Open fleet visuals"
+                  aria-label="Open fleet visuals"
+                >
+                  <HudIcon name="fleet-star" />
+                </button>
+                <button
+                  class="command-tray-button"
+                  onclick={() => openSettingsSection("map_options")}
+                  title="Open map options"
+                  aria-label="Open map options"
+                >
+                  <HudIcon name="map-options" />
+                </button>
+                <button
+                  class="command-tray-button"
+                  onclick={() => gameCanvasRef?.centerAndFit?.()}
+                  title="Fit full map"
+                  aria-label="Fit full map"
+                >
+                  <HudIcon name="topology" />
+                </button>
+              </div>
+            {/if}
+
+            <button
+              class="selected-command-tray__collapse"
+              onclick={toggleCommandTrayCollapsed}
+              title={commandTrayCollapsed ? "Expand selected star tray" : "Collapse selected star tray"}
+              aria-label={commandTrayCollapsed ? "Expand selected star tray" : "Collapse selected star tray"}
+            >
+              <HudIcon name={commandTrayCollapsed ? "chevron-up" : "chevron-down"} size={15} />
+            </button>
+          </div>
+        {/if}
       </div>
 
       <!-- MOBILE-ONLY: Bottom controls bar (hidden on desktop, shown by mobile media query) -->
       <div class="area-controls-bar">
-        <fieldset class="speed-fieldset">
-          <legend class="speed-legend">Gamespeed</legend>
+        <section class="speed-card">
+          <div class="speed-card__label">Gamespeed</div>
           <SpeedControls
             speed={activeGameStore.speed}
             isPaused={activeGameStore.isPaused}
@@ -610,9 +844,10 @@
             onResume={() => activeGameStore.resumeGame()}
             onStart={() => activeGameStore.startGame()}
           />
-        </fieldset>
+        </section>
         <StarNav
           stars={activeGameStore.stars ?? []}
+          players={activeGameStore.players ?? []}
           localPlayerId={activeGameStore.localPlayerId ?? undefined}
           onNavigateToStar={(starId) => gameCanvasRef?.navigateToStar?.(starId)}
           onCenterFit={() => gameCanvasRef?.centerAndFit?.()}
@@ -621,7 +856,10 @@
 
       <!-- SECONDARY CONTROLS COLUMN (toggled by gear icon) -->
       {#if showSettingsPanel}
-        <div class="area-controls" style="width: {settingsPanelWidth}px;">
+        <div
+          class="area-controls"
+          class:area-controls--dock-left={controlsSide === "left"}
+          style="width: {settingsPanelWidth}px;">
           <div
             class="controls-resize-handle"
             class:active={isSettingsResizing}
@@ -633,19 +871,26 @@
           <button
             class="settings-overlay-close"
             onclick={() => setSettingsPanelOpen(false)}
-            title="Close Settings">✕</button
+            title="Close Settings"><HudIcon name="close" size={14} /></button
           >
           <div class="panel-section section-tuning">
             <GameSettingsPanel
               forceOpenSection={forceOpenSettingsSection}
               forceOpenSectionNonce={forceOpenSettingsSectionNonce}
+              ribbonExpanded={settingsRibbonExpanded}
+              onToggleRibbonExpanded={toggleSettingsRibbonExpanded}
+              dockSide={controlsSide}
+              onToggleDockSide={toggleControlsSide}
             />
           </div>
         </div>
       {/if}
 
       <!-- RIGHT SIDEBAR (always visible) -->
-      <div class="area-right" style="width: {sidebarWidth}px;">
+      <div
+        class="area-right"
+        class:area-right--dock-left={sidebarSide === "left"}
+        style="width: {sidebarWidth}px;">
         <!-- Resize handle -->
         <div
           class="resize-handle"
@@ -656,58 +901,136 @@
           title="Drag to resize"
         ></div>
 
-        <!-- 1. GAME CONTROLS (speed + pause) -->
-        <div class="sidebar-controls">
-          <fieldset class="speed-fieldset">
-            <legend class="speed-legend">Gamespeed</legend>
-            <SpeedControls
-              speed={activeGameStore.speed}
-              isPaused={activeGameStore.isPaused}
-              hasStarted={true}
-              onSpeedChange={(speed) => activeGameStore.setSpeed(speed)}
-              onPause={() => activeGameStore.pauseGame()}
-              onResume={() => activeGameStore.resumeGame()}
-              onStart={() => activeGameStore.startGame()}
+        {#if !leaderboardCollapsed}
+          <div class="sidebar-leaderboard">
+            <Leaderboard
+              players={leaderboardPlayers}
+              dockSide={sidebarSide}
+              onToggleDockSide={toggleSidebarSide}
+              onCollapse={toggleLeaderboardCollapsed}
             />
-          </fieldset>
+          </div>
+        {/if}
+
+        <div class="sidebar-quicktools">
+          <div class="sidebar-controls">
+            <section class="speed-card">
+              <div class="speed-card__label">Gamespeed</div>
+              <SpeedControls
+                speed={activeGameStore.speed}
+                isPaused={activeGameStore.isPaused}
+                hasStarted={true}
+                onSpeedChange={(speed) => activeGameStore.setSpeed(speed)}
+                onPause={() => activeGameStore.pauseGame()}
+                onResume={() => activeGameStore.resumeGame()}
+                onStart={() => activeGameStore.startGame()}
+              />
+            </section>
+          </div>
+
+          <div class="sidebar-starnav">
+            <StarNav
+              stars={activeGameStore.stars ?? []}
+              players={activeGameStore.players ?? []}
+              localPlayerId={activeGameStore.localPlayerId ?? undefined}
+              onNavigateToStar={(starId) =>
+                gameCanvasRef?.navigateToStar?.(starId)}
+              onCenterFit={() => gameCanvasRef?.centerAndFit?.()}
+            />
+          </div>
         </div>
 
-        <!-- 2. STAR VIEW (cycling navigation) -->
-        <div class="sidebar-starnav">
-          <StarNav
-            stars={activeGameStore.stars ?? []}
-            localPlayerId={activeGameStore.localPlayerId ?? undefined}
-            onNavigateToStar={(starId) =>
-              gameCanvasRef?.navigateToStar?.(starId)}
-            onCenterFit={() => gameCanvasRef?.centerAndFit?.()}
-          />
+        <section class="tactical-overview-card" aria-label="Tactical overview">
+          <div class="tactical-overview-card__header">
+            <span>Tactical Overview</span>
+            <span class="font-hud-data">{activeGameStore.currentTick ?? 0}</span>
+          </div>
+          <div class="tactical-overview-card__players">
+            {#each tacticalOverviewPlayers as player}
+              <div class="tactical-overview-player" title={player.name}>
+                <span
+                  class="tactical-overview-player__mark"
+                  style={`background:${player.color};`}
+                ></span>
+                <span class="tactical-overview-player__ships font-hud-data">
+                  {player.activeShips ?? player.totalShips ?? 0}
+                </span>
+                <span class="tactical-overview-player__stars font-hud-data">
+                  {player.starCount ?? 0}
+                </span>
+              </div>
+            {/each}
+          </div>
+        </section>
+
+        <div class="sidebar-quick-access" aria-label="Quick access icons">
+          <button
+            class="sidebar-tool-btn"
+            onclick={openThemeShortcuts}
+            title={`Open theme tools (${currentThemeName})`}
+          >
+            <HudIcon name="theme" />
+          </button>
+          <button
+            class="sidebar-tool-btn"
+            class:sidebar-tool-btn--active={showSettingsPanel &&
+              forceOpenSettingsSection === "diagnostics"}
+            onclick={openDiagnostics}
+            title="Diagnostics"
+          >
+            <HudIcon name="diagnostics" />
+          </button>
+          <button
+            class="sidebar-tool-btn"
+            class:sidebar-tool-btn--active={$rulerTool.enabled}
+            onclick={toggleRulerDiagnostics}
+            title={$rulerTool.enabled ? "Turn ruler off" : "Turn ruler on"}
+          >
+            <HudIcon name="ruler" />
+          </button>
+          {#if activeGameStore.mapDiagnostics.measurements.length > 0}
+            <button
+              class="sidebar-tool-btn"
+              class:sidebar-tool-btn--active={$authoredMeasurementsUi.visible}
+              onclick={() => authoredMeasurementsUi.toggle()}
+              title={$authoredMeasurementsUi.visible
+                ? "Hide map measurements"
+                : "Show map measurements"}
+            >
+              <HudIcon name="measure" />
+            </button>
+          {/if}
+          <button
+            class="sidebar-tool-btn sidebar-tool-btn--fit"
+            onclick={() => gameCanvasRef?.centerAndFit?.()}
+            title="Center and fit map"
+            aria-label="Center and fit map"
+          >
+            <HudIcon name="fit" />
+          </button>
+          <button
+            class="sidebar-tool-btn"
+            class:sidebar-tool-btn--active={quickAccessDrawerOpen}
+            onclick={() => (quickAccessDrawerOpen = !quickAccessDrawerOpen)}
+            title={quickAccessDrawerOpen ? "Close quick access drawer" : "Open quick access drawer"}
+            aria-label={quickAccessDrawerOpen ? "Close quick access drawer" : "Open quick access drawer"}
+          >
+            <HudIcon name="more" />
+          </button>
         </div>
 
-        <!-- 3. LEADERBOARD -->
-        <div class="sidebar-leaderboard">
-          <Leaderboard players={leaderboardPlayers} />
-        </div>
-
-        <hr class="sidebar-divider" />
+        <hr class="sidebar-divider" class:sidebar-divider--hidden={!quickAccessDrawerOpen} />
 
         <!-- 2. IN-GAME MENU -->
-        <div class="sidebar-menu">
-          <button
-            class="menu-header"
-            onclick={() => (menuExpanded = !menuExpanded)}
-          >
-            <span>MENU</span>
-            <span class="menu-chevron">{menuExpanded ? "▾" : "▸"}</span>
-          </button>
-
-          {#if menuExpanded}
+        <div class="sidebar-menu" class:sidebar-menu--open={quickAccessDrawerOpen}>
+          {#if menuExpanded && quickAccessDrawerOpen}
             <div class="menu-items">
               <button
                 class="menu-item"
                 class:active={showSettingsPanel}
                 onclick={toggleSettingsPanel}
               >
-                <span class="mi-icon">⚙</span>
+                <span class="mi-icon"><HudIcon name="settings" /></span>
                 <span class="mi-label">Settings</span>
               </button>
               <button
@@ -716,38 +1039,35 @@
                   forceOpenSettingsSection === "diagnostics"}
                 onclick={openDiagnostics}
               >
-                <span class="mi-icon">◎</span>
+                <span class="mi-icon"><HudIcon name="diagnostics" /></span>
                 <span class="mi-label">Diagnostics</span>
               </button>
-              <div class="menu-theme-manager" bind:this={menuThemeManagerElement}>
-                <GameThemeManager />
-              </div>
               <button
                 class="menu-item"
                 onclick={openAudioSettings}
               >
-                <span class="mi-icon">🔊</span>
+                <span class="mi-icon"><HudIcon name="audio" /></span>
                 <span class="mi-label">Audio</span>
               </button>
               <button
                 class="menu-item"
                 onclick={() => alert("Screenshot coming soon")}
               >
-                <span class="mi-icon">📸</span>
+                <span class="mi-icon"><HudIcon name="camera" /></span>
                 <span class="mi-label">Screenshot</span>
               </button>
               <button
                 class="menu-item"
                 onclick={() => alert("Shortcuts coming soon")}
               >
-                <span class="mi-icon">⌨</span>
+                <span class="mi-icon"><HudIcon name="keyboard" /></span>
                 <span class="mi-label">Keyboard Shortcuts</span>
               </button>
               <button
                 class="menu-item"
                 onclick={() => alert("Chat coming soon")}
               >
-                <span class="mi-icon">💬</span>
+                <span class="mi-icon"><HudIcon name="chat" /></span>
                 <span class="mi-label">Chat</span>
               </button>
               <hr class="menu-divider" />
@@ -761,7 +1081,7 @@
                   showLoadGameList = false;
                 }}
               >
-                <span class="mi-icon">🗺</span>
+                <span class="mi-icon"><HudIcon name="save-map" /></span>
                 <span class="mi-label">Save Map</span>
               </button>
               {#if showSaveMapInput}
@@ -787,7 +1107,7 @@
               {/if}
               <!-- Save Game (full in-progress snapshot) -->
               <button class="menu-item" onclick={openSaveGame}>
-                <span class="mi-icon">💾</span>
+                <span class="mi-icon"><HudIcon name="save-game" /></span>
                 <span class="mi-label">Save Game</span>
               </button>
               {#if showSaveGameInput}
@@ -821,7 +1141,7 @@
                   showSaveGameInput = false;
                 }}
               >
-                <span class="mi-icon">📂</span>
+                <span class="mi-icon"><HudIcon name="load-map" /></span>
                 <span class="mi-label">Load Map</span>
               </button>
               {#if showLoadMapList}
@@ -836,12 +1156,12 @@
                           onclick={() => handleLoadMap(map)}
                           title="Load and restart with this map"
                         >
-                          🗺 {map.metadata.name}
+                          {map.metadata.name}
                         </button>
                         <button
                           class="map-delete-btn"
                           onclick={() => handleDeleteMap(map.metadata.name)}
-                          title="Delete">✕</button
+                          title="Delete"><HudIcon name="close" size={14} /></button
                         >
                       </div>
                     {/each}
@@ -858,7 +1178,7 @@
                   showSaveGameInput = false;
                 }}
               >
-                <span class="mi-icon">🎮</span>
+                <span class="mi-icon"><HudIcon name="load-game" /></span>
                 <span class="mi-label">Load Game</span>
               </button>
               {#if showLoadGameList}
@@ -868,12 +1188,12 @@
                   {:else}
                     {#each gameStore.savedGames as game}
                       <div class="map-list-item map-list-item--game">
-                        <div class="saved-game-name" title={game.name}>💾 {game.name}</div>
+                        <div class="saved-game-name" title={game.name}>{game.name}</div>
                         <div class="saved-game-meta">Tick {game.tick} · {new Date(game.createdAt).toLocaleDateString()}</div>
                         <div class="saved-game-actions">
                           <button class="map-load-btn" onclick={() => handleLoadSavedGame(game, false)}>Resume</button>
                           <button class="map-load-btn map-load-btn--alt" onclick={() => handleLoadSavedGame(game, true)}>Fresh Start</button>
-                          <button class="map-delete-btn" onclick={() => handleDeleteSavedGame(game.id)}>✕</button>
+                          <button class="map-delete-btn" onclick={() => handleDeleteSavedGame(game.id)}><HudIcon name="close" size={14} /></button>
                         </div>
                       </div>
                     {/each}
@@ -888,7 +1208,7 @@
                   activeGameStore.playAgain();
                 }}
               >
-                <span class="mi-icon">🔄</span>
+                <span class="mi-icon"><HudIcon name="restart" /></span>
                 <span class="mi-label">Restart</span>
               </button>
               <button
@@ -898,12 +1218,13 @@
                   showSurrenderModal = true;
                 }}
               >
-                <span class="mi-icon">🏳</span>
+                <span class="mi-icon"><HudIcon name="quit" /></span>
                 <span class="mi-label">Quit Game</span>
               </button>
             </div>
           {/if}
         </div>
+
       </div>
     </div>
 
@@ -994,7 +1315,7 @@
             showSettingsFab = false;
           }}
         >
-          <span class="fab-icon">🎵</span>
+          <span class="fab-icon"><HudIcon name="audio" size={14} /></span>
           <span>Audio Settings</span>
         </button>
         <button
@@ -1005,7 +1326,7 @@
             showSettingsFab = false;
           }}
         >
-          <span class="fab-icon">⚙</span>
+          <span class="fab-icon"><HudIcon name="settings" size={14} /></span>
           <span>{showSettingsPanel ? "Hide" : "Show"} Settings</span>
         </button>
         <button
@@ -1016,7 +1337,7 @@
             showSettingsFab = false;
           }}
         >
-          <span class="fab-icon">◎</span>
+          <span class="fab-icon"><HudIcon name="diagnostics" size={14} /></span>
           <span>Diagnostics</span>
         </button>
         <button
@@ -1027,7 +1348,7 @@
             showSettingsFab = false;
           }}
         >
-          <span class="fab-icon">📊</span>
+          <span class="fab-icon"><HudIcon name="leaderboard" size={14} /></span>
           <span>Leaderboard</span>
         </button>
         <button
@@ -1038,7 +1359,7 @@
             showSettingsFab = false;
           }}
         >
-          <span class="fab-icon">🔄</span>
+          <span class="fab-icon"><HudIcon name="restart" size={14} /></span>
           <span>Restart</span>
         </button>
         <button
@@ -1049,7 +1370,7 @@
             showSettingsFab = false;
           }}
         >
-          <span class="fab-icon">🏳</span>
+          <span class="fab-icon"><HudIcon name="quit" size={14} /></span>
           <span>Quit Game</span>
         </button>
       </div>
@@ -1067,14 +1388,11 @@
         <button
           class="drawer-close"
           onclick={() => (mobileDrawerOpen = false)}
-          title="Close">✕</button
+          title="Close"><HudIcon name="close" size={14} /></button
         >
         <div class="mobile-drawer-content">
           <div class="drawer-leaderboard">
             <Leaderboard players={leaderboardPlayers} />
-          </div>
-          <div class="drawer-theme-panel" bind:this={drawerThemePanelElement}>
-            <GameThemeManager variant="drawer" />
           </div>
         </div>
       </div>
@@ -1095,10 +1413,13 @@
   /* Default: Canvas | Right sidebar */
   /* Settings open: Canvas | Secondary (controls) | Right sidebar */
   .game-layout {
-    --game-hud-topbar-clearance: 64px;
+    --game-hud-topbar-clearance: 0px;
     display: grid;
     grid-template-columns: 1fr auto;
-    grid-template-areas: "canvas right";
+    grid-template-rows: var(--hud-topbar-height) minmax(0, 1fr);
+    grid-template-areas:
+      "topbar topbar"
+      "canvas right";
     height: 100vh;
     height: 100dvh;
     width: 100vw;
@@ -1106,7 +1427,56 @@
 
   .game-layout.settings-open {
     grid-template-columns: 1fr auto auto;
-    grid-template-areas: "canvas controls right";
+    grid-template-areas:
+      "topbar topbar topbar"
+      "canvas controls right";
+  }
+
+  .game-layout.layout-sidebar-left {
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "topbar topbar"
+      "right canvas";
+  }
+
+  .game-layout.layout-controls-left:not(.settings-open) {
+    grid-template-areas:
+      "topbar topbar"
+      "canvas right";
+  }
+
+  .game-layout.layout-sidebar-left.layout-controls-left:not(.settings-open) {
+    grid-template-areas:
+      "topbar topbar"
+      "right canvas";
+  }
+
+  .game-layout.settings-open.layout-controls-left:not(.layout-sidebar-left) {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "topbar topbar topbar"
+      "controls canvas right";
+  }
+
+  .game-layout.settings-open.layout-sidebar-left:not(.layout-controls-left) {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "topbar topbar topbar"
+      "right canvas controls";
+  }
+
+  .game-layout.settings-open.layout-sidebar-left.layout-controls-left {
+    grid-template-columns: auto auto 1fr;
+    grid-template-areas:
+      "topbar topbar topbar"
+      "right controls canvas";
+  }
+
+  .area-topbar {
+    grid-area: topbar;
+    min-width: 0;
+    position: relative;
+    z-index: 40;
   }
 
   .area-canvas {
@@ -1120,16 +1490,35 @@
   }
 
   /* Sidebar sections */
+  .sidebar-quicktools {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0;
+    margin-bottom: 10px;
+    flex: 1 1 auto;
+    min-height: 0;
+    border-radius: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
   .sidebar-controls {
-    padding: 6px 8px;
+    padding: 0;
   }
   .sidebar-starnav {
-    padding: 2px 8px 6px;
+    padding: 0;
   }
   .sidebar-divider {
     border: none;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    margin: 4px 8px;
+    border-top: 1px solid var(--hud-divider);
+    margin: 4px 0 8px;
+  }
+
+  .sidebar-divider--hidden {
+    display: none;
   }
 
   /* Mobile controls bar: hidden on desktop */
@@ -1139,10 +1528,15 @@
   .sidebar-divider {
     border: none;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
-    margin: 4px 8px;
+    margin: 4px 0 8px;
   }
 
   @media (max-width: 1024px) {
+    .area-topbar,
+    .selected-command-tray {
+      display: none !important;
+    }
+
     /* ── Mobile portrait: 3-row grid ── */
     .game-layout {
       grid-template-columns: 1fr !important;
@@ -1191,7 +1585,7 @@
       backdrop-filter: blur(8px);
       border-top: 1px solid rgba(255, 255, 255, 0.08);
     }
-    .speed-fieldset {
+    .speed-card {
       flex-direction: row !important;
       gap: 6px;
       padding: 6px 8px !important;
@@ -1228,9 +1622,9 @@
       align-items: center !important;
       justify-content: flex-start !important;
     }
-    /* Rotate fieldsets so they become thin vertical strips */
-    .speed-fieldset,
-    .area-controls-bar :global(.star-nav-fieldset) {
+    /* Rotate tactical cards so they become thin vertical strips */
+    .speed-card,
+    .area-controls-bar :global(.star-nav-card) {
       writing-mode: vertical-rl;
       transform: rotate(180deg);
       flex-direction: row-reverse !important;
@@ -1240,14 +1634,14 @@
       border-width: 1px;
     }
     /* Counter-rotate button contents so icons are upright */
-    .speed-fieldset :global(.speed-btn),
+    .speed-card :global(.speed-btn),
     .area-controls-bar :global(.sn-btn) {
       writing-mode: horizontal-tb;
       transform: rotate(180deg);
     }
-    /* Legend text reads vertically */
-    .speed-legend,
-    .area-controls-bar :global(.star-nav-legend) {
+    /* Label text reads vertically */
+    .speed-card__label,
+    .area-controls-bar :global(.star-nav-card__eyebrow) {
       writing-mode: vertical-rl;
       transform: rotate(180deg);
       font-size: 0.4rem;
@@ -1286,12 +1680,6 @@
     .drawer-leaderboard {
       max-width: 280px !important;
       flex-shrink: 0;
-    }
-    .drawer-theme-panel {
-      flex-direction: column !important;
-      align-self: center !important;
-      width: 100%;
-      max-width: 420px !important;
     }
   }
 
@@ -1462,14 +1850,6 @@
       min-width: 2em;
     }
 
-    .drawer-theme-panel {
-      display: flex;
-      width: 100%;
-      max-width: 400px;
-      min-width: 0;
-      overflow: visible;
-    }
-
     /* Hide desktop-only elements on mobile */
     :global(.top-bar) {
       display: none !important;
@@ -1528,6 +1908,145 @@
     min-height: 0;
   }
 
+  .selected-command-tray {
+    position: absolute;
+    left: 50%;
+    bottom: 18px;
+    z-index: 35;
+    display: grid;
+    grid-template-columns: minmax(190px, 1fr) auto auto auto;
+    align-items: stretch;
+    gap: 10px;
+    width: min(760px, calc(100% - 48px));
+    padding: 10px;
+    border: 1px solid rgba(144, 240, 255, 0.28);
+    border-radius: 18px;
+    background:
+      linear-gradient(180deg, rgba(10, 16, 31, 0.94), rgba(5, 9, 20, 0.94)),
+      radial-gradient(circle at left center, rgba(255, 200, 107, 0.12), transparent 42%),
+      radial-gradient(circle at right center, rgba(94, 230, 255, 0.1), transparent 48%);
+    box-shadow:
+      0 20px 60px rgba(0, 0, 0, 0.45),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.035);
+    transform: translateX(-50%);
+    backdrop-filter: blur(18px);
+  }
+
+  .selected-command-tray--collapsed {
+    grid-template-columns: minmax(220px, auto) auto;
+    width: auto;
+  }
+
+  .selected-command-tray__identity,
+  .selected-command-tray__section,
+  .selected-command-tray__orb,
+  .selected-command-tray__ships,
+  .command-tray-button,
+  .selected-command-tray__collapse {
+    display: flex;
+    align-items: center;
+  }
+
+  .selected-command-tray__identity {
+    min-width: 0;
+    gap: 12px;
+    padding: 6px 12px 6px 6px;
+    border-right: 1px solid var(--hud-divider);
+  }
+
+  .selected-command-tray__orb {
+    width: 42px;
+    height: 42px;
+    justify-content: center;
+    border-radius: 14px;
+    border: 1px solid color-mix(in srgb, var(--player-color, var(--hud-accent)) 46%, transparent);
+    color: var(--player-color, var(--hud-accent));
+    background:
+      radial-gradient(circle, color-mix(in srgb, var(--player-color, var(--hud-accent)) 22%, transparent), transparent 60%),
+      rgba(255, 255, 255, 0.035);
+  }
+
+  .selected-command-tray__copy {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+  }
+
+  .selected-command-tray__label,
+  .selected-command-tray__section-label,
+  .selected-command-tray__ships span:last-child {
+    color: var(--hud-text-soft);
+    font-family: var(--hud-font-ui);
+    font-size: 0.55rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .selected-command-tray__name {
+    overflow: hidden;
+    color: var(--hud-text-strong);
+    font-family: var(--hud-font-ui);
+    font-size: 0.84rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .selected-command-tray__ships {
+    margin-left: auto;
+    gap: 6px;
+    color: var(--hud-accent-strong);
+  }
+
+  .selected-command-tray__ships .font-hud-data {
+    color: var(--hud-text-strong);
+    font-size: 1.05rem;
+  }
+
+  .selected-command-tray__section {
+    gap: 8px;
+    padding: 0 4px;
+  }
+
+  .selected-command-tray__section-label {
+    width: 70px;
+  }
+
+  .command-tray-button,
+  .selected-command-tray__collapse {
+    width: 42px;
+    height: 42px;
+    justify-content: center;
+    border: 1px solid var(--hud-border);
+    border-radius: 13px;
+    background: var(--hud-button-bg);
+    color: var(--hud-text);
+    cursor: pointer;
+    transition:
+      background 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      transform 0.16s ease;
+  }
+
+  .command-tray-button:hover,
+  .selected-command-tray__collapse:hover {
+    background: var(--hud-button-bg-hover);
+    border-color: var(--hud-border-strong);
+    color: var(--hud-text-strong);
+    transform: translateY(-1px);
+  }
+
+  .command-tray-button--primary,
+  .command-tray-button.active {
+    border-color: var(--hud-border-strong);
+    background: var(--hud-button-bg-active);
+    color: var(--hud-accent);
+  }
+
   @keyframes nebula-drift {
     0%,
     100% {
@@ -1548,18 +2067,26 @@
   .area-controls {
     grid-area: controls;
     position: relative;
-    background: rgba(10, 10, 15, 0.95);
-    border-left: 1px solid #223;
-    border-right: 1px solid #223;
+    background:
+      linear-gradient(180deg, rgba(6, 11, 23, 0.98), rgba(5, 9, 19, 0.94)),
+      radial-gradient(circle at top, rgba(94, 230, 255, 0.08), transparent 52%);
+    border-left: 1px solid var(--hud-divider);
+    border-right: 1px solid var(--hud-divider);
     display: flex;
     flex-direction: column;
-    padding: calc(10px + var(--game-hud-topbar-clearance)) 10px 10px;
-    gap: 10px;
+    padding: 12px 12px 10px;
+    gap: 12px;
     z-index: 20;
-    overflow-y: auto;
+    overflow: hidden;
     width: 340px;
     min-width: 280px;
     flex-shrink: 0;
+  }
+
+  .area-controls--dock-left {
+    border-left: none;
+    border-right: 1px solid var(--hud-divider);
+    box-shadow: 5px 0 20px rgba(0, 0, 0, 0.32);
   }
 
   .section-tuning {
@@ -1574,16 +2101,24 @@
   .area-right {
     grid-area: right;
     position: relative;
-    background: rgba(10, 10, 15, 0.95);
-    border-left: 1px solid #334;
+    background:
+      linear-gradient(180deg, rgba(6, 11, 23, 0.98), rgba(5, 9, 19, 0.94)),
+      radial-gradient(circle at top, rgba(255, 200, 107, 0.07), transparent 50%);
+    border-left: 1px solid var(--hud-divider);
     display: flex;
     flex-direction: column;
-    padding: calc(10px + var(--game-hud-topbar-clearance)) 10px 10px;
+    padding: 12px 12px 10px;
     gap: 0;
     z-index: 20;
-    box-shadow: -5px 0 20px rgba(0, 0, 0, 0.5);
-    overflow-y: auto;
+    box-shadow: -12px 0 32px rgba(2, 6, 23, 0.42);
+    overflow: hidden;
     flex-shrink: 0;
+  }
+
+  .area-right--dock-left {
+    border-left: none;
+    border-right: 1px solid var(--hud-divider);
+    box-shadow: 12px 0 32px rgba(2, 6, 23, 0.42);
   }
 
   .controls-resize-handle,
@@ -1598,6 +2133,12 @@
     background: transparent;
     transition: background 0.15s;
   }
+
+  .area-controls--dock-left .controls-resize-handle,
+  .area-right--dock-left .resize-handle {
+    left: auto;
+    right: -3px;
+  }
   .resize-handle:hover,
   .resize-handle.active,
   .controls-resize-handle:hover,
@@ -1609,46 +2150,200 @@
   .sidebar-leaderboard {
     flex-shrink: 0;
     padding-bottom: 8px;
-    margin-bottom: 6px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--hud-divider);
+  }
+
+  .area-right :global(.leaderboard) {
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .area-right :global(.leaderboard__eyebrow),
+  .area-right :global(.leaderboard__summary),
+  .area-right :global(.tick-progress-bar) {
+    display: none;
+  }
+
+  .area-right :global(.leaderboard__header) {
+    gap: 8px;
+  }
+
+  .area-right :global(.leaderboard__title) {
+    font-size: 0.82rem;
+  }
+
+  .area-right :global(.leaderboard__actions) {
+    gap: 5px;
+  }
+
+  .area-right :global(.leaderboard__focus-toggle) {
+    gap: 3px;
+    padding: 3px;
+  }
+
+  .area-right :global(.focus-pill) {
+    min-height: 30px;
+    gap: 0;
+    padding: 0 9px;
+  }
+
+  .area-right :global(.focus-pill span) {
+    display: none;
+  }
+
+  .area-right :global(.leaderboard__columns) {
+    margin-top: 2px;
+  }
+
+  .area-right :global(.leaderboard__item) {
+    min-height: 30px;
+    padding: 4px 7px;
+  }
+
+  .area-right :global(.star-nav-card) {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .area-right :global(.star-nav-card__header) {
+    gap: 8px;
+    padding-bottom: 8px;
+  }
+
+  .area-right :global(.star-nav-body) {
+    grid-template-columns: 68px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .area-right :global(.star-orb) {
+    min-height: 68px;
+    border-radius: 14px;
+  }
+
+  .area-right :global(.star-orb__ring) {
+    width: 52px;
+    height: 52px;
+  }
+
+  .area-right :global(.star-orb__core) {
+    width: 22px;
+    height: 22px;
+  }
+
+  .area-right :global(.star-field),
+  .area-right :global(.star-rate) {
+    padding: 8px;
+  }
+
+  .area-right :global(.star-rate-grid) {
+    gap: 7px;
+  }
+
+  .area-right :global(.star-route-strip) {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .tactical-overview-card,
+  .sidebar-quick-access {
+    flex-shrink: 0;
+    margin-bottom: 12px;
+    border: 1px solid var(--hud-border);
+    border-radius: var(--hud-radius-md);
+    background: rgba(6, 11, 23, 0.9);
+    box-shadow: var(--hud-shadow-soft);
+  }
+
+  .tactical-overview-card {
+    display: none;
+    gap: 12px;
+    padding: 13px;
+  }
+
+  @media (min-height: 960px) {
+    .tactical-overview-card {
+      display: grid;
+    }
+  }
+
+  .tactical-overview-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    color: var(--hud-text-soft);
+    font-family: var(--hud-font-ui);
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .tactical-overview-card__players {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .tactical-overview-player {
+    min-width: 0;
+    display: grid;
+    justify-items: center;
+    gap: 5px;
+    padding: 9px 6px;
+    border-radius: 12px;
+    background: rgba(12, 22, 40, 0.72);
+  }
+
+  .tactical-overview-player__mark {
+    width: 22px;
+    height: 3px;
+    border-radius: 99px;
+    box-shadow: 0 0 12px currentColor;
+  }
+
+  .tactical-overview-player__ships {
+    color: var(--hud-text-strong);
+    font-size: 0.72rem;
+  }
+
+  .tactical-overview-player__stars {
+    color: var(--hud-text-soft);
+    font-size: 0.62rem;
+  }
+
+  .sidebar-quick-access {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 8px;
+    padding: 10px;
+    position: relative;
+    margin-top: 0;
+    z-index: 2;
+    backdrop-filter: blur(16px);
   }
 
   /* In-game menu */
   .sidebar-menu {
+    display: none;
     flex-shrink: 0;
-    padding: 4px 0;
+    padding: 0 0 4px;
   }
 
-  .menu-header {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 6px 8px;
-    background: transparent;
-    border: none;
-    color: rgba(255, 255, 255, 0.45);
-    font-family: "Exo", sans-serif;
-    font-size: 0.65rem;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: color 0.15s;
-  }
-  .menu-header:hover {
-    color: rgba(255, 255, 255, 0.7);
+  .sidebar-menu--open {
+    display: block;
   }
 
-  .menu-chevron {
-    font-size: 0.7rem;
+  .sidebar-menu .menu-items > .menu-item:nth-child(-n + 2) {
+    display: none;
   }
 
   .menu-items {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    padding: 4px 0;
+    gap: 4px;
+    padding: 0;
   }
 
   .menu-item {
@@ -1656,34 +2351,43 @@
     align-items: center;
     gap: 10px;
     width: 100%;
-    padding: 8px 12px;
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: 6px;
-    color: rgba(255, 255, 255, 0.6);
-    font-family: "Montserrat", sans-serif;
-    font-size: 0.78rem;
-    font-weight: 500;
+    min-height: 40px;
+    padding: 0 12px;
+    background: rgba(7, 13, 26, 0.72);
+    border: 1px solid var(--hud-border);
+    border-radius: 12px;
+    color: var(--hud-text);
+    font-family: var(--hud-font-ui);
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
     cursor: pointer;
     transition: all 0.15s;
     text-align: left;
   }
   .menu-item:hover {
-    background: rgba(255, 255, 255, 0.04);
-    border-color: rgba(255, 255, 255, 0.08);
-    color: #fff;
+    background: rgba(14, 24, 43, 0.92);
+    border-color: var(--hud-border-strong);
+    color: var(--hud-text-strong);
   }
   .menu-item.active {
-    background: rgba(80, 120, 255, 0.12);
-    border-color: rgba(80, 120, 255, 0.3);
-    color: #93c5fd;
+    background: rgba(21, 53, 82, 0.72);
+    border-color: var(--hud-border-strong);
+    color: var(--hud-accent);
   }
 
   .mi-icon {
-    font-size: 1rem;
-    width: 20px;
-    text-align: center;
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
+  }
+
+  .mi-icon :global(svg) {
+    width: 18px;
+    height: 18px;
   }
 
   .mi-label {
@@ -1692,13 +2396,43 @@
 
   .menu-divider {
     border: none;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    margin: 4px 0;
+    border-top: 1px solid var(--hud-divider);
+    margin: 6px 0;
   }
 
-  .menu-theme-manager {
-    width: 100%;
-    padding: 6px 12px 10px 42px;
+  .sidebar-tool-btn {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--hud-border);
+    border-radius: 12px;
+    background: var(--hud-button-bg);
+    color: var(--hud-text);
+    cursor: pointer;
+    transition:
+      background 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      transform 0.16s ease;
+  }
+
+  .sidebar-tool-btn:hover {
+    background: var(--hud-button-bg-hover);
+    border-color: var(--hud-border-strong);
+    color: var(--hud-text-strong);
+    transform: translateY(-1px);
+  }
+
+  .sidebar-tool-btn--active {
+    border-color: var(--hud-border-strong);
+    background: rgba(20, 48, 74, 0.84);
+    color: var(--hud-accent);
+  }
+
+  .sidebar-tool-btn :global(svg) {
+    width: 18px;
+    height: 18px;
   }
 
   .menu-item.quit-item:hover {
@@ -1715,16 +2449,17 @@
   }
   .map-name-input {
     flex: 1;
-    padding: 4px 8px;
-    background: rgba(20, 20, 35, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 4px;
-    color: #fff;
-    font-family: "Montserrat", sans-serif;
+    min-height: 34px;
+    padding: 0 10px;
+    background: rgba(7, 13, 26, 0.92);
+    border: 1px solid var(--hud-border);
+    border-radius: 10px;
+    color: var(--hud-text-strong);
+    font-family: var(--hud-font-ui);
     font-size: 0.72rem;
   }
   .map-name-input:focus {
-    border-color: rgba(80, 200, 255, 0.5);
+    border-color: var(--hud-border-strong);
     outline: none;
   }
   .map-save-btn {
@@ -1837,7 +2572,7 @@
   /* ═══ OVERLAYS ═══ */
   .overlay-top-center {
     position: absolute;
-    top: calc(12px + var(--game-hud-topbar-clearance));
+    top: 12px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 30;
@@ -1870,9 +2605,9 @@
     text-transform: uppercase;
   }
   .room-id-code {
-    font-family: monospace;
+    font-family: var(--hud-font-data);
     font-size: 0.8rem;
-    color: #00ffff;
+    color: var(--hud-accent);
     letter-spacing: 0.05em;
   }
   .room-id-icon {
@@ -1882,7 +2617,7 @@
 
   .overlay-top-left {
     position: absolute;
-    top: calc(12px + var(--game-hud-topbar-clearance));
+    top: 12px;
     left: 12px;
     z-index: 30;
     pointer-events: auto;
@@ -1907,23 +2642,24 @@
     z-index: 9999;
   }
 
-  .speed-fieldset {
+  .speed-card {
     margin: 0;
-    padding: 6px 10px 8px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 8px;
+    padding: 12px;
+    border: 1px solid var(--hud-border);
+    border-radius: var(--hud-radius-md);
+    background: var(--hud-panel-bg-muted);
     display: flex;
-    gap: 4px;
+    gap: 8px;
     align-items: center;
   }
-  .speed-legend {
-    font-family: "Montserrat", sans-serif;
-    font-size: 0.55rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
+  .speed-card__label {
+    font-family: var(--hud-font-ui);
+    font-size: 0.56rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.35);
-    padding: 0 6px;
+    color: var(--hud-accent);
+    padding: 0 2px;
   }
 
   /* ═══ UTILITIES ═══ */

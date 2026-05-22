@@ -36,6 +36,53 @@
   --font-data: 'JetBrains Mono', monospace;
   --font-body: 'Inter', sans-serif;
 
+  /* HUD Surface System */
+  --hud-topbar-height: 64px;
+  --hud-font-ui: var(--font-display);
+  --hud-font-data: var(--font-data);
+  --hud-font-body: var(--font-body);
+  --hud-accent: #5ee6ff;
+  --hud-accent-strong: #90f0ff;
+  --hud-accent-warm: #ffc86b;
+  --hud-danger: #ff6a7a;
+  --hud-text-strong: rgba(244, 248, 255, 0.96);
+  --hud-text: rgba(217, 228, 245, 0.88);
+  --hud-text-soft: rgba(148, 163, 184, 0.92);
+  --hud-text-dim: rgba(112, 128, 157, 0.86);
+  --hud-panel-bg:
+    linear-gradient(180deg, rgba(10, 18, 36, 0.96), rgba(5, 9, 20, 0.96)),
+    radial-gradient(circle at top, rgba(94, 230, 255, 0.12), transparent 48%);
+  --hud-panel-bg-strong:
+    linear-gradient(180deg, rgba(12, 22, 43, 0.97), rgba(4, 8, 18, 0.98)),
+    radial-gradient(circle at top, rgba(255, 200, 107, 0.12), transparent 54%);
+  --hud-panel-bg-muted:
+    linear-gradient(180deg, rgba(8, 14, 29, 0.92), rgba(5, 8, 18, 0.94));
+  --hud-button-bg: rgba(16, 24, 44, 0.84);
+  --hud-button-bg-hover: rgba(20, 34, 58, 0.94);
+  --hud-button-bg-active:
+    linear-gradient(180deg, rgba(23, 53, 86, 0.96), rgba(10, 28, 48, 0.94));
+  --hud-border: rgba(112, 142, 186, 0.24);
+  --hud-border-strong: rgba(94, 230, 255, 0.34);
+  --hud-border-warm: rgba(255, 200, 107, 0.34);
+  --hud-divider: rgba(112, 142, 186, 0.18);
+  --hud-shadow: 0 22px 58px rgba(2, 6, 23, 0.52);
+  --hud-shadow-soft: 0 12px 30px rgba(2, 6, 23, 0.34);
+  --hud-glow: 0 0 0 1px rgba(94, 230, 255, 0.12), 0 18px 40px rgba(5, 18, 36, 0.42);
+  --hud-radius-xs: 10px;
+  --hud-radius-sm: 14px;
+  --hud-radius-md: 18px;
+  --hud-radius-lg: 24px;
+  --hud-pad-xs: 8px;
+  --hud-pad-sm: 12px;
+  --hud-pad-md: 16px;
+  --hud-pad-lg: 20px;
+  --hud-gap-xs: 6px;
+  --hud-gap-sm: 10px;
+  --hud-gap-md: 14px;
+  --hud-gap-lg: 18px;
+  --hud-icon-size: 18px;
+  --hud-icon-stroke: 1.85;
+
   /* Font Sizes — Desktop defaults (overridden by media queries below) */
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
@@ -134,6 +181,17 @@ body {
 .font-data {
   font-family: var(--font-data);
   font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.font-hud-ui {
+  font-family: var(--hud-font-ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.font-hud-data {
+  font-family: var(--hud-font-data);
   font-variant-numeric: tabular-nums;
 }
 
