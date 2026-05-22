@@ -12,6 +12,8 @@ Moved the HUD/UI development worktree onto a correctly named branch and prepared
 - Created branch `codex/ui-hud-development` for the UI/HUD development lane.
 - Confirmed the worktree contained uncommitted UI/HUD source changes, documentation directories, a post-mortem, a smoke-test screenshot artifact, and a new HUD icon component.
 - Added this session log, chat log, task queue, and post-mortem for the versioning protocol lapse.
+- Created four organized commits for existing source and documentation work.
+- Ran `bun run --cwd pax-fluxia check`; validation failed with 329 errors and 842 warnings across 66 files.
 
 ## Commit Organization
 
@@ -24,3 +26,4 @@ Moved the HUD/UI development worktree onto a correctly named branch and prepared
 
 - No work is intentionally excluded from the organized commits.
 - The branch exists for ongoing UI/HUD development and to preserve merge history with minimal ambiguity.
+- Validation failure is broad and not limited to the UI/HUD files committed here. Representative failures include missing config keys, authored-map type mismatches, corrupted territory orchestrator symbols, archived HUD prop errors, and map-editor store API mismatches.

@@ -11,6 +11,8 @@
 - Confirmed the worktree had no current branch name and contained uncommitted UI/HUD source changes, documentation artifacts, and one new HUD icon component.
 - Created branch `codex/ui-hud-development` for the UI/HUD development lane.
 - Planned commits so all existing source and documentation work is included, with no exclusions.
+- Created organized commits for layout shell, settings/theme surfaces, tactical HUD widgets, documentation/handoff history, and validation reporting.
+- Ran `bun run --cwd pax-fluxia check`; it failed with 329 errors and 842 warnings across 66 files.
 
 ## Commit Plan
 
@@ -21,5 +23,6 @@
 
 ## Validation
 
-- Run `git status --short` after commits to confirm no work remains uncommitted.
-- Run frontend validation if feasible after committing, and report any failure precisely.
+- `git status --short` was clean after the first four commits.
+- `bun run --cwd pax-fluxia check` failed.
+- Representative failures included missing `GameConfigType` keys in `game.config.ts`, map/authored-lane type mismatches in `gameStore.svelte.ts`, corrupted type/import names under `src/lib/territory/orchestrator/`, archived HUD prop type errors, `MainMenu.svelte` missing new command props, and missing `upsertSavedMapDefinition` on `gameStore` in the map editor route.
