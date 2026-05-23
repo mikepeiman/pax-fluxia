@@ -132,3 +132,14 @@ Don't be an idiot. Be smart. You're not bound to do anything a particular way, a
 ## Assistant
 
 Continued corrective implementation, static scans, build/check, browser/CDP QA, documentation updates, and commit preparation.
+
+## User
+
+I want you to expose an ingame control to try different fonts. Not just one global fonts, but our proper design system tokens where several typographic styles should be used in different circumstances.
+
+How do we do this best during development, and how do I ensure the fonts will be packaged with the app?
+Here is one example font to try: D:\Eagle master library\Master.library\images\MPIR1ZAJDLGD7.info\PastiRegular-mLXnm.otf
+
+## Assistant
+
+Implemented an in-game typography token lab under the live settings utility area. The control changes role-specific HUD CSS variables for brand, interface, labels, copy, and data, persists choices to localStorage, and can reset to design defaults. Copied the supplied Pasti OTF into the app static asset tree for packaging and verified the built output contains it.

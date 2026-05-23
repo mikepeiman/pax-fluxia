@@ -4,6 +4,7 @@
 
 - Review/merge corrective live HUD redesign work on `codex/ui-hud-development`.
 - Follow-up candidate: map renderer/territory art pass to better match the Aurelia Drift reference richness. This corrective commit primarily fixes DOM HUD/settings surfaces.
+- Follow-up candidate: package remaining Google-loaded default fonts locally if Steam/Tauri offline operation must not depend on network font URLs.
 
 ## Completed
 
@@ -25,6 +26,8 @@
 - Wrote post-mortem for false completion and process failure.
 - Added browser QA coverage for selected-star update, settings open/close, standings collapse/reopen, and 1920x1080/1600x900/1280x720 layout metrics.
 - Created `.agent/docs/handoffs/2026-05-23_HUD_REDESIGN_HANDOFF_worktree-4b02.md`.
+- Added an in-game typography token lab for brand/interface/label/copy/data HUD font roles.
+- Packaged the supplied Pasti OTF under `pax-fluxia/static/fonts/pasti/` and verified it copies into the static build output.
 
 ## Validation Plan
 
@@ -33,3 +36,4 @@
 - `bun run --cwd pax-fluxia check`: failed on existing baseline, latest count `329 errors and 820 warnings in 65 files`.
 - Browser QA at 1280x720, 1600x900, and 1920x1080: passed for measured HUD overlap/state checks.
 - Static/browser label checks: no visible `Quick Tools`, `Actions`, `Low-frequency`; no `Load Map` inside Theme cluster; no Theme Library category rows.
+- Typography token QA: local browser test passed for opening settings, seeing Token Lab, selecting Pasti for Brand, status update, and reset to defaults.

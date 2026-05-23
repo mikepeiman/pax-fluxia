@@ -87,6 +87,7 @@
         type SettingsSearchResult,
     } from "./settings/settingsSearch";
     import ThemeLibraryPanel from "$lib/components/game-hud/ThemeLibraryPanel.svelte";
+    import TypographyTokenPanel from "$lib/components/game-hud/TypographyTokenPanel.svelte";
     import HudIcon from "./hud/HudIcon.svelte";
 
     // Aliases for the imported arrays (matches existing template references)
@@ -1218,6 +1219,9 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         <div class="settings-theme-utility" id="settings-theme-anchor">
             <ThemeLibraryPanel />
         </div>
+        <div class="settings-typography-utility">
+            <TypographyTokenPanel />
+        </div>
     </div>
 
     <div class="settings-shell" class:settings-shell--rail-only={!hasVisibleOpenSections}>
@@ -1848,7 +1852,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     .settings-search-label {
-        font-family: var(--hud-font-ui);
+        font-family: var(--hud-font-label);
         font-size: 0.58rem;
         font-weight: 700;
         letter-spacing: 0.16em;
@@ -1914,7 +1918,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     .settings-search-summary {
-        font-family: var(--hud-font-ui);
+        font-family: var(--hud-font-label);
         font-size: 0.58rem;
         font-weight: 700;
         letter-spacing: 0.16em;
@@ -1928,7 +1932,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         border-radius: 14px;
         background: rgba(9, 16, 31, 0.72);
         color: var(--hud-text-soft);
-        font-family: var(--hud-font-ui);
+        font-family: var(--hud-font-copy);
         font-size: 0.76rem;
         line-height: 1.45;
     }
@@ -1966,7 +1970,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     .settings-search-result__meta {
-        font-family: var(--hud-font-ui);
+        font-family: var(--hud-font-label);
         font-size: 0.56rem;
         letter-spacing: 0.14em;
         text-transform: uppercase;
@@ -1974,13 +1978,14 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     .settings-search-result__snippet {
-        font-family: var(--hud-font-ui);
+        font-family: var(--hud-font-copy);
         font-size: 0.68rem;
         line-height: 1.4;
         color: var(--hud-text-soft);
     }
 
-    .settings-theme-utility {
+    .settings-theme-utility,
+    .settings-typography-utility {
         min-width: 0;
     }
 

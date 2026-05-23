@@ -35,6 +35,9 @@ Started and corrected full live in-game HUD redesign implementation on `codex/ui
 - Browser QA completed at 1920x1080, 1600x900, and 1280x720 through local Chrome/CDP/Bun scripts.
 - `bun run --cwd pax-fluxia build` passes.
 - `bun run --cwd pax-fluxia check` still fails on repository baseline: `329 errors and 820 warnings in 65 files`.
+- Added a live in-game typography token lab under the settings utility area.
+- Copied supplied `PastiRegular-mLXnm.otf` into `pax-fluxia/static/fonts/pasti/` and added a local `@font-face` so the font is included in `build/fonts/pasti/`.
+- Added role-specific HUD font tokens for brand, interface, labels, copy, and data, with localStorage persistence and reset.
 
 ## Validation Notes
 
@@ -46,3 +49,4 @@ Started and corrected full live in-game HUD redesign implementation on `codex/ui
 - No visible `Quick Tools`, `Actions`, or `Low-frequency` labels in the live HUD.
 - 1280x720 compact-height styling avoids Star View/quick-access overlap.
 - Remaining risk: the Pixi map renderer itself still does not fully achieve the richness of the supplied Aurelia Drift references; this commit substantially corrects the DOM HUD/settings surfaces.
+- Typography token browser QA: opened a local match, opened settings, verified `Typography / Token Lab`, selected Pasti for Brand, observed status update, and reset to defaults.

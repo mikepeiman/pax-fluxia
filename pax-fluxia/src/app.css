@@ -3,6 +3,14 @@
 @source "./lib/components";
 @import "./lib/styles/hud.css";
 
+@font-face {
+  font-family: "Pasti";
+  src: url("/fonts/pasti/PastiRegular-mLXnm.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* ==========================================================================
    PAX FLUXIA - Cyber-Flux Design System
    ========================================================================== */
@@ -40,10 +48,14 @@
   --font-display: 'Rajdhani', sans-serif;
   --font-data: 'JetBrains Mono', monospace;
   --font-body: 'Inter', sans-serif;
+  --font-pasti: 'Pasti', 'Rajdhani', sans-serif;
 
   /* HUD Surface System */
   --hud-topbar-height: 64px;
+  --hud-font-brand: var(--font-display);
   --hud-font-ui: var(--font-display);
+  --hud-font-label: var(--font-display);
+  --hud-font-copy: var(--font-body);
   --hud-font-data: var(--font-data);
   --hud-font-body: var(--font-body);
   --hud-accent: #55e7ef;
@@ -200,6 +212,22 @@ body {
   font-family: var(--hud-font-ui);
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.font-hud-brand {
+  font-family: var(--hud-font-brand);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.font-hud-label {
+  font-family: var(--hud-font-label);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.font-hud-copy {
+  font-family: var(--hud-font-copy);
 }
 
 .font-hud-data {

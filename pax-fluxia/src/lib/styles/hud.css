@@ -71,6 +71,7 @@
 .pf-star-metric span,
 .pf-selected-star-tray__label {
   color: color-mix(in srgb, var(--hud-accent-warm) 62%, var(--hud-text-dim));
+  font-family: var(--hud-font-label);
   font-size: 0.58rem;
   font-weight: 800;
   letter-spacing: 0.14em;
@@ -233,6 +234,7 @@
 }
 
 .pf-hud-topbar__title {
+  font-family: var(--hud-font-brand);
   color: var(--hud-accent-warm-strong, var(--hud-text-strong));
   font-size: 1.06rem;
   font-weight: 800;
@@ -584,6 +586,7 @@
 .pf-selected-star-panel__empty p {
   margin: 0;
   max-width: 220px;
+  font-family: var(--hud-font-copy);
   font-size: 0.78rem;
 }
 
@@ -644,6 +647,7 @@
   flex: 1 1 auto;
   min-width: 140px;
   color: var(--hud-text-soft);
+  font-family: var(--hud-font-copy);
   font-size: 0.78rem;
 }
 
@@ -883,7 +887,9 @@
 .pf-hud-topbar__player-badge,
 .pf-theme-library button,
 .pf-theme-library select,
-.pf-theme-library input {
+.pf-theme-library input,
+.pf-typography-panel button,
+.pf-typography-panel select {
   min-width: 0;
   border-radius: 0;
   clip-path: var(--hud-cut-corner-xs);
@@ -1169,32 +1175,51 @@
   clip-path: var(--hud-cut-corner-md);
 }
 
+.pf-typography-panel {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(246, 196, 105, 0.36);
+  background:
+    linear-gradient(180deg, rgba(1, 27, 29, 0.92), rgba(0, 10, 13, 0.96)),
+    radial-gradient(circle at 0% 0%, rgba(90, 245, 235, 0.08), transparent 40%),
+    radial-gradient(circle at 100% 0%, rgba(246, 196, 105, 0.08), transparent 46%);
+  clip-path: var(--hud-cut-corner-md);
+}
+
 .pf-theme-library__header,
 .pf-theme-library__select-row,
 .pf-theme-library__actions,
 .pf-theme-library__save-row,
-.pf-theme-library__row {
+.pf-theme-library__row,
+.pf-typography-panel__header,
+.pf-typography-row {
   display: flex;
   align-items: center;
 }
 
-.pf-theme-library__header {
+.pf-theme-library__header,
+.pf-typography-panel__header {
   justify-content: space-between;
   gap: 8px;
   padding-bottom: 6px;
   border-bottom: 1px solid rgba(246, 196, 105, 0.18);
 }
 
-.pf-theme-library__eyebrow {
+.pf-theme-library__eyebrow,
+.pf-typography-panel__eyebrow {
   display: block;
   color: var(--hud-accent);
+  font-family: var(--hud-font-label);
   font-size: 0.5rem;
   font-weight: 900;
   letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
-.pf-theme-library h3 {
+.pf-theme-library h3,
+.pf-typography-panel h3 {
   margin: 0;
   color: var(--hud-accent-warm-strong);
   font-size: 0.78rem;
@@ -1233,7 +1258,8 @@
 }
 
 .pf-theme-library select,
-.pf-theme-library input {
+.pf-theme-library input,
+.pf-typography-panel select {
   width: 100%;
   min-height: 32px;
   padding: 0 9px;
@@ -1254,7 +1280,8 @@
 
 .pf-theme-library__icon-btn,
 .pf-theme-library__actions button,
-.pf-theme-library__save-row button {
+.pf-theme-library__save-row button,
+.pf-typography-panel__reset {
   min-height: 32px;
   display: inline-flex;
   align-items: center;
@@ -1274,9 +1301,89 @@
   cursor: pointer;
 }
 
-.pf-theme-library__icon-btn {
+.pf-theme-library__icon-btn,
+.pf-typography-panel__reset {
   width: 34px;
   padding: 0;
+}
+
+.pf-typography-panel__roles {
+  max-height: min(220px, 28vh);
+  display: grid;
+  gap: 7px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.pf-typography-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(72px, 0.9fr) minmax(96px, 1fr);
+  gap: 5px 8px;
+  padding: 7px;
+  border: 1px solid rgba(246, 196, 105, 0.18);
+  background: rgba(0, 14, 18, 0.66);
+  clip-path: var(--hud-cut-corner-xs);
+}
+
+.pf-typography-row__meta {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.pf-typography-row__meta strong {
+  color: var(--hud-text-strong);
+  font-family: var(--hud-font-label);
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.pf-typography-row__meta small,
+.pf-typography-row__note {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--hud-text-dim);
+  font-family: var(--hud-font-copy);
+  font-size: 0.56rem;
+  line-height: 1.15;
+}
+
+.pf-typography-row__sample {
+  grid-column: 1 / -1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--hud-accent-warm-strong);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.05;
+}
+
+.pf-typography-row__note {
+  grid-column: 1 / -1;
+  color: rgba(144, 224, 184, 0.82);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.pf-typography-panel__status {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(144, 224, 184, 0.96);
+  font-family: var(--hud-font-copy);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .pf-theme-library__actions {
@@ -1301,6 +1408,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: rgba(144, 224, 184, 0.96);
+  font-family: var(--hud-font-copy);
   font-size: 0.58rem;
   font-weight: 800;
   letter-spacing: 0.08em;

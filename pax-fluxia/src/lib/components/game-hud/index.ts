@@ -9,6 +9,7 @@ export { default as SelectedStarPanel } from "./SelectedStarPanel.svelte";
 export { default as SelectedStarTray } from "./SelectedStarTray.svelte";
 export { default as SettingsRibbon } from "./SettingsRibbon.svelte";
 export { default as ThemeLibraryPanel } from "./ThemeLibraryPanel.svelte";
+export { default as TypographyTokenPanel } from "./TypographyTokenPanel.svelte";
 
 export * from "./types";
 export * from "./viewModels";

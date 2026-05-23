@@ -5,7 +5,8 @@
 - Branch: `codex/ui-hud-development`
 - Earlier plan commit: `371cecdb0 docs: record full hud redesign implementation plan`
 - Earlier implementation commit: `ca9e7b5ab ui: implement Aurelia Drift live HUD redesign`
-- Current pending commit: corrective implementation after user rejection of the first UI result.
+- Corrective implementation commit: `225df96ce ui: correct Aurelia Drift HUD settings surfaces`
+- Current additional pending work: live typography token lab and packaged Pasti font asset.
 
 ## Merge Intent
 
@@ -27,6 +28,8 @@ This corrective pass is still a DOM/HUD/settings pass. It does not rewrite Pixi 
 `pax-fluxia/src/app.css`
 
 - Lines near `44-94`: adds HUD cut-corner tokens used by the Aurelia Drift corrective shell.
+- Adds local `@font-face` for packaged Pasti OTF at `/fonts/pasti/PastiRegular-mLXnm.otf`.
+- Adds role-specific HUD typography variables: `--hud-font-brand`, `--hud-font-ui`, `--hud-font-label`, `--hud-font-copy`, and `--hud-font-data`.
 
 `pax-fluxia/src/lib/styles/hud.css`
 
@@ -47,6 +50,22 @@ This corrective pass is still a DOM/HUD/settings pass. It does not rewrite Pixi 
 `pax-fluxia/src/lib/components/game-hud/index.ts`
 
 - Exports `ThemeLibraryPanel`.
+- Exports `TypographyTokenPanel`.
+
+### Typography Token Lab
+
+`pax-fluxia/src/lib/components/game-hud/TypographyTokenPanel.svelte`
+
+- New in-game development control under settings.
+- Lets the user assign font families independently for Brand, Interface, Labels, Copy, and Data roles.
+- Persists choices to `localStorage` key `pax-hud-typography-tokens-v1`.
+- Applies live changes by writing root CSS variables.
+- Reset removes inline overrides and restores design defaults.
+
+`pax-fluxia/static/fonts/pasti/PastiRegular-mLXnm.otf`
+
+- Packaged copy of the user-provided Pasti font.
+- Verified copied into `pax-fluxia/build/fonts/pasti/PastiRegular-mLXnm.otf` by the static build.
 
 ### Settings Panel Correction
 
@@ -57,6 +76,7 @@ This corrective pass is still a DOM/HUD/settings pass. It does not rewrite Pixi 
 - Lines `868-873`: reports whether any settings section is open.
 - Lines `1101-1219`: settings header, search/config import/export, and new theme utility placement.
 - Line `1219`: mounts `<ThemeLibraryPanel />`.
+- Line near `1223`: mounts `<TypographyTokenPanel />`.
 - Lines `1223-1288`: settings shell now supports rail-only mode and compact icon navigation.
 - Lines `1545-1806`: original icon-toolbar/section-panel CSS retained and adjusted.
 - Lines `1830-2419`: corrective settings CSS layer: compact command search, 2x2 config actions, rail-only icon grid, widened section state, no empty explanatory slab.
@@ -103,6 +123,7 @@ Commands run from `C:\Users\mikep\.codex\worktrees\4b02\pax-fluxia`:
 - `git diff --check`: passed.
 - `bun run --cwd pax-fluxia build`: passed after final Theme Library category cleanup.
 - `bun run --cwd pax-fluxia check`: failed on repository baseline with `329 errors and 820 warnings in 65 files`.
+- `Get-Item pax-fluxia/build/fonts/pasti/PastiRegular-mLXnm.otf`: confirmed packaged static build asset exists after build.
 
 Browser/CDP QA against `http://127.0.0.1:1499`:
 
@@ -115,12 +136,21 @@ Browser/CDP QA against `http://127.0.0.1:1499`:
 - Selected a real map star through Chrome input events; topbar changed from `SELECTED None` to `SELECTED Star 5`, Star View showed `Star 5`, and selected-star tray showed `Star 5`.
 - Checked 1280x720 and 1920x1080: topbar, right rail, Player Standings, Game Speed, Star View, tray, and quick-access dock had no measured outside-viewport overflow.
 
+Browser QA against `http://127.0.0.1:5177` for typography controls:
+
+- Started a real local match.
+- Opened settings from the topbar.
+- Verified `Typography / Token Lab` appears beneath Theme Library.
+- Selected Pasti for Brand and saw the control/status update.
+- Reset typography tokens to defaults after the test.
+
 ## Known Risks
 
 - The Pixi map renderer remains much less rich than the Aurelia Drift reference images. This commit improves the DOM HUD/settings shell, not the underlying territory/starfield rendering.
 - `GameContainer.svelte` still owns the master grid and canvas/HUD composition. A true `HudShell.svelte` wrapper was not completed in this corrective pass because doing that safely would require a larger canvas/overlay ownership split.
 - `svelte-check` remains blocked by repository-wide baseline errors unrelated to this pass. Touched files still inherit some existing unused-CSS warnings in extracted settings components.
 - The old main menu still has a global `Load Map` command. This is intentionally not removed; the user rejection targeted `Load Map` inside the Theme widget/cluster.
+- Pasti is packaged locally. Existing defaults Rajdhani, Inter, and JetBrains Mono are still loaded through existing Google Fonts links elsewhere in the app unless replaced with local font files in a future packaging pass.
 
 ## Merge Strategy
 
