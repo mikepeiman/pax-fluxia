@@ -12,6 +12,7 @@
         setStarred,
         CATEGORY_META,
     } from "$lib/config/categoryThemes";
+    import HudIcon from "$lib/components/ui/hud/HudIcon.svelte";
 
     interface Props {
         category: ThemeCategory;
@@ -103,7 +104,7 @@
         _version++;
     }
 
-    let fileInput: HTMLInputElement;
+    let fileInput = $state<HTMLInputElement | null>(null);
 
     function handleImport() {
         fileInput?.click();
@@ -153,10 +154,10 @@
                         if (selectedName) handleApply(selectedName);
                     }}
                 >
-                    <option value="">{meta.icon} Select theme…</option>
+                    <option value="">Select preset...</option>
                     {#each presets as p}
                         <option value={p.name}>
-                            {p.builtIn ? "📦 " : ""}{p.name}
+                            {p.name}
                         </option>
                     {/each}
                 </select>
@@ -168,7 +169,7 @@
                         onclick={handleUpdate}
                         title="Update '{selectedName}' with current settings"
                     >
-                        💾
+                        <HudIcon name="save-game" size={13} />
                     </button>
                 {/if}
                 <button
@@ -183,21 +184,21 @@
                     title="Reset to defaults"
                     onclick={handleReset}
                 >
-                    ↺
+                    <HudIcon name="reset" size={13} />
                 </button>
                 <button
                     class="action-btn edit-btn"
                     title="Manage themes"
                     onclick={() => (showEditModal = true)}
                 >
-                    ✏️
+                    <HudIcon name="tune" size={13} />
                 </button>
                 <button
                     class="action-btn import-btn"
                     title="Import theme from file"
                     onclick={handleImport}
                 >
-                    📂
+                    <HudIcon name="import" size={13} />
                 </button>
                 <input
                     type="file"
@@ -213,7 +214,7 @@
                 <input
                     type="text"
                     class="save-input"
-                    placeholder="Theme name…"
+                    placeholder="Theme name..."
                     bind:value={saveName}
                     onkeydown={(e) => {
                         if (e.key === "Enter") handleSave();
@@ -223,14 +224,18 @@
                 <button
                     class="drawer-btn cancel"
                     onclick={() => (showSaveInput = false)}
-                    title="Cancel">✕</button
+                    title="Cancel"
                 >
+                    <HudIcon name="close" size={12} />
+                </button>
                 <button
                     class="drawer-btn confirm"
                     class:flash={saveFlash}
                     onclick={handleSave}
-                    title="Save Theme">✓</button
+                    title="Save Theme"
                 >
+                    <HudIcon name="active-focus" size={12} />
+                </button>
             </div>
         </div>
 
@@ -266,13 +271,13 @@
     >
         <div class="modal-panel">
             <div class="modal-header">
-                <span class="modal-title"
-                    >{meta.icon} Manage {meta.label} Themes</span
-                >
+                <span class="modal-title">Manage {meta.label} Themes</span>
                 <button
                     class="modal-close"
-                    onclick={() => (showEditModal = false)}>✕</button
+                    onclick={() => (showEditModal = false)}
                 >
+                    <HudIcon name="close" size={12} />
+                </button>
             </div>
             <div class="modal-grid">
                 {#each presets as p}
@@ -287,7 +292,7 @@
                                 ? "Unstar"
                                 : "Star (show as chip)"}
                         >
-                            {starredNames.has(p.name) ? "⭐" : "☆"}
+                            <HudIcon name={starredNames.has(p.name) ? "yellow" : "grey"} size={13} />
                         </button>
                         <button
                             class="modal-chip-name"
@@ -296,14 +301,16 @@
                                 showEditModal = false;
                             }}
                         >
-                            {p.builtIn ? "📦 " : ""}{p.name}
+                            {p.name}
                         </button>
                         {#if !p.builtIn}
                             <button
                                 class="modal-chip-delete"
                                 onclick={() => handleDelete(p.name)}
-                                title="Delete theme">✕</button
+                                title="Delete theme"
                             >
+                                <HudIcon name="close" size={12} />
+                            </button>
                         {/if}
                     </div>
                 {/each}

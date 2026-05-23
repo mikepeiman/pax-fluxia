@@ -71,7 +71,7 @@
   {/snippet}
 
   <div class="pf-standings__toolbar">
-    <span>Rank by</span>
+    <span>Focus</span>
     <div class="pf-standings__focus" role="group" aria-label="Ship emphasis">
       <button
         type="button"
@@ -96,18 +96,18 @@
 
   <div class="pf-standings__summary">
     <span><strong class="font-hud-data">{formatHudNumber(totals.active)}</strong> active</span>
-    <span><strong class="font-hud-data">{formatHudNumber(totals.total)}</strong> ships</span>
+    <span><strong class="font-hud-data">{formatHudNumber(totals.total)}</strong> total</span>
     <span><strong class="font-hud-data">{formatHudNumber(totals.stars)}</strong> stars</span>
     <span>Tick <strong class="font-hud-data">{currentTick}</strong></span>
   </div>
 
   <div class="pf-standings__columns">
     <span>Player</span>
-    <span><HudIcon name="ship-active" size={12} /> Active</span>
-    <span><HudIcon name="total-focus" size={12} /> Total</span>
-    <span>Stars</span>
-    <span>Prod</span>
-    <span>Active %</span>
+    <span title="Active ships"><HudIcon name="ship-active" size={12} /> Act</span>
+    <span title="Total ships"><HudIcon name="total-focus" size={12} /> Tot</span>
+    <span title="Stars">Star</span>
+    <span title="Production">Prod</span>
+    <span title="Active percent">%</span>
   </div>
 
   <ul class="pf-standings__list">

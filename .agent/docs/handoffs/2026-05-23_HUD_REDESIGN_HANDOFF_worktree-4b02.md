@@ -1,118 +1,130 @@
-# HUD Redesign Handoff - Worktree 4b02 - 2026-05-23
+# HUD Redesign Merge Handoff - Worktree 4b02 - 2026-05-23
 
-## Branch
+## Branch And Commits
 
-- `codex/ui-hud-development`
-- Base work in this session started from a clean worktree after the plan commit `371cecdb0`.
+- Branch: `codex/ui-hud-development`
+- Earlier plan commit: `371cecdb0 docs: record full hud redesign implementation plan`
+- Earlier implementation commit: `ca9e7b5ab ui: implement Aurelia Drift live HUD redesign`
+- Current pending commit: corrective implementation after user rejection of the first UI result.
 
-## Intent
+## Merge Intent
 
-Implement the live in-game HUD redesign as an Aurelia Drift/Pax Fluxia command interface:
+This worktree is for live in-game HUD/UI development. The current corrective commit addresses the concrete failures called out by the user:
 
-- Map-first composition.
-- Dark glass panels with warm gold trim, cyan system focus, local-player gold emphasis, and player colors only for game state.
-- Real gameplay state only; no invented combat/resource/faction/order systems.
-- Settings ribbon collapses into the topbar, Player Standings collapses to the topbar badge, quick access stays unlabeled and bottom-docked.
+- Settings surface was not redesigned enough and had no credible icon-ribbon state.
+- Theme save/load/library widget was effectively untouched.
+- Theme Library still had category clutter and no disciplined compact presentation.
+- The prior settings empty state wasted large surface area with explanatory text.
+- Topbar/standings/settings/star panel style did not sufficiently evoke the Aurelia Drift references.
+- Live surfaces still mixed labels, glyphs, spacing, and visual grammar.
 
-## Source Changes
+This corrective pass is still a DOM/HUD/settings pass. It does not rewrite Pixi territory rendering or map art, so the map itself remains a follow-up risk if the merge standard includes full reference-image atmospheric richness.
 
-### New live HUD layer
+## Source Files Changed
 
-`pax-fluxia/src/lib/components/game-hud/`
-
-- `types.ts`: HUD view-model and layout/action types.
-- `viewModels.ts`: derives player standings and selected-star view models from existing players/stars without schema changes.
-- `HudPanel.svelte`: shared HUD panel shell.
-- `HudIconButton.svelte`: shared SVG icon-button chrome.
-- `HudTopbar.svelte`: compact topbar, settings reopen stub, standings badge, selected star, mode chips.
-- `PlayerStandingsPanel.svelte`: replaces visible leaderboard with aligned real player standings.
-- `GameSpeedPanel.svelte`: real speed controls only: pause, 1x, 2x, 4x, 10x.
-- `SelectedStarPanel.svelte`: selected-star-only Star View; no owned-star fallback.
-- `SelectedStarTray.svelte`: contextual bottom selected-star tray with center, fit map, and cancel-current-route only when present.
-- `QuickAccessDock.svelte`: unlabeled bottom icon dock.
-- `SettingsRibbon.svelte`: wrapper around existing settings panel with close, resize, dock, and expanded/compact controls.
-- `HudRail.svelte`: shared rail primitive available for further extraction.
-- `index.ts`: exports the HUD layer.
-
-### Live integration
-
-`pax-fluxia/src/lib/components/game/GameContainer.svelte`
-
-- Lines near `24-31`: imports the new HUD layer.
-- Lines near `453-466`: derives `PlayerStandingViewModel` and `SelectedStarViewModel`.
-- Lines near `483-528`: builds real quick-access action definitions.
-- Lines near `739-760`: mounts `HudTopbar`.
-- Lines near `799-807`: mounts `SelectedStarTray`.
-- Lines near `835-851`: mounts `SettingsRibbon` inside the `ribbon` grid area.
-- Lines near `856-928`: mounts Player Standings, Game Speed, Star View, Tactical Overview, and Quick Access in the tactical rail.
-- Lines near `1328-1380`: master grid now uses named areas `topbar`, `playfield`, `ribbon`, and `tactical`.
-- Lines near `1835-1888`: ribbon and tactical rail sizing/docking styles.
-
-### Shared style tokens
+### Live HUD Tokens And Shell
 
 `pax-fluxia/src/app.css`
 
-- Line `4`: imports the HUD stylesheet.
-- Lines near `44-90`: defines the Aurelia Drift HUD token layer: fonts, cyan/gold accents, panel shells, borders, radii, spacing, shadows.
+- Lines near `44-94`: adds HUD cut-corner tokens used by the Aurelia Drift corrective shell.
 
 `pax-fluxia/src/lib/styles/hud.css`
 
-- Shared HUD shell, topbar, panel, standings, speed, Star View, selected-star tray, quick-access, and compact-height responsive styles.
-- Includes 720/900 desktop height handling so Star View and quick access do not collide.
+- Lines near `840-1396`: main Aurelia Drift corrective layer.
+- Key areas: cut-corner panel shells, topbar player summary, aligned Player Standings, compact Star View, selected-star tray, icon-only quick access, and full Theme Library styling.
+- Merge risk: this is a broad global HUD stylesheet. If master has touched HUD panel styling, compare selectors under `.pf-*`, `.area-right`, `.pf-theme-library*`, and `.pf-settings-ribbon`.
 
-### Existing settings cleanup
+### New Theme Library Surface
+
+`pax-fluxia/src/lib/components/game-hud/ThemeLibraryPanel.svelte`
+
+- Lines `11-19`: newest-first theme ordering by `created` timestamp, with safe fallback.
+- Lines `30-37`: short date formatter.
+- Lines `39-88`: apply/save/update/delete/export/import actions wired to `themeStore`.
+- Lines `91-193`: compact Theme Library UI.
+- Lines `169-193`: scrollable list rows; category metadata is intentionally hidden. User themes can show dates and delete action; built-in/core rows no longer print `CORE`.
+
+`pax-fluxia/src/lib/components/game-hud/index.ts`
+
+- Exports `ThemeLibraryPanel`.
+
+### Settings Panel Correction
 
 `pax-fluxia/src/lib/components/ui/GameSettingsPanel.svelte`
 
-- Removed the settings utility `Load Map` button/drawer from the Theme/Settings cluster.
-- Kept Theme Library in the settings utility area.
-- Renamed old `icon-emoji` styling to `icon-symbol`.
+- Line `89`: imports `ThemeLibraryPanel` instead of old `GameThemeManager`.
+- Lines `750-760`: adds `onSectionActivityChange` prop.
+- Lines `868-873`: reports whether any settings section is open.
+- Lines `1101-1219`: settings header, search/config import/export, and new theme utility placement.
+- Line `1219`: mounts `<ThemeLibraryPanel />`.
+- Lines `1223-1288`: settings shell now supports rail-only mode and compact icon navigation.
+- Lines `1545-1806`: original icon-toolbar/section-panel CSS retained and adjusted.
+- Lines `1830-2419`: corrective settings CSS layer: compact command search, 2x2 config actions, rail-only icon grid, widened section state, no empty explanatory slab.
+- Lines `2346-2419`: active settings section panel restyled to warm/cyan HUD shell.
+- Removed visible import/export status emoji and dead tier-toggle CSS.
 
-`pax-fluxia/src/lib/components/ui/hud/HudIcon.svelte`
+### Layout And State Integration
 
-- Added `play-10` icon for the 10x gamespeed button.
+`pax-fluxia/src/lib/components/game/GameContainer.svelte`
+
+- Lines `320-329`: updated sidebar/settings width constants.
+- Lines `366-380`: `settingsEffectiveWidth` and `setSettingsSectionActivity` keep no-section settings narrow but expand when a section opens.
+- Lines `770-817`: topbar mount and collapse/open controls.
+- Lines `829-857`: selected-star tray and left-side rail placement.
+- Lines `864-882`: settings rail mounted with dynamic width and section-activity callback.
+- Lines `886-959`: right tactical rail with Player Standings, Game Speed, Star View, tactical overview, and quick-access dock.
+- Lines `1328-1380`: master game grid still owns `topbar`, `playfield`, `ribbon`, and `tactical` areas.
+
+### Topbar And Standings
+
+`pax-fluxia/src/lib/components/game-hud/HudTopbar.svelte`
+
+- Lines near `52-73`: adds local player command summary block (`You`, active ships, total ships, stars) and removes theme-name status clutter.
+
+`pax-fluxia/src/lib/components/game-hud/PlayerStandingsPanel.svelte`
+
+- Lines `63-132`: Player Standings table with compact aligned columns, local-player emphasis, and `Focus` active/total toggle.
+
+### Settings Icon Cleanup
+
+`pax-fluxia/src/lib/components/ui/settings/CategoryThemeBar.svelte`
+
+- Replaces visible emoji/glyph controls with `HudIcon`.
+- Line `107`: fixes Svelte non-reactive `bind:this` warning with `$state<HTMLInputElement | null>`.
+
+`pax-fluxia/src/lib/components/ui/settings/ControlsSection-Visuals.svelte`
+
+- Removes visible emoji prefixes from labels touched by the visual settings surface.
 
 ## Validation
 
-### Build
+Commands run from `C:\Users\mikep\.codex\worktrees\4b02\pax-fluxia`:
 
-- `bun run --cwd pax-fluxia build`: passed.
-- Build still emits existing warnings for unused CSS selectors and chunk sizes; no build failure.
+- `git diff --check`: passed.
+- `bun run --cwd pax-fluxia build`: passed after final Theme Library category cleanup.
+- `bun run --cwd pax-fluxia check`: failed on repository baseline with `329 errors and 820 warnings in 65 files`.
 
-### Check
+Browser/CDP QA against `http://127.0.0.1:1499`:
 
-- `bun run --cwd pax-fluxia check`: fails on existing repository baseline.
-- Latest count after the HUD prop fix: `329 errors and 842 warnings in 66 files`.
-- Touched-file filtering showed no new TypeScript errors in the new HUD layer or `GameContainer.svelte`.
-- Remaining touched-file hits were existing unused CSS warnings in `GameSettingsPanel.svelte`.
+- Started a real local match from the main menu.
+- Closed an audio modal left over from earlier browser state.
+- Opened settings from the topbar.
+- Verified Theme Library appears inside settings, has `overflow-y: auto`, has `clientHeight 145`, `scrollHeight 2935`, is newest-first, and no longer renders `CORE`/category rows.
+- Verified `Load Map` is not present within the Theme Library/text window.
+- Verified no visible `Quick Tools`, `Actions`, `Low-frequency`, `Settings Ribbon`, or `Choose a system to tune`.
+- Selected a real map star through Chrome input events; topbar changed from `SELECTED None` to `SELECTED Star 5`, Star View showed `Star 5`, and selected-star tray showed `Star 5`.
+- Checked 1280x720 and 1920x1080: topbar, right rail, Player Standings, Game Speed, Star View, tray, and quick-access dock had no measured outside-viewport overflow.
 
-### Browser QA
+## Known Risks
 
-Driven through local Chrome/CDP against `http://127.0.0.1:1420/play`.
+- The Pixi map renderer remains much less rich than the Aurelia Drift reference images. This commit improves the DOM HUD/settings shell, not the underlying territory/starfield rendering.
+- `GameContainer.svelte` still owns the master grid and canvas/HUD composition. A true `HudShell.svelte` wrapper was not completed in this corrective pass because doing that safely would require a larger canvas/overlay ownership split.
+- `svelte-check` remains blocked by repository-wide baseline errors unrelated to this pass. Touched files still inherit some existing unused-CSS warnings in extracted settings components.
+- The old main menu still has a global `Load Map` command. This is intentionally not removed; the user rejection targeted `Load Map` inside the Theme widget/cluster.
 
-- Started a real local game from the menu.
-- Selected an actual map star; Star View and selected-star tray updated to `Star 21`.
-- Verified settings open/close from topbar.
-- Verified settings grid switches to `"topbar topbar topbar" "ribbon playfield tactical"` when open and back to `"topbar topbar" "playfield tactical"` when closed.
-- Verified Theme cluster text does not include `Load Map`.
-- Verified Player Standings collapse/reopen via topbar badge.
-- Verified 1920x1080, 1600x900, and 1280x720:
-  - topbar does not overlap playfield or tactical rail.
-  - tactical rail does not overlap playfield.
-  - selected-star tray does not overlap tactical rail.
-  - Star View does not overlap quick access after compact-height adjustment.
-  - no visible `Quick Tools`, `Actions`, or `Low-frequency` labels.
+## Merge Strategy
 
-## Merge Notes
-
-- No gameplay schema, Colyseus, server, or combat logic changes were made.
-- `GameContainer.svelte` still owns the master grid and canvas/overlay composition. The HUD surfaces are extracted, but a full `HudShell.svelte` wrapper was not introduced because the canvas/overlay coupling would make that a larger structural follow-up.
-- `ThemeLibraryPanel.svelte` was not split out; Theme Library remains inside `GameThemeManager.svelte` through `GameSettingsPanel.svelte`.
-- The right rail defaults to the existing `pax-sidebar-side` persistence and controls side uses `pax-controls-side`.
-- Existing mobile behavior was preserved as a fallback; this pass is desktop-first.
-
-## Suggested Review Focus
-
-- Visual review against Aurelia Drift references, especially whether the current map renderer/theme should also change in a future pass.
-- Confirm whether `Player Standings` should retain six rows at compact heights or truncate to a top-N list.
-- Decide whether to complete the remaining structural extraction into a true `HudShell.svelte` in a follow-up branch.
+- Merge the current corrective commit after visual review, not the earlier implementation commit alone.
+- If conflicts occur in `GameContainer.svelte`, preserve the dynamic settings width model and `onSectionActivityChange` path; otherwise the settings ribbon will regress to a wide empty slab.
+- If conflicts occur in `GameSettingsPanel.svelte`, preserve the `ThemeLibraryPanel` replacement, removal of empty explanatory state, and rail-only shell classes.
+- If conflicts occur in `hud.css`, keep the lower corrective layer unless master has a newer, deliberate Aurelia Drift HUD shell that supersedes it.

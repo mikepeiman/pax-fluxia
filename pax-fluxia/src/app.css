@@ -80,6 +80,10 @@
   --hud-radius-sm: 10px;
   --hud-radius-md: 12px;
   --hud-radius-lg: 18px;
+  --hud-cut-corner-xs: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+  --hud-cut-corner-sm: polygon(10px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 6px 100%, 0 calc(100% - 6px), 0 10px);
+  --hud-cut-corner-md: polygon(14px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 10px 100%, 0 calc(100% - 10px), 0 14px);
+  --hud-cut-corner-lg: polygon(22px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 18px), calc(100% - 18px) 100%, 12px 100%, 0 calc(100% - 12px), 0 22px);
   --hud-pad-xs: 8px;
   --hud-pad-sm: 12px;
   --hud-pad-md: 16px;

@@ -8,6 +8,7 @@ export { default as QuickAccessDock } from "./QuickAccessDock.svelte";
 export { default as SelectedStarPanel } from "./SelectedStarPanel.svelte";
 export { default as SelectedStarTray } from "./SelectedStarTray.svelte";
 export { default as SettingsRibbon } from "./SettingsRibbon.svelte";
+export { default as ThemeLibraryPanel } from "./ThemeLibraryPanel.svelte";
 
 export * from "./types";
 export * from "./viewModels";

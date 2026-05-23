@@ -14,7 +14,6 @@
     currentTick: number;
     speed: GameSpeed;
     isPaused: boolean;
-    themeName: string;
     modeOptions: TerritoryModeShortcutOption[];
     activeModeId: string;
     onMenuClick: () => void;
@@ -31,7 +30,6 @@
     currentTick,
     speed,
     isPaused,
-    themeName,
     modeOptions,
     activeModeId,
     onMenuClick,
@@ -50,6 +48,27 @@
     <span class="pf-hud-topbar__title">Pax Fluxia</span>
   </div>
 
+  {#if localPlayer}
+    <div class="pf-hud-topbar__player-summary" style={`--player-color:${localPlayer.color};`}>
+      <div class="pf-hud-topbar__summary-cell">
+        <span>You</span>
+        <strong>{localPlayer.isLocal ? "Command" : localPlayer.name}</strong>
+      </div>
+      <div class="pf-hud-topbar__summary-cell">
+        <span>Active</span>
+        <strong class="font-hud-data">{formatHudNumber(localPlayer.activeShips)}</strong>
+      </div>
+      <div class="pf-hud-topbar__summary-cell">
+        <span>Total</span>
+        <strong class="font-hud-data">{formatHudNumber(localPlayer.totalShips)}</strong>
+      </div>
+      <div class="pf-hud-topbar__summary-cell">
+        <span>Stars</span>
+        <strong class="font-hud-data">{formatHudNumber(localPlayer.starCount)}</strong>
+      </div>
+    </div>
+  {/if}
+
   <div class="pf-hud-topbar__status">
     <div class="pf-hud-topbar__status-item">
       <span>Tick</span>
@@ -58,10 +77,6 @@
     <div class="pf-hud-topbar__status-item">
       <span>Speed</span>
       <strong class="font-hud-data">{isPaused ? "Pause" : `${speed}x`}</strong>
-    </div>
-    <div class="pf-hud-topbar__status-item">
-      <span>Theme</span>
-      <strong>{themeName}</strong>
     </div>
     <div class="pf-hud-topbar__status-item">
       <span>Selected</span>

@@ -70,7 +70,6 @@
         CONFIG_TO_PANEL_KEY,
         type AnimSliderDef,
         type SettingsTier,
-        TIER_LABELS,
         MD_EXPORT_SECTIONS,
         formatAnimValue,
     } from "./settingsDefs";
@@ -87,7 +86,7 @@
         searchSettings,
         type SettingsSearchResult,
     } from "./settings/settingsSearch";
-    import GameThemeManager from "./GameThemeManager.svelte";
+    import ThemeLibraryPanel from "$lib/components/game-hud/ThemeLibraryPanel.svelte";
     import HudIcon from "./hud/HudIcon.svelte";
 
     // Aliases for the imported arrays (matches existing template references)
@@ -462,7 +461,7 @@
         a.download = `pax-config-${ts}.md`;
         a.click();
         URL.revokeObjectURL(url);
-        configStatus = `✅ Exported MD`;
+        configStatus = `Exported MD`;
 
         configStatusColor = "#4ade80";
     }
@@ -480,14 +479,14 @@
                 try {
                     data = JSON.parse(raw);
                 } catch {
-                    configStatus = "❌ Invalid JSON — could not parse file";
+                    configStatus = "Invalid JSON - could not parse file";
                     configStatusColor = "#f87171";
                     input.value = "";
                     return;
                 }
 
                 if (!data || typeof data !== "object" || Array.isArray(data)) {
-                    configStatus = "❌ Expected a JSON object with config keys";
+                    configStatus = "Expected a JSON object with config keys";
                     configStatusColor = "#f87171";
                     input.value = "";
                     return;
@@ -535,13 +534,13 @@
                     applyConfigPatch(acceptedPatch);
                 }
 
-                const parts = [`✅ ${applied} applied`];
+                const parts = [`${applied} applied`];
                 if (skipped) parts.push(`${skipped} unknown`);
                 if (typeErrors) parts.push(`${typeErrors} type mismatches`);
                 configStatus = parts.join(", ");
                 configStatusColor = typeErrors > 0 ? "#fbbf24" : "#4ade80";
             } catch (err) {
-                configStatus = `❌ Import failed: ${(err as Error).message}`;
+                configStatus = `Import failed: ${(err as Error).message}`;
                 configStatusColor = "#f87171";
             }
             input.value = "";
@@ -553,7 +552,7 @@
     // Tick-Ratio Locking — bind animation durations proportionally to tick
     // =========================================================================
 
-    /** 📌 Pin value exactly to tick duration (ms → BASE_TICK_MS, multipliers → 1.0) */
+    /** Pin value exactly to tick duration (ms -> BASE_TICK_MS, multipliers -> 1.0) */
 function pinValueToTickDuration(key: string) {
         const currentMode = animLockModes[key];
         if (currentMode === "pinned") {
@@ -582,7 +581,7 @@ function pinValueToTickDuration(key: string) {
         saveAnimLockModes(animLockModes);
     }
 
-    /** 🔗 Lock current ratio relative to tick (value scales proportionally when tick changes) */
+    /** Lock current ratio relative to tick (value scales proportionally when tick changes) */
 function lockRatioToTick(key: string) {
         const currentMode = animLockModes[key];
         if (currentMode === "ratio") {
@@ -631,7 +630,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         return updates;
     }
 
-    /** 🎚️ Lock current ratio relative to animation speed (value scales when anim speed changes) */
+    /** Lock current ratio relative to animation speed (value scales when anim speed changes) */
     function lockRatioToAnimSpeed(key: string) {
         const currentMode = animLockModes[key];
         if (currentMode === "animSpeed") {
@@ -748,6 +747,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         onToggleRibbonExpanded?: () => void;
         dockSide?: "left" | "right";
         onToggleDockSide?: () => void;
+        onSectionActivityChange?: (hasOpenSections: boolean) => void;
     }
 
     let {
@@ -757,6 +757,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         onToggleRibbonExpanded,
         dockSide = "right",
         onToggleDockSide,
+        onSectionActivityChange,
     }: Props = $props();
 
     const ACTIVE_SECTION_KEY = "pax-fluxia-open-sections";
@@ -866,6 +867,10 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             .filter(Boolean) as typeof sections,
     );
     let hasVisibleOpenSections = $derived(orderedOpenSections.length > 0);
+
+    $effect(() => {
+        onSectionActivityChange?.(hasVisibleOpenSections);
+    });
 
     let lastForceOpenSectionNonce = $state(-1);
     $effect(() => {
@@ -1093,49 +1098,11 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     class:controls-panel--ribbon-expanded={ribbonExpanded}
     class:controls-panel--dock-left={dockSide === "left"}
     use:nudgeSliders>
-    <!-- Tier Toggle (hidden — F-164: show all sections by default) -->
-    <div class="tier-bar" style="display: none;">
-        {#each ["basic", "advanced", "developer"] as const as tier}
-            <button
-                class="tier-pill"
-                class:active={activeTier === tier}
-                style="--tier-color: {TIER_LABELS[tier].color}"
-                onclick={() => setTier(tier)}
-                title="{TIER_LABELS[tier].label} settings"
-            >
-                <span class="tier-icon">{TIER_LABELS[tier].icon}</span>
-                <span class="tier-label">{TIER_LABELS[tier].label}</span>
-            </button>
-        {/each}
-    </div>
-
     <div class="settings-header-tools">
         <div class="settings-search-head">
             <label class="settings-search-label" for="settings-search-input">
                 Search Settings
             </label>
-            <div class="settings-ribbon-actions">
-                {#if onToggleRibbonExpanded}
-                    <button
-                        type="button"
-                        class="settings-ribbon-btn"
-                        onclick={onToggleRibbonExpanded}
-                        title={ribbonExpanded ? "Collapse section ribbon" : "Expand section ribbon"}
-                    >
-                        {ribbonExpanded ? "Compact Rail" : "Expand Rail"}
-                    </button>
-                {/if}
-                {#if onToggleDockSide}
-                    <button
-                        type="button"
-                        class="settings-ribbon-btn"
-                        onclick={onToggleDockSide}
-                        title={dockSide === "right" ? "Move controls to left side" : "Move controls to right side"}
-                    >
-                        {dockSide === "right" ? "Dock Left" : "Dock Right"}
-                    </button>
-                {/if}
-            </div>
         </div>
         <div class="settings-search-row">
             <input
@@ -1201,7 +1168,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 class="full-io-btn full-export-btn"
                 onclick={() => {
                     exportConfigJSONBase();
-                    configStatus = "✅ Exported JSON";
+                    configStatus = "Exported JSON";
                     configStatusColor = "#4ade80";
                 }}
                 title="Export the current game config as JSON"
@@ -1249,11 +1216,11 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         {/if}
 
         <div class="settings-theme-utility" id="settings-theme-anchor">
-            <GameThemeManager variant="utility" />
+            <ThemeLibraryPanel />
         </div>
     </div>
 
-    <div class="settings-shell">
+    <div class="settings-shell" class:settings-shell--rail-only={!hasVisibleOpenSections}>
     <!-- Icon Toolbar -->
     <div class="icon-toolbar" class:has-active={hasVisibleOpenSections}>
         <div class="icon-toolbar__controls">
@@ -1303,17 +1270,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     </div>
 
     <div class="settings-content">
-    {#if !hasVisibleOpenSections}
-        <div class="settings-empty-state">
-            <div class="settings-empty-state__eyebrow">Settings Ribbon</div>
-            <h3 class="settings-empty-state__title">Choose a system to tune.</h3>
-            <p class="settings-empty-state__copy">
-                Use the ribbon to open timing, economy, combat, frontier, or diagnostics controls.
-                Search stays available above if you already know the setting name.
-            </p>
-        </div>
-    {/if}
-
     <!-- Stacked Section Panels -->
     {#each orderedOpenSections as sec (sec.id)}
         <div class="section-panel" style="--accent: {sec.color}">
@@ -1583,47 +1539,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         min-height: 0;
         overflow-y: auto;
         padding-right: 2px;
-    }
-
-    .settings-empty-state {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        min-height: 220px;
-        padding: var(--hud-pad-lg);
-        border: 1px solid var(--hud-border);
-        border-radius: var(--hud-radius-md);
-        background: var(--hud-panel-bg);
-        box-shadow: var(--hud-shadow-soft);
-        justify-content: center;
-    }
-
-    .settings-empty-state__eyebrow {
-        font-family: var(--hud-font-ui);
-        font-size: 0.58rem;
-        font-weight: 700;
-        letter-spacing: 0.16em;
-        text-transform: uppercase;
-        color: var(--hud-accent);
-    }
-
-    .settings-empty-state__title {
-        margin: 0;
-        font-family: var(--hud-font-ui);
-        font-size: 1.02rem;
-        font-weight: 700;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-        color: var(--hud-text-strong);
-    }
-
-    .settings-empty-state__copy {
-        margin: 0;
-        font-family: var(--hud-font-ui);
-        font-size: 0.82rem;
-        line-height: 1.55;
-        color: var(--hud-text-soft);
-        max-width: 44ch;
     }
 
     /* ── Icon Toolbar ── */
@@ -1912,179 +1827,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     :global(.is-hidden-by-subsection) {
         display: none !important;
     }
-    /* ── Controls ── */
-    .sub-heading {
-        font-size: 9px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        color: var(--accent, #aabbcc);
-        margin: 4px 0 2px;
-        padding-top: 4px;
-        border-top: 1px solid rgba(255, 255, 255, 0.06);
-        font-weight: 700;
-    }
-
-    /* ── Logging ── */
-    .log-actions {
-        display: flex;
-        gap: 6px;
-        margin-bottom: 2px;
-    }
-    .btn-xs {
-        background: transparent;
-        border: 1px solid #556;
-        color: #889;
-        font-size: 9px;
-        padding: 2px 8px;
-        border-radius: 3px;
-        cursor: pointer;
-        font-weight: 600;
-        transition: all 0.15s;
-    }
-    .btn-xs:hover {
-        border-color: #fff;
-        color: #fff;
-    }
-    /* Lock buttons for tick-ratio locking */
-    .val-group {
-        display: flex;
-        align-items: center;
-        gap: 3px;
-    }
-    .lock-btn {
-        background: none;
-        border: 1px solid rgba(100, 120, 160, 0.2);
-        border-radius: 3px;
-        cursor: pointer;
-        font-size: 11px;
-        padding: 1px 4px;
-        line-height: 1.2;
-        opacity: 0.5;
-        transition:
-            opacity 0.15s,
-            background 0.15s;
-    }
-    .lock-btn:hover {
-        opacity: 0.8;
-        background: rgba(100, 120, 160, 0.15);
-    }
-    .lock-btn.active {
-        opacity: 1;
-        background: rgba(80, 180, 255, 0.2);
-        border-color: rgba(80, 180, 255, 0.5);
-    }
-    .var-row.locked input[type="range"] {
-        opacity: 0.35;
-        pointer-events: none;
-    }
-    .var-row.locked .var-name {
-        color: rgba(120, 180, 255, 0.9);
-    }
-    .toggle-row {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 2px 4px;
-        cursor: pointer;
-        font-size: 12px;
-        border-radius: 3px;
-    }
-    .toggle-row:hover {
-        background: rgba(100, 120, 160, 0.1);
-    }
-    .log-label {
-        font-weight: 600;
-        white-space: nowrap;
-    }
-    .log-desc {
-        font-size: 8px;
-        color: #556;
-        margin-left: auto;
-    }
-    .sub-heading {
-        font-size: 11px;
-        font-weight: 700;
-        color: #aabbcc;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        border-top: 1px solid rgba(255, 255, 255, 0.06);
-        padding-top: 6px;
-        margin: 0;
-    }
-    .btn-export {
-        border-color: #4a7;
-        color: #6c9;
-    }
-    .btn-export:hover {
-        border-color: #6fb;
-        color: #8fe;
-        background: rgba(80, 220, 140, 0.08);
-    }
-    .btn-import {
-        border-color: #47a;
-        color: #69c;
-    }
-    .btn-import:hover {
-        border-color: #6af;
-        color: #8cf;
-        background: rgba(80, 140, 220, 0.08);
-    }
-    /* ── Future AI Strategies ── */
-    .var-row.grayed {
-        opacity: 0.35;
-        pointer-events: none;
-        border-style: dashed;
-    }
-    .future-desc {
-        font-size: 8px;
-        color: #667;
-        padding: 0 6px 2px;
-    }
-
-    /* ── Tier Toggle ── */
-    .tier-bar {
-        display: flex;
-        gap: 3px;
-        padding: 4px 6px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    }
-    .tier-pill {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 4px;
-        padding: 4px 6px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 4px;
-        background: transparent;
-        color: #667;
-        font-size: 10px;
-        font-weight: 600;
-        font-family: inherit;
-        cursor: pointer;
-        transition: all 0.15s;
-    }
-    .tier-pill:hover {
-        border-color: var(--tier-color);
-        color: var(--tier-color);
-        background: color-mix(in srgb, var(--tier-color) 8%, transparent);
-    }
-    .tier-pill.active {
-        border-color: var(--tier-color);
-        color: var(--tier-color);
-        background: color-mix(in srgb, var(--tier-color) 15%, transparent);
-        box-shadow: 0 0 8px
-            color-mix(in srgb, var(--tier-color) 20%, transparent);
-    }
-    .tier-icon {
-        font-size: 11px;
-    }
-    .tier-label {
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
     .settings-header-tools {
         display: flex;
         flex-direction: column;
@@ -2112,36 +1854,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         letter-spacing: 0.16em;
         text-transform: uppercase;
         color: var(--hud-accent);
-    }
-
-    .settings-ribbon-actions {
-        display: flex;
-        gap: 6px;
-        flex-wrap: wrap;
-    }
-
-    .settings-ribbon-btn {
-        border: 1px solid var(--hud-border);
-        border-radius: 999px;
-        background: var(--hud-button-bg);
-        color: var(--hud-text-soft);
-        padding: 5px 10px;
-        font-family: var(--hud-font-ui);
-        font-size: 0.62rem;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        cursor: pointer;
-        transition:
-            background 0.18s,
-            border-color 0.18s,
-            color 0.18s;
-    }
-
-    .settings-ribbon-btn:hover {
-        background: var(--hud-button-bg-hover);
-        border-color: var(--hud-border-strong);
-        color: var(--hud-text-strong);
     }
 
     .settings-search-row {
@@ -2411,4 +2123,330 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         background: rgba(74, 222, 128, 0.25);
         border-color: rgba(74, 222, 128, 0.6);
     }
+    /* Aurelia Drift correction layer: this turns the settings surface into
+       a real command ribbon plus drawer instead of a text-heavy empty panel. */
+    .controls-panel {
+        gap: 12px;
+        height: auto;
+        max-height: 100%;
+        overflow: visible;
+    }
+
+    .settings-header-tools {
+        gap: 8px;
+        padding: 10px;
+        border: 1px solid var(--hud-border-warm);
+        border-radius: 0;
+        background:
+            linear-gradient(180deg, rgba(3, 27, 29, 0.96), rgba(2, 10, 13, 0.98)),
+            radial-gradient(circle at 18% 0%, rgba(89, 241, 230, 0.12), transparent 42%),
+            radial-gradient(circle at 100% 0%, rgba(246, 196, 105, 0.12), transparent 50%);
+        clip-path: var(--hud-cut-corner-md);
+        box-shadow: inset 0 0 0 1px rgba(255, 218, 132, 0.07), var(--hud-shadow-soft);
+    }
+
+    .settings-search-head {
+        min-height: 20px;
+    }
+
+    .settings-search-label {
+        color: var(--hud-accent-warm);
+    }
+
+    .settings-search-row {
+        gap: 6px;
+    }
+
+    .settings-search-input {
+        min-height: 34px;
+        padding: 7px 10px;
+        border-radius: 8px;
+        border-color: rgba(246, 196, 105, 0.28);
+        background: rgba(0, 12, 16, 0.84);
+        font-size: 0.75rem;
+        line-height: 1;
+    }
+
+    .settings-utility-row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+    }
+
+    .full-io-btn {
+        min-width: 0;
+        min-height: 30px;
+        flex: none;
+        padding: 0 8px;
+        gap: 6px;
+        border-radius: 8px;
+        border-color: rgba(246, 196, 105, 0.24);
+        background: rgba(3, 22, 25, 0.74);
+        color: rgba(255, 231, 178, 0.88);
+        font-size: 0.55rem;
+        line-height: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .full-io-btn :global(svg) {
+        flex: 0 0 auto;
+    }
+
+    .settings-shell {
+        grid-template-columns: var(--settings-ribbon-width) minmax(0, 1fr);
+        gap: 10px;
+        flex: 0 1 auto;
+        align-items: start;
+    }
+
+    .settings-shell--rail-only {
+        width: 100%;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: "rail";
+        align-self: start;
+    }
+
+    .settings-shell--rail-only .settings-content {
+        display: none;
+    }
+
+    .controls-panel--dock-left .settings-shell--rail-only {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: "rail";
+        justify-content: end;
+    }
+
+    .icon-toolbar {
+        gap: 7px;
+        padding: 8px 6px;
+        border: 1px solid rgba(246, 196, 105, 0.32);
+        background:
+            linear-gradient(180deg, rgba(2, 24, 27, 0.92), rgba(1, 8, 13, 0.96)),
+            radial-gradient(circle at 50% 0%, rgba(246, 196, 105, 0.12), transparent 38%);
+        clip-path: var(--hud-cut-corner-sm);
+        box-shadow: inset 0 0 0 1px rgba(255, 231, 178, 0.05);
+        overflow-x: hidden;
+        max-height: min(52vh, calc(100vh - var(--hud-topbar-height) - 330px));
+    }
+
+    .settings-shell--rail-only .icon-toolbar {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        align-items: start;
+        gap: 7px;
+        max-height: min(34vh, 280px);
+        padding: 8px;
+    }
+
+    .settings-shell--rail-only .icon-toolbar__controls {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 7px;
+        padding-bottom: 7px;
+    }
+
+    .settings-shell--rail-only .icon-toolbar-control,
+    .settings-shell--rail-only .icon-btn {
+        width: 100%;
+        min-height: 38px;
+    }
+
+    .settings-shell--rail-only .icon-label {
+        display: none;
+    }
+
+    .controls-panel--ribbon-expanded .settings-shell--rail-only .icon-toolbar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .controls-panel--ribbon-expanded .settings-shell--rail-only .icon-btn,
+    .controls-panel--ribbon-expanded .settings-shell--rail-only .icon-toolbar-control {
+        justify-content: flex-start;
+        padding: 0 10px;
+    }
+
+    .controls-panel--ribbon-expanded .settings-shell--rail-only .icon-label {
+        display: block;
+    }
+
+    .icon-toolbar__controls {
+        gap: 7px;
+        padding-bottom: 7px;
+        border-bottom: 1px solid rgba(246, 196, 105, 0.18);
+    }
+
+    .icon-toolbar-control,
+    .icon-btn {
+        min-height: 42px;
+        border-radius: 0;
+        border-color: rgba(246, 196, 105, 0.22);
+        background: rgba(0, 17, 21, 0.72);
+        color: rgba(255, 221, 160, 0.82);
+        clip-path: var(--hud-cut-corner-xs);
+        box-shadow: inset 0 0 0 1px rgba(120, 255, 244, 0.03);
+    }
+
+    .icon-toolbar-control {
+        font-size: 0;
+    }
+
+    .icon-btn {
+        padding: 0;
+    }
+
+    .controls-panel--ribbon-expanded .icon-btn,
+    .controls-panel--ribbon-expanded .icon-toolbar.has-active .icon-btn {
+        min-height: 42px;
+        padding: 0 10px;
+        gap: 8px;
+    }
+
+    .icon-btn:hover,
+    .icon-toolbar-control:hover {
+        background:
+            linear-gradient(180deg, rgba(21, 44, 39, 0.92), rgba(4, 23, 25, 0.94)),
+            rgba(246, 196, 105, 0.04);
+        color: var(--hud-accent-warm-strong);
+        border-color: rgba(246, 196, 105, 0.62);
+        transform: none;
+    }
+
+    .icon-btn.active {
+        background:
+            linear-gradient(180deg, rgba(97, 72, 25, 0.92), rgba(4, 29, 29, 0.96));
+        color: #fff1bf;
+        border-color: rgba(255, 214, 120, 0.78);
+        box-shadow: inset 0 0 0 1px rgba(255, 235, 175, 0.13), 0 0 18px rgba(246, 196, 105, 0.18);
+    }
+
+    .icon-symbol {
+        width: 18px;
+        height: 18px;
+    }
+
+    .icon-label {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 0.58rem;
+        line-height: 1;
+    }
+
+    .settings-content {
+        gap: 10px;
+        padding: 0 2px 0 0;
+        max-height: calc(100vh - var(--hud-topbar-height) - 24px);
+    }
+
+    .section-panel {
+        border-radius: 0;
+        border-color: rgba(246, 196, 105, 0.35);
+        background:
+            linear-gradient(180deg, rgba(3, 23, 26, 0.97), rgba(1, 8, 13, 0.99)),
+            radial-gradient(circle at 0% 0%, rgba(90, 245, 235, 0.08), transparent 42%),
+            radial-gradient(circle at 100% 0%, rgba(246, 196, 105, 0.12), transparent 44%);
+        clip-path: var(--hud-cut-corner-md);
+    }
+
+    .section-head {
+        min-height: 42px;
+        padding: 0 12px;
+        color: var(--hud-accent-warm-strong);
+        border-bottom-color: rgba(246, 196, 105, 0.2);
+        background: rgba(0, 15, 18, 0.72);
+    }
+
+    .head-icon {
+        color: var(--hud-accent-warm);
+    }
+
+    .head-label,
+    .subsection-chip {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .section-body {
+        padding: 10px;
+    }
+
+    .section-body :global(.category-theme-bar) {
+        margin: -2px -2px 10px;
+        padding: 8px;
+        border: 1px solid rgba(246, 196, 105, 0.26);
+        background:
+            linear-gradient(180deg, rgba(3, 21, 24, 0.9), rgba(0, 9, 12, 0.94)),
+            radial-gradient(circle at 0% 0%, rgba(90, 245, 235, 0.08), transparent 42%);
+        clip-path: var(--hud-cut-corner-sm);
+    }
+
+    .section-body :global(.theme-select),
+    .section-body :global(.action-btn),
+    .section-body :global(.drawer-btn),
+    .section-body :global(.chip),
+    .section-body :global(.modal-chip),
+    .section-body :global(.modal-chip button) {
+        border-radius: 0;
+        border-color: rgba(246, 196, 105, 0.28);
+        background: rgba(0, 17, 21, 0.78);
+        color: rgba(255, 229, 174, 0.9);
+        clip-path: var(--hud-cut-corner-xs);
+        font-family: var(--hud-font-ui);
+        font-weight: 800;
+        letter-spacing: 0.06em;
+    }
+
+    .section-body :global(.theme-select:focus),
+    .section-body :global(.action-btn:hover),
+    .section-body :global(.drawer-btn:hover),
+    .section-body :global(.chip:hover),
+    .section-body :global(.chip.active) {
+        border-color: rgba(255, 218, 132, 0.72);
+        background: linear-gradient(180deg, rgba(58, 48, 22, 0.9), rgba(3, 31, 32, 0.94));
+        color: #fff0ba;
+    }
+
+    .section-body :global(.sub-heading) {
+        margin: 10px 0 8px;
+        padding-top: 0;
+        border-top: none;
+        color: var(--hud-accent-warm);
+        font-family: var(--hud-font-ui);
+        font-size: 0.62rem;
+        font-weight: 900;
+        letter-spacing: 0.16em;
+    }
+
+    .section-body :global(.var-row),
+    .section-body :global(.toggle-row) {
+        border: 1px solid rgba(246, 196, 105, 0.16);
+        background: rgba(0, 15, 19, 0.62);
+        border-radius: 0;
+        clip-path: var(--hud-cut-corner-xs);
+    }
+
+    .section-body :global(.var-name) {
+        color: rgba(255, 232, 181, 0.9);
+        font-family: var(--hud-font-ui);
+        font-weight: 800;
+        letter-spacing: 0.04em;
+    }
+
+    .section-body :global(.val) {
+        color: var(--hud-accent);
+        font-family: var(--hud-font-data);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .section-body :global(input[type="range"]) {
+        accent-color: var(--hud-accent);
+    }
+
 </style>

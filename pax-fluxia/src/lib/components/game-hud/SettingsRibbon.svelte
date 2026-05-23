@@ -15,6 +15,7 @@
     onClose: () => void;
     onToggleRibbonExpanded: () => void;
     onToggleDockSide: () => void;
+    onSectionActivityChange?: (hasOpenSections: boolean) => void;
     class?: string;
   }
 
@@ -29,6 +30,7 @@
     onClose,
     onToggleRibbonExpanded,
     onToggleDockSide,
+    onSectionActivityChange,
     class: className = "",
   }: Props = $props();
 </script>
@@ -62,5 +64,6 @@
     {onToggleRibbonExpanded}
     {dockSide}
     {onToggleDockSide}
+    {onSectionActivityChange}
   />
 </aside>

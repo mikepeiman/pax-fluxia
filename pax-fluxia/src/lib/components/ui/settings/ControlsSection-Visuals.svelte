@@ -103,7 +103,7 @@
     </div>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">🌌 BG Opacity</span><span class="val"
+            <span class="var-name">BG Opacity</span><span class="val"
                 >{(
                     (panel.bgImageAlpha ??
                         GAME_CONFIG.BG_IMAGE_ALPHA ??
@@ -321,7 +321,7 @@
 <h4 class="sub-heading">Connections</h4>
 <div class="var-row">
     <div class="row-top">
-        <span class="var-name">➡️ Arrow Length</span><span class="val"
+        <span class="var-name">Arrow Length</span><span class="val"
             >{Math.round(((panel.arrowLengthFraction ?? 0.5) as number) * 100)}%</span
         >
     </div>
@@ -350,7 +350,7 @@
             updatePanel("orderArrowsFollowLanePaths", v);
         }}
     />
-    <span class="var-name">🧭 Arrows follow lane paths</span><span
+    <span class="var-name">Arrows follow lane paths</span><span
         class="val"
         style="font-size:9px;opacity:0.6">straight or curved to match lane</span
     ></label
@@ -386,7 +386,7 @@
             updatePanel("staticOrbits", v);
         }}
     />
-    <span class="var-name">🛑 Static Orbits</span><span
+    <span class="var-name">Static Orbits</span><span
         class="val"
         style="font-size:9px;opacity:0.6">No rotation</span
     ></label

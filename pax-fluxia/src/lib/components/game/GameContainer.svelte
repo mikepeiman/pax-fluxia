@@ -317,13 +317,16 @@
 
   // ── Resizable sidebar (F-53) ──
   const SIDEBAR_STORAGE_KEY = "pax-sidebar-width";
-  const SIDEBAR_MIN = 280;
+  const SIDEBAR_MIN = 340;
   const SIDEBAR_MAX = 600;
-  const SIDEBAR_DEFAULT = 320;
+  const SIDEBAR_DEFAULT = 390;
   const SETTINGS_PANEL_STORAGE_KEY = "pax-settings-panel-width";
-  const SETTINGS_PANEL_MIN = 280;
+  const SETTINGS_PANEL_MIN = 320;
   const SETTINGS_PANEL_MAX = 720;
   const SETTINGS_PANEL_DEFAULT = 360;
+  const SETTINGS_CHROME_COMPACT_WIDTH = 340;
+  const SETTINGS_CHROME_EXPANDED_WIDTH = 360;
+  const SETTINGS_PANEL_SECTION_DEFAULT = 520;
 
   function loadSidebarWidth(): number {
     if (typeof localStorage === "undefined") return SIDEBAR_DEFAULT;
@@ -351,8 +354,30 @@
   let isResizing = $state(false);
   let settingsPanelWidth = $state(loadSettingsPanelWidth());
   let isSettingsResizing = $state(false);
+  let settingsHasOpenSections = $state(false);
   let forceOpenSettingsSection = $state<SettingsSectionId | null>(null);
   let forceOpenSettingsSectionNonce = $state(0);
+
+  const settingsChromeWidth = $derived(
+    settingsRibbonExpanded
+      ? SETTINGS_CHROME_EXPANDED_WIDTH
+      : SETTINGS_CHROME_COMPACT_WIDTH,
+  );
+  const settingsEffectiveWidth = $derived(
+    settingsHasOpenSections
+      ? settingsPanelWidth
+      : settingsChromeWidth,
+  );
+
+  function setSettingsSectionActivity(hasOpenSections: boolean) {
+    settingsHasOpenSections = hasOpenSections;
+    if (hasOpenSections && settingsPanelWidth < SETTINGS_PANEL_SECTION_DEFAULT) {
+      settingsPanelWidth = SETTINGS_PANEL_SECTION_DEFAULT;
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem(SETTINGS_PANEL_STORAGE_KEY, String(settingsPanelWidth));
+      }
+    }
+  }
 
   function revealSettingsSection(section: SettingsSectionId) {
     forceOpenSettingsSection = section;
@@ -362,6 +387,12 @@
   function openSettingsSection(section: SettingsSectionId) {
     setSettingsPanelOpen(true);
     settingsRibbonExpanded = true;
+    if (settingsPanelWidth < SETTINGS_PANEL_SECTION_DEFAULT) {
+      settingsPanelWidth = SETTINGS_PANEL_SECTION_DEFAULT;
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem(SETTINGS_PANEL_STORAGE_KEY, String(settingsPanelWidth));
+      }
+    }
     revealSettingsSection(section);
   }
 
@@ -538,7 +569,7 @@
   const leftRailWidth = $derived.by(() => {
     let width = 0;
     if (showSettingsPanel && controlsSide === "left") {
-      width = Math.max(width, settingsPanelWidth);
+      width = Math.max(width, settingsEffectiveWidth);
     }
     if (!leaderboardCollapsed && sidebarSide === "left") {
       width = Math.max(width, sidebarWidth);
@@ -549,7 +580,7 @@
   const rightRailWidth = $derived.by(() => {
     let width = 0;
     if (showSettingsPanel && controlsSide === "right") {
-      width = Math.max(width, settingsPanelWidth);
+      width = Math.max(width, settingsEffectiveWidth);
     }
     if (!leaderboardCollapsed && sidebarSide === "right") {
       width = Math.max(width, sidebarWidth);
@@ -744,7 +775,6 @@
           currentTick={activeGameStore.currentTick ?? 0}
           speed={activeGameStore.speed}
           isPaused={activeGameStore.isPaused}
-          themeName={currentThemeName}
           modeOptions={topbarTerritoryModeOptions}
           activeModeId={topbarActiveTerritoryModeId}
           onMenuClick={() => gameStore.setView("menu")}
@@ -834,10 +864,10 @@
         <div
           class="area-controls"
           class:area-controls--dock-left={controlsSide === "left"}
-          style={`width:${settingsPanelWidth}px;`}
+          style={`width:${settingsEffectiveWidth}px;`}
         >
           <SettingsRibbon
-            width={settingsPanelWidth}
+            width={settingsEffectiveWidth}
             dockSide={controlsSide}
             resizeActive={isSettingsResizing}
             ribbonExpanded={settingsRibbonExpanded}
@@ -847,6 +877,7 @@
             onClose={() => setSettingsPanelOpen(false)}
             onToggleRibbonExpanded={toggleSettingsRibbonExpanded}
             onToggleDockSide={toggleControlsSide}
+            onSectionActivityChange={setSettingsSectionActivity}
           />
         </div>
       {/if}

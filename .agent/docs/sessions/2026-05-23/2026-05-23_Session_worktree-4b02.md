@@ -2,7 +2,7 @@
 
 ## Summary
 
-Started full live in-game HUD redesign implementation on `codex/ui-hud-development`.
+Started and corrected full live in-game HUD redesign implementation on `codex/ui-hud-development`.
 
 ## Work Completed
 
@@ -13,17 +13,28 @@ Started full live in-game HUD redesign implementation on `codex/ui-hud-developme
 - Created `.agent/docs/plans/2026-05-23/HUD_REDESIGN_IMPLEMENTATION_PLAN_2026-05-23.md`.
 - Created `.agent/docs/plans/2026-05-23/FEATURE_AND_TASK_QUEUE_2026-05-23.md`.
 - Created this session log and the matching chat log.
+- Responded to severe user critique that the first implementation did not meet the UI overhaul mandate.
+- Reworked the live settings surface instead of treating the earlier HUD pass as complete.
+- Added `ThemeLibraryPanel.svelte` and wired it into `GameSettingsPanel.svelte`.
+- Removed category labels from Theme Library rows, removed `Load Map` from the theme cluster, and verified the list is scrollable/newest-first.
+- Removed the empty "Settings Ribbon / Choose a system to tune" slab and converted no-section settings into a compact ribbon surface.
+- Added settings-width state so the controls rail is narrow when only the ribbon/theme utility is open and expands when a section is active.
+- Reworked HUD shell styling toward the Aurelia Drift reference: dark glass, warm gold trim, cyan focus, cut corners, aligned standings, compact topbar command summary, and icon-only quick access.
+- Replaced visible emoji/glyph treatment in touched settings/theme surfaces with `HudIcon` where practical.
+- Browser-tested the live game after starting a real match, opening settings, selecting a star, and checking 1280x720/1600x900/1920x1080 layout metrics.
+- Wrote post-mortem `.agent/docs/project/post-mortems/2026-05-23_live-hud-redesign-false-completion.md`.
 
-## Current Plan
+## Current Status
 
 - Plan/protocol docs committed in `371cecdb0`.
 - Live HUD component layer implemented under `pax-fluxia/src/lib/components/game-hud/`.
 - `GameContainer.svelte` now mounts the new topbar, Player Standings, Game Speed, Star View, selected-star tray, settings ribbon, and quick-access dock.
 - Shared Aurelia Drift HUD tokens are in `pax-fluxia/src/app.css`; shared HUD shell CSS is in `pax-fluxia/src/lib/styles/hud.css`.
-- `GameSettingsPanel.svelte` no longer has the settings utility `Load Map` drawer; Theme Library remains in the settings utility area.
-- Browser QA completed at 1920x1080, 1600x900, and 1280x720 through local Chrome/CDP.
+- `GameSettingsPanel.svelte` now uses the new `ThemeLibraryPanel.svelte` in the settings utility area.
+- Theme Library rows hide category metadata, truncate names, scroll, and are ordered newest to oldest.
+- Browser QA completed at 1920x1080, 1600x900, and 1280x720 through local Chrome/CDP/Bun scripts.
 - `bun run --cwd pax-fluxia build` passes.
-- `bun run --cwd pax-fluxia check` still fails on repository baseline: `329 errors and 842 warnings in 66 files`; no new HUD-layer or `GameContainer.svelte` type errors remained after fixing the `SettingsRibbon` prop wiring.
+- `bun run --cwd pax-fluxia check` still fails on repository baseline: `329 errors and 820 warnings in 65 files`.
 
 ## Validation Notes
 
@@ -31,5 +42,7 @@ Started full live in-game HUD redesign implementation on `codex/ui-hud-developme
 - Settings opens/closes from the topbar; grid area switches between `ribbon playfield tactical` and `playfield tactical`.
 - Player Standings collapses/reopens from the topbar badge.
 - Theme cluster does not include `Load Map`.
+- Theme Library category labels are not visible.
 - No visible `Quick Tools`, `Actions`, or `Low-frequency` labels in the live HUD.
 - 1280x720 compact-height styling avoids Star View/quick-access overlap.
+- Remaining risk: the Pixi map renderer itself still does not fully achieve the richness of the supplied Aurelia Drift references; this commit substantially corrects the DOM HUD/settings surfaces.
