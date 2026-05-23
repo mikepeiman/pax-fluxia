@@ -28,6 +28,7 @@
 - Created `.agent/docs/handoffs/2026-05-23_HUD_REDESIGN_HANDOFF_worktree-4b02.md`.
 - Added an in-game typography token lab for brand/interface/label/copy/data HUD font roles.
 - Packaged the supplied Pasti OTF under `pax-fluxia/static/fonts/pasti/` and verified it copies into the static build output.
+- Corrected HUD chrome from cut corners to rounded corners with thin gold-to-dark gradient borders.
 
 ## Validation Plan
 
@@ -37,3 +38,4 @@
 - Browser QA at 1280x720, 1600x900, and 1920x1080: passed for measured HUD overlap/state checks.
 - Static/browser label checks: no visible `Quick Tools`, `Actions`, `Low-frequency`; no `Load Map` inside Theme cluster; no Theme Library category rows.
 - Typography token QA: local browser test passed for opening settings, seeing Token Lab, selecting Pasti for Brand, status update, and reset to defaults.
+- Rounded-border QA: build passed and browser smoke test verified rounded topbar/status/settings/theme/right-rail surfaces.

@@ -38,6 +38,7 @@ Started and corrected full live in-game HUD redesign implementation on `codex/ui
 - Added a live in-game typography token lab under the settings utility area.
 - Copied supplied `PastiRegular-mLXnm.otf` into `pax-fluxia/static/fonts/pasti/` and added a local `@font-face` so the font is included in `build/fonts/pasti/`.
 - Added role-specific HUD font tokens for brand, interface, labels, copy, and data, with localStorage persistence and reset.
+- Replaced cut-corner HUD chrome with rounded clipping and thin gold-to-dark gradient border treatment across live HUD/settings surfaces.
 
 ## Validation Notes
 
@@ -50,3 +51,4 @@ Started and corrected full live in-game HUD redesign implementation on `codex/ui
 - 1280x720 compact-height styling avoids Star View/quick-access overlap.
 - Remaining risk: the Pixi map renderer itself still does not fully achieve the richness of the supplied Aurelia Drift references; this commit substantially corrects the DOM HUD/settings surfaces.
 - Typography token browser QA: opened a local match, opened settings, verified `Typography / Token Lab`, selected Pasti for Brand, observed status update, and reset to defaults.
+- Rounded-border browser QA: opened a local match, opened settings, and verified topbar/status/settings/theme/right-rail surfaces render rounded rather than cut, with visible gold-to-dark thin gradient borders.

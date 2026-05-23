@@ -84,6 +84,20 @@
   --hud-border-strong: rgba(246, 196, 105, 0.66);
   --hud-border-warm: rgba(246, 196, 105, 0.58);
   --hud-border-cool: rgba(85, 231, 239, 0.34);
+  --hud-border-gradient:
+    linear-gradient(135deg,
+      rgba(255, 232, 170, 0.96) 0%,
+      rgba(246, 196, 105, 0.78) 19%,
+      rgba(92, 62, 25, 0.48) 42%,
+      rgba(2, 13, 16, 0.9) 61%,
+      rgba(183, 119, 36, 0.78) 82%,
+      rgba(255, 225, 155, 0.88) 100%);
+  --hud-control-border-gradient:
+    linear-gradient(135deg,
+      rgba(255, 226, 155, 0.86) 0%,
+      rgba(151, 102, 36, 0.58) 33%,
+      rgba(0, 12, 15, 0.96) 58%,
+      rgba(235, 181, 82, 0.74) 100%);
   --hud-divider: rgba(246, 196, 105, 0.18);
   --hud-shadow: 0 22px 58px rgba(2, 6, 23, 0.52);
   --hud-shadow-soft: 0 12px 30px rgba(2, 6, 23, 0.34);
@@ -92,10 +106,14 @@
   --hud-radius-sm: 10px;
   --hud-radius-md: 12px;
   --hud-radius-lg: 18px;
-  --hud-cut-corner-xs: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
-  --hud-cut-corner-sm: polygon(10px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 6px 100%, 0 calc(100% - 6px), 0 10px);
-  --hud-cut-corner-md: polygon(14px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 10px 100%, 0 calc(100% - 10px), 0 14px);
-  --hud-cut-corner-lg: polygon(22px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 18px), calc(100% - 18px) 100%, 12px 100%, 0 calc(100% - 12px), 0 22px);
+  --hud-rounded-corner-xs: inset(0 round var(--hud-radius-xs));
+  --hud-rounded-corner-sm: inset(0 round var(--hud-radius-sm));
+  --hud-rounded-corner-md: inset(0 round var(--hud-radius-md));
+  --hud-rounded-corner-lg: inset(0 round var(--hud-radius-lg));
+  --hud-cut-corner-xs: var(--hud-rounded-corner-xs);
+  --hud-cut-corner-sm: var(--hud-rounded-corner-sm);
+  --hud-cut-corner-md: var(--hud-rounded-corner-md);
+  --hud-cut-corner-lg: var(--hud-rounded-corner-lg);
   --hud-pad-xs: 8px;
   --hud-pad-sm: 12px;
   --hud-pad-md: 16px;

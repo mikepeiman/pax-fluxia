@@ -1502,6 +1502,139 @@
   color: var(--hud-danger);
 }
 
+/* Rounded gold-gradient chrome correction. Existing selectors still reference
+   the historical corner tokens; those tokens now resolve to rounded clipping. */
+.pf-hud-panel,
+.pf-selected-star-tray,
+.pf-quick-access-dock,
+.pf-theme-library,
+.pf-typography-panel {
+  border-color: transparent;
+  border-radius: var(--hud-radius-md);
+  clip-path: var(--hud-rounded-corner-md);
+}
+
+.pf-selected-star-tray {
+  border-radius: var(--hud-radius-lg);
+  clip-path: var(--hud-rounded-corner-lg);
+}
+
+.pf-hud-topbar {
+  border-bottom-color: transparent;
+  border-radius: 0 0 var(--hud-radius-sm) var(--hud-radius-sm);
+  clip-path: none;
+}
+
+.pf-hud-panel::after,
+.pf-hud-topbar::after,
+.pf-selected-star-tray::after,
+.pf-quick-access-dock::after,
+.pf-theme-library::after,
+.pf-typography-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--hud-border-gradient);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+.pf-hud-topbar::after {
+  border-radius: 0 0 var(--hud-radius-sm) var(--hud-radius-sm);
+}
+
+.pf-hud-icon-button,
+.pf-game-speed__button,
+.pf-standings__focus-button,
+.pf-hud-topbar__mode,
+.pf-hud-topbar__player-badge,
+.pf-theme-library button,
+.pf-theme-library select,
+.pf-theme-library input,
+.pf-typography-panel button,
+.pf-typography-panel select,
+.pf-theme-library__count,
+.pf-theme-library__row,
+.pf-typography-row,
+.pf-star-card__type,
+.pf-star-metric,
+.pf-hud-topbar__player-summary {
+  border-color: transparent;
+  border-radius: var(--hud-radius-xs);
+  clip-path: var(--hud-rounded-corner-xs);
+}
+
+.pf-hud-icon-button,
+.pf-game-speed__button,
+.pf-standings__focus-button,
+.pf-hud-topbar__mode,
+.pf-hud-topbar__player-badge,
+.pf-theme-library__icon-btn,
+.pf-theme-library__actions button,
+.pf-theme-library__save-row button,
+.pf-typography-panel__reset {
+  background:
+    linear-gradient(180deg, rgba(0, 21, 24, 0.88), rgba(0, 10, 13, 0.94)) padding-box,
+    var(--hud-control-border-gradient) border-box;
+}
+
+.pf-theme-library select,
+.pf-theme-library input,
+.pf-typography-panel select,
+.pf-theme-library__row,
+.pf-typography-row,
+.pf-star-card__type,
+.pf-star-metric,
+.pf-hud-topbar__player-summary,
+.pf-theme-library__count {
+  background:
+    linear-gradient(180deg, rgba(0, 18, 21, 0.88), rgba(0, 10, 13, 0.94)) padding-box,
+    var(--hud-control-border-gradient) border-box;
+}
+
+.pf-hud-icon-button:hover,
+.pf-game-speed__button:hover,
+.pf-standings__focus-button:hover,
+.pf-hud-topbar__mode:hover,
+.pf-hud-topbar__player-badge:hover,
+.pf-theme-library__row:hover,
+.pf-theme-library__row.active {
+  border-color: transparent;
+  background:
+    linear-gradient(180deg, rgba(58, 48, 22, 0.92), rgba(3, 31, 32, 0.96)) padding-box,
+    var(--hud-border-gradient) border-box;
+}
+
+.pf-hud-icon-button--active,
+.pf-game-speed__button--active,
+.pf-standings__focus-button.active,
+.pf-hud-topbar__mode.active,
+.pf-hud-topbar__player-badge--collapsed {
+  border-color: transparent;
+  background:
+    linear-gradient(180deg, rgba(101, 76, 24, 0.95), rgba(4, 35, 34, 0.96)) padding-box,
+    var(--hud-border-gradient) border-box;
+}
+
+.pf-hud-topbar__status-item:first-child {
+  border-color: transparent;
+  border-radius: var(--hud-radius-md);
+  clip-path: var(--hud-rounded-corner-md);
+  background:
+    linear-gradient(180deg, rgba(45, 34, 15, 0.92), rgba(7, 21, 23, 0.92)) padding-box,
+    var(--hud-border-gradient) border-box;
+}
+
 @media (max-width: 1024px) {
   .pf-hud-topbar,
   .pf-selected-star-tray {

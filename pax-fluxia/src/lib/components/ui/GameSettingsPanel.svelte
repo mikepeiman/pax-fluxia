@@ -2454,4 +2454,56 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         accent-color: var(--hud-accent);
     }
 
+    .settings-header-tools,
+    .icon-toolbar,
+    .section-panel,
+    .section-body :global(.category-theme-bar) {
+        border-color: transparent;
+        border-radius: var(--hud-radius-md);
+        clip-path: var(--hud-rounded-corner-md);
+        background:
+            linear-gradient(180deg, rgba(3, 23, 26, 0.97), rgba(1, 8, 13, 0.99)) padding-box,
+            var(--hud-border-gradient) border-box;
+    }
+
+    .icon-toolbar-control,
+    .icon-btn,
+    .full-io-btn,
+    .settings-search-input,
+    .section-body :global(.theme-select),
+    .section-body :global(.action-btn),
+    .section-body :global(.drawer-btn),
+    .section-body :global(.chip),
+    .section-body :global(.modal-chip),
+    .section-body :global(.modal-chip button),
+    .section-body :global(.var-row),
+    .section-body :global(.toggle-row) {
+        border-color: transparent;
+        border-radius: var(--hud-radius-xs);
+        clip-path: var(--hud-rounded-corner-xs);
+        background:
+            linear-gradient(180deg, rgba(0, 18, 21, 0.86), rgba(0, 10, 13, 0.94)) padding-box,
+            var(--hud-control-border-gradient) border-box;
+    }
+
+    .icon-btn:hover,
+    .icon-toolbar-control:hover,
+    .section-body :global(.theme-select:focus),
+    .section-body :global(.action-btn:hover),
+    .section-body :global(.drawer-btn:hover),
+    .section-body :global(.chip:hover),
+    .section-body :global(.chip.active) {
+        border-color: transparent;
+        background:
+            linear-gradient(180deg, rgba(58, 48, 22, 0.9), rgba(3, 31, 32, 0.94)) padding-box,
+            var(--hud-border-gradient) border-box;
+    }
+
+    .icon-btn.active {
+        border-color: transparent;
+        background:
+            linear-gradient(180deg, rgba(97, 72, 25, 0.92), rgba(4, 29, 29, 0.96)) padding-box,
+            var(--hud-border-gradient) border-box;
+    }
+
 </style>

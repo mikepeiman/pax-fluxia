@@ -7,6 +7,7 @@
 - Earlier implementation commit: `ca9e7b5ab ui: implement Aurelia Drift live HUD redesign`
 - Corrective implementation commit: `225df96ce ui: correct Aurelia Drift HUD settings surfaces`
 - Current additional pending work: live typography token lab and packaged Pasti font asset.
+- Current additional pending work: rounded HUD chrome with gold-to-dark gradient border correction.
 
 ## Merge Intent
 
@@ -30,12 +31,15 @@ This corrective pass is still a DOM/HUD/settings pass. It does not rewrite Pixi 
 - Lines near `44-94`: adds HUD cut-corner tokens used by the Aurelia Drift corrective shell.
 - Adds local `@font-face` for packaged Pasti OTF at `/fonts/pasti/PastiRegular-mLXnm.otf`.
 - Adds role-specific HUD typography variables: `--hud-font-brand`, `--hud-font-ui`, `--hud-font-label`, `--hud-font-copy`, and `--hud-font-data`.
+- Adds `--hud-border-gradient` and `--hud-control-border-gradient`.
+- Changes the historical corner tokens to rounded clipping aliases so existing `clip-path` consumers no longer cut corners.
 
 `pax-fluxia/src/lib/styles/hud.css`
 
 - Lines near `840-1396`: main Aurelia Drift corrective layer.
-- Key areas: cut-corner panel shells, topbar player summary, aligned Player Standings, compact Star View, selected-star tray, icon-only quick access, and full Theme Library styling.
+- Key areas: rounded gradient panel shells, topbar player summary, aligned Player Standings, compact Star View, selected-star tray, icon-only quick access, and full Theme Library styling.
 - Merge risk: this is a broad global HUD stylesheet. If master has touched HUD panel styling, compare selectors under `.pf-*`, `.area-right`, `.pf-theme-library*`, and `.pf-settings-ribbon`.
+- Later rounded-border correction layer: overrides HUD panels, topbar status, theme/typography panels, quick access, game speed, Star View metrics, and common buttons/rows/inputs to use rounded corners and thin gold-to-dark gradient borders.
 
 ### New Theme Library Surface
 
@@ -77,6 +81,7 @@ This corrective pass is still a DOM/HUD/settings pass. It does not rewrite Pixi 
 - Lines `1101-1219`: settings header, search/config import/export, and new theme utility placement.
 - Line `1219`: mounts `<ThemeLibraryPanel />`.
 - Line near `1223`: mounts `<TypographyTokenPanel />`.
+- Final style block now overrides settings header tools, icon toolbar, section panels, section controls, rows, and theme-setting controls to rounded corners with gold-to-dark border-box gradients.
 - Lines `1223-1288`: settings shell now supports rail-only mode and compact icon navigation.
 - Lines `1545-1806`: original icon-toolbar/section-panel CSS retained and adjusted.
 - Lines `1830-2419`: corrective settings CSS layer: compact command search, 2x2 config actions, rail-only icon grid, widened section state, no empty explanatory slab.
@@ -143,6 +148,13 @@ Browser QA against `http://127.0.0.1:5177` for typography controls:
 - Verified `Typography / Token Lab` appears beneath Theme Library.
 - Selected Pasti for Brand and saw the control/status update.
 - Reset typography tokens to defaults after the test.
+
+Browser QA against `http://127.0.0.1:5178` for rounded chrome:
+
+- Started a local game.
+- Opened settings.
+- Verified topbar/status/settings/theme/right-rail surfaces render rounded rather than cut.
+- Verified visible thin border treatment uses stronger gold-to-dark gradient styling.
 
 ## Known Risks
 

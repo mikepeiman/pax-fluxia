@@ -143,3 +143,11 @@ Here is one example font to try: D:\Eagle master library\Master.library\images\M
 ## Assistant
 
 Implemented an in-game typography token lab under the live settings utility area. The control changes role-specific HUD CSS variables for brand, interface, labels, copy, and data, persists choices to localStorage, and can reset to design defaults. Copied the supplied Pasti OTF into the app static asset tree for packaging and verified the built output contains it.
+
+## User
+
+One detail now: corners are cut. Instead, they should be rounded. The border width is correct, thin; but the border style should have a strong gold-to-dark gradient.
+
+## Assistant
+
+Updated HUD chrome so the historical corner tokens now resolve to rounded clipping instead of polygon cuts. Added shared gold-to-dark gradient border tokens and applied them to HUD panels, topbar status, theme/typography panels, settings ribbon surfaces, buttons, rows, inputs, star metrics, and selected-star surfaces.
