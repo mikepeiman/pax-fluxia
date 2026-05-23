@@ -151,3 +151,11 @@ One detail now: corners are cut. Instead, they should be rounded. The border wid
 ## Assistant
 
 Updated HUD chrome so the historical corner tokens now resolve to rounded clipping instead of polygon cuts. Added shared gold-to-dark gradient border tokens and applied them to HUD panels, topbar status, theme/typography panels, settings ribbon surfaces, buttons, rows, inputs, star metrics, and selected-star surfaces.
+
+## User
+
+I'l lhave you note that what I just requested is simply what is in the desired style from the supplied mockup example. Why are you not following that example? You need to identify all the components on the screen and systematically locate them with prepositional and mathematical language; and their sizes, and the functions in them.
+
+## Assistant
+
+Acknowledged that the rounded/gold-border request was a direct mockup-derived requirement, not an isolated preference. Measured the live HUD at a controlled `1904 x 985` desktop viewport and wrote a component geometry audit enumerating topbar, settings rail, theme library, playfield, tactical rail, standings, gamespeed, Star View, tactical overview, quick access, and selected-star tray presence/state with coordinates, sizes, and functions.

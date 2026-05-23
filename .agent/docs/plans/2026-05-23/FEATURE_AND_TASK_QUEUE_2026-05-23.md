@@ -29,6 +29,7 @@
 - Added an in-game typography token lab for brand/interface/label/copy/data HUD font roles.
 - Packaged the supplied Pasti OTF under `pax-fluxia/static/fonts/pasti/` and verified it copies into the static build output.
 - Corrected HUD chrome from cut corners to rounded corners with thin gold-to-dark gradient borders.
+- Produced a measured live HUD component geometry audit with screen positions, dimensions, functions, and immediate layout deficiencies.
 
 ## Validation Plan
 
@@ -39,3 +40,4 @@
 - Static/browser label checks: no visible `Quick Tools`, `Actions`, `Low-frequency`; no `Load Map` inside Theme cluster; no Theme Library category rows.
 - Typography token QA: local browser test passed for opening settings, seeing Token Lab, selecting Pasti for Brand, status update, and reset to defaults.
 - Rounded-border QA: build passed and browser smoke test verified rounded topbar/status/settings/theme/right-rail surfaces.
+- Geometry audit QA: controlled desktop viewport measured at `1904 x 985`; documented topbar/settings/playfield/tactical rail proportions and component-level locations.

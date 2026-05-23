@@ -8,6 +8,7 @@
 - Corrective implementation commit: `225df96ce ui: correct Aurelia Drift HUD settings surfaces`
 - Current additional pending work: live typography token lab and packaged Pasti font asset.
 - Current additional pending work: rounded HUD chrome with gold-to-dark gradient border correction.
+- Current additional documentation: measured HUD component geometry audit at `.agent/docs/sessions/2026-05-23/2026-05-23_HUD_Component_Geometry_Audit_worktree-4b02.md`.
 
 ## Merge Intent
 
@@ -155,6 +156,12 @@ Browser QA against `http://127.0.0.1:5178` for rounded chrome:
 - Opened settings.
 - Verified topbar/status/settings/theme/right-rail surfaces render rounded rather than cut.
 - Verified visible thin border treatment uses stronger gold-to-dark gradient styling.
+
+Chrome/CDP geometry audit against `http://127.0.0.1:5178`:
+
+- Measured controlled desktop viewport `1904 x 985`.
+- Documented topbar `64px`, settings rail `340px`, tactical rail `390px`, settings-open playfield `1174px`, and all visible HUD component positions/functions.
+- Captured a concrete deficiency: the settings icon ribbon begins at `y=874` and extends `169px` below the viewport in the no-section state, so the ribbon layout is still structurally wrong.
 
 ## Known Risks
 
