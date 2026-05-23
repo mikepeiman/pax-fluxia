@@ -1,0 +1,135 @@
+<script lang="ts">
+  import { browser } from "$app/environment";
+  import HudIcon from "$lib/components/ui/hud/HudIcon.svelte";
+  import HudIconButton from "./HudIconButton.svelte";
+  import HudPanel from "./HudPanel.svelte";
+  import { formatHudNumber } from "./viewModels";
+  import type { HudDockSide, PlayerStandingViewModel } from "./types";
+
+  interface Props {
+    players: PlayerStandingViewModel[];
+    dockSide: HudDockSide;
+    currentTick: number;
+    onToggleDockSide: () => void;
+    onCollapse: () => void;
+  }
+
+  type ShipFocus = "active" | "total";
+
+  let {
+    players,
+    dockSide,
+    currentTick,
+    onToggleDockSide,
+    onCollapse,
+  }: Props = $props();
+
+  const FOCUS_KEY = "pax-leaderboard-ship-focus";
+  let shipFocus = $state<ShipFocus>(
+    browser && localStorage.getItem(FOCUS_KEY) === "active" ? "active" : "total",
+  );
+
+  function setShipFocus(nextFocus: ShipFocus) {
+    shipFocus = nextFocus;
+    if (browser) {
+      localStorage.setItem(FOCUS_KEY, nextFocus);
+    }
+  }
+
+  const sortedPlayers = $derived(
+    [...players].sort((left, right) => {
+      const focusDelta =
+        shipFocus === "active"
+          ? right.activeShips - left.activeShips
+          : right.totalShips - left.totalShips;
+      if (focusDelta !== 0) return focusDelta;
+      return right.totalShips - left.totalShips;
+    }),
+  );
+
+  const totals = $derived.by(() =>
+    players.reduce(
+      (acc, player) => {
+        acc.active += player.activeShips;
+        acc.total += player.totalShips;
+        acc.stars += player.starCount;
+        return acc;
+      },
+      { active: 0, total: 0, stars: 0 },
+    ),
+  );
+</script>
+
+<HudPanel title="Player Standings" eyebrow="Live match" class="pf-standings">
+  {#snippet actions()}
+    <HudIconButton
+      icon={dockSide === "right" ? "dock-left" : "dock-right"}
+      title={dockSide === "right" ? "Move tactical rail left" : "Move tactical rail right"}
+      onclick={onToggleDockSide}
+    />
+    <HudIconButton icon="chevron-up" title="Collapse player standings" onclick={onCollapse} />
+  {/snippet}
+
+  <div class="pf-standings__toolbar">
+    <span>Rank by</span>
+    <div class="pf-standings__focus" role="group" aria-label="Ship emphasis">
+      <button
+        type="button"
+        class="pf-standings__focus-button"
+        class:active={shipFocus === "active"}
+        onclick={() => setShipFocus("active")}
+        title="Emphasize active ships"
+      >
+        <HudIcon name="ship-active" size={13} />
+      </button>
+      <button
+        type="button"
+        class="pf-standings__focus-button"
+        class:active={shipFocus === "total"}
+        onclick={() => setShipFocus("total")}
+        title="Emphasize total ships"
+      >
+        <HudIcon name="total-focus" size={13} />
+      </button>
+    </div>
+  </div>
+
+  <div class="pf-standings__summary">
+    <span><strong class="font-hud-data">{formatHudNumber(totals.active)}</strong> active</span>
+    <span><strong class="font-hud-data">{formatHudNumber(totals.total)}</strong> ships</span>
+    <span><strong class="font-hud-data">{formatHudNumber(totals.stars)}</strong> stars</span>
+    <span>Tick <strong class="font-hud-data">{currentTick}</strong></span>
+  </div>
+
+  <div class="pf-standings__columns">
+    <span>Player</span>
+    <span><HudIcon name="ship-active" size={12} /> Active</span>
+    <span><HudIcon name="total-focus" size={12} /> Total</span>
+    <span>Stars</span>
+    <span>Prod</span>
+    <span>Active %</span>
+  </div>
+
+  <ul class="pf-standings__list">
+    {#each sortedPlayers as player, index}
+      <li
+        class="pf-standings__row"
+        class:pf-standings__row--local={player.isLocal}
+        style={`--player-color:${player.color};`}
+      >
+        <span class="pf-standings__player">
+          <span class="pf-standings__rank font-hud-data">{index + 1}</span>
+          <span class="pf-standings__dot"></span>
+          <span class="pf-standings__name">{player.isLocal ? "You" : player.name}</span>
+        </span>
+        <span class="font-hud-data">{formatHudNumber(player.activeShips)}</span>
+        <span class="font-hud-data">{formatHudNumber(player.totalShips)}</span>
+        <span class="font-hud-data">{formatHudNumber(player.starCount)}</span>
+        <span class="font-hud-data">+{formatHudNumber(player.production, 1)}</span>
+        <span class="font-hud-data">{player.activePercent}%</span>
+      </li>
+    {:else}
+      <li class="pf-standings__empty">No players</li>
+    {/each}
+  </ul>
+</HudPanel>

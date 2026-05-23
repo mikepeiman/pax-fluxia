@@ -178,6 +178,9 @@
     "play-4": {
       body: `<path d="M5.5 6.5 9.5 12l-4 5.5ZM10 6.5 14 12l-4 5.5ZM14.5 6.5 18.5 12l-4 5.5Z" fill="none" stroke="currentColor" stroke-linejoin="round" />`,
     },
+    "play-10": {
+      body: `<path d="M4.8 6.5 8.2 12l-3.4 5.5M9.2 6.5 12.6 12l-3.4 5.5M13.6 6.5 17 12l-3.4 5.5M18.6 7.2v9.6" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />`,
+    },
     "ship-active": {
       body: `<path d="M12 5 17.5 12 12 19 6.5 12 12 5Z" fill="none" stroke="currentColor" stroke-linejoin="round" /><path d="M12 8v8M9 12h6" fill="none" stroke="currentColor" stroke-linecap="round" />`,
     },

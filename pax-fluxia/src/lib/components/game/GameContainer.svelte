@@ -19,11 +19,21 @@
     StarsPanel,
     StatusBar,
   } from "$lib/components/ui/hud";
+  import {
+    GameSpeedPanel,
+    HudTopbar,
+    PlayerStandingsPanel,
+    QuickAccessDock,
+    SelectedStarPanel,
+    SelectedStarTray,
+    SettingsRibbon,
+    buildPlayerStandings,
+    buildSelectedStarViewModel,
+    type QuickAccessAction,
+  } from "$lib/components/game-hud";
   import GameCanvas from "$lib/components/game/GameCanvas.svelte";
-  import GameSettingsPanel from "$lib/components/ui/GameSettingsPanel.svelte";
   import AudioSettings from "$lib/components/ui/AudioSettings.svelte";
   import TopBar from "$lib/components/ui/TopBar.svelte";
-  import GameHudTopBar from "$lib/components/ui/GameHudTopBar.svelte";
   import type { SettingsSectionId } from "$lib/components/ui/settings/settingsRegistry";
   import type { PlayerState, StarState } from "$lib/types/game.types";
   import { audioManager } from "$lib/services/audioManager.svelte";
@@ -439,29 +449,20 @@
       );
   });
 
-  function getPlayerById(playerId: string | null | undefined): PlayerState | null {
-    if (!playerId) return null;
-    return (
-      (activeGameStore.players as PlayerState[]).find(
-        (player) => player.id === playerId,
-      ) ?? null
-    );
-  }
-
-  function starLabel(star: StarState | null | undefined): string {
-    return star ? `Star ${star.id.replace(/^star-/, "")}` : "No Star";
-  }
-
-  const selectedCommandStar = $derived(
-    selectedStarStore.id
-      ? ((activeGameStore.stars as StarState[]).find(
-          (star) => star.id === selectedStarStore.id,
-        ) ?? null)
-      : null,
+  const playerStandings = $derived(
+    buildPlayerStandings(
+      leaderboardPlayers,
+      activeGameStore.localPlayerId ?? undefined,
+    ),
   );
 
-  const selectedCommandOwner = $derived(
-    selectedCommandStar ? getPlayerById(selectedCommandStar.ownerId) : null,
+  const selectedStarView = $derived(
+    buildSelectedStarViewModel(
+      selectedStarStore.id,
+      activeGameStore.stars as StarState[],
+      activeGameStore.players as PlayerState[],
+      activeGameStore.localPlayerId ?? undefined,
+    ),
   );
 
   const tacticalOverviewPlayers = $derived(
@@ -478,6 +479,61 @@
   const currentThemeName = $derived(
     themeStore.selectedThemeName || "Phase Field Default",
   );
+
+  const quickAccessActions = $derived.by((): QuickAccessAction[] => {
+    const actions: QuickAccessAction[] = [
+      {
+        id: "theme",
+        icon: "theme",
+        title: `Open theme tools (${currentThemeName})`,
+        onClick: openThemeShortcuts,
+      },
+      {
+        id: "diagnostics",
+        icon: "diagnostics",
+        title: "Diagnostics",
+        active: showSettingsPanel && forceOpenSettingsSection === "diagnostics",
+        onClick: openDiagnostics,
+      },
+      {
+        id: "ruler",
+        icon: "ruler",
+        title: $rulerTool.enabled ? "Turn ruler off" : "Turn ruler on",
+        active: $rulerTool.enabled,
+        onClick: toggleRulerDiagnostics,
+      },
+    ];
+
+    if (activeGameStore.mapDiagnostics.measurements.length > 0) {
+      actions.push({
+        id: "measure",
+        icon: "measure",
+        title: $authoredMeasurementsUi.visible
+          ? "Hide map measurements"
+          : "Show map measurements",
+        active: $authoredMeasurementsUi.visible,
+        onClick: () => authoredMeasurementsUi.toggle(),
+      });
+    }
+
+    actions.push(
+      {
+        id: "fit",
+        icon: "fit",
+        title: "Center and fit map",
+        onClick: () => gameCanvasRef?.centerAndFit?.(),
+      },
+      {
+        id: "more",
+        icon: "more",
+        title: quickAccessDrawerOpen ? "Close quick access drawer" : "Open quick access drawer",
+        active: quickAccessDrawerOpen,
+        onClick: () => (quickAccessDrawerOpen = !quickAccessDrawerOpen),
+      },
+    );
+
+    return actions;
+  });
 
   const leftRailWidth = $derived.by(() => {
     let width = 0;
@@ -680,17 +736,21 @@
       class:layout-controls-left={controlsSide === "left"}
       style={`--left-rail-width:${leftRailWidth}px; --right-rail-width:${rightRailWidth}px; --quick-access-width:${quickAccessWidth}px;`}>
       <div class="area-topbar">
-        <GameHudTopBar
+        <HudTopbar
+          settingsOpen={showSettingsPanel}
+          standingsCollapsed={leaderboardCollapsed}
+          players={playerStandings}
+          selectedStar={selectedStarView}
+          currentTick={activeGameStore.currentTick ?? 0}
+          speed={activeGameStore.speed}
+          isPaused={activeGameStore.isPaused}
+          themeName={currentThemeName}
+          modeOptions={topbarTerritoryModeOptions}
+          activeModeId={topbarActiveTerritoryModeId}
           onMenuClick={() => gameStore.setView("menu")}
           onSettingsClick={toggleSettingsPanel}
-          onToggleLeaderboard={toggleLeaderboardCollapsed}
-          settingsActive={showSettingsPanel}
-          leaderboardCollapsed={leaderboardCollapsed}
-          players={leaderboardPlayers}
-          localPlayerId={activeGameStore.localPlayerId ?? undefined}
+          onToggleStandings={toggleLeaderboardCollapsed}
           onModeSelect={handleTopbarTerritoryModeSelect}
-          modeOptions={topbarTerritoryModeOptions}
-          fallbackActiveModeId={topbarActiveTerritoryModeId}
         />
       </div>
       <!-- STATUSBAR (info display) -->
@@ -736,99 +796,14 @@
           </div>
         {/if}
 
-        {#if selectedCommandStar}
-          <div
-            class="selected-command-tray"
-            class:selected-command-tray--collapsed={commandTrayCollapsed}
-            aria-label="Selected star command tray"
-          >
-            <div class="selected-command-tray__identity">
-              <span
-                class="selected-command-tray__orb"
-                style={`--player-color:${selectedCommandOwner?.color ?? "var(--hud-accent)"};`}
-                aria-hidden="true"
-              >
-                <HudIcon name={selectedCommandStar.starType || "grey"} size={20} />
-              </span>
-              <div class="selected-command-tray__copy">
-                <span class="selected-command-tray__label">Selected</span>
-                <span class="selected-command-tray__name">{starLabel(selectedCommandStar)}</span>
-              </div>
-              <div class="selected-command-tray__ships">
-                <span class="font-hud-data">{selectedCommandStar.activeShips}</span>
-                <span>ships</span>
-              </div>
-            </div>
-
-            {#if !commandTrayCollapsed}
-              <div class="selected-command-tray__section">
-                <span class="selected-command-tray__section-label">Orders</span>
-                <button
-                  class="command-tray-button command-tray-button--primary"
-                  onclick={() => gameCanvasRef?.navigateToStar?.(selectedCommandStar.id)}
-                  title="Center selected star"
-                  aria-label="Center selected star"
-                >
-                  <HudIcon name="fit" />
-                </button>
-                <button
-                  class="command-tray-button"
-                  class:active={$rulerTool.enabled}
-                  onclick={toggleRulerDiagnostics}
-                  title={$rulerTool.enabled ? "Turn ruler off" : "Turn ruler on"}
-                  aria-label={$rulerTool.enabled ? "Turn ruler off" : "Turn ruler on"}
-                >
-                  <HudIcon name="ruler" />
-                </button>
-                <button
-                  class="command-tray-button"
-                  onclick={() => openSettingsSection("travel_orders")}
-                  title="Open travel and order tuning"
-                  aria-label="Open travel and order tuning"
-                >
-                  <HudIcon name="travel" />
-                </button>
-              </div>
-
-              <div class="selected-command-tray__section">
-                <span class="selected-command-tray__section-label">Formation</span>
-                <button
-                  class="command-tray-button"
-                  onclick={() => openSettingsSection("fleet_star_visuals")}
-                  title="Open fleet visuals"
-                  aria-label="Open fleet visuals"
-                >
-                  <HudIcon name="fleet-star" />
-                </button>
-                <button
-                  class="command-tray-button"
-                  onclick={() => openSettingsSection("map_options")}
-                  title="Open map options"
-                  aria-label="Open map options"
-                >
-                  <HudIcon name="map-options" />
-                </button>
-                <button
-                  class="command-tray-button"
-                  onclick={() => gameCanvasRef?.centerAndFit?.()}
-                  title="Fit full map"
-                  aria-label="Fit full map"
-                >
-                  <HudIcon name="topology" />
-                </button>
-              </div>
-            {/if}
-
-            <button
-              class="selected-command-tray__collapse"
-              onclick={toggleCommandTrayCollapsed}
-              title={commandTrayCollapsed ? "Expand selected star tray" : "Collapse selected star tray"}
-              aria-label={commandTrayCollapsed ? "Expand selected star tray" : "Collapse selected star tray"}
-            >
-              <HudIcon name={commandTrayCollapsed ? "chevron-up" : "chevron-down"} size={15} />
-            </button>
-          </div>
-        {/if}
+        <SelectedStarTray
+          star={selectedStarView}
+          collapsed={commandTrayCollapsed}
+          onToggleCollapsed={toggleCommandTrayCollapsed}
+          onCenterStar={(starId) => gameCanvasRef?.navigateToStar?.(starId)}
+          onFitMap={() => gameCanvasRef?.centerAndFit?.()}
+          onCancelOrder={(starId) => activeGameStore.cancelOrder(starId)}
+        />
       </div>
 
       <!-- MOBILE-ONLY: Bottom controls bar (hidden on desktop, shown by mobile media query) -->
@@ -859,30 +834,20 @@
         <div
           class="area-controls"
           class:area-controls--dock-left={controlsSide === "left"}
-          style="width: {settingsPanelWidth}px;">
-          <div
-            class="controls-resize-handle"
-            class:active={isSettingsResizing}
-            onpointerdown={startSettingsResize}
-            role="separator"
-            aria-orientation="vertical"
-            title="Drag to resize settings panel"
-          ></div>
-          <button
-            class="settings-overlay-close"
-            onclick={() => setSettingsPanelOpen(false)}
-            title="Close Settings"><HudIcon name="close" size={14} /></button
-          >
-          <div class="panel-section section-tuning">
-            <GameSettingsPanel
-              forceOpenSection={forceOpenSettingsSection}
-              forceOpenSectionNonce={forceOpenSettingsSectionNonce}
-              ribbonExpanded={settingsRibbonExpanded}
-              onToggleRibbonExpanded={toggleSettingsRibbonExpanded}
-              dockSide={controlsSide}
-              onToggleDockSide={toggleControlsSide}
-            />
-          </div>
+          style={`width:${settingsPanelWidth}px;`}
+        >
+          <SettingsRibbon
+            width={settingsPanelWidth}
+            dockSide={controlsSide}
+            resizeActive={isSettingsResizing}
+            ribbonExpanded={settingsRibbonExpanded}
+            forceOpenSection={forceOpenSettingsSection}
+            forceOpenSectionNonce={forceOpenSettingsSectionNonce}
+            onResizePointerDown={startSettingsResize}
+            onClose={() => setSettingsPanelOpen(false)}
+            onToggleRibbonExpanded={toggleSettingsRibbonExpanded}
+            onToggleDockSide={toggleControlsSide}
+          />
         </div>
       {/if}
 
@@ -903,39 +868,34 @@
 
         {#if !leaderboardCollapsed}
           <div class="sidebar-leaderboard">
-            <Leaderboard
-              players={leaderboardPlayers}
+            <PlayerStandingsPanel
+              players={playerStandings}
               dockSide={sidebarSide}
               onToggleDockSide={toggleSidebarSide}
               onCollapse={toggleLeaderboardCollapsed}
+              currentTick={activeGameStore.currentTick ?? 0}
             />
           </div>
         {/if}
 
         <div class="sidebar-quicktools">
           <div class="sidebar-controls">
-            <section class="speed-card">
-              <div class="speed-card__label">Gamespeed</div>
-              <SpeedControls
-                speed={activeGameStore.speed}
-                isPaused={activeGameStore.isPaused}
-                hasStarted={true}
-                onSpeedChange={(speed) => activeGameStore.setSpeed(speed)}
-                onPause={() => activeGameStore.pauseGame()}
-                onResume={() => activeGameStore.resumeGame()}
-                onStart={() => activeGameStore.startGame()}
-              />
-            </section>
+            <GameSpeedPanel
+              speed={activeGameStore.speed}
+              isPaused={activeGameStore.isPaused}
+              hasStarted={true}
+              onSpeedChange={(speed) => activeGameStore.setSpeed(speed)}
+              onPause={() => activeGameStore.pauseGame()}
+              onResume={() => activeGameStore.resumeGame()}
+              onStart={() => activeGameStore.startGame()}
+            />
           </div>
 
           <div class="sidebar-starnav">
-            <StarNav
-              stars={activeGameStore.stars ?? []}
-              players={activeGameStore.players ?? []}
-              localPlayerId={activeGameStore.localPlayerId ?? undefined}
-              onNavigateToStar={(starId) =>
-                gameCanvasRef?.navigateToStar?.(starId)}
-              onCenterFit={() => gameCanvasRef?.centerAndFit?.()}
+            <SelectedStarPanel
+              star={selectedStarView}
+              onCenterStar={(starId) => gameCanvasRef?.navigateToStar?.(starId)}
+              onFitMap={() => gameCanvasRef?.centerAndFit?.()}
             />
           </div>
         </div>
@@ -963,60 +923,8 @@
           </div>
         </section>
 
-        <div class="sidebar-quick-access" aria-label="Quick access icons">
-          <button
-            class="sidebar-tool-btn"
-            onclick={openThemeShortcuts}
-            title={`Open theme tools (${currentThemeName})`}
-          >
-            <HudIcon name="theme" />
-          </button>
-          <button
-            class="sidebar-tool-btn"
-            class:sidebar-tool-btn--active={showSettingsPanel &&
-              forceOpenSettingsSection === "diagnostics"}
-            onclick={openDiagnostics}
-            title="Diagnostics"
-          >
-            <HudIcon name="diagnostics" />
-          </button>
-          <button
-            class="sidebar-tool-btn"
-            class:sidebar-tool-btn--active={$rulerTool.enabled}
-            onclick={toggleRulerDiagnostics}
-            title={$rulerTool.enabled ? "Turn ruler off" : "Turn ruler on"}
-          >
-            <HudIcon name="ruler" />
-          </button>
-          {#if activeGameStore.mapDiagnostics.measurements.length > 0}
-            <button
-              class="sidebar-tool-btn"
-              class:sidebar-tool-btn--active={$authoredMeasurementsUi.visible}
-              onclick={() => authoredMeasurementsUi.toggle()}
-              title={$authoredMeasurementsUi.visible
-                ? "Hide map measurements"
-                : "Show map measurements"}
-            >
-              <HudIcon name="measure" />
-            </button>
-          {/if}
-          <button
-            class="sidebar-tool-btn sidebar-tool-btn--fit"
-            onclick={() => gameCanvasRef?.centerAndFit?.()}
-            title="Center and fit map"
-            aria-label="Center and fit map"
-          >
-            <HudIcon name="fit" />
-          </button>
-          <button
-            class="sidebar-tool-btn"
-            class:sidebar-tool-btn--active={quickAccessDrawerOpen}
-            onclick={() => (quickAccessDrawerOpen = !quickAccessDrawerOpen)}
-            title={quickAccessDrawerOpen ? "Close quick access drawer" : "Open quick access drawer"}
-            aria-label={quickAccessDrawerOpen ? "Close quick access drawer" : "Open quick access drawer"}
-          >
-            <HudIcon name="more" />
-          </button>
+        <div class="sidebar-quick-access">
+          <QuickAccessDock actions={quickAccessActions} />
         </div>
 
         <hr class="sidebar-divider" class:sidebar-divider--hidden={!quickAccessDrawerOpen} />
@@ -1410,8 +1318,8 @@
   }
 
   /* ═══ GRID LAYOUT V8 ═══ */
-  /* Default: Canvas | Right sidebar */
-  /* Settings open: Canvas | Secondary (controls) | Right sidebar */
+  /* Default: Playfield | Tactical rail */
+  /* Settings open: Ribbon | Playfield | Tactical rail */
   .game-layout {
     --game-hud-topbar-clearance: 0px;
     display: grid;
@@ -1419,7 +1327,7 @@
     grid-template-rows: var(--hud-topbar-height) minmax(0, 1fr);
     grid-template-areas:
       "topbar topbar"
-      "canvas right";
+      "playfield tactical";
     height: 100vh;
     height: 100dvh;
     width: 100vw;
@@ -1429,47 +1337,47 @@
     grid-template-columns: 1fr auto auto;
     grid-template-areas:
       "topbar topbar topbar"
-      "canvas controls right";
+      "playfield ribbon tactical";
   }
 
   .game-layout.layout-sidebar-left {
     grid-template-columns: auto 1fr;
     grid-template-areas:
       "topbar topbar"
-      "right canvas";
+      "tactical playfield";
   }
 
   .game-layout.layout-controls-left:not(.settings-open) {
     grid-template-areas:
       "topbar topbar"
-      "canvas right";
+      "playfield tactical";
   }
 
   .game-layout.layout-sidebar-left.layout-controls-left:not(.settings-open) {
     grid-template-areas:
       "topbar topbar"
-      "right canvas";
+      "tactical playfield";
   }
 
   .game-layout.settings-open.layout-controls-left:not(.layout-sidebar-left) {
     grid-template-columns: auto 1fr auto;
     grid-template-areas:
       "topbar topbar topbar"
-      "controls canvas right";
+      "ribbon playfield tactical";
   }
 
   .game-layout.settings-open.layout-sidebar-left:not(.layout-controls-left) {
     grid-template-columns: auto 1fr auto;
     grid-template-areas:
       "topbar topbar topbar"
-      "right canvas controls";
+      "tactical playfield ribbon";
   }
 
   .game-layout.settings-open.layout-sidebar-left.layout-controls-left {
     grid-template-columns: auto auto 1fr;
     grid-template-areas:
       "topbar topbar topbar"
-      "right controls canvas";
+      "tactical ribbon playfield";
   }
 
   .area-topbar {
@@ -1480,7 +1388,7 @@
   }
 
   .area-canvas {
-    grid-area: canvas;
+    grid-area: playfield;
     position: relative;
     width: 100%;
     height: 100%;
@@ -1532,8 +1440,7 @@
   }
 
   @media (max-width: 1024px) {
-    .area-topbar,
-    .selected-command-tray {
+    .area-topbar {
       display: none !important;
     }
 
@@ -1543,16 +1450,16 @@
       grid-template-rows: auto 1fr auto;
       grid-template-areas:
         "statusbar"
-        "canvas"
-        "controls" !important;
+        "playfield"
+        "ribbon" !important;
     }
     .game-layout.settings-open {
       grid-template-columns: 1fr !important;
       grid-template-rows: auto 1fr auto;
       grid-template-areas:
         "statusbar"
-        "canvas"
-        "controls" !important;
+        "playfield"
+        "ribbon" !important;
     }
     .area-right {
       display: none !important;
@@ -1578,7 +1485,7 @@
     /* Controls bar fills bottom grid area */
     .area-controls-bar {
       display: flex;
-      grid-area: controls;
+      grid-area: ribbon;
       padding: 6px 8px;
       padding-bottom: 4rem;
       background: rgba(5, 10, 25, 0.92);
@@ -1598,17 +1505,17 @@
     }
   }
 
-  /* ── Landscape mobile: statusbar left, canvas center, controls right ── */
+  /* ── Landscape mobile: statusbar left, playfield center, ribbon right ── */
   @media (max-width: 1024px) and (orientation: landscape) {
     .game-layout {
       grid-template-columns: 50px 1fr 56px !important;
       grid-template-rows: 1fr !important;
-      grid-template-areas: "statusbar canvas controls" !important;
+      grid-template-areas: "statusbar playfield ribbon" !important;
     }
     .game-layout.settings-open {
       grid-template-columns: 50px 1fr 56px !important;
       grid-template-rows: 1fr !important;
-      grid-template-areas: "statusbar canvas controls" !important;
+      grid-template-areas: "statusbar playfield ribbon" !important;
     }
     /* Controls bar as vertical right sidebar — tight fit */
     .area-controls-bar {
@@ -1862,7 +1769,7 @@
 
   /* ═══ CANVAS ═══ */
   .area-canvas {
-    grid-area: canvas;
+    grid-area: playfield;
     position: relative;
     /* L1+L4: All background depth in one property — strong enough to be visible */
     background:
@@ -1908,145 +1815,6 @@
     min-height: 0;
   }
 
-  .selected-command-tray {
-    position: absolute;
-    left: 50%;
-    bottom: 18px;
-    z-index: 35;
-    display: grid;
-    grid-template-columns: minmax(190px, 1fr) auto auto auto;
-    align-items: stretch;
-    gap: 10px;
-    width: min(760px, calc(100% - 48px));
-    padding: 10px;
-    border: 1px solid rgba(144, 240, 255, 0.28);
-    border-radius: 18px;
-    background:
-      linear-gradient(180deg, rgba(10, 16, 31, 0.94), rgba(5, 9, 20, 0.94)),
-      radial-gradient(circle at left center, rgba(255, 200, 107, 0.12), transparent 42%),
-      radial-gradient(circle at right center, rgba(94, 230, 255, 0.1), transparent 48%);
-    box-shadow:
-      0 20px 60px rgba(0, 0, 0, 0.45),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.035);
-    transform: translateX(-50%);
-    backdrop-filter: blur(18px);
-  }
-
-  .selected-command-tray--collapsed {
-    grid-template-columns: minmax(220px, auto) auto;
-    width: auto;
-  }
-
-  .selected-command-tray__identity,
-  .selected-command-tray__section,
-  .selected-command-tray__orb,
-  .selected-command-tray__ships,
-  .command-tray-button,
-  .selected-command-tray__collapse {
-    display: flex;
-    align-items: center;
-  }
-
-  .selected-command-tray__identity {
-    min-width: 0;
-    gap: 12px;
-    padding: 6px 12px 6px 6px;
-    border-right: 1px solid var(--hud-divider);
-  }
-
-  .selected-command-tray__orb {
-    width: 42px;
-    height: 42px;
-    justify-content: center;
-    border-radius: 14px;
-    border: 1px solid color-mix(in srgb, var(--player-color, var(--hud-accent)) 46%, transparent);
-    color: var(--player-color, var(--hud-accent));
-    background:
-      radial-gradient(circle, color-mix(in srgb, var(--player-color, var(--hud-accent)) 22%, transparent), transparent 60%),
-      rgba(255, 255, 255, 0.035);
-  }
-
-  .selected-command-tray__copy {
-    min-width: 0;
-    display: grid;
-    gap: 2px;
-  }
-
-  .selected-command-tray__label,
-  .selected-command-tray__section-label,
-  .selected-command-tray__ships span:last-child {
-    color: var(--hud-text-soft);
-    font-family: var(--hud-font-ui);
-    font-size: 0.55rem;
-    font-weight: 800;
-    letter-spacing: 0.14em;
-    line-height: 1;
-    text-transform: uppercase;
-  }
-
-  .selected-command-tray__name {
-    overflow: hidden;
-    color: var(--hud-text-strong);
-    font-family: var(--hud-font-ui);
-    font-size: 0.84rem;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .selected-command-tray__ships {
-    margin-left: auto;
-    gap: 6px;
-    color: var(--hud-accent-strong);
-  }
-
-  .selected-command-tray__ships .font-hud-data {
-    color: var(--hud-text-strong);
-    font-size: 1.05rem;
-  }
-
-  .selected-command-tray__section {
-    gap: 8px;
-    padding: 0 4px;
-  }
-
-  .selected-command-tray__section-label {
-    width: 70px;
-  }
-
-  .command-tray-button,
-  .selected-command-tray__collapse {
-    width: 42px;
-    height: 42px;
-    justify-content: center;
-    border: 1px solid var(--hud-border);
-    border-radius: 13px;
-    background: var(--hud-button-bg);
-    color: var(--hud-text);
-    cursor: pointer;
-    transition:
-      background 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      transform 0.16s ease;
-  }
-
-  .command-tray-button:hover,
-  .selected-command-tray__collapse:hover {
-    background: var(--hud-button-bg-hover);
-    border-color: var(--hud-border-strong);
-    color: var(--hud-text-strong);
-    transform: translateY(-1px);
-  }
-
-  .command-tray-button--primary,
-  .command-tray-button.active {
-    border-color: var(--hud-border-strong);
-    background: var(--hud-button-bg-active);
-    color: var(--hud-accent);
-  }
-
   @keyframes nebula-drift {
     0%,
     100% {
@@ -2065,41 +1833,23 @@
 
   /* ═══ SECONDARY CONTROLS COLUMN ═══ */
   .area-controls {
-    grid-area: controls;
+    grid-area: ribbon;
     position: relative;
-    background:
-      linear-gradient(180deg, rgba(6, 11, 23, 0.98), rgba(5, 9, 19, 0.94)),
-      radial-gradient(circle at top, rgba(94, 230, 255, 0.08), transparent 52%);
-    border-left: 1px solid var(--hud-divider);
-    border-right: 1px solid var(--hud-divider);
     display: flex;
     flex-direction: column;
-    padding: 12px 12px 10px;
-    gap: 12px;
     z-index: 20;
     overflow: hidden;
-    width: 340px;
     min-width: 280px;
     flex-shrink: 0;
   }
 
   .area-controls--dock-left {
-    border-left: none;
-    border-right: 1px solid var(--hud-divider);
     box-shadow: 5px 0 20px rgba(0, 0, 0, 0.32);
-  }
-
-  .section-tuning {
-    flex: 1;
-    overflow: hidden;
-    min-height: 200px;
-    display: flex;
-    flex-direction: column;
   }
 
   /* ═══ RIGHT SIDEBAR ═══ */
   .area-right {
-    grid-area: right;
+    grid-area: tactical;
     position: relative;
     background:
       linear-gradient(180deg, rgba(6, 11, 23, 0.98), rgba(5, 9, 19, 0.94)),
@@ -2121,7 +1871,6 @@
     box-shadow: 12px 0 32px rgba(2, 6, 23, 0.42);
   }
 
-  .controls-resize-handle,
   .resize-handle {
     position: absolute;
     top: 0;
@@ -2134,15 +1883,12 @@
     transition: background 0.15s;
   }
 
-  .area-controls--dock-left .controls-resize-handle,
   .area-right--dock-left .resize-handle {
     left: auto;
     right: -3px;
   }
   .resize-handle:hover,
-  .resize-handle.active,
-  .controls-resize-handle:hover,
-  .controls-resize-handle.active {
+  .resize-handle.active {
     background: rgba(0, 224, 255, 0.3);
   }
 
@@ -2245,8 +1991,7 @@
     gap: 6px;
   }
 
-  .tactical-overview-card,
-  .sidebar-quick-access {
+  .tactical-overview-card {
     flex-shrink: 0;
     margin-bottom: 12px;
     border: 1px solid var(--hud-border);
@@ -2314,14 +2059,10 @@
   }
 
   .sidebar-quick-access {
-    display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 8px;
-    padding: 10px;
+    flex-shrink: 0;
     position: relative;
-    margin-top: 0;
+    margin: 0 0 12px;
     z-index: 2;
-    backdrop-filter: blur(16px);
   }
 
   /* In-game menu */
@@ -2398,41 +2139,6 @@
     border: none;
     border-top: 1px solid var(--hud-divider);
     margin: 6px 0;
-  }
-
-  .sidebar-tool-btn {
-    min-height: 40px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--hud-border);
-    border-radius: 12px;
-    background: var(--hud-button-bg);
-    color: var(--hud-text);
-    cursor: pointer;
-    transition:
-      background 0.16s ease,
-      border-color 0.16s ease,
-      color 0.16s ease,
-      transform 0.16s ease;
-  }
-
-  .sidebar-tool-btn:hover {
-    background: var(--hud-button-bg-hover);
-    border-color: var(--hud-border-strong);
-    color: var(--hud-text-strong);
-    transform: translateY(-1px);
-  }
-
-  .sidebar-tool-btn--active {
-    border-color: var(--hud-border-strong);
-    background: rgba(20, 48, 74, 0.84);
-    color: var(--hud-accent);
-  }
-
-  .sidebar-tool-btn :global(svg) {
-    width: 18px;
-    height: 18px;
   }
 
   .menu-item.quit-item:hover {
@@ -2811,27 +2517,4 @@
   }
 
   /* ── Mobile settings overlay close button ── */
-  .settings-overlay-close {
-    display: none; /* hidden on desktop */
-  }
-  @media (max-width: 1024px) {
-    .settings-overlay-close {
-      display: flex;
-      position: fixed;
-      top: 8px;
-      right: 8px;
-      z-index: 210;
-      width: 40px;
-      height: 40px;
-      align-items: center;
-      justify-content: center;
-      border: 1px solid rgba(0, 255, 255, 0.3);
-      border-radius: 50%;
-      background: rgba(10, 14, 30, 0.9);
-      color: rgba(255, 255, 255, 0.9);
-      font-size: 1.2rem;
-      cursor: pointer;
-      backdrop-filter: blur(8px);
-    }
-  }
 </style>

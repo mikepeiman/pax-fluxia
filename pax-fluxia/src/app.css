@@ -1,6 +1,7 @@
 @import "tailwindcss" source(none);
 @source "./routes";
 @source "./lib/components";
+@import "./lib/styles/hud.css";
 
 /* ==========================================================================
    PAX FLUXIA - Cyber-Flux Design System
@@ -45,37 +46,40 @@
   --hud-font-ui: var(--font-display);
   --hud-font-data: var(--font-data);
   --hud-font-body: var(--font-body);
-  --hud-accent: #5ee6ff;
-  --hud-accent-strong: #90f0ff;
-  --hud-accent-warm: #ffc86b;
+  --hud-accent: #55e7ef;
+  --hud-accent-strong: #9ff8ff;
+  --hud-accent-warm: #f6c469;
+  --hud-accent-warm-strong: #ffe3a3;
   --hud-danger: #ff6a7a;
-  --hud-text-strong: rgba(244, 248, 255, 0.96);
-  --hud-text: rgba(217, 228, 245, 0.88);
-  --hud-text-soft: rgba(148, 163, 184, 0.92);
-  --hud-text-dim: rgba(112, 128, 157, 0.86);
+  --hud-text-strong: rgba(255, 247, 224, 0.97);
+  --hud-text: rgba(224, 232, 232, 0.9);
+  --hud-text-soft: rgba(180, 188, 188, 0.88);
+  --hud-text-dim: rgba(128, 141, 145, 0.78);
   --hud-panel-bg:
-    linear-gradient(180deg, rgba(10, 18, 36, 0.96), rgba(5, 9, 20, 0.96)),
-    radial-gradient(circle at top, rgba(94, 230, 255, 0.12), transparent 48%);
+    linear-gradient(180deg, rgba(4, 20, 24, 0.94), rgba(2, 10, 15, 0.96)),
+    radial-gradient(circle at 18% 0%, rgba(85, 231, 239, 0.09), transparent 42%),
+    radial-gradient(circle at 85% 0%, rgba(246, 196, 105, 0.1), transparent 45%);
   --hud-panel-bg-strong:
-    linear-gradient(180deg, rgba(12, 22, 43, 0.97), rgba(4, 8, 18, 0.98)),
-    radial-gradient(circle at top, rgba(255, 200, 107, 0.12), transparent 54%);
+    linear-gradient(180deg, rgba(5, 24, 28, 0.97), rgba(2, 9, 14, 0.98)),
+    radial-gradient(circle at top, rgba(246, 196, 105, 0.16), transparent 54%);
   --hud-panel-bg-muted:
-    linear-gradient(180deg, rgba(8, 14, 29, 0.92), rgba(5, 8, 18, 0.94));
-  --hud-button-bg: rgba(16, 24, 44, 0.84);
-  --hud-button-bg-hover: rgba(20, 34, 58, 0.94);
+    linear-gradient(180deg, rgba(4, 18, 23, 0.9), rgba(2, 9, 14, 0.94));
+  --hud-button-bg: rgba(5, 24, 29, 0.82);
+  --hud-button-bg-hover: rgba(9, 38, 43, 0.94);
   --hud-button-bg-active:
-    linear-gradient(180deg, rgba(23, 53, 86, 0.96), rgba(10, 28, 48, 0.94));
-  --hud-border: rgba(112, 142, 186, 0.24);
-  --hud-border-strong: rgba(94, 230, 255, 0.34);
-  --hud-border-warm: rgba(255, 200, 107, 0.34);
-  --hud-divider: rgba(112, 142, 186, 0.18);
+    linear-gradient(180deg, rgba(87, 64, 24, 0.96), rgba(23, 43, 39, 0.94));
+  --hud-border: rgba(246, 196, 105, 0.34);
+  --hud-border-strong: rgba(246, 196, 105, 0.66);
+  --hud-border-warm: rgba(246, 196, 105, 0.58);
+  --hud-border-cool: rgba(85, 231, 239, 0.34);
+  --hud-divider: rgba(246, 196, 105, 0.18);
   --hud-shadow: 0 22px 58px rgba(2, 6, 23, 0.52);
   --hud-shadow-soft: 0 12px 30px rgba(2, 6, 23, 0.34);
-  --hud-glow: 0 0 0 1px rgba(94, 230, 255, 0.12), 0 18px 40px rgba(5, 18, 36, 0.42);
-  --hud-radius-xs: 10px;
-  --hud-radius-sm: 14px;
-  --hud-radius-md: 18px;
-  --hud-radius-lg: 24px;
+  --hud-glow: 0 0 0 1px rgba(246, 196, 105, 0.18), 0 18px 40px rgba(2, 18, 24, 0.46);
+  --hud-radius-xs: 8px;
+  --hud-radius-sm: 10px;
+  --hud-radius-md: 12px;
+  --hud-radius-lg: 18px;
   --hud-pad-xs: 8px;
   --hud-pad-sm: 12px;
   --hud-pad-md: 16px;

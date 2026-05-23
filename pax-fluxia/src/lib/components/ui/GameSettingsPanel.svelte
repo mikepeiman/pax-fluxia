@@ -463,6 +463,7 @@
         a.click();
         URL.revokeObjectURL(url);
         configStatus = `✅ Exported MD`;
+
         configStatusColor = "#4ade80";
     }
 
@@ -734,26 +735,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     // =========================================================================
     // Settings header utilities
     // =========================================================================
-    let showLoadMapDrawer = $state(false);
-
-    function getLoadableMaps(): MapDefinition[] {
-        return [...gameStore.savedMaps].sort((left, right) => {
-            const leftBuiltIn = Boolean((left as any).builtIn);
-            const rightBuiltIn = Boolean((right as any).builtIn);
-            if (leftBuiltIn !== rightBuiltIn) {
-                return leftBuiltIn ? -1 : 1;
-            }
-            return left.metadata.name.localeCompare(right.metadata.name);
-        });
-    }
-
-    async function handleLoadMapFromSettings(savedMap: MapDefinition) {
-        showLoadMapDrawer = false;
-        gameStore.loadSavedMap(savedMap);
-        await gameStore.startGame();
-        configStatus = `✅ Map "${savedMap.metadata.name}" loaded`;
-        configStatusColor = "#4ade80";
-    }
 
     // =========================================================================
     // Icon Toolbar — sections definition
@@ -1247,15 +1228,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 <HudIcon name="import" size={15} /> Import JSON
             </button>
             <button
-                class="full-io-btn full-load-map-btn"
-                onclick={() => {
-                    showLoadMapDrawer = !showLoadMapDrawer;
-                }}
-                title="Load a saved map and restart the current game"
-            >
-                <HudIcon name="load-map" size={15} /> Load Map
-            </button>
-            <button
                 class="full-io-btn full-reset-btn"
                 onclick={resetToDefaults}
                 title="Clear all localStorage and reset to factory defaults (Phase Field Default)"
@@ -1273,29 +1245,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         {#if configStatus}
             <div class="settings-utility-status" style={`color:${configStatusColor};`}>
                 {configStatus}
-            </div>
-        {/if}
-
-        {#if showLoadMapDrawer}
-            <div class="full-load-map-drawer">
-                {#if gameStore.savedMaps.length === 0}
-                    <div class="full-load-map-empty">No saved maps available.</div>
-                {:else}
-                    <div class="full-load-map-list">
-                        {#each getLoadableMaps() as map}
-                            <button
-                                class="full-load-map-item"
-                                onclick={() => void handleLoadMapFromSettings(map)}
-                                title={`Load ${map.metadata.name}`}
-                            >
-                                <span class="full-load-map-item__name">{map.metadata.name}</span>
-                                <span class="full-load-map-item__meta">
-                                    {Boolean((map as any).builtIn) ? "Classic" : "Custom"} · {map.stars.length} stars · {map.connections.length} links
-                                </span>
-                            </button>
-                        {/each}
-                    </div>
-                {/if}
             </div>
         {/if}
 
@@ -1339,7 +1288,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 onclick={() => toggleSection(s.id)}
                 title={s.label}
             >
-                <span class="icon-emoji"><HudIcon name={s.icon} /></span>
+                <span class="icon-symbol"><HudIcon name={s.icon} /></span>
                 <span class="icon-label">{s.label}</span>
             </button>
         {/each}
@@ -1348,7 +1297,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             title="Reset All"
             onclick={resetToDefaults}
         >
-            <span class="icon-emoji"><HudIcon name="reset" /></span>
+            <span class="icon-symbol"><HudIcon name="reset" /></span>
             <span class="icon-label">Reset</span>
         </button>
     </div>
@@ -1770,7 +1719,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .icon-btn.search-dim {
         opacity: 0.46;
     }
-    .icon-emoji {
+    .icon-symbol {
         width: 20px;
         height: 20px;
         display: inline-flex;
@@ -1779,7 +1728,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         flex-shrink: 0;
     }
 
-    .icon-emoji :global(svg) {
+    .icon-symbol :global(svg) {
         width: 18px;
         height: 18px;
     }
@@ -1802,7 +1751,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .reset-icon {
         --accent: #ff5555;
     }
-    .reset-icon .icon-emoji {
+    .reset-icon .icon-symbol {
         filter: none;
     }
 
@@ -2385,71 +2334,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         color: #ff4444;
         box-shadow: 0 0 8px rgba(255, 68, 68, 0.25);
     }
-    .full-load-map-btn {
-        border-color: rgba(125, 211, 252, 0.28);
-        color: #c7e7ff;
-    }
-    .full-load-map-btn:hover {
-        border-color: rgba(125, 211, 252, 0.45);
-        box-shadow: 0 0 8px rgba(125, 211, 252, 0.18);
-    }
-    .full-load-map-drawer {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        padding: 6px;
-        border-radius: 8px;
-        border: 1px solid rgba(125, 211, 252, 0.15);
-        background: rgba(9, 14, 24, 0.78);
-    }
-    .full-load-map-empty {
-        padding: 10px 12px;
-        border-radius: 6px;
-        background: rgba(255, 255, 255, 0.03);
-        color: #8993a4;
-        font-size: 11px;
-    }
-    .full-load-map-list {
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-        max-height: 220px;
-        overflow-y: auto;
-    }
-    .full-load-map-item {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 2px;
-        width: 100%;
-        padding: 8px 10px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 7px;
-        background: rgba(255, 255, 255, 0.04);
-        color: #d7e2f0;
-        cursor: pointer;
-        text-align: left;
-        transition:
-            border-color 0.15s,
-            background 0.15s,
-            transform 0.15s;
-    }
-    .full-load-map-item:hover {
-        border-color: rgba(125, 211, 252, 0.32);
-        background: rgba(125, 211, 252, 0.08);
-        transform: translateY(-1px);
-    }
-    .full-load-map-item__name {
-        font-size: 12px;
-        font-weight: 700;
-        color: #eef6ff;
-    }
-    .full-load-map-item__meta {
-        font-size: 10px;
-        letter-spacing: 0.03em;
-        color: #8ea3bc;
-    }
-
     /* ── Nudge slider buttons (injected via nudgeSliders action) ── */
     @media (max-width: 720px) {
         .settings-shell {
