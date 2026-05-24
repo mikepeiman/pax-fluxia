@@ -9,17 +9,47 @@
     star: SelectedStarViewModel | null;
     onCenterStar: (starId: string) => void;
     onFitMap: () => void;
+    onPreviousOwnedStar: () => void;
+    onNextOwnedStar: () => void;
+    canCycleOwnedStars?: boolean;
   }
 
-  let { star, onCenterStar, onFitMap }: Props = $props();
+  let {
+    star,
+    onCenterStar,
+    onFitMap,
+    onPreviousOwnedStar,
+    onNextOwnedStar,
+    canCycleOwnedStars = false,
+  }: Props = $props();
 </script>
 
 <HudPanel title="Star View" eyebrow="Selection" class="pf-selected-star-panel">
   {#snippet actions()}
     <HudIconButton
+      icon="chevron-left"
+      title="Previous owned star"
+      disabled={!canCycleOwnedStars}
+      onclick={onPreviousOwnedStar}
+    />
+    <HudIconButton
+      icon="active-focus"
+      title={star ? "Zoom selected star" : "Select an owned star first"}
+      disabled={!star}
+      onclick={() => {
+        if (star) onCenterStar(star.id);
+      }}
+    />
+    <HudIconButton
       icon="fit"
-      title={star ? "Center selected star" : "Fit map"}
-      onclick={() => (star ? onCenterStar(star.id) : onFitMap())}
+      title="Fit map"
+      onclick={onFitMap}
+    />
+    <HudIconButton
+      icon="chevron-right"
+      title="Next owned star"
+      disabled={!canCycleOwnedStars}
+      onclick={onNextOwnedStar}
     />
   {/snippet}
 

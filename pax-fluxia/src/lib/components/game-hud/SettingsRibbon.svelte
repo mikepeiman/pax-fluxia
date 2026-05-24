@@ -1,5 +1,4 @@
 <script lang="ts">
-  import HudIcon from "$lib/components/ui/hud/HudIcon.svelte";
   import GameSettingsPanel from "$lib/components/ui/GameSettingsPanel.svelte";
   import type { SettingsSectionId } from "$lib/components/ui/settings/settingsRegistry";
   import type { HudDockSide } from "./types";
@@ -16,6 +15,8 @@
     onToggleRibbonExpanded: () => void;
     onToggleDockSide: () => void;
     onSectionActivityChange?: (hasOpenSections: boolean) => void;
+    onRestartGame?: () => void;
+    onQuitGame?: () => void;
     class?: string;
   }
 
@@ -31,6 +32,8 @@
     onToggleRibbonExpanded,
     onToggleDockSide,
     onSectionActivityChange,
+    onRestartGame,
+    onQuitGame,
     class: className = "",
   }: Props = $props();
 </script>
@@ -48,15 +51,6 @@
     title="Drag to resize settings"
     onpointerdown={onResizePointerDown}
   ></div>
-  <button
-    type="button"
-    class="pf-settings-ribbon__close"
-    onclick={onClose}
-    title="Close settings"
-    aria-label="Close settings"
-  >
-    <HudIcon name="close" size={14} />
-  </button>
   <GameSettingsPanel
     {forceOpenSection}
     {forceOpenSectionNonce}
@@ -65,5 +59,8 @@
     {dockSide}
     {onToggleDockSide}
     {onSectionActivityChange}
+    onCloseSettings={onClose}
+    {onRestartGame}
+    {onQuitGame}
   />
 </aside>

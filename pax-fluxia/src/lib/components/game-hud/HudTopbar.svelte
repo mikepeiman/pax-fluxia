@@ -44,6 +44,12 @@
 <header class="pf-hud-topbar">
   <div class="pf-hud-topbar__brand">
     <HudIconButton icon="menu" title="Main menu" onclick={onMenuClick} />
+    <HudIconButton
+      icon="tune"
+      title={settingsOpen ? "Collapse settings rail" : "Open settings rail"}
+      active={settingsOpen}
+      onclick={onSettingsClick}
+    />
     <span class="pf-hud-topbar__mark"><HudIcon name="yellow" size={19} /></span>
     <span class="pf-hud-topbar__title">Pax Fluxia</span>
   </div>
@@ -114,11 +120,5 @@
         <HudIcon name={standingsCollapsed ? "chevron-down" : "chevron-up"} size={14} />
       </button>
     {/if}
-    <HudIconButton
-      icon="tune"
-      title={settingsOpen ? "Close settings ribbon" : "Open settings ribbon"}
-      active={settingsOpen}
-      onclick={onSettingsClick}
-    />
   </div>
 </header>

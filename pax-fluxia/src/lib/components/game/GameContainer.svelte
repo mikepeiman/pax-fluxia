@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy, tick } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import {
     pushStateCompat as pushState,
     replaceStateCompat as replaceState,
@@ -37,12 +37,9 @@
   import type { SettingsSectionId } from "$lib/components/ui/settings/settingsRegistry";
   import type { PlayerState, StarState } from "$lib/types/game.types";
   import { audioManager } from "$lib/services/audioManager.svelte";
-  import { sentence as txtSentence } from 'txtgen';
-  import { rulerTool } from "$lib/territory/devtools/rulerTool";
   import { authoredMeasurementsUi } from "$lib/territory/devtools/authoredMeasurementsUi";
   import { hydrateConfigFromPersistedUiSettings } from "$lib/components/ui/panelSync";
   import { pushHomeRouteDiagEvent } from "$lib/utils/homeRouteDiagnostics";
-  import { themeStore } from "$lib/stores/themeStore.svelte";
   import { GAME_CONFIG } from "$lib/config/game.config";
   import {
     applyTopbarTerritoryModeShortcut,
@@ -133,7 +130,6 @@
   let settingsRibbonExpanded = $state(
     loadBooleanPreference("pax-settings-ribbon-expanded", false),
   );
-  let quickAccessDrawerOpen = $state(false);
   let commandTrayCollapsed = $state(
     loadBooleanPreference("pax-command-tray-collapsed", false),
   );
@@ -215,80 +211,8 @@
     showAudioSettings = true;
   }
 
-  const menuExpanded = true;
-
-  // ── In-game menu collapse ──
-
   // ── F-62: Results overlay dismiss ──
   let resultsDismissed = $state(false);
-
-  // ── Map save/load (F-70 in menu) ──
-  let showSaveMapInput = $state(false);
-  let saveMapName = $state("");
-  let saveMapFeedback = $state("");
-  let showLoadMapList = $state(false);
-
-  // ── Game save (B-58) ──
-  let showSaveGameInput = $state(false);
-  let saveGameName = $state("");
-  let saveGameFeedback = $state("");
-  let showLoadGameList = $state(false);
-
-  function suggestGameName(): string {
-    const date = new Date().toISOString().slice(0, 10); // yyyy-mm-dd
-    const words = txtSentence().split(' ').slice(0, 3).join(' ');
-    return `${words} ${date}`;
-  }
-
-  function openSaveGame() {
-    showSaveGameInput = !showSaveGameInput;
-    showSaveMapInput = false;
-    showLoadMapList = false;
-    showLoadGameList = false;
-    if (showSaveGameInput && !saveGameName) {
-      saveGameName = suggestGameName();
-    }
-  }
-
-  function handleSaveMap() {
-    const name = saveMapName.trim();
-    if (!name) return;
-    gameStore.saveCurrentMap(name);
-    saveMapFeedback = `✓ Map saved "${name}"`;
-    saveMapName = "";
-    showSaveMapInput = false;
-    setTimeout(() => (saveMapFeedback = ""), 2500);
-  }
-
-  function handleSaveGame() {
-    const name = saveGameName.trim();
-    if (!name) return;
-    gameStore.saveCurrentGame(name);
-    saveGameFeedback = `✓ Game saved "${name}"`;
-    saveGameName = "";
-    showSaveGameInput = false;
-    setTimeout(() => (saveGameFeedback = ""), 2500);
-  }
-
-  async function handleLoadMap(map: any) {
-    gameStore.loadSavedMap(map);
-    showLoadMapList = false;
-    await gameStore.startGame();
-  }
-
-  async function handleLoadSavedGame(game: any, freshStart = false) {
-    gameStore.loadSavedGame(game, freshStart);
-    showLoadGameList = false;
-    await gameStore.startGame();
-  }
-
-  function handleDeleteMap(name: string) {
-    gameStore.deleteSavedMap(name);
-  }
-
-  function handleDeleteSavedGame(id: string) {
-    gameStore.deleteSavedGame(id);
-  }
 
   const showResults = $derived(
     !resultsDismissed &&
@@ -321,11 +245,11 @@
   const SIDEBAR_MAX = 600;
   const SIDEBAR_DEFAULT = 390;
   const SETTINGS_PANEL_STORAGE_KEY = "pax-settings-panel-width";
-  const SETTINGS_PANEL_MIN = 320;
+  const SETTINGS_PANEL_MIN = 420;
   const SETTINGS_PANEL_MAX = 720;
-  const SETTINGS_PANEL_DEFAULT = 360;
-  const SETTINGS_CHROME_COMPACT_WIDTH = 340;
-  const SETTINGS_CHROME_EXPANDED_WIDTH = 360;
+  const SETTINGS_PANEL_DEFAULT = 520;
+  const SETTINGS_CHROME_COMPACT_WIDTH = 72;
+  const SETTINGS_CHROME_EXPANDED_WIDTH = 168;
   const SETTINGS_PANEL_SECTION_DEFAULT = 520;
 
   function loadSidebarWidth(): number {
@@ -386,7 +310,6 @@
 
   function openSettingsSection(section: SettingsSectionId) {
     setSettingsPanelOpen(true);
-    settingsRibbonExpanded = true;
     if (settingsPanelWidth < SETTINGS_PANEL_SECTION_DEFAULT) {
       settingsPanelWidth = SETTINGS_PANEL_SECTION_DEFAULT;
       if (typeof localStorage !== "undefined") {
@@ -398,14 +321,6 @@
 
   function openDiagnostics() {
     openSettingsSection("diagnostics");
-  }
-
-  function toggleRulerDiagnostics() {
-    const nextEnabled = !rulerTool.getState().enabled;
-    rulerTool.setEnabled(nextEnabled);
-    if (nextEnabled) {
-      openDiagnostics();
-    }
   }
 
   function startResize(e: PointerEvent) {
@@ -496,6 +411,44 @@
     ),
   );
 
+  const localPlayerForHud = $derived.by(() => {
+    const localId = activeGameStore.localPlayerId;
+    return (activeGameStore.players as PlayerState[]).find((player) => {
+      const sessionId = (player as PlayerState & { sessionId?: string }).sessionId;
+      return player.id === localId || sessionId === localId;
+    }) ?? null;
+  });
+
+  const ownedStarIds = $derived.by(() => {
+    const ownerId = localPlayerForHud?.id;
+    if (!ownerId) return [] as string[];
+    return (activeGameStore.stars as StarState[])
+      .filter((star) => star.ownerId === ownerId)
+      .map((star) => star.id)
+      .sort((left, right) => {
+        const leftNum = Number(left.replace(/^star-/, ""));
+        const rightNum = Number(right.replace(/^star-/, ""));
+        if (Number.isFinite(leftNum) && Number.isFinite(rightNum)) {
+          return leftNum - rightNum;
+        }
+        return left.localeCompare(right);
+      });
+  });
+
+  function focusOwnedStar(direction: -1 | 1) {
+    if (ownedStarIds.length === 0) return;
+    const currentIndex = selectedStarStore.id
+      ? ownedStarIds.indexOf(selectedStarStore.id)
+      : -1;
+    const fallbackIndex = direction > 0 ? 0 : ownedStarIds.length - 1;
+    const nextIndex = currentIndex >= 0
+      ? (currentIndex + direction + ownedStarIds.length) % ownedStarIds.length
+      : fallbackIndex;
+    const nextStarId = ownedStarIds[nextIndex];
+    selectedStarStore.select(nextStarId);
+    gameCanvasRef?.navigateToStar?.(nextStarId);
+  }
+
   const tacticalOverviewPlayers = $derived(
     leaderboardPlayers.slice(0, 5),
   );
@@ -507,33 +460,8 @@
   let lastShellViewKey = "";
   const topbarTerritoryModeOptions = getTopbarTerritoryModeOptions();
   let topbarActiveTerritoryModeId = $state(GAME_CONFIG.TERRITORY_RENDER_MODE);
-  const currentThemeName = $derived(
-    themeStore.selectedThemeName || "Phase Field Default",
-  );
-
   const quickAccessActions = $derived.by((): QuickAccessAction[] => {
-    const actions: QuickAccessAction[] = [
-      {
-        id: "theme",
-        icon: "theme",
-        title: `Open theme tools (${currentThemeName})`,
-        onClick: openThemeShortcuts,
-      },
-      {
-        id: "diagnostics",
-        icon: "diagnostics",
-        title: "Diagnostics",
-        active: showSettingsPanel && forceOpenSettingsSection === "diagnostics",
-        onClick: openDiagnostics,
-      },
-      {
-        id: "ruler",
-        icon: "ruler",
-        title: $rulerTool.enabled ? "Turn ruler off" : "Turn ruler on",
-        active: $rulerTool.enabled,
-        onClick: toggleRulerDiagnostics,
-      },
-    ];
+    const actions: QuickAccessAction[] = [];
 
     if (activeGameStore.mapDiagnostics.measurements.length > 0) {
       actions.push({
@@ -546,22 +474,6 @@
         onClick: () => authoredMeasurementsUi.toggle(),
       });
     }
-
-    actions.push(
-      {
-        id: "fit",
-        icon: "fit",
-        title: "Center and fit map",
-        onClick: () => gameCanvasRef?.centerAndFit?.(),
-      },
-      {
-        id: "more",
-        icon: "more",
-        title: quickAccessDrawerOpen ? "Close quick access drawer" : "Open quick access drawer",
-        active: quickAccessDrawerOpen,
-        onClick: () => (quickAccessDrawerOpen = !quickAccessDrawerOpen),
-      },
-    );
 
     return actions;
   });
@@ -664,16 +576,6 @@
   }
   function cancelExit() {
     showExitConfirm = false;
-  }
-
-  async function openThemeShortcuts() {
-    setSettingsPanelOpen(true);
-    settingsRibbonExpanded = true;
-    await tick();
-    document.getElementById("settings-theme-anchor")?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
   }
 
   function handleTopbarTerritoryModeSelect(modeId: string) {
@@ -878,6 +780,14 @@
             onToggleRibbonExpanded={toggleSettingsRibbonExpanded}
             onToggleDockSide={toggleControlsSide}
             onSectionActivityChange={setSettingsSectionActivity}
+            onRestartGame={() => {
+              audioManager.play("click");
+              activeGameStore.playAgain();
+            }}
+            onQuitGame={() => {
+              audioManager.play("click");
+              showSurrenderModal = true;
+            }}
           />
         </div>
       {/if}
@@ -927,6 +837,9 @@
               star={selectedStarView}
               onCenterStar={(starId) => gameCanvasRef?.navigateToStar?.(starId)}
               onFitMap={() => gameCanvasRef?.centerAndFit?.()}
+              onPreviousOwnedStar={() => focusOwnedStar(-1)}
+              onNextOwnedStar={() => focusOwnedStar(1)}
+              canCycleOwnedStars={ownedStarIds.length > 0}
             />
           </div>
         </div>
@@ -954,215 +867,11 @@
           </div>
         </section>
 
-        <div class="sidebar-quick-access">
-          <QuickAccessDock actions={quickAccessActions} />
-        </div>
-
-        <hr class="sidebar-divider" class:sidebar-divider--hidden={!quickAccessDrawerOpen} />
-
-        <!-- 2. IN-GAME MENU -->
-        <div class="sidebar-menu" class:sidebar-menu--open={quickAccessDrawerOpen}>
-          {#if menuExpanded && quickAccessDrawerOpen}
-            <div class="menu-items">
-              <button
-                class="menu-item"
-                class:active={showSettingsPanel}
-                onclick={toggleSettingsPanel}
-              >
-                <span class="mi-icon"><HudIcon name="settings" /></span>
-                <span class="mi-label">Settings</span>
-              </button>
-              <button
-                class="menu-item"
-                class:active={showSettingsPanel &&
-                  forceOpenSettingsSection === "diagnostics"}
-                onclick={openDiagnostics}
-              >
-                <span class="mi-icon"><HudIcon name="diagnostics" /></span>
-                <span class="mi-label">Diagnostics</span>
-              </button>
-              <button
-                class="menu-item"
-                onclick={openAudioSettings}
-              >
-                <span class="mi-icon"><HudIcon name="audio" /></span>
-                <span class="mi-label">Audio</span>
-              </button>
-              <button
-                class="menu-item"
-                onclick={() => alert("Screenshot coming soon")}
-              >
-                <span class="mi-icon"><HudIcon name="camera" /></span>
-                <span class="mi-label">Screenshot</span>
-              </button>
-              <button
-                class="menu-item"
-                onclick={() => alert("Shortcuts coming soon")}
-              >
-                <span class="mi-icon"><HudIcon name="keyboard" /></span>
-                <span class="mi-label">Keyboard Shortcuts</span>
-              </button>
-              <button
-                class="menu-item"
-                onclick={() => alert("Chat coming soon")}
-              >
-                <span class="mi-icon"><HudIcon name="chat" /></span>
-                <span class="mi-label">Chat</span>
-              </button>
-              <hr class="menu-divider" />
-              <!-- Save Map (topology only) -->
-              <button
-                class="menu-item"
-                onclick={() => {
-                  showSaveMapInput = !showSaveMapInput;
-                  showSaveGameInput = false;
-                  showLoadMapList = false;
-                  showLoadGameList = false;
-                }}
-              >
-                <span class="mi-icon"><HudIcon name="save-map" /></span>
-                <span class="mi-label">Save Map</span>
-              </button>
-              {#if showSaveMapInput}
-                <div class="map-save-row">
-                  <input
-                    type="text"
-                    class="map-name-input"
-                    placeholder="Map name…"
-                    bind:value={saveMapName}
-                    onkeydown={(e) => {
-                      if (e.key === "Enter") handleSaveMap();
-                    }}
-                  />
-                  <button
-                    class="map-save-btn"
-                    onclick={handleSaveMap}
-                    disabled={!saveMapName.trim()}>Save</button
-                  >
-                </div>
-              {/if}
-              {#if saveMapFeedback}
-                <div class="map-feedback">{saveMapFeedback}</div>
-              {/if}
-              <!-- Save Game (full in-progress snapshot) -->
-              <button class="menu-item" onclick={openSaveGame}>
-                <span class="mi-icon"><HudIcon name="save-game" /></span>
-                <span class="mi-label">Save Game</span>
-              </button>
-              {#if showSaveGameInput}
-                <div class="map-save-row">
-                  <input
-                    type="text"
-                    class="map-name-input"
-                    placeholder="Game name…"
-                    bind:value={saveGameName}
-                    onkeydown={(e) => {
-                      if (e.key === "Enter") handleSaveGame();
-                    }}
-                  />
-                  <button
-                    class="map-save-btn"
-                    onclick={handleSaveGame}
-                    disabled={!saveGameName.trim()}>Save</button
-                  >
-                </div>
-              {/if}
-              {#if saveGameFeedback}
-                <div class="map-feedback">{saveGameFeedback}</div>
-              {/if}
-              <!-- Load Map -->
-              <button
-                class="menu-item"
-                onclick={() => {
-                  showLoadMapList = !showLoadMapList;
-                  showLoadGameList = false;
-                  showSaveMapInput = false;
-                  showSaveGameInput = false;
-                }}
-              >
-                <span class="mi-icon"><HudIcon name="load-map" /></span>
-                <span class="mi-label">Load Map</span>
-              </button>
-              {#if showLoadMapList}
-                <div class="map-list">
-                  {#if gameStore.savedMaps.length === 0}
-                    <div class="map-list-empty">No saved maps</div>
-                  {:else}
-                    {#each gameStore.savedMaps as map}
-                      <div class="map-list-item">
-                        <button
-                          class="map-load-btn"
-                          onclick={() => handleLoadMap(map)}
-                          title="Load and restart with this map"
-                        >
-                          {map.metadata.name}
-                        </button>
-                        <button
-                          class="map-delete-btn"
-                          onclick={() => handleDeleteMap(map.metadata.name)}
-                          title="Delete"><HudIcon name="close" size={14} /></button
-                        >
-                      </div>
-                    {/each}
-                  {/if}
-                </div>
-              {/if}
-              <!-- Load Saved Game -->
-              <button
-                class="menu-item"
-                onclick={() => {
-                  showLoadGameList = !showLoadGameList;
-                  showLoadMapList = false;
-                  showSaveMapInput = false;
-                  showSaveGameInput = false;
-                }}
-              >
-                <span class="mi-icon"><HudIcon name="load-game" /></span>
-                <span class="mi-label">Load Game</span>
-              </button>
-              {#if showLoadGameList}
-                <div class="map-list">
-                  {#if gameStore.savedGames.length === 0}
-                    <div class="map-list-empty">No saved games</div>
-                  {:else}
-                    {#each gameStore.savedGames as game}
-                      <div class="map-list-item map-list-item--game">
-                        <div class="saved-game-name" title={game.name}>{game.name}</div>
-                        <div class="saved-game-meta">Tick {game.tick} · {new Date(game.createdAt).toLocaleDateString()}</div>
-                        <div class="saved-game-actions">
-                          <button class="map-load-btn" onclick={() => handleLoadSavedGame(game, false)}>Resume</button>
-                          <button class="map-load-btn map-load-btn--alt" onclick={() => handleLoadSavedGame(game, true)}>Fresh Start</button>
-                          <button class="map-delete-btn" onclick={() => handleDeleteSavedGame(game.id)}><HudIcon name="close" size={14} /></button>
-                        </div>
-                      </div>
-                    {/each}
-                  {/if}
-                </div>
-              {/if}
-              <hr class="menu-divider" />
-              <button
-                class="menu-item"
-                onclick={() => {
-                  audioManager.play("click");
-                  activeGameStore.playAgain();
-                }}
-              >
-                <span class="mi-icon"><HudIcon name="restart" /></span>
-                <span class="mi-label">Restart</span>
-              </button>
-              <button
-                class="menu-item quit-item"
-                onclick={() => {
-                  audioManager.play("click");
-                  showSurrenderModal = true;
-                }}
-              >
-                <span class="mi-icon"><HudIcon name="quit" /></span>
-                <span class="mi-label">Quit Game</span>
-              </button>
-            </div>
-          {/if}
-        </div>
+        {#if quickAccessActions.length > 0}
+          <div class="sidebar-quick-access">
+            <QuickAccessDock actions={quickAccessActions} />
+          </div>
+        {/if}
 
       </div>
     </div>
@@ -1185,7 +894,7 @@
                 activeGameStore.surrender();
               }}
             >
-              🏁 End Game
+               End Game
               <span class="btn-sub">View results & graphs</span>
             </button>
             <button
@@ -1195,7 +904,7 @@
                 activeGameStore.returnToMenu();
               }}
             >
-              🚪 Abandon
+              ðŸšª Abandon
               <span class="btn-sub">Return to main menu</span>
             </button>
           </div>
@@ -1223,7 +932,7 @@
           </p>
           <div class="surrender-modal__actions">
             <button class="btn btn--ghost btn--md" onclick={confirmExit}>
-              🚪 Leave
+              ðŸšª Leave
               <span class="btn-sub">Return to main menu</span>
             </button>
           </div>
@@ -1450,26 +1159,10 @@
   .sidebar-starnav {
     padding: 0;
   }
-  .sidebar-divider {
-    border: none;
-    border-top: 1px solid var(--hud-divider);
-    margin: 4px 0 8px;
-  }
-
-  .sidebar-divider--hidden {
-    display: none;
-  }
-
   /* Mobile controls bar: hidden on desktop */
   .area-controls-bar {
     display: none;
   }
-  .sidebar-divider {
-    border: none;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    margin: 4px 0 8px;
-  }
-
   @media (max-width: 1024px) {
     .area-topbar {
       display: none !important;
@@ -2094,216 +1787,6 @@
     position: relative;
     margin: 0 0 12px;
     z-index: 2;
-  }
-
-  /* In-game menu */
-  .sidebar-menu {
-    display: none;
-    flex-shrink: 0;
-    padding: 0 0 4px;
-  }
-
-  .sidebar-menu--open {
-    display: block;
-  }
-
-  .sidebar-menu .menu-items > .menu-item:nth-child(-n + 2) {
-    display: none;
-  }
-
-  .menu-items {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 0;
-  }
-
-  .menu-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    width: 100%;
-    min-height: 40px;
-    padding: 0 12px;
-    background: rgba(7, 13, 26, 0.72);
-    border: 1px solid var(--hud-border);
-    border-radius: 12px;
-    color: var(--hud-text);
-    font-family: var(--hud-font-ui);
-    font-size: 0.74rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    cursor: pointer;
-    transition: all 0.15s;
-    text-align: left;
-  }
-  .menu-item:hover {
-    background: rgba(14, 24, 43, 0.92);
-    border-color: var(--hud-border-strong);
-    color: var(--hud-text-strong);
-  }
-  .menu-item.active {
-    background: rgba(21, 53, 82, 0.72);
-    border-color: var(--hud-border-strong);
-    color: var(--hud-accent);
-  }
-
-  .mi-icon {
-    width: 18px;
-    height: 18px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .mi-icon :global(svg) {
-    width: 18px;
-    height: 18px;
-  }
-
-  .mi-label {
-    flex: 1;
-  }
-
-  .menu-divider {
-    border: none;
-    border-top: 1px solid var(--hud-divider);
-    margin: 6px 0;
-  }
-
-  .menu-item.quit-item:hover {
-    background: rgba(255, 80, 80, 0.1);
-    border-color: rgba(255, 80, 80, 0.25);
-    color: #fca5a5;
-  }
-
-  /* Map save/load */
-  .map-save-row {
-    display: flex;
-    gap: 6px;
-    padding: 4px 12px 4px 42px;
-  }
-  .map-name-input {
-    flex: 1;
-    min-height: 34px;
-    padding: 0 10px;
-    background: rgba(7, 13, 26, 0.92);
-    border: 1px solid var(--hud-border);
-    border-radius: 10px;
-    color: var(--hud-text-strong);
-    font-family: var(--hud-font-ui);
-    font-size: 0.72rem;
-  }
-  .map-name-input:focus {
-    border-color: var(--hud-border-strong);
-    outline: none;
-  }
-  .map-save-btn {
-    padding: 4px 10px;
-    background: rgba(80, 200, 120, 0.2);
-    border: 1px solid rgba(80, 200, 120, 0.4);
-    border-radius: 4px;
-    color: #6ee7b7;
-    font-size: 0.72rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .map-save-btn:hover:not(:disabled) {
-    background: rgba(80, 200, 120, 0.3);
-  }
-  .map-save-btn:disabled {
-    opacity: 0.4;
-    cursor: default;
-  }
-  .map-feedback {
-    padding: 2px 12px 2px 42px;
-    color: #6ee7b7;
-    font-size: 0.7rem;
-    font-weight: 500;
-  }
-  .map-list {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 4px 12px 4px 42px;
-  }
-  .map-list-empty {
-    color: rgba(255, 255, 255, 0.35);
-    font-size: 0.7rem;
-    font-style: italic;
-  }
-  .map-list-item {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-  .map-load-btn {
-    flex: 1;
-    padding: 4px 8px;
-    background: rgba(80, 140, 255, 0.1);
-    border: 1px solid rgba(80, 140, 255, 0.2);
-    border-radius: 4px;
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 0.72rem;
-    cursor: pointer;
-    text-align: left;
-    transition: all 0.15s;
-  }
-  .map-load-btn:hover {
-    background: rgba(80, 140, 255, 0.2);
-    border-color: rgba(80, 140, 255, 0.4);
-    color: #93c5fd;
-  }
-  .map-delete-btn {
-    padding: 4px 6px;
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    color: rgba(255, 255, 255, 0.3);
-    font-size: 0.7rem;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .map-delete-btn:hover {
-    background: rgba(255, 80, 80, 0.15);
-    border-color: rgba(255, 80, 80, 0.3);
-    color: #fca5a5;
-  }
-  /* Saved Game list items (stacked layout) */
-  .map-list-item--game {
-    flex-direction: column;
-    align-items: stretch;
-    padding: 4px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  }
-  .saved-game-name {
-    font-size: 0.73rem;
-    color: rgba(255, 255, 255, 0.75);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-weight: 500;
-  }
-  .saved-game-meta {
-    font-size: 0.65rem;
-    color: rgba(255, 255, 255, 0.35);
-    margin-bottom: 3px;
-  }
-  .saved-game-actions {
-    display: flex;
-    gap: 3px;
-  }
-  .map-load-btn--alt {
-    background: rgba(120, 200, 100, 0.1);
-    border-color: rgba(120, 200, 100, 0.2);
-    color: rgba(160, 230, 140, 0.8);
-  }
-  .map-load-btn--alt:hover {
-    background: rgba(120, 200, 100, 0.2);
-    border-color: rgba(120, 200, 100, 0.4);
-    color: #86efac;
   }
 
   /* ═══ OVERLAYS ═══ */

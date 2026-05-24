@@ -749,6 +749,9 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         dockSide?: "left" | "right";
         onToggleDockSide?: () => void;
         onSectionActivityChange?: (hasOpenSections: boolean) => void;
+        onCloseSettings?: () => void;
+        onRestartGame?: () => void;
+        onQuitGame?: () => void;
     }
 
     let {
@@ -759,9 +762,139 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         dockSide = "right",
         onToggleDockSide,
         onSectionActivityChange,
+        onCloseSettings,
+        onRestartGame,
+        onQuitGame,
     }: Props = $props();
 
+    type SettingsToolId =
+        | "theme_library"
+        | "appearance"
+        | "combat_tuning"
+        | "audio"
+        | "video_graphics"
+        | "stats"
+        | "diagnostics"
+        | "restart"
+        | "quit"
+        | "hotkeys"
+        | "help";
+
+    interface SettingsToolDefinition {
+        id: SettingsToolId;
+        icon: string;
+        label: string;
+        color: string;
+        sectionId?: SectionId;
+        action?: "restart" | "quit";
+    }
+
+    const SETTINGS_TOOLS: readonly SettingsToolDefinition[] = [
+        { id: "theme_library", icon: "library", label: "Themes", color: "#f6c469" },
+        {
+            id: "appearance",
+            icon: "theme",
+            label: "Appearance",
+            color: "#5ee6ff",
+            sectionId: "map_options",
+        },
+        {
+            id: "combat_tuning",
+            icon: "combat",
+            label: "Combat",
+            color: "#ff8a94",
+            sectionId: "combat_tuning",
+        },
+        { id: "audio", icon: "audio", label: "Audio", color: "#44ddbb", sectionId: "audio" },
+        {
+            id: "video_graphics",
+            icon: "fleet-star",
+            label: "Video / Graphics",
+            color: "#93c5fd",
+            sectionId: "fleet_star_visuals",
+        },
+        { id: "stats", icon: "leaderboard", label: "Stats", color: "#f6c469" },
+        {
+            id: "diagnostics",
+            icon: "diagnostics",
+            label: "Diagnostics",
+            color: "#f59e0b",
+            sectionId: "diagnostics",
+        },
+        { id: "hotkeys", icon: "keyboard", label: "Hotkeys", color: "#8ab4ff" },
+        { id: "help", icon: "help", label: "Help", color: "#a8b6cf" },
+        {
+            id: "restart",
+            icon: "restart",
+            label: "Restart",
+            color: "#f6c469",
+            action: "restart",
+        },
+        { id: "quit", icon: "quit", label: "Quit", color: "#ff6a7a", action: "quit" },
+    ] as const;
+
+    const SECTION_TOOL_BY_ID: Partial<Record<SectionId, SettingsToolId>> = {
+        map_options: "appearance",
+        territory_styles: "appearance",
+        combat_tuning: "combat_tuning",
+        audio: "audio",
+        fleet_star_visuals: "video_graphics",
+        diagnostics: "diagnostics",
+    };
+
     const ACTIVE_SECTION_KEY = "pax-fluxia-open-sections";
+    const ACTIVE_TOOL_KEY = "pax-fluxia-active-settings-tool";
+
+    function isSettingsToolId(value: string | null): value is SettingsToolId {
+        return SETTINGS_TOOLS.some((tool) => tool.id === value);
+    }
+
+    function loadActiveTool(): SettingsToolId | null {
+        if (typeof window === "undefined") return null;
+        const value = localStorage.getItem(ACTIVE_TOOL_KEY);
+        return isSettingsToolId(value) ? value : null;
+    }
+
+    const initialActiveToolId = loadActiveTool();
+    let activeToolId = $state<SettingsToolId | null>(initialActiveToolId);
+    let activeTool = $derived(
+        activeToolId
+            ? SETTINGS_TOOLS.find((tool) => tool.id === activeToolId) ?? null
+            : null,
+    );
+    let activeToolHasPanel = $derived(Boolean(activeTool && !activeTool.action));
+
+    function persistActiveTool() {
+        if (typeof window === "undefined") return;
+        if (activeToolId) {
+            localStorage.setItem(ACTIVE_TOOL_KEY, activeToolId);
+        } else {
+            localStorage.removeItem(ACTIVE_TOOL_KEY);
+        }
+    }
+
+    function setActiveTool(id: SettingsToolId | null) {
+        activeToolId = id;
+        const tool = id
+            ? SETTINGS_TOOLS.find((candidate) => candidate.id === id) ?? null
+            : null;
+        sectionOrder = tool?.sectionId ? [tool.sectionId] : [];
+        persistActiveTool();
+        persistSectionOrder();
+    }
+
+    function handleToolClick(tool: SettingsToolDefinition) {
+        if (tool.action === "restart") {
+            onRestartGame?.();
+            return;
+        }
+        if (tool.action === "quit") {
+            onQuitGame?.();
+            return;
+        }
+        setActiveTool(activeToolId === tool.id ? null : tool.id);
+    }
+
     function loadOpenSections(): SectionId[] {
         if (typeof window === "undefined") return [];
         try {
@@ -778,7 +911,16 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     // Ordered array: last element = most recently opened (shown first in render)
-    let sectionOrder = $state<SectionId[]>(loadOpenSections());
+    let sectionOrder = $state<SectionId[]>((() => {
+        const loadedSections = loadOpenSections();
+        const startupTool = initialActiveToolId
+            ? SETTINGS_TOOLS.find((tool) => tool.id === initialActiveToolId)
+            : null;
+        if (startupTool?.sectionId && loadedSections.length === 0) {
+            return [startupTool.sectionId];
+        }
+        return loadedSections;
+    })());
     // Set for O(1) membership checks
     let openSections = $derived(new Set(sectionOrder));
 
@@ -792,20 +934,18 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     function openSection(id: SectionId) {
-        sectionOrder = [...sectionOrder.filter((s) => s !== id), id];
+        sectionOrder = [id];
+        activeToolId = SECTION_TOOL_BY_ID[id] ?? activeToolId;
+        persistActiveTool();
         persistSectionOrder();
     }
 
     function toggleSection(id: SectionId) {
-        const idx = sectionOrder.indexOf(id);
-        if (idx >= 0) {
-            // Already open — close it
-            sectionOrder = sectionOrder.filter((s) => s !== id);
-        } else {
-            openSection(id);
+        if (sectionOrder.includes(id)) {
+            setActiveTool(null);
             return;
         }
-        persistSectionOrder();
+        openSection(id);
     }
 
     const sections = SETTINGS_SECTIONS;
@@ -870,7 +1010,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     let hasVisibleOpenSections = $derived(orderedOpenSections.length > 0);
 
     $effect(() => {
-        onSectionActivityChange?.(hasVisibleOpenSections);
+        onSectionActivityChange?.(activeToolHasPanel);
     });
 
     let lastForceOpenSectionNonce = $state(-1);
@@ -1099,135 +1239,22 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     class:controls-panel--ribbon-expanded={ribbonExpanded}
     class:controls-panel--dock-left={dockSide === "left"}
     use:nudgeSliders>
-    <div class="settings-header-tools">
-        <div class="settings-search-head">
-            <label class="settings-search-label" for="settings-search-input">
-                Search Settings
-            </label>
-        </div>
-        <div class="settings-search-row">
-            <input
-                id="settings-search-input"
-                class="settings-search-input"
-                type="search"
-                placeholder="Search labels, panel copy, config keys, variables..."
-                bind:value={settingsSearchQuery}
-                onkeydown={async (event) => {
-                    if (event.key === "Enter") {
-                        event.preventDefault();
-                        await handleSearchSubmit();
-                    } else if (event.key === "Escape" && settingsSearchQuery.trim()) {
-                        event.preventDefault();
-                        clearSettingsSearch();
-                    }
-                }}
-            />
-            {#if settingsSearchQuery.trim()}
+
+    <div class="settings-shell" class:settings-shell--with-panel={activeToolHasPanel}>
+    <!-- Icon Toolbar -->
+    <div class="icon-toolbar" class:has-active={activeToolHasPanel}>
+        <div class="icon-toolbar__controls">
+            {#if onCloseSettings}
                 <button
-                    class="settings-search-clear"
                     type="button"
-                    onclick={clearSettingsSearch}
-                    title="Clear search"
+                    class="icon-toolbar-control"
+                    onclick={onCloseSettings}
+                    title="Collapse settings to topbar"
+                    aria-label="Collapse settings to topbar"
                 >
-                    <HudIcon name="close" size={14} />
+                    <HudIcon name="chevron-left" size={15} />
                 </button>
             {/if}
-        </div>
-
-        {#if settingsSearchQuery.trim()}
-            <div class="settings-search-results">
-                <div class="settings-search-summary">
-                    {settingsSearchResults.length} match{settingsSearchResults.length === 1 ? "" : "es"}
-                </div>
-                {#if settingsSearchResults.length === 0}
-                    <div class="settings-search-empty">
-                        No matches. Try a control label, helper phrase, config key, or variable name.
-                    </div>
-                {:else}
-                    {#each settingsSearchResults as result}
-                        <button
-                            type="button"
-                            class="settings-search-result"
-                            onclick={() => void navigateToSearchResult(result)}
-                        >
-                            <span class="settings-search-result__title">{result.title}</span>
-                            <span class="settings-search-result__meta">
-                                {result.sectionLabel}
-                                {#if result.configKey}
-                                    · {result.configKey}
-                                {/if}
-                            </span>
-                            <span class="settings-search-result__snippet">{result.snippet}</span>
-                        </button>
-                    {/each}
-                {/if}
-            </div>
-        {/if}
-
-        <div class="settings-utility-row">
-            <button
-                class="full-io-btn full-export-btn"
-                onclick={() => {
-                    exportConfigJSONBase();
-                    configStatus = "Exported JSON";
-                    configStatusColor = "#4ade80";
-                }}
-                title="Export the current game config as JSON"
-            >
-                <HudIcon name="export" size={15} /> Export JSON
-            </button>
-            <button
-                class="full-io-btn full-export-btn"
-                onclick={exportConfigMD}
-                title="Export the current game config as Markdown"
-            >
-                <HudIcon name="library" size={15} /> Export MD
-            </button>
-            <button
-                class="full-io-btn full-import-btn"
-                onclick={() => {
-                    const input = document.getElementById(
-                        "settings-config-import-input",
-                    ) as HTMLInputElement | null;
-                    input?.click();
-                }}
-                title="Import a saved game config from JSON"
-            >
-                <HudIcon name="import" size={15} /> Import JSON
-            </button>
-            <button
-                class="full-io-btn full-reset-btn"
-                onclick={resetToDefaults}
-                title="Clear all localStorage and reset to factory defaults (Phase Field Default)"
-            >
-                <HudIcon name="reset" size={15} /> Clear All
-            </button>
-        </div>
-        <input
-            id="settings-config-import-input"
-            type="file"
-            accept=".json"
-            style="display:none;"
-            onchange={importConfigJSON}
-        />
-        {#if configStatus}
-            <div class="settings-utility-status" style={`color:${configStatusColor};`}>
-                {configStatus}
-            </div>
-        {/if}
-
-        <div class="settings-theme-utility" id="settings-theme-anchor">
-            <ThemeLibraryPanel />
-        </div>
-        <div class="settings-typography-utility">
-            <TypographyTokenPanel />
-        </div>
-    </div>
-
-    <div class="settings-shell" class:settings-shell--rail-only={!hasVisibleOpenSections}>
-    <!-- Icon Toolbar -->
-    <div class="icon-toolbar" class:has-active={hasVisibleOpenSections}>
-        <div class="icon-toolbar__controls">
             {#if onToggleRibbonExpanded}
                 <button
                     type="button"
@@ -1249,31 +1276,104 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 </button>
             {/if}
         </div>
-        {#each visibleSections as s}
+        {#each SETTINGS_TOOLS as tool}
             <button
                 class="icon-btn"
-                class:active={openSections.has(s.id)}
-                class:search-hit={matchedSectionIds?.has(s.id)}
-                class:search-dim={matchedSectionIds && !matchedSectionIds.has(s.id)}
-                style="--accent: {s.color}"
-                onclick={() => toggleSection(s.id)}
-                title={s.label}
+                class:active={activeToolId === tool.id}
+                class:settings-tool-action={Boolean(tool.action)}
+                class:settings-tool-danger={tool.id === "quit"}
+                style="--accent: {tool.color}"
+                onclick={() => handleToolClick(tool)}
+                title={tool.label}
+                aria-label={tool.label}
             >
-                <span class="icon-symbol"><HudIcon name={s.icon} /></span>
-                <span class="icon-label">{s.label}</span>
+                <span class="icon-symbol"><HudIcon name={tool.icon} /></span>
+                <span class="icon-label">{tool.label}</span>
             </button>
         {/each}
-        <button
-            class="icon-btn reset-icon"
-            title="Reset All"
-            onclick={resetToDefaults}
-        >
-            <span class="icon-symbol"><HudIcon name="reset" /></span>
-            <span class="icon-label">Reset</span>
-        </button>
     </div>
 
     <div class="settings-content">
+    {#if activeToolId === "theme_library"}
+        <div class="section-panel settings-tool-panel" style="--accent: #f6c469">
+            <div class="section-head-wrap">
+                <button class="section-head" onclick={() => setActiveTool(null)}>
+                    <span class="head-icon"><HudIcon name="library" /></span>
+                    <span class="head-label">Theme Select / Library</span>
+                    <span class="head-close"><HudIcon name="close" size={14} /></span>
+                </button>
+            </div>
+            <div class="section-body">
+                <ThemeLibraryPanel />
+            </div>
+        </div>
+    {:else if activeToolId === "appearance"}
+        <div class="section-panel settings-tool-panel" style="--accent: #5ee6ff">
+            <div class="section-head-wrap">
+                <button class="section-head" onclick={() => setActiveTool(null)}>
+                    <span class="head-icon"><HudIcon name="theme" /></span>
+                    <span class="head-label">Theme Tuning / Appearance</span>
+                    <span class="head-close"><HudIcon name="close" size={14} /></span>
+                </button>
+            </div>
+            <div class="section-body">
+                <TypographyTokenPanel />
+                <ControlsSectionVisuals
+                    {panel}
+                    {updatePanel}
+                    {vis}
+                    {updateVisual}
+                    syncFromConfig={syncAllFromConfig}
+                />
+            </div>
+        </div>
+    {:else if activeToolId === "stats"}
+        <div class="section-panel settings-tool-panel" style="--accent: #f6c469">
+            <div class="section-head-wrap">
+                <button class="section-head" onclick={() => setActiveTool(null)}>
+                    <span class="head-icon"><HudIcon name="leaderboard" /></span>
+                    <span class="head-label">Stats</span>
+                    <span class="head-close"><HudIcon name="close" size={14} /></span>
+                </button>
+            </div>
+            <div class="section-body settings-stats-panel">
+                <div class="settings-stat-row"><span>Tick</span><strong>{activeGameStore.currentTick ?? 0}</strong></div>
+                <div class="settings-stat-row"><span>Players</span><strong>{activeGameStore.players.length}</strong></div>
+                <div class="settings-stat-row"><span>Stars</span><strong>{activeGameStore.stars.length}</strong></div>
+                <div class="settings-stat-row"><span>Selected</span><strong>{selectedStarStore.id ?? "None"}</strong></div>
+            </div>
+        </div>
+    {:else if activeToolId === "hotkeys"}
+        <div class="section-panel settings-tool-panel" style="--accent: #8ab4ff">
+            <div class="section-head-wrap">
+                <button class="section-head" onclick={() => setActiveTool(null)}>
+                    <span class="head-icon"><HudIcon name="keyboard" /></span>
+                    <span class="head-label">Hotkeys</span>
+                    <span class="head-close"><HudIcon name="close" size={14} /></span>
+                </button>
+            </div>
+            <div class="section-body settings-help-panel">
+                <div><strong>F</strong><span>Fit the map to the viewport.</span></div>
+                <div><strong>Esc</strong><span>Close active overlays or clear search focus.</span></div>
+                <div><strong>Click star</strong><span>Select and inspect a star.</span></div>
+                <div><strong>Drag lane</strong><span>Issue a route from one owned star to a connected star.</span></div>
+            </div>
+        </div>
+    {:else if activeToolId === "help"}
+        <div class="section-panel settings-tool-panel" style="--accent: #a8b6cf">
+            <div class="section-head-wrap">
+                <button class="section-head" onclick={() => setActiveTool(null)}>
+                    <span class="head-icon"><HudIcon name="help" /></span>
+                    <span class="head-label">Help</span>
+                    <span class="head-close"><HudIcon name="close" size={14} /></span>
+                </button>
+            </div>
+            <div class="section-body settings-help-panel">
+                <p>Select owned stars, assign routes across connected lanes, and watch active ships transfer control through the network.</p>
+                <p>Use the Settings rail for theme, appearance, combat, audio, graphics, diagnostics, hotkeys, restart, and quit.</p>
+            </div>
+        </div>
+    {:else}
     <!-- Stacked Section Panels -->
     {#each orderedOpenSections as sec (sec.id)}
         <div class="section-panel" style="--accent: {sec.color}">
@@ -1500,6 +1600,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             </div>
         </div>
     {/each}
+    {/if}
     </div>
     </div>
 </div>
@@ -1631,13 +1732,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         color: var(--hud-text-strong);
         box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
     }
-    .icon-btn.search-hit {
-        border-color: color-mix(in srgb, var(--accent) 58%, rgba(255, 255, 255, 0.18));
-        box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
-    }
-    .icon-btn.search-dim {
-        opacity: 0.46;
-    }
     .icon-symbol {
         width: 20px;
         height: 20px;
@@ -1667,13 +1761,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .controls-panel--ribbon-expanded .icon-label {
         display: block;
     }
-    .reset-icon {
-        --accent: #ff5555;
-    }
-    .reset-icon .icon-symbol {
-        filter: none;
-    }
-
     /* ── Section Panel ── */
     .section-panel {
         background: var(--hud-panel-bg);
@@ -1831,226 +1918,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     :global(.is-hidden-by-subsection) {
         display: none !important;
     }
-    .settings-header-tools {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        padding: 10px 10px 12px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        background:
-            linear-gradient(180deg, rgba(10, 15, 28, 0.86), rgba(8, 12, 22, 0.72)),
-            rgba(255, 255, 255, 0.02);
-        border-radius: 12px;
-    }
-
-    .settings-search-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        flex-wrap: wrap;
-    }
-
-    .settings-search-label {
-        font-family: var(--hud-font-label);
-        font-size: 0.58rem;
-        font-weight: 700;
-        letter-spacing: 0.16em;
-        text-transform: uppercase;
-        color: var(--hud-accent);
-    }
-
-    .settings-search-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .settings-search-input {
-        flex: 1;
-        min-width: 0;
-        padding: 11px 14px;
-        border: 1px solid var(--hud-border);
-        border-radius: 14px;
-        background: rgba(9, 16, 31, 0.88);
-        color: var(--hud-text-strong);
-        font-family: var(--hud-font-ui);
-        font-size: 0.84rem;
-    }
-
-    .settings-search-input:focus {
-        outline: none;
-        border-color: var(--hud-border-strong);
-        box-shadow: 0 0 0 1px rgba(94, 230, 255, 0.16);
-    }
-
-    .settings-search-input::placeholder {
-        color: var(--hud-text-dim);
-    }
-
-    .settings-search-clear {
-        width: 34px;
-        height: 34px;
-        border: 1px solid var(--hud-border);
-        border-radius: 12px;
-        background: var(--hud-button-bg);
-        color: var(--hud-text-soft);
-        cursor: pointer;
-        transition:
-            background 0.18s,
-            border-color 0.18s,
-            color 0.18s;
-    }
-
-    .settings-search-clear:hover {
-        background: var(--hud-button-bg-hover);
-        border-color: var(--hud-border-strong);
-        color: var(--hud-text-strong);
-    }
-
-    .settings-search-results {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        max-height: 260px;
-        overflow-y: auto;
-        padding: 4px 2px 0;
-    }
-
-    .settings-search-summary {
-        font-family: var(--hud-font-label);
-        font-size: 0.58rem;
-        font-weight: 700;
-        letter-spacing: 0.16em;
-        text-transform: uppercase;
-        color: var(--hud-text-soft);
-    }
-
-    .settings-search-empty {
-        padding: 10px 12px;
-        border: 1px solid var(--hud-border);
-        border-radius: 14px;
-        background: rgba(9, 16, 31, 0.72);
-        color: var(--hud-text-soft);
-        font-family: var(--hud-font-copy);
-        font-size: 0.76rem;
-        line-height: 1.45;
-    }
-
-    .settings-search-result {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 4px;
-        width: 100%;
-        padding: 10px 12px;
-        border: 1px solid var(--hud-border);
-        border-radius: 14px;
-        background: rgba(9, 16, 31, 0.78);
-        color: var(--hud-text);
-        cursor: pointer;
-        text-align: left;
-        transition:
-            background 0.18s,
-            border-color 0.18s,
-            transform 0.18s;
-    }
-
-    .settings-search-result:hover {
-        background: rgba(14, 24, 43, 0.94);
-        border-color: var(--hud-border-strong);
-        transform: translateY(-1px);
-    }
-
-    .settings-search-result__title {
-        font-family: var(--hud-font-ui);
-        font-size: 0.76rem;
-        font-weight: 700;
-        color: var(--hud-text-strong);
-    }
-
-    .settings-search-result__meta {
-        font-family: var(--hud-font-label);
-        font-size: 0.56rem;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-        color: var(--hud-accent);
-    }
-
-    .settings-search-result__snippet {
-        font-family: var(--hud-font-copy);
-        font-size: 0.68rem;
-        line-height: 1.4;
-        color: var(--hud-text-soft);
-    }
-
-    .settings-theme-utility,
-    .settings-typography-utility {
-        min-width: 0;
-    }
-
-    .settings-utility-row {
-        display: flex;
-        gap: 6px;
-        flex-wrap: wrap;
-    }
-    .full-io-btn {
-        flex: 1 1 140px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        min-height: 34px;
-        padding: 0 12px;
-        border: 1px solid var(--hud-border);
-        border-radius: 12px;
-        background: var(--hud-button-bg);
-        color: var(--hud-text);
-        font-family: var(--hud-font-ui);
-        font-size: 0.64rem;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        cursor: pointer;
-        transition: all 0.15s;
-    }
-    .full-io-btn:hover {
-        background: var(--hud-button-bg-hover);
-        border-color: var(--hud-border-strong);
-        color: var(--hud-text-strong);
-    }
-    .settings-utility-status {
-        margin-top: 4px;
-        font-family: var(--hud-font-ui);
-        font-size: 0.6rem;
-        line-height: 1.35;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-    }
-    .full-export-btn {
-        border-color: rgba(74, 222, 128, 0.22);
-        color: #b8f5c8;
-    }
-    .full-export-btn:hover {
-        box-shadow: 0 0 8px rgba(74, 222, 128, 0.15);
-    }
-    .full-import-btn {
-        border-color: rgba(250, 204, 21, 0.22);
-        color: #fce588;
-    }
-    .full-import-btn:hover {
-        box-shadow: 0 0 8px rgba(250, 204, 21, 0.15);
-    }
-    .full-reset-btn {
-        border-color: rgba(255, 68, 68, 0.35);
-        color: #ff8888;
-    }
-    .full-reset-btn:hover {
-        background: rgba(255, 68, 68, 0.1);
-        border-color: #ff4444;
-        color: #ff4444;
-        box-shadow: 0 0 8px rgba(255, 68, 68, 0.25);
-    }
     /* ── Nudge slider buttons (injected via nudgeSliders action) ── */
     @media (max-width: 720px) {
         .settings-shell {
@@ -2093,7 +1960,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         gap: 4px;
         width: 100%;
     }
-    :global(.nudge-slider-wrap) input[type="range"] {
+    :global(.nudge-slider-wrap input[type="range"]) {
         flex: 1;
         min-width: 0;
     }
@@ -2137,90 +2004,11 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         overflow: visible;
     }
 
-    .settings-header-tools {
-        gap: 8px;
-        padding: 10px;
-        border: 1px solid var(--hud-border-warm);
-        border-radius: 0;
-        background:
-            linear-gradient(180deg, rgba(3, 27, 29, 0.96), rgba(2, 10, 13, 0.98)),
-            radial-gradient(circle at 18% 0%, rgba(89, 241, 230, 0.12), transparent 42%),
-            radial-gradient(circle at 100% 0%, rgba(246, 196, 105, 0.12), transparent 50%);
-        clip-path: var(--hud-cut-corner-md);
-        box-shadow: inset 0 0 0 1px rgba(255, 218, 132, 0.07), var(--hud-shadow-soft);
-    }
-
-    .settings-search-head {
-        min-height: 20px;
-    }
-
-    .settings-search-label {
-        color: var(--hud-accent-warm);
-    }
-
-    .settings-search-row {
-        gap: 6px;
-    }
-
-    .settings-search-input {
-        min-height: 34px;
-        padding: 7px 10px;
-        border-radius: 8px;
-        border-color: rgba(246, 196, 105, 0.28);
-        background: rgba(0, 12, 16, 0.84);
-        font-size: 0.75rem;
-        line-height: 1;
-    }
-
-    .settings-utility-row {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 6px;
-    }
-
-    .full-io-btn {
-        min-width: 0;
-        min-height: 30px;
-        flex: none;
-        padding: 0 8px;
-        gap: 6px;
-        border-radius: 8px;
-        border-color: rgba(246, 196, 105, 0.24);
-        background: rgba(3, 22, 25, 0.74);
-        color: rgba(255, 231, 178, 0.88);
-        font-size: 0.55rem;
-        line-height: 1;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .full-io-btn :global(svg) {
-        flex: 0 0 auto;
-    }
-
     .settings-shell {
         grid-template-columns: var(--settings-ribbon-width) minmax(0, 1fr);
         gap: 10px;
         flex: 0 1 auto;
         align-items: start;
-    }
-
-    .settings-shell--rail-only {
-        width: 100%;
-        grid-template-columns: minmax(0, 1fr);
-        grid-template-areas: "rail";
-        align-self: start;
-    }
-
-    .settings-shell--rail-only .settings-content {
-        display: none;
-    }
-
-    .controls-panel--dock-left .settings-shell--rail-only {
-        grid-template-columns: minmax(0, 1fr);
-        grid-template-areas: "rail";
-        justify-content: end;
     }
 
     .icon-toolbar {
@@ -2234,48 +2022,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         box-shadow: inset 0 0 0 1px rgba(255, 231, 178, 0.05);
         overflow-x: hidden;
         max-height: min(52vh, calc(100vh - var(--hud-topbar-height) - 330px));
-    }
-
-    .settings-shell--rail-only .icon-toolbar {
-        width: 100%;
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        align-items: start;
-        gap: 7px;
-        max-height: min(34vh, 280px);
-        padding: 8px;
-    }
-
-    .settings-shell--rail-only .icon-toolbar__controls {
-        grid-column: 1 / -1;
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 7px;
-        padding-bottom: 7px;
-    }
-
-    .settings-shell--rail-only .icon-toolbar-control,
-    .settings-shell--rail-only .icon-btn {
-        width: 100%;
-        min-height: 38px;
-    }
-
-    .settings-shell--rail-only .icon-label {
-        display: none;
-    }
-
-    .controls-panel--ribbon-expanded .settings-shell--rail-only .icon-toolbar {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .controls-panel--ribbon-expanded .settings-shell--rail-only .icon-btn,
-    .controls-panel--ribbon-expanded .settings-shell--rail-only .icon-toolbar-control {
-        justify-content: flex-start;
-        padding: 0 10px;
-    }
-
-    .controls-panel--ribbon-expanded .settings-shell--rail-only .icon-label {
-        display: block;
     }
 
     .icon-toolbar__controls {
@@ -2454,7 +2200,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         accent-color: var(--hud-accent);
     }
 
-    .settings-header-tools,
     .icon-toolbar,
     .section-panel,
     .section-body :global(.category-theme-bar) {
@@ -2468,8 +2213,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
 
     .icon-toolbar-control,
     .icon-btn,
-    .full-io-btn,
-    .settings-search-input,
     .section-body :global(.theme-select),
     .section-body :global(.action-btn),
     .section-body :global(.drawer-btn),
@@ -2504,6 +2247,152 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         background:
             linear-gradient(180deg, rgba(97, 72, 25, 0.92), rgba(4, 29, 29, 0.96)) padding-box,
             var(--hud-border-gradient) border-box;
+    }
+
+    /* Settings ownership correction: the rail is the master component. */
+    .controls-panel {
+        --settings-ribbon-width: 64px;
+        height: 100%;
+        max-height: 100%;
+        gap: 0;
+    }
+
+    .controls-panel--ribbon-expanded {
+        --settings-ribbon-width: 168px;
+    }
+
+    .settings-shell,
+    .controls-panel--dock-left .settings-shell {
+        width: 100%;
+        height: 100%;
+        display: grid;
+        grid-template-columns: var(--settings-ribbon-width);
+        grid-template-areas: "rail";
+        gap: 10px;
+        align-items: stretch;
+        transition:
+            grid-template-columns 0.22s ease,
+            width 0.22s ease;
+    }
+
+    .settings-shell--with-panel {
+        grid-template-columns: minmax(360px, 1fr) var(--settings-ribbon-width);
+        grid-template-areas: "content rail";
+    }
+
+    .controls-panel--dock-left .settings-shell--with-panel {
+        grid-template-columns: var(--settings-ribbon-width) minmax(360px, 1fr);
+        grid-template-areas: "rail content";
+    }
+
+    .icon-toolbar {
+        width: var(--settings-ribbon-width);
+        height: 100%;
+        max-height: none;
+        padding: 8px;
+        overflow-x: hidden;
+        overflow-y: auto;
+        transition:
+            width 0.22s ease,
+            border-color 0.18s ease,
+            background 0.18s ease;
+    }
+
+    .icon-toolbar__controls {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .icon-toolbar-control,
+    .icon-btn,
+    .icon-toolbar.has-active .icon-btn,
+    .settings-tool-action {
+        width: 100%;
+        min-height: 44px;
+        padding: 0;
+        justify-content: center;
+    }
+
+    .controls-panel--ribbon-expanded .icon-btn,
+    .controls-panel--ribbon-expanded .icon-toolbar.has-active .icon-btn,
+    .controls-panel--ribbon-expanded .icon-toolbar-control {
+        justify-content: flex-start;
+        padding: 0 10px;
+    }
+
+    .settings-tool-danger {
+        --accent: var(--hud-danger);
+    }
+
+    .settings-content {
+        grid-area: content;
+        min-width: 0;
+        height: 100%;
+        max-height: calc(100vh - var(--hud-topbar-height) - 24px);
+        opacity: 1;
+        transform: translateX(0);
+        transition:
+            opacity 0.18s ease,
+            transform 0.22s ease;
+    }
+
+    .settings-shell:not(.settings-shell--with-panel) .settings-content {
+        display: none;
+        opacity: 0;
+        transform: translateX(-8px);
+    }
+
+    .settings-tool-panel {
+        height: 100%;
+        min-height: 0;
+    }
+
+    .settings-tool-panel .section-body {
+        min-height: 0;
+        overflow-y: auto;
+    }
+
+    .settings-stats-panel {
+        gap: 8px;
+    }
+
+    .settings-stat-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: 38px;
+        padding: 0 12px;
+        border: 1px solid transparent;
+        border-radius: var(--hud-radius-xs);
+        background:
+            linear-gradient(180deg, rgba(0, 18, 21, 0.86), rgba(0, 10, 13, 0.94)) padding-box,
+            var(--hud-control-border-gradient) border-box;
+        color: var(--hud-text-soft);
+    }
+
+    .settings-stat-row strong {
+        color: var(--hud-accent-warm-strong);
+        font-family: var(--hud-font-data);
+    }
+
+    .settings-help-panel {
+        color: var(--hud-text-soft);
+        font-family: var(--hud-font-copy);
+        line-height: 1.45;
+    }
+
+    .settings-help-panel > div {
+        display: grid;
+        grid-template-columns: 96px minmax(0, 1fr);
+        gap: 10px;
+        padding: 9px 0;
+        border-bottom: 1px solid var(--hud-divider);
+    }
+
+    .settings-help-panel strong {
+        color: var(--hud-accent-warm-strong);
+        font-family: var(--hud-font-data);
     }
 
 </style>

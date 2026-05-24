@@ -51,8 +51,8 @@
       </div>
 
       <div class="pf-selected-star-tray__actions">
-        <HudIconButton icon="fit" title="Center selected star" onclick={() => onCenterStar(star.id)} />
-        <HudIconButton icon="topology" title="Fit full map" onclick={onFitMap} />
+        <HudIconButton icon="active-focus" title="Zoom selected star" onclick={() => onCenterStar(star.id)} />
+        <HudIconButton icon="fit" title="Fit map" onclick={onFitMap} />
         {#if star.targetId}
           <HudIconButton
             icon="close"

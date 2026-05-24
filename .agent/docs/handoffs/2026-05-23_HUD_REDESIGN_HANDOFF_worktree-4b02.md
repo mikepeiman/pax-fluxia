@@ -128,7 +128,7 @@ Commands run from `C:\Users\mikep\.codex\worktrees\4b02\pax-fluxia`:
 
 - `git diff --check`: passed.
 - `bun run --cwd pax-fluxia build`: passed after final Theme Library category cleanup.
-- `bun run --cwd pax-fluxia check`: failed on repository baseline with `329 errors and 820 warnings in 65 files`.
+- `bun run --cwd pax-fluxia check`: failed on repository baseline with `329 errors and 819 warnings in 64 files`.
 - `Get-Item pax-fluxia/build/fonts/pasti/PastiRegular-mLXnm.otf`: confirmed packaged static build asset exists after build.
 
 Browser/CDP QA against `http://127.0.0.1:1499`:
@@ -167,7 +167,7 @@ Chrome/CDP geometry audit against `http://127.0.0.1:5178`:
 
 - The Pixi map renderer remains much less rich than the Aurelia Drift reference images. This commit improves the DOM HUD/settings shell, not the underlying territory/starfield rendering.
 - `GameContainer.svelte` still owns the master grid and canvas/HUD composition. A true `HudShell.svelte` wrapper was not completed in this corrective pass because doing that safely would require a larger canvas/overlay ownership split.
-- `svelte-check` remains blocked by repository-wide baseline errors unrelated to this pass. Touched files still inherit some existing unused-CSS warnings in extracted settings components.
+- `svelte-check` remains blocked by repository-wide baseline errors unrelated to this pass. The remaining warnings are in existing extracted settings/territory components and other baseline files, not in the corrected settings rail shell.
 - The old main menu still has a global `Load Map` command. This is intentionally not removed; the user rejection targeted `Load Map` inside the Theme widget/cluster.
 - Pasti is packaged locally. Existing defaults Rajdhani, Inter, and JetBrains Mono are still loaded through existing Google Fonts links elsewhere in the app unless replaced with local font files in a future packaging pass.
 
@@ -177,3 +177,31 @@ Chrome/CDP geometry audit against `http://127.0.0.1:5178`:
 - If conflicts occur in `GameContainer.svelte`, preserve the dynamic settings width model and `onSectionActivityChange` path; otherwise the settings ribbon will regress to a wide empty slab.
 - If conflicts occur in `GameSettingsPanel.svelte`, preserve the `ThemeLibraryPanel` replacement, removal of empty explanatory state, and rail-only shell classes.
 - If conflicts occur in `hud.css`, keep the lower corrective layer unless master has a newer, deliberate Aurelia Drift HUD shell that supersedes it.
+
+## 2026-05-24 Settings Ribbon Correction
+
+User clarified the intended ownership model after review:
+
+- Settings belongs in the topbar-left control cluster as the collapsed stub.
+- Open state is a left master icon rail.
+- Clicking a rail icon opens one adjacent panel immediately to the right of the rail.
+- Opening/closing a panel does not move or replace the rail; the active icon gets highlighted.
+- Bottom-right duplicate settings/ellipsis/art palette/fit/ruler shortcuts do not belong.
+- Live-game save/load map/game entries do not belong in the old in-game settings menu.
+- Star View owns previous/next owned-star cycling, zoom-selected-star, and fit-map controls.
+
+Implementation changes for the merge:
+
+- `pax-fluxia/src/lib/components/game-hud/HudTopbar.svelte`: settings control is now in the left brand/control cluster.
+- `pax-fluxia/src/lib/components/game-hud/SettingsRibbon.svelte`: delegates close/restart/quit into the rail-backed settings panel and no longer renders a separate floating close control.
+- `pax-fluxia/src/lib/components/ui/GameSettingsPanel.svelte`: adds the rail item registry and adjacent panel behavior for Theme Library, Appearance/Typography, Combat, Audio, Video/Graphics, Stats, Diagnostics, Hotkeys, Help, Restart, and Quit.
+- `pax-fluxia/src/lib/components/game/GameContainer.svelte`: removes the old live-game menu drawer/save-load surface and strips bottom quick-access actions down to authored measurements only.
+- `pax-fluxia/src/lib/components/game-hud/SelectedStarPanel.svelte`: adds previous/next owned-star controls plus distinct zoom and fit-map actions.
+- `pax-fluxia/src/lib/components/game-hud/SelectedStarTray.svelte` and `pax-fluxia/src/lib/styles/hud.css`: semantic tray collapse chevrons and transition.
+
+Validation for this correction:
+
+- `git diff --check`: passed.
+- `bun run --cwd pax-fluxia build`: passed.
+- `bun run --cwd pax-fluxia check`: failed on existing repository baseline with `329 errors and 819 warnings in 64 files`.
+- Browser QA against `http://127.0.0.1:5178/play`: started a local game, opened/collapsed settings from topbar-left, opened Themes/Appearance/Diagnostics in the adjacent panel, confirmed no visible bottom-right duplicate settings path, and verified Star View next-owned-star selection updates Star View and selected-star tray.

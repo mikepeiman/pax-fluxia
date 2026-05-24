@@ -1635,6 +1635,20 @@
     var(--hud-border-gradient) border-box;
 }
 
+.pf-selected-star-tray {
+  transition:
+    min-width 0.22s ease,
+    max-width 0.22s ease,
+    min-height 0.22s ease,
+    padding 0.22s ease,
+    opacity 0.18s ease,
+    transform 0.22s ease;
+}
+
+.pf-selected-star-tray--collapsed {
+  transform: translateX(-50%) translateY(4px);
+}
+
 @media (max-width: 1024px) {
   .pf-hud-topbar,
   .pf-selected-star-tray {
