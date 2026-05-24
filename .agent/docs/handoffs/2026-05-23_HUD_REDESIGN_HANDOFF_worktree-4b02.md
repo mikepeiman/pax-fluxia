@@ -205,3 +205,30 @@ Validation for this correction:
 - `bun run --cwd pax-fluxia build`: passed.
 - `bun run --cwd pax-fluxia check`: failed on existing repository baseline with `329 errors and 819 warnings in 64 files`.
 - Browser QA against `http://127.0.0.1:5178/play`: started a local game, opened/collapsed settings from topbar-left, opened Themes/Appearance/Diagnostics in the adjacent panel, confirmed no visible bottom-right duplicate settings path, and verified Star View next-owned-star selection updates Star View and selected-star tray.
+
+## 2026-05-24 Border/Scale/Bottom-Bar/Icon Follow-Up
+
+User requested four specific corrections:
+
+- Border gradient was too dark; dark stops are now halved in `--hud-border-gradient` and `--hud-control-border-gradient`.
+- Fonts/icons were too small; Appearance/Typography now exposes scale sliders for UI, Titles, Labels, Data, and Icons, persisted under `pax-hud-typography-tokens-v1`.
+- The bottom-center command controls had been removed; a new `BottomCommandBar.svelte` restores persistent Map, Players, Overlays, Settings, and View controls.
+- Relevant icons from `C:\Users\mikep\Downloads\pax_fluxia_quintessential_td_icon_atlas.pdf` were extracted to `pax-fluxia/static/icons/td-atlas/`, processed to transparent backgrounds, and selected `td-*` icon aliases were registered in `HudIcon.svelte`.
+
+Merge-relevant files:
+
+- `pax-fluxia/src/app.css`: shared gradient and scale tokens.
+- `pax-fluxia/src/lib/styles/hud.css`: bottom command bar layout, selected-star tray offset, scale-token consumers, Typography scale-control styles.
+- `pax-fluxia/src/lib/components/game-hud/BottomCommandBar.svelte`: restored bottom-center command widget.
+- `pax-fluxia/src/lib/components/game/GameContainer.svelte`: bottom command action model and mount point inside `area-canvas`.
+- `pax-fluxia/src/lib/components/game-hud/TypographyTokenPanel.svelte`: persisted scale controls.
+- `pax-fluxia/src/lib/components/ui/hud/HudIcon.svelte`: scaled icons, added atlas-style SVGs and `td-*` PNG aliases.
+- `pax-fluxia/static/icons/td-atlas/`: extracted atlas PNG assets plus source README.
+- `.agent/docs/project/post-mortems/2026-05-24_bottom-center-command-bar-removal.md`: process failure record.
+
+Validation:
+
+- `git diff --check`: passed.
+- `bun run --cwd pax-fluxia build`: passed.
+- `bun run --cwd pax-fluxia check`: failed on existing repository baseline with `329 errors and 819 warnings in 64 files`; no touched-file diagnostics remain from this follow-up.
+- Visual review should specifically check bottom-center bar/tray stacking at desktop sizes and whether the default 108-118% scale values are enough.

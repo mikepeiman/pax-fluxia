@@ -1,4 +1,5 @@
 export { default as GameSpeedPanel } from "./GameSpeedPanel.svelte";
+export { default as BottomCommandBar } from "./BottomCommandBar.svelte";
 export { default as HudIconButton } from "./HudIconButton.svelte";
 export { default as HudPanel } from "./HudPanel.svelte";
 export { default as HudRail } from "./HudRail.svelte";

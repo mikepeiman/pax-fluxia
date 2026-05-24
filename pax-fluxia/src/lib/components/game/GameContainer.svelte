@@ -20,6 +20,7 @@
     StatusBar,
   } from "$lib/components/ui/hud";
   import {
+    BottomCommandBar,
     GameSpeedPanel,
     HudTopbar,
     PlayerStandingsPanel,
@@ -29,6 +30,7 @@
     SettingsRibbon,
     buildPlayerStandings,
     buildSelectedStarViewModel,
+    type BottomCommandBarAction,
     type QuickAccessAction,
   } from "$lib/components/game-hud";
   import GameCanvas from "$lib/components/game/GameCanvas.svelte";
@@ -478,6 +480,53 @@
     return actions;
   });
 
+  const bottomCommandBarActions = $derived.by((): BottomCommandBarAction[] => [
+    {
+      id: "map",
+      icon: "map",
+      label: "Map",
+      title: "Fit map to screen",
+      onClick: () => gameCanvasRef?.centerAndFit?.(),
+    },
+    {
+      id: "players",
+      icon: "players",
+      label: "Players",
+      title: leaderboardCollapsed ? "Show player standings" : "Collapse player standings",
+      active: !leaderboardCollapsed,
+      onClick: toggleLeaderboardCollapsed,
+    },
+    {
+      id: "overlays",
+      icon: "overlays",
+      label: "Overlays",
+      title: "Open appearance and map overlay controls",
+      active: showSettingsPanel && forceOpenSettingsSection === "map_options",
+      onClick: () => openSettingsSection("map_options"),
+    },
+    {
+      id: "settings",
+      icon: "settings",
+      label: "Settings",
+      title: showSettingsPanel ? "Collapse settings rail" : "Open settings rail",
+      active: showSettingsPanel,
+      onClick: toggleSettingsPanel,
+    },
+    {
+      id: "view",
+      icon: "view",
+      label: "View",
+      title: selectedStarStore.id ? "Zoom selected star" : "Fit map to screen",
+      onClick: () => {
+        if (selectedStarStore.id) {
+          gameCanvasRef?.navigateToStar?.(selectedStarStore.id);
+          return;
+        }
+        gameCanvasRef?.centerAndFit?.();
+      },
+    },
+  ]);
+
   const leftRailWidth = $derived.by(() => {
     let width = 0;
     if (showSettingsPanel && controlsSide === "left") {
@@ -736,6 +785,8 @@
           onFitMap={() => gameCanvasRef?.centerAndFit?.()}
           onCancelOrder={(starId) => activeGameStore.cancelOrder(starId)}
         />
+
+        <BottomCommandBar items={bottomCommandBarActions} />
       </div>
 
       <!-- MOBILE-ONLY: Bottom controls bar (hidden on desktop, shown by mobile media query) -->

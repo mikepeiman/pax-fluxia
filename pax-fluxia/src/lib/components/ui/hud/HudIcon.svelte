@@ -1,7 +1,8 @@
 <script lang="ts">
   interface IconDef {
     viewBox?: string;
-    body: string;
+    body?: string;
+    image?: string;
   }
 
   interface Props {
@@ -91,6 +92,33 @@
     "map-options": {
       body: `<path d="m4.5 6.2 4-1.4 5 1.8 6-1.6v12l-6 1.6-5-1.8-4 1.4Z" fill="none" stroke="currentColor" stroke-linejoin="round" /><path d="M8.5 4.8v12M13.5 6.6v12" fill="none" stroke="currentColor" />`,
     },
+    map: {
+      body: `<path d="M12 3.8 15 9l5.2 3-5.2 3-3 5.2-3-5.2-5.2-3L9 9Z" fill="none" stroke="currentColor" stroke-linejoin="round" /><path d="M12 7.4v9.2M7.4 12h9.2" fill="none" stroke="currentColor" stroke-linecap="round" /><circle cx="12" cy="12" r="2.2" fill="none" stroke="currentColor" />`,
+    },
+    overlays: {
+      body: `<path d="m12 4.5 7 3.7-7 3.7-7-3.7Z" fill="none" stroke="currentColor" stroke-linejoin="round" /><path d="m5 12 7 3.7 7-3.7M5 15.8l7 3.7 7-3.7" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />`,
+    },
+    history: {
+      body: `<path d="M6.4 7.2a7.3 7.3 0 1 1-.5 8" fill="none" stroke="currentColor" stroke-linecap="round" /><path d="M5.6 4.5v4.4h4.4M12 8.2v4l3 1.7" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />`,
+    },
+    view: {
+      body: `<path d="M3.8 12s3-5.2 8.2-5.2 8.2 5.2 8.2 5.2-3 5.2-8.2 5.2S3.8 12 3.8 12Z" fill="none" stroke="currentColor" stroke-linejoin="round" /><circle cx="12" cy="12" r="2.7" fill="none" stroke="currentColor" /><path d="M12 4.5v2.3M12 17.2v2.3" fill="none" stroke="currentColor" stroke-linecap="round" />`,
+    },
+    orders: {
+      body: `<path d="M5.2 17.8 9 6l3.2 6.2 6.6-1.6-11 7.2Z" fill="none" stroke="currentColor" stroke-linejoin="round" /><path d="M11.8 12.4 16 16.6" fill="none" stroke="currentColor" stroke-linecap="round" />`,
+    },
+    formation: {
+      body: `<circle cx="12" cy="7" r="2" fill="none" stroke="currentColor" /><circle cx="7.2" cy="16" r="2" fill="none" stroke="currentColor" /><circle cx="16.8" cy="16" r="2" fill="none" stroke="currentColor" /><path d="M11 8.7 8.3 14.2M13 8.7l2.7 5.5M9.2 16h5.6" fill="none" stroke="currentColor" stroke-linecap="round" />`,
+    },
+    "atlas-star": {
+      body: `<path d="M12 3.7 13.9 9l5.6 1-4.1 3.8 1 5.5-4.4-2.8-4.4 2.8 1-5.5L4.5 10l5.6-1Z" fill="none" stroke="currentColor" stroke-linejoin="round" /><circle cx="12" cy="12" r="2.5" fill="none" stroke="currentColor" />`,
+    },
+    "atlas-compass": {
+      body: `<path d="M12 2.9v4.2M12 16.9v4.2M2.9 12h4.2M16.9 12h4.2" fill="none" stroke="currentColor" stroke-linecap="round" /><path d="m12 6.5 2.3 5.5-2.3 5.5L9.7 12Z" fill="none" stroke="currentColor" stroke-linejoin="round" /><circle cx="12" cy="12" r="7.2" fill="none" stroke="currentColor" opacity="0.45" />`,
+    },
+    "atlas-grid": {
+      body: `<path d="M5 5h5v5H5ZM14 5h5v5h-5ZM5 14h5v5H5ZM14 14h5v5h-5Z" fill="none" stroke="currentColor" stroke-linejoin="round" /><path d="M10 7.5h4M10 16.5h4M7.5 10v4M16.5 10v4" fill="none" stroke="currentColor" stroke-linecap="round" opacity="0.7" />`,
+    },
     "phase-field": {
       body: `<circle cx="12" cy="12" r="6.8" fill="none" stroke="currentColor" /><path d="M12 2.8v4.1M12 17.1v4.1M2.8 12h4.1M17.1 12h4.1" fill="none" stroke="currentColor" stroke-linecap="round" />`,
     },
@@ -166,6 +194,30 @@
     more: {
       body: `<circle cx="6.5" cy="12" r="1.35" fill="currentColor" /><circle cx="12" cy="12" r="1.35" fill="currentColor" /><circle cx="17.5" cy="12" r="1.35" fill="currentColor" />`,
     },
+    "td-settings": {
+      image: "/icons/td-atlas/atlas-024.png",
+    },
+    "td-overlays": {
+      image: "/icons/td-atlas/atlas-019.png",
+    },
+    "td-view": {
+      image: "/icons/td-atlas/atlas-027.png",
+    },
+    "td-map": {
+      image: "/icons/td-atlas/atlas-036.png",
+    },
+    "td-keyboard": {
+      image: "/icons/td-atlas/atlas-032.png",
+    },
+    "td-speed": {
+      image: "/icons/td-atlas/atlas-020.png",
+    },
+    "td-play": {
+      image: "/icons/td-atlas/atlas-018.png",
+    },
+    "td-pause": {
+      image: "/icons/td-atlas/atlas-009.png",
+    },
     pause: {
       body: `<path d="M8.5 6v12M15.5 6v12" fill="none" stroke="currentColor" stroke-linecap="round" />`,
     },
@@ -231,18 +283,22 @@
 <svg
   class={`hud-icon ${className}`.trim()}
   viewBox={icon.viewBox ?? "0 0 24 24"}
-  width={pixelSize}
-  height={pixelSize}
   aria-hidden={title ? undefined : "true"}
   aria-label={title}
-  style={`--hud-icon-stroke-local:${strokeWidth};`}>
-  {@html icon.body}
+  style={`--hud-icon-size-local:${pixelSize}; --hud-icon-stroke-local:${strokeWidth};`}>
+  {#if icon.image}
+    <image href={icon.image} x="0" y="0" width="24" height="24" preserveAspectRatio="xMidYMid meet" />
+  {:else}
+    {@html icon.body ?? ""}
+  {/if}
 </svg>
 
 <style>
   .hud-icon {
     display: block;
     flex: 0 0 auto;
+    width: calc(var(--hud-icon-size-local, var(--hud-icon-size)) * var(--hud-icon-scale, 1));
+    height: calc(var(--hud-icon-size-local, var(--hud-icon-size)) * var(--hud-icon-scale, 1));
     color: currentColor;
   }
 

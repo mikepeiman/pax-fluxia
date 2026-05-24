@@ -40,3 +40,23 @@ Corrected the live in-game settings ownership model after user clarified the exa
 - Diagnostics still contains older emoji-prefixed labels inside its deep settings content; this pass corrected placement/ownership, not every diagnostic row style.
 - The large legacy `GameSettingsPanel.svelte` still contains unused import/export/search helper code and CSS from the older surface; it is not rendered in the live rail, but a follow-up cleanup/extraction pass should remove it.
 - `bun run --cwd pax-fluxia check`: failed on repository baseline with `329 errors and 819 warnings in 64 files`; first errors remain outside this pass in `game.config.ts`, `gameStore.svelte.ts`, `activeGameStore.svelte.ts`, `MainMenu.svelte`, map editor, and archived/corrupted territory compiler files.
+
+## Follow-Up Work: Border, Scale, Bottom Bar, Atlas Icons
+
+- Reduced the dark opacity in `--hud-border-gradient` and `--hud-control-border-gradient` by half.
+- Added root HUD scale variables: `--hud-type-scale`, `--hud-title-scale`, `--hud-label-scale`, `--hud-data-scale`, and `--hud-icon-scale`.
+- Extended `TypographyTokenPanel.svelte` so the Appearance/Typography section controls both font families and scale tokens.
+- Made `HudIcon.svelte` respond to the icon scale token.
+- Restored a persistent bottom-center command bar separate from the selected-star tray.
+- Added bottom command actions for Map/fit, Players/standings, Overlays/Appearance panel, Settings rail, and View/focus.
+- Moved selected-star tray upward to avoid overlapping the restored bottom command bar.
+- Extracted 48 icons from `C:\Users\mikep\Downloads\pax_fluxia_quintessential_td_icon_atlas.pdf` to `pax-fluxia/static/icons/td-atlas/`, processed black backgrounds to transparency, and added selected `td-*` aliases to `HudIcon.svelte`.
+- Added atlas-style SVG icons to the live HUD registry for scalable, current-color use.
+- Added post-mortem `.agent/docs/project/post-mortems/2026-05-24_bottom-center-command-bar-removal.md`.
+
+## Validation Addendum
+
+- `git diff --check`: passed.
+- `bun run --cwd pax-fluxia build`: passed.
+- `bun run --cwd pax-fluxia check`: failed on existing repository baseline with `329 errors and 819 warnings in 64 files`; no touched-file diagnostics remained after fixing the Typography Token Lab type issue.
+- Browser/UI visual verification still needs human review of the live game because current Codex tool context did not expose the Browser MCP despite prior permission; Chrome/PDF tooling was used only for icon asset extraction support.

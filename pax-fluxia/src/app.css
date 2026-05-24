@@ -89,14 +89,14 @@
       rgba(255, 232, 170, 0.96) 0%,
       rgba(246, 196, 105, 0.78) 19%,
       rgba(92, 62, 25, 0.48) 42%,
-      rgba(2, 13, 16, 0.9) 61%,
+      rgba(2, 13, 16, 0.45) 61%,
       rgba(183, 119, 36, 0.78) 82%,
       rgba(255, 225, 155, 0.88) 100%);
   --hud-control-border-gradient:
     linear-gradient(135deg,
       rgba(255, 226, 155, 0.86) 0%,
       rgba(151, 102, 36, 0.58) 33%,
-      rgba(0, 12, 15, 0.96) 58%,
+      rgba(0, 12, 15, 0.48) 58%,
       rgba(235, 181, 82, 0.74) 100%);
   --hud-divider: rgba(246, 196, 105, 0.18);
   --hud-shadow: 0 22px 58px rgba(2, 6, 23, 0.52);
@@ -124,6 +124,11 @@
   --hud-gap-lg: 18px;
   --hud-icon-size: 18px;
   --hud-icon-stroke: 1.85;
+  --hud-type-scale: 1.08;
+  --hud-title-scale: 1.08;
+  --hud-label-scale: 1.12;
+  --hud-data-scale: 1.08;
+  --hud-icon-scale: 1.18;
 
   /* Font Sizes — Desktop defaults (overridden by media queries below) */
   --text-xs: 0.75rem;

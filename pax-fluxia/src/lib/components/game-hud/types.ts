@@ -69,6 +69,16 @@ export interface QuickAccessAction {
   onClick: () => void;
 }
 
+export interface BottomCommandBarAction {
+  id: string;
+  icon: string;
+  label: string;
+  title: string;
+  active?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}
+
 export interface GameSpeedPanelActions {
   speed: GameSpeed;
   isPaused: boolean;

@@ -29,3 +29,26 @@ Bottom bar expand/collapse uses a wrong, non-semantic symbol. And there is no tr
 - Moved map fit into Star View and added previous/next owned-star cycling.
 - Added selected-star tray collapse transition and semantic chevron icon.
 - Browser-tested the live game at `http://127.0.0.1:5178/play`.
+
+## User
+
+# Files mentioned by the user:
+
+## pax_fluxia_quintessential_td_icon_atlas.pdf: C:\Users\mikep\Downloads\pax_fluxia_quintessential_td_icon_atlas.pdf
+
+## My request for Codex:
+1. gradient in borders is too strong to dark; halve it
+2. fonts generally are too small. Add font size(s) controls to Typography section within Appearance section of Settings. Similarly, icons are too small, they need size adjustment.
+3. You removed the bottombar centered controls widget. Did I ask you to? Why did you delete my UI? Do the right thing. Add it back.
+4. Add in the relevant icons from "C:\Users\mikep\Downloads\pax_fluxia_quintessential_td_icon_atlas.pdf"
+
+## Assistant Work Summary
+
+- Halved the dark stop opacity in the shared HUD panel/control border gradients.
+- Added HUD scale tokens for UI text, titles, labels, data, and icons.
+- Added sliders for those scale tokens inside the Appearance/Typography Token Lab.
+- Restored a persistent bottom-center command bar with Map, Players, Overlays, Settings, and View controls.
+- Shifted the selected-star tray above the restored bottom command bar so the two surfaces do not overlap.
+- Extracted 48 embedded icon assets from the supplied PDF atlas into `pax-fluxia/static/icons/td-atlas/`, made their black backgrounds transparent, and added selected `td-*` aliases to the HUD icon registry.
+- Added atlas-style SVG registry icons for map, overlays, history, view, orders, formation, and related compass/star/grid motifs.
+- Wrote a post-mortem for the surfaced-control removal failure.
