@@ -306,7 +306,7 @@
                 updatePanel("showHexGrid", value);
             }}
         />
-        <span class="var-name">🔷 Show Hex Grid</span>
+        <span class="var-name">Show Hex Grid</span>
     </label>
     <label class="toggle-row">
         <input
@@ -328,7 +328,7 @@
             data-setting-config-key="local.ui.starInspectorVisible"
             data-setting-description="Local-only toggle persisted in localStorage as pax-show-star-info."
         >
-            🔍 Star Inspector
+            Star Inspector
         </span>
         <span class="debug-hint">click star to inspect</span>
     </label>
@@ -347,7 +347,7 @@
             data-setting-config-key="local.mapTranspose.active"
             data-setting-description="Local-only transpose flag that swaps display axes without mutating star data."
         >
-            🔄 Rotate Map (Transpose)
+            Rotate Map (Transpose)
         </span>
         <span class="debug-hint">Flip X↔Y axes</span>
     </label>

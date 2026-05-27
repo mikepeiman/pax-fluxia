@@ -116,7 +116,7 @@
                     onclick={() => setShipFocus("active")}
                     title="Emphasize active ships"
                 >
-                    <HudIcon name="active-focus" size={13} />
+                    <HudIcon name="focus" size={13} />
                     <span>Active</span>
                 </button>
                 <button

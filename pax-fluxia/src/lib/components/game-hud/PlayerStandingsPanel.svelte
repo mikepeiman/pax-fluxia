@@ -80,7 +80,7 @@
         onclick={() => setShipFocus("active")}
         title="Emphasize active ships"
       >
-        <HudIcon name="ship-active" size={13} />
+        <HudIcon name="paper-plane" size={13} />
       </button>
       <button
         type="button"
@@ -89,7 +89,7 @@
         onclick={() => setShipFocus("total")}
         title="Emphasize total ships"
       >
-        <HudIcon name="total-focus" size={13} />
+        <HudIcon name="circle-nodes" size={13} />
       </button>
     </div>
   </div>
@@ -103,10 +103,10 @@
 
   <div class="pf-standings__columns">
     <span>Player</span>
-    <span title="Active ships"><HudIcon name="ship-active" size={12} /> Act</span>
-    <span title="Total ships"><HudIcon name="total-focus" size={12} /> Tot</span>
-    <span title="Stars">Star</span>
-    <span title="Production">Prod</span>
+    <span title="Active ships"><HudIcon name="paper-plane" size={12} /> Act</span>
+    <span title="Total ships"><HudIcon name="circle-nodes" size={12} /> Tot</span>
+    <span title="Stars"><HudIcon name="atlas-star" size={12} /> Star</span>
+    <span title="Production"><HudIcon name="economy" size={12} /> Prod</span>
     <span title="Active percent">%</span>
   </div>
 

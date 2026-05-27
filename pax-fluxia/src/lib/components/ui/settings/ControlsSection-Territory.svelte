@@ -26,6 +26,7 @@
     territoryTuningStatus,
   } from "$lib/stores/territoryTuningStatusStore";
   import { TERRITORY_GEOMETRY_LIMITS } from "$lib/territory/geometry/geometryTuning";
+  import HudIcon from "$lib/components/ui/hud/HudIcon.svelte";
 
   // ControlsSection-Territory -- Territory Rendering (Voronoi + Metaball)
 
@@ -124,7 +125,7 @@
   const TERRITORY_SYSTEM_MODULES: Array<
     TerritoryModuleDef<TerritorySystemViewId>
   > = [
-    { id: "render-mode", label: "Mode", icon: "◎" },
+    { id: "render-mode", label: "Mode", icon: "draw-polygon" },
   ];
 
   const TERRITORY_SYSTEM_MODULE_PANEL_KEY = "territorySystemModuleVisibility";
@@ -589,17 +590,17 @@
   > {
     const modules: Array<
       TerritoryModuleDef<TerritoryRendererViewId>
-    > = [{ id: "topology", label: "Topology", icon: "⬡" }];
+    > = [{ id: "topology", label: "Topology", icon: "circle-nodes" }];
 
     if (resolveActiveStyleId() === "metaball") {
-      modules.unshift({ id: "metaball", label: "Metaball", icon: "◉" });
+      modules.unshift({ id: "metaball", label: "Metaball", icon: "arrows-to-circle" });
     }
 
     if (resolveActiveStyleId() === "perimeter_field") {
       modules.unshift({
         id: "perimeter-field",
-      label: "Perimeter Field",
-        icon: "◎",
+        label: "Perimeter Field",
+        icon: "border-all",
       });
     }
 
@@ -607,7 +608,7 @@
       modules.unshift({
         id: "metaball-grid",
         label: "Grid",
-        icon: "▦",
+        icon: "quick-access",
       });
     }
 
@@ -616,7 +617,7 @@
       resolveActiveStyleId() === "territory_runtime" ||
       resolveActiveStyleId() === "power_voronoi_runtime"
     ) {
-      modules.push({ id: "surface", label: "Surface", icon: "✦" });
+      modules.push({ id: "surface", label: "Surface", icon: "draw-polygon" });
     }
 
     if (view === "tuning") {
@@ -706,7 +707,7 @@
             activeSystemModule === module.id ? "all" : module.id,
           );
         }}>
-        <span class="territory-module-chip__icon">{module.icon}</span>
+        <span class="territory-module-chip__icon"><HudIcon name={module.icon} size={16} /></span>
         <span>{module.label}</span>
       </button>
     {/each}
@@ -881,7 +882,7 @@
               activeRendererModule === module.id ? "all" : module.id,
             );
           }}>
-          <span class="territory-module-chip__icon">{module.icon}</span>
+          <span class="territory-module-chip__icon"><HudIcon name={module.icon} size={16} /></span>
           <span>{module.label}</span>
         </button>
       {/each}
@@ -2388,8 +2389,8 @@
   .territory-module-chip__icon {
     display: inline-grid;
     place-items: center;
-    width: 14px;
-    font-size: 11px;
+    width: 18px;
+    font-size: 13px;
     line-height: 1;
   }
   .territory-module-grid {

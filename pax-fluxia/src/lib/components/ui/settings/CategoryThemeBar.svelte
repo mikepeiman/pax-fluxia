@@ -234,7 +234,7 @@
                     onclick={handleSave}
                     title="Save Theme"
                 >
-                    <HudIcon name="active-focus" size={12} />
+                    <HudIcon name="focus" size={12} />
                 </button>
             </div>
         </div>

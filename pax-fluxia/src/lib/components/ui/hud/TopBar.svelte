@@ -1,4 +1,5 @@
 <script lang="ts">
+  import HudIcon from "$lib/components/ui/hud/HudIcon.svelte";
   import { gameStore } from "$lib/stores/gameStore.svelte";
 
   interface Props {
@@ -37,7 +38,7 @@
         class="top-bar-btn back-btn"
         onclick={() => gameStore.setView("menu")}
         title="Return to Menu">
-        ← MENU
+        MENU
       </button>
     {/if}
   </div>
@@ -54,7 +55,7 @@
         class="top-bar-btn icon-btn"
         onclick={onSettingsClick}
         title="Settings">
-        ⚙
+        <HudIcon name="settings" size={16} />
       </button>
     {/if}
   </div>
@@ -66,7 +67,7 @@
     class:active={diagnosticsActive}
     onclick={onDiagnosticsClick}
     title="Diagnostics">
-    ◎
+    <HudIcon name="circle-info" size={16} />
   </button>
 {/if}
 
@@ -76,7 +77,7 @@
     class:active={rulerActive}
     onclick={onRulerToggle}
     title={rulerActive ? "Turn Ruler Off" : "Turn Ruler On"}>
-    📏
+    <HudIcon name="border-all" size={16} />
   </button>
 {/if}
 
@@ -86,13 +87,13 @@
     class:active={authoredMeasurementsActive}
     onclick={onAuthoredMeasurementsToggle}
     title={authoredMeasurementsActive ? "Hide Map Measurements" : "Show Map Measurements"}>
-    ⇄
+    <HudIcon name="arrows-spin" size={16} />
   </button>
 {/if}
 
 {#if onFitViewport}
   <button class="fit-fab" onclick={onFitViewport} title="Fit to Viewport (F)">
-    ⛶
+    <HudIcon name="fit-view" size={16} />
   </button>
 {/if}
 

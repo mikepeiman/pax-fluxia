@@ -232,3 +232,29 @@ Validation:
 - `bun run --cwd pax-fluxia build`: passed.
 - `bun run --cwd pax-fluxia check`: failed on existing repository baseline with `329 errors and 819 warnings in 64 files`; no touched-file diagnostics remain from this follow-up.
 - Visual review should specifically check bottom-center bar/tray stacking at desktop sizes and whether the default 108-118% scale values are enough.
+
+## 2026-05-27 HUD Refinement And Iconography Pass
+
+User requested a concrete cleanup pass because the current HUD was still messy: insufficient padding, weak typography readability, inconsistent buttons, partial/varied Overlay Legend borders, and improper iconography. The attached reference was `C:/Users/mikep/Downloads/pax_qtd_icon_registry.md`.
+
+Implementation changes for the merge:
+
+- `pax-fluxia/src/lib/components/ui/hud/HudIcon.svelte`: added semantic Aurelia Drift/QTD-style icons for settings, appearance, render mode, overlay legend, quick access, game speed, standings, camera fit, focus, star view, active ships, total ships, damaged ships, route/send, cancel, borders, labels, and related tactical controls.
+- `pax-fluxia/src/app.css`: softened the shared gold-to-dark gradient borders by reducing the dark trough in both panel and control border gradients.
+- `pax-fluxia/src/lib/styles/hud.css`: added the refinement layer that increases panel padding, icon-button minimum size, game speed button height, standings row rhythm, Star View metric spacing, Theme Library padding, Typography panel spacing, bottom command bar size, and selected-star tray padding.
+- `pax-fluxia/src/lib/components/ui/hud-test/HudLayoutTestMockup.svelte`: rebuilt Overlay Legend as a padded rounded panel with consistent gold-gradient row controls and semantic icons.
+- `pax-fluxia/src/lib/components/game-hud/*.svelte`, `pax-fluxia/src/lib/components/game/GameContainer.svelte`, `pax-fluxia/src/lib/components/ui/GameSettingsPanel.svelte`, and settings section files: replaced obvious legacy icon names and visible glyph labels in the touched live/settings paths.
+- `pax-fluxia/src/lib/components/ui/settingsDefs.ts`: removed visible emoji prefixes from settings/log labels and changed tier icons to text-only placeholders until those rows render `HudIcon` directly.
+
+Validation status:
+
+- `git diff --check`: passed after code and documentation updates.
+- `bun run --cwd pax-fluxia build`: passed.
+- Browser QA: `/dev/ui-test` screenshot confirmed the Overlay Legend now has real padding and consistent rounded gold-gradient row styling. Direct `/play` and `/?showGame=1` screenshot attempts landed on the main menu, so live in-game QA still requires an explicit local-game start flow.
+- `bun run --cwd pax-fluxia check`: repository baseline remains blocked by the existing `329 errors and 819 warnings in 64 files`; this pass did not target unrelated baseline type debt.
+
+Merge guidance:
+
+- Preserve the semantic icon substitutions and the refinement block in `hud.css`; these are intentional corrective overrides for visual rhythm and readability.
+- If conflicts occur in the UI test mockup, keep the new `legendItems` data model and `.legend-row` control style, because that directly fixes the partial-border issue.
+- If conflicts occur in settings files, do not reintroduce emoji/glyph prefixes unless the row is explicitly rendering through `HudIcon`.

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import HudIcon from "$lib/components/ui/hud/HudIcon.svelte";
   import { gameStore } from "$lib/stores/gameStore.svelte";
 
   interface Props {
@@ -21,7 +22,7 @@
         class="top-bar-btn back-btn"
         onclick={() => gameStore.setView("menu")}
         title="Return to Menu">
-        ← MENU
+        MENU
       </button>
     {/if}
   </div>
@@ -38,7 +39,7 @@
         class="top-bar-btn icon-btn"
         onclick={onSettingsClick}
         title="Settings">
-        ⚙
+        <HudIcon name="settings" size={16} />
       </button>
     {/if}
     {#if onHelpClick}

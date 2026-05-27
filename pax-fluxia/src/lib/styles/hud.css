@@ -543,6 +543,10 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pf-star-metric strong {
@@ -1159,7 +1163,11 @@
 }
 
 .pf-game-speed__button span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .pf-star-card {
@@ -1861,6 +1869,144 @@
 
 .pf-selected-star-tray--collapsed {
   transform: translateX(-50%) translateY(4px);
+}
+
+/* Refinement pass: increase working padding and normalize button rhythm after
+   the earlier Aurelia Drift conversion compressed several live HUD surfaces. */
+.pf-hud-panel {
+  gap: var(--hud-gap-sm);
+  padding: var(--hud-pad-sm);
+}
+
+.pf-hud-panel__header {
+  min-height: 38px;
+  padding-bottom: var(--hud-gap-sm);
+}
+
+.pf-hud-panel__eyebrow,
+.pf-hud-topbar__status-item span,
+.pf-hud-topbar__summary-cell span,
+.pf-standings__toolbar,
+.pf-standings__columns,
+.pf-star-metric span,
+.pf-selected-star-tray__label,
+.pf-theme-library__eyebrow,
+.pf-typography-panel__eyebrow,
+.pf-theme-library__select-label span {
+  line-height: 1.1;
+}
+
+.pf-hud-panel__title,
+.pf-hud-topbar__summary-cell strong,
+.pf-hud-topbar__status-item strong,
+.pf-standings__name,
+.pf-theme-library__row-name {
+  line-height: 1.15;
+}
+
+.pf-hud-icon-button {
+  min-width: calc(36px * var(--hud-icon-scale, 1));
+  min-height: calc(36px * var(--hud-icon-scale, 1));
+}
+
+.pf-game-speed__buttons,
+.pf-quick-access-dock {
+  gap: 8px;
+}
+
+.pf-game-speed__button {
+  min-height: 40px;
+  gap: 6px;
+  padding: 0 8px;
+  font-size: calc(0.68rem * var(--hud-type-scale, 1));
+}
+
+.pf-standings__summary,
+.pf-standings__columns,
+.pf-standings__row {
+  grid-template-columns:
+    minmax(0, 1.5fr)
+    minmax(34px, 0.65fr)
+    minmax(38px, 0.7fr)
+    minmax(28px, 0.48fr)
+    minmax(34px, 0.58fr)
+    minmax(32px, 0.5fr);
+  gap: 6px;
+}
+
+.pf-standings__summary {
+  padding: 8px;
+  font-size: calc(0.62rem * var(--hud-type-scale, 1));
+}
+
+.pf-standings__row {
+  min-height: 36px;
+  padding: 6px 8px;
+  font-size: calc(0.72rem * var(--hud-type-scale, 1));
+}
+
+.pf-standings__columns {
+  font-size: calc(0.54rem * var(--hud-label-scale, 1));
+}
+
+.pf-star-card {
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.pf-star-card__type {
+  min-height: 72px;
+}
+
+.pf-star-card__metrics {
+  gap: 8px;
+}
+
+.pf-star-metric {
+  min-height: 52px;
+  padding: 9px 10px;
+  gap: 5px;
+}
+
+.pf-theme-library,
+.pf-typography-panel {
+  gap: 10px;
+  padding: 12px;
+}
+
+.pf-theme-library__header,
+.pf-typography-panel__header {
+  padding-bottom: 9px;
+}
+
+.pf-theme-library select,
+.pf-theme-library input,
+.pf-typography-panel select,
+.pf-theme-library__icon-btn,
+.pf-theme-library__actions button,
+.pf-theme-library__save-row button,
+.pf-typography-panel__reset {
+  min-height: 36px;
+}
+
+.pf-theme-library__row {
+  min-height: 34px;
+  padding: 0 9px;
+}
+
+.pf-bottom-command-bar {
+  min-height: 76px;
+  padding: 10px 16px;
+}
+
+.pf-bottom-command-bar__button {
+  min-width: 98px;
+  gap: 7px;
+  padding: 8px 14px;
+}
+
+.pf-selected-star-tray {
+  padding: 12px 14px;
 }
 
 @media (max-width: 1024px) {

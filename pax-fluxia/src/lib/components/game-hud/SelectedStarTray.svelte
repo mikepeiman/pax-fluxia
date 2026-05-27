@@ -51,11 +51,11 @@
       </div>
 
       <div class="pf-selected-star-tray__actions">
-        <HudIconButton icon="active-focus" title="Zoom selected star" onclick={() => onCenterStar(star.id)} />
-        <HudIconButton icon="fit" title="Fit map" onclick={onFitMap} />
+        <HudIconButton icon="focus" title="Zoom selected star" onclick={() => onCenterStar(star.id)} />
+        <HudIconButton icon="fit-view" title="Fit map" onclick={onFitMap} />
         {#if star.targetId}
           <HudIconButton
-            icon="close"
+            icon="ban"
             title="Cancel current route"
             danger
             onclick={() => onCancelOrder(star.id)}

@@ -97,16 +97,16 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
     },
     {
         id: "map_options",
-        icon: "map-options",
+        icon: "draw-polygon",
         label: "Map Options & Tuning",
         color: "#cc66ff",
         tier: "basic",
         scope: "visuals",
         subsections: [
             { id: "background", label: "Background", icon: "theme" },
-            { id: "map-layout", label: "Map Layout", icon: "map-options" },
-            { id: "labels-inspector", label: "Labels & Inspector", icon: "search" },
-            { id: "connections", label: "Connections", icon: "travel" },
+            { id: "map-layout", label: "Map Layout", icon: "map-location" },
+            { id: "labels-inspector", label: "Labels & Inspector", icon: "font" },
+            { id: "connections", label: "Connections", icon: "link" },
         ],
     },
     {
@@ -186,11 +186,11 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         tier: "developer",
         scope: "diagnostics",
         subsections: [
-            { id: "overlays", label: "Overlays", icon: "phase-field" },
+            { id: "overlays", label: "Overlays", icon: "overlay-legend" },
             { id: "measurements", label: "Measurements", icon: "measure" },
             { id: "recorder", label: "Recorder & Bundles", icon: "logging" },
             { id: "exports", label: "Exports", icon: "export" },
-            { id: "mode-diagnostics", label: "Mode Diagnostics", icon: "leaderboard" },
+            { id: "mode-diagnostics", label: "Mode Diagnostics", icon: "ranking-star" },
         ],
     },
     {

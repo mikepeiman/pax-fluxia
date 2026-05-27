@@ -18,10 +18,85 @@
       body: `<path d="M5 7h14M5 12h14M5 17h14" fill="none" stroke="currentColor" stroke-linecap="round" />`,
     },
     settings: {
-      body: `<path d="m12 3.5 1.3 2.5 2.8.4-2 2 0.5 2.9L12 10l-2.6 1.3.5-2.9-2-2 2.8-.4L12 3.5Z" fill="none" stroke="currentColor" stroke-linejoin="round" /><circle cx="12" cy="8.8" r="1.7" fill="none" stroke="currentColor" />`,
+      body: `<path d="M12 4.2v2.1M12 17.7v2.1M5.3 8l1.8 1M16.9 15l1.8 1M5.3 16l1.8-1M16.9 9l1.8-1" fill="none" stroke="currentColor" stroke-linecap="round" /><path d="M8.4 6.5 10 5.6l1.1 1.3a5.5 5.5 0 0 1 1.8 0L14 5.6l1.6.9-.4 1.7c.4.4.7.9.9 1.5l1.6.5v1.8l-1.6.5c-.2.6-.5 1.1-.9 1.5l.4 1.7-1.6.9-1.1-1.3a5.5 5.5 0 0 1-1.8 0L10 18.4l-1.6-.9.4-1.7c-.4-.4-.7-.9-.9-1.5l-1.6-.5v-1.8l1.6-.5c.2-.6.5-1.1.9-1.5Z" fill="none" stroke="currentColor" stroke-linejoin="round" /><circle cx="12" cy="12" r="2.2" fill="none" stroke="currentColor" />`,
     },
     tune: {
       body: `<path d="M6 7h12M9 7v10M6 12h12M15 3v14M6 17h12" fill="none" stroke="currentColor" stroke-linecap="round" /><circle cx="9" cy="10.5" r="1.6" fill="currentColor" /><circle cx="15" cy="6.2" r="1.6" fill="currentColor" /><circle cx="13" cy="17" r="1.3" fill="currentColor" />`,
+    },
+    gem: {
+      body: `<path d="M7.2 5.3h9.6l3.1 4.1L12 19 4.1 9.4Z" fill="none" stroke="currentColor" stroke-linejoin="round" /><path d="M8.2 5.5 12 19l3.8-13.5M4.4 9.4h15.2M9.2 9.4 12 5.5l2.8 3.9" fill="none" stroke="currentColor" stroke-linejoin="round" />`,
+    },
+    "draw-polygon": {
+      body: `<path d="M6 16.5 8 6.7l8.6-1.2 2.1 7.4-5.8 5.8Z" fill="none" stroke="currentColor" stroke-linejoin="round" /><circle cx="8" cy="6.7" r="1.4" fill="none" stroke="currentColor" /><circle cx="16.6" cy="5.5" r="1.4" fill="none" stroke="currentColor" /><circle cx="18.7" cy="12.9" r="1.4" fill="none" stroke="currentColor" /><circle cx="12.9" cy="18.7" r="1.4" fill="none" stroke="currentColor" /><circle cx="6" cy="16.5" r="1.4" fill="none" stroke="currentColor" />`,
+    },
+    "overlay-legend": {
+      body: `<path d="M8.4 6.2h10.2M8.4 12h10.2M8.4 17.8h10.2" fill="none" stroke="currentColor" stroke-linecap="round" /><path d="m4.7 6.1.9.9 1.8-2M4.7 11.9l.9.9 1.8-2M4.7 17.7l.9.9 1.8-2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />`,
+    },
+    "quick-access": {
+      body: `<path d="M5 5h5v5H5ZM14 5h5v5h-5ZM5 14h5v5H5ZM14 14h5v5h-5Z" fill="none" stroke="currentColor" stroke-linejoin="round" />`,
+    },
+    stopwatch: {
+      body: `<path d="M10 4h4M12 4v2M17.4 7.2l1.3-1.3" fill="none" stroke="currentColor" stroke-linecap="round" /><circle cx="12" cy="13" r="6.5" fill="none" stroke="currentColor" /><path d="M12 9.6V13l2.3 1.4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />`,
+    },
+    "ranking-star": {
+      body: `<path d="M5 18v-5M10 18V8M15 18v-7M4 18h16" fill="none" stroke="currentColor" stroke-linecap="round" /><path d="m18 4.8.8 1.7 1.8.2-1.3 1.2.3 1.8-1.6-.9-1.6.9.3-1.8-1.3-1.2 1.8-.2Z" fill="none" stroke="currentColor" stroke-linejoin="round" />`,
+    },
+    "map-location": {
+      body: `<path d="m4.5 6.4 4-1.4 5 1.8 6-1.6v12l-6 1.6-5-1.8-4 1.4Z" fill="none" stroke="currentColor" stroke-linejoin="round" /><path d="M8.5 5v12M13.5 6.8v12" fill="none" stroke="currentColor" /><path d="M16.5 8.2c1.6 0 2.8 1.2 2.8 2.7 0 2-2.8 4.6-2.8 4.6s-2.8-2.6-2.8-4.6c0-1.5 1.2-2.7 2.8-2.7Z" fill="none" stroke="currentColor" /><circle cx="16.5" cy="10.9" r=".8" fill="currentColor" />`,
+    },
+    "map-pin": {
+      body: `<path d="M12 4.2c2.7 0 4.8 2.1 4.8 4.7 0 3.5-4.8 9.1-4.8 9.1S7.2 12.4 7.2 8.9c0-2.6 2.1-4.7 4.8-4.7Z" fill="none" stroke="currentColor" stroke-linejoin="round" /><circle cx="12" cy="9" r="1.7" fill="none" stroke="currentColor" />`,
+    },
+    "fit-view": {
+      body: `<path d="M5.3 9V5.3H9M15 5.3h3.7V9M18.7 15v3.7H15M9 18.7H5.3V15" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" /><path d="M9.2 9.2 5.6 5.6M14.8 9.2l3.6-3.6M14.8 14.8l3.6 3.6M9.2 14.8l-3.6 3.6" fill="none" stroke="currentColor" stroke-linecap="round" />`,
+    },
+    focus: {
+      body: `<circle cx="12" cy="12" r="5.2" fill="none" stroke="currentColor" /><circle cx="12" cy="12" r="1.7" fill="none" stroke="currentColor" /><path d="M12 3.8v3M12 17.2v3M3.8 12h3M17.2 12h3" fill="none" stroke="currentColor" stroke-linecap="round" />`,
+    },
+    binoculars: {
+      body: `<path d="M6.3 10.2 8 5.8h2.5l.9 4.4M17.7 10.2 16 5.8h-2.5l-.9 4.4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" /><circle cx="8.2" cy="14.2" r="3.2" fill="none" stroke="currentColor" /><circle cx="15.8" cy="14.2" r="3.2" fill="none" stroke="currentColor" /><path d="M11.4 13.7h1.2" fill="none" stroke="currentColor" stroke-linecap="round" />`,
+    },
+    "paper-plane": {
+      body: `<path d="M4.8 12.7 19.2 5.2l-4.7 14.2-3-5.7-6.7-1Z" fill="none" stroke="currentColor" stroke-linejoin="round" /><path d="m11.5 13.7 3.2-3.4" fill="none" stroke="currentColor" stroke-linecap="round" />`,
+    },
+    "circle-nodes": {
+      body: `<circle cx="7" cy="7" r="2" fill="none" stroke="currentColor" /><circle cx="17" cy="8" r="2" fill="none" stroke="currentColor" /><circle cx="9" cy="17" r="2" fill="none" stroke="currentColor" /><circle cx="17" cy="17" r="1.6" fill="none" stroke="currentColor" /><path d="M9 7.2 15 7.8M8 9l1 6M11 16.9h4.4M15.7 9.6 10.3 15.4" fill="none" stroke="currentColor" stroke-linecap="round" />`,
+    },
+    burst: {
+      body: `<path d="M12 3.8 13.3 9l4.9-2.2-2.2 4.9 5.2 1.3-5.2 1.3 2.2 4.9-4.9-2.2L12 22.2 10.7 17l-4.9 2.2 2.2-4.9L2.8 13l5.2-1.3-2.2-4.9L10.7 9Z" fill="none" stroke="currentColor" stroke-linejoin="round" />`,
+    },
+    ban: {
+      body: `<circle cx="12" cy="12" r="7.4" fill="none" stroke="currentColor" /><path d="M7 7 17 17" fill="none" stroke="currentColor" stroke-linecap="round" />`,
+    },
+    route: {
+      body: `<circle cx="6" cy="17" r="1.9" fill="none" stroke="currentColor" /><circle cx="18" cy="7" r="1.9" fill="none" stroke="currentColor" /><path d="M7.8 16.2c4.7-1.8 1.7-7.1 6.9-8.6" fill="none" stroke="currentColor" stroke-linecap="round" stroke-dasharray="1.5 1.7" /><path d="m15.3 5.4 2.7 1.6-1.6 2.7" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />`,
+    },
+    flag: {
+      body: `<path d="M6.5 20V5.2" fill="none" stroke="currentColor" stroke-linecap="round" /><path d="M7 5.5h9.8l-1.5 3.1 1.5 3.1H7Z" fill="none" stroke="currentColor" stroke-linejoin="round" />`,
+    },
+    "building-shield": {
+      body: `<path d="M5.5 18.8V8l6.5-3.6L18.5 8v10.8" fill="none" stroke="currentColor" stroke-linejoin="round" /><path d="M9 18.8v-5.2h6v5.2M8.2 9.5h7.6" fill="none" stroke="currentColor" stroke-linecap="round" /><path d="M12 10.8 15.2 12v2.2c0 1.6-1.2 2.8-3.2 3.5-2-.7-3.2-1.9-3.2-3.5V12Z" fill="none" stroke="currentColor" stroke-linejoin="round" />`,
+    },
+    link: {
+      body: `<path d="M9.8 8.1 11 6.9a4 4 0 0 1 5.7 5.7l-1.3 1.3M14.2 15.9 13 17.1a4 4 0 0 1-5.7-5.7l1.3-1.3M9.8 14.2l4.4-4.4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />`,
+    },
+    font: {
+      body: `<path d="M5 18.5 10.2 5.5h3.6L19 18.5M8 13.5h8M4.5 18.5h4M15.5 18.5h4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />`,
+    },
+    "border-all": {
+      body: `<rect x="5" y="5" width="14" height="14" rx="1.5" fill="none" stroke="currentColor" /><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-linecap="round" />`,
+    },
+    "arrows-spin": {
+      body: `<path d="M7.5 8.6A5.8 5.8 0 0 1 17 9.5l1.1.4M16.5 15.4A5.8 5.8 0 0 1 7 14.5l-1.1-.4" fill="none" stroke="currentColor" stroke-linecap="round" /><path d="M18.3 6.8v3.5h-3.5M5.7 17.2v-3.5h3.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />`,
+    },
+    "arrows-to-circle": {
+      body: `<circle cx="12" cy="12" r="3.4" fill="none" stroke="currentColor" /><path d="M12 3.8v4.2M12 16v4.2M3.8 12h4.2M16 12h4.2M6.2 6.2l3 3M14.8 14.8l3 3M17.8 6.2l-3 3M9.2 14.8l-3 3" fill="none" stroke="currentColor" stroke-linecap="round" />`,
+    },
+    "chart-simple": {
+      body: `<path d="M5 19V5M5 19h14" fill="none" stroke="currentColor" stroke-linecap="round" /><path d="M8 15v-4M12 15V8M16 15v-6" fill="none" stroke="currentColor" stroke-linecap="round" />`,
+    },
+    "circle-info": {
+      body: `<circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" /><path d="M12 11.2v4.5M12 8.2h.01" fill="none" stroke="currentColor" stroke-linecap="round" />`,
     },
     leaderboard: {
       body: `<path d="M5 18V9M12 18V6M19 18v-4" fill="none" stroke="currentColor" stroke-linecap="round" /><path d="M4 18h16" fill="none" stroke="currentColor" stroke-linecap="round" />`,

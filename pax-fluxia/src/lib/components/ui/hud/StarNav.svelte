@@ -286,7 +286,7 @@
                 {/if}
             </span>
             <span class="star-route-chip">
-                <HudIcon name="active-focus" size={13} />
+                <HudIcon name="focus" size={13} />
                 {displayedStarDetails.incoming.length} inbound
             </span>
             <button

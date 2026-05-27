@@ -793,7 +793,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         { id: "theme_library", icon: "library", label: "Themes", color: "#f6c469" },
         {
             id: "appearance",
-            icon: "theme",
+            icon: "gem",
             label: "Appearance",
             color: "#5ee6ff",
             sectionId: "map_options",
@@ -808,12 +808,12 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         { id: "audio", icon: "audio", label: "Audio", color: "#44ddbb", sectionId: "audio" },
         {
             id: "video_graphics",
-            icon: "fleet-star",
+            icon: "draw-polygon",
             label: "Video / Graphics",
             color: "#93c5fd",
             sectionId: "fleet_star_visuals",
         },
-        { id: "stats", icon: "leaderboard", label: "Stats", color: "#f6c469" },
+        { id: "stats", icon: "ranking-star", label: "Stats", color: "#f6c469" },
         {
             id: "diagnostics",
             icon: "diagnostics",
@@ -1311,7 +1311,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         <div class="section-panel settings-tool-panel" style="--accent: #5ee6ff">
             <div class="section-head-wrap">
                 <button class="section-head" onclick={() => setActiveTool(null)}>
-                    <span class="head-icon"><HudIcon name="theme" /></span>
+                    <span class="head-icon"><HudIcon name="gem" /></span>
                     <span class="head-label">Theme Tuning / Appearance</span>
                     <span class="head-close"><HudIcon name="close" size={14} /></span>
                 </button>
@@ -1331,7 +1331,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         <div class="section-panel settings-tool-panel" style="--accent: #f6c469">
             <div class="section-head-wrap">
                 <button class="section-head" onclick={() => setActiveTool(null)}>
-                    <span class="head-icon"><HudIcon name="leaderboard" /></span>
+                    <span class="head-icon"><HudIcon name="ranking-star" /></span>
                     <span class="head-label">Stats</span>
                     <span class="head-close"><HudIcon name="close" size={14} /></span>
                 </button>
@@ -2393,6 +2393,71 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .settings-help-panel strong {
         color: var(--hud-accent-warm-strong);
         font-family: var(--hud-font-data);
+    }
+
+    .icon-toolbar {
+        gap: 8px;
+        padding: 10px;
+    }
+
+    .icon-toolbar__controls {
+        gap: 8px;
+        padding-bottom: 9px;
+    }
+
+    .icon-toolbar-control,
+    .icon-btn,
+    .icon-toolbar.has-active .icon-btn,
+    .settings-tool-action {
+        min-height: 48px;
+    }
+
+    .controls-panel--ribbon-expanded .icon-btn,
+    .controls-panel--ribbon-expanded .icon-toolbar.has-active .icon-btn,
+    .controls-panel--ribbon-expanded .icon-toolbar-control {
+        min-height: 46px;
+        padding: 0 12px;
+        gap: 10px;
+    }
+
+    .icon-symbol {
+        width: 21px;
+        height: 21px;
+    }
+
+    .icon-symbol :global(svg) {
+        width: calc(19px * var(--hud-icon-scale, 1));
+        height: calc(19px * var(--hud-icon-scale, 1));
+    }
+
+    .icon-label {
+        font-size: calc(0.64rem * var(--hud-label-scale, 1));
+        letter-spacing: 0.1em;
+        line-height: 1.1;
+    }
+
+    .settings-content {
+        gap: 12px;
+    }
+
+    .section-head {
+        min-height: 48px;
+        padding: 0 14px;
+    }
+
+    .head-label {
+        font-size: calc(0.86rem * var(--hud-title-scale, 1));
+        line-height: 1.1;
+    }
+
+    .section-body {
+        gap: 12px;
+        padding: 14px;
+    }
+
+    .settings-stat-row,
+    .settings-help-panel > div {
+        min-height: 42px;
     }
 
 </style>

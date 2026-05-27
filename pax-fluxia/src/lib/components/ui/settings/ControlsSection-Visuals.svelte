@@ -401,7 +401,7 @@
             updatePanel("showSelectionHex", v);
         }}
     />
-    <span class="var-name">⬡ Selection Hex</span><span
+    <span class="var-name">Selection Hex</span><span
         class="val"
         style="font-size:9px;opacity:0.6">Hex border on active star</span
     ></label

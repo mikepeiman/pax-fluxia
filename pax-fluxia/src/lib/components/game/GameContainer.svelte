@@ -483,14 +483,14 @@
   const bottomCommandBarActions = $derived.by((): BottomCommandBarAction[] => [
     {
       id: "map",
-      icon: "map",
+      icon: "map-location",
       label: "Map",
       title: "Fit map to screen",
       onClick: () => gameCanvasRef?.centerAndFit?.(),
     },
     {
       id: "players",
-      icon: "players",
+      icon: "ranking-star",
       label: "Players",
       title: leaderboardCollapsed ? "Show player standings" : "Collapse player standings",
       active: !leaderboardCollapsed,
@@ -498,7 +498,7 @@
     },
     {
       id: "overlays",
-      icon: "overlays",
+      icon: "overlay-legend",
       label: "Overlays",
       title: "Open appearance and map overlay controls",
       active: showSettingsPanel && forceOpenSettingsSection === "map_options",
@@ -514,7 +514,7 @@
     },
     {
       id: "view",
-      icon: "view",
+      icon: "fit-view",
       label: "View",
       title: selectedStarStore.id ? "Zoom selected star" : "Fit map to screen",
       onClick: () => {
@@ -757,7 +757,7 @@
               <span class="room-id-label">ROOM</span>
               <code class="room-id-code">{multiplayerStore.roomId}</code>
               <span class="room-id-icon">
-                <HudIcon name={roomIdCopied ? "active-focus" : "logging"} size={12} />
+                <HudIcon name={roomIdCopied ? "focus" : "logging"} size={12} />
               </span>
             </button>
           </div>

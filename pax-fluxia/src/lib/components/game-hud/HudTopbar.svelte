@@ -45,7 +45,7 @@
   <div class="pf-hud-topbar__brand">
     <HudIconButton icon="menu" title="Main menu" onclick={onMenuClick} />
     <HudIconButton
-      icon="tune"
+      icon="settings"
       title={settingsOpen ? "Collapse settings rail" : "Open settings rail"}
       active={settingsOpen}
       onclick={onSettingsClick}

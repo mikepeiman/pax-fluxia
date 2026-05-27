@@ -33,7 +33,7 @@
       onclick={onPreviousOwnedStar}
     />
     <HudIconButton
-      icon="active-focus"
+      icon="focus"
       title={star ? "Zoom selected star" : "Select an owned star first"}
       disabled={!star}
       onclick={() => {
@@ -41,7 +41,7 @@
       }}
     />
     <HudIconButton
-      icon="fit"
+      icon="fit-view"
       title="Fit map"
       onclick={onFitMap}
     />
@@ -72,27 +72,27 @@
 
       <div class="pf-star-card__metrics">
         <div class="pf-star-metric">
-          <span><HudIcon name="ship-active" size={13} /> Active</span>
+          <span><HudIcon name="paper-plane" size={13} /> Active</span>
           <strong class="font-hud-data">{formatHudNumber(star.activeShips)}</strong>
         </div>
         <div class="pf-star-metric">
-          <span><HudIcon name="ship-damaged" size={13} /> Damaged</span>
+          <span><HudIcon name="burst" size={13} /> Damaged</span>
           <strong class="font-hud-data">{formatHudNumber(star.damagedShips)}</strong>
         </div>
         <div class="pf-star-metric">
-          <span>Production</span>
+          <span><HudIcon name="economy" size={13} /> Production</span>
           <strong class="font-hud-data">{formatHudNumber(star.productionRate, 1)}</strong>
         </div>
         <div class="pf-star-metric">
-          <span>Repair</span>
+          <span><HudIcon name="reset" size={13} /> Repair</span>
           <strong class="font-hud-data">{formatHudNumber(star.repairRate, 1)}%</strong>
         </div>
         <div class="pf-star-metric">
-          <span>Transfer</span>
+          <span><HudIcon name="route" size={13} /> Transfer</span>
           <strong class="font-hud-data">{formatHudNumber(star.transferRate, 1)}%</strong>
         </div>
         <div class="pf-star-metric">
-          <span>Activation</span>
+          <span><HudIcon name="stopwatch" size={13} /> Activation</span>
           <strong class="font-hud-data">{formatHudNumber(star.activationRate, 1)}%</strong>
         </div>
       </div>
