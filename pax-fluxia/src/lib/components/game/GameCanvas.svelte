@@ -151,6 +151,10 @@
         RenderFamilyTransitionSession,
     } from "$lib/territory/families/RenderFamilyTypes";
     import { buildRenderFamilyTransitionLifecycle } from "$lib/territory/transitions/renderFamilyTransitionLifecycle";
+    import {
+        ownershipSnapshotHasPreviousConquestOwners,
+        transitionHasPostConquestOwners,
+    } from "$lib/territory/transitions/renderFamilyPreviousFrame";
     import { getTerritoryVisualEpoch } from "$lib/territory/bumpTerritoryVisualConfig";
     import { resolveTerritoryArchitectureRoute } from "$lib/territory/integration/TerritoryArchitectureRouter";
     import {
@@ -2830,7 +2834,17 @@
             !transitionDiagnosticPrevGeometry ||
             !transitionDiagnosticPrevOwnership
         ) {
-            if (renderFamilyStableGeometry && renderFamilyStableOwnership) {
+            const stableFrameMatchesTransition =
+                !!renderFamilyStableGeometry &&
+                ownershipSnapshotHasPreviousConquestOwners({
+                    activeTransition: params.activeTransition,
+                    ownership: renderFamilyStableOwnership,
+                });
+            if (
+                stableFrameMatchesTransition &&
+                renderFamilyStableGeometry &&
+                renderFamilyStableOwnership
+            ) {
                 transitionDiagnosticPrevKey = key;
                 transitionDiagnosticPrevGeometry = renderFamilyStableGeometry;
                 transitionDiagnosticPrevOwnership = renderFamilyStableOwnership;
@@ -2873,6 +2887,9 @@
                 transitionDiagnosticPrevOwnership = ownership;
                 recordPerfEvent("territory.renderFamily.prevFrame", {
                     source: "transition_rebuild",
+                    reason: renderFamilyStableGeometry
+                        ? "stable_previous_owner_mismatch"
+                        : "missing_stable_frame",
                     transitionKey: key,
                     geometryVersion: geometry.version,
                     ownershipVersion: ownership.version,
@@ -6079,7 +6096,17 @@
                             fam = getRenderFamily("grid_gradient")!;
                         }
                         const gg = fam as GridGradientFamily;
-                        const activeTransition = activeRenderFamilyTransition;
+                        const pendingGridGradientTransition =
+                            activeRenderFamilyTransition;
+                        const activeTransition =
+                            pendingGridGradientTransition &&
+                            transitionHasPostConquestOwners({
+                                activeTransition:
+                                    pendingGridGradientTransition,
+                                stars: territoryPresentationStars,
+                            })
+                                ? pendingGridGradientTransition
+                                : null;
                         const ownership = measurePerf(
                             "game.renderFrame.ownership.grid_gradient",
                             () =>
@@ -6119,7 +6146,9 @@
                                     renderer: app?.renderer ?? undefined,
                                     activeTransition,
                                     transitionSessions:
-                                        renderFamilyTransitionState.activeSessions,
+                                        activeTransition
+                                            ? renderFamilyTransitionState.activeSessions
+                                            : null,
                                     tunableKeys: gg.tunableKeys,
                                     configSource: renderFamilyConfigSource,
                                 }),
