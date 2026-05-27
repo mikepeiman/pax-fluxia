@@ -25,6 +25,11 @@ Validation:
 - `bun test src/lib/territory/transitions/renderFamilyPreviousFrame.test.ts src/lib/territory/families/gridGradient/GridGradientFamily.test.ts src/lib/territory/families/gridGradient/gridGradientShaderFieldPacking.test.ts`
 - `bun run build` in `pax-fluxia/`
 
+Immediate correction:
+
+- Fixed a Grid Gradient diagnostic crash in `GameCanvas.svelte` where logging attempted `geometry.regions.length` / `geometry.frontiers.length` on optional fields before the family update/render path ran.
+- Diagnostics now report `null` for those optional counts when absent, preserving rendering.
+
 Next step:
 
 - User should enable `Grid Gradient transition trace` in the Logging section, filter `[GG_TRANSITION]`, trigger one conquest, and copy logs from `transition_lifecycle.after_build` through `family.update.exit`.

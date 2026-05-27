@@ -1862,6 +1862,10 @@
         log.renderer("GG_TRANSITION", `[GG_TRANSITION] ${stage}`, data);
     }
 
+    function optionalArrayLength(value: unknown): number | null {
+        return Array.isArray(value) ? value.length : null;
+    }
+
     function summarizeRenderFamilyTransitionForLog(
         transition: RenderFamilyActiveTransition | null,
     ): Record<string, unknown> {
@@ -6341,8 +6345,14 @@
                             displayBorderFingerprint:
                                 geometry.diagnostics.stageLadder
                                     ?.displayBorderFingerprint ?? null,
-                            regionCount: geometry.regions.length,
-                            frontierCount: geometry.frontiers.length,
+                            regionCount: optionalArrayLength(
+                                (geometry as unknown as Record<string, unknown>)
+                                    .regions,
+                            ),
+                            frontierCount: optionalArrayLength(
+                                (geometry as unknown as Record<string, unknown>)
+                                    .frontiers,
+                            ),
                         });
                         const diagnosticPrevFrame = activeTransition
                             ? getTransitionDiagnosticPrevFrame({
