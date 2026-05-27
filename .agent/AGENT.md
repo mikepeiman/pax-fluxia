@@ -74,6 +74,10 @@ Stop using the term "canonical". Absolutely and completely.
   - whether user verification is needed
   - exact filesystem paths for new tools, outputs, and docs
 
+Rule: Do not use decorative rhetoric in technical planning. Prefer precise claims, explicit uncertainty, minimal metaphor, and no repeated punchline fragments. Every sentence should either define, constrain, compare, correct, or advance the design.
+
+Epistemic humility and accuracy: false certainty and false uncertainty are both equally degrading to clear understanding and communication, and antithetical to engineering and problem-solving.
+
 ### 2.5 Rename / Refactor Protocol
 
 When removing, renaming, or commenting out any symbol:
@@ -84,16 +88,29 @@ When removing, renaming, or commenting out any symbol:
 
 ## 3. Documentation Rules
 
+### RULE:
+> Create all new files with date leading the filename. eg `2026-05-18_some-semantic-title.md`
+> This does NOT mean "make a new file for every task"! The correct files to create are a finite set specified in the section `(all of the following go into daily session dir)`. 
+> If making meaningful revisions to a document as part of a dialogue with human, do not overwrite prior versions of file; save new version with a `V#` version appended to the filename.
+> Use a frontmatter section in all docs. Create new docs with it; add it to docs you touch.
+```text
+---
+date created:
+last updated:
+last updated by: [AI / human]
+relevant prior docs:
+superseding docs:
+---
+```
+
 ### 3.1 Where Things Go
 
-| Type | Path |
-|------|------|
+| Type                    | Path                                            |
+| ----------------------- | ----------------------------------------------- |
 | Feature ideas / roadmap | `.agent/docs/project/features/FEATURE_IDEAS.md` |
-| Feature status / bugs | `.agent/docs/project/features/FEATURE_STATUS.md` |
-| Daily active queue | `.agent/docs/plans/YYYY-MM-DD/FEATURE_AND_TASK_QUEUE_YYYY-MM-DD.md` |
-| Design decisions | `.agent/docs/project/decisions/DECISIONS.md` |
-| Mechanics changes | `.agent/docs/game/design/MECHANICS.md` |
-| **Session-specific** | `.agent/docs/sessions/YYYY-MM-DD/` |
+| Design decisions        | `.agent/docs/project/decisions/DECISIONS.md`    |
+| Mechanics changes       | `.agent/docs/game/design/MECHANICS.md`          |
+| **Session-specific**    | `.agent/docs/sessions/YYYY-MM-DD/`              |
 (all of the following go into daily session dir)
   | Plans | `YYYY-MM-DD_[semantic-plan-name].md` |
   | Session notes | `YYYY-MM-DD_Session.md` |
@@ -256,12 +273,12 @@ Unified engine lives in `common/src/engine/GameEngine.ts`.
 
 Use the 4-layer model:
 
-| Layer | Responsibility | Output |
-|------|------|------|
-| Ownership | Who owns what; virtual stars for conquest transitions | `OwnershipSnapshot` |
-| Geometry | Regions, frontiers, topology derived from ownership | `ResolvedGeometrySnapshot` |
-| Transition | Animation between geometry states | `TransitionSnapshot` |
-| Presentation | PIXI.Graphics fills, strokes, containers | rendered frame |
+| Layer        | Responsibility                                        | Output                     |
+| ------------ | ----------------------------------------------------- | -------------------------- |
+| Ownership    | Who owns what; virtual stars for conquest transitions | `OwnershipSnapshot`        |
+| Geometry     | Regions, frontiers, topology derived from ownership   | `ResolvedGeometrySnapshot` |
+| Transition   | Animation between geometry states                     | `TransitionSnapshot`       |
+| Presentation | PIXI.Graphics fills, strokes, containers              | rendered frame             |
 
 - Compiler: `compileVectorGeometry()` in `compiler_UnifiedVectorGeometry.ts`
 - Full spec: `.agent/docs/game/territory/TERRITORY_ARCHITECTURE.md`
@@ -334,33 +351,33 @@ Mandatory:
 
 ## 7. Common Failure Modes
 
-| Failure | Rule |
-|------|------|
-| Declaring fixed without verification | Say "please verify" |
-| Using `console.log` | Use telemetry logger |
-| Guessing type signatures | Read definitions first |
-| Removing user controls | Never without instruction |
-| Using npm/npx/yarn | Bun only |
-| Chaining with `&&` | Run commands separately |
-| Reading `GAME_CONFIG` in templates | Use panel state |
-| Timid slider ranges | Apply the 10x rule |
-| Declaring assumptions as facts | Use conditional language until verified |
+| Failure                              | Rule                                    |
+| ------------------------------------ | --------------------------------------- |
+| Declaring fixed without verification | Say "please verify"                     |
+| Using `console.log`                  | Use telemetry logger                    |
+| Guessing type signatures             | Read definitions first                  |
+| Removing user controls               | Never without instruction               |
+| Using npm/npx/yarn                   | Bun only                                |
+| Chaining with `&&`                   | Run commands separately                 |
+| Reading `GAME_CONFIG` in templates   | Use panel state                         |
+| Timid slider ranges                  | Apply the 10x rule                      |
+| Declaring assumptions as facts       | Use conditional language until verified |
 
 ## 8. File Reference
 
-| Need | Path |
-|------|------|
-| Game mechanics | `.agent/docs/game/design/MECHANICS.md` |
-| Master game spec | `.agent/docs/game/design/GAME_SPECIFICATION.md` |
-| Terminology | `.agent/docs/game/design/TERMINOLOGY.md` |
-| Feature status / bugs | `.agent/docs/project/features/FEATURE_STATUS.md` |
-| Feature ideas | `.agent/docs/project/features/FEATURE_IDEAS.md` |
-| Design decisions | `.agent/docs/project/decisions/DECISIONS.md` |
+| Need                   | Path                                                   |
+| ---------------------- | ------------------------------------------------------ |
+| Game mechanics         | `.agent/docs/game/design/MECHANICS.md`                 |
+| Master game spec       | `.agent/docs/game/design/GAME_SPECIFICATION.md`        |
+| Terminology            | `.agent/docs/game/design/TERMINOLOGY.md`               |
+| Feature status / bugs  | `.agent/docs/project/features/FEATURE_STATUS.md`       |
+| Feature ideas          | `.agent/docs/project/features/FEATURE_IDEAS.md`        |
+| Design decisions       | `.agent/docs/project/decisions/DECISIONS.md`           |
 | Territory architecture | `.agent/docs/game/territory/TERRITORY_ARCHITECTURE.md` |
-| Naming conventions | `.agent/docs/engineering/NAMING_CONVENTIONS.md` |
-| UI/design rules | `.agent/docs/atlas/DESIGN_RULES.md` |
-| Work history | `.agent/docs/project/WORK_HISTORY.md` |
-| Active rules | `.agent/rules/` |
+| Naming conventions     | `.agent/docs/engineering/NAMING_CONVENTIONS.md`        |
+| UI/design rules        | `.agent/docs/atlas/DESIGN_RULES.md`                    |
+| Work history           | `.agent/docs/project/WORK_HISTORY.md`                  |
+| Active rules           | `.agent/rules/`                                        |
 
 ## 9. Post-Mortem Trigger
 
