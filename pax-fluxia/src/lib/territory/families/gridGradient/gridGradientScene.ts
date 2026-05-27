@@ -119,11 +119,31 @@ export function resolveGridGradientTransitionScale(params: {
     return 0.28 + 0.72 * Math.sqrt(alpha);
 }
 
+function smoothstep(edge0: number, edge1: number, value: number): number {
+    if (edge0 === edge1) return value < edge0 ? 0 : 1;
+    const t = clamp01((value - edge0) / (edge1 - edge0));
+    return t * t * (3 - 2 * t);
+}
+
+export function resolveGridGradientTransitionBlendT(params: {
+    readonly progress: number;
+    readonly flipTime?: number;
+    readonly flipWindow?: number;
+}): number {
+    const progress = clamp01(params.progress);
+    if (!Number.isFinite(params.flipTime)) return progress;
+    const flipTime = clamp01(params.flipTime ?? 0.5);
+    const flipWindow = Math.max(0.28, params.flipWindow ?? 0.28);
+    return smoothstep(flipTime - flipWindow, flipTime + flipWindow, progress);
+}
+
 export function resolveGridGradientTransitionSideAlphas(params: {
     readonly role: GridVRole;
     readonly progress: number;
+    readonly flipTime?: number;
+    readonly flipWindow?: number;
 }): { prevAlpha: number; nextAlpha: number } {
-    const t = clamp01(params.progress);
+    const t = resolveGridGradientTransitionBlendT(params);
     if (params.role === 'outside') return { prevAlpha: 0, nextAlpha: 0 };
     if (params.role === 'native') return { prevAlpha: 0, nextAlpha: 1 };
     if (params.role === 'emergent') return { prevAlpha: 0, nextAlpha: t };

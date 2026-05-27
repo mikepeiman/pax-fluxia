@@ -10,6 +10,8 @@ Validation proved that transition code existed and built, but did not prove the 
 
 Follow-up user diagnostics later proved the transition plan was present: `shader_field`, local transition clock, progress around `0.397`, and 455 active cells. The remaining failure was presentation-specific. The shader-field packer counted changed cells before the border-offset visibility rule, while the shader then discarded cells with `distanceBand <= 0` when offset was enabled. Changed cells in the offset band were therefore counted active but not drawn.
 
+After the offset-band fix, user verification still reported no visible fill transition. The next identified weakness was presentation strength: an in-place global old/new dot crossfade can read as static when the dots overlap at the same grid cells. The current corrective pass uses the existing per-cell grid wave timing to create a broad visible mix band.
+
 ## Mistaken Reasoning
 
 I treated family/shader implementation and tests as enough evidence for visible transition behavior. That missed the live dispatch cache that supplies the previous geometry snapshot.
@@ -33,7 +35,8 @@ The user had to detect the failure visually. The report overstated confidence an
 - Add a focused test proving Grid Gradient produces active transition cells and advancing progress when given PREV/NEXT snapshots.
 - When live diagnostics show active cells and progress but no visible animation, move to the shader/presentation path and make the changed-cell transition visually continuous across the full conquest duration.
 - Keep transition cells drawable inside the Grid Gradient border-offset band while preserving offset suppression for steady native fill.
-- Add live diagnostics that separate active changed cells from drawable changed cells and offset-zone changed cells.
+- Use a broad per-cell wave for Grid Gradient fill transitions instead of relying on an in-place global crossfade.
+- Add live diagnostics that separate active changed cells, drawable changed cells, actively mixing cells, and offset-zone changed cells.
 
 ## Lessons
 

@@ -537,8 +537,8 @@
     <div class="perf-value">{$gridGradientStats.fillStyle}</div>
     <div class="perf-label">Cells</div>
     <div class="perf-value">{$gridGradientStats.paintedCells.toLocaleString()} / {$gridGradientStats.emittableCells.toLocaleString()} / {$gridGradientStats.totalCells.toLocaleString()}</div>
-    <div class="perf-label">Active/Drawable/Offset</div>
-    <div class="perf-value">{$gridGradientStats.activeTransitionCells.toLocaleString()} / {$gridGradientStats.activeDrawableTransitionCells.toLocaleString()} / {$gridGradientStats.activeOffsetZoneTransitionCells.toLocaleString()}</div>
+    <div class="perf-label">Active/Drawable/Mix/Offset</div>
+    <div class="perf-value">{$gridGradientStats.activeTransitionCells.toLocaleString()} / {$gridGradientStats.activeDrawableTransitionCells.toLocaleString()} / {$gridGradientStats.activeMixingTransitionCells.toLocaleString()} / {$gridGradientStats.activeOffsetZoneTransitionCells.toLocaleString()}</div>
     <div class="perf-label">Spacing</div>
     <div class="perf-value">{$gridGradientStats.requestedSpacingPx.toFixed(1)} / {$gridGradientStats.effectiveSpacingPx.toFixed(1)} px</div>
     <div class="perf-label">Borders</div>

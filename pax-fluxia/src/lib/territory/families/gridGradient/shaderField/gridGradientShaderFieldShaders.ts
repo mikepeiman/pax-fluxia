@@ -151,6 +151,11 @@ export const gridGradientShaderFieldBitGl = {
                 return 0.28 + 0.72 * sqrt(a);
             }
 
+            float transitionBlendT(float progress, float flipTime) {
+                float waveWindow = max(0.28, uFlipWindow);
+                return smoothstep(flipTime - waveWindow, flipTime + waveWindow, saturate(progress));
+            }
+
             vec4 shadeCellSide(
                 vec2 cell,
                 vec2 worldPos,
@@ -207,6 +212,7 @@ export const gridGradientShaderFieldBitGl = {
                 float prevOwner = unpackOwner(ownerPacked.rg);
                 float nextOwner = unpackOwner(ownerPacked.ba);
                 float distanceBand = metrics.r;
+                float flipTime = metrics.g;
                 float noiseSeed = metrics.a;
                 bool transitionRole = role >= 1.5;
                 if (!transitionRole && uBorderOffsetPx > 0.001 && distanceBand <= 0.001) {
@@ -258,7 +264,7 @@ export const gridGradientShaderFieldBitGl = {
                     );
                 }
 
-                float t = saturate(uProgress);
+                float t = transitionBlendT(uProgress, flipTime);
                 vec4 accum = vec4(0.0);
                 accum = alphaOver(
                     accum,

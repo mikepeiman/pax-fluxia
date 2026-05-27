@@ -6,6 +6,7 @@ import {
     resolveGridGradientCellSize,
     resolveGridGradientDrawableCellSize,
     resolveGridGradientTransitionFloorSizePx,
+    resolveGridGradientTransitionBlendT,
     resolveGridGradientTransitionSideAlphas,
     resolveGridGradientTransitionScale,
 } from './gridGradientScene';
@@ -218,6 +219,35 @@ describe('grid gradient scene helpers', () => {
             role: 'native',
             progress: 0.4,
         })).toEqual({ prevAlpha: 0, nextAlpha: 1 });
+    });
+
+    it('uses each cell flip time to create a visible fill transition wave', () => {
+        expect(resolveGridGradientTransitionBlendT({
+            progress: 0.15,
+            flipTime: 0.5,
+            flipWindow: 0.28,
+        })).toBe(0);
+        expect(resolveGridGradientTransitionBlendT({
+            progress: 0.5,
+            flipTime: 0.5,
+            flipWindow: 0.28,
+        })).toBeCloseTo(0.5);
+        expect(resolveGridGradientTransitionBlendT({
+            progress: 0.85,
+            flipTime: 0.5,
+            flipWindow: 0.28,
+        })).toBe(1);
+
+        const sideAlphas = resolveGridGradientTransitionSideAlphas({
+            role: 'contested',
+            progress: 0.5,
+            flipTime: 0.5,
+            flipWindow: 0.28,
+        });
+        expect(sideAlphas.prevAlpha).toBeGreaterThan(0.45);
+        expect(sideAlphas.prevAlpha).toBeLessThan(0.55);
+        expect(sideAlphas.nextAlpha).toBeGreaterThan(0.45);
+        expect(sideAlphas.nextAlpha).toBeLessThan(0.55);
     });
 
     it('builds one blended dot per differing grid edge', () => {

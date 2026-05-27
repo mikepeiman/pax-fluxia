@@ -209,6 +209,7 @@ describe('GridGradientFamily transitions', () => {
         const stats = get(gridGradientStats);
         expect(stats.transitionEventCount).toBe(1);
         expect(stats.activeTransitionCells).toBeGreaterThan(0);
+        expect(stats.activeMixingTransitionCells).toBeGreaterThan(0);
         expect(stats.rawProgress).toBeCloseTo(0.35);
         expect(stats.clockSource).toBe('local');
         expect(stats.drawBackend).toBe('graphics');
