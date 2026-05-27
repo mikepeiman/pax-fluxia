@@ -1,6 +1,7 @@
 <script lang="ts">
     import { GAME_CONFIG } from '$lib/config/game.config';
     import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
+    import { normalizePerimeterFieldGeometrySource } from '$lib/territory/geometry/geometrySource';
 
     interface Props {
         panel: Record<string, any>;
@@ -10,8 +11,9 @@
     let { panel, updatePanel }: Props = $props();
 
     function writeConfig(configKey: string, panelKey: string, value: unknown): void {
-        ((GAME_CONFIG as unknown) as Record<string, unknown>)[configKey] = value;
-        updatePanel(panelKey, value);
+        const normalized = normalizePerimeterFieldGeometrySource(value);
+        ((GAME_CONFIG as unknown) as Record<string, unknown>)[configKey] = normalized;
+        updatePanel(panelKey, normalized);
         bumpTerritoryVisualConfig();
     }
 
@@ -24,10 +26,7 @@
     }
 
     function geometrySourceLabel(): string {
-        const source = currentGeometrySource();
-        if (source === 'power_voronoi_0319') return 'Power Voronoi (0319)';
-        if (source === 'resolved_vector') return 'Resolved Vector';
-        return source;
+        return 'Power Voronoi (0319 Authority)';
     }
 </script>
 
@@ -44,18 +43,17 @@
         <span class="val">{geometrySourceLabel()}</span>
     </div>
     <div class="var-desc">
-        Choose which compiled territory geometry feeds the active derived renderer before it applies its own surface presentation.
+        Final authority source for derived renderers. Saved Resolved Vector configs are normalized here so CX, DX, MSR, and lane-pair tuning all use the same geometry contract.
     </div>
     <select
         class="mode-select"
-        value={currentGeometrySource()}
+        value={normalizePerimeterFieldGeometrySource(currentGeometrySource())}
         onchange={(event) => {
             const value = (event.target as HTMLSelectElement).value;
             writeConfig('PERIMETER_FIELD_GEOMETRY_SOURCE', 'perimeterFieldGeometrySource', value);
         }}
     >
-        <option value="power_voronoi_0319">Power Voronoi (0319)</option>
-        <option value="resolved_vector">Resolved Vector</option>
+        <option value="power_voronoi_0319">Power Voronoi (0319 Authority)</option>
     </select>
 </div>
 

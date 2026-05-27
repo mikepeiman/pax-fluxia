@@ -810,7 +810,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
 
     function getSavedGames() {
         return [...gameStore.savedGames].sort(
-            (left, right) => right.createdAt - left.createdAt,
+            (left, right) =>
+                Date.parse(right.createdAt) - Date.parse(left.createdAt),
         );
     }
 

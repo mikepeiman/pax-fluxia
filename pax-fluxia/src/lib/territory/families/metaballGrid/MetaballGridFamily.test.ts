@@ -10,14 +10,12 @@ import type {
 } from '../../contracts/GeometryContracts';
 import { buildRenderFamilyInput } from '../buildRenderFamilyInput';
 import type {
+    RenderFamily,
     RenderFamilyActiveTransition,
     RenderFamilyInput,
     RenderFamilyTunableValue,
 } from '../RenderFamilyTypes';
-import {
-    MetaballGridFamily,
-    createMetaballGridFamily,
-} from './MetaballGridFamily';
+import { createMetaballGridFamily } from './MetaballGridFamily';
 import {
     createMetaballGridEmberLatticeFamily,
     createMetaballGridPhaseEdgesFamily,
@@ -306,7 +304,7 @@ function makeSteadyInput(): RenderFamilyInput {
 }
 
 function makePhaseEdgesInput(
-    family: MetaballGridFamily,
+    family: Pick<RenderFamily, 'tunableKeys'>,
     progress: number,
     overrides?: Record<string, unknown>,
 ): RenderFamilyInput {

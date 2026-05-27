@@ -1,7 +1,7 @@
 import { log } from "../utils/logger";
 import { recordPerfEvent } from "./perfProbe";
 
-type PipelineChannel = "sys" | "state" | "data" | "renderer" | "input";
+type PipelineChannel = "sys" | "state" | "data" | "renderer" | "input" | "worker";
 
 interface PipelineStageLogParams {
     channel?: PipelineChannel;
@@ -138,6 +138,9 @@ function logByChannel(
             break;
         case "input":
             log.input(`[${context}] ${message}`, detail);
+            break;
+        case "worker":
+            log.data(`[${context}:worker]`, message, detail);
             break;
         case "data":
         default:

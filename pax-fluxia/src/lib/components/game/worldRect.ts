@@ -80,8 +80,22 @@ export function resolveViewportWorldRect(
         };
     }
 
-    const width = Math.max(options.configuredWidth, requiredWidth);
-    const height = Math.max(options.configuredHeight, requiredHeight);
+    const configuredWidth = options.configuredWidth;
+    const configuredHeight = options.configuredHeight;
+    if (!isFinitePositive(configuredWidth) || !isFinitePositive(configuredHeight)) {
+        return {
+            minX: 0,
+            minY: 0,
+            width: requiredWidth,
+            height: requiredHeight,
+            requiredWidth,
+            requiredHeight,
+            source: "derived_star_extents",
+        };
+    }
+
+    const width = Math.max(configuredWidth, requiredWidth);
+    const height = Math.max(configuredHeight, requiredHeight);
     return {
         minX: 0,
         minY: 0,
@@ -90,8 +104,8 @@ export function resolveViewportWorldRect(
         requiredWidth,
         requiredHeight,
         source:
-            width === options.configuredWidth &&
-            height === options.configuredHeight
+            width === configuredWidth &&
+            height === configuredHeight
                 ? "configured_map"
                 : "expanded_configured_map",
     };

@@ -103,7 +103,11 @@ export function normalizedUniConnections(
 }
 
 export function seedLanePolylineCacheFromMapGen(
-    connections: Array<{ sourceId: string; targetId: string; laneWaypoints?: [number, number][] }>,
+    connections: ReadonlyArray<{
+        sourceId: string;
+        targetId: string;
+        laneWaypoints?: readonly [number, number][];
+    }>,
 ): void {
     cache.clear();
 

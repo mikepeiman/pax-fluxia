@@ -14,10 +14,9 @@ import { computeGeometry0319 } from '../compiler/Geometry_0319';
 import type { TerritoryGeneratorSettings } from '../compiler/powerVoronoiTerritoryGeometryGenerator';
 import { buildPowerVoronoi0319AuthoritySnapshot } from '../geometry/buildPowerVoronoi0319AuthoritySnapshot';
 import { buildTerritoryGeneratorSettingsFromTunables } from '../geometry/geometryTuning';
+import { normalizePerimeterFieldGeometrySource } from '../geometry/geometrySource';
 import { readTerritoryRuntimeSettings } from '../integration/TerritorySettingsBridge';
 import { compileVectorGeometry } from '../layers/geometry/compiler_UnifiedVectorGeometry';
-
-type PerimeterFieldGeometrySourceId = 'resolved_vector' | 'power_voronoi_0319';
 
 export function buildOwnershipSnapshotFromStars(
     stars: ReadonlyArray<StarState>,
@@ -210,44 +209,46 @@ export function buildPerimeterFieldRenderFamilyGeometry(params: {
     const runtimeSettings = readTerritoryRuntimeSettings(configSource);
     const ownership =
         params.ownership ?? buildOwnershipSnapshotFromStars(params.stars);
-    const geometrySource = (params.geometrySource ??
+    const requestedGeometrySource = params.geometrySource ??
         configSource.PERIMETER_FIELD_GEOMETRY_SOURCE ??
-        'power_voronoi_0319') as PerimeterFieldGeometrySourceId;
+        'power_voronoi_0319';
+    const geometrySource = normalizePerimeterFieldGeometrySource(
+        requestedGeometrySource,
+    );
 
-    if (geometrySource === 'power_voronoi_0319') {
-        const adapted = buildPowerVoronoi0319RenderFamilyGeometry({
-            stars: params.stars,
-            lanes: params.lanes,
-            worldWidth: params.worldWidth,
-            worldHeight: params.worldHeight,
-            ownershipVersion: ownership.version,
-            sourceStyle: runtimeSettings.selection.styleMode,
-            configSource,
+    const adapted = buildPowerVoronoi0319RenderFamilyGeometry({
+        stars: params.stars,
+        lanes: params.lanes,
+        worldWidth: params.worldWidth,
+        worldHeight: params.worldHeight,
+        ownershipVersion: ownership.version,
+        sourceStyle: runtimeSettings.selection.styleMode,
+        configSource,
+    });
+    if (adapted) {
+        logPipelineStage({
+            channel: 'renderer',
+            context: 'RenderFamilyGeometry',
+            stage: 'perimeter_geometry_authority',
+            from: 'Geometry_0319 raw shared frontiers/world borders',
+            to: 'ResolvedGeometrySnapshot',
+            purpose: 'Resolve one shared-boundary geometry seam for all 0319 live consumers',
+            summary:
+                `${summarizeStars(params.stars)} ${summarizeConnections(params.lanes)} ` +
+                summarizeGeometry(adapted),
+            perfEventName: 'territory.geometry.perimeterBuilt',
+            detail: {
+                geometrySource,
+                requestedGeometrySource,
+                authorityStage:
+                    adapted.diagnostics.stageLadder?.authoritativeSeamFingerprint ??
+                    null,
+                displayStage:
+                    adapted.diagnostics.stageLadder?.displayBorderFingerprint ??
+                    null,
+            },
         });
-        if (adapted) {
-            logPipelineStage({
-                channel: 'renderer',
-                context: 'RenderFamilyGeometry',
-                stage: 'perimeter_geometry_authority',
-                from: 'Geometry_0319 raw shared frontiers/world borders',
-                to: 'ResolvedGeometrySnapshot',
-                purpose: 'Resolve one shared-boundary geometry seam for all 0319 live consumers',
-                summary:
-                    `${summarizeStars(params.stars)} ${summarizeConnections(params.lanes)} ` +
-                    summarizeGeometry(adapted),
-                perfEventName: 'territory.geometry.perimeterBuilt',
-                detail: {
-                    geometrySource,
-                    authorityStage:
-                        adapted.diagnostics.stageLadder?.authoritativeSeamFingerprint ??
-                        null,
-                    displayStage:
-                        adapted.diagnostics.stageLadder?.displayBorderFingerprint ??
-                        null,
-                },
-            });
-            return adapted;
-        }
+        return adapted;
     }
 
     const geometry = compileVectorGeometry({
@@ -275,6 +276,7 @@ export function buildPerimeterFieldRenderFamilyGeometry(params: {
         perfEventName: 'territory.geometry.perimeterFallbackBuilt',
         detail: {
             geometrySource,
+            requestedGeometrySource,
         },
     });
     return geometry;

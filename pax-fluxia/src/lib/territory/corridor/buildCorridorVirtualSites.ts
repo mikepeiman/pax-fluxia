@@ -170,8 +170,8 @@ export function buildCorridorVirtualSites(
 
         const pathLen = usePoly ? polylineArcLength(poly) : chordDist;
         if (pathLen <= EPSILON) continue;
-        const interiorStart = Math.min(endpointExclusion, pathLen * 0.5);
-        const interiorEnd = Math.max(interiorStart, pathLen - endpointExclusion);
+        const interiorStart = Math.min(endpointExclusion, pathLen * 0.45);
+        const interiorEnd = Math.max(interiorStart, pathLen - interiorStart);
 
         const nSites =
             countMode != null

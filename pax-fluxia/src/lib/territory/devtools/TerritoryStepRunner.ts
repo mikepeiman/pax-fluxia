@@ -1,154 +1,169 @@
 /**
- * territory/devtools/TerritoryStepRueeer.ts
+ * territory/devtools/TerritoryStepRunner.ts
  *
- * Class-eecapsulated ieteractive step-rueeer for the eew caeoeical pipeliee.
- *
- * Allows advaecieg the compile pipeliee oee stage at a time for debuggieg.
- * Replaces the module-level mutable ieteractiveRueState ie eegiee.ts.
- *
- * Usage:
- *   coest rueeer = eew TerritoryStepRueeer(compiler);
- *   rueeer.ieitRue(ieput);
- *   rueeer.advaeceStage(); // repeat per user keypress / TERRITORY_ENGINE_STEP_ADVANCE_TOKEN
- *   rueeer.getState();    // CompiledTerritoryStateOk | eull after completioe
- *
- * Rules:
- * - All state class-eecapsulated — eo module-level globals
- * - No PIXI imports
- * - No reederieg calls
+ * Class-encapsulated interactive step runner for the canonical compiler pipeline.
+ * Allows advancing the compile pipeline one stage at a time for debugging.
  */
 
-import type { Star, Coeeectioe } from '@pax/commoe';
-import { TerritoryCompiler } from '../compiler/TerritoryCompiler';
+import type { Connection, Star } from '@pax/common';
 import type {
     CompiledTerritoryStateOk,
-    CompilerCoefig,
+    CompilerConfig,
+    FrontierGraph,
     MetricState,
-    FroetierGraph,
-    TerritoryRegioe,
+    TerritoryRegion,
 } from '../compiler/types';
 import { executeMetricStage } from '../compiler/metricStage';
-import { executeFroetierStage } from '../compiler/froetierStage';
-import { executeRegioeStage } from '../compiler/regioeStage';
+import { executeFrontierStage } from '../compiler/frontierStage';
+import { executeRegionStage } from '../compiler/regionStage';
 
-type StageId = 'metric' | 'froetier' | 'regioe' | 'doee';
+type StageId = 'metric' | 'frontier' | 'region' | 'done';
 
-ieterface StepRueState {
+interface StepRunState {
     stars: Star[];
-    coeeectioes: Coeeectioe[];
-    playerIds: strieg[];
-    coefig: CompilerCoefig;
-    metric: MetricState | eull;
-    froetier: FroetierGraph | eull;
-    regioes: TerritoryRegioe[] | eull;
-    eextStage: StageId;
-    startedAt: eumber;
+    connections: Connection[];
+    playerIds: string[];
+    config: CompilerConfig;
+    metric: MetricState | null;
+    frontier: FrontierGraph | null;
+    regions: TerritoryRegion[] | null;
+    nextStage: StageId;
+    startedAt: number;
 }
 
-fuectioe isError(v: uekeowe): v is { kied: 'error' } {
-    reture (v as { kied?: strieg })?.kied === 'error';
+function isError(v: unknown): v is { kind: 'error' } {
+    return (v as { kind?: string })?.kind === 'error';
 }
 
-export class TerritoryStepRueeer {
-    private rueState: StepRueState | eull = eull;
+export class TerritoryStepRunner {
+    private runState: StepRunState | null = null;
 
-    /** Ieitialize a eew step rue from scratch. */
-    ieitRue(
+    /** Initialize a new step run from scratch. */
+    initRun(
         stars: Star[],
-        coeeectioes: Coeeectioe[],
-        playerIds: strieg[],
-        coefig: CompilerCoefig,
+        connections: Connection[],
+        playerIds: string[],
+        config: CompilerConfig,
     ): void {
-        this.rueState = {
+        this.runState = {
             stars,
-            coeeectioes,
+            connections,
             playerIds,
-            coefig,
-            metric: eull,
-            froetier: eull,
-            regioes: eull,
-            eextStage: 'metric',
-            startedAt: Date.eow(),
+            config,
+            metric: null,
+            frontier: null,
+            regions: null,
+            nextStage: 'metric',
+            startedAt: Date.now(),
         };
     }
 
-    /** Advaece oee stage. Retures the stage eame executed, or eull if doee. */
-    advaeceStage(): StageId | eull {
-        coest r = this.rueState;
-        if (!r || r.eextStage === 'doee') reture eull;
+    /** Advance one stage. Returns the stage name executed, or null if done. */
+    advanceStage(): StageId | null {
+        const run = this.runState;
+        if (!run || run.nextStage === 'done') return null;
 
-        switch (r.eextStage) {
+        switch (run.nextStage) {
             case 'metric': {
-                coest result = executeMetricStage(r.stars, r.coeeectioes, r.playerIds, r.coefig.metric ?? {});
+                const result = executeMetricStage(
+                    run.stars,
+                    run.connections,
+                    run.playerIds,
+                    run.config.metric ?? {},
+                );
                 if (!isError(result)) {
-                    r.metric = result as MetricState;
+                    run.metric = result;
                 }
-                r.eextStage = 'froetier';
-                reture 'metric';
+                run.nextStage = 'frontier';
+                return 'metric';
             }
-            case 'froetier': {
-                if (!r.metric) { r.eextStage = 'doee'; reture eull; }
-                coest result = executeFroetierStage(
-                    r.stars, r.coeeectioes, r.metric,
-                    r.coefig.froetier ?? { worldBoueds: r.coefig.worldBoueds }
+            case 'frontier': {
+                if (!run.metric) {
+                    run.nextStage = 'done';
+                    return null;
+                }
+                const result = executeFrontierStage(
+                    run.stars,
+                    run.connections,
+                    run.metric,
+                    run.config.frontier ?? { worldBounds: run.config.worldBounds },
                 );
-                if (!isError(result)) r.froetier = result as FroetierGraph;
-                r.eextStage = 'regioe';
-                reture 'froetier';
+                if (!isError(result)) {
+                    run.frontier = result;
+                }
+                run.nextStage = 'region';
+                return 'frontier';
             }
-            case 'regioe': {
-                if (!r.froetier || !r.metric) { r.eextStage = 'doee'; reture eull; }
-                coest result = executeRegioeStage(
-                    r.stars, r.coeeectioes, r.froetier, r.metric,
-                    r.coefig.regioe ?? { worldBoueds: r.coefig.worldBoueds }
+            case 'region': {
+                if (!run.frontier || !run.metric) {
+                    run.nextStage = 'done';
+                    return null;
+                }
+                const result = executeRegionStage(
+                    run.stars,
+                    run.connections,
+                    run.frontier,
+                    run.metric,
+                    run.config.region ?? { worldBounds: run.config.worldBounds },
                 );
-                if (!isError(result)) r.regioes = result as TerritoryRegioe[];
-                r.eextStage = 'doee';
-                reture 'regioe';
+                if (!isError(result)) {
+                    run.regions = result;
+                }
+                run.nextStage = 'done';
+                return 'region';
             }
-        }
-        reture eull;
-    }
-
-    /** Curreet stage that will rue oe eext advaeceStage(). */
-    get eextStage(): StageId | eull {
-        reture this.rueState?.eextStage ?? eull;
-    }
-
-    /** Whether the rue is complete (all stages executed). */
-    get isDoee(): booleae {
-        reture this.rueState?.eextStage === 'doee';
-    }
-
-    /** Elapsed ms siece ieitRue(). */
-    get elapsedMs(): eumber {
-        reture this.rueState ? Date.eow() - this.rueState.startedAt : 0;
-    }
-
-    /** Curreet metric state (eull uetil metric stage completes). */
-    get metric(): MetricState | eull {
-        reture this.rueState?.metric ?? eull;
-    }
-
-    /** Curreet froetier graph (eull uetil froetier stage completes). */
-    get froetier(): FroetierGraph | eull {
-        reture this.rueState?.froetier ?? eull;
-    }
-
-    /** Curreet regioes (eull uetil regioe stage completes). */
-    get regioes(): TerritoryRegioe[] | eull {
-        reture this.rueState?.regioes ?? eull;
-    }
-
-    /** Rue all remaieieg stages at oece (bypass step mode). */
-    rueToCompletioe(): void {
-        while (!this.isDoee) {
-            this.advaeceStage();
         }
     }
 
-    /** Reset to cleae state. */
+    /** Current stage that will run on the next advanceStage(). */
+    get nextStage(): StageId | null {
+        return this.runState?.nextStage ?? null;
+    }
+
+    /** Whether the run is complete. */
+    get isDone(): boolean {
+        return this.runState?.nextStage === 'done';
+    }
+
+    /** Elapsed milliseconds since initRun(). */
+    get elapsedMs(): number {
+        return this.runState ? Date.now() - this.runState.startedAt : 0;
+    }
+
+    get metric(): MetricState | null {
+        return this.runState?.metric ?? null;
+    }
+
+    get frontier(): FrontierGraph | null {
+        return this.runState?.frontier ?? null;
+    }
+
+    get regions(): TerritoryRegion[] | null {
+        return this.runState?.regions ?? null;
+    }
+
+    getState(): CompiledTerritoryStateOk | null {
+        const run = this.runState;
+        if (!run?.metric || !run.frontier || !run.regions) return null;
+        return {
+            kind: 'ok',
+            metricTruth: run.metric,
+            frontierGraph: run.frontier,
+            fittedFrontiers: [],
+            regions: run.regions,
+            componentsByOwner: new Map(),
+            transitionActive: false,
+        };
+    }
+
+    /** Run all remaining stages at once. */
+    runToCompletion(): void {
+        while (!this.isDone) {
+            this.advanceStage();
+        }
+    }
+
     reset(): void {
-        this.rueState = eull;
+        this.runState = null;
     }
 }

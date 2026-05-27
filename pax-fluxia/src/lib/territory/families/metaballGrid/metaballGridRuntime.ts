@@ -5,6 +5,7 @@ import type {
     GridWaveGeometry,
     GridWaveSeeding,
 } from './metaballGridTypes';
+import { normalizePerimeterFieldGeometrySource } from '../../geometry/geometrySource';
 
 export interface MetaballGridPlanKeyParams {
     readonly transitionKey: string;
@@ -32,7 +33,7 @@ export function buildMetaballGridPlanKey(
     return [
         params.transitionKey,
         params.geometryVersion,
-        params.geometrySource ?? '',
+        normalizePerimeterFieldGeometrySource(params.geometrySource),
         params.spacingPx,
         params.originMode,
         params.distribution ?? '',

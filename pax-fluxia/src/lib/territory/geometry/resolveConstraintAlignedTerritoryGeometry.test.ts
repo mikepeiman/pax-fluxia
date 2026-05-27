@@ -47,7 +47,7 @@ function makeGeometry(
 }
 
 function normalizeRing(
-    points: ReadonlyArray<[number, number]>,
+    points: ReadonlyArray<readonly number[]>,
 ): string {
     const open =
         points.length > 1 &&
@@ -57,9 +57,9 @@ function normalizeRing(
             : [...points];
     if (open.length === 0) return '[]';
 
-    const serialize = (ring: ReadonlyArray<[number, number]>) =>
+    const serialize = (ring: ReadonlyArray<readonly number[]>) =>
         JSON.stringify([...ring, ring[0]]);
-    const rotateToSmallest = (ring: ReadonlyArray<[number, number]>) => {
+    const rotateToSmallest = (ring: ReadonlyArray<readonly number[]>) => {
         let bestIndex = 0;
         for (let index = 1; index < ring.length; index++) {
             const [ax, ay] = ring[index]!;

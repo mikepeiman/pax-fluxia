@@ -16,6 +16,7 @@ import type {
     TerritoryFrontierTechniqueId,
     TerritoryFrontierTriangleDiagonalPolicy,
 } from '../territory/frontier/types';
+import { normalizePerimeterFieldGeometrySource } from '../territory/geometry/geometrySource';
 import { aiConfigDefaults } from './ai.config';
 import { audioConfigDefaults } from './audio.config';
 import { gameplayConfigDefaults } from './gameplay.config';
@@ -391,7 +392,7 @@ interface GameConfigType {
     VS_TRANSITION_MODE: VsTransitionModeId; // Shared transition-mode selector; UI options are contextual to the active renderer
     METABALL_BURST_BOUNDARY_BASIS: MetaballBurstBoundaryBasis; // How six-slice burst measures common loser travel distance
     PERIMETER_FIELD_TRANSITION_ENGINE: 'legacy' | 'plan'; // Which transition implementation perimeter_field uses
-    PERIMETER_FIELD_GEOMETRY_SOURCE: 'resolved_vector' | 'power_voronoi_0319'; // Base geometry provider for perimeter-field rendering
+    PERIMETER_FIELD_GEOMETRY_SOURCE: 'power_voronoi_0319'; // Legacy sources are normalized to 0319 authority at read boundaries
     PERIMETER_FIELD_SAMPLE_SPACING: number; // Arc-length spacing between derived perimeter samples (px)
     PERIMETER_FIELD_INWARD_OFFSET_PX: number; // Inward offset applied to derived perimeter samples so they sit inside the source boundary
     PERIMETER_FIELD_INFLUENCE_RADIUS: number; // Displayed field radius for each perimeter sample (px)
@@ -789,6 +790,12 @@ function loadSavedConfig(): Partial<GameConfigType> {
                 const msr = Number(o.MODIFIED_VORONOI_STAR_MARGIN) || 45;
                 o.MAPGEN_LANE_MARGIN_PX = msr + buf;
                 delete o.MAPGEN_LANE_BUFFER_PX;
+            }
+            if ('PERIMETER_FIELD_GEOMETRY_SOURCE' in o) {
+                o.PERIMETER_FIELD_GEOMETRY_SOURCE =
+                    normalizePerimeterFieldGeometrySource(
+                        o.PERIMETER_FIELD_GEOMETRY_SOURCE,
+                    );
             }
             return o as Partial<GameConfigType>;
         }

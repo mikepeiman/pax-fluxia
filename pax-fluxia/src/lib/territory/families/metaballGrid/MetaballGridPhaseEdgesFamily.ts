@@ -56,6 +56,7 @@ import type { StarState } from '$lib/types/game.types';
 import { adjustColorHSL, blendColors, hexToRGB } from '$lib/utils/colorUtils';
 import { getTerritoryVisualEpoch } from '$lib/territory/bumpTerritoryVisualConfig';
 import type { ResolvedGeometrySnapshot } from '../../contracts/GeometryContracts';
+import { normalizePerimeterFieldGeometrySource } from '../../geometry/geometrySource';
 import { buildPerimeterFieldRenderFamilyGeometry } from '../buildFamilyGeometry';
 import type {
     RenderFamily,
@@ -72,6 +73,7 @@ import type {
     GridMetaballScene,
     GridOriginMode,
     GridOwnedStar,
+    GridRenderCell,
     GridWaveGeometry,
     GridWavePlan,
     GridWaveSeeding,
@@ -420,7 +422,7 @@ function drawOuterPerimeterIntervals(params: {
     borderLayer: PIXI.Graphics;
     classification: GridClassification;
     effectiveColorIdxByGridIdx: Int32Array;
-    borderHexByColorIdx: readonly Array<number | undefined>;
+    borderHexByColorIdx: ReadonlyArray<number | undefined>;
     borderAlpha: number;
     borderWidth: number;
     cellHalfExtent: number;
@@ -2902,10 +2904,9 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                     'winner_nearest_edge',
                 ],
             ),
-            geometrySource:
-                (input.tunables.get('PERIMETER_FIELD_GEOMETRY_SOURCE') as
-                    | string
-                    | undefined) ?? null,
+            geometrySource: normalizePerimeterFieldGeometrySource(
+                input.tunables.get('PERIMETER_FIELD_GEOMETRY_SOURCE'),
+            ),
         };
         const frontierRequestedTechnique = this.readFrontierTechnique(input);
         const frontierRequestedBorderGeometryMode =
@@ -3522,10 +3523,9 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         const phaseEdgesStatsPatch = {
             familyId: this.id,
             familyLabel: this.label,
-            geometrySource:
-                typeof effectiveConfigSource.PERIMETER_FIELD_GEOMETRY_SOURCE === 'string'
-                    ? effectiveConfigSource.PERIMETER_FIELD_GEOMETRY_SOURCE
-                    : null,
+            geometrySource: normalizePerimeterFieldGeometrySource(
+                effectiveConfigSource.PERIMETER_FIELD_GEOMETRY_SOURCE,
+            ),
             waveGeometry: settings.waveGeometry,
             waveSeeding: settings.waveSeeding,
             borderMode,
@@ -3757,10 +3757,10 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             ownerColorIdx,
             omitVIds: suppressedBaseVIds.size > 0 ? suppressedBaseVIds : undefined,
         }).cells;
-        const sceneCells =
+        const sceneCells: GridRenderCell[] =
             visualTransitionSessionCount > 0
                 ? baseSceneCells.slice()
-                : baseSceneCells;
+                : baseSceneCells.slice();
         for (const { session, plan } of visualSessionPlans) {
             const sessionProgress = easeProgress(waveEase, session.rawProgress);
             const overlay = renderMetaballGridScene({
@@ -4305,7 +4305,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                     cellShape === 'square' && visibleSquareBoundsByGridIdx !== null;
                 const squareBounds =
                     usesDistanceSquareBounds
-                        ? visibleSquareBoundsByGridIdx[cellIndex]
+                        ? visibleSquareBoundsByGridIdx?.[cellIndex] ?? null
                         : null;
                 if (usesDistanceSquareBounds && !squareBounds) {
                     continue;
@@ -4505,7 +4505,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 for (let ix = 0; ix < cols; ix++) {
                     const cellIndex = iy * cols + ix;
                     const selfIdx = effectiveColorIdxByGridIdx[cellIndex];
-                    const selfBounds = visibleSquareBoundsByGridIdx[cellIndex];
+                    const selfBounds = visibleSquareBoundsByGridIdx?.[cellIndex] ?? null;
                     if (selfIdx < 0 || !selfBounds) continue;
                     if (ix + 1 < cols) {
                         const rightIndex = cellIndex + 1;
@@ -4619,7 +4619,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                     while (true) {
                         const neighbours = adj.get(cur);
                         if (!neighbours) break;
-                        let nextVertex = -1;
+                        let nextVertex: string | null = null;
                         let nextEdge = -1;
                         for (const [other, eIdx] of neighbours) {
                             if (usedEdge[eIdx]) continue;
@@ -4627,7 +4627,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                             nextEdge = eIdx;
                             break;
                         }
-                        if (nextEdge < 0) break;
+                        if (nextEdge < 0 || nextVertex === null) break;
                         usedEdge[nextEdge] = 1;
                         chain.push(nextVertex);
                         cur = nextVertex;
@@ -4657,7 +4657,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                     while (cur !== v0) {
                         const neighbours = adj.get(cur);
                         if (!neighbours) break;
-                        let nextVertex = -1;
+                        let nextVertex: string | null = null;
                         let nextEdge = -1;
                         for (const [other, eIdx] of neighbours) {
                             if (usedEdge[eIdx]) continue;
@@ -4665,7 +4665,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                             nextEdge = eIdx;
                             break;
                         }
-                        if (nextEdge < 0) break;
+                        if (nextEdge < 0 || nextVertex === null) break;
                         usedEdge[nextEdge] = 1;
                         chain.push(nextVertex);
                         cur = nextVertex;

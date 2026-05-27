@@ -18,6 +18,7 @@ export const TEST_TUNABLES: TerritoryTunables = {
     frontierResolution: 8,
     boundaryPad: 40,
     boundaryEps: 6,
+    starCoreGuardRadius: 20,
     starMargin: 45,
     msrStarBias: 0,
     corridorEnabled: true,

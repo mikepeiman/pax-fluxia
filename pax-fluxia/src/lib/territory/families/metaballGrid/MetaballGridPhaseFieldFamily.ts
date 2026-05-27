@@ -6,6 +6,7 @@ import { adjustColorHSL, blendColors } from '$lib/utils/colorUtils';
 import type {
     ResolvedGeometrySnapshot,
 } from '../../contracts/GeometryContracts';
+import { normalizePerimeterFieldGeometrySource } from '../../geometry/geometrySource';
 import {
     buildOwnershipSnapshotFromStars,
     buildPerimeterFieldRenderFamilyGeometry,
@@ -852,9 +853,10 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                     'winner_nearest_edge',
                 ],
             ),
-            geometrySource:
-                (input.configSource?.PERIMETER_FIELD_GEOMETRY_SOURCE as string | undefined) ??
-                (GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE ?? 'power_voronoi_0319'),
+            geometrySource: normalizePerimeterFieldGeometrySource(
+                input.configSource?.PERIMETER_FIELD_GEOMETRY_SOURCE ??
+                    GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE,
+            ),
         };
     }
 

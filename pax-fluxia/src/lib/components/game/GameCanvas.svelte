@@ -152,6 +152,7 @@
         buildTerritoryGeometryCacheKeyParts,
         readNormalizedTerritoryGeometryTunables,
     } from "$lib/territory/geometry/geometryTuning";
+    import { normalizePerimeterFieldGeometrySource } from "$lib/territory/geometry/geometrySource";
     import type {
         OwnershipSnapshot,
         TerritoryConquestEvent,
@@ -2687,7 +2688,7 @@
         const geometryTunables =
             readNormalizedTerritoryGeometryTunables(source);
         let key = `${getTerritoryVisualEpoch()}:${GAME_WIDTH}:${GAME_HEIGHT}:`;
-        key += `${source.PERIMETER_FIELD_GEOMETRY_SOURCE}:${source.TERRITORY_GEOMETRY_MODE ?? ""}:`;
+        key += `${normalizePerimeterFieldGeometrySource(source.PERIMETER_FIELD_GEOMETRY_SOURCE)}:${source.TERRITORY_GEOMETRY_MODE ?? ""}:`;
         key += `${source.TERRITORY_ENGINE_METHOD ?? ""}:${(source as any).__GEOMETRY_REFRESH_TOKEN ?? 0}:`;
         key += `${buildTerritoryGeometryCacheKeyParts(geometryTunables).join(":")}:`;
         for (const star of stars) {
@@ -2717,9 +2718,9 @@
                 worldHeight: GAME_HEIGHT,
                 nowMs: fxOrchestrator.gameTime,
                 ownership: buildOwnershipSnapshotFromStars(stars),
-                geometrySource:
-                    (source.PERIMETER_FIELD_GEOMETRY_SOURCE as string | null | undefined) ??
-                    "power_voronoi_0319",
+                geometrySource: normalizePerimeterFieldGeometrySource(
+                    source.PERIMETER_FIELD_GEOMETRY_SOURCE,
+                ),
                 configSource: source,
             });
             renderFamilyGeometryCacheKey = key;
@@ -2841,12 +2842,9 @@
                             worldHeight: GAME_HEIGHT,
                             nowMs: fxOrchestrator.gameTime,
                             ownership,
-                            geometrySource:
-                                (configSource?.PERIMETER_FIELD_GEOMETRY_SOURCE as
-                                    | string
-                                    | null
-                                    | undefined) ??
-                                "power_voronoi_0319",
+                            geometrySource: normalizePerimeterFieldGeometrySource(
+                                configSource?.PERIMETER_FIELD_GEOMETRY_SOURCE,
+                            ),
                             configSource,
                         }),
                 );
@@ -5214,7 +5212,7 @@
         const territoryPresentationFrameKey =
             buildTerritoryPresentationFrameKey(territoryPresentationFrame);
         const territoryConfigFp =
-            `${GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE}:${GAME_CONFIG.TERRITORY_GEOMETRY_MODE}:` +
+            `${normalizePerimeterFieldGeometrySource(GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE)}:${GAME_CONFIG.TERRITORY_GEOMETRY_MODE}:` +
             `${GAME_CONFIG.TERRITORY_ENGINE_METHOD}:${territoryGeometryFp}:` +
             `${GAME_CONFIG.TERRITORY_CLUSTER_SPLIT}:${GAME_CONFIG.VORONOI_BORDER_SMOOTH}:${GAME_CONFIG.VORONOI_ALPHA}:` +
             `${GAME_CONFIG.VORONOI_BORDER_WIDTH}:${GAME_CONFIG.VORONOI_BORDER_ALPHA}:${GAME_CONFIG.TERRITORY_GEOMETRY_MODE}:` +
@@ -6382,11 +6380,11 @@
                             const worldBorderCount =
                                 diagGeometry.worldBorderPolylines?.length ?? 0;
                             const displayWorldBorderCount =
-                                diagGeometry.displayWorldBorderPolylines?.length ?? 0;
+                                diagGeometry.worldBorderPolylines?.length ?? 0;
                             const displayFrontierCount =
-                                diagGeometry.displayFrontierPolylines?.length ?? 0;
+                                diagGeometry.frontierPolylines?.length ?? 0;
                             const firstDisplayWorldBorder =
-                                diagGeometry.displayWorldBorderPolylines?.[0];
+                                diagGeometry.worldBorderPolylines?.[0];
                             const firstPoint =
                                 firstDisplayWorldBorder?.points?.[0];
                             const lastPoint =
@@ -6401,7 +6399,7 @@
                                     : "n/a";
                             log.renderer(
                                 "TerritoryPresent",
-                                `mode=${activeMode} container post=(${containerPosPostSwitchX.toFixed(2)},${containerPosPostSwitchY.toFixed(2)}) geomVer=${diagGeometry.version} src=${(renderFamilyConfigSource?.PERIMETER_FIELD_GEOMETRY_SOURCE as string | undefined) ?? "default"} worldBorders=${worldBorderCount} displayWorldBorders=${displayWorldBorderCount} displayFrontiers=${displayFrontierCount} dwb0First=${fmtPt(firstPoint)} dwb0Last=${fmtPt(lastPoint)}`,
+                                `mode=${activeMode} container post=(${containerPosPostSwitchX.toFixed(2)},${containerPosPostSwitchY.toFixed(2)}) geomVer=${diagGeometry.version} src=${normalizePerimeterFieldGeometrySource(renderFamilyConfigSource?.PERIMETER_FIELD_GEOMETRY_SOURCE)} worldBorders=${worldBorderCount} displayWorldBorders=${displayWorldBorderCount} displayFrontiers=${displayFrontierCount} dwb0First=${fmtPt(firstPoint)} dwb0Last=${fmtPt(lastPoint)}`,
                             );
                         }
                     }

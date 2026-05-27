@@ -14,6 +14,7 @@ import {
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 import type { StarState } from '$lib/types/game.types';
 import type { ResolvedGeometrySnapshot } from '../../contracts/GeometryContracts';
+import { normalizePerimeterFieldGeometrySource } from '../../geometry/geometrySource';
 import { buildPerimeterFieldRenderFamilyGeometry } from '../buildFamilyGeometry';
 import {
     buildTransitionPlan,
@@ -236,9 +237,9 @@ export class PerimeterFieldFamily implements RenderFamily {
 
             const transitionKey = buildTransitionKey(input);
             const geometrySource =
-                (input.tunables.get(
-                    'PERIMETER_FIELD_GEOMETRY_SOURCE',
-                ) as string | undefined) ?? null;
+                normalizePerimeterFieldGeometrySource(
+                    input.tunables.get('PERIMETER_FIELD_GEOMETRY_SOURCE'),
+                );
             const transitionEngine = readTransitionEngine(input);
             const oldGeometryCacheHit =
                 Boolean(transitionKey) && this.oldGeometryKey === transitionKey;
@@ -362,7 +363,7 @@ export class PerimeterFieldFamily implements RenderFamily {
                         nowMs: input.nowMs,
                         paused: input.paused,
                         activeTransition: input.activeTransition,
-                        ownershipVersion: input.ownership.version,
+                        ownershipVersion: input.ownership?.version ?? null,
                         geometryVersion: currentGeometry.version,
                         geometrySource,
                         transitionEngine,

@@ -30,6 +30,27 @@ function getPerimeterDebugLoops(
         : geometry.territoryRegions.map((region) => region.points);
 }
 
+export function resolvePerimeterFieldDiagnosticCanvasSize(args: {
+    requestedWidth: number;
+    requestedHeight: number;
+    snapshot: PerimeterFieldDebugSnapshot | null | undefined;
+}): { width: number; height: number } {
+    const worldBounds = args.snapshot?.displayGeometry.frontierTopology?.worldBounds;
+    const width =
+        typeof worldBounds?.width === 'number' && Number.isFinite(worldBounds.width)
+            ? worldBounds.width
+            : args.requestedWidth;
+    const height =
+        typeof worldBounds?.height === 'number' && Number.isFinite(worldBounds.height)
+            ? worldBounds.height
+            : args.requestedHeight;
+
+    return {
+        width: Math.max(1, Math.round(width)),
+        height: Math.max(1, Math.round(height)),
+    };
+}
+
 function getSampleAccentColor(sample: PerimeterFieldDebugSample): number {
     const role = sample.transitionRole ?? sample.debugState;
     switch (role) {

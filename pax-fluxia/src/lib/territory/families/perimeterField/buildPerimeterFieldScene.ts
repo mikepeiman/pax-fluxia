@@ -13,6 +13,7 @@ import type {
 } from '../../../renderers/MetaballRenderer';
 import type { StarState } from '../../../types/game.types';
 import type { ResolvedGeometrySnapshot } from '../../contracts/GeometryContracts';
+import { normalizePerimeterFieldGeometrySource } from '../../geometry/geometrySource';
 import type { RenderFamilyInput } from '../RenderFamilyTypes';
 import { buildSceneFingerprint } from '../metaball/metaballSceneBase';
 import {
@@ -1113,10 +1114,12 @@ export function buildPerimeterFieldScene(params: {
         'PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION',
         GAME_CONFIG.PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION ?? true,
     );
-    const geometrySource = readString(
-        params.input,
-        'PERIMETER_FIELD_GEOMETRY_SOURCE',
-        GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE ?? 'power_voronoi_0319',
+    const geometrySource = normalizePerimeterFieldGeometrySource(
+        readString(
+            params.input,
+            'PERIMETER_FIELD_GEOMETRY_SOURCE',
+            GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE ?? 'power_voronoi_0319',
+        ),
     );
     const transitionEngine = readString(
         params.input,

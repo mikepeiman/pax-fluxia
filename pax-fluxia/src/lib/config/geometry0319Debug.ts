@@ -1,3 +1,5 @@
+import { normalizePerimeterFieldGeometrySource } from '../territory/geometry/geometrySource';
+
 export interface Geometry0319DebugSnapshot {
     territoryRenderMode: string | null;
     geometrySource: string | null;
@@ -38,7 +40,9 @@ export function snapshotGeometry0319DebugConfig(
 ): Geometry0319DebugSnapshot {
     return {
         territoryRenderMode: asString(source.TERRITORY_RENDER_MODE),
-        geometrySource: asString(source.PERIMETER_FIELD_GEOMETRY_SOURCE),
+        geometrySource: normalizePerimeterFieldGeometrySource(
+            source.PERIMETER_FIELD_GEOMETRY_SOURCE,
+        ),
         frontierResolution: asNumber(source.FRONTIER_RESOLUTION),
         starMargin: asNumber(source.MODIFIED_VORONOI_STAR_MARGIN),
         msrStarBias: asNumber(source.TERRITORY_MSR_STAR_BIAS),

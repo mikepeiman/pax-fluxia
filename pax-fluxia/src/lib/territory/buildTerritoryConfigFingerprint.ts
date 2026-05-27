@@ -1,3 +1,5 @@
+import { normalizePerimeterFieldGeometrySource } from './geometry/geometrySource';
+
 const TERRITORY_CONFIG_PREFIXES = [
     'TERRITORY_',
     'PERIMETER_FIELD_',
@@ -29,7 +31,13 @@ export function buildTerritoryConfigFingerprint(
     const parts = Object.keys(config)
         .filter((key) => isTerritoryFingerprintKey(key))
         .sort()
-        .map((key) => `${key}=${JSON.stringify(config[key])}`);
+        .map((key) => {
+            const value =
+                key === 'PERIMETER_FIELD_GEOMETRY_SOURCE'
+                    ? normalizePerimeterFieldGeometrySource(config[key])
+                    : config[key];
+            return `${key}=${JSON.stringify(value)}`;
+        });
 
     if (runtime && 'geometryRefreshToken' in runtime) {
         parts.push(

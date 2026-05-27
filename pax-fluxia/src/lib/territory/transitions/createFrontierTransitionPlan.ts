@@ -15,7 +15,7 @@ import type {
     TerritoryFrontierMap,
     FrontierMapLoop,
     FrontierMapEdge,
-} from '../compiler/canonicalTypes';
+} from '../compiler/frontierMapTypes';
 import type { FrontierMapDiff } from './diffFrontierMaps';
 import type {
     Vec2,

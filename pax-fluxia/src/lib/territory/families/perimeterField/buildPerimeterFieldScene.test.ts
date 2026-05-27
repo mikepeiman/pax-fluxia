@@ -146,6 +146,7 @@ function makeTransition(progress = 0.5): RenderFamilyActiveTransition {
         conquestType: 'complete' as const,
     };
     return {
+        sessionKey: `test:${conquestEvent.tick}:${conquestEvent.starId}`,
         conquestEvents: [conquestEvent],
         events: [
             {

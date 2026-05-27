@@ -8,6 +8,8 @@ import type { ResolvedGeometrySnapshot } from '../contracts/GeometryContracts';
 import type { PerimeterFieldDebugSnapshot } from '../families/perimeterField/buildPerimeterFieldScene';
 import { compactPerimeterFieldDebugSnapshot } from '../families/perimeterField/perimeterFieldDiagnostics';
 import { buildPowerVoronoi0319Settings } from '../families/buildFamilyGeometry';
+import { normalizePerimeterFieldGeometrySource } from '../geometry/geometrySource';
+import { resolveGeometryLaneConstraints } from '../../lanes/geometryLaneConstraints';
 
 function triggerDownload(blob: Blob, filename: string): void {
     const url = URL.createObjectURL(blob);
@@ -132,8 +134,9 @@ function buildRelevantConfigSnapshot(
     settings: TerritoryGeneratorSettings,
 ): Record<string, unknown> {
     return {
-        PERIMETER_FIELD_GEOMETRY_SOURCE:
-            GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE ?? 'power_voronoi_0319',
+        PERIMETER_FIELD_GEOMETRY_SOURCE: normalizePerimeterFieldGeometrySource(
+            GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE,
+        ),
         MODIFIED_VORONOI_STAR_MARGIN: GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN,
         MODIFIED_VORONOI_CORRIDOR_ENABLED:
             GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED,
@@ -176,13 +179,18 @@ export async function downloadPerimeterFieldGeometryArtifact(params: {
     replayOverrideActive: boolean;
 }): Promise<void> {
     const capturedAt = new Date().toISOString();
-    const geometrySource =
-        (GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE ??
-            'power_voronoi_0319') as string;
+    const geometrySource = normalizePerimeterFieldGeometrySource(
+        GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE,
+    );
     const settings = buildPowerVoronoi0319Settings({
         lanes: params.lanes,
         worldWidth: params.worldWidth,
         worldHeight: params.worldHeight,
+    });
+    const laneConstraints = resolveGeometryLaneConstraints({
+        stars: params.stars,
+        connections: params.lanes,
+        laneMarginPx: settings.starMargin,
     });
     const ownedStars = params.stars.filter((star) => Boolean(star.ownerId));
     const corridorVirtuals = settings.corridorEnabled
@@ -192,6 +200,14 @@ export async function downloadPerimeterFieldGeometryArtifact(params: {
               settings.corridorSpacing,
               settings.cxWeight,
               settings.cxCount || undefined,
+              laneConstraints.resolver,
+              settings.cxContestMidpointVstars,
+              true,
+              true,
+              settings.cxContestPairWeight,
+              settings.cxContestPairCount,
+              settings.cxContestPairSpacing,
+              settings.starCoreGuardRadius,
           )
         : [];
     const disconnectVirtuals = settings.disconnectEnabled
@@ -204,10 +220,11 @@ export async function downloadPerimeterFieldGeometryArtifact(params: {
           )
         : [];
 
-    const recomputed0319 =
-        geometrySource === 'power_voronoi_0319'
-            ? computeGeometry0319([...params.stars], [...params.lanes], settings)
-            : null;
+    const recomputed0319 = computeGeometry0319(
+        [...params.stars],
+        [...params.lanes],
+        settings,
+    );
 
     const artifact = {
         capturedAt,
@@ -242,6 +259,17 @@ export async function downloadPerimeterFieldGeometryArtifact(params: {
                 targetId: lane.targetId,
                 distance: lane.distance ?? null,
             })),
+            adjustedLaneConstraints: {
+                stats: laneConstraints.stats,
+                lanes: laneConstraints.connections.map((lane) => ({
+                    sourceId: lane.sourceId,
+                    targetId: lane.targetId,
+                    distance: lane.distance ?? null,
+                    lanePathKind: lane.lanePathKind ?? null,
+                    laneConstraintStatus: lane.laneConstraintStatus ?? null,
+                    laneWaypoints: lane.laneWaypoints ?? null,
+                })),
+            },
             corridorVirtuals,
             disconnectVirtuals,
         },

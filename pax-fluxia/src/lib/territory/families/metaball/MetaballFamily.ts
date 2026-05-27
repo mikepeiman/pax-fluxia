@@ -172,7 +172,7 @@ export class MetaballFamily implements RenderFamily {
                         nowMs: input.nowMs,
                         paused: input.paused,
                         activeTransition: input.activeTransition,
-                        ownershipVersion: input.ownership.version,
+                        ownershipVersion: input.ownership?.version ?? null,
                         geometryVersion: input.geometry?.version ?? null,
                     },
                     staticSceneCacheHit,

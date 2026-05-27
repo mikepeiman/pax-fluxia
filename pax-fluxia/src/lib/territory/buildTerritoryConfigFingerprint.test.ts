@@ -40,7 +40,7 @@ describe('buildTerritoryConfigFingerprint', () => {
                 },
                 { geometryRefreshToken: 0, visualEpoch: 0 },
             ),
-        ).not.toBe(baseFp);
+        ).toBe(baseFp);
         expect(
             buildTerritoryConfigFingerprint(
                 { ...base, TERRITORY_FILL_MODE: 'body' },

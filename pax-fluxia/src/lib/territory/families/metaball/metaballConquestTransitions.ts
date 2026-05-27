@@ -163,6 +163,33 @@ function readTransitionTiming(
     };
 }
 
+function isTransitionComplete(transition: RenderFamilyTransitionEvent): boolean {
+    return clamp01(transition.progress) >= 1;
+}
+
+function readSettleStartProgress(input: RenderFamilyInput): number {
+    const settlePct = Math.max(
+        0,
+        Math.min(
+            100,
+            readTunableNumber(
+                input,
+                'TERRITORY_TRANSITION_SETTLE_PCT',
+                (GAME_CONFIG as unknown as Record<string, number>)
+                    .TERRITORY_TRANSITION_SETTLE_PCT ?? 0,
+            ),
+        ),
+    );
+    return 1 - settlePct / 100;
+}
+
+function isInSettleWindow(
+    input: RenderFamilyInput,
+    transition: RenderFamilyTransitionEvent,
+): boolean {
+    return clamp01(transition.progress) >= readSettleStartProgress(input);
+}
+
 function resolvePrimaryLaneRay(
     attackerIds: ReadonlyArray<string>,
     target: { x: number; y: number; id: string },
@@ -541,7 +568,7 @@ export function buildMetaballTransitionStarOverrides(
                     timing.powerT,
                 ),
             });
-        } else {
+        } else if (!isInSettleWindow(input, transition)) {
             overrides.set(conquest.starId, {
                 ownerId: conquest.previousOwner,
                 sampleStrengthScale: Math.max(0, 1 - progress),
@@ -558,7 +585,7 @@ export function buildMetaballTransitionStaticStarOverrides(
     const overrides = new Map<string, MetaballStarOverride>();
     for (const transition of input.activeTransition?.events ?? []) {
         const conquest = transition.event;
-        if (!conquest.previousOwner) continue;
+        if (isTransitionComplete(transition) || !conquest.previousOwner) continue;
 
         if (mode === 'metaball_six_slice_burst') {
             overrides.set(conquest.starId, {
@@ -571,7 +598,8 @@ export function buildMetaballTransitionStaticStarOverrides(
 
         if (
             mode === 'metaball_hold_then_switch' ||
-            mode === 'metaball_lane_push'
+            (mode === 'metaball_lane_push' &&
+                !isInSettleWindow(input, transition))
         ) {
             overrides.set(conquest.starId, {
                 ownerId: conquest.previousOwner,
@@ -589,6 +617,7 @@ function buildTargetStrengthDeltaSamples(params: {
     const out: MetaballInfluenceSample[] = [];
 
     for (const transition of params.input.activeTransition?.events ?? []) {
+        if (isTransitionComplete(transition)) continue;
         const conquest = transition.event;
         const targetStar = params.context.actualStarsById.get(conquest.starId);
         if (!targetStar) continue;
@@ -670,6 +699,7 @@ function buildLanePushTransitionSamples(params: {
     const out: MetaballInfluenceSample[] = [];
 
     for (const transition of params.input.activeTransition?.events ?? []) {
+        if (isTransitionComplete(transition)) continue;
         const conquest = transition.event;
         const targetStar = params.context.actualStarsById.get(conquest.starId);
         if (!targetStar || !conquest.newOwner) continue;
@@ -787,6 +817,7 @@ function buildHoldThenSwitchSamples(params: {
     const out: MetaballInfluenceSample[] = [];
 
     for (const transition of params.input.activeTransition?.events ?? []) {
+        if (isTransitionComplete(transition)) continue;
         const conquest = transition.event;
         const targetStar = params.context.actualStarsById.get(conquest.starId);
         if (!targetStar || !conquest.newOwner) continue;
@@ -832,6 +863,7 @@ function buildInstantSwitchGrowInSamples(params: {
     const out: MetaballInfluenceSample[] = [];
 
     for (const transition of params.input.activeTransition?.events ?? []) {
+        if (isTransitionComplete(transition)) continue;
         const conquest = transition.event;
         const targetStar = params.context.actualStarsById.get(conquest.starId);
         if (!targetStar || !conquest.newOwner) continue;
@@ -897,6 +929,7 @@ function buildSixSliceBurstSamples(params: {
     const out: MetaballInfluenceSample[] = [];
 
     for (const transition of params.input.activeTransition?.events ?? []) {
+        if (isTransitionComplete(transition)) continue;
         const cache = params.conquestCache.get(buildTransitionKey(transition));
         if (!cache) continue;
 

@@ -43,6 +43,7 @@ import type { StarState } from '$lib/types/game.types';
 import { adjustColorHSL, blendColors } from '$lib/utils/colorUtils';
 import { getTerritoryVisualEpoch } from '$lib/territory/bumpTerritoryVisualConfig';
 import type { ResolvedGeometrySnapshot } from '../../contracts/GeometryContracts';
+import { normalizePerimeterFieldGeometrySource } from '../../geometry/geometrySource';
 import { buildPerimeterFieldRenderFamilyGeometry } from '../buildFamilyGeometry';
 import type {
     RenderFamily,
@@ -1831,10 +1832,9 @@ export class MetaballGridFamily implements RenderFamily {
                     'winner_nearest_edge',
                 ],
             ),
-            geometrySource:
-                (input.tunables.get('PERIMETER_FIELD_GEOMETRY_SOURCE') as
-                    | string
-                    | undefined) ?? null,
+            geometrySource: normalizePerimeterFieldGeometrySource(
+                input.tunables.get('PERIMETER_FIELD_GEOMETRY_SOURCE'),
+            ),
         };
         const prevGeoRef = input.prevGeometry ?? null;
         const geometryVersionForPlan =
@@ -2197,6 +2197,25 @@ export class MetaballGridFamily implements RenderFamily {
                 GAME_CONFIG.TERRITORY_FRONTIER_FX_SOFTNESS ?? 1.2,
             ),
         );
+        const frontierFxEmissive = Math.max(
+            0,
+            readTunableNumber(
+                input,
+                'TERRITORY_FRONTIER_FX_EMISSIVE',
+                GAME_CONFIG.TERRITORY_FRONTIER_FX_EMISSIVE ?? 1,
+            ),
+        );
+        const frontierFxParticleDensity = Math.max(
+            0,
+            Math.min(
+                1,
+                readTunableNumber(
+                    input,
+                    'TERRITORY_FRONTIER_FX_PARTICLE_DENSITY',
+                    GAME_CONFIG.TERRITORY_FRONTIER_FX_PARTICLE_DENSITY ?? 0.45,
+                ),
+            ),
+        );
         const frontierFxPulseSpeed = Math.max(
             0.1,
             readTunableNumber(
@@ -2221,6 +2240,8 @@ export class MetaballGridFamily implements RenderFamily {
             strength: frontierFxStrength,
             steps: frontierFxSteps,
             softness: frontierFxSoftness,
+            emissive: frontierFxEmissive,
+            particleDensity: frontierFxParticleDensity,
             pulseSpeed: frontierFxPulseSpeed,
             applySteadyState: frontierFxApplySteadyState,
             applyTransition: frontierFxApplyTransition,
@@ -2311,6 +2332,8 @@ export class MetaballGridFamily implements RenderFamily {
             frontierFxStrength.toFixed(3),
             frontierFxSteps,
             frontierFxSoftness.toFixed(3),
+            frontierFxEmissive.toFixed(3),
+            frontierFxParticleDensity.toFixed(3),
             frontierFxPulseSpeed.toFixed(3),
             frontierFxApplySteadyState ? '1' : '0',
             frontierFxApplyTransition ? '1' : '0',
@@ -2861,7 +2884,7 @@ export class MetaballGridFamily implements RenderFamily {
                     cellShape === 'square' && visibleSquareBoundsByGridIdx !== null;
                 const squareBounds =
                     usesDistanceSquareBounds
-                        ? visibleSquareBoundsByGridIdx[cellIndex]
+                        ? visibleSquareBoundsByGridIdx?.[cellIndex] ?? null
                         : null;
                 if (usesDistanceSquareBounds && !squareBounds) {
                     continue;
@@ -3014,7 +3037,7 @@ export class MetaballGridFamily implements RenderFamily {
                 for (let ix = 0; ix < cols; ix++) {
                     const cellIndex = iy * cols + ix;
                     const selfIdx = effectiveColorIdxByGridIdx[cellIndex];
-                    const selfBounds = visibleSquareBoundsByGridIdx[cellIndex];
+                    const selfBounds = visibleSquareBoundsByGridIdx?.[cellIndex] ?? null;
                     if (selfIdx < 0 || !selfBounds) continue;
                     if (ix + 1 < cols) {
                         const rightIndex = cellIndex + 1;
@@ -3109,7 +3132,7 @@ export class MetaballGridFamily implements RenderFamily {
                     while (true) {
                         const neighbours = adj.get(cur);
                         if (!neighbours) break;
-                        let nextVertex = -1;
+                        let nextVertex: string | null = null;
                         let nextEdge = -1;
                         for (const [other, eIdx] of neighbours) {
                             if (usedEdge[eIdx]) continue;
@@ -3117,7 +3140,7 @@ export class MetaballGridFamily implements RenderFamily {
                             nextEdge = eIdx;
                             break;
                         }
-                        if (nextEdge < 0) break;
+                        if (nextEdge < 0 || nextVertex === null) break;
                         usedEdge[nextEdge] = 1;
                         chain.push(nextVertex);
                         cur = nextVertex;
@@ -3147,7 +3170,7 @@ export class MetaballGridFamily implements RenderFamily {
                     while (cur !== v0) {
                         const neighbours = adj.get(cur);
                         if (!neighbours) break;
-                        let nextVertex = -1;
+                        let nextVertex: string | null = null;
                         let nextEdge = -1;
                         for (const [other, eIdx] of neighbours) {
                             if (usedEdge[eIdx]) continue;
@@ -3155,7 +3178,7 @@ export class MetaballGridFamily implements RenderFamily {
                             nextEdge = eIdx;
                             break;
                         }
-                        if (nextEdge < 0) break;
+                        if (nextEdge < 0 || nextVertex === null) break;
                         usedEdge[nextEdge] = 1;
                         chain.push(nextVertex);
                         cur = nextVertex;

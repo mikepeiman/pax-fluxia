@@ -43,7 +43,7 @@ describe('buildMetaballGridPlanKey', () => {
                 ...base,
                 geometrySource: 'resolved_vector',
             }),
-        ).not.toBe(key);
+        ).toBe(key);
     });
 
     it('changes when transition wave-generation knobs change', () => {

@@ -143,7 +143,7 @@ export async function runInAppConquestAnimationScenario(
     const frameStats = (await prep.bridge.collectFrameStats(
         prep.captureDurationMs,
         0,
-    )) as Record<string, unknown>;
+    )) as unknown as Record<string, unknown>;
     return {
         scenarioId: "conquest_animation",
         mode,
@@ -189,7 +189,7 @@ export async function runInAppConquestDiagnosticScenario(
         const frameStats = (await prep.bridge.collectFrameStats(
             prep.captureDurationMs,
             0,
-        )) as Record<string, unknown>;
+        )) as unknown as Record<string, unknown>;
         const bundle =
             (await prep.bridge.waitForTransitionBundle(
                 previousBundleCount,

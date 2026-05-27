@@ -59,6 +59,7 @@ import { pointInPolygon } from '../geometry/geometryUtils';
 
 import { weightedVoronoi } from 'd3-weighted-voronoi';
 import { computeCorridorVirtuals, computeDisconnectVirtuals, DISCONNECT_OWNER_ID } from '../../renderers/territoryFeatures';
+import { resolveGeometryLaneConstraints } from '../../lanes/geometryLaneConstraints';
 import { findConnectedClustersOptimized } from '../../renderers/territoryUtils';
 
 // ---------------------------------------------------------------------------
@@ -280,6 +281,14 @@ export function computeGeometry0319(
             for (const es of extraSites) sites.push(es);
         }
 
+        const laneConstraints = config.corridorEnabled
+            ? resolveGeometryLaneConstraints({
+                  stars,
+                  connections,
+                  laneMarginPx: config.starMargin,
+              })
+            : null;
+
         if (config.corridorEnabled) {
             const corridorVirtuals = computeCorridorVirtuals(
                 ownedStars,
@@ -287,7 +296,7 @@ export function computeGeometry0319(
                 config.corridorSpacing,
                 config.cxWeight,
                 config.cxCount || undefined,
-                undefined,
+                laneConstraints?.resolver,
                 config.cxContestMidpointVstars,
                 true,
                 true,

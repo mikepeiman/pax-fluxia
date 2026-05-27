@@ -92,6 +92,7 @@ function makeConquestTransition(params?: {
     const startedAtMs = params?.startedAtMs ?? 500;
 
     return {
+        sessionKey: `test:${conquestEvent.tick}:${conquestEvent.starId}`,
         conquestEvents: [conquestEvent],
         events: [
             {
@@ -349,7 +350,7 @@ describe('buildMetaballScene', () => {
         expect(targetBase?.strength ?? 0).toBeLessThan(attackerBase?.strength ?? 0);
         expect(victorSample?.playerIdx).toBe(attackerBase?.playerIdx);
         expect(victorSample?.strength).toBeCloseTo(attackerBase?.strength ?? 0, 6);
-        expect(victorSample?.x).toBeCloseTo(100 * (5 / 9), 6);
+        expect(victorSample?.x).toBeCloseTo(100 * 0.5, 6);
         expect(victorSample?.y).toBeCloseTo(0, 6);
     });
 
@@ -390,7 +391,7 @@ describe('buildMetaballScene', () => {
         expect(victorSample?.playerIdx).toBe(attackerBase?.playerIdx);
         expect(victorSample?.strength ?? 0).toBeGreaterThan(0);
         expect(victorSample?.strength ?? 0).toBeLessThan(attackerBase?.strength ?? 0);
-        expect(victorSample?.x).toBeCloseTo(100 * (5 / 9), 6);
+        expect(victorSample?.x).toBeCloseTo(100 * 0.5, 6);
         expect(victorSample?.y).toBeCloseTo(0, 6);
     });
 

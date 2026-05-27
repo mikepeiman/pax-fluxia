@@ -49,6 +49,7 @@ import { activeGameStore } from '$lib/stores/activeGameStore.svelte';
 import { getBuiltinMaps, loadBuiltinMaps } from '$lib/config/builtinMaps';
 import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
 import type { MapConnection, MapLaneMode } from '@pax/common/mapgen';
+import { AUTHORED_MAP_SCHEMA_VERSION } from '@pax/common/maps';
 import {
     seedLanePolylineCacheFromMapGen,
     rebuildLanePolylineCache,
@@ -1311,6 +1312,44 @@ let savedMaps: MapDefinition[] = $state(loadSavedMaps());
 let defaultMapName: string = $state(localStorage.getItem('pax_defaultMap') || '');
 const supportsDevFilesystemPersistence = import.meta.env.DEV;
 
+function slugifyMapId(value: string): string {
+    const slug = value
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    return slug || `map-${Date.now()}`;
+}
+
+function buildSavedMapMetadata(name: string, createdAt = new Date().toISOString()): MapDefinition['metadata'] {
+    return {
+        mapId: slugifyMapId(name),
+        name,
+        createdAt,
+        updatedAt: createdAt,
+        version: AUTHORED_MAP_SCHEMA_VERSION,
+        category: 'custom',
+        importedFrom: { kind: 'editor' },
+    };
+}
+
+function buildLaneId(sourceId: string, targetId: string, index: number): string {
+    return `lane-${index}-${[sourceId, targetId].sort().join('-')}`;
+}
+
+function buildFactionSlotsFromState(): MapDefinition['factions'] {
+    if (!state) return [];
+
+    return Array.from(state.players.values())
+        .sort((a, b) => a.sessionId.localeCompare(b.sessionId))
+        .map((player, index) => ({
+            id: player.sessionId,
+            label: player.name || `Faction ${index + 1}`,
+            color: player.color,
+            order: index,
+        }));
+}
+
 function loadSavedMaps(): MapDefinition[] {
     try {
         const raw = localStorage.getItem('pax_savedMaps');
@@ -1565,12 +1604,19 @@ function exportMapTopology(): MapDefinition | null {
         const key = [c.sourceId, c.targetId].sort().join('|');
         if (!connSet.has(key)) {
             connSet.add(key);
-            connections.push({ sourceId: c.sourceId, targetId: c.targetId, distance: c.distance });
+            connections.push({
+                id: buildLaneId(c.sourceId, c.targetId, connections.length),
+                sourceId: c.sourceId,
+                targetId: c.targetId,
+                distance: c.distance,
+            });
         }
     }
     return {
-        metadata: { name: 'Untitled', createdAt: new Date().toISOString(), version: 2 },
-        stars, connections,
+        metadata: buildSavedMapMetadata('Untitled'),
+        factions: buildFactionSlotsFromState(),
+        stars,
+        connections,
     };
 }
 
@@ -1595,12 +1641,19 @@ function exportMapDefinition(): MapDefinition | null {
         const key = [c.sourceId, c.targetId].sort().join('|');
         if (!connSet.has(key)) {
             connSet.add(key);
-            connections.push({ sourceId: c.sourceId, targetId: c.targetId, distance: c.distance });
+            connections.push({
+                id: buildLaneId(c.sourceId, c.targetId, connections.length),
+                sourceId: c.sourceId,
+                targetId: c.targetId,
+                distance: c.distance,
+            });
         }
     }
-    const mapDefinition = {
-        metadata: { name: 'Untitled', createdAt: new Date().toISOString(), version: 2 },
-        stars, connections,
+    const mapDefinition: MapDefinition = {
+        metadata: buildSavedMapMetadata('Untitled'),
+        factions: buildFactionSlotsFromState(),
+        stars,
+        connections,
         customRules: { tick: state.tick },
     };
     logPipelineStage({
@@ -1624,11 +1677,40 @@ function exportMapDefinition(): MapDefinition | null {
 function saveCurrentMap(name: string): void {
     const map = exportMapTopology();
     if (!map) return;
-    map.metadata.name = name;
+    map.metadata = {
+        ...map.metadata,
+        mapId: slugifyMapId(name),
+        name,
+        updatedAt: new Date().toISOString(),
+    };
     savedMaps = savedMaps.filter(m => m.metadata.name !== name);
     savedMaps = [map, ...savedMaps];
     persistSavedMaps();
     persistMapToFilesystem(map);
+}
+
+function upsertSavedMapDefinition(map: MapDefinition): MapDefinition {
+    const name = map.metadata.name;
+    const mapId = map.metadata.mapId || slugifyMapId(name);
+    const normalized: MapDefinition = {
+        ...map,
+        metadata: {
+            ...map.metadata,
+            mapId,
+            updatedAt: new Date().toISOString(),
+        },
+    };
+    savedMaps = [
+        normalized,
+        ...savedMaps.filter(
+            (existing) =>
+                existing.metadata.mapId !== mapId &&
+                existing.metadata.name !== name,
+        ),
+    ];
+    persistSavedMaps();
+    persistMapToFilesystem(normalized);
+    return normalized;
 }
 
 /** Delete a saved map by name */
@@ -2485,6 +2567,7 @@ export const gameStore = {
     get savedMaps() { return savedMaps; },
     get lastMapDefinition() { return lastMapDefinition; },
     saveCurrentMap,
+    upsertSavedMapDefinition,
     deleteSavedMap,
     loadSavedMap,
 

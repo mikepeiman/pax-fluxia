@@ -3,7 +3,7 @@ import { normalizeTerritoryTransitionTimingDefaults } from './panelSync';
 
 describe('normalizeTerritoryTransitionTimingDefaults', () => {
     it('releases territory transitions from the old auto-bind policy while preserving duration', () => {
-        const stored = {
+        const stored: Record<string, unknown> = {
             tickInterval: 1350,
             territoryTransitionMs: 1350,
             territoryTransitionBindToTick: true,
@@ -18,7 +18,7 @@ describe('normalizeTerritoryTransitionTimingDefaults', () => {
     });
 
     it('preserves an explicit bind choice when duration is not just a mirrored tick value', () => {
-        const stored = {
+        const stored: Record<string, unknown> = {
             tickInterval: 1350,
             territoryTransitionMs: 1700,
             territoryTransitionBindToTick: true,
