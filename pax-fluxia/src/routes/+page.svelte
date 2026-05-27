@@ -12,7 +12,11 @@
     pushHomeRouteDiagEvent,
     resetHomeRouteDiagnostics,
   } from "$lib/utils/homeRouteDiagnostics";
-  import { canAccessAudience, resolveAudienceAccess } from "$lib/shell/audience";
+  import PaxFluxiaHud from "$lib/components/ui/HUD-package/PaxFluxiaHud.svelte";
+  import {
+    canAccessAudience,
+    resolveAudienceAccess,
+  } from "$lib/shell/audience";
 
   const EMPTY_HOME_ROUTE_DIAG: HomeRouteDiagSnapshot = {
     lastUpdatedAt: null,
@@ -38,9 +42,8 @@
       __PAX_GAME_SHELL_DIAG__?: GameShellDiagnosticsSnapshot;
     };
 
-  type GameContainerModule = typeof import(
-    "$lib/components/game/GameContainer.svelte"
-  );
+  type GameContainerModule =
+    typeof import("$lib/components/game/GameContainer.svelte");
 
   let showGame = $state(false);
   let isGameShellLoading = $state(false);
@@ -51,7 +54,9 @@
   let hasGameContainerComponent = $state(false);
   let gameContainerMounted = $state(false);
   let startupDiagnosticsOptIn = $state(false);
-  let homeRouteDiagnostics = $state<HomeRouteDiagSnapshot>(EMPTY_HOME_ROUTE_DIAG);
+  let homeRouteDiagnostics = $state<HomeRouteDiagSnapshot>(
+    EMPTY_HOME_ROUTE_DIAG,
+  );
   let copyDiagnosticsFeedback = $state("");
   let benchmarkDisposer: (() => void) | null = null;
   let gameContainerLoadPromise: Promise<void> | null = null;
@@ -170,7 +175,9 @@
         maxAttempts: GAME_SHELL_MAX_IMPORT_ATTEMPTS,
       });
       try {
-        const module = await import("$lib/components/game/GameContainer.svelte");
+        const module = await import(
+          "$lib/components/game/GameContainer.svelte"
+        );
         recordHomeRouteEvent("game_shell_import_succeeded", {
           attempt,
         });
@@ -359,9 +366,11 @@
       internalToolsEnabled,
     });
 
-    const removeGlobalErrorHandlers = installHomeRouteGlobalErrorHandlers(() => {
-      refreshHomeRouteDiagnostics();
-    });
+    const removeGlobalErrorHandlers = installHomeRouteGlobalErrorHandlers(
+      () => {
+        refreshHomeRouteDiagnostics();
+      },
+    );
 
     const handleGameContainerMounted = () => {
       gameContainerMounted = true;
@@ -454,13 +463,13 @@
   <link
     rel="preconnect"
     href="https://fonts.gstatic.com"
-    crossorigin="anonymous"
-  />
+    crossorigin="anonymous" />
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;600;700&display=swap"
-    rel="stylesheet"
-  />
+    rel="stylesheet" />
 </svelte:head>
+
+<PaxFluxiaHud />
 
 <main>
   {#if showGame && gameContainerRenderPromise}
@@ -475,8 +484,7 @@
     <div
       class="game-shell-status"
       role={gameShellErrorMessage ? "alert" : "status"}
-      aria-live="polite"
-    >
+      aria-live="polite">
       {#if isGameShellLoading}
         <p class="game-shell-status__title">Loading command bridge...</p>
         <p class="game-shell-status__detail">
@@ -489,8 +497,7 @@
         <p class="game-shell-status__detail">{gameShellErrorMessage}</p>
         <button
           class="game-shell-status__retry"
-          onclick={() => void openGameShell("play")}
-        >
+          onclick={() => void openGameShell("play")}>
           Retry loading game
         </button>
       {/if}
@@ -498,8 +505,7 @@
       {#if showStartupDiagnostics}
         <details
           class="startup-diagnostics startup-diagnostics--inline"
-          open={Boolean(gameShellErrorMessage)}
-        >
+          open={Boolean(gameShellErrorMessage)}>
           <summary>Startup diagnostics</summary>
           <div class="startup-diagnostics__body">
             <div class="startup-diagnostics__meta">
@@ -513,15 +519,15 @@
                 mounted: <code>{gameContainerMounted ? "true" : "false"}</code>
               </span>
               <span>
-                updated: <code>{homeRouteDiagnostics.lastUpdatedAt ?? "none"}</code>
+                updated: <code
+                  >{homeRouteDiagnostics.lastUpdatedAt ?? "none"}</code>
               </span>
             </div>
 
             <div class="startup-diagnostics__actions">
               <button
                 class="startup-diagnostics__button"
-                onclick={copyGameShellDiagnostics}
-              >
+                onclick={copyGameShellDiagnostics}>
                 Copy startup diagnostics
               </button>
               {#if copyDiagnosticsFeedback}
@@ -534,7 +540,9 @@
             <div class="startup-diagnostics__section">
               <p class="startup-diagnostics__section-title">Recent events</p>
               {#if recentHomeRouteEvents.length === 0}
-                <p class="startup-diagnostics__empty">No events captured yet.</p>
+                <p class="startup-diagnostics__empty">
+                  No events captured yet.
+                </p>
               {:else}
                 {#each recentHomeRouteEvents as event}
                   <div class="startup-diagnostics__entry">
@@ -555,14 +563,15 @@
               {:else}
                 {#each recentHomeRouteErrors as error}
                   <div
-                    class="startup-diagnostics__entry startup-diagnostics__entry--error"
-                  >
+                    class="startup-diagnostics__entry startup-diagnostics__entry--error">
                     <p class="startup-diagnostics__entry-title">
                       {error.source}: {error.message}
                     </p>
                     <p class="startup-diagnostics__entry-time">{error.at}</p>
                     {#if error.resourceUrl}
-                      <p class="startup-diagnostics__resource">{error.resourceUrl}</p>
+                      <p class="startup-diagnostics__resource">
+                        {error.resourceUrl}
+                      </p>
                     {/if}
                     {#if error.detail}
                       <pre>{JSON.stringify(error.detail, null, 2)}</pre>
@@ -588,7 +597,9 @@
             component:
             <code>{hasGameContainerComponent ? "ready" : "missing"}</code>
           </span>
-          <span>mounted: <code>{gameContainerMounted ? "true" : "false"}</code></span>
+          <span
+            >mounted: <code>{gameContainerMounted ? "true" : "false"}</code
+            ></span>
           <span>
             updated: <code>{homeRouteDiagnostics.lastUpdatedAt ?? "none"}</code>
           </span>
@@ -597,12 +608,12 @@
         <div class="startup-diagnostics__actions">
           <button
             class="startup-diagnostics__button"
-            onclick={copyGameShellDiagnostics}
-          >
+            onclick={copyGameShellDiagnostics}>
             Copy startup diagnostics
           </button>
           {#if copyDiagnosticsFeedback}
-            <span class="startup-diagnostics__feedback">{copyDiagnosticsFeedback}</span>
+            <span class="startup-diagnostics__feedback"
+              >{copyDiagnosticsFeedback}</span>
           {/if}
         </div>
 
@@ -630,14 +641,15 @@
           {:else}
             {#each recentHomeRouteErrors as error}
               <div
-                class="startup-diagnostics__entry startup-diagnostics__entry--error"
-              >
+                class="startup-diagnostics__entry startup-diagnostics__entry--error">
                 <p class="startup-diagnostics__entry-title">
                   {error.source}: {error.message}
                 </p>
                 <p class="startup-diagnostics__entry-time">{error.at}</p>
                 {#if error.resourceUrl}
-                  <p class="startup-diagnostics__resource">{error.resourceUrl}</p>
+                  <p class="startup-diagnostics__resource">
+                    {error.resourceUrl}
+                  </p>
                 {/if}
                 {#if error.detail}
                   <pre>{JSON.stringify(error.detail, null, 2)}</pre>
@@ -653,8 +665,7 @@
   <script
     type="text/javascript"
     async
-    src="https://subscribe-forms.beehiiv.com/attribution.js"
-  ></script>
+    src="https://subscribe-forms.beehiiv.com/attribution.js"></script>
 </main>
 
 <style>
@@ -680,8 +691,11 @@
     padding: 14px 16px;
     border: 1px solid rgba(108, 204, 255, 0.45);
     border-radius: 14px;
-    background:
-      linear-gradient(180deg, rgba(8, 18, 28, 0.94), rgba(4, 10, 18, 0.96));
+    background: linear-gradient(
+      180deg,
+      rgba(8, 18, 28, 0.94),
+      rgba(4, 10, 18, 0.96)
+    );
     box-shadow:
       0 18px 48px rgba(0, 0, 0, 0.45),
       inset 0 0 0 1px rgba(255, 255, 255, 0.04);
@@ -728,8 +742,11 @@
     width: min(520px, calc(100vw - 32px));
     border: 1px solid rgba(255, 196, 111, 0.38);
     border-radius: 16px;
-    background:
-      linear-gradient(180deg, rgba(28, 18, 8, 0.94), rgba(16, 10, 4, 0.96));
+    background: linear-gradient(
+      180deg,
+      rgba(28, 18, 8, 0.94),
+      rgba(16, 10, 4, 0.96)
+    );
     box-shadow:
       0 18px 48px rgba(0, 0, 0, 0.42),
       inset 0 0 0 1px rgba(255, 255, 255, 0.04);
@@ -742,8 +759,11 @@
     width: 100%;
     margin-top: 14px;
     border-color: rgba(108, 204, 255, 0.2);
-    background:
-      linear-gradient(180deg, rgba(12, 18, 28, 0.72), rgba(8, 14, 24, 0.78));
+    background: linear-gradient(
+      180deg,
+      rgba(12, 18, 28, 0.72),
+      rgba(8, 14, 24, 0.78)
+    );
     box-shadow: none;
   }
 
