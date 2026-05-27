@@ -1,7 +1,10 @@
 import * as PIXI from 'pixi.js';
 import { compileHighShaderGlProgram, localUniformBitGl, roundPixelsBitGl } from 'pixi.js';
-import { log } from '$lib/utils/logger';
 import { gridGradientShaderFieldBitGl } from './gridGradientShaderFieldShaders';
+import {
+    createGridGradientTransitionTraceState,
+    logGridGradientTransitionTrace,
+} from '../transitionTraceLogger';
 import type {
     GridGradientShaderFieldStats,
     GridGradientShaderFieldUpdateParams,
@@ -137,6 +140,8 @@ export class GridGradientShaderFieldRenderer {
     private mesh: PIXI.Mesh | null = null;
     private textureSignature: string | null = null;
     private geometrySignature: string | null = null;
+    private readonly transitionTraceState =
+        createGridGradientTransitionTraceState();
 
     get container(): PIXI.Container {
         return this.root;
@@ -147,8 +152,13 @@ export class GridGradientShaderFieldRenderer {
         stage: string,
         data: Record<string, unknown>,
     ): void {
-        if (!params.settings.debugTransitions) return;
-        log.renderer('GG_TRANSITION', `[GG_TRANSITION] shader.${stage}`, data);
+        logGridGradientTransitionTrace({
+            enabled: params.settings.debugTransitions,
+            state: this.transitionTraceState,
+            stage,
+            label: `shader.${stage}`,
+            data,
+        });
     }
 
     update(params: GridGradientShaderFieldUpdateParams): GridGradientShaderFieldStats {

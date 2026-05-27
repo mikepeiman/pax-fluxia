@@ -134,6 +134,10 @@
         GridGradientFamily,
         createGridGradientFamily,
     } from "$lib/territory/families/gridGradient/GridGradientFamily";
+    import {
+        createGridGradientTransitionTraceState,
+        logGridGradientTransitionTrace,
+    } from "$lib/territory/families/gridGradient/transitionTraceLogger";
     import { PerimeterFieldFamily, createPerimeterFieldFamily } from "$lib/territory/families/perimeterField/PerimeterFieldFamily";
     import type { PerimeterFieldDebugSnapshot } from "$lib/territory/families/perimeterField/buildPerimeterFieldScene";
     import { compactPerimeterFieldDebugSnapshot } from "$lib/territory/families/perimeterField/perimeterFieldDiagnostics";
@@ -1857,9 +1861,17 @@
         );
     }
 
+    const gridGradientTransitionTraceState =
+        createGridGradientTransitionTraceState();
+
     function logGridGradientTransition(stage: string, data: Record<string, unknown>): void {
-        if (!isGridGradientTransitionDebugEnabled()) return;
-        log.renderer("GG_TRANSITION", `[GG_TRANSITION] ${stage}`, data);
+        logGridGradientTransitionTrace({
+            enabled: isGridGradientTransitionDebugEnabled(),
+            state: gridGradientTransitionTraceState,
+            stage,
+            label: stage,
+            data,
+        });
     }
 
     function optionalArrayLength(value: unknown): number | null {
@@ -6325,6 +6337,7 @@
                                 ),
                         );
                         logGridGradientTransition("case.grid_gradient.ownership", {
+                            hasActiveTransition: Boolean(activeTransition),
                             ownershipVersion: ownership.version,
                             transitionOwners: activeTransition
                                 ? activeTransition.events.map((entry) => ({
@@ -6341,6 +6354,7 @@
                         });
                         const geometry = readFamilyGeometry();
                         logGridGradientTransition("case.grid_gradient.geometry", {
+                            hasActiveTransition: Boolean(activeTransition),
                             geometryVersion: geometry.version,
                             displayBorderFingerprint:
                                 geometry.diagnostics.stageLadder
@@ -6363,6 +6377,7 @@
                               })
                             : null;
                         logGridGradientTransition("case.grid_gradient.prev_frame", {
+                            hasActiveTransition: Boolean(activeTransition),
                             hasPrevFrame: Boolean(diagnosticPrevFrame),
                             prevFrameKey: diagnosticPrevFrame?.key ?? null,
                             prevGeometryVersion:
@@ -6415,6 +6430,7 @@
                         });
                         gg.update(ggInput);
                         logGridGradientTransition("case.grid_gradient.after_update", {
+                            hasActiveTransition: Boolean(activeTransition),
                             snapshot: gg.getDebugSnapshot(),
                         });
                         if (gg.displayRoot.parent !== activeVoronoiContainer) {

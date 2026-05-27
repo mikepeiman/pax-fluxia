@@ -241,6 +241,8 @@ Do not use raw `console.log`. Use Visual Telemetry.
 
 Runtime log toggles must be surfaced through the existing Logging debug controls. Do not tell the user to enable project log flags by running console commands; console filters are acceptable only for filtering visible log output after the UI logging switch is enabled.
 
+Diagnostic traces must be idle-quiet. A trace toggle must not emit frame-by-frame logs while the relevant event is absent or paused; emit on event start/end, gate changes, coarse progress steps, or explicit state changes.
+
 ```ts
 import { log } from '$lib/utils/logger';
 

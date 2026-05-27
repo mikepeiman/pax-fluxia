@@ -29,6 +29,7 @@ Immediate correction:
 
 - Fixed a Grid Gradient diagnostic crash in `GameCanvas.svelte` where logging attempted `geometry.regions.length` / `geometry.frontiers.length` on optional fields before the family update/render path ran.
 - Diagnostics now report `null` for those optional counts when absent, preserving rendering.
+- Fixed Grid Gradient transition trace spam by moving GameCanvas, family, and shader trace logs through a shared transition-activity dedupe helper. Idle/no-transition frames are dropped, and repeated paused frames should not emit new lines.
 
 Next step:
 

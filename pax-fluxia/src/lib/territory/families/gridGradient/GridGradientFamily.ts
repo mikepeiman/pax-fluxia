@@ -47,6 +47,10 @@ import {
     resetGridGradientStats,
     updateGridGradientStats,
 } from './gridGradientStats';
+import {
+    createGridGradientTransitionTraceState,
+    logGridGradientTransitionTrace,
+} from './transitionTraceLogger';
 import { buildGridGradientShaderFieldTexturePlan } from './shaderField/gridGradientShaderFieldPacking';
 import { GridGradientShaderFieldRenderer } from './shaderField/GridGradientShaderFieldRenderer';
 import type {
@@ -158,6 +162,8 @@ export class GridGradientFamily implements RenderFamily {
     private lastDebugSnapshot: Record<string, unknown> | null = null;
     private emaUpdateMs = 0;
     private loggedShaderFailure = false;
+    private readonly transitionTraceState =
+        createGridGradientTransitionTraceState();
 
     constructor(colorUtils: ColorUtils) {
         this.colorUtils = colorUtils;
@@ -182,8 +188,13 @@ export class GridGradientFamily implements RenderFamily {
         stage: string,
         data: Record<string, unknown>,
     ): void {
-        if (!settings.debugTransitions) return;
-        log.renderer('GG_TRANSITION', `[GG_TRANSITION] family.${stage}`, data);
+        logGridGradientTransitionTrace({
+            enabled: settings.debugTransitions,
+            state: this.transitionTraceState,
+            stage,
+            label: `family.${stage}`,
+            data,
+        });
     }
 
     private summarizeInputTransition(input: RenderFamilyInput): Record<string, unknown> {
