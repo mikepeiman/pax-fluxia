@@ -25,11 +25,6 @@
         return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
     }
 
-    function configBoolean(configKey: string, fallback: boolean): boolean {
-        const value = (GAME_CONFIG as unknown as Record<string, unknown>)[configKey];
-        return typeof value === 'boolean' ? value : fallback;
-    }
-
     const spacingPx = $derived(valueOf<number>('gridGradientSpacingPx', 6));
     const maxCells = $derived(valueOf<number>('gridGradientMaxCells', 160000));
     const fillStyle = $derived(valueOf<string>('gridGradientFillStyle', 'pointillist'));
@@ -58,7 +53,6 @@
     const shaderGlowStrength = $derived(valueOf<number>('gridGradientShaderGlowStrength', 0.08));
     const shaderInteriorAlphaBoost = $derived(valueOf<number>('gridGradientShaderInteriorAlphaBoost', 1));
     const shaderEdgeAlphaBoost = $derived(valueOf<number>('gridGradientShaderEdgeAlphaBoost', 0.88));
-    const debugTransitions = $derived(valueOf<boolean>('gridGradientDebugTransitions', configBoolean('GRID_GRADIENT_DEBUG_TRANSITIONS', false)));
     const pointillistFillActive = $derived(fillStyle === 'pointillist');
     const gridSamplingActive = $derived(pointillistFillActive || borderDotsEnabled);
     const shaderFieldFxActive = $derived(pointillistFillActive && $gridGradientStats.drawBackend === 'shader_field');
@@ -82,16 +76,6 @@
         <option value="eight">Eight</option>
     </select>
 </div>
-
-<label class="toggle-line">
-    <input
-        type="checkbox"
-        checked={debugTransitions}
-        onchange={(event) => {
-            writeConfig('GRID_GRADIENT_DEBUG_TRANSITIONS', 'gridGradientDebugTransitions', (event.target as HTMLInputElement).checked);
-        }} />
-    <span>Debug transition logs</span>
-</label>
 
 <div class="sub-heading">Grid Fill</div>
 

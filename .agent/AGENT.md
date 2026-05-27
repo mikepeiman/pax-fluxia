@@ -239,6 +239,8 @@ Hard rules:
 
 Do not use raw `console.log`. Use Visual Telemetry.
 
+Runtime log toggles must be surfaced through the existing Logging debug controls. Do not tell the user to enable project log flags by running console commands; console filters are acceptable only for filtering visible log output after the UI logging switch is enabled.
+
 ```ts
 import { log } from '$lib/utils/logger';
 
