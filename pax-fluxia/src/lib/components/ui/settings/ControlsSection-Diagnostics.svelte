@@ -743,9 +743,12 @@
             <div><span>Paint Cache</span><span>{$gridGradientStats.presentationCacheHit ? "hit" : "miss"}{#if $gridGradientStats.presentationRebuildReason} / {$gridGradientStats.presentationRebuildReason}{/if}</span></div>
             <div><span>Cells</span><span>{$gridGradientStats.paintedCells.toLocaleString()} painted / {$gridGradientStats.emittableCells.toLocaleString()} emittable / {$gridGradientStats.totalCells.toLocaleString()} total</span></div>
             <div><span>Active/Outside</span><span>{$gridGradientStats.activeTransitionCells.toLocaleString()} active / {$gridGradientStats.outsideCells.toLocaleString()} outside</span></div>
+            <div><span>Transition Cells</span><span>{$gridGradientStats.activeTransitionCells.toLocaleString()} active / {$gridGradientStats.activeDrawableTransitionCells.toLocaleString()} drawable / {$gridGradientStats.activeMixingTransitionCells.toLocaleString()} mixing / {$gridGradientStats.activeOffsetZoneTransitionCells.toLocaleString()} offset</span></div>
+            <div><span>Shader Cells</span><span>{$gridGradientStats.shaderActiveTransitionCells.toLocaleString()} active / {$gridGradientStats.shaderActiveDrawableTransitionCells.toLocaleString()} drawable / {$gridGradientStats.shaderActiveOffsetZoneTransitionCells.toLocaleString()} offset</span></div>
             <div><span>Spacing</span><span>{$gridGradientStats.requestedSpacingPx.toFixed(1)}px requested / {$gridGradientStats.effectiveSpacingPx.toFixed(1)}px effective</span></div>
             <div><span>Fill</span><span>{$gridGradientStats.fillStyle} / {$gridGradientStats.cellShape} / {$gridGradientStats.edgeSizePx.toFixed(1)}px edge / {$gridGradientStats.centerSizePx.toFixed(1)}px center / curve {$gridGradientStats.curvePower.toFixed(2)}</span></div>
             <div><span>Shader</span><span>{$gridGradientStats.shaderNeighborMode} neighbors</span></div>
+            <div><span>Shader Uniform</span><span>progress {$gridGradientStats.shaderUniformProgress == null ? "n/a" : $gridGradientStats.shaderUniformProgress.toFixed(3)} / time {$gridGradientStats.shaderUniformTimeSec == null ? "n/a" : `${$gridGradientStats.shaderUniformTimeSec.toFixed(2)}s`} / update {$gridGradientStats.lastUniformUpdateMs.toFixed(3)} ms</span></div>
             <div><span>Textures</span><span>{$gridGradientStats.textureUploaded ? "upload" : "cached"} / {($gridGradientStats.textureBytes / 1024).toFixed(1)} KB</span></div>
             <div><span>Build Split</span><span>plan {$gridGradientStats.lastClassificationBuildMs.toFixed(1)} + {$gridGradientStats.lastWavePlanBuildMs.toFixed(1)} ms / field {$gridGradientStats.lastDistanceBuildMs.toFixed(1)} + {$gridGradientStats.lastTexturePackMs.toFixed(1)} ms / upload {$gridGradientStats.lastTextureUploadMs.toFixed(1)} ms</span></div>
             <div><span>Offset</span><span>{$gridGradientStats.borderOffsetPx.toFixed(1)}px</span></div>
@@ -753,6 +756,7 @@
             <div><span>Border Count</span><span>{$gridGradientStats.vectorBorderCount} vector / {$gridGradientStats.borderDotCount} dots</span></div>
             <div><span>Frame</span><span><code>{$gridGradientStats.clockSource}</code> / {$gridGradientStats.visibleFrameState} / {$gridGradientStats.lastUpdateMs.toFixed(2)} ms / EMA {$gridGradientStats.emaUpdateMs.toFixed(2)} ms</span></div>
             <div><span>Transition</span><span>{$gridGradientStats.visualTransitionActive ? "local clock" : "scheduler"} / plan {$gridGradientStats.requestedPlanPending ? "pending" : "ready"} / progress {($gridGradientStats.rawProgress ?? $gridGradientStats.schedulerRawProgress ?? 1).toFixed(3)}</span></div>
+            <div><span>Transition Input</span><span>{$gridGradientStats.transitionEventCount} events / {$gridGradientStats.transitionSessionCount} sessions / age {$gridGradientStats.transitionAgeMs == null ? "n/a" : `${$gridGradientStats.transitionAgeMs.toFixed(0)}ms`} / duration {$gridGradientStats.transitionDurationMs == null ? "n/a" : `${$gridGradientStats.transitionDurationMs.toFixed(0)}ms`}</span></div>
         </div>
     {/if}
     {#if showPerimeterFieldDiagnostics}

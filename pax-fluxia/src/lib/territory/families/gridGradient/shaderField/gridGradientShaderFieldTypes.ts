@@ -93,6 +93,8 @@ export interface GridGradientShaderFieldStats {
     readonly activeDrawableTransitionCells: number;
     readonly activeOffsetZoneTransitionCells: number;
     readonly outsideCells: number;
+    readonly uniformProgress: number | null;
+    readonly uniformTimeSec: number | null;
     readonly fallbackReason: string | null;
 }
 

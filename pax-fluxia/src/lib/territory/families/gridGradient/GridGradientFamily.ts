@@ -123,6 +123,8 @@ const EMPTY_SHADER_STATS: GridGradientShaderFieldStats = {
     activeDrawableTransitionCells: 0,
     activeOffsetZoneTransitionCells: 0,
     outsideCells: 0,
+    uniformProgress: null,
+    uniformTimeSec: null,
     fallbackReason: null,
 };
 
@@ -175,6 +177,60 @@ export class GridGradientFamily implements RenderFamily {
         return this.lastDebugSnapshot;
     }
 
+    private logTransitionDebug(
+        settings: GridGradientSettings,
+        stage: string,
+        data: Record<string, unknown>,
+    ): void {
+        if (!settings.debugTransitions) return;
+        log.renderer('GG_TRANSITION', `[GG_TRANSITION] family.${stage}`, data);
+    }
+
+    private summarizeInputTransition(input: RenderFamilyInput): Record<string, unknown> {
+        const transition = input.activeTransition ?? null;
+        if (!transition) {
+            return {
+                present: false,
+                eventCount: 0,
+                sessionCount: input.transitionSessions?.length ?? 0,
+            };
+        }
+        return {
+            present: true,
+            sessionKey: transition.sessionKey,
+            eventCount: transition.events.length,
+            sessionCount: input.transitionSessions?.length ?? 0,
+            progress: transition.progress,
+            rawProgress: transition.rawProgress,
+            startedAtMs: transition.startedAtMs,
+            durationMs: transition.durationMs,
+            ageMs: input.nowMs - transition.startedAtMs,
+            events: transition.events.map((entry) => ({
+                starId: entry.event.starId,
+                previousOwner: entry.event.previousOwner,
+                newOwner: entry.event.newOwner,
+                progress: entry.progress,
+                rawProgress: entry.rawProgress,
+            })),
+        };
+    }
+
+    private summarizePlanRoles(plan: CachedGridGradientPlan): Record<string, unknown> {
+        return {
+            planKey: plan.planKey,
+            totalCells: plan.classification.vstars.length,
+            emittableCells: plan.classification.emittableVstars.length,
+            roles: Object.fromEntries(
+                Object.entries(plan.classification.byRole).map(([role, ids]) => [
+                    role,
+                    Array.isArray(ids) ? ids.length : 0,
+                ]),
+            ),
+            orderedTransitionCells: plan.wavePlan.orderedTransitionVIds.length,
+            firstFlipTimes: plan.wavePlan.orderedFlipTimes.slice(0, 8),
+        };
+    }
+
     private beginVisualTransition(
         planKey: string,
         nowMs: number,
@@ -212,6 +268,16 @@ export class GridGradientFamily implements RenderFamily {
         });
         const hasActiveTransition =
             (params.input.activeTransition?.events.length ?? 0) > 0;
+        this.logTransitionDebug(params.settings, 'resolve_plan.gate', {
+            hasActiveTransition,
+            hasPrevGeometryInput: Boolean(params.input.prevGeometry),
+            usingPrevGeometryInput: prevGeometry !== params.geometry,
+            geometryVersion: params.geometry.version,
+            prevGeometryVersion: prevGeometry.version,
+            cachedPlanKey: this.cachedPlan?.planKey ?? null,
+            nextPlanKey: planKey,
+            inputTransition: this.summarizeInputTransition(params.input),
+        });
         if (this.cachedPlan?.planKey === planKey) {
             if (
                 hasActiveTransition &&
@@ -219,12 +285,21 @@ export class GridGradientFamily implements RenderFamily {
                 this.activeVisualTransition?.planKey !== planKey &&
                 this.lastVisualTransitionPlanKey !== planKey
             ) {
+                this.logTransitionDebug(params.settings, 'resolve_plan.begin_visual_transition.cache_hit', {
+                    planKey,
+                    nowMs: params.input.nowMs,
+                    durationMs: params.input.activeTransition.durationMs,
+                });
                 this.beginVisualTransition(
                     planKey,
                     params.input.nowMs,
                     params.input.activeTransition.durationMs,
                 );
             }
+            this.logTransitionDebug(params.settings, 'resolve_plan.cache_hit', {
+                planKey,
+                activeVisualTransition: this.activeVisualTransition,
+            });
             return {
                 plan: this.cachedPlan,
                 cacheHit: true,
@@ -237,6 +312,10 @@ export class GridGradientFamily implements RenderFamily {
             this.activeVisualTransition !== null &&
             this.cachedPlan?.planKey === this.activeVisualTransition.planKey;
         if (visualTransitionStillActive && this.cachedPlan) {
+            this.logTransitionDebug(params.settings, 'resolve_plan.keep_visual_transition_plan', {
+                planKey: this.cachedPlan.planKey,
+                activeVisualTransition: this.activeVisualTransition,
+            });
             return {
                 plan: this.cachedPlan,
                 cacheHit: true,
@@ -245,12 +324,24 @@ export class GridGradientFamily implements RenderFamily {
         }
 
         const rebuildReason = this.cachedPlan ? 'key_change' : 'initial';
+        this.logTransitionDebug(params.settings, 'resolve_plan.rebuild_start', {
+            rebuildReason,
+            planKey,
+            geometryVersion: params.geometry.version,
+            prevGeometryVersion: prevGeometry.version,
+        });
         this.cachedPlan = buildGridGradientPlan({
             input: params.input,
             geometry: params.geometry,
             prevGeometry,
             settings: params.settings,
             planKey,
+        });
+        this.logTransitionDebug(params.settings, 'resolve_plan.rebuild_done', {
+            rebuildReason,
+            plan: this.summarizePlanRoles(this.cachedPlan),
+            classificationBuildMs: this.cachedPlan.classificationBuildMs,
+            wavePlanBuildMs: this.cachedPlan.wavePlanBuildMs,
         });
         this.cachedShaderTexturePlan = null;
         this.borderDotSignature = null;
@@ -259,6 +350,11 @@ export class GridGradientFamily implements RenderFamily {
             params.input.activeTransition &&
             this.lastVisualTransitionPlanKey !== planKey
         ) {
+            this.logTransitionDebug(params.settings, 'resolve_plan.begin_visual_transition.rebuild', {
+                planKey,
+                nowMs: params.input.nowMs,
+                durationMs: params.input.activeTransition.durationMs,
+            });
             this.beginVisualTransition(
                 planKey,
                 params.input.nowMs,
@@ -312,6 +408,11 @@ export class GridGradientFamily implements RenderFamily {
         const settings = resolveGridGradientSettings(input);
 
         if (!geometry || !settings.enabled) {
+            this.logTransitionDebug(settings, 'update.disabled_gate', {
+                hasGeometry: Boolean(geometry),
+                enabled: settings.enabled,
+                inputTransition: this.summarizeInputTransition(input),
+            });
             this.clearForDisabledFrame();
             resetGridGradientStats();
             return { container: this.root };
@@ -320,9 +421,31 @@ export class GridGradientFamily implements RenderFamily {
         this.expireVisualTransition(input.nowMs);
         this.root.visible = true;
         const rendererDiagnostics = resolvePixiRendererDiagnostics(input.renderer);
+        this.logTransitionDebug(settings, 'update.entry', {
+            geometryVersion: geometry.version,
+            prevGeometryVersion: input.prevGeometry?.version ?? null,
+            rendererDiagnostics,
+            inputTransition: this.summarizeInputTransition(input),
+            settings: {
+                fillStyle: settings.fillStyle,
+                drawBackend: settings.drawBackend,
+                spacingPx: settings.spacingPx,
+                maxCells: settings.maxCells,
+                borderOffsetPx: settings.borderOffsetPx,
+                centerSizePx: settings.centerSizePx,
+                edgeSizePx: settings.edgeSizePx,
+                curvePower: settings.curvePower,
+            },
+        });
         const planResult = this.resolvePlan({ input, geometry, settings });
         const { plan } = planResult;
         const progressState = this.resolveProgressState({ input, plan });
+        this.logTransitionDebug(settings, 'update.plan_and_progress', {
+            planCacheHit: planResult.cacheHit,
+            planRebuildReason: planResult.rebuildReason,
+            plan: this.summarizePlanRoles(plan),
+            progressState,
+        });
         const palette = buildGridGradientPalette({
             colorUtils: this.colorUtils,
             input,
@@ -353,6 +476,11 @@ export class GridGradientFamily implements RenderFamily {
         if (requestedDrawBackend === 'mesh_quads') {
             drawBackend = 'graphics';
             backendFallbackReason = 'mesh_quads_pending';
+            this.logTransitionDebug(settings, 'update.backend_gate.mesh_quads', {
+                requestedDrawBackend,
+                drawBackend,
+                backendFallbackReason,
+            });
         }
 
         if (
@@ -361,20 +489,50 @@ export class GridGradientFamily implements RenderFamily {
         ) {
             drawBackend = 'graphics';
             backendFallbackReason = 'webgpu_gl_shader_unavailable';
+            this.logTransitionDebug(settings, 'update.backend_gate.webgpu', {
+                requestedDrawBackend,
+                drawBackend,
+                rendererDiagnostics,
+                backendFallbackReason,
+            });
         }
 
         if (solidFillEnabled && drawBackend === 'shader_field') {
             drawBackend = 'graphics';
             backendFallbackReason = 'solid_fill_style';
+            this.logTransitionDebug(settings, 'update.backend_gate.solid_fill', {
+                requestedDrawBackend,
+                drawBackend,
+                backendFallbackReason,
+            });
         }
 
         if (pointFillEnabled && drawBackend === 'shader_field') {
             try {
+                this.logTransitionDebug(settings, 'shader_path.before_texture_plan', {
+                    progress,
+                    plan: this.summarizePlanRoles(plan),
+                });
                 shaderTextureResult = this.resolveShaderTexturePlan({
                     input,
                     plan,
                     palette,
                     settings,
+                });
+                this.logTransitionDebug(settings, 'shader_path.texture_plan', {
+                    cacheHit: shaderTextureResult.cacheHit,
+                    rebuildReason: shaderTextureResult.rebuildReason,
+                    activeTransitionCells:
+                        shaderTextureResult.texturePlan.activeTransitionCells,
+                    activeDrawableTransitionCells:
+                        shaderTextureResult.texturePlan
+                            .activeDrawableTransitionCells,
+                    activeOffsetZoneTransitionCells:
+                        shaderTextureResult.texturePlan
+                            .activeOffsetZoneTransitionCells,
+                    textureBytes: shaderTextureResult.texturePlan.textureBytes,
+                    texturePackMs:
+                        shaderTextureResult.texturePlan.texturePackMs,
                 });
                 shaderStats = this.shaderFieldRenderer.update({
                     plan: shaderTextureResult.texturePlan,
@@ -397,6 +555,10 @@ export class GridGradientFamily implements RenderFamily {
                     nowMs: input.nowMs,
                     renderer: input.renderer,
                 });
+                this.logTransitionDebug(settings, 'shader_path.after_update', {
+                    progress,
+                    shaderStats,
+                });
                 this.loggedShaderFailure = false;
                 this.fillGraphics.visible = false;
                 this.fillGraphics.clear();
@@ -405,6 +567,10 @@ export class GridGradientFamily implements RenderFamily {
                 backendFallbackReason = 'shader_field_error';
                 shaderStats = { ...EMPTY_SHADER_STATS, fallbackReason: backendFallbackReason };
                 this.shaderFieldRenderer.hide();
+                this.logTransitionDebug(settings, 'shader_path.error_fallback', {
+                    backendFallbackReason,
+                    error: err instanceof Error ? err.message : String(err),
+                });
                 if (!this.loggedShaderFailure) {
                     log.error(
                         'GridGradientFamily',
@@ -415,10 +581,19 @@ export class GridGradientFamily implements RenderFamily {
                 }
             }
         } else {
+            this.logTransitionDebug(settings, 'shader_path.skipped', {
+                pointFillEnabled,
+                drawBackend,
+                fillStyle: settings.fillStyle,
+            });
             this.shaderFieldRenderer.hide();
         }
 
         if (solidFillEnabled) {
+            this.logTransitionDebug(settings, 'graphics_path.solid_fill', {
+                progress,
+                geometryVersion: geometry.version,
+            });
             const paintStartMs = performance.now();
             this.fillGraphics.clear();
             graphicsPaint = {
@@ -442,6 +617,10 @@ export class GridGradientFamily implements RenderFamily {
                 emittableCells: plan.classification.emittableVstars.length,
             };
         } else if (drawBackend === 'graphics') {
+            this.logTransitionDebug(settings, 'graphics_path.point_fill', {
+                progress,
+                plan: this.summarizePlanRoles(plan),
+            });
             const distanceInputs = this.buildDistanceInputs({
                 plan,
                 palette,
@@ -481,6 +660,12 @@ export class GridGradientFamily implements RenderFamily {
             plan,
             settings,
             progress,
+        });
+        this.logTransitionDebug(settings, 'update.role_counts', {
+            progress,
+            roleCounts,
+            borderDotCount,
+            vectorBorderCount,
         });
 
         const updateMs = performance.now() - updateStartMs;
@@ -537,6 +722,17 @@ export class GridGradientFamily implements RenderFamily {
             paintMs: graphicsPaint.paintMs,
             updateMs,
             rendererDiagnostics,
+        });
+        this.logTransitionDebug(settings, 'update.exit', {
+            updateMs,
+            drawBackend,
+            requestedDrawBackend,
+            backendFallbackReason,
+            paintedCells:
+                drawBackend === 'shader_field'
+                    ? shaderStats.emittableCells
+                    : graphicsPaint.paintedCells,
+            statsSnapshot: this.lastDebugSnapshot,
         });
         recordPerfDuration(
             'territory.gridGradient.update',
@@ -664,7 +860,22 @@ export class GridGradientFamily implements RenderFamily {
             palette: params.palette,
             settings: params.settings,
         });
+        this.logTransitionDebug(params.settings, 'shader_texture_plan.gate', {
+            presentationKey,
+            cachedPresentationKey:
+                this.cachedShaderTexturePlan?.presentationKey ?? null,
+            planKey: params.plan.planKey,
+        });
         if (this.cachedShaderTexturePlan?.presentationKey === presentationKey) {
+            this.logTransitionDebug(params.settings, 'shader_texture_plan.cache_hit', {
+                presentationKey,
+                activeTransitionCells:
+                    this.cachedShaderTexturePlan.activeTransitionCells,
+                activeDrawableTransitionCells:
+                    this.cachedShaderTexturePlan.activeDrawableTransitionCells,
+                activeOffsetZoneTransitionCells:
+                    this.cachedShaderTexturePlan.activeOffsetZoneTransitionCells,
+            });
             return {
                 texturePlan: this.cachedShaderTexturePlan,
                 cacheHit: true,
@@ -675,6 +886,11 @@ export class GridGradientFamily implements RenderFamily {
         const distanceInputs = this.buildDistanceInputs({
             plan: params.plan,
             palette: params.palette,
+        });
+        this.logTransitionDebug(params.settings, 'shader_texture_plan.rebuild_start', {
+            presentationKey,
+            distanceBuildMs: distanceInputs.distanceBuildMs,
+            ownerSummaryBuildMs: distanceInputs.ownerSummaryBuildMs,
         });
         this.cachedShaderTexturePlan = buildGridGradientShaderFieldTexturePlan({
             planKey: params.plan.planKey,
@@ -690,6 +906,17 @@ export class GridGradientFamily implements RenderFamily {
             world: params.input.world,
             distanceBuildMs: distanceInputs.distanceBuildMs,
             ownerSummaryBuildMs: distanceInputs.ownerSummaryBuildMs,
+        });
+        this.logTransitionDebug(params.settings, 'shader_texture_plan.rebuild_done', {
+            presentationKey,
+            activeTransitionCells:
+                this.cachedShaderTexturePlan.activeTransitionCells,
+            activeDrawableTransitionCells:
+                this.cachedShaderTexturePlan.activeDrawableTransitionCells,
+            activeOffsetZoneTransitionCells:
+                this.cachedShaderTexturePlan.activeOffsetZoneTransitionCells,
+            textureBytes: this.cachedShaderTexturePlan.textureBytes,
+            texturePackMs: this.cachedShaderTexturePlan.texturePackMs,
         });
         return {
             texturePlan: this.cachedShaderTexturePlan,
@@ -950,6 +1177,8 @@ export class GridGradientFamily implements RenderFamily {
             activeDrawableTransitionCells: params.activeDrawableTransitionCells,
             activeMixingTransitionCells: params.activeMixingTransitionCells,
             activeOffsetZoneTransitionCells: params.activeOffsetZoneTransitionCells,
+            shaderActiveTransitionCells: params.shaderStats.activeTransitionCells,
+            shaderUniformProgress: params.shaderStats.uniformProgress,
             borderDotCount: params.borderDotCount,
             vectorBorderCount: params.vectorBorderCount,
             fillStyle: params.settings.fillStyle,
@@ -957,6 +1186,8 @@ export class GridGradientFamily implements RenderFamily {
             borderDotStyle: params.settings.borderDotStyle,
             shaderNeighborMode: params.settings.shaderNeighborMode,
             progress: params.progress,
+            transitionEventCount: params.input.activeTransition?.events.length ?? 0,
+            transitionSessionCount: params.input.transitionSessions?.length ?? 0,
             clockSource: params.progressState.clockSource,
             visibleFrameState: params.progressState.visibleFrameState,
         };
@@ -988,6 +1219,11 @@ export class GridGradientFamily implements RenderFamily {
             activeDrawableTransitionCells: params.activeDrawableTransitionCells,
             activeMixingTransitionCells: params.activeMixingTransitionCells,
             activeOffsetZoneTransitionCells: params.activeOffsetZoneTransitionCells,
+            shaderActiveTransitionCells: params.shaderStats.activeTransitionCells,
+            shaderActiveDrawableTransitionCells:
+                params.shaderStats.activeDrawableTransitionCells,
+            shaderActiveOffsetZoneTransitionCells:
+                params.shaderStats.activeOffsetZoneTransitionCells,
             outsideCells: params.outsideCells,
             borderDotCount: params.borderDotCount,
             vectorBorderCount: params.vectorBorderCount,
@@ -1018,14 +1254,27 @@ export class GridGradientFamily implements RenderFamily {
             paletteTextureBytes: params.shaderStats.paletteTextureBytes,
             textureBytes: params.shaderStats.textureBytes,
             transitionEventCount: params.input.activeTransition?.events.length ?? 0,
+            transitionSessionCount: params.input.transitionSessions?.length ?? 0,
             rawProgress:
                 params.input.activeTransition || params.progressState.usingVisualTransition
                     ? params.progress
                     : null,
             schedulerRawProgress: params.input.activeTransition?.progress ?? null,
+            transitionAgeMs: params.input.activeTransition
+                ? Math.max(
+                      0,
+                      params.input.nowMs - params.input.activeTransition.startedAtMs,
+                  )
+                : null,
+            transitionDurationMs:
+                params.input.activeTransition?.durationMs ??
+                this.activeVisualTransition?.durationMs ??
+                null,
             visualTransitionActive: params.progressState.usingVisualTransition,
             localVisualTransitionDurationMs:
                 this.activeVisualTransition?.durationMs ?? null,
+            shaderUniformProgress: params.shaderStats.uniformProgress,
+            shaderUniformTimeSec: params.shaderStats.uniformTimeSec,
             requestedPlanPending: false,
             clockSource: params.progressState.clockSource,
             visibleFrameState: params.progressState.visibleFrameState,

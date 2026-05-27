@@ -1,5 +1,6 @@
 import * as PIXI from 'pixi.js';
 import { compileHighShaderGlProgram, localUniformBitGl, roundPixelsBitGl } from 'pixi.js';
+import { log } from '$lib/utils/logger';
 import { gridGradientShaderFieldBitGl } from './gridGradientShaderFieldShaders';
 import type {
     GridGradientShaderFieldStats,
@@ -141,16 +142,58 @@ export class GridGradientShaderFieldRenderer {
         return this.root;
     }
 
+    private logTransitionDebug(
+        params: GridGradientShaderFieldUpdateParams,
+        stage: string,
+        data: Record<string, unknown>,
+    ): void {
+        if (!params.settings.debugTransitions) return;
+        log.renderer('GG_TRANSITION', `[GG_TRANSITION] shader.${stage}`, data);
+    }
+
     update(params: GridGradientShaderFieldUpdateParams): GridGradientShaderFieldStats {
+        this.logTransitionDebug(params, 'update.entry', {
+            progress: params.progress,
+            nowMs: params.nowMs,
+            planKey: params.plan.planKey,
+            presentationKey: params.plan.presentationKey,
+            cols: params.plan.cols,
+            rows: params.plan.rows,
+            activeTransitionCells: params.plan.activeTransitionCells,
+            activeDrawableTransitionCells:
+                params.plan.activeDrawableTransitionCells,
+            activeOffsetZoneTransitionCells:
+                params.plan.activeOffsetZoneTransitionCells,
+        });
         const uploadStartMs = now();
         const textureUploaded = this.ensureTextures(params);
         const textureUploadMs = now() - uploadStartMs;
+        this.logTransitionDebug(params, 'textures.after_ensure', {
+            textureUploaded,
+            textureUploadMs,
+            textureSignature: this.textureSignature,
+            ownerTextureBytes: params.plan.ownerTextureData.byteLength,
+            metricsTextureBytes: params.plan.metricsTextureData.byteLength,
+            paletteTextureBytes: params.plan.paletteTextureData.byteLength,
+        });
 
         this.ensureMesh(params);
+        this.logTransitionDebug(params, 'mesh.after_ensure', {
+            hasShader: Boolean(this.shader),
+            hasMesh: Boolean(this.mesh),
+            geometrySignature: this.geometrySignature,
+            rootVisible: this.root.visible,
+        });
 
         const uniformStartMs = now();
         this.updateUniforms(params);
         const uniformUpdateMs = now() - uniformStartMs;
+        this.logTransitionDebug(params, 'uniforms.after_update', {
+            progress: params.progress,
+            timeSec: params.nowMs / 1000,
+            uniformUpdateMs,
+            uniformSnapshot: this.readUniformSnapshot(),
+        });
 
         this.root.visible = true;
         return {
@@ -170,12 +213,31 @@ export class GridGradientShaderFieldRenderer {
             activeOffsetZoneTransitionCells:
                 params.plan.activeOffsetZoneTransitionCells,
             outsideCells: params.plan.outsideCells,
+            uniformProgress: params.progress,
+            uniformTimeSec: params.nowMs / 1000,
             fallbackReason: null,
         };
     }
 
     hide(): void {
         this.root.visible = false;
+    }
+
+    private readUniformSnapshot(): Record<string, unknown> | null {
+        if (!this.shader) return null;
+        const group = (this.shader.resources as any).gridGradientShaderUniforms;
+        const uniforms = group?.uniforms as Record<string, unknown> | undefined;
+        if (!uniforms) return null;
+        return {
+            uProgress: uniforms.uProgress,
+            uTimeSec: uniforms.uTimeSec,
+            uGridSize: uniforms.uGridSize,
+            uWorldOrigin: uniforms.uWorldOrigin,
+            uSpacingPx: uniforms.uSpacingPx,
+            uCenterSizePx: uniforms.uCenterSizePx,
+            uEdgeSizePx: uniforms.uEdgeSizePx,
+            uBorderOffsetPx: uniforms.uBorderOffsetPx,
+        };
     }
 
     private ensureTextures(params: GridGradientShaderFieldUpdateParams): boolean {

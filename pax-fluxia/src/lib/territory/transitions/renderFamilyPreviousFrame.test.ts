@@ -1,12 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { ConquestEvent } from '@pax/common';
-import type { StarState } from '$lib/types/game.types';
 import type { OwnershipSnapshot } from '../contracts/OwnershipContracts';
 import type { RenderFamilyActiveTransition } from '../families/RenderFamilyTypes';
-import {
-    ownershipSnapshotHasPreviousConquestOwners,
-    transitionHasPostConquestOwners,
-} from './renderFamilyPreviousFrame';
+import { ownershipSnapshotHasPreviousConquestOwners } from './renderFamilyPreviousFrame';
 
 function conquest(overrides: Partial<ConquestEvent> = {}): ConquestEvent {
     return {
@@ -38,20 +34,6 @@ function activeTransition(
     };
 }
 
-function star(id: string, ownerId: string): StarState {
-    return {
-        id,
-        ownerId,
-        x: 0,
-        y: 0,
-        type: 'standard',
-        ships: 0,
-        maxShips: 0,
-        shipProduction: 0,
-        radius: 10,
-    } as StarState;
-}
-
 function ownership(entries: ReadonlyArray<readonly [string, string]>): OwnershipSnapshot {
     return {
         version: 'test',
@@ -63,32 +45,6 @@ function ownership(entries: ReadonlyArray<readonly [string, string]>): Ownership
 }
 
 describe('renderFamilyPreviousFrame helpers', () => {
-    it('requires every conquest star to have the new owner before rendering the transition', () => {
-        const transition = activeTransition([
-            conquest(),
-            conquest({
-                tick: 12,
-                starId: 's2',
-                previousOwner: 'p3',
-                newOwner: 'p4',
-            }),
-        ]);
-
-        expect(
-            transitionHasPostConquestOwners({
-                activeTransition: transition,
-                stars: [star('s1', 'p2'), star('s2', 'p3')],
-            }),
-        ).toBe(false);
-
-        expect(
-            transitionHasPostConquestOwners({
-                activeTransition: transition,
-                stars: [star('s1', 'p2'), star('s2', 'p4')],
-            }),
-        ).toBe(true);
-    });
-
     it('validates that a cached ownership snapshot still represents PREV owners', () => {
         const transition = activeTransition([conquest()]);
 

@@ -8,24 +8,24 @@ Purpose: make Grid Gradient conquest fills visibly transition through the mode's
 
 Current status:
 
-- Implemented a targeted correction in `pax-fluxia/src/lib/components/game/GameCanvas.svelte`.
-- Added `pax-fluxia/src/lib/territory/transitions/renderFamilyPreviousFrame.ts` to validate that a transition is ready for rendering and that a cached previous frame still represents previous conquest owners.
-- Added focused tests in `pax-fluxia/src/lib/territory/transitions/renderFamilyPreviousFrame.test.ts`.
+- Removed the Grid Gradient-specific post-owner transition gate added in the previous pass; it was not proven by live behavior and could suppress transition input.
+- Added `GRID_GRADIENT_DEBUG_TRANSITIONS` and `Debug transition logs` UI control.
+- Added structured renderer logs with prefix `[GG_TRANSITION]` behind each major transition gate and rendering handoff.
+- Kept `ownershipSnapshotHasPreviousConquestOwners(...)` to protect previous-frame cache use.
+- Added visible diagnostics for transition cell mix counts, shader-side transition counts, event/session counts, transition age/duration, and shader uniform progress.
 
 Findings:
 
-- Grid Gradient could receive a transition from pending conquest preview before the star owners and geometry had advanced to the post-conquest state.
-- The Grid Gradient transition plan could therefore have a live progress clock but no real PREV/NEXT geometry delta to draw.
-- The previous-frame cache was trusted without checking that it still contained the previous owner for every active conquest event.
+- The earlier pending-preview explanation is not accepted as root cause because the user verified there was still zero visible transition.
+- The active diagnostic question is now: where does transition truth stop being consumed? Possible gates are lifecycle, scheduler/queue, previous-frame selection, render-family input, plan/classification, shader texture packing, shader uniform update, or shader visual consumption.
+- Live logs are now required for the next diagnosis. They should be collected with `window.logFlags.renderer = true` and console filter `[GG_TRANSITION]`.
 
 Validation:
 
-- `bun test src/lib/territory/transitions/renderFamilyPreviousFrame.test.ts`
-- `bun test src/lib/territory/families/gridGradient/GridGradientFamily.test.ts src/lib/territory/families/gridGradient/gridGradientScene.test.ts src/lib/territory/families/gridGradient/gridGradientShaderFieldPacking.test.ts`
+- `bun test src/lib/territory/transitions/renderFamilyPreviousFrame.test.ts src/lib/territory/families/gridGradient/GridGradientFamily.test.ts src/lib/territory/families/gridGradient/gridGradientShaderFieldPacking.test.ts`
 - `bun run build` in `pax-fluxia/`
 
-Needs user verification:
+Next step:
 
-- In the live app, select `Grid Gradient`, `Fill Style = Point Fill`, and shader field backend.
-- Trigger a conquest and confirm the fill dots animate as a wave/growth/fade rather than snapping.
-- If still invisible, next step is to inspect whether the WebGL uniform update is reaching the shader at runtime, because code-side progress and texture data have separate connection points.
+- User should enable `Debug transition logs`, set `window.logFlags.renderer = true`, filter `[GG_TRANSITION]`, trigger one conquest, and copy logs from `transition_lifecycle.after_build` through `family.update.exit`.
+- Use those logs to identify the first stage where expected transition data becomes absent or inconsistent.

@@ -24,6 +24,9 @@ export interface GridGradientStats {
     readonly activeDrawableTransitionCells: number;
     readonly activeMixingTransitionCells: number;
     readonly activeOffsetZoneTransitionCells: number;
+    readonly shaderActiveTransitionCells: number;
+    readonly shaderActiveDrawableTransitionCells: number;
+    readonly shaderActiveOffsetZoneTransitionCells: number;
     readonly outsideCells: number;
     readonly borderDotCount: number;
     readonly vectorBorderCount: number;
@@ -54,10 +57,15 @@ export interface GridGradientStats {
     readonly paletteTextureBytes: number;
     readonly textureBytes: number;
     readonly transitionEventCount: number;
+    readonly transitionSessionCount: number;
     readonly schedulerRawProgress: number | null;
     readonly rawProgress: number | null;
+    readonly transitionAgeMs: number | null;
+    readonly transitionDurationMs: number | null;
     readonly visualTransitionActive: boolean;
     readonly localVisualTransitionDurationMs: number | null;
+    readonly shaderUniformProgress: number | null;
+    readonly shaderUniformTimeSec: number | null;
     readonly requestedPlanPending: boolean;
     readonly clockSource: 'none' | 'scheduler' | 'local';
     readonly visibleFrameState:
@@ -92,6 +100,9 @@ const INITIAL: GridGradientStats = {
     activeDrawableTransitionCells: 0,
     activeMixingTransitionCells: 0,
     activeOffsetZoneTransitionCells: 0,
+    shaderActiveTransitionCells: 0,
+    shaderActiveDrawableTransitionCells: 0,
+    shaderActiveOffsetZoneTransitionCells: 0,
     outsideCells: 0,
     borderDotCount: 0,
     vectorBorderCount: 0,
@@ -122,10 +133,15 @@ const INITIAL: GridGradientStats = {
     paletteTextureBytes: 0,
     textureBytes: 0,
     transitionEventCount: 0,
+    transitionSessionCount: 0,
     schedulerRawProgress: null,
     rawProgress: null,
+    transitionAgeMs: null,
+    transitionDurationMs: null,
     visualTransitionActive: false,
     localVisualTransitionDurationMs: null,
+    shaderUniformProgress: null,
+    shaderUniformTimeSec: null,
     requestedPlanPending: false,
     clockSource: 'none',
     visibleFrameState: 'steady',

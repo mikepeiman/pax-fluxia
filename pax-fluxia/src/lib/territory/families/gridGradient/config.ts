@@ -6,6 +6,7 @@ export type GridGradientShaderNeighborMode = 'center' | 'cross' | 'eight';
 
 export const gridGradientFamilyConfigDefaults = {
     GRID_GRADIENT_ENABLED: true,
+    GRID_GRADIENT_DEBUG_TRANSITIONS: false,
     GRID_GRADIENT_DRAW_BACKEND: 'shader_field' as const,
     GRID_GRADIENT_FILL_STYLE: 'pointillist' as const,
     GRID_GRADIENT_SPACING_PX: 6,

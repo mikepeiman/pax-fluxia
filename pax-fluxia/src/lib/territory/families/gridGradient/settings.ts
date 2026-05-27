@@ -20,6 +20,7 @@ import { isGridGradientCellShape } from './gridGradientScene';
 
 export const GRID_GRADIENT_TUNABLE_KEYS = [
     'GRID_GRADIENT_ENABLED',
+    'GRID_GRADIENT_DEBUG_TRANSITIONS',
     'GRID_GRADIENT_FILL_STYLE',
     'GRID_GRADIENT_SPACING_PX',
     'GRID_GRADIENT_MAX_CELLS',
@@ -63,6 +64,7 @@ export const GRID_GRADIENT_TUNABLE_KEYS = [
 
 export interface GridGradientSettings {
     readonly enabled: boolean;
+    readonly debugTransitions: boolean;
     readonly drawBackend: GridGradientDrawBackend;
     readonly fillStyle: GridGradientFillStyle;
     readonly spacingPx: number;
@@ -173,6 +175,11 @@ export function resolveGridGradientSettings(input: RenderFamilyInput): GridGradi
             input,
             'GRID_GRADIENT_ENABLED',
             defaults.GRID_GRADIENT_ENABLED,
+        ),
+        debugTransitions: readTunableBoolean(
+            input,
+            'GRID_GRADIENT_DEBUG_TRANSITIONS',
+            defaults.GRID_GRADIENT_DEBUG_TRANSITIONS,
         ),
         drawBackend: readTunableString(
             input,

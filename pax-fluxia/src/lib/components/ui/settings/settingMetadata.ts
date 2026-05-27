@@ -476,6 +476,9 @@ const SCOPE_LABEL_META: LabelScopeMap = {
             key: 'METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END',
         },
         'Grid Gradient Enabled': { key: 'GRID_GRADIENT_ENABLED' },
+        'Grid Gradient Transition Debug': {
+            key: 'GRID_GRADIENT_DEBUG_TRANSITIONS',
+        },
         'Grid Gradient Spacing': { key: 'GRID_GRADIENT_SPACING_PX' },
         'Grid Gradient Max Cells': { key: 'GRID_GRADIENT_MAX_CELLS' },
         'Grid Gradient Shape': { key: 'GRID_GRADIENT_CELL_SHAPE' },
