@@ -47,3 +47,30 @@ Follow-up validation:
 - `bun test src/lib/territory/families/gridGradient/transitionTraceLogger.test.ts`
 - `bun test src/lib/territory/transitions/renderFamilyPreviousFrame.test.ts src/lib/territory/families/gridGradient/GridGradientFamily.test.ts src/lib/territory/families/gridGradient/gridGradientShaderFieldPacking.test.ts src/lib/territory/families/gridGradient/transitionTraceLogger.test.ts`
 - `bun run build` in `pax-fluxia/`
+
+### Grid Gradient fill transition visibility
+
+Purpose: make conquest fill transitions visibly render in the active Grid Gradient point-fill presentation.
+
+User-reported failure:
+
+- Active diagnostics and logs were being treated as proof of transition rendering.
+- In the actual game view, fills still appeared to snap PRE/POST with no visible transition.
+
+Cause:
+
+- Transition data reached the family and shader texture plan, but the shader presentation did not produce a strong visible dot transition.
+- PREV and NEXT marks shared the same cell center.
+- Transition mark scale retained a 28% floor, so outgoing/incoming marks did not clearly grow from or shrink to points.
+
+Implemented correction:
+
+- Transition marks now scale directly from side alpha.
+- PREV and NEXT transition-side dots now separate deterministically during the middle of the blend and return to the cell center at the start/end.
+- Graphics point-fill and shader-field point-fill use the same transition scale/offset semantics.
+
+Validation:
+
+- `bun test src/lib/territory/families/gridGradient/gridGradientScene.test.ts src/lib/territory/families/gridGradient/gridGradientShaderFieldShaders.test.ts src/lib/territory/families/gridGradient/GridGradientFamily.test.ts src/lib/territory/families/gridGradient/gridGradientShaderFieldPacking.test.ts`
+- `bun test src/lib/territory/transitions/renderFamilyPreviousFrame.test.ts src/lib/territory/families/gridGradient/GridGradientFamily.test.ts src/lib/territory/families/gridGradient/gridGradientScene.test.ts src/lib/territory/families/gridGradient/gridGradientShaderFieldPacking.test.ts src/lib/territory/families/gridGradient/gridGradientShaderFieldShaders.test.ts src/lib/territory/families/gridGradient/transitionTraceLogger.test.ts`
+- `bun run build` in `pax-fluxia/` passed. Existing Svelte unused-CSS and chunk-size warnings remain unrelated to this pass.

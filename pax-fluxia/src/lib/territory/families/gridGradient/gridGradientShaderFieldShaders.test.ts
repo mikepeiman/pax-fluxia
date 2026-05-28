@@ -49,10 +49,13 @@ describe('gridGradientShaderFieldBitGl', () => {
         expect(source).toContain('float flipTime = metrics.g;');
         expect(source).toContain('float t = transitionBlendT(uProgress, flipTime);');
         expect(source).toContain('transitionMarkScale');
+        expect(source).toContain('transitionSideOffset');
         expect(source).toContain('shadeCellSide');
         expect(source).toContain('shadeCellSide(');
         expect(source).toContain('1.0 - t');
+        expect(source).toContain('sqrt(a)');
         expect(source).toContain('radius * scale');
+        expect(source).toContain('sideCenter');
         expect(source).toContain('bool transitionRole = role >= 1.5;');
         expect(source).toContain('!transitionRole && uBorderOffsetPx > 0.001');
         expect(source).toContain('transitionFloorPx');

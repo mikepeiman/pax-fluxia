@@ -47,10 +47,26 @@ export interface GridGradientOwnerDistanceSummary {
     readonly ownerIndexByCell: Int32Array;
 }
 
+export interface GridGradientTransitionOffset {
+    readonly x: number;
+    readonly y: number;
+}
+
 function clamp01(value: number): number {
     if (value <= 0) return 0;
     if (value >= 1) return 1;
     return value;
+}
+
+function hashGridCell01(ix: number, iy: number, salt: number): number {
+    let h =
+        Math.imul(ix | 0, 374761393) ^
+        Math.imul(iy | 0, 668265263) ^
+        Math.imul(salt | 0, 1274126177);
+    h ^= h >>> 13;
+    h = Math.imul(h, 1274126177);
+    h ^= h >>> 16;
+    return (h >>> 0) / 0x1_0000_0000;
 }
 
 export function resolveGridGradientCellSize(
@@ -116,7 +132,31 @@ export function resolveGridGradientTransitionScale(params: {
     if (params.role === 'native') return 1;
     const alpha = clamp01(params.alpha);
     if (alpha <= 0) return 0;
-    return 0.28 + 0.72 * Math.sqrt(alpha);
+    return Math.sqrt(alpha);
+}
+
+export function resolveGridGradientTransitionOffset(params: {
+    readonly role: GridVRole;
+    readonly alpha: number;
+    readonly side: 'prev' | 'next';
+    readonly ix: number;
+    readonly iy: number;
+    readonly spacingPx: number;
+}): GridGradientTransitionOffset {
+    if (!isGridGradientTransitionRole(params.role)) return { x: 0, y: 0 };
+    const alpha = clamp01(params.alpha);
+    if (alpha <= 0 || alpha >= 1) return { x: 0, y: 0 };
+
+    const separationPx =
+        Math.max(0, params.spacingPx) * 0.24 * Math.sin(alpha * Math.PI);
+    if (separationPx <= 0.001) return { x: 0, y: 0 };
+
+    const angle = hashGridCell01(params.ix, params.iy, 211) * Math.PI * 2;
+    const sideSign = params.side === 'prev' ? -1 : 1;
+    return {
+        x: Math.cos(angle) * separationPx * sideSign,
+        y: Math.sin(angle) * separationPx * sideSign,
+    };
 }
 
 function smoothstep(edge0: number, edge1: number, value: number): number {

@@ -22,6 +22,7 @@ import {
     isGridGradientTransitionRole,
     resolveGridGradientDrawableCellSize,
     resolveGridGradientTransitionBlendT,
+    resolveGridGradientTransitionOffset,
     resolveGridGradientTransitionSideAlphas,
     resolveGridGradientTransitionScale,
     type GridGradientOwnerDistanceSummary,
@@ -1029,12 +1030,20 @@ export class GridGradientFamily implements RenderFamily {
                     alpha,
                 });
                 if (transitionScale <= 0) return;
+                const offset = resolveGridGradientTransitionOffset({
+                    role: cell.role,
+                    alpha,
+                    side,
+                    ix: cell.ix,
+                    iy: cell.iy,
+                    spacingPx: params.plan.classification.spacingPx,
+                });
                 drawGridGradientCell({
                     graphics: this.fillGraphics,
                     shape: params.settings.cellShape,
                     id: `${cell.id}:${side}`,
-                    x: cell.x,
-                    y: cell.y,
+                    x: cell.x + offset.x,
+                    y: cell.y + offset.y,
                     sizePx: sizePx * transitionScale,
                     color,
                     alpha: params.settings.fillAlpha * alpha,

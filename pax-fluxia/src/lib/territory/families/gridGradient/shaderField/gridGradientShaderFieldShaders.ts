@@ -148,12 +148,32 @@ export const gridGradientShaderFieldBitGl = {
                 if (role < 1.5) return 1.0;
                 float a = saturate(sideAlpha);
                 if (a <= 0.0001) return 0.0;
-                return 0.28 + 0.72 * sqrt(a);
+                return sqrt(a);
             }
 
             float transitionBlendT(float progress, float flipTime) {
                 float waveWindow = max(0.28, uFlipWindow);
                 return smoothstep(flipTime - waveWindow, flipTime + waveWindow, saturate(progress));
+            }
+
+            vec2 transitionSideOffset(
+                vec2 cell,
+                float role,
+                float sideAlpha,
+                float side,
+                vec2 ownerSalt
+            ) {
+                if (role < 1.5) return vec2(0.0);
+                float a = saturate(sideAlpha);
+                if (a <= 0.0001 || a >= 0.9999) return vec2(0.0);
+                float separation = uSpacingPx * 0.24 * sin(a * 3.14159265);
+                if (separation <= 0.001) return vec2(0.0);
+                float angle =
+                    cellPhaseHash(cell, ownerSalt + vec2(211.0, 503.0)) *
+                    6.2831853;
+                vec2 direction = vec2(cos(angle), sin(angle));
+                float sideSign = side < 0.5 ? -1.0 : 1.0;
+                return direction * separation * sideSign;
             }
 
             vec4 shadeCellSide(
@@ -178,7 +198,10 @@ export const gridGradientShaderFieldBitGl = {
                 float scale = transitionMarkScale(role, sideAlpha);
                 if (scale <= 0.001) return vec4(0.0);
 
-                float mask = markMask(worldPos - center, radius * scale, noiseSeed + side * 0.173);
+                vec2 sideCenter =
+                    center +
+                    transitionSideOffset(cell, role, sideAlpha, side, ownerSalt);
+                float mask = markMask(worldPos - sideCenter, radius * scale, noiseSeed + side * 0.173);
                 if (mask <= 0.001) return vec4(0.0);
 
                 float pulse = 1.0;

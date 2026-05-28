@@ -7,6 +7,7 @@ import {
     resolveGridGradientDrawableCellSize,
     resolveGridGradientTransitionFloorSizePx,
     resolveGridGradientTransitionBlendT,
+    resolveGridGradientTransitionOffset,
     resolveGridGradientTransitionSideAlphas,
     resolveGridGradientTransitionScale,
 } from './gridGradientScene';
@@ -195,7 +196,56 @@ describe('grid gradient scene helpers', () => {
 
         expect(low).toBeGreaterThan(0);
         expect(low).toBeLessThan(high);
+        expect(low).toBeCloseTo(0.5);
         expect(high).toBeCloseTo(1);
+    });
+
+    it('separates transition-side dots only during the visible middle of a blend', () => {
+        expect(resolveGridGradientTransitionOffset({
+            role: 'native',
+            alpha: 0.5,
+            side: 'prev',
+            ix: 2,
+            iy: 3,
+            spacingPx: 10,
+        })).toEqual({ x: 0, y: 0 });
+        expect(resolveGridGradientTransitionOffset({
+            role: 'dispossessed',
+            alpha: 0,
+            side: 'prev',
+            ix: 2,
+            iy: 3,
+            spacingPx: 10,
+        })).toEqual({ x: 0, y: 0 });
+        expect(resolveGridGradientTransitionOffset({
+            role: 'dispossessed',
+            alpha: 1,
+            side: 'next',
+            ix: 2,
+            iy: 3,
+            spacingPx: 10,
+        })).toEqual({ x: 0, y: 0 });
+
+        const prev = resolveGridGradientTransitionOffset({
+            role: 'dispossessed',
+            alpha: 0.5,
+            side: 'prev',
+            ix: 2,
+            iy: 3,
+            spacingPx: 10,
+        });
+        const next = resolveGridGradientTransitionOffset({
+            role: 'dispossessed',
+            alpha: 0.5,
+            side: 'next',
+            ix: 2,
+            iy: 3,
+            spacingPx: 10,
+        });
+
+        expect(Math.hypot(prev.x, prev.y)).toBeGreaterThan(0);
+        expect(next.x).toBeCloseTo(-prev.x);
+        expect(next.y).toBeCloseTo(-prev.y);
     });
 
     it('keeps every changing cell in the global fill transition for the full duration', () => {
