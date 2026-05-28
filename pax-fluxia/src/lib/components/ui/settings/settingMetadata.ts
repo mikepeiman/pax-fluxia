@@ -76,7 +76,8 @@ const LOGGING_META = {
     ),
     'Grid Gradient transition trace': {
         key: 'GRID_GRADIENT_DEBUG_TRANSITIONS',
-        description: 'Detailed Grid Gradient conquest transition trace logs.',
+        description:
+            'Detailed Grid Gradient conquest transition trace logs. Does not enable the broad Render log channel.',
     },
 } as SettingMetaMap;
 const STAR_LABEL_META = buildSliderMeta(STAR_LABEL_SLIDERS);

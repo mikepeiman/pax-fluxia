@@ -130,5 +130,9 @@ export function logGridGradientTransitionTrace(params: {
     const activityKey = [...new Set(parts)].sort().join('|');
     if (params.state.get(params.stage) === activityKey) return;
     params.state.set(params.stage, activityKey);
-    log.renderer('GG_TRANSITION', `[GG_TRANSITION] ${params.label}`, params.data);
+    log.gridGradientTrace(
+        'GG_TRANSITION',
+        `[GG_TRANSITION] ${params.label}`,
+        params.data,
+    );
 }

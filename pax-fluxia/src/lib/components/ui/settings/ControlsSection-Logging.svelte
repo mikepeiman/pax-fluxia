@@ -22,9 +22,6 @@
     function setGridGradientTraceEnabled(enabled: boolean): void {
         (GAME_CONFIG as unknown as Record<string, unknown>)
             .GRID_GRADIENT_DEBUG_TRANSITIONS = enabled;
-        if (enabled) {
-            (logFlags as any).renderer = true;
-        }
         logRefresh++;
     }
 </script>
@@ -92,7 +89,7 @@
         <span
             class="log-label"
             data-setting-config-key="GRID_GRADIENT_DEBUG_TRANSITIONS"
-            data-setting-description="Detailed Grid Gradient conquest transition trace logs."
+            data-setting-description="Detailed Grid Gradient conquest transition trace logs. Does not enable the broad Render log channel."
             >Grid Gradient transition trace</span
         >
         <span class="log-desc">Filter logs for [GG_TRANSITION]</span>

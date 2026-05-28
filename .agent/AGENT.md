@@ -243,6 +243,8 @@ Runtime log toggles must be surfaced through the existing Logging debug controls
 
 Diagnostic traces must be idle-quiet. A trace toggle must not emit frame-by-frame logs while the relevant event is absent or paused; emit on event start/end, gate changes, coarse progress steps, or explicit state changes.
 
+Narrow diagnostic toggles must not mutate broad log-channel toggles. If a mode-specific trace needs independent output, add a scoped telemetry method instead of turning on a noisy category such as renderer.
+
 ```ts
 import { log } from '$lib/utils/logger';
 
