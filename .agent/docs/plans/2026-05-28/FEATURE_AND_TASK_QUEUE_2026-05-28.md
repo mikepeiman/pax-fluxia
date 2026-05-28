@@ -28,3 +28,22 @@ Validation:
 
 - `bun test src/lib/territory/transitions/renderFamilyPreviousFrame.test.ts src/lib/territory/families/gridGradient/GridGradientFamily.test.ts src/lib/territory/families/gridGradient/gridGradientShaderFieldPacking.test.ts`
 - `bun run build` in `pax-fluxia/`
+
+Follow-up:
+
+- Paused behavior is now correct, but running-game output was still too verbose.
+- The duplicated `[GG_TRANSITION]` prefix made the output harder to scan.
+
+Follow-up correction:
+
+- Suppressed routine per-frame stages in `transitionTraceLogger.ts`.
+- Kept structural lifecycle/gate/rebuild/error records deduped without progress churn.
+- Kept `family.update.exit` as the coarse progress summary.
+- Removed the duplicated trace prefix.
+- Added a focused trace-volume unit test.
+
+Follow-up validation:
+
+- `bun test src/lib/territory/families/gridGradient/transitionTraceLogger.test.ts`
+- `bun test src/lib/territory/transitions/renderFamilyPreviousFrame.test.ts src/lib/territory/families/gridGradient/GridGradientFamily.test.ts src/lib/territory/families/gridGradient/gridGradientShaderFieldPacking.test.ts src/lib/territory/families/gridGradient/transitionTraceLogger.test.ts`
+- `bun run build` in `pax-fluxia/`

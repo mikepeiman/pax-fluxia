@@ -2,6 +2,33 @@ import { log } from '$lib/utils/logger';
 
 export type GridGradientTransitionTraceState = Map<string, string>;
 
+const SUMMARY_LABELS = new Set(['family.update.exit']);
+
+const STRUCTURAL_LABELS = new Set([
+    'transition_lifecycle.after_build',
+    'transition_lifecycle.active_transition',
+    'transition_lifecycle.terminal_mark',
+    'presentation_queue.enqueue_attempt',
+    'presentation_queue.replace_pending',
+    'prev_frame.cache_gate',
+    'prev_frame.using_presented_cache',
+    'prev_frame.rebuilt',
+    'stable_frame.updated',
+]);
+
+const STRUCTURAL_LABEL_FRAGMENTS = [
+    '.backend_gate.',
+    '.begin_visual_transition.',
+    '.cache_hit',
+    '.cache_unchanged_gate',
+    '.deduped',
+    '.decision',
+    '.error',
+    '.gate',
+    '.rebuild_done',
+    '.skipped',
+];
+
 const ACTIVITY_COUNT_KEYS = new Set([
     'eventCount',
     'sessionCount',
@@ -33,8 +60,19 @@ const ACTIVE_BOOLEAN_KEYS = new Set([
 
 const PROGRESS_KEYS = new Set(['progress', 'rawProgress', 'uProgress']);
 
+type TraceProfile = 'summary' | 'structural' | null;
+
 export function createGridGradientTransitionTraceState(): GridGradientTransitionTraceState {
     return new Map();
+}
+
+function resolveTraceProfile(label: string): TraceProfile {
+    if (SUMMARY_LABELS.has(label)) return 'summary';
+    if (STRUCTURAL_LABELS.has(label)) return 'structural';
+    if (STRUCTURAL_LABEL_FRAGMENTS.some((fragment) => label.includes(fragment))) {
+        return 'structural';
+    }
+    return null;
 }
 
 function progressBucket(value: number): string {
@@ -50,6 +88,7 @@ function collectTraceParts(
     activity: { present: boolean },
     visited: WeakSet<object>,
     depth: number,
+    options: { includeProgress: boolean },
 ): void {
     if (depth > 5 || value === null || value === undefined) return;
 
@@ -67,7 +106,7 @@ function collectTraceParts(
             parts.push(`${key}:${value}`);
             return;
         }
-        if (PROGRESS_KEYS.has(key)) {
+        if (options.includeProgress && PROGRESS_KEYS.has(key)) {
             parts.push(`${key}:${progressBucket(value)}`);
         }
         return;
@@ -91,7 +130,15 @@ function collectTraceParts(
             parts.push(`events:${value.length}`);
         }
         for (const item of value.slice(0, 8)) {
-            collectTraceParts(item, key, parts, activity, visited, depth + 1);
+            collectTraceParts(
+                item,
+                key,
+                parts,
+                activity,
+                visited,
+                depth + 1,
+                options,
+            );
         }
         return;
     }
@@ -109,6 +156,7 @@ function collectTraceParts(
             activity,
             visited,
             depth + 1,
+            options,
         );
     }
 }
@@ -122,17 +170,28 @@ export function logGridGradientTransitionTrace(params: {
 }): void {
     if (!params.enabled) return;
 
+    const profile = resolveTraceProfile(params.label);
+    if (!profile) return;
+
     const parts: string[] = [];
     const activity = { present: false };
-    collectTraceParts(params.data, '', parts, activity, new WeakSet(), 0);
+    collectTraceParts(
+        params.data,
+        '',
+        parts,
+        activity,
+        new WeakSet(),
+        0,
+        { includeProgress: profile === 'summary' },
+    );
     if (!activity.present) return;
 
     const activityKey = [...new Set(parts)].sort().join('|');
-    if (params.state.get(params.stage) === activityKey) return;
-    params.state.set(params.stage, activityKey);
+    if (params.state.get(params.label) === activityKey) return;
+    params.state.set(params.label, activityKey);
     log.gridGradientTrace(
         'GG_TRANSITION',
-        `[GG_TRANSITION] ${params.label}`,
+        params.label,
         params.data,
     );
 }
