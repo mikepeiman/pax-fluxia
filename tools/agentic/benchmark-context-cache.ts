@@ -33,8 +33,9 @@ const report = `# Context Cache Benchmark
 ## Scenario
 
 - Workspace: \`pax-fluxia\`
-- Benchmark type: cold build followed by warm build
+- Benchmark type: cold local artifact build followed by warm local artifact build
 - Stable artifacts: ${cold.artifacts.length}
+- Provider prompt size is reported separately; local artifact totals are not automatically injected into provider requests.
 
 ## Cold Run
 
@@ -77,8 +78,10 @@ const report = `# Context Cache Benchmark
 
 ## Tradeoffs
 
-- Stable artifact bytes remain the same between cold and warm runs; savings come from reuse and skipped regeneration.
-- Provider-side savings still depend on sending the generated stable prefix first in real OpenAI or Anthropic API requests.
+- Stable artifact bytes remain the same between cold and warm runs; local savings come from reuse and skipped regeneration.
+- Local artifact totals are not provider prompt tokens unless an agent explicitly injects those artifact files.
+- Provider-side savings depend on sending the generated lean stable prefix first in real OpenAI or Anthropic API requests.
+- Use \`bun run agentic:context:audit\` to verify that the provider prefix remains small compared with the full local artifact bundle.
 `;
 
 const reportPath = join(rootDir, config.paths.benchmarkReport);

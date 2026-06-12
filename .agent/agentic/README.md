@@ -48,15 +48,17 @@ Toggles live in `.agent/agentic/config.json`:
 When `providerCaching` is enabled, the builder writes:
 
 - `.agent-harness/context-cache/provider-cache-prefix.md`
-  - the exact stable prefix to place at the beginning of OpenAI and Anthropic API requests
+  - the exact lean stable prefix to place at the beginning of OpenAI and Anthropic API requests
 - `.agent-harness/context-cache/provider-cache-strategy.md`
   - provider-specific request placement, metrics, and cache invalidation guidance
 
 Provider-cache contract:
 
+- The default provider prefix is an artifact index and routing contract, not the full local context bundle.
 - OpenAI: keep the generated prefix byte-identical at the start of the request, use a consistent `prompt_cache_key`, and inspect `usage.prompt_tokens_details.cached_tokens`.
-- Anthropic: send the generated prefix as a stable system text block with `cache_control: { "type": "ephemeral" }`, then inspect `usage.cache_creation_input_tokens` and `usage.cache_read_input_tokens`.
+- Anthropic: send the generated prefix as a stable system text block with `cache_control: { "type": "ephemeral" }` only when it meets the selected model's minimum cacheable length, then inspect `usage.cache_creation_input_tokens` and `usage.cache_read_input_tokens`.
 - Keep volatile task data after the provider-cache prefix.
+- Load full stable artifacts only on demand after the cache breakpoint when a task needs them.
 
 The builder also supports command-line overrides:
 
@@ -71,6 +73,8 @@ The builder also supports command-line overrides:
   - `bun run agentic:context:build`
 - Benchmark cold vs warm behavior:
   - `bun run agentic:context:benchmark`
+- Audit provider-prefix size and artifact-bundle drag:
+  - `bun run agentic:context:audit`
 - Launch the project-local Pi setup:
   - `bun run agentic:pi`
 
@@ -113,4 +117,4 @@ The current benchmark report is written to:
 
 - `.agent-harness/metrics/context-benchmark-latest.md`
 
-The benchmark covers deterministic local artifact reuse and verifies whether the provider-cache prefix is large enough to be useful for provider-side prompt caching. It does not call OpenAI or Anthropic APIs.
+The benchmark covers deterministic local artifact reuse and verifies whether the provider-cache prefix is large enough to be useful for provider-side prompt caching. The audit verifies that the provider prefix remains lean compared with the full artifact bundle. Neither command calls OpenAI or Anthropic APIs.

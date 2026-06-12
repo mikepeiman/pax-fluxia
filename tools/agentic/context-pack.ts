@@ -215,7 +215,9 @@ async function collectProviderCacheArtifacts(
         artifacts.push({
             id: artifact.id,
             title: artifact.title,
+            description: artifact.description,
             relativeOutputPath: `${config.paths.artifactsDir.replace(/\\/g, "/")}/${artifact.output}`,
+            sources: artifact.sources,
             content,
             artifactHash,
             estimatedTokens,

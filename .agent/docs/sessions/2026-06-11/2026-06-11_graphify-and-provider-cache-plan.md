@@ -1,12 +1,13 @@
 ---
 date created: 2026-06-11
-last updated: 2026-06-11
+last updated: 2026-06-12
 last updated by: AI
 relevant prior docs:
   - .agent/agentic/README.md
   - .agent/agentic/config.json
   - .pi/extensions/pax-project/index.ts
 superseding docs:
+  - .agent/docs/sessions/2026-06-12/2026-06-12_Chat.md
 ---
 
 # Graphify And Provider Prompt Cache Plan
@@ -94,21 +95,31 @@ Generated files after `bun run agentic:context:build`:
 
 Runtime request contract:
 
-- Stable prefix first.
+- Lean stable prefix first.
 - Tool/schema definitions stable and sorted when reused.
 - Current task, current diff, fresh logs, and user-specific instructions after the stable prefix.
 - No timestamps, run IDs, volatile metrics, or fresh summaries before the provider-cache breakpoint.
+- Full stable artifacts are not placed in every provider request. Load them after the breakpoint only when the task needs that domain context.
+
+Audit update, 2026-06-12:
+
+- The first provider-prefix implementation embedded the full stable artifact bundle and produced an approximately 34,240-token default prefix.
+- That default was rejected as too large for routine agent effectiveness.
+- The current implementation defaults to `prefixMode: "artifact-index"` with a 4,096-token lean budget and no full artifacts embedded by default.
+- Current provider prefix: 1,086 estimated tokens, 4,342 chars, hash `324bed3d0710031047f1a03b2fc71296fc3c3cc443af2676373c4eaa4311c652`.
+- Current audit: the provider prefix is 3.2% of the full local artifact bundle and avoids about 32,701 estimated provider-prefix tokens by default.
+- Repeatable audit command: `bun run agentic:context:audit`.
 
 OpenAI contract:
 
 - Keep the generated prefix byte-identical at the start of the request.
-- Use `prompt_cache_key: "pax-fluxia-agentic-stable-v1"` for requests sharing this prefix.
+- Use `prompt_cache_key: "pax-fluxia-agentic-stable-v2"` for requests sharing this prefix.
 - Use `prompt_cache_retention: "24h"` only when the selected model supports extended retention; otherwise omit it.
 - Track `usage.prompt_tokens_details.cached_tokens`.
 
 Anthropic contract:
 
-- Send the generated prefix as a stable `system` text block.
+- Send the generated prefix as a stable `system` text block only when it meets the selected model's minimum cacheable length.
 - Put `cache_control: { "type": "ephemeral" }` on that block.
 - Use one explicit breakpoint for Pax stable context; reserve other breakpoint slots for large stable tools or retrieved docs if needed.
 - Track `usage.cache_creation_input_tokens` and `usage.cache_read_input_tokens`.
@@ -123,7 +134,7 @@ Anthropic contract:
 
 ## Success Criteria
 
-- Stable provider prefix exceeds 1024 estimated tokens.
+- Default provider prefix exceeds 1024 estimated tokens and stays below the configured 4096-token lean budget.
 - Warm local context builds reuse stable artifacts.
 - OpenAI requests report nonzero `cached_tokens` after warm-up for identical prefixes.
 - Anthropic requests report nonzero `cache_read_input_tokens` after the first cache write.
@@ -134,6 +145,9 @@ Anthropic contract:
 - `bun tools/agentic/build-context-pack.ts --json` succeeded.
 - `bun tools/agentic/build-context-pack.ts --artifact stable-instructions --json` succeeded and kept the full provider prefix hash unchanged.
 - `bun tools/agentic/benchmark-context-cache.ts` succeeded.
+- `bun tools/agentic/audit-context-cache.ts` succeeded.
 - Warm local context cache hit rate: 100%.
-- Stable provider prefix estimated tokens: 34240.
-- Stable provider prefix hash: `833fbc95c9810c33e5d337d8c96f74a13eb87162d81d70c9ae91868d1580c7b1`.
+- Stable provider prefix estimated tokens: 1086.
+- Stable provider prefix hash: `324bed3d0710031047f1a03b2fc71296fc3c3cc443af2676373c4eaa4311c652`.
+- Full local artifact bundle estimated tokens: 33787.
+- Provider-prefix tokens avoided by index mode: 32701.
