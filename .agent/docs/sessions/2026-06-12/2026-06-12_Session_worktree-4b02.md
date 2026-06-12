@@ -39,3 +39,24 @@ This is not a live-game HUD replacement. The package is isolated as a developmen
 - Treat `pax-fluxia/src/lib/aurelia-hud/` as imported package code unless actively adapting it.
 - Do not assume demo labels, factions, orders, or resources are accepted live-game semantics.
 - Offline/Tauri packaging should replace the Google Fonts import with self-hosted font assets.
+
+## Theme System Foundation Step
+
+User then directed work to proceed toward a complete token set, theme system, and polished UI, using Tark UI and Tailwind Variants as references.
+
+Implemented:
+
+- Added `tailwind-variants` plus the required `tailwind-merge` peer.
+- Added `pax-fluxia/src/lib/design-system/pax-theme.css`.
+- Added `pax-fluxia/src/lib/design-system/theme.ts`.
+- Added `pax-fluxia/src/lib/design-system/variants/hud.ts`.
+- Added `pax-fluxia/src/lib/design-system/index.ts`.
+- Wired Tailwind scanning and CSS import in `pax-fluxia/src/app.css`.
+- Repointed legacy HUD variables to semantic `--pax-*` tokens.
+- Added a `data-pax-theme` hook in `GameContainer.svelte`.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed after installing `tailwind-merge`.
+- `git diff --check`: passed with line-ending warnings only.
+- Targeted `check` filtering found no new diagnostics in the design-system files.

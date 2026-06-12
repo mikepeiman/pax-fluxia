@@ -36,6 +36,7 @@
   import GameCanvas from "$lib/components/game/GameCanvas.svelte";
   import AudioSettings from "$lib/components/ui/AudioSettings.svelte";
   import TopBar from "$lib/components/ui/TopBar.svelte";
+  import { readStoredPaxThemeId, type PaxThemeId } from "$lib/design-system";
   import type { SettingsSectionId } from "$lib/components/ui/settings/settingsRegistry";
   import type { PlayerState, StarState } from "$lib/types/game.types";
   import { audioManager } from "$lib/services/audioManager.svelte";
@@ -53,6 +54,17 @@
   }
 
   let gameCanvasRef: any = $state(null);
+  let paxThemeId = $state<PaxThemeId>(
+    typeof localStorage === "undefined"
+      ? "aurelia-drift"
+      : readStoredPaxThemeId(localStorage),
+  );
+
+  $effect(() => {
+    if (typeof document !== "undefined") {
+      document.documentElement.dataset.paxTheme = paxThemeId;
+    }
+  });
 
   let roomIdCopied = $state(false);
   function copyRoomId() {
@@ -713,6 +725,7 @@
 
     <div
       class="game-layout"
+      data-pax-theme={paxThemeId}
       class:settings-open={showSettingsPanel}
       class:layout-sidebar-left={sidebarSide === "left"}
       class:layout-controls-left={controlsSide === "left"}

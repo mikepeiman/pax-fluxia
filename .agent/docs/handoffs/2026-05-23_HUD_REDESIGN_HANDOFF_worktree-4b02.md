@@ -315,3 +315,40 @@ Merge guidance:
 - If conflicts occur in `pax-fluxia/src/lib/components/ui/GameHudTopBar.svelte`, the only intended live-HUD change is the added `Aurelia HUD` topbar chip.
 - If production/offline/Tauri packaging is prioritized, self-host `Cinzel` and `Rajdhani` instead of relying on the Google Fonts import added for the dev route.
 - Next real integration step is to replace demo `hud-state.svelte.ts` inputs with view models derived from current game state and route bridge callbacks to real game commands.
+
+## 2026-06-12 Theme System Foundation
+
+User directed the next work to proceed directly in UI toward a complete token set, theme system, and polished UI. User referenced `https://www.tarkui.com/` and `https://www.tailwind-variants.org/docs/introduction`.
+
+Scope implemented in this step:
+
+- Added `tailwind-variants` and required peer `tailwind-merge`.
+- Added `pax-fluxia/src/lib/design-system/pax-theme.css` as the Pax-owned theme token layer.
+- Added `pax-fluxia/src/lib/design-system/theme.ts` with theme ids, metadata, storage key, normalization helpers, and root theme application helper.
+- Added `pax-fluxia/src/lib/design-system/variants/hud.ts` with initial Tailwind Variants recipes for HUD panels, buttons, and rails.
+- Added `pax-fluxia/src/lib/design-system/index.ts` exports.
+- Added Tailwind source scanning for `./lib/design-system` in `pax-fluxia/src/app.css`.
+- Mapped existing legacy `--hud-*` variables in `pax-fluxia/src/app.css` to the new semantic `--pax-*` tokens so existing HUD CSS still works.
+- Added live game-shell theme hook in `pax-fluxia/src/lib/components/game/GameContainer.svelte` using `data-pax-theme` and the stored `pax-ui-theme-id` value.
+
+Intentional boundary:
+
+- This is a foundation commit. It does not yet replace visible HUD components with Tailwind Variants recipes.
+- It does not yet add an in-game theme switcher UI.
+- It preserves current live-HUD visual behavior by using `--hud-*` compatibility aliases.
+
+Validation:
+
+- Initial build failed because `tailwind-variants` needs the `tailwind-merge` peer at bundle time.
+- Installed `tailwind-merge`.
+- `bun run --cwd pax-fluxia build`: passed after peer dependency install.
+- `git diff --check`: passed with line-ending warnings only.
+- Targeted `bun run --cwd pax-fluxia check` filtering found no diagnostics mentioning `design-system`, `pax-theme`, `variants/hud`, `tailwind-variants`, `tailwind-merge`, or `GameContainer.svelte`.
+- Full `bun run --cwd pax-fluxia check` remains blocked by the known repository baseline.
+
+Merge guidance:
+
+- Keep `pax-fluxia/src/lib/design-system/pax-theme.css` as the owner of theme values.
+- Treat `--hud-*` in `app.css` as compatibility aliases, not the source of new theme work.
+- New or refactored HUD components should consume `pax-fluxia/src/lib/design-system/variants/hud.ts` recipes instead of adding one-off class strings.
+- Future visible work should add the in-game theme selector under Appearance and then migrate one HUD component at a time to the new recipes.

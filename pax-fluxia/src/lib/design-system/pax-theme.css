@@ -1,0 +1,187 @@
+/* Pax Fluxia design system tokens.
+   This file owns theme identity. Legacy --hud-* variables in app.css should
+   map to these semantic tokens instead of defining independent values. */
+
+@theme {
+  --color-pax-void: var(--pax-color-void);
+  --color-pax-panel: var(--pax-color-panel);
+  --color-pax-panel-strong: var(--pax-color-panel-strong);
+  --color-pax-panel-muted: var(--pax-color-panel-muted);
+  --color-pax-text: var(--pax-color-text);
+  --color-pax-text-strong: var(--pax-color-text-strong);
+  --color-pax-text-muted: var(--pax-color-text-muted);
+  --color-pax-text-dim: var(--pax-color-text-dim);
+  --color-pax-cyan: var(--pax-color-accent-cyan);
+  --color-pax-cyan-strong: var(--pax-color-accent-cyan-strong);
+  --color-pax-gold: var(--pax-color-accent-gold);
+  --color-pax-gold-strong: var(--pax-color-accent-gold-strong);
+  --color-pax-danger: var(--pax-color-danger);
+  --font-pax-brand: var(--pax-font-brand);
+  --font-pax-ui: var(--pax-font-ui);
+  --font-pax-copy: var(--pax-font-copy);
+  --font-pax-data: var(--pax-font-data);
+  --radius-pax-xs: var(--pax-radius-xs);
+  --radius-pax-sm: var(--pax-radius-sm);
+  --radius-pax-md: var(--pax-radius-md);
+  --radius-pax-lg: var(--pax-radius-lg);
+  --shadow-pax-panel: var(--pax-shadow-panel);
+  --shadow-pax-panel-soft: var(--pax-shadow-panel-soft);
+}
+
+:root,
+[data-pax-theme="aurelia-drift"] {
+  color-scheme: dark;
+
+  /* Theme identity */
+  --pax-theme-name: "Aurelia Drift";
+
+  /* Palette */
+  --pax-color-void: #03080b;
+  --pax-color-void-mid: #081216;
+  --pax-color-void-raised: #101c21;
+  --pax-color-panel: rgba(4, 20, 24, 0.94);
+  --pax-color-panel-strong: rgba(5, 24, 28, 0.97);
+  --pax-color-panel-muted: rgba(4, 18, 23, 0.9);
+  --pax-color-control: rgba(5, 24, 29, 0.82);
+  --pax-color-control-hover: rgba(9, 38, 43, 0.94);
+  --pax-color-control-active: rgba(87, 64, 24, 0.96);
+  --pax-color-text-strong: rgba(255, 247, 224, 0.97);
+  --pax-color-text: rgba(224, 232, 232, 0.9);
+  --pax-color-text-muted: rgba(180, 188, 188, 0.88);
+  --pax-color-text-dim: rgba(128, 141, 145, 0.78);
+  --pax-color-accent-cyan: #55e7ef;
+  --pax-color-accent-cyan-strong: #9ff8ff;
+  --pax-color-accent-gold: #f6c469;
+  --pax-color-accent-gold-strong: #ffe3a3;
+  --pax-color-danger: #ff6a7a;
+
+  /* Player signals remain separate from generic chrome. */
+  --pax-color-player-blue: #4488ff;
+  --pax-color-player-red: #ff4466;
+  --pax-color-player-green: #44ff88;
+  --pax-color-player-yellow: #ffcc44;
+  --pax-color-player-purple: #aa66ff;
+  --pax-color-player-orange: #ff8844;
+
+  /* Typography roles */
+  --pax-font-brand: "Cinzel", "Pasti", "Rajdhani", serif;
+  --pax-font-ui: "Rajdhani", "Segoe UI", system-ui, sans-serif;
+  --pax-font-label: "Rajdhani", "Segoe UI", system-ui, sans-serif;
+  --pax-font-copy: "Inter", "Segoe UI", system-ui, sans-serif;
+  --pax-font-data: "JetBrains Mono", "Cascadia Mono", monospace;
+
+  --pax-type-xs: 0.75rem;
+  --pax-type-sm: 0.875rem;
+  --pax-type-base: 1rem;
+  --pax-type-lg: 1.25rem;
+  --pax-type-xl: 1.5rem;
+  --pax-type-2xl: 2rem;
+  --pax-type-3xl: 3rem;
+  --pax-type-title: 3.2rem;
+  --pax-type-label: 0.65rem;
+  --pax-type-scale: 1.08;
+  --pax-type-title-scale: 1.08;
+  --pax-type-label-scale: 1.12;
+  --pax-type-data-scale: 1.08;
+
+  /* Spacing and layout */
+  --pax-space-1: 0.25rem;
+  --pax-space-2: 0.5rem;
+  --pax-space-3: 0.75rem;
+  --pax-space-4: 1rem;
+  --pax-space-6: 1.5rem;
+  --pax-space-8: 2rem;
+  --pax-space-12: 3rem;
+  --pax-gap-xs: 6px;
+  --pax-gap-sm: 10px;
+  --pax-gap-md: 14px;
+  --pax-gap-lg: 18px;
+  --pax-pad-xs: 8px;
+  --pax-pad-sm: 12px;
+  --pax-pad-md: 16px;
+  --pax-pad-lg: 20px;
+  --pax-panel-padding: 24px;
+  --pax-panel-gap: 18px;
+  --pax-topbar-height: 64px;
+
+  /* Shape */
+  --pax-radius-xs: 8px;
+  --pax-radius-sm: 10px;
+  --pax-radius-md: 12px;
+  --pax-radius-lg: 18px;
+  --pax-rounded-corner-xs: inset(0 round var(--pax-radius-xs));
+  --pax-rounded-corner-sm: inset(0 round var(--pax-radius-sm));
+  --pax-rounded-corner-md: inset(0 round var(--pax-radius-md));
+  --pax-rounded-corner-lg: inset(0 round var(--pax-radius-lg));
+
+  /* Borders and elevation */
+  --pax-border-panel: rgba(246, 196, 105, 0.34);
+  --pax-border-panel-strong: rgba(246, 196, 105, 0.66);
+  --pax-border-panel-warm: rgba(246, 196, 105, 0.58);
+  --pax-border-panel-cool: rgba(85, 231, 239, 0.34);
+  --pax-border-divider: rgba(246, 196, 105, 0.18);
+  --pax-border-panel-gradient:
+    linear-gradient(135deg,
+      rgba(255, 232, 170, 0.88) 0%,
+      rgba(246, 196, 105, 0.62) 22%,
+      rgba(92, 62, 25, 0.24) 44%,
+      rgba(6, 27, 28, 0.22) 62%,
+      rgba(183, 119, 36, 0.5) 82%,
+      rgba(255, 225, 155, 0.74) 100%);
+  --pax-border-control-gradient:
+    linear-gradient(135deg,
+      rgba(255, 226, 155, 0.74) 0%,
+      rgba(151, 102, 36, 0.38) 34%,
+      rgba(0, 18, 20, 0.24) 58%,
+      rgba(235, 181, 82, 0.56) 100%);
+  --pax-shadow-panel: 0 22px 58px rgba(2, 6, 23, 0.52);
+  --pax-shadow-panel-soft: 0 12px 30px rgba(2, 6, 23, 0.34);
+  --pax-shadow-glow: 0 0 0 1px rgba(246, 196, 105, 0.18), 0 18px 40px rgba(2, 18, 24, 0.46);
+  --pax-shadow-cyan: 0 0 20px rgba(85, 231, 239, 0.45);
+  --pax-shadow-soft: 0 0 10px rgba(85, 231, 239, 0.3);
+  --pax-glass-blur: 12px;
+  --pax-glass-opacity: 0.8;
+
+  /* Composed surfaces */
+  --pax-surface-panel:
+    linear-gradient(180deg, var(--pax-color-panel), rgba(2, 10, 15, 0.96)),
+    radial-gradient(circle at 18% 0%, rgba(85, 231, 239, 0.09), transparent 42%),
+    radial-gradient(circle at 85% 0%, rgba(246, 196, 105, 0.1), transparent 45%);
+  --pax-surface-panel-strong:
+    linear-gradient(180deg, var(--pax-color-panel-strong), rgba(2, 9, 14, 0.98)),
+    radial-gradient(circle at top, rgba(246, 196, 105, 0.16), transparent 54%);
+  --pax-surface-panel-muted:
+    linear-gradient(180deg, var(--pax-color-panel-muted), rgba(2, 9, 14, 0.94));
+  --pax-surface-control: var(--pax-color-control);
+  --pax-surface-control-hover: var(--pax-color-control-hover);
+  --pax-surface-control-active:
+    linear-gradient(180deg, var(--pax-color-control-active), rgba(23, 43, 39, 0.94));
+
+  /* Iconography */
+  --pax-icon-size: 18px;
+  --pax-icon-stroke: 1.85;
+  --pax-icon-scale: 1.18;
+
+  /* Motion */
+  --pax-motion-fast: 150ms ease;
+  --pax-motion-base: 250ms ease;
+  --pax-motion-slow: 400ms ease;
+}
+
+[data-pax-theme="cyber-flux"] {
+  --pax-theme-name: "Cyber Flux";
+  --pax-color-accent-cyan: #00ffff;
+  --pax-color-accent-cyan-strong: #aafcff;
+  --pax-color-accent-gold: #ffcc00;
+  --pax-color-accent-gold-strong: #ffe680;
+  --pax-border-panel: rgba(0, 255, 255, 0.25);
+  --pax-border-panel-strong: rgba(0, 255, 255, 0.55);
+  --pax-border-panel-warm: rgba(255, 204, 0, 0.48);
+  --pax-surface-panel:
+    linear-gradient(180deg, rgba(10, 10, 18, 0.93), rgba(7, 9, 18, 0.96)),
+    radial-gradient(circle at 12% 0%, rgba(0, 255, 255, 0.12), transparent 42%),
+    radial-gradient(circle at 88% 0%, rgba(170, 102, 255, 0.12), transparent 46%);
+  --pax-surface-panel-strong:
+    linear-gradient(180deg, rgba(14, 15, 29, 0.98), rgba(8, 9, 20, 0.98)),
+    radial-gradient(circle at top, rgba(0, 255, 255, 0.16), transparent 54%);
+}

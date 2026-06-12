@@ -2,7 +2,9 @@
 @import "tailwindcss" source(none);
 @source "./routes";
 @source "./lib/components";
+@source "./lib/design-system";
 @source "./lib/aurelia-hud";
+@import "./lib/design-system/pax-theme.css";
 @import "./lib/aurelia-hud/aurelia-hud-theme.css";
 @import "./lib/styles/hud.css";
 
@@ -54,114 +56,95 @@
   --font-pasti: 'Pasti', 'Rajdhani', sans-serif;
 
   /* HUD Surface System */
-  --hud-topbar-height: 64px;
-  --hud-font-brand: var(--font-display);
-  --hud-font-ui: var(--font-display);
-  --hud-font-label: var(--font-display);
-  --hud-font-copy: var(--font-body);
-  --hud-font-data: var(--font-data);
-  --hud-font-body: var(--font-body);
-  --hud-accent: #55e7ef;
-  --hud-accent-strong: #9ff8ff;
-  --hud-accent-warm: #f6c469;
-  --hud-accent-warm-strong: #ffe3a3;
-  --hud-danger: #ff6a7a;
-  --hud-text-strong: rgba(255, 247, 224, 0.97);
-  --hud-text: rgba(224, 232, 232, 0.9);
-  --hud-text-soft: rgba(180, 188, 188, 0.88);
-  --hud-text-dim: rgba(128, 141, 145, 0.78);
-  --hud-panel-bg:
-    linear-gradient(180deg, rgba(4, 20, 24, 0.94), rgba(2, 10, 15, 0.96)),
-    radial-gradient(circle at 18% 0%, rgba(85, 231, 239, 0.09), transparent 42%),
-    radial-gradient(circle at 85% 0%, rgba(246, 196, 105, 0.1), transparent 45%);
-  --hud-panel-bg-strong:
-    linear-gradient(180deg, rgba(5, 24, 28, 0.97), rgba(2, 9, 14, 0.98)),
-    radial-gradient(circle at top, rgba(246, 196, 105, 0.16), transparent 54%);
-  --hud-panel-bg-muted:
-    linear-gradient(180deg, rgba(4, 18, 23, 0.9), rgba(2, 9, 14, 0.94));
-  --hud-button-bg: rgba(5, 24, 29, 0.82);
-  --hud-button-bg-hover: rgba(9, 38, 43, 0.94);
-  --hud-button-bg-active:
-    linear-gradient(180deg, rgba(87, 64, 24, 0.96), rgba(23, 43, 39, 0.94));
-  --hud-border: rgba(246, 196, 105, 0.34);
-  --hud-border-strong: rgba(246, 196, 105, 0.66);
-  --hud-border-warm: rgba(246, 196, 105, 0.58);
-  --hud-border-cool: rgba(85, 231, 239, 0.34);
-  --hud-border-gradient:
-    linear-gradient(135deg,
-      rgba(255, 232, 170, 0.88) 0%,
-      rgba(246, 196, 105, 0.62) 22%,
-      rgba(92, 62, 25, 0.24) 44%,
-      rgba(6, 27, 28, 0.22) 62%,
-      rgba(183, 119, 36, 0.5) 82%,
-      rgba(255, 225, 155, 0.74) 100%);
-  --hud-control-border-gradient:
-    linear-gradient(135deg,
-      rgba(255, 226, 155, 0.74) 0%,
-      rgba(151, 102, 36, 0.38) 34%,
-      rgba(0, 18, 20, 0.24) 58%,
-      rgba(235, 181, 82, 0.56) 100%);
-  --hud-divider: rgba(246, 196, 105, 0.18);
-  --hud-shadow: 0 22px 58px rgba(2, 6, 23, 0.52);
-  --hud-shadow-soft: 0 12px 30px rgba(2, 6, 23, 0.34);
-  --hud-glow: 0 0 0 1px rgba(246, 196, 105, 0.18), 0 18px 40px rgba(2, 18, 24, 0.46);
-  --hud-radius-xs: 8px;
-  --hud-radius-sm: 10px;
-  --hud-radius-md: 12px;
-  --hud-radius-lg: 18px;
-  --hud-rounded-corner-xs: inset(0 round var(--hud-radius-xs));
-  --hud-rounded-corner-sm: inset(0 round var(--hud-radius-sm));
-  --hud-rounded-corner-md: inset(0 round var(--hud-radius-md));
-  --hud-rounded-corner-lg: inset(0 round var(--hud-radius-lg));
+  --hud-topbar-height: var(--pax-topbar-height);
+  --hud-font-brand: var(--pax-font-brand);
+  --hud-font-ui: var(--pax-font-ui);
+  --hud-font-label: var(--pax-font-label);
+  --hud-font-copy: var(--pax-font-copy);
+  --hud-font-data: var(--pax-font-data);
+  --hud-font-body: var(--pax-font-copy);
+  --hud-accent: var(--pax-color-accent-cyan);
+  --hud-accent-strong: var(--pax-color-accent-cyan-strong);
+  --hud-accent-warm: var(--pax-color-accent-gold);
+  --hud-accent-warm-strong: var(--pax-color-accent-gold-strong);
+  --hud-danger: var(--pax-color-danger);
+  --hud-text-strong: var(--pax-color-text-strong);
+  --hud-text: var(--pax-color-text);
+  --hud-text-soft: var(--pax-color-text-muted);
+  --hud-text-dim: var(--pax-color-text-dim);
+  --hud-panel-bg: var(--pax-surface-panel);
+  --hud-panel-bg-strong: var(--pax-surface-panel-strong);
+  --hud-panel-bg-muted: var(--pax-surface-panel-muted);
+  --hud-button-bg: var(--pax-surface-control);
+  --hud-button-bg-hover: var(--pax-surface-control-hover);
+  --hud-button-bg-active: var(--pax-surface-control-active);
+  --hud-border: var(--pax-border-panel);
+  --hud-border-strong: var(--pax-border-panel-strong);
+  --hud-border-warm: var(--pax-border-panel-warm);
+  --hud-border-cool: var(--pax-border-panel-cool);
+  --hud-border-gradient: var(--pax-border-panel-gradient);
+  --hud-control-border-gradient: var(--pax-border-control-gradient);
+  --hud-divider: var(--pax-border-divider);
+  --hud-shadow: var(--pax-shadow-panel);
+  --hud-shadow-soft: var(--pax-shadow-panel-soft);
+  --hud-glow: var(--pax-shadow-glow);
+  --hud-radius-xs: var(--pax-radius-xs);
+  --hud-radius-sm: var(--pax-radius-sm);
+  --hud-radius-md: var(--pax-radius-md);
+  --hud-radius-lg: var(--pax-radius-lg);
+  --hud-rounded-corner-xs: var(--pax-rounded-corner-xs);
+  --hud-rounded-corner-sm: var(--pax-rounded-corner-sm);
+  --hud-rounded-corner-md: var(--pax-rounded-corner-md);
+  --hud-rounded-corner-lg: var(--pax-rounded-corner-lg);
   --hud-cut-corner-xs: var(--hud-rounded-corner-xs);
   --hud-cut-corner-sm: var(--hud-rounded-corner-sm);
   --hud-cut-corner-md: var(--hud-rounded-corner-md);
   --hud-cut-corner-lg: var(--hud-rounded-corner-lg);
-  --hud-pad-xs: 8px;
-  --hud-pad-sm: 12px;
-  --hud-pad-md: 16px;
-  --hud-pad-lg: 20px;
-  --hud-gap-xs: 6px;
-  --hud-gap-sm: 10px;
-  --hud-gap-md: 14px;
-  --hud-gap-lg: 18px;
-  --hud-icon-size: 18px;
-  --hud-icon-stroke: 1.85;
-  --hud-type-scale: 1.08;
-  --hud-title-scale: 1.08;
-  --hud-label-scale: 1.12;
-  --hud-data-scale: 1.08;
-  --hud-icon-scale: 1.18;
+  --hud-pad-xs: var(--pax-pad-xs);
+  --hud-pad-sm: var(--pax-pad-sm);
+  --hud-pad-md: var(--pax-pad-md);
+  --hud-pad-lg: var(--pax-pad-lg);
+  --hud-gap-xs: var(--pax-gap-xs);
+  --hud-gap-sm: var(--pax-gap-sm);
+  --hud-gap-md: var(--pax-gap-md);
+  --hud-gap-lg: var(--pax-gap-lg);
+  --hud-icon-size: var(--pax-icon-size);
+  --hud-icon-stroke: var(--pax-icon-stroke);
+  --hud-type-scale: var(--pax-type-scale);
+  --hud-title-scale: var(--pax-type-title-scale);
+  --hud-label-scale: var(--pax-type-label-scale);
+  --hud-data-scale: var(--pax-type-data-scale);
+  --hud-icon-scale: var(--pax-icon-scale);
 
   /* Font Sizes — Desktop defaults (overridden by media queries below) */
-  --text-xs: 0.75rem;
-  --text-sm: 0.875rem;
-  --text-base: 1rem;
-  --text-lg: 1.25rem;
-  --text-xl: 1.5rem;
-  --text-2xl: 2rem;
-  --text-3xl: 3rem;
+  --text-xs: var(--pax-type-xs);
+  --text-sm: var(--pax-type-sm);
+  --text-base: var(--pax-type-base);
+  --text-lg: var(--pax-type-lg);
+  --text-xl: var(--pax-type-xl);
+  --text-2xl: var(--pax-type-2xl);
+  --text-3xl: var(--pax-type-3xl);
 
   /* Responsive title/label scales */
-  --title-size: 3.2rem;
-  --label-size: 0.65rem;
-  --panel-padding: 24px;
-  --panel-gap: 18px;
+  --title-size: var(--pax-type-title);
+  --label-size: var(--pax-type-label);
+  --panel-padding: var(--pax-panel-padding);
+  --panel-gap: var(--pax-panel-gap);
 
   /* Spacing */
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-6: 1.5rem;
-  --space-8: 2rem;
-  --space-12: 3rem;
+  --space-1: var(--pax-space-1);
+  --space-2: var(--pax-space-2);
+  --space-3: var(--pax-space-3);
+  --space-4: var(--pax-space-4);
+  --space-6: var(--pax-space-6);
+  --space-8: var(--pax-space-8);
+  --space-12: var(--pax-space-12);
 
   /* Effects */
-  --glass-blur: 12px;
-  --glass-opacity: 0.8;
-  --glow-cyan: 0 0 20px var(--color-accent-cyan);
-  --glow-soft: 0 0 10px rgba(0, 255, 255, 0.3);
+  --glass-blur: var(--pax-glass-blur);
+  --glass-opacity: var(--pax-glass-opacity);
+  --glow-cyan: var(--pax-shadow-cyan);
+  --glow-soft: var(--pax-shadow-soft);
 
   /* Borders */
   --border-subtle: 1px solid rgba(255, 255, 255, 0.1);
@@ -171,9 +154,9 @@
   --radius-lg: 12px;
 
   /* Transitions */
-  --transition-fast: 150ms ease;
-  --transition-base: 250ms ease;
-  --transition-slow: 400ms ease;
+  --transition-fast: var(--pax-motion-fast);
+  --transition-base: var(--pax-motion-base);
+  --transition-slow: var(--pax-motion-slow);
 }
 
 /* --------------------------------------------------------------------------
