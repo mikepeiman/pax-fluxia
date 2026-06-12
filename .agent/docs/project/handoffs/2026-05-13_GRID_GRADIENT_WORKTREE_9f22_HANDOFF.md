@@ -2,7 +2,13 @@
 
 **Date:** 2026-05-13
 **Worktree:** `C:\Users\mikep\.codex\worktrees\9f22\pax-fluxia`
-**Status:** Implemented and build-validated; needs user visual verification.
+**Status:** Superseded.
+
+Current handoff:
+
+- `.agent/docs/project/handoffs/2026-06-12_GRID_GRADIENT_WORKTREE_9f22_HANDOFF.md`
+
+This May handoff documents the initial mode implementation only. It is not current for the June shader-field transition, worker/raster performance, star glow blend, endpoint alignment, or latest performance investigation work.
 
 ## Runtime Shape
 
