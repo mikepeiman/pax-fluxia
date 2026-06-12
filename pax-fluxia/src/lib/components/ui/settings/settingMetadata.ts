@@ -64,15 +64,22 @@ function buildSliderMeta(
 
 const AI_META = buildSliderMeta(AI_VARIABLES);
 const BATTLE_META = buildSliderMeta(COMBAT_VARIABLES);
-const LOGGING_META = Object.fromEntries(
-    LOG_CATEGORIES.map((category) => [
-        normalizeLabel(category.label),
-        {
-            key: `local.logFlags.${category.key}`,
-            description: `Local log channel toggle for ${category.desc.toLowerCase()}.`,
-        },
-    ]),
-) as SettingMetaMap;
+const LOGGING_META = {
+    ...Object.fromEntries(
+        LOG_CATEGORIES.map((category) => [
+            normalizeLabel(category.label),
+            {
+                key: `local.logFlags.${category.key}`,
+                description: `Local log channel toggle for ${category.desc.toLowerCase()}.`,
+            },
+        ]),
+    ),
+    'Grid Gradient transition trace': {
+        key: 'GRID_GRADIENT_DEBUG_TRANSITIONS',
+        description:
+            'Detailed Grid Gradient conquest transition trace logs. Does not enable the broad Render log channel.',
+    },
+} as SettingMetaMap;
 const STAR_LABEL_META = buildSliderMeta(STAR_LABEL_SLIDERS);
 const DENSITY_META = buildSliderMeta(DENSITY_VARIABLES);
 
@@ -475,6 +482,33 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Frontier Fade End': {
             key: 'METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END',
         },
+        'Grid Gradient Enabled': { key: 'GRID_GRADIENT_ENABLED' },
+        'Grid Gradient Spacing': { key: 'GRID_GRADIENT_SPACING_PX' },
+        'Grid Gradient Max Cells': { key: 'GRID_GRADIENT_MAX_CELLS' },
+        'Grid Gradient Shape': { key: 'GRID_GRADIENT_CELL_SHAPE' },
+        'Grid Gradient Center Size': { key: 'GRID_GRADIENT_CENTER_SIZE_PX' },
+        'Grid Gradient Edge Size': { key: 'GRID_GRADIENT_EDGE_SIZE_PX' },
+        'Grid Gradient Curve': { key: 'GRID_GRADIENT_CURVE_POWER' },
+        'Fill Hue Shift': { key: 'GRID_GRADIENT_FILL_HUE_SHIFT_DEG' },
+        'Grid Gradient Border Offset': { key: 'GRID_GRADIENT_BORDER_OFFSET_PX' },
+        'Grid Gradient Vector Borders': {
+            key: 'GRID_GRADIENT_VECTOR_BORDERS_ENABLED',
+        },
+        'Grid Gradient Border Dots': { key: 'GRID_GRADIENT_BORDER_DOTS_ENABLED' },
+        'Fill Style': { key: 'GRID_GRADIENT_FILL_STYLE' },
+        'Grid Gradient Dot Size': { key: 'GRID_GRADIENT_BORDER_DOT_SIZE_PX' },
+        'Grid Gradient Dot Style': { key: 'GRID_GRADIENT_BORDER_DOT_STYLE' },
+        'Shader Neighbor Mode': { key: 'GRID_GRADIENT_SHADER_NEIGHBOR_MODE' },
+        'Shader Mark Softness': { key: 'GRID_GRADIENT_SHADER_MARK_SOFTNESS' },
+        'Edge Feather': { key: 'GRID_GRADIENT_SHADER_EDGE_SOFTNESS_PX' },
+        'Noise Roughness': { key: 'GRID_GRADIENT_SHADER_NOISE_STRENGTH' },
+        'Shader Pulse': { key: 'GRID_GRADIENT_SHADER_PULSE_STRENGTH' },
+        'Shader Pulse Speed': { key: 'GRID_GRADIENT_SHADER_PULSE_SPEED' },
+        'Shader Drift': { key: 'GRID_GRADIENT_SHADER_FIELD_DRIFT_PX' },
+        'Shader Drift Speed': { key: 'GRID_GRADIENT_SHADER_FIELD_DRIFT_SPEED' },
+        'Shader Glow': { key: 'GRID_GRADIENT_SHADER_GLOW_STRENGTH' },
+        'Shader Interior Alpha': { key: 'GRID_GRADIENT_SHADER_INTERIOR_ALPHA_BOOST' },
+        'Shader Edge Alpha': { key: 'GRID_GRADIENT_SHADER_EDGE_ALPHA_BOOST' },
         'Frontier Technique': { key: 'TERRITORY_FRONTIER_TECHNIQUE' },
         'Frontier Border Geometry': {
             key: 'TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE',

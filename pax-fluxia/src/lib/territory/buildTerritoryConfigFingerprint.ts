@@ -4,6 +4,7 @@ const TERRITORY_CONFIG_PREFIXES = [
     'TERRITORY_',
     'PERIMETER_FIELD_',
     'METABALL_',
+    'GRID_GRADIENT_',
     'VORONOI_',
     'MODIFIED_VORONOI_',
     'DF_',

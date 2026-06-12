@@ -1,0 +1,38 @@
+export type GridGradientCellShape = 'circle' | 'square' | 'noise';
+export type GridGradientFillStyle = 'pointillist' | 'solid';
+export type GridGradientBorderDotStyle = 'blended' | 'butted';
+export type GridGradientDrawBackend = 'graphics' | 'shader_field' | 'mesh_quads';
+export type GridGradientShaderNeighborMode = 'center' | 'cross' | 'eight';
+
+export const gridGradientFamilyConfigDefaults = {
+    GRID_GRADIENT_ENABLED: true,
+    GRID_GRADIENT_DEBUG_TRANSITIONS: false,
+    GRID_GRADIENT_DRAW_BACKEND: 'shader_field' as const,
+    GRID_GRADIENT_FILL_STYLE: 'pointillist' as const,
+    GRID_GRADIENT_SPACING_PX: 6,
+    GRID_GRADIENT_MAX_CELLS: 160000,
+    GRID_GRADIENT_ORIGIN_MODE: 'centered' as const,
+    GRID_GRADIENT_DISTRIBUTION: 'square' as const,
+    GRID_GRADIENT_POSITION_JITTER: 0,
+    GRID_GRADIENT_CENTER_SIZE_PX: 10,
+    GRID_GRADIENT_EDGE_SIZE_PX: 1.5,
+    GRID_GRADIENT_CURVE_POWER: 1.6,
+    GRID_GRADIENT_FILL_HUE_SHIFT_DEG: 0,
+    GRID_GRADIENT_BORDER_OFFSET_PX: 0,
+    GRID_GRADIENT_CELL_SHAPE: 'circle' as const,
+    GRID_GRADIENT_VECTOR_BORDERS_ENABLED: true,
+    GRID_GRADIENT_BORDER_DOTS_ENABLED: false,
+    GRID_GRADIENT_BORDER_DOT_SIZE_PX: 2.5,
+    GRID_GRADIENT_BORDER_DOT_STYLE: 'blended' as const,
+    GRID_GRADIENT_SHADER_NEIGHBOR_MODE: 'eight' as const,
+    GRID_GRADIENT_SHADER_MARK_SOFTNESS: 0.18,
+    GRID_GRADIENT_SHADER_EDGE_SOFTNESS_PX: 0.85,
+    GRID_GRADIENT_SHADER_NOISE_STRENGTH: 0.35,
+    GRID_GRADIENT_SHADER_PULSE_STRENGTH: 0.06,
+    GRID_GRADIENT_SHADER_PULSE_SPEED: 3,
+    GRID_GRADIENT_SHADER_FIELD_DRIFT_PX: 0,
+    GRID_GRADIENT_SHADER_FIELD_DRIFT_SPEED: 0.25,
+    GRID_GRADIENT_SHADER_GLOW_STRENGTH: 0.08,
+    GRID_GRADIENT_SHADER_INTERIOR_ALPHA_BOOST: 1,
+    GRID_GRADIENT_SHADER_EDGE_ALPHA_BOOST: 0.88,
+} as const;

@@ -412,6 +412,16 @@
             linear-gradient(135deg, rgba(14, 116, 144, 0.94), rgba(67, 56, 202, 0.84));
     }
 
+    .mode-shortcut[data-appearance="grid_gradient"]::before {
+        background:
+            radial-gradient(circle at 24% 28%, rgba(191, 219, 254, 0.28), transparent 20%),
+            radial-gradient(circle at 62% 54%, rgba(45, 212, 191, 0.18), transparent 26%),
+            linear-gradient(90deg, rgba(96, 165, 250, 0.11) 1px, transparent 1px),
+            linear-gradient(rgba(96, 165, 250, 0.11) 1px, transparent 1px),
+            linear-gradient(135deg, rgba(2, 132, 199, 0.92), rgba(15, 23, 42, 0.88));
+        background-size: auto, auto, 10px 10px, 10px 10px, auto;
+    }
+
     .mode-shortcut.active {
         border-color: rgba(248, 250, 252, 0.82);
         box-shadow:

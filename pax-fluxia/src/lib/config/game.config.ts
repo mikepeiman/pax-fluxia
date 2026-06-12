@@ -444,6 +444,36 @@ interface GameConfigType {
     METABALL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT: boolean; // Draw a winner-side highlight rim at the active frontier
     METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_START: number; // Normalized conquest time when the frontier accent begins fading
     METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END: number; // Normalized conquest time when the frontier accent fully fades
+    GRID_GRADIENT_ENABLED: boolean; // Master gate for the Grid Gradient render family
+    GRID_GRADIENT_DEBUG_TRANSITIONS: boolean; // Emit scoped Grid Gradient transition diagnostics without enabling the broad renderer logger
+    GRID_GRADIENT_DRAW_BACKEND: 'graphics' | 'shader_field' | 'mesh_quads'; // Grid Gradient fill presentation backend
+    GRID_GRADIENT_FILL_STYLE: 'pointillist' | 'solid'; // Fill style: point marks or resolved-region solid fill
+    GRID_GRADIENT_SPACING_PX: number; // Requested invisible grid spacing in world px
+    GRID_GRADIENT_MAX_CELLS: number; // Optional cell cap; coarsens spacing upward when exceeded
+    GRID_GRADIENT_ORIGIN_MODE: 'centered' | 'corner'; // Grid anchor mode in world space
+    GRID_GRADIENT_DISTRIBUTION: 'square' | 'hex_offset' | 'jittered'; // Grid point distribution
+    GRID_GRADIENT_POSITION_JITTER: number; // Deterministic point scatter as a fraction of spacing
+    GRID_GRADIENT_CENTER_SIZE_PX: number; // Largest fill primitive size at region centers
+    GRID_GRADIENT_EDGE_SIZE_PX: number; // Smallest fill primitive size at borders
+    GRID_GRADIENT_CURVE_POWER: number; // Distance-to-border size curve power
+    GRID_GRADIENT_FILL_HUE_SHIFT_DEG: number; // Fill and border hue shift in degrees
+    GRID_GRADIENT_BORDER_OFFSET_PX: number; // Fill pullback from territory borders
+    GRID_GRADIENT_CELL_SHAPE: 'circle' | 'square' | 'noise'; // Primitive shape used for fill samples
+    GRID_GRADIENT_VECTOR_BORDERS_ENABLED: boolean; // Draw smoothed vector borders from resolved geometry
+    GRID_GRADIENT_BORDER_DOTS_ENABLED: boolean; // Overlay grid-derived dotted borders
+    GRID_GRADIENT_BORDER_DOT_SIZE_PX: number; // Dotted-border primitive size
+    GRID_GRADIENT_BORDER_DOT_STYLE: 'blended' | 'butted'; // One blended line or two owner-colored lines
+    GRID_GRADIENT_SHADER_NEIGHBOR_MODE: 'center' | 'cross' | 'eight'; // Shader mark neighbor sampling radius
+    GRID_GRADIENT_SHADER_MARK_SOFTNESS: number; // Shader mark edge softness as a radius fraction
+    GRID_GRADIENT_SHADER_EDGE_SOFTNESS_PX: number; // Extra shader mark softness in world px
+    GRID_GRADIENT_SHADER_NOISE_STRENGTH: number; // Procedural edge wobble for noise marks
+    GRID_GRADIENT_SHADER_PULSE_STRENGTH: number; // Per-mark shader pulse amplitude
+    GRID_GRADIENT_SHADER_PULSE_SPEED: number; // Per-mark shader pulse speed
+    GRID_GRADIENT_SHADER_FIELD_DRIFT_PX: number; // Optional shader-only mark drift amplitude
+    GRID_GRADIENT_SHADER_FIELD_DRIFT_SPEED: number; // Optional shader-only mark drift speed
+    GRID_GRADIENT_SHADER_GLOW_STRENGTH: number; // Extra fill-color brightness in shader marks
+    GRID_GRADIENT_SHADER_INTERIOR_ALPHA_BOOST: number; // Alpha boost near region interiors
+    GRID_GRADIENT_SHADER_EDGE_ALPHA_BOOST: number; // Alpha boost near borders
     TERRITORY_FRONTIER_TECHNIQUE: TerritoryFrontierTechniqueId; // Frontier technique selector for shared frontier processing
     TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: TerritoryFrontierBorderGeometryMode; // Control-path border geometry selector: straight shared-edge vs rounded contour-matched
     TERRITORY_FRONTIER_PHASE_SAMPLING: TerritoryFrontierPhaseSamplingMode; // Texture filtering strategy for shader frontier bands
@@ -500,7 +530,7 @@ interface GameConfigType {
     TERRITORY_CLUSTER_SPLIT: boolean; // Split disconnected same-owner stars into separate territory blobs (default false)
     TERRITORY_MODE: 'voronoi' | 'metaball' | 'off';  // LEGACY — kept for compat
     TERRITORY_DISTANCE_FIELD: boolean; // Enable distance-field territory renderer (default false)
-    TERRITORY_RENDER_MODE: string;    // Active render mode: 'none' | 'vs_pvv3' | 'power_voronoi' | 'distance_field' | 'voronoi' | 'metaball' | 'metaball_grid' | 'metaball_grid_phase_edges' | 'metaball_grid_ember_lattice' | 'metaball_grid_phase_field' | 'perimeter_field' | 'pixel' | 'graph' | 'contour'
+    TERRITORY_RENDER_MODE: string;    // Active render mode: 'none' | 'vs_pvv3' | 'power_voronoi' | 'distance_field' | 'voronoi' | 'metaball' | 'metaball_grid' | 'metaball_grid_phase_edges' | 'metaball_grid_ember_lattice' | 'metaball_grid_phase_field' | 'grid_gradient' | 'perimeter_field' | 'pixel' | 'graph' | 'contour'
     /** When true, legacy modes without a registered RenderFamily adapter are gated in UI; metaball may use family path. Default false. */
     USE_RENDER_FAMILIES: boolean;
     TERRITORY_ARCHITECTURE_PATH: 'clean' | 'legacy'; // Master architecture selector for runtime territory mode

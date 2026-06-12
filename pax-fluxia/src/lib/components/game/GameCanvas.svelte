@@ -9,6 +9,7 @@
     import { log } from "$lib/utils/logger";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { normalizeBgImagePath } from "$lib/config/bgManifest";
+    import { resolvePixiRendererDiagnostics } from "$lib/renderers/pixiRendererDiagnostics";
     import {
         getOrbitSlot,
         getTotalOccupiedLayers,
@@ -29,6 +30,7 @@
     import { FXOrchestrator } from "$lib/fx/orchestrator";
     import {
         territoryTransitions,
+        type TerritoryTransitionEntry,
     } from "$lib/fx/handlers/territoryTransitionHandler";
     import {
         createContainers,
@@ -40,6 +42,7 @@
     import { createColorUtils } from "$lib/renderers/colorUtils";
     import {
         renderStars as renderStarsModule,
+        type StarOwnerTransition,
         type StarLabelView,
     } from "$lib/renderers/StarRenderer";
     import {
@@ -129,6 +132,14 @@
         metaballGridPhaseFieldModeDefaults,
     } from "$lib/territory/families/metaballGrid/config";
     import { updateMetaballGridStats } from "$lib/territory/families/metaballGrid/metaballGridStats";
+    import {
+        GridGradientFamily,
+        createGridGradientFamily,
+    } from "$lib/territory/families/gridGradient/GridGradientFamily";
+    import {
+        createGridGradientTransitionTraceState,
+        logGridGradientTransitionTrace,
+    } from "$lib/territory/families/gridGradient/transitionTraceLogger";
     import { PerimeterFieldFamily, createPerimeterFieldFamily } from "$lib/territory/families/perimeterField/PerimeterFieldFamily";
     import type { PerimeterFieldDebugSnapshot } from "$lib/territory/families/perimeterField/buildPerimeterFieldScene";
     import { compactPerimeterFieldDebugSnapshot } from "$lib/territory/families/perimeterField/perimeterFieldDiagnostics";
@@ -146,6 +157,9 @@
         RenderFamilyTransitionSession,
     } from "$lib/territory/families/RenderFamilyTypes";
     import { buildRenderFamilyTransitionLifecycle } from "$lib/territory/transitions/renderFamilyTransitionLifecycle";
+    import {
+        ownershipSnapshotHasPreviousConquestOwners,
+    } from "$lib/territory/transitions/renderFamilyPreviousFrame";
     import { getTerritoryVisualEpoch } from "$lib/territory/bumpTerritoryVisualConfig";
     import { resolveTerritoryArchitectureRoute } from "$lib/territory/integration/TerritoryArchitectureRouter";
     import {
@@ -175,7 +189,7 @@
     import { trimLanePolylineToStarRims } from "$lib/lanes/laneGeometry";
     import { computeLaneHeadingForNearside } from "$lib/lanes/applyLaneTravelPath";
     import { resolveEffectiveLaneMarginPx } from "$lib/lanes/laneMargin";
-    import { measurePerf } from "$lib/perf/perfProbe";
+    import { measurePerf, recordPerfEvent } from "$lib/perf/perfProbe";
     import {
         resetTerritoryRenderStatus,
         setTerritoryRenderStatus,
@@ -1720,6 +1734,99 @@
         ].join(":");
     }
 
+    function isGridGradientTransitionDebugEnabled(): boolean {
+        return Boolean(
+            (GAME_CONFIG as unknown as Record<string, unknown>)
+                .GRID_GRADIENT_DEBUG_TRANSITIONS,
+        );
+    }
+
+    const gridGradientTransitionTraceState =
+        createGridGradientTransitionTraceState();
+    const renderFamilyPendingPreviewStartedAtMsByKey = new Map<string, number>();
+
+    function logGridGradientTransition(stage: string, data: Record<string, unknown>): void {
+        logGridGradientTransitionTrace({
+            enabled: isGridGradientTransitionDebugEnabled(),
+            state: gridGradientTransitionTraceState,
+            stage,
+            label: stage,
+            data,
+        });
+    }
+
+    function syncRenderFamilyPendingPreviewStarts(params: {
+        nowMs: number;
+        pendingConquests: ReadonlyArray<import("@pax/common").ConquestEvent>;
+        activeEntries: ReadonlyArray<TerritoryTransitionEntry>;
+    }): ReadonlyMap<string, number> {
+        const liveKeys = new Set<string>();
+        for (const entry of params.activeEntries) {
+            liveKeys.add(transitionIdentityKey(entry.event));
+        }
+        for (const conquest of params.pendingConquests) {
+            const key = transitionIdentityKey(conquest);
+            liveKeys.add(key);
+            if (!renderFamilyPendingPreviewStartedAtMsByKey.has(key)) {
+                renderFamilyPendingPreviewStartedAtMsByKey.set(key, params.nowMs);
+            }
+        }
+        for (const key of [...renderFamilyPendingPreviewStartedAtMsByKey.keys()]) {
+            if (!liveKeys.has(key)) {
+                renderFamilyPendingPreviewStartedAtMsByKey.delete(key);
+            }
+        }
+        return renderFamilyPendingPreviewStartedAtMsByKey;
+    }
+
+    function optionalArrayLength(value: unknown): number | null {
+        return Array.isArray(value) ? value.length : null;
+    }
+
+    function summarizeRenderFamilyTransitionForLog(
+        transition: RenderFamilyActiveTransition | null,
+    ): Record<string, unknown> {
+        if (!transition) {
+            return {
+                present: false,
+                eventCount: 0,
+            };
+        }
+        return {
+            present: true,
+            sessionKey: transition.sessionKey,
+            eventCount: transition.events.length,
+            progress: transition.progress,
+            rawProgress: transition.rawProgress,
+            startedAtMs: transition.startedAtMs,
+            durationMs: transition.durationMs,
+            events: transition.events.map((entry) => ({
+                starId: entry.event.starId,
+                previousOwner: entry.event.previousOwner,
+                newOwner: entry.event.newOwner,
+                startedAtMs: entry.startedAtMs,
+                durationMs: entry.durationMs,
+                progress: entry.progress,
+                rawProgress: entry.rawProgress,
+            })),
+        };
+    }
+
+    function summarizeTransitionOwnersForLog(
+        transition: RenderFamilyActiveTransition | null,
+        starsToRead: ReadonlyArray<StarState>,
+    ): ReadonlyArray<Record<string, unknown>> {
+        if (!transition) return [];
+        const ownerById = new Map<string, string | null>();
+        for (const star of starsToRead) ownerById.set(star.id, star.ownerId ?? null);
+        return transition.events.map((entry) => ({
+            starId: entry.event.starId,
+            expectedPreviousOwner: entry.event.previousOwner,
+            expectedNewOwner: entry.event.newOwner,
+            currentOwner: ownerById.get(entry.event.starId) ?? null,
+        }));
+    }
+
     function buildTerritoryPresentationRequestSignature(params: {
         activeMode: string;
         isPaused: boolean;
@@ -1756,19 +1863,43 @@
         activeSessions: readonly RenderFamilyTransitionSession[];
         transitionPresentationSignature: string;
     } {
+        const activeEntries = territoryTransitions.getActiveEntries();
+        const pendingPreviewStarts = syncRenderFamilyPendingPreviewStarts({
+            nowMs: transitionNowMs,
+            pendingConquests,
+            activeEntries,
+        });
         const lifecycle = buildRenderFamilyTransitionLifecycle({
             nowMs: transitionNowMs,
             effectiveTickMs,
-            activeEntries: territoryTransitions.getActiveEntries(),
+            activeEntries,
             pendingConquests,
+            pendingConquestStartedAtMsByKey: pendingPreviewStarts,
+        });
+        logGridGradientTransition("transition_lifecycle.after_build", {
+            nowMs: transitionNowMs,
+            effectiveTickMs,
+            activeEntryCount: activeEntries.length,
+            pendingConquestCount: pendingConquests.length,
+            activeSessionCount: lifecycle.activeSessions.length,
+            terminalFrameStarIds: lifecycle.terminalFrameStarIds,
+            activeTransition:
+                summarizeRenderFamilyTransitionForLog(lifecycle.activeTransition),
         });
         if (lifecycle.terminalFrameStarIds.length > 0) {
+            logGridGradientTransition("transition_lifecycle.terminal_mark", {
+                terminalFrameStarIds: lifecycle.terminalFrameStarIds,
+            });
             territoryTransitions.markTerminalFrameRendered(
                 lifecycle.terminalFrameStarIds,
             );
         }
         const activeTransition = lifecycle.activeTransition;
         if (!activeTransition) {
+            logGridGradientTransition("transition_lifecycle.no_active_transition", {
+                activeSessionCount: lifecycle.activeSessions.length,
+                pendingConquestCount: pendingConquests.length,
+            });
             return {
                 activeTransition: null,
                 activeSessions: lifecycle.activeSessions,
@@ -1794,6 +1925,11 @@
                 .join("|"),
             frameSlot,
         ].join("::");
+        logGridGradientTransition("transition_lifecycle.active_transition", {
+            frameSlot,
+            transitionPresentationSignature,
+            activeTransition: summarizeRenderFamilyTransitionForLog(activeTransition),
+        });
         return {
             activeTransition,
             activeSessions: lifecycle.activeSessions,
@@ -1801,11 +1937,37 @@
         };
     }
 
+    function buildStarOwnerTransitionMap(
+        sessions: readonly RenderFamilyTransitionSession[],
+    ): ReadonlyMap<string, StarOwnerTransition> | undefined {
+        if (sessions.length === 0) return undefined;
+        const transitions = new Map<string, StarOwnerTransition>();
+        for (const session of sessions) {
+            for (const entry of session.events) {
+                transitions.set(entry.event.starId, {
+                    previousOwner: entry.event.previousOwner,
+                    newOwner: entry.event.newOwner,
+                    progress: entry.progress,
+                });
+            }
+        }
+        return transitions.size > 0 ? transitions : undefined;
+    }
+
     function buildEdgeForwardRenderFamilyConfigSource(): Record<string, unknown> {
         return {
             ...(GAME_CONFIG as unknown as Record<string, unknown>),
             ...metaballGridPhaseEdgesGeometryDefaults,
             ...metaballGridPhaseEdgesModeDefaults,
+        };
+    }
+
+    function buildGridGradientRenderFamilyConfigSource(): Record<string, unknown> {
+        return {
+            ...(GAME_CONFIG as unknown as Record<string, unknown>),
+            ...metaballGridPhaseEdgesGeometryDefaults,
+            ...metaballGridPhaseEdgesModeDefaults,
+            PERIMETER_FIELD_GEOMETRY_SOURCE: "power_voronoi_0319",
         };
     }
 
@@ -1829,6 +1991,9 @@
         if (mode === "metaball_grid_phase_field") {
             return buildPhaseFieldRenderFamilyConfigSource();
         }
+        if (mode === "grid_gradient") {
+            return buildGridGradientRenderFamilyConfigSource();
+        }
         return undefined;
     }
 
@@ -1839,7 +2004,8 @@
             mode === "metaball_grid" ||
             mode === "metaball_grid_phase_edges" ||
             mode === "metaball_grid_ember_lattice" ||
-            mode === "metaball_grid_phase_field"
+            mode === "metaball_grid_phase_field" ||
+            mode === "grid_gradient"
         );
     }
 
@@ -2608,6 +2774,13 @@
         freezeDuringActiveTransition?: boolean;
     }): void {
         if (params.freezeDuringActiveTransition && params.activeTransition) {
+            logGridGradientTransition("stable_frame.freeze_gate", {
+                activeTransition:
+                    summarizeRenderFamilyTransitionForLog(
+                        params.activeTransition,
+                    ),
+                geometryVersion: params.geometry.version,
+            });
             return;
         }
         const key = buildRenderFamilyGeometryCacheKey(
@@ -2620,6 +2793,11 @@
             renderFamilyStableGeometry === params.geometry &&
             renderFamilyStableOwnership
         ) {
+            logGridGradientTransition("stable_frame.cache_unchanged_gate", {
+                key,
+                geometryVersion: params.geometry.version,
+                ownershipVersion: renderFamilyStableOwnership.version,
+            });
             return;
         }
         renderFamilyStableGeometryKey = key;
@@ -2627,6 +2805,11 @@
         renderFamilyStableOwnership = buildOwnershipSnapshotFromStars(
             params.stars,
         );
+        logGridGradientTransition("stable_frame.updated", {
+            key,
+            geometryVersion: renderFamilyStableGeometry.version,
+            ownershipVersion: renderFamilyStableOwnership.version,
+        });
     }
 
     function revertStarsForTransitionDiagnostic(
@@ -2659,6 +2842,10 @@
             params.activeTransition,
         );
         if (!key || !params.activeTransition) {
+            logGridGradientTransition("prev_frame.no_transition_key", {
+                key,
+                hasActiveTransition: Boolean(params.activeTransition),
+            });
             transitionDiagnosticPrevKey = null;
             transitionDiagnosticPrevGeometry = null;
             transitionDiagnosticPrevOwnership = null;
@@ -2669,11 +2856,45 @@
             !transitionDiagnosticPrevGeometry ||
             !transitionDiagnosticPrevOwnership
         ) {
-            if (renderFamilyStableGeometry && renderFamilyStableOwnership) {
+            const stableFrameMatchesTransition =
+                !!renderFamilyStableGeometry &&
+                ownershipSnapshotHasPreviousConquestOwners({
+                    activeTransition: params.activeTransition,
+                    ownership: renderFamilyStableOwnership,
+                });
+            logGridGradientTransition("prev_frame.cache_gate", {
+                transitionKey: key,
+                hasStableGeometry: Boolean(renderFamilyStableGeometry),
+                hasStableOwnership: Boolean(renderFamilyStableOwnership),
+                stableFrameMatchesTransition,
+                stableGeometryVersion:
+                    renderFamilyStableGeometry?.version ?? null,
+                stableOwnershipVersion:
+                    renderFamilyStableOwnership?.version ?? null,
+                transitionOwners: summarizeTransitionOwnersForLog(
+                    params.activeTransition,
+                    params.stars,
+                ),
+            });
+            if (
+                stableFrameMatchesTransition &&
+                renderFamilyStableGeometry &&
+                renderFamilyStableOwnership
+            ) {
                 transitionDiagnosticPrevKey = key;
                 transitionDiagnosticPrevGeometry = renderFamilyStableGeometry;
                 transitionDiagnosticPrevOwnership = renderFamilyStableOwnership;
-
+                recordPerfEvent("territory.renderFamily.prevFrame", {
+                    source: "presented_frame_cache",
+                    transitionKey: key,
+                    geometryVersion: renderFamilyStableGeometry.version,
+                    ownershipVersion: renderFamilyStableOwnership.version,
+                });
+                logGridGradientTransition("prev_frame.using_presented_cache", {
+                    transitionKey: key,
+                    geometryVersion: renderFamilyStableGeometry.version,
+                    ownershipVersion: renderFamilyStableOwnership.version,
+                });
             } else {
                 const revertedStars = revertStarsForTransitionDiagnostic(
                     params.activeTransition,
@@ -2702,9 +2923,34 @@
                 transitionDiagnosticPrevKey = key;
                 transitionDiagnosticPrevGeometry = geometry;
                 transitionDiagnosticPrevOwnership = ownership;
-
+                recordPerfEvent("territory.renderFamily.prevFrame", {
+                    source: "transition_rebuild",
+                    reason: renderFamilyStableGeometry
+                        ? "stable_previous_owner_mismatch"
+                        : "missing_stable_frame",
+                    transitionKey: key,
+                    geometryVersion: geometry.version,
+                    ownershipVersion: ownership.version,
+                });
+                logGridGradientTransition("prev_frame.rebuilt", {
+                    transitionKey: key,
+                    reason: renderFamilyStableGeometry
+                        ? "stable_previous_owner_mismatch"
+                        : "missing_stable_frame",
+                    geometryVersion: geometry.version,
+                    ownershipVersion: ownership.version,
+                    revertedOwners: summarizeTransitionOwnersForLog(
+                        params.activeTransition,
+                        revertedStars,
+                    ),
+                });
             }
         }
+        logGridGradientTransition("prev_frame.return", {
+            transitionKey: key,
+            geometryVersion: transitionDiagnosticPrevGeometry?.version ?? null,
+            ownershipVersion: transitionDiagnosticPrevOwnership?.version ?? null,
+        });
         return {
             key,
             geometry: transitionDiagnosticPrevGeometry,
@@ -2734,13 +2980,15 @@
             mode === "metaball_grid" ||
             mode === "metaball_grid_phase_edges" ||
             mode === "metaball_grid_ember_lattice" ||
-            mode === "metaball_grid_phase_field"
+            mode === "metaball_grid_phase_field" ||
+            mode === "grid_gradient"
         ) {
             const family = getRenderFamily(mode);
             if (
                 family instanceof MetaballGridFamily ||
                 family instanceof MetaballGridPhaseEdgesFamily ||
-                family instanceof MetaballGridPhaseFieldFamily
+                family instanceof MetaballGridPhaseFieldFamily ||
+                family instanceof GridGradientFamily
             ) {
                 return cloneTransitionDiagnosticSnapshot(
                     family.getDebugSnapshot(),
@@ -4579,6 +4827,19 @@
                     request,
                     nowMs,
                 );
+                if (request.activeMode === "grid_gradient") {
+                    logGridGradientTransition("presentation_queue.decision", {
+                        requestId: request.requestId,
+                        activeMode: request.activeMode,
+                        signature: request.signature,
+                        requestAgeMs: decision.requestAgeMs,
+                        yield: decision.yield,
+                        forced: decision.forced,
+                        reason: decision.reason,
+                        pendingConquestCount: request.pendingConquests.length,
+                        territoryScheduler: request.territoryScheduler,
+                    });
+                }
                 if (decision.yield) {
                     territoryPresentationYieldCount += 1;
                     territoryPresentationLastYieldAtMs = nowMs;
@@ -4656,10 +4917,29 @@
             run: request.run,
             territoryScheduler: request.territoryScheduler,
         };
+        if (nextRequest.activeMode === "grid_gradient") {
+            logGridGradientTransition("presentation_queue.enqueue_attempt", {
+                requestId: nextRequest.requestId,
+                signature: nextRequest.signature,
+                hasExistingPending: Boolean(territoryPresentationPendingRequest),
+                existingPendingSignature:
+                    territoryPresentationPendingRequest?.signature ?? null,
+                pendingConquestCount: nextRequest.pendingConquests.length,
+                territoryScheduler: nextRequest.territoryScheduler,
+            });
+        }
         if (
             territoryPresentationPendingRequest &&
             territoryPresentationPendingRequest.signature === nextRequest.signature
         ) {
+            if (nextRequest.activeMode === "grid_gradient") {
+                logGridGradientTransition("presentation_queue.deduped", {
+                    requestId: nextRequest.requestId,
+                    pendingRequestId:
+                        territoryPresentationPendingRequest.requestId,
+                    signature: nextRequest.signature,
+                });
+            }
             territoryPresentationDedupedCount += 1;
 
 
@@ -4668,6 +4948,16 @@
         territoryPresentationRequestSeq = nextRequest.requestId;
         territoryPresentationLastQueuedAtMs = nextRequest.enqueuedAtMs;
         if (territoryPresentationPendingRequest) {
+            if (nextRequest.activeMode === "grid_gradient") {
+                logGridGradientTransition("presentation_queue.replace_pending", {
+                    replacedRequestId:
+                        territoryPresentationPendingRequest.requestId,
+                    nextRequestId: nextRequest.requestId,
+                    replacedSignature:
+                        territoryPresentationPendingRequest.signature,
+                    nextSignature: nextRequest.signature,
+                });
+            }
             territoryPresentationSupersededCount += 1;
 
 
@@ -4922,13 +5212,14 @@
             (globalThis as any).__lastTerritoryConfigFp = territoryConfigFp;
         if (configChanged) resetTerritoryRenderCaches();
 
+        const renderFamilyTransitionState =
+            buildRenderFamilyTransitionState(
+                fxOrchestrator.gameTime,
+                activeGameStore.effectiveTickMs,
+                pendingTickEvents?.conquests ?? [],
+            );
+
         if (voronoiContainer) {
-            const renderFamilyTransitionState =
-                buildRenderFamilyTransitionState(
-                    fxOrchestrator.gameTime,
-                    activeGameStore.effectiveTickMs,
-                    pendingTickEvents?.conquests ?? [],
-                );
             const territoryPresentationSignature =
                 buildTerritoryPresentationRequestSignature({
                     activeMode: activeTerritoryMode,
@@ -4956,6 +5247,27 @@
                 });
                 const deferTerritoryUpdate =
                     !isPausedNow && territoryScheduler.defer;
+                if (activeTerritoryMode === "grid_gradient") {
+                    logGridGradientTransition("territory_scheduler.decision", {
+                        isPaused: isPausedNow,
+                        configChanged,
+                        pendingConquestCount:
+                            pendingTickEvents?.conquests?.length ?? 0,
+                        defer: deferTerritoryUpdate,
+                        scheduler: territoryScheduler,
+                        renderFamilyTransitionState: {
+                            activeTransition:
+                                summarizeRenderFamilyTransitionForLog(
+                                    renderFamilyTransitionState.activeTransition,
+                                ),
+                            activeSessionCount:
+                                renderFamilyTransitionState.activeSessions.length,
+                            transitionPresentationSignature:
+                                renderFamilyTransitionState
+                                    .transitionPresentationSignature,
+                        },
+                    });
+                }
                 if (deferTerritoryUpdate) {
                     deferredTerritoryFrameCount += 1;
                     territoryCadenceSkipCount += 1;
@@ -5035,6 +5347,7 @@
                     activeMode === "metaball_grid_phase_edges" ||
                     activeMode === "metaball_grid_ember_lattice" ||
                     activeMode === "metaball_grid_phase_field" ||
+                    activeMode === "grid_gradient" ||
                     activeMode === "perimeter_field";
                 let geometryReady: boolean | null = activeModeNeedsGeometry
                     ? false
@@ -5143,6 +5456,17 @@
                 ) {
                     activeVoronoiContainer.removeChild(
                         metaballGridPhaseFieldFamily.displayRoot,
+                    );
+                }
+                const gridGradientFamily = getRenderFamily("grid_gradient");
+                if (
+                    activeMode !== "grid_gradient" &&
+                    gridGradientFamily instanceof GridGradientFamily &&
+                    gridGradientFamily.displayRoot.parent ===
+                        activeVoronoiContainer
+                ) {
+                    activeVoronoiContainer.removeChild(
+                        gridGradientFamily.displayRoot,
                     );
                 }
 
@@ -5683,6 +6007,163 @@
                         };
                         break;
                     }
+                    case "grid_gradient": {
+                        let fam = getRenderFamily("grid_gradient");
+                        if (!fam) {
+                            registerRenderFamily(
+                                createGridGradientFamily(colorUtils),
+                            );
+                            fam = getRenderFamily("grid_gradient")!;
+                        }
+                        const gg = fam as GridGradientFamily;
+                        const activeTransition = activeRenderFamilyTransition;
+                        logGridGradientTransition("case.grid_gradient.entry", {
+                            activeTransition:
+                                summarizeRenderFamilyTransitionForLog(
+                                    activeTransition,
+                                ),
+                            activeSessionCount:
+                                renderFamilyTransitionState.activeSessions.length,
+                            transitionOwnersInPresentationStars:
+                                summarizeTransitionOwnersForLog(
+                                    activeTransition,
+                                    territoryPresentationStars,
+                                ),
+                            transitionOwnersInFrameStars:
+                                summarizeTransitionOwnersForLog(
+                                    activeTransition,
+                                    stars,
+                                ),
+                        });
+                        const ownership = measurePerf(
+                            "game.renderFrame.ownership.grid_gradient",
+                            () =>
+                                buildRenderFamilyOwnershipSnapshot(
+                                    territoryPresentationStars,
+                                    activeTransition,
+                                ),
+                        );
+                        logGridGradientTransition("case.grid_gradient.ownership", {
+                            hasActiveTransition: Boolean(activeTransition),
+                            ownershipVersion: ownership.version,
+                            transitionOwners: activeTransition
+                                ? activeTransition.events.map((entry) => ({
+                                      starId: entry.event.starId,
+                                      previousOwner:
+                                          entry.event.previousOwner,
+                                      newOwner: entry.event.newOwner,
+                                      ownershipOwner:
+                                          ownership.starOwners.get(
+                                              entry.event.starId,
+                                          ) ?? null,
+                                  }))
+                                : [],
+                        });
+                        const geometry = readFamilyGeometry();
+                        logGridGradientTransition("case.grid_gradient.geometry", {
+                            hasActiveTransition: Boolean(activeTransition),
+                            geometryVersion: geometry.version,
+                            displayBorderFingerprint:
+                                geometry.diagnostics.stageLadder
+                                    ?.displayBorderFingerprint ?? null,
+                            regionCount: optionalArrayLength(
+                                (geometry as unknown as Record<string, unknown>)
+                                    .regions,
+                            ),
+                            frontierCount: optionalArrayLength(
+                                (geometry as unknown as Record<string, unknown>)
+                                    .frontiers,
+                            ),
+                        });
+                        const diagnosticPrevFrame = activeTransition
+                            ? getTransitionDiagnosticPrevFrame({
+                                  activeMode,
+                                  activeTransition,
+                                  stars,
+                                  lanes,
+                              })
+                            : null;
+                        logGridGradientTransition("case.grid_gradient.prev_frame", {
+                            hasActiveTransition: Boolean(activeTransition),
+                            hasPrevFrame: Boolean(diagnosticPrevFrame),
+                            prevFrameKey: diagnosticPrevFrame?.key ?? null,
+                            prevGeometryVersion:
+                                diagnosticPrevFrame?.geometry.version ?? null,
+                            prevOwnershipVersion:
+                                diagnosticPrevFrame?.ownership.version ?? null,
+                        });
+                        const ggInput = measurePerf(
+                            "game.renderFrame.renderFamilyInput.grid_gradient",
+                            () =>
+                                buildRenderFamilyInput({
+                                    stars: territoryPresentationStars,
+                                    lanes,
+                                    worldMinX: territoryPresentationFrame.minX,
+                                    worldMinY: territoryPresentationFrame.minY,
+                                    worldWidth: territoryPresentationWorldWidth,
+                                    worldHeight: territoryPresentationWorldHeight,
+                                    nowMs: fxOrchestrator.gameTime,
+                                    paused: isPausedNow,
+                                    gameTick: activeGameStore.currentTick,
+                                    ownership,
+                                    geometry:
+                                        localizePresentationGeometry(geometry),
+                                    prevGeometry: localizePresentationGeometry(
+                                        diagnosticPrevFrame?.geometry ?? null,
+                                    ),
+                                    renderer: app?.renderer ?? undefined,
+                                    activeTransition,
+                                    transitionSessions:
+                                        activeTransition
+                                            ? renderFamilyTransitionState.activeSessions
+                                            : null,
+                                    tunableKeys: gg.tunableKeys,
+                                    configSource: renderFamilyConfigSource,
+                                }),
+                        );
+                        logGridGradientTransition("case.grid_gradient.input", {
+                            activeTransition:
+                                summarizeRenderFamilyTransitionForLog(
+                                    ggInput.activeTransition ?? null,
+                                ),
+                            transitionSessionCount:
+                                ggInput.transitionSessions?.length ?? 0,
+                            geometryVersion: ggInput.geometry?.version ?? null,
+                            prevGeometryVersion:
+                                ggInput.prevGeometry?.version ?? null,
+                            world: ggInput.world,
+                            starCount: ggInput.stars.length,
+                            laneCount: ggInput.lanes.length,
+                        });
+                        gg.update(ggInput);
+                        logGridGradientTransition("case.grid_gradient.after_update", {
+                            hasActiveTransition: Boolean(activeTransition),
+                            snapshot: gg.getDebugSnapshot(),
+                        });
+                        if (gg.displayRoot.parent !== activeVoronoiContainer) {
+                            activeVoronoiContainer.addChild(gg.displayRoot);
+                        }
+                        gg.displayRoot.visible = true;
+                        syncLiveRenderFamilyStableFrame({
+                            activeTransition,
+                            stars,
+                            lanes,
+                            geometry,
+                            configSource: renderFamilyConfigSource,
+                            freezeDuringActiveTransition: true,
+                        });
+                        if (transitionDiagnosticCaptureEnabled) {
+                            transitionDiagnosticFrameInput = {
+                                activeMode,
+                                activeTransition,
+                                stars,
+                                lanes,
+                                geometry,
+                                ownership,
+                            };
+                        }
+                        break;
+                    }
                     case "perimeter_field": {
                         let fam = getRenderFamily("perimeter_field");
                         if (!fam) {
@@ -6081,9 +6562,19 @@
                               return Number.isFinite(value) ? value : null;
                           })()
                         : null;
+                    const rendererDiagnostics = resolvePixiRendererDiagnostics(
+                        app?.renderer,
+                    );
                     setTerritoryRenderStatus({
                         territoryMode: activeMode,
                         geometryReady,
+                        rendererType: rendererDiagnostics.rendererType,
+                        rendererTypeSource:
+                            rendererDiagnostics.rendererTypeSource,
+                        rendererConstructorName:
+                            rendererDiagnostics.rendererConstructorName,
+                        rendererReportedType:
+                            rendererDiagnostics.rendererReportedType,
                         arrowRenderer: "overlay_canvas",
                         lastRenderFailure,
                         msrRequestedMarginPx:
@@ -6177,6 +6668,9 @@
                         dragSourceId,
                         pendingConquests,
                         conquestFlashes,
+                        ownerTransitions: buildStarOwnerTransitionMap(
+                            renderFamilyTransitionState.activeSessions,
+                        ),
                         gameNowMs: fxOrchestrator.gameTime,
                         stageScale: app?.stage.scale.x ?? 1,
                     },
@@ -6526,6 +7020,12 @@
             metaballGridFamily instanceof MetaballGridPhaseFieldFamily
                 ? metaballGridFamily.getDebugSnapshot()
                 : null;
+        const gridGradientFamily = getRenderFamily("grid_gradient");
+        const gridGradientDebug =
+            gridGradientFamily instanceof GridGradientFamily
+                ? gridGradientFamily.getDebugSnapshot()
+                : null;
+        const rendererDiagnostics = resolvePixiRendererDiagnostics(app?.renderer);
         const travelingShipsSnapshot = [...fxOrchestrator.vsm.travelingShips]
             .slice()
             .sort((a, b) => a.id - b.id)
@@ -6555,6 +7055,8 @@
             renderMode: GAME_CONFIG.TERRITORY_RENDER_MODE,
             ownerStarCounts,
             metaballGridDebug,
+            gridGradientDebug,
+            rendererDiagnostics,
             fxGameNowMs: Number(fxOrchestrator.gameTime.toFixed(2)),
             effectiveTickMs: activeGameStore.effectiveTickMs,
             tickProgress: Number(lastRenderedTickProgress.toFixed(4)),

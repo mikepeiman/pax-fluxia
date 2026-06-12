@@ -172,6 +172,9 @@ function resolveSectionTarget(
             if (record.key.startsWith("METABALL_GRID_PHASE_FIELD_")) {
                 return { sectionId: "territory_phase_field" };
             }
+            if (record.key.startsWith("GRID_GRADIENT_")) {
+                return { sectionId: "territory_styles" };
+            }
             if (
                 activeTerritoryRenderMode === "metaball_grid_ember_lattice" &&
                 (record.key.startsWith("METABALL_GRID_") ||

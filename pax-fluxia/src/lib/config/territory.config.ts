@@ -2,6 +2,7 @@ import { gameplayConfigDefaults } from './gameplay.config';
 import { territoryFrontierConfigDefaults } from '../territory/frontier/config';
 import { metaballFamilyConfigDefaults } from '../territory/families/metaball/config';
 import { metaballGridFamilyConfigDefaults } from '../territory/families/metaballGrid/config';
+import { gridGradientFamilyConfigDefaults } from '../territory/families/gridGradient/config';
 import { perimeterFieldFamilyConfigDefaults } from '../territory/families/perimeterField/config';
 
 export const territoryConfigDefaults = {
@@ -199,5 +200,6 @@ export const territoryConfigDefaults = {
     CONTOUR_JUNCTION_CORRECTION: 50,
     ...metaballFamilyConfigDefaults,
     ...metaballGridFamilyConfigDefaults,
+    ...gridGradientFamilyConfigDefaults,
     ...perimeterFieldFamilyConfigDefaults,
 } as const;

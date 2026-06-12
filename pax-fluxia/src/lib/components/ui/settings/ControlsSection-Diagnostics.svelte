@@ -6,6 +6,7 @@
     import { territoryRenderStatus } from "$lib/stores/territoryRenderStatusStore";
     import { territoryTuningStatus } from "$lib/stores/territoryTuningStatusStore";
     import { metaballGridStats } from "$lib/territory/families/metaballGrid/metaballGridStats";
+    import { gridGradientStats } from "$lib/territory/families/gridGradient/gridGradientStats";
     import PerimeterFieldDiagnosticsPanel from "$lib/components/ui/PerimeterFieldDiagnosticsPanel.svelte";
     import { overlayConfig } from "$lib/territory/devtools/overlayConfig";
     import {
@@ -61,6 +62,9 @@
             liveRenderMode === "metaball_grid_ember_lattice" ||
             liveRenderMode === "metaball_grid_phase_field",
     );
+    const showGridGradientDiagnostics = $derived(
+        liveRenderMode === "grid_gradient",
+    );
     const showTerritoryEngineTraceDiagnostics = $derived(
         liveRenderMode === "territory_engine"
         || activeRenderMode === "territory_engine",
@@ -71,7 +75,8 @@
             liveRenderMode === "metaball_grid" ||
             liveRenderMode === "metaball_grid_phase_edges" ||
             liveRenderMode === "metaball_grid_ember_lattice" ||
-            liveRenderMode === "metaball_grid_phase_field",
+            liveRenderMode === "metaball_grid_phase_field" ||
+            liveRenderMode === "grid_gradient",
     );
     const bundleList = $derived(
         [...$transitionSnapshotRecorderStore.bundles].reverse(),
@@ -601,6 +606,19 @@
     <div class="status-grid">
         <div><span>Mode</span><code>{getTerritoryRenderModeLabel($territoryRenderStatus.territoryMode)}</code></div>
         <div><span>Geometry</span><span>{$territoryRenderStatus.geometryReady === null ? "pending" : $territoryRenderStatus.geometryReady ? "ready" : "missing"}</span></div>
+        <div>
+            <span>Renderer</span>
+            <span>
+                {$territoryRenderStatus.rendererType}
+                <code>{$territoryRenderStatus.rendererTypeSource}</code>
+                {#if $territoryRenderStatus.rendererConstructorName}
+                    / {$territoryRenderStatus.rendererConstructorName}
+                {/if}
+                {#if $territoryRenderStatus.rendererReportedType}
+                    / reported {$territoryRenderStatus.rendererReportedType}
+                {/if}
+            </span>
+        </div>
         <div><span>Arrows</span><code>{$territoryRenderStatus.arrowRenderer}</code></div>
         <div>
             <span>Topology Compile</span>
@@ -702,6 +720,46 @@
                 Recommended starter: <code>pre_to_post_frontier</code> propagation, <code>territory_edge</code> borders, <code>Frontier Highlight</code> on, and the new finish-tail controls in <code>Flip</code> for fade timing, cell collapse, and frontier cleanup. DX defaults stay on at 295px with weight 0.30.
             </div>
         {/if}
+    {/if}
+    {#if showGridGradientDiagnostics}
+        <div class="status-grid">
+            <div><span>Family</span><code>{$gridGradientStats.familyLabel}</code></div>
+            <div>
+                <span>Renderer</span>
+                <span>
+                    {$gridGradientStats.rendererType}
+                    <code>{$gridGradientStats.rendererTypeSource}</code>
+                    {#if $gridGradientStats.rendererConstructorName}
+                        / {$gridGradientStats.rendererConstructorName}
+                    {/if}
+                    {#if $gridGradientStats.rendererReportedType}
+                        / reported {$gridGradientStats.rendererReportedType}
+                    {/if}
+                </span>
+            </div>
+            <div><span>Source</span><code>{$gridGradientStats.geometrySource ?? "n/a"}</code></div>
+            <div><span>Backend</span><span>{$gridGradientStats.requestedDrawBackend} -> {$gridGradientStats.drawBackend}{#if $gridGradientStats.backendFallbackReason} / {$gridGradientStats.backendFallbackReason}{/if}</span></div>
+            <div><span>Plan Cache</span><span>{$gridGradientStats.planCacheHit ? "hit" : "miss"}{#if $gridGradientStats.planRebuildReason} / {$gridGradientStats.planRebuildReason}{/if}{#if $gridGradientStats.requestedPlanPending} / pending{/if}</span></div>
+            <div><span>Plan Worker</span><span>{$gridGradientStats.planWorkerScheduled ? "scheduled" : "idle"} / {$gridGradientStats.committedWorkerPlan ? "committed" : "no commit"} / wait {$gridGradientStats.planWorkerWaitMs == null ? "n/a" : `${$gridGradientStats.planWorkerWaitMs.toFixed(1)}ms`}</span></div>
+            <div><span>Classifier</span><span>{$gridGradientStats.classificationAlgorithm} / cache {$gridGradientStats.prevOwnerGridCacheHit ? "prev hit" : "prev miss"} / {$gridGradientStats.nextOwnerGridCacheHit ? "next hit" : "next miss"}</span></div>
+            <div><span>Paint Cache</span><span>{$gridGradientStats.presentationCacheHit ? "hit" : "miss"}{#if $gridGradientStats.presentationRebuildReason} / {$gridGradientStats.presentationRebuildReason}{/if}</span></div>
+            <div><span>Cells</span><span>{$gridGradientStats.paintedCells.toLocaleString()} painted / {$gridGradientStats.emittableCells.toLocaleString()} emittable / {$gridGradientStats.totalCells.toLocaleString()} total</span></div>
+            <div><span>Active/Outside</span><span>{$gridGradientStats.activeTransitionCells.toLocaleString()} active / {$gridGradientStats.outsideCells.toLocaleString()} outside</span></div>
+            <div><span>Transition Cells</span><span>{$gridGradientStats.activeTransitionCells.toLocaleString()} active / {$gridGradientStats.activeDrawableTransitionCells.toLocaleString()} drawable / {$gridGradientStats.activeMixingTransitionCells.toLocaleString()} mixing / {$gridGradientStats.activeOffsetZoneTransitionCells.toLocaleString()} offset</span></div>
+            <div><span>Shader Cells</span><span>{$gridGradientStats.shaderActiveTransitionCells.toLocaleString()} active / {$gridGradientStats.shaderActiveDrawableTransitionCells.toLocaleString()} drawable / {$gridGradientStats.shaderActiveOffsetZoneTransitionCells.toLocaleString()} offset</span></div>
+            <div><span>Spacing</span><span>{$gridGradientStats.requestedSpacingPx.toFixed(1)}px requested / {$gridGradientStats.effectiveSpacingPx.toFixed(1)}px effective</span></div>
+            <div><span>Fill</span><span>{$gridGradientStats.fillStyle} / {$gridGradientStats.cellShape} / {$gridGradientStats.edgeSizePx.toFixed(1)}px edge / {$gridGradientStats.centerSizePx.toFixed(1)}px center / curve {$gridGradientStats.curvePower.toFixed(2)}</span></div>
+            <div><span>Shader</span><span>{$gridGradientStats.shaderNeighborMode} neighbors</span></div>
+            <div><span>Shader Uniform</span><span>progress {$gridGradientStats.shaderUniformProgress == null ? "n/a" : $gridGradientStats.shaderUniformProgress.toFixed(3)} / time {$gridGradientStats.shaderUniformTimeSec == null ? "n/a" : `${$gridGradientStats.shaderUniformTimeSec.toFixed(2)}s`} / update {$gridGradientStats.lastUniformUpdateMs.toFixed(3)} ms</span></div>
+            <div><span>Textures</span><span>{$gridGradientStats.textureUploaded ? "upload" : "cached"} / {($gridGradientStats.textureBytes / 1024).toFixed(1)} KB</span></div>
+            <div><span>Build Split</span><span>plan {$gridGradientStats.lastPlanBuildMs.toFixed(1)} ms ({$gridGradientStats.lastOwnerGridBuildMs.toFixed(1)} grid + {$gridGradientStats.lastClassificationMaterializeMs.toFixed(1)} materialize + {$gridGradientStats.lastWavePlanBuildMs.toFixed(1)} wave) / field {$gridGradientStats.lastDistanceBuildMs.toFixed(1)} + {$gridGradientStats.lastTexturePackMs.toFixed(1)} ms / upload {$gridGradientStats.lastTextureUploadMs.toFixed(1)} ms</span></div>
+            <div><span>Offset</span><span>{$gridGradientStats.borderOffsetPx.toFixed(1)}px</span></div>
+            <div><span>Borders</span><span>{$gridGradientStats.vectorBordersEnabled ? "vector on" : "vector off"} / {$gridGradientStats.borderDotsEnabled ? `${$gridGradientStats.borderDotStyle} dots` : "dots off"}</span></div>
+            <div><span>Border Count</span><span>{$gridGradientStats.vectorBorderCount} vector / {$gridGradientStats.borderDotCount} dots</span></div>
+            <div><span>Frame</span><span><code>{$gridGradientStats.clockSource}</code> / {$gridGradientStats.visibleFrameState} / {$gridGradientStats.lastUpdateMs.toFixed(2)} ms / EMA {$gridGradientStats.emaUpdateMs.toFixed(2)} ms</span></div>
+            <div><span>Transition</span><span>{$gridGradientStats.visualTransitionActive ? "local clock" : "scheduler"} / plan {$gridGradientStats.requestedPlanPending ? "pending" : "ready"} / progress {($gridGradientStats.rawProgress ?? $gridGradientStats.schedulerRawProgress ?? 1).toFixed(3)}</span></div>
+            <div><span>Transition Input</span><span>{$gridGradientStats.transitionEventCount} events / {$gridGradientStats.transitionSessionCount} sessions / age {$gridGradientStats.transitionAgeMs == null ? "n/a" : `${$gridGradientStats.transitionAgeMs.toFixed(0)}ms`} / duration {$gridGradientStats.transitionDurationMs == null ? "n/a" : `${$gridGradientStats.transitionDurationMs.toFixed(0)}ms`}</span></div>
+        </div>
     {/if}
     {#if showPerimeterFieldDiagnostics}
         <PerimeterFieldDiagnosticsPanel />

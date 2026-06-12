@@ -1,4 +1,5 @@
 import type {
+    GeometryStageLadder,
     ResolvedFrontierPolyline,
     ResolvedGeometrySnapshot,
     ResolvedShell,
@@ -96,6 +97,39 @@ function translatePolyline(
     return {
         ...polyline,
         points: translatePoints(polyline.points, dx, dy),
+    };
+}
+
+function translateStageLadder(
+    ladder: GeometryStageLadder | undefined,
+    dx: number,
+    dy: number,
+): GeometryStageLadder | undefined {
+    if (!ladder) return undefined;
+    return {
+        ...ladder,
+        rawSharedFrontiers: ladder.rawSharedFrontiers.map((polyline) =>
+            translatePolyline(polyline, dx, dy),
+        ),
+        rawWorldBorders: ladder.rawWorldBorders.map((polyline) =>
+            translatePolyline(polyline, dx, dy),
+        ),
+        resolvedSharedBoundaryFrontiers:
+            ladder.resolvedSharedBoundaryFrontiers.map((polyline) =>
+                translatePolyline(polyline, dx, dy),
+            ),
+        resolvedWorldBorders: ladder.resolvedWorldBorders.map((polyline) =>
+            translatePolyline(polyline, dx, dy),
+        ),
+        resolvedRegions: ladder.resolvedRegions.map((region) =>
+            translateRegion(region, dx, dy),
+        ),
+        displayFrontierPolylines: ladder.displayFrontierPolylines.map(
+            (polyline) => translatePolyline(polyline, dx, dy),
+        ),
+        displayWorldBorderPolylines: ladder.displayWorldBorderPolylines.map(
+            (polyline) => translatePolyline(polyline, dx, dy),
+        ),
     };
 }
 
@@ -273,6 +307,14 @@ export function localizeResolvedGeometrySnapshot(
         frontierPolylines,
         worldBorderPolylines,
         sharedFrontierMap,
+        diagnostics: {
+            ...geometry.diagnostics,
+            stageLadder: translateStageLadder(
+                geometry.diagnostics.stageLadder,
+                dx,
+                dy,
+            ),
+        },
         frontierTopology: translateTopology(
             geometry.frontierTopology,
             frame,

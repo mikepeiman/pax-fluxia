@@ -211,6 +211,45 @@ describe('buildRenderFamilyTransitionLifecycle', () => {
         expect(result.terminalFrameStarIds).toEqual([]);
     });
 
+    it('advances pending conquest previews from a stable first-seen time', () => {
+        const event = makeConquestEvent({ tick: 20, starId: 'preview' });
+        const key = '20:preview:red:blue';
+        const result = buildRenderFamilyTransitionLifecycle({
+            nowMs: 2120,
+            effectiveTickMs: 1000,
+            activeEntries: [],
+            pendingConquests: [event],
+            pendingConquestStartedAtMsByKey: new Map([[key, 2000]]),
+        });
+
+        expect(result.activeTransition?.events[0]?.event.starId).toBe('preview');
+        expect(result.activeTransition?.startedAtMs).toBe(2000);
+        expect(result.activeTransition?.progress).toBeGreaterThan(0);
+        expect(result.activeTransition?.progress).toBeCloseTo(0.12);
+    });
+
+    it('preserves pending preview progress when the handler-owned active entry arrives', () => {
+        const event = makeConquestEvent({ tick: 22, starId: 'handoff' });
+        const key = '22:handoff:red:blue';
+        const result = buildRenderFamilyTransitionLifecycle({
+            nowMs: 2180,
+            effectiveTickMs: 1000,
+            activeEntries: [
+                makeEntry({
+                    event,
+                    starId: event.starId,
+                    startTimeMs: 2100,
+                    durationMs: 400,
+                }),
+            ],
+            pendingConquestStartedAtMsByKey: new Map([[key, 2000]]),
+        });
+
+        expect(result.activeTransition?.events[0]?.event.starId).toBe('handoff');
+        expect(result.activeTransition?.startedAtMs).toBe(2000);
+        expect(result.activeTransition?.progress).toBeCloseTo(0.45);
+    });
+
     it('preserves entry duration through the lifecycle so downstream families can see 200ms vs 1500ms', () => {
         const short = buildRenderFamilyTransitionLifecycle({
             nowMs: 1100,

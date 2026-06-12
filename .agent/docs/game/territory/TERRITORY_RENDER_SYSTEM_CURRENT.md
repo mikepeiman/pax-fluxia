@@ -39,7 +39,7 @@ The repo is not running one single territory architecture today. It is running t
 | Runtime shape | What it is | Current modes / entrypoints |
 |---|---|---|
 | Pipeline runtime | `TerritoryRuntimeCoordinator` drives the 4-layer pipeline | `territory_runtime`, `territory_engine` |
-| Render-family runtime | `GameCanvas` builds `RenderFamilyInput` and calls a family adapter | `metaball_grid` |
+| Render-family runtime | `GameCanvas` builds `RenderFamilyInput` and calls a family adapter | `metaball_grid`, `grid_gradient` |
 | Direct legacy renderer runtime | `GameCanvas` calls a renderer directly, outside the family contract | `vs_pvv3`, `distance_field`, `pixel`, `power_voronoi`, `voronoi`, `metaball`, `graph`, `contour`, `perimeter_field` |
 
 That split is the most important current-state fact. Any document that describes the repo as if every territory mode already lives behind the same family shell is wrong.
@@ -63,7 +63,9 @@ The family shell exists and is real:
 - `pax-fluxia/src/lib/territory/families/buildRenderFamilyInput.ts`
 - `pax-fluxia/src/lib/territory/transitions/renderFamilyTransitionLifecycle.ts`
 
-But only `metaball_grid` is meaningfully on that path today.
+`metaball_grid` and the experimental `grid_gradient` mode are meaningfully on that path today.
+
+`grid_gradient` is a render-family mode, not a direct legacy renderer. `GameCanvas` supplies shared family geometry and calls `GridGradientFamily.update()`. The family samples an invisible grid for presentation fills only, using ownership and PV-derived geometry that already exist in the family input. Vector borders remain enabled by default; optional border dots are a presentation choice within the family.
 
 ### 3.3 Direct legacy renderers
 
@@ -131,6 +133,7 @@ A semantically precise cleanup should:
 - Family input builder
 - Family transition lifecycle helper
 - `metaball_grid` family adapter
+- `grid_gradient` family adapter, with grid-sampled fills and optional grid-styled borders
 - Shared ownership truth remains intact
 
 ### 6.2 Partially implemented
@@ -263,6 +266,7 @@ The accurate categories are:
 ### Current family implementation
 
 - `pax-fluxia/src/lib/territory/families/metaballGrid/*`
+- `pax-fluxia/src/lib/territory/families/gridGradient/*`
 
 ### Direct legacy renderers still outside the family shell
 
@@ -275,7 +279,7 @@ The accurate categories are:
 The current territory system is a mixed architecture:
 
 - one structured pipeline runtime
-- one partial family shell with `metaball_grid`
+- one partial family shell with `metaball_grid` and `grid_gradient`
 - several direct legacy renderers still called from `GameCanvas`
 
 The highest-priority cleanup is not another abstract architecture diagram. It is:

@@ -19,7 +19,8 @@ export type TerritoryModeShortcutAppearance =
     | 'grid'
     | 'phase_edges'
     | 'ember'
-    | 'phase_field';
+    | 'phase_field'
+    | 'grid_gradient';
 
 export type TerritoryModeShortcutOption = ResolvedTerritoryRenderModeOption & {
     shortLabel: string;
@@ -74,6 +75,12 @@ const TOPBAR_MODE_DEFS: ReadonlyArray<{
         shortLabel: 'Field',
         displayLabel: 'Phase Field',
         appearance: 'phase_field',
+    },
+    {
+        id: 'grid_gradient',
+        shortLabel: 'Grad',
+        displayLabel: 'Grid Gradient',
+        appearance: 'grid_gradient',
     },
 ];
 

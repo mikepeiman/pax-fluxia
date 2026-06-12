@@ -1,0 +1,18 @@
+// Add these metadata entries near the existing Grid Gradient metadata.
+
+'Grid Gradient Draw Backend': { key: 'GRID_GRADIENT_DRAW_BACKEND' },
+'Grid Gradient Shader Neighbor Mode': { key: 'GRID_GRADIENT_SHADER_NEIGHBOR_MODE' },
+'Grid Gradient Shader Resolution Scale': { key: 'GRID_GRADIENT_SHADER_RESOLUTION_SCALE' },
+'Grid Gradient Mark Softness': { key: 'GRID_GRADIENT_SHADER_MARK_SOFTNESS' },
+'Grid Gradient Edge Softness': { key: 'GRID_GRADIENT_SHADER_EDGE_SOFTNESS_PX' },
+'Grid Gradient Noise Strength': { key: 'GRID_GRADIENT_SHADER_NOISE_STRENGTH' },
+'Grid Gradient Pulse Strength': { key: 'GRID_GRADIENT_SHADER_PULSE_STRENGTH' },
+'Grid Gradient Pulse Speed': { key: 'GRID_GRADIENT_SHADER_PULSE_SPEED' },
+'Grid Gradient Field Drift': { key: 'GRID_GRADIENT_SHADER_FIELD_DRIFT_PX' },
+'Grid Gradient Field Drift Speed': { key: 'GRID_GRADIENT_SHADER_FIELD_DRIFT_SPEED' },
+'Grid Gradient Glow Strength': { key: 'GRID_GRADIENT_SHADER_GLOW_STRENGTH' },
+'Grid Gradient Blur Strength': { key: 'GRID_GRADIENT_SHADER_BLUR_STRENGTH' },
+'Grid Gradient Interior Alpha Boost': { key: 'GRID_GRADIENT_SHADER_INTERIOR_ALPHA_BOOST' },
+'Grid Gradient Edge Alpha Boost': { key: 'GRID_GRADIENT_SHADER_EDGE_ALPHA_BOOST' },
+'Grid Gradient Color Mix Power': { key: 'GRID_GRADIENT_SHADER_COLOR_MIX_POWER' },
+'Grid Gradient Shader Debug Mode': { key: 'GRID_GRADIENT_SHADER_DEBUG_MODE' },

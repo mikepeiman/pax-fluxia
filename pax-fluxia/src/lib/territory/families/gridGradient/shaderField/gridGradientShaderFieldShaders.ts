@@ -1,0 +1,366 @@
+export const gridGradientShaderFieldBitGl = {
+    name: 'grid-gradient-shader-field-bit',
+    vertex: {
+        header: /* glsl */ `
+            out vec2 vWorld;
+        `,
+        main: /* glsl */ `
+            vWorld = position;
+        `,
+    },
+    fragment: {
+        header: /* glsl */ `#version 300 es
+            in vec2 vWorld;
+
+            uniform sampler2D uOwnerTex;
+            uniform sampler2D uMetricsTex;
+            uniform sampler2D uPaletteTex;
+
+            uniform vec2 uGridSize;
+            uniform vec2 uWorldOrigin;
+            uniform vec2 uWorldSize;
+            uniform float uSpacingPx;
+            uniform float uPaletteSize;
+
+            uniform float uProgress;
+            uniform float uTimeSec;
+            uniform float uFillAlpha;
+            uniform float uCenterSizePx;
+            uniform float uEdgeSizePx;
+            uniform float uBorderOffsetPx;
+            uniform float uCurvePower;
+            uniform float uFlipWindow;
+            uniform float uMarkSoftness;
+            uniform float uEdgeSoftnessPx;
+            uniform float uNoiseStrength;
+            uniform float uPulseStrength;
+            uniform float uPulseSpeed;
+            uniform float uFieldDriftPx;
+            uniform float uFieldDriftSpeed;
+            uniform float uGlowStrength;
+            uniform float uInteriorAlphaBoost;
+            uniform float uEdgeAlphaBoost;
+
+            uniform float uShapeMode;
+            uniform float uNeighborMode;
+
+            float saturate(float v) {
+                return clamp(v, 0.0, 1.0);
+            }
+
+            float unpackOwner(vec2 rg) {
+                float lo = floor(rg.x * 255.0 + 0.5);
+                float hi = floor(rg.y * 255.0 + 0.5);
+                return lo + hi * 256.0;
+            }
+
+            vec2 cellUv(vec2 cell) {
+                return (cell + 0.5) / max(vec2(1.0), uGridSize);
+            }
+
+            vec4 readOwnerTex(vec2 cell) {
+                if (
+                    cell.x < 0.0 ||
+                    cell.y < 0.0 ||
+                    cell.x >= uGridSize.x ||
+                    cell.y >= uGridSize.y
+                ) {
+                    return vec4(0.0);
+                }
+                return texture(uOwnerTex, cellUv(cell));
+            }
+
+            vec4 readMetricsTex(vec2 cell) {
+                if (
+                    cell.x < 0.0 ||
+                    cell.y < 0.0 ||
+                    cell.x >= uGridSize.x ||
+                    cell.y >= uGridSize.y
+                ) {
+                    return vec4(0.0);
+                }
+                return texture(uMetricsTex, cellUv(cell));
+            }
+
+            vec4 readPalette(float ownerIndex) {
+                if (ownerIndex <= 0.5) return vec4(0.0);
+                float x = (ownerIndex + 0.5) / max(1.0, uPaletteSize);
+                return texture(uPaletteTex, vec2(x, 0.5));
+            }
+
+            float circleMask(vec2 p, float radius, float softness) {
+                float d = length(p);
+                return 1.0 - smoothstep(radius, radius + softness, d);
+            }
+
+            float squareMask(vec2 p, float halfSize, float softness) {
+                float d = max(abs(p.x), abs(p.y));
+                return 1.0 - smoothstep(halfSize, halfSize + softness, d);
+            }
+
+            float hash12(vec2 p) {
+                vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+                p3 += dot(p3, p3.yzx + 33.33);
+                return fract((p3.x + p3.y) * p3.z);
+            }
+
+            float cellPhaseHash(vec2 cell, vec2 salt) {
+                vec2 mixed =
+                    cell * vec2(19.191, 73.371) +
+                    cell.yx * vec2(41.173, 11.137) +
+                    salt;
+                return hash12(mixed);
+            }
+
+            float noiseMask(vec2 p, float radius, float softness, float seed) {
+                float a = atan(p.y, p.x);
+                float n = 0.0;
+                n += sin(a * 3.0 + seed * 6.2831) * 0.30;
+                n += sin(a * 7.0 + seed * 19.173) * 0.20;
+                n += sin(a * 11.0 + seed * 41.17) * 0.10;
+                float r = radius * (1.0 + n * uNoiseStrength);
+                return 1.0 - smoothstep(r, r + softness, length(p));
+            }
+
+            float markMask(vec2 p, float radius, float seed) {
+                float softness = max(0.01, radius * uMarkSoftness + uEdgeSoftnessPx);
+                if (uShapeMode < 0.5) return circleMask(p, radius, softness);
+                if (uShapeMode < 1.5) return squareMask(p, radius, softness);
+                return noiseMask(p, radius, softness, seed);
+            }
+
+            float roleAllowsSide(float role, float side) {
+                if (role < 0.5) return 0.0;
+                if (role > 2.5 && role < 3.5 && side < 0.5) return 0.0;
+                if (role > 3.5 && role < 4.5 && side > 0.5) return 0.0;
+                return 1.0;
+            }
+
+            vec4 alphaOver(vec4 under, vec4 over) {
+                float a = over.a + under.a * (1.0 - over.a);
+                if (a <= 0.0001) return vec4(0.0);
+                vec3 rgb =
+                    (over.rgb * over.a + under.rgb * under.a * (1.0 - over.a)) / a;
+                return vec4(rgb, a);
+            }
+
+            float transitionMarkScale(float role, float sideAlpha) {
+                if (role < 1.5) return 1.0;
+                float a = saturate(sideAlpha);
+                if (a <= 0.0001) return 0.0;
+                if (a >= 0.9999) return 1.0;
+                return sqrt(a);
+            }
+
+            float transitionBlendT(float progress, float flipTime) {
+                float waveWindow = max(0.28, uFlipWindow);
+                return smoothstep(flipTime - waveWindow, flipTime + waveWindow, saturate(progress));
+            }
+
+            bool isTransitionEndpointSide(float role, float sideAlpha) {
+                return role >= 1.5 && saturate(sideAlpha) >= 0.9999;
+            }
+
+            float resolveSideRadius(float role, float sideAlpha, float distanceBand) {
+                bool transitionSizing = role >= 1.5 && !isTransitionEndpointSide(role, sideAlpha);
+                if (!transitionSizing && uBorderOffsetPx > 0.001 && distanceBand <= 0.001) {
+                    return 0.0;
+                }
+
+                float drawableDistanceBand =
+                    transitionSizing ? max(distanceBand, 0.18) : distanceBand;
+                float distanceT = pow(saturate(drawableDistanceBand), max(0.01, uCurvePower));
+                float sizePx = mix(uEdgeSizePx, uCenterSizePx, distanceT);
+                if (transitionSizing) {
+                    float transitionFloorPx =
+                        min(uCenterSizePx, max(uEdgeSizePx, min(3.0, uSpacingPx * 0.5)));
+                    sizePx = max(sizePx, transitionFloorPx);
+                }
+                return sizePx * 0.5;
+            }
+
+            vec2 transitionSideOffset(
+                vec2 cell,
+                float role,
+                float sideAlpha,
+                float side,
+                vec2 ownerSalt
+            ) {
+                if (role < 1.5) return vec2(0.0);
+                float a = saturate(sideAlpha);
+                if (a <= 0.0001 || a >= 0.9999) return vec2(0.0);
+                float separation = uSpacingPx * 0.24 * sin(a * 3.14159265);
+                if (separation <= 0.001) return vec2(0.0);
+                float angle =
+                    cellPhaseHash(cell, ownerSalt + vec2(211.0, 503.0)) *
+                    6.2831853;
+                vec2 direction = vec2(cos(angle), sin(angle));
+                float sideSign = side < 0.5 ? -1.0 : 1.0;
+                return direction * separation * sideSign;
+            }
+
+            vec4 shadeCellSide(
+                vec2 cell,
+                vec2 worldPos,
+                float owner,
+                float role,
+                float sideAlpha,
+                float side,
+                float distanceBand,
+                float noiseSeed,
+                vec2 center,
+                vec2 ownerSalt
+            ) {
+                float allowed = roleAllowsSide(role, side);
+                if (allowed <= 0.001 || sideAlpha <= 0.001) return vec4(0.0);
+
+                vec4 color = readPalette(owner);
+                if (color.a <= 0.001) return vec4(0.0);
+
+                float scale = transitionMarkScale(role, sideAlpha);
+                if (scale <= 0.001) return vec4(0.0);
+
+                float radius = resolveSideRadius(role, sideAlpha, distanceBand);
+                if (radius <= 0.001) return vec4(0.0);
+
+                bool endpointSide = isTransitionEndpointSide(role, sideAlpha);
+                vec2 sideCenter =
+                    center +
+                    transitionSideOffset(cell, role, sideAlpha, side, ownerSalt);
+                float markSeed = endpointSide ? noiseSeed : noiseSeed + side * 0.173;
+                float mask = markMask(worldPos - sideCenter, radius * scale, markSeed);
+                if (mask <= 0.001) return vec4(0.0);
+
+                float pulse = 1.0;
+                if (uPulseStrength > 0.0) {
+                    vec2 pulseSalt =
+                        ownerSalt + vec2(owner * 7.0 + side * 23.0, owner * 13.0 + side * 47.0);
+                    float phase = cellPhaseHash(cell, pulseSalt) * 6.2831853;
+                    float amplitude =
+                        mix(0.72, 1.0, cellPhaseHash(cell.yx, pulseSalt.yx + vec2(5.0, 11.0)));
+                    pulse += sin(uTimeSec * uPulseSpeed + phase) * uPulseStrength * amplitude;
+                }
+
+                float alphaBoost = mix(uEdgeAlphaBoost, uInteriorAlphaBoost, distanceBand);
+                float alpha = mask * color.a * uFillAlpha * alphaBoost * sideAlpha;
+                vec3 rgb = color.rgb * pulse;
+
+                if (uGlowStrength > 0.0) {
+                    rgb += color.rgb * mask * uGlowStrength;
+                }
+
+                return vec4(rgb, alpha);
+            }
+
+            vec4 shadeCell(vec2 cell, vec2 worldPos) {
+                vec4 ownerPacked = readOwnerTex(cell);
+                vec4 metrics = readMetricsTex(cell);
+
+                float role = floor(metrics.b * 255.0 + 0.5);
+                if (role < 0.5) return vec4(0.0);
+
+                float prevOwner = unpackOwner(ownerPacked.rg);
+                float nextOwner = unpackOwner(ownerPacked.ba);
+                float distanceBand = metrics.r;
+                float flipTime = metrics.g;
+                float noiseSeed = metrics.a;
+                bool transitionRole = role >= 1.5;
+                if (!transitionRole && uBorderOffsetPx > 0.001 && distanceBand <= 0.001) {
+                    return vec4(0.0);
+                }
+
+                vec2 ownerSalt = vec2(prevOwner * 17.0, nextOwner * 31.0);
+
+                vec2 center = uWorldOrigin + (cell + 0.5) * uSpacingPx;
+                vec2 jitter =
+                    vec2(
+                        cellPhaseHash(cell, ownerSalt + vec2(101.0, 7.0)) - 0.5,
+                        cellPhaseHash(cell.yx, ownerSalt.yx + vec2(13.0, 149.0)) - 0.5
+                    ) *
+                    uSpacingPx *
+                    0.12;
+                center += jitter;
+
+                if (uFieldDriftPx > 0.0) {
+                    float phase =
+                        uTimeSec * uFieldDriftSpeed +
+                        cellPhaseHash(cell, ownerSalt + vec2(29.0, 83.0)) * 6.2831;
+                    center += vec2(cos(phase), sin(phase * 1.17)) * uFieldDriftPx;
+                }
+
+                if (role < 1.5) {
+                    return shadeCellSide(
+                        cell,
+                        worldPos,
+                        nextOwner,
+                        role,
+                        1.0,
+                        1.0,
+                        distanceBand,
+                        noiseSeed,
+                        center,
+                        ownerSalt
+                    );
+                }
+
+                float t = transitionBlendT(uProgress, flipTime);
+                vec4 accum = vec4(0.0);
+                accum = alphaOver(
+                    accum,
+                    shadeCellSide(
+                        cell,
+                        worldPos,
+                        prevOwner,
+                        role,
+                        1.0 - t,
+                        0.0,
+                        distanceBand,
+                        noiseSeed,
+                        center,
+                        ownerSalt
+                    )
+                );
+                accum = alphaOver(
+                    accum,
+                    shadeCellSide(
+                        cell,
+                        worldPos,
+                        nextOwner,
+                        role,
+                        t,
+                        1.0,
+                        distanceBand,
+                        noiseSeed,
+                        center,
+                        ownerSalt
+                    )
+                );
+                return accum;
+            }
+        `,
+        main: /* glsl */ `
+            vec2 worldPos = vWorld;
+            vec2 cellFloat = floor((worldPos - uWorldOrigin) / uSpacingPx);
+            vec4 accum = vec4(0.0);
+
+            accum = alphaOver(accum, shadeCell(cellFloat, worldPos));
+
+            if (uNeighborMode > 0.5) {
+                accum = alphaOver(accum, shadeCell(cellFloat + vec2( 1.0,  0.0), worldPos));
+                accum = alphaOver(accum, shadeCell(cellFloat + vec2(-1.0,  0.0), worldPos));
+                accum = alphaOver(accum, shadeCell(cellFloat + vec2( 0.0,  1.0), worldPos));
+                accum = alphaOver(accum, shadeCell(cellFloat + vec2( 0.0, -1.0), worldPos));
+            }
+
+            if (uNeighborMode > 1.5) {
+                accum = alphaOver(accum, shadeCell(cellFloat + vec2( 1.0,  1.0), worldPos));
+                accum = alphaOver(accum, shadeCell(cellFloat + vec2( 1.0, -1.0), worldPos));
+                accum = alphaOver(accum, shadeCell(cellFloat + vec2(-1.0,  1.0), worldPos));
+                accum = alphaOver(accum, shadeCell(cellFloat + vec2(-1.0, -1.0), worldPos));
+            }
+
+            if (accum.a <= 0.001) discard;
+            outColor = vec4(accum.rgb * accum.a, accum.a);
+        `,
+    },
+} as const;

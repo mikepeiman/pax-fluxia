@@ -1,5 +1,7 @@
 <script lang="ts">
+    import { GAME_CONFIG } from "$lib/config/game.config";
     import { logFlags } from "$lib/utils/logger";
+    import CategoryThemeBar from './CategoryThemeBar.svelte';
 
     // ControlsSection-LOGGING -- Logging controls (extracted from GameSettingsPanel.svelte)
 
@@ -9,7 +11,19 @@
         syncFromConfig?: () => void;
     }
     let { logCategories, logRefresh, syncFromConfig }: Props = $props();
-    import CategoryThemeBar from './CategoryThemeBar.svelte';
+
+    function gridGradientTraceEnabled(): boolean {
+        return Boolean(
+            (GAME_CONFIG as unknown as Record<string, unknown>)
+                .GRID_GRADIENT_DEBUG_TRANSITIONS,
+        );
+    }
+
+    function setGridGradientTraceEnabled(enabled: boolean): void {
+        (GAME_CONFIG as unknown as Record<string, unknown>)
+            .GRID_GRADIENT_DEBUG_TRANSITIONS = enabled;
+        logRefresh++;
+    }
 </script>
 
 <CategoryThemeBar category="logging" onApply={() => syncFromConfig?.()} />
@@ -59,6 +73,28 @@
         </label>
     {/key}
 {/each}
+
+<h4 class="sub-heading">Renderer Traces</h4>
+{#key logRefresh}
+    <label class="toggle-row">
+        <input
+            type="checkbox"
+            checked={gridGradientTraceEnabled()}
+            onchange={(e) => {
+                setGridGradientTraceEnabled(
+                    (e.target as HTMLInputElement).checked,
+                );
+            }}
+        />
+        <span
+            class="log-label"
+            data-setting-config-key="GRID_GRADIENT_DEBUG_TRANSITIONS"
+            data-setting-description="Detailed Grid Gradient conquest transition trace logs. Does not enable the broad Render log channel."
+            >Grid Gradient transition trace</span
+        >
+        <span class="log-desc">Filter logs for [GG_TRANSITION]</span>
+    </label>
+{/key}
 
 <style>
     @import './panel-shared.css';

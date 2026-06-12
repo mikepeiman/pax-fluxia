@@ -72,6 +72,7 @@ const styles = {
     conquest: 'background: #e11d48; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
     canvas: 'background: #0ea5e9; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
     renderer: 'background: #f97316; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
+    gridGradientTrace: 'background: #7c3aed; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
     reset: 'color: inherit;'
 };
 
@@ -443,6 +444,11 @@ export const log = {
     renderer: (context: string, msg: string, data?: unknown) => {
         if (!logFlags.renderer) return;
         console.log(`%cRENDERER%c [${context}] ${msg}`, styles.renderer, styles.reset, data ?? '');
+    },
+
+    /** Grid Gradient transition trace. Gated by the Grid Gradient trace setting before this is called. */
+    gridGradientTrace: (context: string, msg: string, data?: unknown) => {
+        console.log(`%cGRID-GRADIENT%c [${context}] ${msg}`, styles.gridGradientTrace, styles.reset, data ?? '');
     },
 };
 

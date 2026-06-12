@@ -54,6 +54,23 @@ describe('resolveTerritoryArchitectureRoute', () => {
         expect(legacyDecision.isRuntimeSurfaceStyle).toBe(false);
     });
 
+    it('routes render-family modes through the family renderer route', () => {
+        const gridGradientDecision = resolveTerritoryArchitectureRoute({
+            renderMode: 'grid_gradient',
+            architecturePath: 'clean',
+        });
+        const metaballGridDecision = resolveTerritoryArchitectureRoute({
+            renderMode: 'metaball_grid',
+            architecturePath: 'legacy',
+        });
+
+        expect(gridGradientDecision.route).toBe('render_family_renderer');
+        expect(metaballGridDecision.route).toBe('render_family_renderer');
+        expect(gridGradientDecision.isRenderFamilySurfaceStyle).toBe(true);
+        expect(metaballGridDecision.isRenderFamilySurfaceStyle).toBe(true);
+        expect(gridGradientDecision.isRuntimeSurfaceStyle).toBe(false);
+    });
+
     it('defaults to the runtime clean route for missing values', () => {
         const decision = resolveTerritoryArchitectureRoute({});
         expect(decision.route).toBe('runtime_clean_bridge');
