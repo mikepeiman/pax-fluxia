@@ -66,6 +66,14 @@ Ancient (Feb–Mar, 400–1900 behind): live, feat/pax-fluxia-ui-design, territo
 - db53 value (user's "needs audit"): coherent salvage-worthy architecture, ~40-50% complete, est. 3-5h integration after family merges land.
 - f76c "worth keeping?": already kept — verified in master.
 
+## Merge execution notes (2026-06-12 evening)
+
+- User committed the db53 + dcc7 uncommitted work themselves (db53 → `codex/territory-rendering-checkpoint-2026-06-12`); rescue branches not needed.
+- Merge 1 (9f22, `ff3eb42e1`): 4 conflicts. Master already carried partial grid-gradient state; branch side taken as authority. 3 pre-existing branch typecheck errors fixed mechanically ('contested'→'dispossessed' role, ConquestEvent required fields in test, null-ownerId normalization in plan worker). Gates: build PASS, 0 errors, 31/31 targeted tests.
+- Merge 2 (4b02, `a0514ba87`): 16 conflicts. Lesson: for whole-file rewrites (GameContainer, GameSettingsPanel), hunk-level resolution leaves dangling references from unconflicted HEAD remnants — take the whole branch file, then re-apply master-side fixes on top (here: lane-topology rebuild removal). Gates: build PASS, 0 errors / 1 warning.
+- Save/load UI regression + audience-shell replacement + unmounted GameThemeManager + settle-slider defs gap recorded in 2026-06-12_consolidation-pause-handoff.md as UI-finishing tasks.
+- PAUSE POINT per user: finish UI work to a good threshold before resuming merges (queue + steps in the pause handoff).
+
 ## New issues raised
 
 - dcc7 has SUBSTANTIVE UNCOMMITTED code (topology contract enrichment, +223-line compiler change) — same protection urgency as db53.
