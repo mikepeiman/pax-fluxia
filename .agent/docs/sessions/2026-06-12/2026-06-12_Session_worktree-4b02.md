@@ -229,3 +229,30 @@ Validation:
 Next correct step:
 
 - Continue migrating larger settings panels through these row primitives, starting with warning-heavy legacy CSS areas only after confirming selectors are truly obsolete or replacing the markup that owns them.
+
+## Perimeter Field Tuning Primitive Migration
+
+Implemented:
+
+- Rebuilt `pax-fluxia/src/lib/components/ui/settings/PerimeterFieldTuning.svelte` around the Pax primitive layer.
+- Replaced raw module buttons with `PaxHudButton`.
+- Replaced raw range controls with `PaxSettingsRangeRow`.
+- Replaced the transition-engine select with `PaxHudSelect`.
+- Replaced the freeze-base checkbox row with `PaxSettingsToggleRow`.
+- Removed obsolete local `.sub-heading`, raw range/select/toggle markup, and related local control CSS.
+
+Intent:
+
+- Use the warning-heavy perimeter tuning surface as a small complete migration example before editing the much larger Territory panel.
+- Preserve existing data flow: all values still write through `writeConfig(...)`, update the same panel keys, and call `bumpTerritoryVisualConfig()`.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Targeted audit returned no raw `<button>`, `<select>`, `<input>`, `.toggle-row`, `.var-row`, `.sub-heading`, `.module-all-toggle`, or `.module-chip` usage in `PerimeterFieldTuning.svelte`.
+- Build log no longer reports `PerimeterFieldTuning.svelte`; remaining cleanup warnings are in `ControlsSection-Territory.svelte`.
+
+Next correct step:
+
+- Remove or replace the remaining obsolete Territory selectors after checking whether each selector has live markup ownership.

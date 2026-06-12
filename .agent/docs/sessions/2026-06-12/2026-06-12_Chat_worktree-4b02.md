@@ -73,3 +73,4 @@ Prompt:
 - Validated the slice with production build, diff check, and static audit before committing.
 - Continued into settings controls by adding range/toggle row primitives.
 - Migrated AI ranges, Logging toggles/actions, and the reusable slider wrapper through those primitives.
+- Migrated Perimeter Field tuning to Pax button/select/range/toggle primitives while preserving existing config write paths.

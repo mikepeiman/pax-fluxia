@@ -602,3 +602,32 @@ Merge guidance:
 - Prefer `PaxSettingsRangeRow` for numeric tuning values and `PaxSettingsToggleRow` for booleans in future settings work.
 - Keep raw input elements inside the design-system primitive layer, not inside feature settings panels.
 - Do not remove `SliderRow.svelte`; it is now a compatibility adapter for older tuning components.
+
+## 2026-06-12 Perimeter Field Tuning Primitive Migration
+
+Scope implemented in this step:
+
+- Rebuilt `pax-fluxia/src/lib/components/ui/settings/PerimeterFieldTuning.svelte` around Pax primitives:
+  - `PaxHudButton` for module scope and module chips
+  - `PaxHudSelect` for transition engine
+  - `PaxSettingsRangeRow` for numeric tuning values
+  - `PaxSettingsToggleRow` for the freeze-base boolean
+- Removed raw range/select/button/checkbox markup from that feature component.
+- Removed obsolete local `.sub-heading` styling from that component.
+
+Why this matters for merge:
+
+- This removes a build warning source and demonstrates the intended migration pattern for the remaining larger settings/tuning files.
+- The component still writes through `writeConfig(...)`, uses the same config keys/panel keys, and still calls `bumpTerritoryVisualConfig()`.
+- If master has touched the same file, preserve the real settings data flow and keep the Pax primitive rendering path.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Targeted audit returned no raw controls or stale local selector names in `PerimeterFieldTuning.svelte`.
+
+Merge guidance:
+
+- Keep this component primitive-owned; do not restore old `.var-row`/`.toggle-row`/`.module-chip` local markup.
+- Remaining warning-heavy settings cleanup is now concentrated in `ControlsSection-Territory.svelte`.
