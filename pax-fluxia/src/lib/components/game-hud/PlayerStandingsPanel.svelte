@@ -1,6 +1,7 @@
 <script lang="ts">
   import { browser } from "$app/environment";
   import HudIcon from "$lib/components/ui/hud/HudIcon.svelte";
+  import { PaxHudSegmentedControl, type PaxHudSegmentedOption } from "$lib/design-system";
   import HudIconButton from "./HudIconButton.svelte";
   import HudPanel from "./HudPanel.svelte";
   import { formatHudNumber } from "./viewModels";
@@ -25,6 +26,10 @@
   }: Props = $props();
 
   const FOCUS_KEY = "pax-leaderboard-ship-focus";
+  const shipFocusOptions: PaxHudSegmentedOption[] = [
+    { value: "active", label: "Act", icon: "paper-plane", title: "Emphasize active ships" },
+    { value: "total", label: "Tot", icon: "circle-nodes", title: "Emphasize total ships" },
+  ];
   let shipFocus = $state<ShipFocus>(
     browser && localStorage.getItem(FOCUS_KEY) === "active" ? "active" : "total",
   );
@@ -72,26 +77,15 @@
 
   <div class="pf-standings__toolbar">
     <span>Focus</span>
-    <div class="pf-standings__focus" role="group" aria-label="Ship emphasis">
-      <button
-        type="button"
-        class="pf-standings__focus-button"
-        class:active={shipFocus === "active"}
-        onclick={() => setShipFocus("active")}
-        title="Emphasize active ships"
-      >
-        <HudIcon name="paper-plane" size={13} />
-      </button>
-      <button
-        type="button"
-        class="pf-standings__focus-button"
-        class:active={shipFocus === "total"}
-        onclick={() => setShipFocus("total")}
-        title="Emphasize total ships"
-      >
-        <HudIcon name="circle-nodes" size={13} />
-      </button>
-    </div>
+    <PaxHudSegmentedControl
+      value={shipFocus}
+      options={shipFocusOptions}
+      ariaLabel="Ship emphasis"
+      density="compact"
+      class="pf-standings__focus"
+      iconSize={13}
+      onValueChange={(value) => setShipFocus(value as ShipFocus)}
+    />
   </div>
 
   <div class="pf-standings__summary">

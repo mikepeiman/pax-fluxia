@@ -2,6 +2,7 @@
   import type { GameSpeed } from "$lib/types/game.types";
   import type { TerritoryModeShortcutOption } from "$lib/territory/ui/territoryModeShortcuts";
   import HudIcon from "$lib/components/ui/hud/HudIcon.svelte";
+  import { PaxHudButton } from "$lib/design-system";
   import HudIconButton from "./HudIconButton.svelte";
   import { formatHudNumber } from "./viewModels";
   import type { PlayerStandingViewModel, SelectedStarViewModel } from "./types";
@@ -92,24 +93,22 @@
 
   <div class="pf-hud-topbar__modes" role="group" aria-label="Territory render mode shortcuts">
     {#each modeOptions.slice(0, 6) as option}
-      <button
-        type="button"
+      <PaxHudButton
         class="pf-hud-topbar__mode"
-        class:active={activeModeId === option.id}
+        active={activeModeId === option.id}
         onclick={() => onModeSelect(option.id)}
         title={option.displayLabel}
       >
         <span>{option.shortLabel}</span>
-      </button>
+      </PaxHudButton>
     {/each}
   </div>
 
   <div class="pf-hud-topbar__actions">
     {#if localPlayer}
-      <button
-        type="button"
-        class="pf-hud-topbar__player-badge"
-        class:pf-hud-topbar__player-badge--collapsed={standingsCollapsed}
+      <PaxHudButton
+        class={`pf-hud-topbar__player-badge ${standingsCollapsed ? "pf-hud-topbar__player-badge--collapsed" : ""}`}
+        active={standingsCollapsed}
         onclick={onToggleStandings}
         title={standingsCollapsed ? "Expand player standings" : "Collapse player standings"}
         style={`--player-color:${localPlayer.color};`}
@@ -118,7 +117,7 @@
         <span>{localPlayer.isLocal ? "You" : localPlayer.name}</span>
         <strong class="font-hud-data">{formatHudNumber(localPlayer.totalShips)}</strong>
         <HudIcon name={standingsCollapsed ? "chevron-down" : "chevron-up"} size={14} />
-      </button>
+      </PaxHudButton>
     {/if}
   </div>
 </header>

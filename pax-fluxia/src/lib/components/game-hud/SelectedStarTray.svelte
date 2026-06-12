@@ -1,5 +1,6 @@
 <script lang="ts">
   import HudIcon from "$lib/components/ui/hud/HudIcon.svelte";
+  import { PaxHudIconButton } from "$lib/design-system";
   import HudIconButton from "./HudIconButton.svelte";
   import { formatHudNumber, formatStarLabel } from "./viewModels";
   import type { SelectedStarViewModel } from "./types";
@@ -64,14 +65,12 @@
       </div>
     {/if}
 
-    <button
-      type="button"
+    <PaxHudIconButton
+      icon={collapsed ? "chevron-up" : "chevron-down"}
+      size={15}
       class="pf-selected-star-tray__collapse"
       title={collapsed ? "Expand selected star tray" : "Collapse selected star tray"}
-      aria-label={collapsed ? "Expand selected star tray" : "Collapse selected star tray"}
       onclick={onToggleCollapsed}
-    >
-      <HudIcon name={collapsed ? "chevron-up" : "chevron-down"} size={15} />
-    </button>
+    />
   </section>
 {/if}

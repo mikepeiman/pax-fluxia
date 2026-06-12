@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import { hudRail } from "$lib/design-system";
+  import { PaxHudRail } from "$lib/design-system";
   import type { HudDockSide } from "./types";
 
   interface Props {
@@ -21,29 +21,17 @@
     children,
   }: Props = $props();
 
-  const styles = $derived(
-    hudRail({
-      side,
-      density: "expanded",
-    }),
-  );
 </script>
 
-<aside
-  class={styles.root({ class: `pf-hud-rail pf-hud-rail--${side} ${className}` })}
-  style={`width:${width}px;`}
+<PaxHudRail
+  {side}
+  density="expanded"
+  {width}
+  class={`pf-hud-rail pf-hud-rail--${side} ${className}`}
+  {resizeActive}
+  {onResizePointerDown}
 >
-  {#if onResizePointerDown}
-    <div
-      class="pf-hud-rail__resize"
-      class:active={resizeActive}
-      role="separator"
-      aria-orientation="vertical"
-      title="Drag to resize"
-      onpointerdown={onResizePointerDown}
-    ></div>
-  {/if}
   {#if children}
     {@render children()}
   {/if}
-</aside>
+</PaxHudRail>

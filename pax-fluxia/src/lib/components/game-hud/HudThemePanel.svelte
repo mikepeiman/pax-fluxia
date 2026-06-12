@@ -2,12 +2,14 @@
   import { browser } from "$app/environment";
   import {
     exportPaxThemeDescriptor,
+    PaxHudButton,
+    PaxHudIconButton,
+    PaxHudSelect,
     PAX_THEME_IDS,
     PAX_THEMES,
     paxThemeState,
     type PaxThemeId,
   } from "$lib/design-system";
-  import HudIcon from "$lib/components/ui/hud/HudIcon.svelte";
 
   let status = $state("Theme tokens active");
 
@@ -31,6 +33,11 @@
     status = `${descriptor.name} descriptor exported`;
   }
 
+  const themeOptions = PAX_THEME_IDS.map((themeId) => ({
+    value: themeId,
+    label: PAX_THEMES[themeId].name,
+  }));
+
   $effect(() => {
     paxThemeState.hydrate();
   });
@@ -42,31 +49,30 @@
       <span class="pf-hud-theme-panel__eyebrow">Theme System</span>
       <h3>HUD Skin</h3>
     </div>
-    <button type="button" class="pf-hud-theme-panel__export" onclick={exportTheme} title="Export theme descriptor">
-      <HudIcon name="export" size={13} />
-    </button>
+    <PaxHudIconButton
+      icon="export"
+      size={13}
+      class="pf-hud-theme-panel__export"
+      title="Export theme descriptor"
+      onclick={exportTheme}
+    />
   </header>
 
-  <label class="pf-hud-theme-panel__select">
-    <span>Active Theme</span>
-    <select
-      value={paxThemeState.current}
-      aria-label="Active HUD theme"
-      onchange={(event) => selectTheme(event.currentTarget.value as PaxThemeId)}
-    >
-      {#each PAX_THEME_IDS as themeId}
-        <option value={themeId}>{PAX_THEMES[themeId].name}</option>
-      {/each}
-    </select>
-  </label>
+  <PaxHudSelect
+    class="pf-hud-theme-panel__select"
+    label="Active Theme"
+    value={paxThemeState.current}
+    options={themeOptions}
+    ariaLabel="Active HUD theme"
+    onValueChange={(value) => selectTheme(value as PaxThemeId)}
+  />
 
   <div class="pf-hud-theme-panel__cards" aria-label="Available HUD themes">
     {#each PAX_THEME_IDS as themeId}
       {@const theme = PAX_THEMES[themeId]}
-      <button
-        type="button"
+      <PaxHudButton
         class="pf-hud-theme-card"
-        class:active={paxThemeState.current === themeId}
+        active={paxThemeState.current === themeId}
         onclick={() => selectTheme(themeId)}
       >
         <span class="pf-hud-theme-card__swatches" aria-hidden="true">
@@ -78,7 +84,7 @@
           <strong>{theme.name}</strong>
           <small>{theme.intent}</small>
         </span>
-      </button>
+      </PaxHudButton>
     {/each}
   </div>
 
@@ -97,8 +103,6 @@
   }
 
   .pf-hud-theme-panel__header,
-  .pf-hud-theme-panel__select,
-  .pf-hud-theme-card,
   .pf-hud-theme-card__swatches {
     display: flex;
     align-items: center;
@@ -110,7 +114,6 @@
   }
 
   .pf-hud-theme-panel__eyebrow,
-  .pf-hud-theme-panel__select span,
   .pf-hud-theme-panel__status {
     color: var(--hud-accent);
     font-family: var(--hud-font-label);
@@ -129,9 +132,9 @@
     text-transform: uppercase;
   }
 
-  .pf-hud-theme-panel__export,
-  .pf-hud-theme-panel__select select,
-  .pf-hud-theme-card {
+  :global(.pf-hud-theme-panel__export),
+  :global(.pf-hud-theme-panel__select select),
+  :global(.pf-hud-theme-card) {
     border: 1px solid transparent;
     background:
       linear-gradient(var(--hud-button-bg), var(--hud-button-bg)) padding-box,
@@ -140,7 +143,7 @@
     font-family: var(--hud-font-ui);
   }
 
-  .pf-hud-theme-panel__export {
+  :global(.pf-hud-theme-panel__export) {
     width: 32px;
     height: 32px;
     display: inline-flex;
@@ -150,16 +153,23 @@
     cursor: pointer;
   }
 
-  .pf-hud-theme-panel__select {
+  :global(.pf-hud-theme-panel__select) {
+    display: flex;
+    align-items: center;
     gap: 10px;
   }
 
-  .pf-hud-theme-panel__select span {
+  :global(.pf-hud-theme-panel__select span) {
     flex: 0 0 92px;
     color: var(--hud-text-dim);
+    font-family: var(--hud-font-label);
+    font-size: calc(0.62rem * var(--hud-label-scale, 1));
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
   }
 
-  .pf-hud-theme-panel__select select {
+  :global(.pf-hud-theme-panel__select select) {
     min-width: 0;
     flex: 1 1 auto;
     height: 36px;
@@ -174,7 +184,9 @@
     gap: 8px;
   }
 
-  .pf-hud-theme-card {
+  :global(.pf-hud-theme-card) {
+    display: flex;
+    align-items: center;
     width: 100%;
     gap: 10px;
     min-height: 58px;
@@ -184,15 +196,15 @@
     text-align: left;
   }
 
-  .pf-hud-theme-card:hover,
-  .pf-hud-theme-card.active {
+  :global(.pf-hud-theme-card:hover),
+  :global(.pf-hud-theme-card.active) {
     color: var(--hud-text-strong);
     box-shadow:
       inset 0 0 0 1px rgba(246, 196, 105, 0.14),
       0 0 18px rgba(246, 196, 105, 0.12);
   }
 
-  .pf-hud-theme-card.active {
+  :global(.pf-hud-theme-card.active) {
     border-color: var(--hud-border-strong);
     background:
       linear-gradient(var(--hud-button-bg-active), var(--hud-button-bg-active)) padding-box,

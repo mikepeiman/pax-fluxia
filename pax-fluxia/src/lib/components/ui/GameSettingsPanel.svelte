@@ -89,6 +89,7 @@
     import ThemeLibraryPanel from "$lib/components/game-hud/ThemeLibraryPanel.svelte";
     import HudThemePanel from "$lib/components/game-hud/HudThemePanel.svelte";
     import TypographyTokenPanel from "$lib/components/game-hud/TypographyTokenPanel.svelte";
+    import { PaxHudButton, PaxHudIconButton } from "$lib/design-system";
     import HudIcon from "./hud/HudIcon.svelte";
 
     // Aliases for the imported arrays (matches existing template references)
@@ -802,7 +803,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         {
             id: "combat_tuning",
             icon: "combat",
-            label: "Combat",
+            label: "Combat Tuning",
             color: "#ff8a94",
             sectionId: "combat_tuning",
         },
@@ -1246,51 +1247,45 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     <div class="icon-toolbar" class:has-active={activeToolHasPanel}>
         <div class="icon-toolbar__controls">
             {#if onCloseSettings}
-                <button
-                    type="button"
+                <PaxHudIconButton
+                    icon="chevron-left"
+                    size={15}
                     class="icon-toolbar-control"
                     onclick={onCloseSettings}
                     title="Collapse settings to topbar"
-                    aria-label="Collapse settings to topbar"
-                >
-                    <HudIcon name="chevron-left" size={15} />
-                </button>
+                />
             {/if}
             {#if onToggleRibbonExpanded}
-                <button
-                    type="button"
+                <PaxHudIconButton
+                    icon={ribbonExpanded ? "chevron-left" : "chevron-right"}
+                    size={15}
                     class="icon-toolbar-control"
                     onclick={onToggleRibbonExpanded}
                     title={ribbonExpanded ? "Collapse section ribbon" : "Expand section ribbon"}
-                >
-                    <HudIcon name={ribbonExpanded ? "chevron-left" : "chevron-right"} size={15} />
-                </button>
+                />
             {/if}
             {#if onToggleDockSide}
-                <button
-                    type="button"
+                <PaxHudIconButton
+                    icon={dockSide === "right" ? "dock-left" : "dock-right"}
+                    size={15}
                     class="icon-toolbar-control"
                     onclick={onToggleDockSide}
                     title={dockSide === "right" ? "Move controls to left side" : "Move controls to right side"}
-                >
-                    <HudIcon name={dockSide === "right" ? "dock-left" : "dock-right"} size={15} />
-                </button>
+                />
             {/if}
         </div>
         {#each SETTINGS_TOOLS as tool}
-            <button
-                class="icon-btn"
-                class:active={activeToolId === tool.id}
-                class:settings-tool-action={Boolean(tool.action)}
-                class:settings-tool-danger={tool.id === "quit"}
+            <PaxHudButton
+                class={`icon-btn ${tool.action ? "settings-tool-action" : ""} ${tool.id === "quit" ? "settings-tool-danger" : ""}`}
+                active={activeToolId === tool.id}
+                danger={tool.id === "quit"}
                 style="--accent: {tool.color}"
                 onclick={() => handleToolClick(tool)}
                 title={tool.label}
-                aria-label={tool.label}
             >
                 <span class="icon-symbol"><HudIcon name={tool.icon} /></span>
                 <span class="icon-label">{tool.label}</span>
-            </button>
+            </PaxHudButton>
         {/each}
     </div>
 
@@ -1298,11 +1293,11 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     {#if activeToolId === "theme_library"}
         <div class="section-panel settings-tool-panel" style="--accent: #f6c469">
             <div class="section-head-wrap">
-                <button class="section-head" onclick={() => setActiveTool(null)}>
+                <PaxHudButton class="section-head" onclick={() => setActiveTool(null)} title="Close Theme Select / Library">
                     <span class="head-icon"><HudIcon name="library" /></span>
                     <span class="head-label">Theme Select / Library</span>
                     <span class="head-close"><HudIcon name="close" size={14} /></span>
-                </button>
+                </PaxHudButton>
             </div>
             <div class="section-body">
                 <ThemeLibraryPanel />
@@ -1311,11 +1306,11 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     {:else if activeToolId === "appearance"}
         <div class="section-panel settings-tool-panel" style="--accent: #5ee6ff">
             <div class="section-head-wrap">
-                <button class="section-head" onclick={() => setActiveTool(null)}>
+                <PaxHudButton class="section-head" onclick={() => setActiveTool(null)} title="Close Theme Tuning / Appearance">
                     <span class="head-icon"><HudIcon name="gem" /></span>
                     <span class="head-label">Theme Tuning / Appearance</span>
                     <span class="head-close"><HudIcon name="close" size={14} /></span>
-                </button>
+                </PaxHudButton>
             </div>
             <div class="section-body">
                 <HudThemePanel />
@@ -1332,11 +1327,11 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     {:else if activeToolId === "stats"}
         <div class="section-panel settings-tool-panel" style="--accent: #f6c469">
             <div class="section-head-wrap">
-                <button class="section-head" onclick={() => setActiveTool(null)}>
+                <PaxHudButton class="section-head" onclick={() => setActiveTool(null)} title="Close Stats">
                     <span class="head-icon"><HudIcon name="ranking-star" /></span>
                     <span class="head-label">Stats</span>
                     <span class="head-close"><HudIcon name="close" size={14} /></span>
-                </button>
+                </PaxHudButton>
             </div>
             <div class="section-body settings-stats-panel">
                 <div class="settings-stat-row"><span>Tick</span><strong>{activeGameStore.currentTick ?? 0}</strong></div>
@@ -1348,11 +1343,11 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     {:else if activeToolId === "hotkeys"}
         <div class="section-panel settings-tool-panel" style="--accent: #8ab4ff">
             <div class="section-head-wrap">
-                <button class="section-head" onclick={() => setActiveTool(null)}>
+                <PaxHudButton class="section-head" onclick={() => setActiveTool(null)} title="Close Hotkeys">
                     <span class="head-icon"><HudIcon name="keyboard" /></span>
                     <span class="head-label">Hotkeys</span>
                     <span class="head-close"><HudIcon name="close" size={14} /></span>
-                </button>
+                </PaxHudButton>
             </div>
             <div class="section-body settings-help-panel">
                 <div><strong>F</strong><span>Fit the map to the viewport.</span></div>
@@ -1364,11 +1359,11 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     {:else if activeToolId === "help"}
         <div class="section-panel settings-tool-panel" style="--accent: #a8b6cf">
             <div class="section-head-wrap">
-                <button class="section-head" onclick={() => setActiveTool(null)}>
+                <PaxHudButton class="section-head" onclick={() => setActiveTool(null)} title="Close Help">
                     <span class="head-icon"><HudIcon name="help" /></span>
                     <span class="head-label">Help</span>
                     <span class="head-close"><HudIcon name="close" size={14} /></span>
-                </button>
+                </PaxHudButton>
             </div>
             <div class="section-body settings-help-panel">
                 <p>Select owned stars, assign routes across connected lanes, and watch active ships transfer control through the network.</p>
@@ -1380,33 +1375,32 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     {#each orderedOpenSections as sec (sec.id)}
         <div class="section-panel" style="--accent: {sec.color}">
             <div class="section-head-wrap">
-                <button class="section-head" onclick={() => toggleSection(sec.id)}>
+                <PaxHudButton class="section-head" onclick={() => toggleSection(sec.id)} title={`Close ${sec.label}`}>
                     <span class="head-icon"><HudIcon name={sec.icon} /></span>
                     <span class="head-label">{sec.label}</span>
                     <span class="head-close"><HudIcon name="close" size={14} /></span>
-                </button>
+                </PaxHudButton>
                 {#if (sectionSubsections[sec.id]?.length ?? 0) > 0}
                     <div class="section-subnav">
-                        <button
+                        <PaxHudButton
                             class="subsection-chip"
-                            class:active={(activeSubsections[sec.id] ?? "all") === "all"}
-                            type="button"
+                            active={(activeSubsections[sec.id] ?? "all") === "all"}
                             onclick={() => toggleSubsection(sec.id, "all")}
+                            title="Show all"
                         >
                             <span class="subsection-chip__icon"><HudIcon name="phase-field" size={14} /></span>
                             <span>All</span>
-                        </button>
+                        </PaxHudButton>
                         {#each sectionSubsections[sec.id] ?? [] as subsection}
-                            <button
+                            <PaxHudButton
                                 class="subsection-chip"
-                                class:active={(activeSubsections[sec.id] ?? "all") === subsection.id}
-                                type="button"
+                                active={(activeSubsections[sec.id] ?? "all") === subsection.id}
                                 onclick={() => toggleSubsection(sec.id, subsection.id)}
                                 title={subsection.label}
                             >
                                 <span class="subsection-chip__icon"><HudIcon name={subsection.icon} size={14} /></span>
                                 <span>{subsection.label}</span>
-                            </button>
+                            </PaxHudButton>
                         {/each}
                     </div>
                 {/if}
@@ -1665,7 +1659,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         gap: 8px;
     }
 
-    .icon-toolbar-control {
+    :global(.icon-toolbar-control) {
         width: 100%;
         min-height: 38px;
         border: 1px solid var(--hud-border);
@@ -1685,7 +1679,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             transform 0.18s;
     }
 
-    .icon-toolbar-control:hover {
+    :global(.icon-toolbar-control:hover) {
         background: var(--hud-button-bg-hover);
         border-color: var(--hud-border-strong);
         color: var(--hud-text-strong);
@@ -1695,7 +1689,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .icon-toolbar.has-active {
         gap: 8px;
     }
-    .icon-btn {
+    :global(.icon-btn) {
         display: flex;
         align-items: center;
         justify-content: center;
@@ -1711,16 +1705,16 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         text-align: left;
     }
-    .icon-toolbar.has-active .icon-btn {
+    :global(.icon-toolbar.has-active .icon-btn) {
         padding: 10px 0;
         border-radius: 12px;
     }
-    .controls-panel--ribbon-expanded .icon-btn,
-    .controls-panel--ribbon-expanded .icon-toolbar.has-active .icon-btn {
+    :global(.controls-panel--ribbon-expanded .icon-btn),
+    :global(.controls-panel--ribbon-expanded .icon-toolbar.has-active .icon-btn) {
         justify-content: flex-start;
         padding: 10px 12px;
     }
-    .icon-btn:hover {
+    :global(.icon-btn:hover) {
         background: rgba(14, 24, 43, 0.92);
         border-color: color-mix(in srgb, var(--accent) 55%, var(--hud-border));
         color: var(--hud-text-strong);
@@ -1728,7 +1722,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         box-shadow: 0 10px 24px
             color-mix(in srgb, var(--accent) 20%, transparent);
     }
-    .icon-btn.active {
+    :global(.icon-btn.active) {
         background: color-mix(in srgb, var(--accent) 13%, rgba(8, 12, 24, 0.9));
         border-color: color-mix(in srgb, var(--accent) 75%, rgba(255, 255, 255, 0.12));
         color: var(--hud-text-strong);
@@ -1810,7 +1804,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         }
     }
 
-    .section-head {
+    :global(.section-head) {
         display: flex;
         align-items: center;
         gap: 8px;
@@ -1823,7 +1817,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         font-family: var(--hud-font-ui);
         transition: background 0.15s;
     }
-    .section-head:hover {
+    :global(.section-head:hover) {
         background: color-mix(in srgb, var(--accent) 18%, transparent);
     }
     .head-icon {
@@ -1867,7 +1861,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         gap: 8px;
         padding: 0 12px 12px;
     }
-    .subsection-chip {
+    :global(.subsection-chip) {
         display: inline-flex;
         align-items: center;
         gap: 6px;
@@ -1889,7 +1883,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             color 0.15s,
             transform 0.15s;
     }
-    .subsection-chip:hover {
+    :global(.subsection-chip:hover) {
         border-color: color-mix(
             in srgb,
             var(--accent) 60%,
@@ -1899,7 +1893,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         color: rgba(241, 245, 249, 0.96);
         transform: translateY(-1px);
     }
-    .subsection-chip.active {
+    :global(.subsection-chip.active) {
         border-color: color-mix(
             in srgb,
             var(--accent) 76%,
@@ -1940,7 +1934,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             flex: 1 1 100%;
         }
 
-        .icon-btn {
+        :global(.icon-btn) {
             flex: 1 1 140px;
             justify-content: flex-start;
             padding: 10px 12px;
@@ -2032,8 +2026,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         border-bottom: 1px solid rgba(246, 196, 105, 0.18);
     }
 
-    .icon-toolbar-control,
-    .icon-btn {
+    :global(.icon-toolbar-control),
+    :global(.icon-btn) {
         min-height: 42px;
         border-radius: 0;
         border-color: rgba(246, 196, 105, 0.22);
@@ -2043,23 +2037,23 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         box-shadow: inset 0 0 0 1px rgba(120, 255, 244, 0.03);
     }
 
-    .icon-toolbar-control {
+    :global(.icon-toolbar-control) {
         font-size: 0;
     }
 
-    .icon-btn {
+    :global(.icon-btn) {
         padding: 0;
     }
 
-    .controls-panel--ribbon-expanded .icon-btn,
-    .controls-panel--ribbon-expanded .icon-toolbar.has-active .icon-btn {
+    :global(.controls-panel--ribbon-expanded .icon-btn),
+    :global(.controls-panel--ribbon-expanded .icon-toolbar.has-active .icon-btn) {
         min-height: 42px;
         padding: 0 10px;
         gap: 8px;
     }
 
-    .icon-btn:hover,
-    .icon-toolbar-control:hover {
+    :global(.icon-btn:hover),
+    :global(.icon-toolbar-control:hover) {
         background:
             linear-gradient(180deg, rgba(21, 44, 39, 0.92), rgba(4, 23, 25, 0.94)),
             rgba(246, 196, 105, 0.04);
@@ -2068,7 +2062,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         transform: none;
     }
 
-    .icon-btn.active {
+    :global(.icon-btn.active) {
         background:
             linear-gradient(180deg, rgba(97, 72, 25, 0.92), rgba(4, 29, 29, 0.96));
         color: #fff1bf;
@@ -2106,7 +2100,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         clip-path: var(--hud-cut-corner-md);
     }
 
-    .section-head {
+    :global(.section-head) {
         min-height: 42px;
         padding: 0 12px;
         color: var(--hud-accent-warm-strong);
@@ -2119,7 +2113,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     .head-label,
-    .subsection-chip {
+    :global(.subsection-chip) {
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -2213,8 +2207,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             var(--hud-border-gradient) border-box;
     }
 
-    .icon-toolbar-control,
-    .icon-btn,
+    :global(.icon-toolbar-control),
+    :global(.icon-btn),
     .section-body :global(.theme-select),
     .section-body :global(.action-btn),
     .section-body :global(.drawer-btn),
@@ -2231,8 +2225,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             var(--hud-control-border-gradient) border-box;
     }
 
-    .icon-btn:hover,
-    .icon-toolbar-control:hover,
+    :global(.icon-btn:hover),
+    :global(.icon-toolbar-control:hover),
     .section-body :global(.theme-select:focus),
     .section-body :global(.action-btn:hover),
     .section-body :global(.drawer-btn:hover),
@@ -2244,7 +2238,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             var(--hud-border-gradient) border-box;
     }
 
-    .icon-btn.active {
+    :global(.icon-btn.active) {
         border-color: transparent;
         background:
             linear-gradient(180deg, rgba(97, 72, 25, 0.92), rgba(4, 29, 29, 0.96)) padding-box,
@@ -2305,24 +2299,24 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         grid-template-columns: 1fr;
     }
 
-    .icon-toolbar-control,
-    .icon-btn,
-    .icon-toolbar.has-active .icon-btn,
-    .settings-tool-action {
+    :global(.icon-toolbar-control),
+    :global(.icon-btn),
+    :global(.icon-toolbar.has-active .icon-btn),
+    :global(.settings-tool-action) {
         width: 100%;
         min-height: 44px;
         padding: 0;
         justify-content: center;
     }
 
-    .controls-panel--ribbon-expanded .icon-btn,
-    .controls-panel--ribbon-expanded .icon-toolbar.has-active .icon-btn,
-    .controls-panel--ribbon-expanded .icon-toolbar-control {
+    :global(.controls-panel--ribbon-expanded .icon-btn),
+    :global(.controls-panel--ribbon-expanded .icon-toolbar.has-active .icon-btn),
+    :global(.controls-panel--ribbon-expanded .icon-toolbar-control) {
         justify-content: flex-start;
         padding: 0 10px;
     }
 
-    .settings-tool-danger {
+    :global(.settings-tool-danger) {
         --accent: var(--hud-danger);
     }
 
@@ -2407,16 +2401,16 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         padding-bottom: 9px;
     }
 
-    .icon-toolbar-control,
-    .icon-btn,
-    .icon-toolbar.has-active .icon-btn,
-    .settings-tool-action {
+    :global(.icon-toolbar-control),
+    :global(.icon-btn),
+    :global(.icon-toolbar.has-active .icon-btn),
+    :global(.settings-tool-action) {
         min-height: 48px;
     }
 
-    .controls-panel--ribbon-expanded .icon-btn,
-    .controls-panel--ribbon-expanded .icon-toolbar.has-active .icon-btn,
-    .controls-panel--ribbon-expanded .icon-toolbar-control {
+    :global(.controls-panel--ribbon-expanded .icon-btn),
+    :global(.controls-panel--ribbon-expanded .icon-toolbar.has-active .icon-btn),
+    :global(.controls-panel--ribbon-expanded .icon-toolbar-control) {
         min-height: 46px;
         padding: 0 12px;
         gap: 10px;
@@ -2442,7 +2436,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         gap: 12px;
     }
 
-    .section-head {
+    :global(.section-head) {
         min-height: 48px;
         padding: 0 14px;
     }

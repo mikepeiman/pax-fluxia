@@ -1,5 +1,5 @@
 <script lang="ts">
-  import HudIcon from "$lib/components/ui/hud/HudIcon.svelte";
+  import { PaxHudButton } from "$lib/design-system";
   import type { BottomCommandBarAction } from "./types";
 
   interface Props {
@@ -12,18 +12,17 @@
 
 <nav class={`pf-bottom-command-bar ${className}`.trim()} aria-label="Bottom command controls">
   {#each items as item}
-    <button
-      type="button"
-      class="pf-bottom-command-bar__button"
-      class:pf-bottom-command-bar__button--active={item.active}
-      disabled={item.disabled}
+    <PaxHudButton
+      icon={item.icon}
+      label={item.label}
       title={item.title}
-      aria-label={item.title}
-      aria-pressed={item.active ? "true" : undefined}
+      active={item.active}
+      disabled={item.disabled}
+      pressed={item.active}
+      size="lg"
+      iconSize={23}
+      class="pf-bottom-command-bar__button"
       onclick={() => item.onClick()}
-    >
-      <HudIcon name={item.icon} size={23} />
-      <span>{item.label}</span>
-    </button>
+    />
   {/each}
 </nav>

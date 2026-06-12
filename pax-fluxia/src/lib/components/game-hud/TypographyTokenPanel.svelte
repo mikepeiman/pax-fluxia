@@ -1,6 +1,10 @@
 <script lang="ts">
   import { browser } from "$app/environment";
-  import HudIcon from "$lib/components/ui/hud/HudIcon.svelte";
+  import {
+    PaxHudIconButton,
+    PaxHudRange,
+    PaxHudSelect,
+  } from "$lib/design-system";
 
   type FontTokenId = "brand" | "ui" | "label" | "copy" | "data";
   type FontOptionId = "rajdhani" | "pasti" | "inter" | "jetbrains" | "system" | "serif";
@@ -184,6 +188,10 @@
   ) as Record<ScaleTokenId, number>;
 
   const FONT_OPTION_IDS = new Set<FontOptionId>(FONT_OPTIONS.map((option) => option.id));
+  const fontSelectOptions = FONT_OPTIONS.map((option) => ({
+    value: option.id,
+    label: option.label,
+  }));
 
   let selections = $state<Record<FontTokenId, FontOptionId>>({ ...DEFAULT_SELECTIONS });
   let scales = $state<Record<ScaleTokenId, number>>({ ...DEFAULT_SCALES });
@@ -307,9 +315,13 @@
       <span class="pf-typography-panel__eyebrow">Typography</span>
       <h3>Token Lab</h3>
     </div>
-    <button type="button" class="pf-typography-panel__reset" onclick={resetTokens} title="Reset typography tokens">
-      <HudIcon name="reset" size={13} />
-    </button>
+    <PaxHudIconButton
+      icon="reset"
+      size={13}
+      class="pf-typography-panel__reset"
+      title="Reset typography tokens"
+      onclick={resetTokens}
+    />
   </header>
 
   <div class="pf-typography-panel__roles">
@@ -320,15 +332,12 @@
           <strong>{role.label}</strong>
           <small>{role.note}</small>
         </span>
-        <select
+        <PaxHudSelect
           value={selections[role.id]}
-          aria-label={`${role.label} font`}
-          onchange={(event) => setToken(role.id, event.currentTarget.value as FontOptionId)}
-        >
-          {#each FONT_OPTIONS as option}
-            <option value={option.id}>{option.label}</option>
-          {/each}
-        </select>
+          ariaLabel={`${role.label} font`}
+          options={fontSelectOptions}
+          onValueChange={(value) => setToken(role.id, value as FontOptionId)}
+        />
         <span class="pf-typography-row__sample" style={`font-family: var(${role.cssVar});`}>
           {role.sample}
         </span>
@@ -339,24 +348,18 @@
 
   <div class="pf-typography-panel__scales" aria-label="Typography and icon size tokens">
     {#each SCALE_TOKENS as token}
-      <label class="pf-typography-scale-row">
-        <span class="pf-typography-scale-row__meta">
-          <strong>{token.label}</strong>
-          <small>{token.note}</small>
-        </span>
-        <span class="pf-typography-scale-row__control">
-          <input
-            type="range"
-            min={token.min}
-            max={token.max}
-            step={token.step}
-            value={scales[token.id]}
-            aria-label={`${token.label} size`}
-            oninput={(event) => setScale(token.id, event.currentTarget.valueAsNumber)}
-          />
-          <output>{formatPercent(scales[token.id])}</output>
-        </span>
-      </label>
+      <PaxHudRange
+        class="pf-typography-scale-row"
+        label={token.label}
+        note={token.note}
+        min={token.min}
+        max={token.max}
+        step={token.step}
+        value={scales[token.id]}
+        output={formatPercent(scales[token.id])}
+        ariaLabel={`${token.label} size`}
+        onInput={(value) => setScale(token.id, value)}
+      />
     {/each}
   </div>
 

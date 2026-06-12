@@ -1,7 +1,12 @@
 <script lang="ts">
   import type { GameTheme } from "$lib/config/themes";
   import { themeStore } from "$lib/stores/themeStore.svelte";
-  import HudIcon from "$lib/components/ui/hud/HudIcon.svelte";
+  import {
+    PaxHudButton,
+    PaxHudIconButton,
+    PaxHudSelect,
+    PaxHudTextInput,
+  } from "$lib/design-system";
 
   let saveName = $state("");
   let saveOpen = $state(false);
@@ -20,6 +25,13 @@
 
   const selectedTheme = $derived(
     themes.find((theme) => theme.name === themeStore.selectedThemeName) ?? null,
+  );
+
+  const themeOptions = $derived(
+    themes.map((theme) => ({
+      value: theme.name,
+      label: theme.name,
+    })),
   );
 
   function setStatus(message: string, tone: "ok" | "warn" | "danger" = "ok") {
@@ -110,30 +122,30 @@
   </header>
 
   <div class="pf-theme-library__select-row">
-    <label class="pf-theme-library__select-label">
-      <span>Active</span>
-      <select
-        value={themeStore.selectedThemeName}
-        onchange={(event) => applyTheme(event.currentTarget.value)}
-      >
-        <option value="">Select theme...</option>
-        {#each themes as theme}
-          <option value={theme.name}>{theme.name}</option>
-        {/each}
-      </select>
-    </label>
-    <button type="button" class="pf-theme-library__icon-btn" title="Save new theme" onclick={() => (saveOpen = !saveOpen)}>
-      <HudIcon name="add" size={14} />
-    </button>
+    <PaxHudSelect
+      class="pf-theme-library__select-label"
+      label="Active"
+      value={themeStore.selectedThemeName}
+      options={themeOptions}
+      placeholder="Select theme..."
+      onValueChange={applyTheme}
+    />
+    <PaxHudIconButton
+      icon="add"
+      size={14}
+      class="pf-theme-library__icon-btn"
+      title="Save new theme"
+      onclick={() => (saveOpen = !saveOpen)}
+    />
   </div>
 
   {#if saveOpen}
     <div class="pf-theme-library__save-row">
-      <input
-        type="text"
+      <PaxHudTextInput
         placeholder="Theme name..."
-        bind:value={saveName}
-        onkeydown={(event) => {
+        value={saveName}
+        onInput={(value) => (saveName = value)}
+        onKeydown={(event) => {
           if (event.key === "Enter") saveTheme();
           if (event.key === "Escape") {
             saveOpen = false;
@@ -141,23 +153,21 @@
           }
         }}
       />
-      <button type="button" onclick={saveTheme}>Save</button>
+      <PaxHudButton label="Save" size="sm" onclick={saveTheme} />
     </div>
   {/if}
 
   <div class="pf-theme-library__actions">
-    <button type="button" onclick={updateTheme} disabled={!selectedTheme || !themeStore.isUserTheme(selectedTheme.name)}>
-      <HudIcon name="reset" size={13} />
-      <span>Update</span>
-    </button>
-    <button type="button" onclick={exportTheme}>
-      <HudIcon name="export" size={13} />
-      <span>Export</span>
-    </button>
-    <button type="button" onclick={importTheme}>
-      <HudIcon name="import" size={13} />
-      <span>Import</span>
-    </button>
+    <PaxHudButton
+      icon="reset"
+      iconSize={13}
+      label="Update"
+      size="sm"
+      onclick={updateTheme}
+      disabled={!selectedTheme || !themeStore.isUserTheme(selectedTheme.name)}
+    />
+    <PaxHudButton icon="export" iconSize={13} label="Export" size="sm" onclick={exportTheme} />
+    <PaxHudButton icon="import" iconSize={13} label="Import" size="sm" onclick={importTheme} />
   </div>
 
   {#if status}
@@ -169,40 +179,30 @@
   <div class="pf-theme-library__list" role="listbox" aria-label="Available themes">
     {#each themes as theme}
       {@const isUser = themeStore.isUserTheme(theme.name)}
-      <button
-        type="button"
-        class="pf-theme-library__row"
-        class:active={themeStore.selectedThemeName === theme.name}
-        onclick={() => applyTheme(theme.name)}
-        title={theme.name}
-      >
-        <span class="pf-theme-library__row-mark" class:user={isUser}></span>
-        <span class="pf-theme-library__row-name">{theme.name}</span>
+      <div class="pf-theme-library__row-group">
+        <PaxHudButton
+          class="pf-theme-library__row"
+          active={themeStore.selectedThemeName === theme.name}
+          onclick={() => applyTheme(theme.name)}
+          title={theme.name}
+        >
+          <span class="pf-theme-library__row-mark" class:user={isUser}></span>
+          <span class="pf-theme-library__row-name">{theme.name}</span>
+          {#if isUser}
+            <span class="pf-theme-library__row-date">{formatDate(theme.created)}</span>
+          {/if}
+        </PaxHudButton>
         {#if isUser}
-          <span class="pf-theme-library__row-date">{formatDate(theme.created)}</span>
-        {/if}
-        {#if isUser}
-          <span
-            role="button"
-            tabindex="0"
+          <PaxHudIconButton
+            icon="close"
+            size={11}
             class="pf-theme-library__delete"
             title={`Delete ${theme.name}`}
-            onclick={(event) => {
-              event.stopPropagation();
-              deleteTheme(theme.name);
-            }}
-            onkeydown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                event.stopPropagation();
-                deleteTheme(theme.name);
-              }
-            }}
-          >
-            <HudIcon name="close" size={11} />
-          </span>
+            danger
+            onclick={() => deleteTheme(theme.name)}
+          />
         {/if}
-      </button>
+      </div>
     {/each}
   </div>
 </section>

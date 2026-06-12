@@ -1584,6 +1584,13 @@
   cursor: pointer;
 }
 
+.pf-theme-library__row-group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
 .pf-theme-library__row:hover,
 .pf-theme-library__row.active {
   border-color: rgba(246, 196, 105, 0.56);

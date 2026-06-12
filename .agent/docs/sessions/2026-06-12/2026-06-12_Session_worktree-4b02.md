@@ -129,3 +129,29 @@ Validation:
 - `bun run --cwd pax-fluxia build`: passed.
 - `git diff --check`: passed with Git line-ending warnings only.
 - Full `check` was not rerun for this dev-tool-only change because the current repository baseline already has known unrelated failures.
+
+## HUD Primitive System Migration
+
+User corrected direction: no JSON-import detour and no one-off visual patching. The task remains live HUD redesign toward the Aurelia Drift references, implemented through a reusable themeable component system.
+
+Implemented:
+
+- Added `pax-fluxia/src/lib/design-system/components/` with Pax HUD primitives for panel, button, icon button, tooltip, rail, segmented control, select, text input, and range control.
+- Extended `pax-fluxia/src/lib/design-system/variants/hud.ts` with Tailwind Variants recipes for tooltip, segmented controls, fields, and ranges.
+- Encapsulated Ark behavior in the primitive layer:
+  - tooltips in `PaxHudIconButton.svelte` and `PaxHudTooltip.svelte`
+  - toggle-group behavior in `PaxHudSegmentedControl.svelte`
+- Migrated live HUD/settings components to consume `PaxHud*` primitives rather than raw controls or direct variant recipes.
+- Preserved existing `pf-*` classes as compatibility hooks because current HUD CSS still depends on them.
+- Adjusted forwarded primitive-root selectors in settings/theme surfaces so Svelte scoped CSS does not silently drop the intended styling.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Static audit returned no matches for raw `<button>`, `<select>`, `<input>`, direct Ark imports, or direct `hudButton`/`hudPanel`/`hudRail` recipe calls in `pax-fluxia/src/lib/components/game-hud` and `pax-fluxia/src/lib/components/ui/GameSettingsPanel.svelte`.
+- Build still emits known baseline unused-selector warnings in legacy tuning panels outside the new primitive migration target.
+
+Next correct step:
+
+- Continue replacing remaining live HUD/settings visual structure with the Pax primitive/token system, then use that base to push the actual Aurelia Drift polish. Do not add isolated CSS patches.

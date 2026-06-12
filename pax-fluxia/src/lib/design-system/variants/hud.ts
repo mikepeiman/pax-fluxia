@@ -86,6 +86,14 @@ export const hudButton = tv({
 
 export type HudButtonVariants = VariantProps<typeof hudButton>;
 
+export const hudTooltip = tv({
+  base: [
+    "z-50 rounded-pax-xs border border-pax-gold/55 bg-pax-panel-strong",
+    "px-2.5 py-1.5 font-pax-ui text-[0.64rem] font-bold uppercase tracking-[0.1em]",
+    "text-pax-gold-strong shadow-pax-panel-soft backdrop-blur-[14px]",
+  ],
+});
+
 export const hudRail = tv({
   slots: {
     root: [
@@ -126,3 +134,95 @@ export const hudRail = tv({
 });
 
 export type HudRailVariants = VariantProps<typeof hudRail>;
+
+export const hudSegmentedControl = tv({
+  slots: {
+    root: [
+      "grid min-w-0 gap-1.5 rounded-pax-sm border border-pax-gold/20 bg-pax-panel-muted p-1",
+    ],
+    item: [
+      "inline-flex min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-pax-xs border",
+      "border-pax-gold/18 bg-pax-panel-muted text-pax-text-muted",
+      "font-pax-ui font-bold uppercase tracking-[0.08em]",
+      "transition-[background,border-color,box-shadow,color,transform] duration-150",
+      "hover:border-pax-gold/45 hover:text-pax-text-strong",
+      "focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-pax-gold-strong",
+      "disabled:pointer-events-none disabled:opacity-45",
+      "data-[state=on]:border-pax-gold/70 data-[state=on]:bg-pax-panel-strong data-[state=on]:text-pax-gold-strong",
+      "data-[state=on]:shadow-pax-panel-soft",
+    ],
+  },
+  variants: {
+    density: {
+      compact: {
+        root: "grid-flow-col auto-cols-fr",
+        item: "h-8 px-2 text-[0.66rem]",
+      },
+      balanced: {
+        root: "grid-flow-col auto-cols-fr",
+        item: "h-9 px-3 text-[0.72rem]",
+      },
+      vertical: {
+        root: "grid-flow-row",
+        item: "h-9 justify-start px-3 text-[0.72rem]",
+      },
+    },
+  },
+  defaultVariants: {
+    density: "balanced",
+  },
+});
+
+export type HudSegmentedControlVariants = VariantProps<typeof hudSegmentedControl>;
+
+export const hudField = tv({
+  slots: {
+    label: [
+      "grid min-w-0 gap-1.5 font-pax-ui text-pax-text",
+    ],
+    labelText: [
+      "font-pax-ui text-[0.62rem] font-extrabold uppercase tracking-[0.14em] text-pax-text-muted",
+    ],
+    input: [
+      "min-w-0 rounded-pax-xs border border-pax-gold/30 bg-pax-panel-muted",
+      "px-3 font-pax-ui font-bold text-pax-text",
+      "outline-none transition-[background,border-color,box-shadow,color] duration-150",
+      "placeholder:text-pax-text-dim hover:border-pax-gold/55 focus:border-pax-gold/75",
+      "focus:shadow-pax-panel-soft",
+    ],
+  },
+  variants: {
+    size: {
+      sm: {
+        input: "h-8 text-[0.72rem]",
+      },
+      md: {
+        input: "h-9 text-[0.78rem]",
+      },
+    },
+  },
+  defaultVariants: {
+    size: "md",
+  },
+});
+
+export type HudFieldVariants = VariantProps<typeof hudField>;
+
+export const hudRange = tv({
+  slots: {
+    root: "grid min-w-0 gap-2",
+    meta: "grid min-w-0 gap-0.5",
+    label: [
+      "font-pax-ui text-[0.72rem] font-extrabold uppercase tracking-[0.08em] text-pax-text",
+    ],
+    note: "font-pax-copy text-[0.64rem] leading-snug text-pax-text-dim",
+    control: "grid min-w-0 grid-cols-[minmax(0,1fr)_3.5rem] items-center gap-2",
+    input: [
+      "h-2 w-full cursor-pointer appearance-none rounded-full border border-pax-gold/20",
+      "bg-pax-panel-muted accent-pax-gold",
+    ],
+    output: [
+      "font-pax-data text-[0.68rem] font-bold tabular-nums text-pax-gold-strong",
+    ],
+  },
+});

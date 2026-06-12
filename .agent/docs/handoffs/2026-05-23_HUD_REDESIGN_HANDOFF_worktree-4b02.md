@@ -440,3 +440,65 @@ Merge guidance:
 
 - Preserve the top-level `vitePlugin.inspector` block in `pax-fluxia/svelte.config.js` if dev inspector access is desired.
 - This is dev tooling only; the installed plugin type docs state inspector defaults off for production builds.
+
+## 2026-06-12 HUD Primitive System Migration
+
+User clarified that the work must be a systemic UI implementation, not one-off visual patching. User also asked whether Ark/Tark were actually being used and required a consistent component base for every HUD component.
+
+Scope implemented in this step:
+
+- Added Pax-owned HUD component primitives in `pax-fluxia/src/lib/design-system/components/`.
+- Added primitive exports through `pax-fluxia/src/lib/design-system/components/index.ts` and `pax-fluxia/src/lib/design-system/index.ts`.
+- Extended `pax-fluxia/src/lib/design-system/variants/hud.ts` with Tailwind Variants recipes for tooltip, segmented controls, fields, and range controls.
+- Centralized Ark behavior inside primitives where behavior is needed:
+  - `PaxHudIconButton.svelte` uses Ark Tooltip.
+  - `PaxHudTooltip.svelte` wraps Ark Tooltip.
+  - `PaxHudSegmentedControl.svelte` wraps Ark ToggleGroup.
+- Migrated live HUD/settings surfaces to consume Pax primitives instead of raw controls or direct variant calls:
+  - `pax-fluxia/src/lib/components/game-hud/HudPanel.svelte`
+  - `pax-fluxia/src/lib/components/game-hud/HudIconButton.svelte`
+  - `pax-fluxia/src/lib/components/game-hud/HudRail.svelte`
+  - `pax-fluxia/src/lib/components/game-hud/GameSpeedPanel.svelte`
+  - `pax-fluxia/src/lib/components/game-hud/BottomCommandBar.svelte`
+  - `pax-fluxia/src/lib/components/game-hud/HudTopbar.svelte`
+  - `pax-fluxia/src/lib/components/game-hud/PlayerStandingsPanel.svelte`
+  - `pax-fluxia/src/lib/components/game-hud/SelectedStarTray.svelte`
+  - `pax-fluxia/src/lib/components/game-hud/ThemeLibraryPanel.svelte`
+  - `pax-fluxia/src/lib/components/game-hud/TypographyTokenPanel.svelte`
+  - `pax-fluxia/src/lib/components/game-hud/HudThemePanel.svelte`
+  - `pax-fluxia/src/lib/components/ui/GameSettingsPanel.svelte`
+- Added `pax-fluxia/src/lib/styles/hud.css` support for the Theme Library row/delete primitive grouping.
+
+New primitive files:
+
+- `pax-fluxia/src/lib/design-system/components/PaxHudButton.svelte`
+- `pax-fluxia/src/lib/design-system/components/PaxHudIconButton.svelte`
+- `pax-fluxia/src/lib/design-system/components/PaxHudPanel.svelte`
+- `pax-fluxia/src/lib/design-system/components/PaxHudRail.svelte`
+- `pax-fluxia/src/lib/design-system/components/PaxHudRange.svelte`
+- `pax-fluxia/src/lib/design-system/components/PaxHudSegmentedControl.svelte`
+- `pax-fluxia/src/lib/design-system/components/PaxHudSelect.svelte`
+- `pax-fluxia/src/lib/design-system/components/PaxHudTextInput.svelte`
+- `pax-fluxia/src/lib/design-system/components/PaxHudTooltip.svelte`
+
+Ark/Tark implementation note:
+
+- Ark is now used as an implementation dependency inside Pax primitives, not scattered in live HUD components.
+- Tailwind Variants is the recipe layer.
+- Tark UI is treated as the component-base/reference pattern for this codebase. No separate Tark package was added in this step; the project-owned equivalent is the `PaxHud*` primitive set backed by Ark and Tailwind Variants.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Static audit command returned no matches:
+  - `rg -n "<button|<select|<input|hudButton\(|hudPanel\(|hudRail\(|@ark-ui" pax-fluxia\src\lib\components\game-hud pax-fluxia\src\lib\components\ui\GameSettingsPanel.svelte -g "*.svelte" -g "*.ts"`
+- Build output still includes known baseline unused-selector warnings in legacy tuning panels such as `ControlsSection-Battle.svelte`, `PerimeterFieldTuning.svelte`, and `PerimeterFieldDiagnosticsControls.svelte`; the new primitive migration did not introduce target-file build failures.
+
+Merge guidance:
+
+- Future live HUD controls should consume `PaxHud*` primitives first. Do not add raw `<button>`, `<select>`, or `<input>` controls directly to live HUD surfaces unless creating a new primitive.
+- Keep Ark imports inside `pax-fluxia/src/lib/design-system/components/`; live HUD components should not import Ark directly.
+- Keep Tailwind Variants recipes in `pax-fluxia/src/lib/design-system/variants/hud.ts`; live HUD components should not call `hudButton`, `hudPanel`, or `hudRail` directly.
+- Keep existing `pf-*` compatibility classes until `pax-fluxia/src/lib/styles/hud.css` and remaining legacy scoped styles are intentionally reduced. Removing them now will regress current HUD styling.
+- Continue the visual redesign through tokens and primitives. Do not resume isolated visual patches.

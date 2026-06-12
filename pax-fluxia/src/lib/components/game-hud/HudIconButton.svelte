@@ -1,6 +1,5 @@
 <script lang="ts">
-  import HudIcon from "$lib/components/ui/hud/HudIcon.svelte";
-  import { hudButton } from "$lib/design-system";
+  import { PaxHudIconButton } from "$lib/design-system";
 
   interface Props {
     icon: string;
@@ -24,24 +23,15 @@
     onclick,
   }: Props = $props();
 
-  const buttonClass = $derived(
-    hudButton({
-      intent: danger ? "danger" : active ? "selected" : "neutral",
-      size: "icon",
-      class: `pf-hud-icon-button ${className}`,
-    }),
-  );
 </script>
 
-<button
-  type="button"
-  class={buttonClass}
-  class:pf-hud-icon-button--active={active}
-  class:pf-hud-icon-button--danger={danger}
-  {disabled}
+<PaxHudIconButton
+  {icon}
   {title}
-  aria-label={title}
-  onclick={() => onclick?.()}
->
-  <HudIcon name={icon} {size} />
-</button>
+  {active}
+  {danger}
+  {disabled}
+  {size}
+  class={`pf-hud-icon-button ${className}`}
+  {onclick}
+/>
