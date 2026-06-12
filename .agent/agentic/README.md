@@ -28,6 +28,7 @@ Volatile artifacts change task-by-task and should be appended later, not baked i
 
 - stable artifact outputs under `.agent-harness/context-cache/artifacts/`
 - cache metadata in `.agent-harness/context-cache/cache-manifest.json`
+- provider-cache prefix and implementation report under `.agent-harness/context-cache/`
 - build metrics in `.agent-harness/metrics/context-build.jsonl`
 
 ## Invalidation
@@ -43,6 +44,19 @@ Toggles live in `.agent/agentic/config.json`:
 - `localMemoization`
 - `providerCaching`
 - `metricsLogging`
+
+When `providerCaching` is enabled, the builder writes:
+
+- `.agent-harness/context-cache/provider-cache-prefix.md`
+  - the exact stable prefix to place at the beginning of OpenAI and Anthropic API requests
+- `.agent-harness/context-cache/provider-cache-strategy.md`
+  - provider-specific request placement, metrics, and cache invalidation guidance
+
+Provider-cache contract:
+
+- OpenAI: keep the generated prefix byte-identical at the start of the request, use a consistent `prompt_cache_key`, and inspect `usage.prompt_tokens_details.cached_tokens`.
+- Anthropic: send the generated prefix as a stable system text block with `cache_control: { "type": "ephemeral" }`, then inspect `usage.cache_creation_input_tokens` and `usage.cache_read_input_tokens`.
+- Keep volatile task data after the provider-cache prefix.
 
 The builder also supports command-line overrides:
 
@@ -98,3 +112,5 @@ or delete:
 The current benchmark report is written to:
 
 - `.agent-harness/metrics/context-benchmark-latest.md`
+
+The benchmark covers deterministic local artifact reuse and verifies whether the provider-cache prefix is large enough to be useful for provider-side prompt caching. It does not call OpenAI or Anthropic APIs.

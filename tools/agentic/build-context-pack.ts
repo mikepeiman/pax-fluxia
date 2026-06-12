@@ -75,6 +75,14 @@ console.log(`- Total bytes: ${result.totalBytes}`);
 console.log(`- Estimated tokens: ${result.totalEstimatedTokens}`);
 console.log(`- Reused estimated tokens: ${result.reusedEstimatedTokens}`);
 console.log(`- Regenerated estimated tokens: ${result.regeneratedEstimatedTokens}`);
+console.log(`- Provider caching enabled: ${result.providerCachingEnabled}`);
+if (result.providerCachingEnabled) {
+    console.log(`- Provider cache prefix: ${result.providerCachePrefixPath}`);
+    console.log(`- Provider cache strategy: ${result.providerCacheStrategyPath}`);
+    console.log(`- Provider cache prefix hash: ${result.providerCachePrefixHash}`);
+    console.log(`- Provider cache prefix est tokens: ${result.providerCachePrefixEstimatedTokens}`);
+    console.log(`- Provider cache threshold met: ${result.providerCacheMeetsMinimumTokenThreshold}`);
+}
 
 for (const artifact of result.artifacts) {
     console.log(`- ${artifact.id}: ${artifact.reused ? "reused" : "regenerated"} (${artifact.invalidationReason})`);

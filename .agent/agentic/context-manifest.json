@@ -43,8 +43,8 @@
       "description": "Current workflow surface inventory and concrete installation contract.",
       "output": "stable-workflow-stack.md",
       "sources": [
-        ".agent/docs/project/implementation-plans/2026-04-11/WORKFLOW_SURFACE_INVENTORY_2026-04-11.md",
-        ".agent/docs/project/implementation-plans/2026-04-11/WORKFLOW_INSTALLATION_SPEC_2026-04-11.md"
+        ".agent/docs/plans/2026-04-11/WORKFLOW_SURFACE_INVENTORY_2026-04-11.md",
+        ".agent/docs/plans/2026-04-11/WORKFLOW_INSTALLATION_SPEC_2026-04-11.md"
       ]
     }
   ]

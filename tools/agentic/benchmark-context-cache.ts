@@ -66,10 +66,19 @@ const report = `# Context Cache Benchmark
 - Cache hit delta: ${warm.cacheHits - cold.cacheHits}
 - Duration delta: ${cold.durationMs - warm.durationMs}ms
 
+## Provider Cache Prefix
+
+- Provider caching enabled: ${warm.providerCachingEnabled}
+- Prefix path: ${warm.providerCachePrefixPath ?? "not generated"}
+- Strategy path: ${warm.providerCacheStrategyPath ?? "not generated"}
+- Prefix hash: ${warm.providerCachePrefixHash ?? "n/a"}
+- Prefix estimated tokens: ${warm.providerCachePrefixEstimatedTokens ?? 0}
+- Meets 1024-token threshold: ${warm.providerCacheMeetsMinimumTokenThreshold ?? false}
+
 ## Tradeoffs
 
 - Stable artifact bytes remain the same between cold and warm runs; savings come from reuse and skipped regeneration.
-- This benchmark measures the local deterministic context layer only. It does not include provider-side caching.
+- Provider-side savings still depend on sending the generated stable prefix first in real OpenAI or Anthropic API requests.
 `;
 
 const reportPath = join(rootDir, config.paths.benchmarkReport);

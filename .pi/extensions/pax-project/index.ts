@@ -33,6 +33,8 @@ const ROOT_DIR = resolve(__dirname, "../../..");
 const CONTEXT_MANIFEST_PATH = join(ROOT_DIR, ".agent/agentic/context-manifest.json");
 const CACHE_MANIFEST_PATH = join(ROOT_DIR, ".agent-harness/context-cache/cache-manifest.json");
 const ARTIFACTS_DIR = join(ROOT_DIR, ".agent-harness/context-cache/artifacts");
+const PROVIDER_CACHE_PREFIX_PATH = join(ROOT_DIR, ".agent-harness/context-cache/provider-cache-prefix.md");
+const PROVIDER_CACHE_STRATEGY_PATH = join(ROOT_DIR, ".agent-harness/context-cache/provider-cache-strategy.md");
 
 function readJson<T>(filePath: string): T {
 	return JSON.parse(readFileSync(filePath, "utf8")) as T;
@@ -74,6 +76,8 @@ function buildStatusSummary(): string {
 		"[Pax Context Cache]",
 		`Artifacts configured: ${manifest.artifacts.length}`,
 		cacheManifest ? "Cache manifest: present" : "Cache manifest: missing",
+		existsSync(PROVIDER_CACHE_PREFIX_PATH) ? "Provider cache prefix: present" : "Provider cache prefix: missing",
+		existsSync(PROVIDER_CACHE_STRATEGY_PATH) ? "Provider cache strategy: present" : "Provider cache strategy: missing",
 		"",
 	];
 
@@ -113,6 +117,8 @@ function buildSystemPromptNotice(): string {
 	return [
 		"Project note: Pax Fluxia keeps stable project context memoized in repo-local artifacts under `.agent-harness/context-cache/artifacts/`.",
 		"Prefer those cached artifacts before broad rereads of raw docs.",
+		"When sending Pax stable context through an OpenAI or Anthropic API wrapper, put `.agent-harness/context-cache/provider-cache-prefix.md` first and keep volatile task data after it.",
+		"Provider-specific prompt-cache placement is documented in `.agent-harness/context-cache/provider-cache-strategy.md`.",
 		`Available artifact ids: ${artifactIds}.`,
 		"Use `/pax-context:status` to inspect cache state, `/pax-context:rebuild` to refresh it, and `/pax-context:inject <artifact-id|all>` to inject cached contents on demand.",
 	].join("\n");

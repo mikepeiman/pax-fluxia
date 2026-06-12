@@ -1,12 +1,28 @@
 {
   "version": 1,
   "localMemoization": true,
-  "providerCaching": false,
+  "providerCaching": true,
+  "providerCache": {
+    "stablePrefixLabel": "pax-fluxia-agentic-stable-v1",
+    "minimumCacheableTokens": 1024,
+    "openai": {
+      "promptCacheKey": "pax-fluxia-agentic-stable-v1",
+      "retentionPolicy": "prefer-24h-when-supported-otherwise-omit"
+    },
+    "anthropic": {
+      "cacheControl": {
+        "type": "ephemeral"
+      },
+      "maxExplicitBreakpoints": 4
+    }
+  },
   "metricsLogging": true,
   "tokenEstimation": "chars_div_4",
   "paths": {
     "artifactsDir": ".agent-harness/context-cache/artifacts",
     "cacheManifest": ".agent-harness/context-cache/cache-manifest.json",
+    "providerCachePrefix": ".agent-harness/context-cache/provider-cache-prefix.md",
+    "providerCacheStrategy": ".agent-harness/context-cache/provider-cache-strategy.md",
     "metricsLog": ".agent-harness/metrics/context-build.jsonl",
     "benchmarkReport": ".agent-harness/metrics/context-benchmark-latest.md"
   }

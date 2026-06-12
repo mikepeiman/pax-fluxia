@@ -3,16 +3,20 @@
 import { appendFile, mkdir, readFile, rm, stat, writeFile } from "fs/promises";
 import { createHash, randomUUID } from "crypto";
 import { dirname, join, resolve } from "path";
+import { type ProviderCacheArtifactInput, type ProviderCacheConfig, writeProviderCacheArtifacts } from "./provider-cache";
 
 export interface AgenticConfig {
     version: number;
     localMemoization: boolean;
     providerCaching: boolean;
+    providerCache?: Partial<ProviderCacheConfig>;
     metricsLogging: boolean;
     tokenEstimation: "chars_div_4";
     paths: {
         artifactsDir: string;
         cacheManifest: string;
+        providerCachePrefix?: string;
+        providerCacheStrategy?: string;
         metricsLog: string;
         benchmarkReport: string;
     };
@@ -72,6 +76,12 @@ export interface BuildContextPackResult {
     reusedEstimatedTokens: number;
     regeneratedBytes: number;
     regeneratedEstimatedTokens: number;
+    providerCachingEnabled: boolean;
+    providerCachePrefixPath?: string;
+    providerCacheStrategyPath?: string;
+    providerCachePrefixHash?: string;
+    providerCachePrefixEstimatedTokens?: number;
+    providerCacheMeetsMinimumTokenThreshold?: boolean;
 }
 
 export interface BuildContextPackOptions {
@@ -182,6 +192,40 @@ async function clearCachePaths(config: AgenticConfig, rootDir: string): Promise<
     await rm(join(rootDir, config.paths.cacheManifest), { force: true });
 }
 
+async function collectProviderCacheArtifacts(
+    rootDir: string,
+    config: AgenticConfig,
+    manifest: ContextManifest,
+    cacheManifest: CacheManifestFile
+): Promise<ProviderCacheArtifactInput[]> {
+    const artifacts: ProviderCacheArtifactInput[] = [];
+
+    for (const artifact of manifest.artifacts) {
+        const outputPath = join(rootDir, config.paths.artifactsDir, artifact.output);
+        if (!(await pathExists(outputPath))) {
+            return [];
+        }
+
+        const content = await readFile(outputPath, "utf8");
+        const cacheEntry = cacheManifest.artifacts[artifact.id];
+        const artifactHash = cacheEntry?.artifactHash ?? hashText(content);
+        const bytes = Buffer.byteLength(content, "utf8");
+        const estimatedTokens = cacheEntry?.estimatedTokens ?? estimateTokens(content);
+
+        artifacts.push({
+            id: artifact.id,
+            title: artifact.title,
+            relativeOutputPath: `${config.paths.artifactsDir.replace(/\\/g, "/")}/${artifact.output}`,
+            content,
+            artifactHash,
+            estimatedTokens,
+            bytes,
+        });
+    }
+
+    return artifacts;
+}
+
 export async function buildContextPack(options: BuildContextPackOptions = {}): Promise<BuildContextPackResult> {
     const rootDir = resolve(options.rootDir ?? process.cwd());
     const config = await loadConfig(rootDir);
@@ -285,6 +329,15 @@ export async function buildContextPack(options: BuildContextPackOptions = {}): P
 
     await writeCacheManifest(cacheManifestPath, cacheManifest);
 
+    const providerCacheArtifacts = await collectProviderCacheArtifacts(rootDir, config, manifest, cacheManifest);
+    const providerCacheResult = await writeProviderCacheArtifacts({
+        rootDir,
+        enabled: config.providerCaching && providerCacheArtifacts.length === manifest.artifacts.length,
+        paths: config.paths,
+        config: config.providerCache,
+        artifacts: providerCacheArtifacts,
+    });
+
     const durationMs = Date.now() - startedAt;
     const cacheHits = results.filter((artifact) => artifact.reused).length;
     const cacheMisses = results.length - cacheHits;
@@ -311,6 +364,12 @@ export async function buildContextPack(options: BuildContextPackOptions = {}): P
         reusedEstimatedTokens,
         regeneratedBytes,
         regeneratedEstimatedTokens,
+        providerCachingEnabled: providerCacheResult.enabled,
+        providerCachePrefixPath: providerCacheResult.prefixPath,
+        providerCacheStrategyPath: providerCacheResult.strategyPath,
+        providerCachePrefixHash: providerCacheResult.prefixHash,
+        providerCachePrefixEstimatedTokens: providerCacheResult.prefixEstimatedTokens,
+        providerCacheMeetsMinimumTokenThreshold: providerCacheResult.meetsMinimumTokenThreshold,
     };
 
     if (metricsEnabled) {
@@ -335,6 +394,10 @@ export async function buildContextPack(options: BuildContextPackOptions = {}): P
             reusedEstimatedTokens,
             regeneratedBytes,
             regeneratedEstimatedTokens,
+            providerCachingEnabled: providerCacheResult.enabled,
+            providerCachePrefixHash: providerCacheResult.prefixHash,
+            providerCachePrefixEstimatedTokens: providerCacheResult.prefixEstimatedTokens,
+            providerCacheMeetsMinimumTokenThreshold: providerCacheResult.meetsMinimumTokenThreshold,
             durationMs,
             artifacts: results.map((artifact) => ({
                 id: artifact.id,
