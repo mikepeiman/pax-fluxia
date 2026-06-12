@@ -170,3 +170,34 @@ Validation:
 - `bun run --cwd pax-fluxia build`: passed with exit code `0`.
 - `git diff --check`: passed with line-ending warnings only.
 - Build warnings still exist in unrelated local legacy CSS selectors, but the new shared stylesheet no longer creates per-import false positives.
+
+## Settings Drawer Primitive Migration
+
+Implemented:
+
+- Added `pax-fluxia/src/lib/design-system/components/PaxSettingsDrawer.svelte`.
+- Added `pax-fluxia/src/lib/design-system/components/PaxSettingsInfoRow.svelte`.
+- Exported both through `pax-fluxia/src/lib/design-system/components/index.ts`.
+- Migrated these active Settings rail tool panes in `pax-fluxia/src/lib/components/ui/GameSettingsPanel.svelte`:
+  - Theme Select / Library
+  - Theme Tuning / Appearance
+  - Stats
+  - Hotkeys
+  - Help
+- Removed the replaced local CSS hooks for `.settings-tool-panel`, `.settings-stats-panel`, `.settings-stat-row`, and `.settings-help-panel`.
+
+Intent:
+
+- Keep Settings panel structure moving into reusable Pax design-system primitives instead of local one-off panel markup.
+- Preserve existing panel contents and data wiring while changing ownership of the shell, header, padding, scroll, border, and row rhythm.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Static audit returned no matches for raw `<button>`, `<select>`, `<input>`, direct Ark imports, or direct `hudButton`/`hudPanel`/`hudRail` recipe calls in `pax-fluxia/src/lib/components/game-hud` and `pax-fluxia/src/lib/components/ui/GameSettingsPanel.svelte`.
+- Build log references to `GameSettingsPanel.svelte` in this run were from the existing dynamic/static import chunk warning for `gameStore.svelte.ts`, not new Svelte warnings in the migrated drawer code.
+
+Next correct step:
+
+- Migrate stacked Settings section panels and remaining tuning controls into Pax settings primitives, then reduce local legacy CSS in the largest warning sources.

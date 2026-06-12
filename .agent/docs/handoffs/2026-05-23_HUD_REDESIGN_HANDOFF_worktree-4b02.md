@@ -534,3 +534,41 @@ Merge guidance:
 - Preserve `panel-shared.css` as the temporary shared grammar for legacy settings panels until those panels are migrated to `PaxHud*` primitives.
 - Do not reintroduce hard-coded `#4ade80`, generic gray borders, or local mixed fonts in settings panels; use `--hud-*`/`--pax-*` tokens.
 - If conflicts occur in `pax-theme.css`, keep the reduced dark-alpha gradient stops unless master has a newer deliberate border-gradient system.
+
+## 2026-06-12 Settings Drawer Primitive Migration
+
+Scope implemented in this step:
+
+- Added `pax-fluxia/src/lib/design-system/components/PaxSettingsDrawer.svelte`.
+- Added `pax-fluxia/src/lib/design-system/components/PaxSettingsInfoRow.svelte`.
+- Exported both through `pax-fluxia/src/lib/design-system/components/index.ts`.
+- Updated `pax-fluxia/src/lib/components/ui/GameSettingsPanel.svelte` so these active Settings rail tool panes use design-system primitives instead of repeated local section-panel markup:
+  - Theme Select / Library
+  - Theme Tuning / Appearance
+  - Stats
+  - Hotkeys
+  - Help
+- Removed replaced local CSS hooks in `GameSettingsPanel.svelte`:
+  - `.settings-tool-panel`
+  - `.settings-stats-panel`
+  - `.settings-stat-row`
+  - `.settings-help-panel`
+
+Why this matters for merge:
+
+- The Settings rail is moving toward the requested master left-side component model through reusable primitives, not one-off styling.
+- `PaxSettingsDrawer` now owns drawer shell, header, close affordance, scroll body, spacing, rounded border, and tokenized Aurelia Drift surface styling.
+- `PaxSettingsInfoRow` now owns compact label/value row rhythm for Stats and Hotkeys.
+- Existing content and state contracts were preserved; this step should be low-conflict unless master also rewrites the same `GameSettingsPanel.svelte` active-tool branch.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Static audit returned no matches for raw `<button>`, `<select>`, `<input>`, direct Ark imports, or direct `hudButton`/`hudPanel`/`hudRail` recipe calls in `pax-fluxia/src/lib/components/game-hud` and `pax-fluxia/src/lib/components/ui/GameSettingsPanel.svelte`.
+
+Merge guidance:
+
+- Keep `PaxSettingsDrawer` and `PaxSettingsInfoRow` as the owner for top-level Settings active tool panes.
+- Continue migrating the remaining stacked section panels and tuning internals into this design-system layer.
+- Do not re-add local `settings-tool-panel`/`settings-stat-row` style islands to `GameSettingsPanel.svelte`.

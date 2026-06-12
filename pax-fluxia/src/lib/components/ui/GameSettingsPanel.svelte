@@ -89,7 +89,12 @@
     import ThemeLibraryPanel from "$lib/components/game-hud/ThemeLibraryPanel.svelte";
     import HudThemePanel from "$lib/components/game-hud/HudThemePanel.svelte";
     import TypographyTokenPanel from "$lib/components/game-hud/TypographyTokenPanel.svelte";
-    import { PaxHudButton, PaxHudIconButton } from "$lib/design-system";
+    import {
+        PaxHudButton,
+        PaxHudIconButton,
+        PaxSettingsDrawer,
+        PaxSettingsInfoRow,
+    } from "$lib/design-system";
     import HudIcon from "./hud/HudIcon.svelte";
 
     // Aliases for the imported arrays (matches existing template references)
@@ -1291,85 +1296,65 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
 
     <div class="settings-content">
     {#if activeToolId === "theme_library"}
-        <div class="section-panel settings-tool-panel" style="--accent: #f6c469">
-            <div class="section-head-wrap">
-                <PaxHudButton class="section-head" onclick={() => setActiveTool(null)} title="Close Theme Select / Library">
-                    <span class="head-icon"><HudIcon name="library" /></span>
-                    <span class="head-label">Theme Select / Library</span>
-                    <span class="head-close"><HudIcon name="close" size={14} /></span>
-                </PaxHudButton>
-            </div>
-            <div class="section-body">
-                <ThemeLibraryPanel />
-            </div>
-        </div>
+        <PaxSettingsDrawer
+            title="Theme Select / Library"
+            icon="library"
+            accent="#f6c469"
+            onClose={() => setActiveTool(null)}
+        >
+            <ThemeLibraryPanel />
+        </PaxSettingsDrawer>
     {:else if activeToolId === "appearance"}
-        <div class="section-panel settings-tool-panel" style="--accent: #5ee6ff">
-            <div class="section-head-wrap">
-                <PaxHudButton class="section-head" onclick={() => setActiveTool(null)} title="Close Theme Tuning / Appearance">
-                    <span class="head-icon"><HudIcon name="gem" /></span>
-                    <span class="head-label">Theme Tuning / Appearance</span>
-                    <span class="head-close"><HudIcon name="close" size={14} /></span>
-                </PaxHudButton>
-            </div>
-            <div class="section-body">
-                <HudThemePanel />
-                <TypographyTokenPanel />
-                <ControlsSectionVisuals
-                    {panel}
-                    {updatePanel}
-                    {vis}
-                    {updateVisual}
-                    syncFromConfig={syncAllFromConfig}
-                />
-            </div>
-        </div>
+        <PaxSettingsDrawer
+            title="Theme Tuning / Appearance"
+            icon="gem"
+            accent="#5ee6ff"
+            onClose={() => setActiveTool(null)}
+        >
+            <HudThemePanel />
+            <TypographyTokenPanel />
+            <ControlsSectionVisuals
+                {panel}
+                {updatePanel}
+                {vis}
+                {updateVisual}
+                syncFromConfig={syncAllFromConfig}
+            />
+        </PaxSettingsDrawer>
     {:else if activeToolId === "stats"}
-        <div class="section-panel settings-tool-panel" style="--accent: #f6c469">
-            <div class="section-head-wrap">
-                <PaxHudButton class="section-head" onclick={() => setActiveTool(null)} title="Close Stats">
-                    <span class="head-icon"><HudIcon name="ranking-star" /></span>
-                    <span class="head-label">Stats</span>
-                    <span class="head-close"><HudIcon name="close" size={14} /></span>
-                </PaxHudButton>
-            </div>
-            <div class="section-body settings-stats-panel">
-                <div class="settings-stat-row"><span>Tick</span><strong>{activeGameStore.currentTick ?? 0}</strong></div>
-                <div class="settings-stat-row"><span>Players</span><strong>{activeGameStore.players.length}</strong></div>
-                <div class="settings-stat-row"><span>Stars</span><strong>{activeGameStore.stars.length}</strong></div>
-                <div class="settings-stat-row"><span>Selected</span><strong>{selectedStarStore.id ?? "None"}</strong></div>
-            </div>
-        </div>
+        <PaxSettingsDrawer
+            title="Stats"
+            icon="ranking-star"
+            accent="#f6c469"
+            onClose={() => setActiveTool(null)}
+        >
+            <PaxSettingsInfoRow label="Tick" value={activeGameStore.currentTick ?? 0} />
+            <PaxSettingsInfoRow label="Players" value={activeGameStore.players.length} />
+            <PaxSettingsInfoRow label="Stars" value={activeGameStore.stars.length} />
+            <PaxSettingsInfoRow label="Selected" value={selectedStarStore.id ?? "None"} />
+        </PaxSettingsDrawer>
     {:else if activeToolId === "hotkeys"}
-        <div class="section-panel settings-tool-panel" style="--accent: #8ab4ff">
-            <div class="section-head-wrap">
-                <PaxHudButton class="section-head" onclick={() => setActiveTool(null)} title="Close Hotkeys">
-                    <span class="head-icon"><HudIcon name="keyboard" /></span>
-                    <span class="head-label">Hotkeys</span>
-                    <span class="head-close"><HudIcon name="close" size={14} /></span>
-                </PaxHudButton>
-            </div>
-            <div class="section-body settings-help-panel">
-                <div><strong>F</strong><span>Fit the map to the viewport.</span></div>
-                <div><strong>Esc</strong><span>Close active overlays or clear search focus.</span></div>
-                <div><strong>Click star</strong><span>Select and inspect a star.</span></div>
-                <div><strong>Drag lane</strong><span>Issue a route from one owned star to a connected star.</span></div>
-            </div>
-        </div>
+        <PaxSettingsDrawer
+            title="Hotkeys"
+            icon="keyboard"
+            accent="#8ab4ff"
+            onClose={() => setActiveTool(null)}
+        >
+            <PaxSettingsInfoRow label="F" value="Fit the map to the viewport." valueAlign="left" />
+            <PaxSettingsInfoRow label="Esc" value="Close active overlays or clear search focus." valueAlign="left" />
+            <PaxSettingsInfoRow label="Click star" value="Select and inspect a star." valueAlign="left" />
+            <PaxSettingsInfoRow label="Drag lane" value="Issue a route from an owned star." valueAlign="left" />
+        </PaxSettingsDrawer>
     {:else if activeToolId === "help"}
-        <div class="section-panel settings-tool-panel" style="--accent: #a8b6cf">
-            <div class="section-head-wrap">
-                <PaxHudButton class="section-head" onclick={() => setActiveTool(null)} title="Close Help">
-                    <span class="head-icon"><HudIcon name="help" /></span>
-                    <span class="head-label">Help</span>
-                    <span class="head-close"><HudIcon name="close" size={14} /></span>
-                </PaxHudButton>
-            </div>
-            <div class="section-body settings-help-panel">
-                <p>Select owned stars, assign routes across connected lanes, and watch active ships transfer control through the network.</p>
-                <p>Use the Settings rail for theme, appearance, combat, audio, graphics, diagnostics, hotkeys, restart, and quit.</p>
-            </div>
-        </div>
+        <PaxSettingsDrawer
+            title="Help"
+            icon="help"
+            accent="#a8b6cf"
+            onClose={() => setActiveTool(null)}
+        >
+            <p>Select owned stars, assign routes across connected lanes, and watch active ships transfer control through the network.</p>
+            <p>Use the Settings rail for theme, appearance, combat, audio, graphics, diagnostics, hotkeys, restart, and quit.</p>
+        </PaxSettingsDrawer>
     {:else}
     <!-- Stacked Section Panels -->
     {#each orderedOpenSections as sec (sec.id)}
@@ -2338,59 +2323,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         transform: translateX(-8px);
     }
 
-    .settings-tool-panel {
-        height: 100%;
-        min-height: 0;
-    }
-
-    .settings-tool-panel .section-body {
-        min-height: 0;
-        overflow-y: auto;
-    }
-
-    .settings-stats-panel {
-        gap: 8px;
-    }
-
-    .settings-stat-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        min-height: 38px;
-        padding: 0 12px;
-        border: 1px solid transparent;
-        border-radius: var(--hud-radius-xs);
-        background:
-            linear-gradient(180deg, rgba(0, 18, 21, 0.86), rgba(0, 10, 13, 0.94)) padding-box,
-            var(--hud-control-border-gradient) border-box;
-        color: var(--hud-text-soft);
-    }
-
-    .settings-stat-row strong {
-        color: var(--hud-accent-warm-strong);
-        font-family: var(--hud-font-data);
-    }
-
-    .settings-help-panel {
-        color: var(--hud-text-soft);
-        font-family: var(--hud-font-copy);
-        line-height: 1.45;
-    }
-
-    .settings-help-panel > div {
-        display: grid;
-        grid-template-columns: 96px minmax(0, 1fr);
-        gap: 10px;
-        padding: 9px 0;
-        border-bottom: 1px solid var(--hud-divider);
-    }
-
-    .settings-help-panel strong {
-        color: var(--hud-accent-warm-strong);
-        font-family: var(--hud-font-data);
-    }
-
     .icon-toolbar {
         gap: 8px;
         padding: 10px;
@@ -2449,11 +2381,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .section-body {
         gap: 12px;
         padding: 14px;
-    }
-
-    .settings-stat-row,
-    .settings-help-panel > div {
-        min-height: 42px;
     }
 
 </style>
