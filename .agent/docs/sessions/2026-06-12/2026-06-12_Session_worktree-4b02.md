@@ -287,3 +287,31 @@ Validation:
 Next correct step:
 
 - Continue migrating high-traffic legacy settings controls into Pax primitives; the previous Territory/Perimeter unused-selector warning set is cleared.
+
+## Pixi Dev Import Optimization Fix
+
+User reported:
+
+```text
+logger.ts:119 ERROR [LandingRoute] Game shell import failed (1/2) Error: Extension type environment already has a handler
+    at Object.handle (Extensions.ts:328:19)
+    at Object.handleByNamedList (Extensions.ts:385:21)
+    at autoDetectEnvironment.ts:5:12
+```
+
+Implemented:
+
+- Updated `pax-fluxia/vite.config.js`.
+- Added `pixi.js` to client `optimizeDeps.include` so Vite dev prebundles Pixi as one optimized dependency instead of traversing Pixi internals during lazy game-shell imports/HMR.
+- Removed stale `@colyseus/schema` from the client optimize include list because `pax-fluxia/src` does not import it and the forced optimize command reported it as unresolved from the client package.
+
+Validation:
+
+- `bunx vite optimize --force` in `pax-fluxia/`: completed and listed `pixi.js`; it no longer reported `@colyseus/schema` resolution failure. Vite prints a deprecation warning for manually invoking optimize, but the command completes.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+
+Notes:
+
+- If a dev server is already running, restart it or run with Vite force optimization so the updated dependency cache is used.
+- This is a dev import/loading fix. It does not change gameplay logic, Pixi rendering code, or HUD component behavior.

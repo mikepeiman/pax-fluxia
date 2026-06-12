@@ -670,3 +670,38 @@ Merge guidance:
 
 - If master still has these dead selectors, prefer removing them.
 - Do not remove the preserved live `.mini-btn` or `.engine-control-group` styles unless their markup is migrated to Pax primitives in the same change.
+
+## 2026-06-12 Pixi Dev Import Optimization Fix
+
+User reported this runtime log while trying to load the game shell:
+
+```text
+ERROR [LandingRoute] Game shell import failed (1/2) Error: Extension type environment already has a handler
+    at Object.handle (Extensions.ts:328:19)
+    at Object.handleByNamedList (Extensions.ts:385:21)
+    at autoDetectEnvironment.ts:5:12
+```
+
+Scope implemented in this step:
+
+- Updated `pax-fluxia/vite.config.js`.
+- Added `pixi.js` to `optimizeDeps.include`.
+- Removed stale `@colyseus/schema` from `optimizeDeps.include`.
+
+Why this matters for merge:
+
+- The reported stack is Pixi extension-registry setup during lazy game-shell import, before UI review can proceed.
+- Prebundling `pixi.js` as one Vite optimized dependency reduces the chance that dev/HMR/lazy imports re-evaluate Pixi internals such as `autoDetectEnvironment`.
+- `@colyseus/schema` is not imported by the client source and forced Vite optimization reported it as unresolved from `pax-fluxia`; removing it keeps the client optimize list accurate.
+
+Validation:
+
+- `bunx vite optimize --force` in `pax-fluxia/`: completed, listed `pixi.js`, and no longer reported `@colyseus/schema` resolution failure.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+
+Merge guidance:
+
+- Keep `pixi.js` in the client optimize include list unless master has a stronger Pixi import stabilization strategy.
+- Do not re-add `@colyseus/schema` to the client optimize include list unless `pax-fluxia` directly imports it.
+- Existing dev servers may need a restart or forced optimization for this to take effect.

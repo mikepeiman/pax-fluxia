@@ -75,3 +75,22 @@ Prompt:
 - Migrated AI ranges, Logging toggles/actions, and the reusable slider wrapper through those primitives.
 - Migrated Perimeter Field tuning to Pax button/select/range/toggle primitives while preserving existing config write paths.
 - Removed obsolete Territory local CSS selectors after confirming they had no live markup owner.
+
+## User Request
+
+Prompt:
+
+> Maybe irrelevant as you are in-progress, but
+> ```
+> logger.ts:119 ERROR [LandingRoute] Game shell import failed (1/2) Error: Extension type environment already has a handler
+>     at Object.handle (Extensions.ts:328:19)
+>     at Object.handleByNamedList (Extensions.ts:385:21)
+>     at autoDetectEnvironment.ts:5:12
+> ```
+
+## Agent Response Summary
+
+- Treated the report as relevant because it can block live UI review before the HUD is visible.
+- Updated Vite client dependency optimization to prebundle `pixi.js`.
+- Removed stale `@colyseus/schema` from client dependency optimization after confirming it is not imported by `pax-fluxia/src`.
+- Validated with forced Vite optimization, production build, and diff check.
