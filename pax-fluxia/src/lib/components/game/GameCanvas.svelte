@@ -1583,6 +1583,35 @@
         return { width, height };
     }
 
+    function clearInteractionOverlaySurface(): void {
+        if (interactionOverlayAnimationFrameId !== null) {
+            cancelAnimationFrame(interactionOverlayAnimationFrameId);
+            interactionOverlayAnimationFrameId = null;
+        }
+        if (!interactionOverlayCanvas) {
+            lastInteractionOverlayRenderKey = null;
+            return;
+        }
+        const ctx =
+            interactionOverlayCtx ??
+            interactionOverlayCanvas.getContext("2d");
+        if (!ctx) {
+            lastInteractionOverlayRenderKey = null;
+            return;
+        }
+        interactionOverlayCtx = ctx;
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(
+            0,
+            0,
+            interactionOverlayCanvas.width,
+            interactionOverlayCanvas.height,
+        );
+        ctx.restore();
+        lastInteractionOverlayRenderKey = null;
+    }
+
     function buildInteractionOverlayOrderKey(
         stars: readonly StarState[],
     ): string {
@@ -1692,11 +1721,16 @@
 
     function scheduleInteractionOverlayRender(reason: string): void {
         if (interactionOverlayAnimationFrameId !== null) return;
+        const scheduledSessionId = activeGameStore.sessionId;
         interactionOverlayAnimationFrameId = requestAnimationFrame(() => {
             interactionOverlayAnimationFrameId = null;
             measurePerf(
                 "game.input.dragPreview.present",
                 () => {
+                    if (scheduledSessionId !== activeGameStore.sessionId) {
+                        clearInteractionOverlaySurface();
+                        return;
+                    }
                     renderInteractionOverlayNow();
                 },
                 {
@@ -3552,6 +3586,7 @@
             cancelAnimationFrame(interactionOverlayAnimationFrameId);
             interactionOverlayAnimationFrameId = null;
         }
+        clearInteractionOverlaySurface();
         interactionOverlayCtx = null;
         interactionOverlayCanvas = null;
         lastInteractionOverlayRenderKey = null;
@@ -3626,6 +3661,11 @@
 
             // Render the current frame from unified store
             const stars = activeGameStore.stars as StarState[];
+            if (stars.length === 0) {
+                clearInteractionOverlaySurface();
+                linkGraphics?.clear();
+                dragPreviewGraphics?.clear();
+            }
             if (stars.length > 0 && app) {
                 // Pre-map coordinates for display (applies transpose + axis flip if active)
                 const displayStars: StarState[] = mapTranspose.active
@@ -4744,7 +4784,7 @@
             deferredOrders.clear();
             lastEnemyPassthrough = null;
             activeStarId = null;
-            lastInteractionOverlayRenderKey = null;
+            clearInteractionOverlaySurface();
             visualShips.clear();
             visualDamagedShips.clear();
             fxOrchestrator.reset();
