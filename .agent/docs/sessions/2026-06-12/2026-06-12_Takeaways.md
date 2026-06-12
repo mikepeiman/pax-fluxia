@@ -5,3 +5,4 @@
 - Pending conquest preview state must keep a stable first-seen time when pre-consume frames repeat.
 - Conquest transition visuals must share the same duration source unless a separate user-facing control explicitly says otherwise.
 - A transition terminal frame must use the same coordinate, sizing, offset, and seed path as the settled NEXT frame.
+- Grid Gradient performance jank is dominated by synchronous plan/classification work, not shader draw work; major fixes should move planning off the main thread and then replace per-cell point-in-polygon classification.

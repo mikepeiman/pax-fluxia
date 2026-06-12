@@ -64,3 +64,23 @@ Validation:
 
 - Focused transition/Grid Gradient/star tests passed.
 - `bun run build` in `pax-fluxia/` passed with existing unused-CSS and chunk-size warnings.
+
+## Performance Follow-Up
+
+### Grid Gradient conquest jank
+
+User-reported state:
+
+- Transition end now looks smooth.
+- Performance jank during Grid Gradient conquest is severe.
+- User requires major improvements only and no visual quality compromise.
+
+Investigation summary:
+
+- User Chrome trace screenshots show a `~448 ms` animation-frame/function-call spike.
+- Dominant cost is synchronous plan/classification work: `buildGridGradientPlan` about `347 ms`, `buildGridClassification` about `318 ms`, and `resolveOwnerAt` about `302 ms` self time.
+- This is CPU ownership classification blocking the main thread, not shader draw cost.
+
+Plan document:
+
+- `.agent/docs/plans/2026-06-12/GRID_GRADIENT_PERFORMANCE_MAJOR_FIX_PLAN_2026-06-12.md`
