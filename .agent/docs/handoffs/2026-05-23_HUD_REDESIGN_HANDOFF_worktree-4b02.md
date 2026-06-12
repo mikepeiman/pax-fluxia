@@ -401,3 +401,21 @@ Merge guidance:
 
 - This is the intended migration pattern for the rest of the HUD: add variant recipes while retaining compatibility classes until the legacy `hud.css` rules can be safely reduced.
 - Do not remove the `pf-*` classes from migrated primitives yet; downstream CSS still depends on them.
+
+## 2026-06-12 Rail And Gamespeed Variant Migration
+
+Scope implemented in this step:
+
+- Updated `pax-fluxia/src/lib/components/game-hud/HudRail.svelte` to consume the `hudRail` recipe.
+- Updated `pax-fluxia/src/lib/components/game-hud/GameSpeedPanel.svelte` to consume the `hudButton` recipe for repeated speed buttons.
+- Preserved existing `pf-hud-rail`, `pf-hud-rail--*`, and `pf-game-speed__button` classes.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed.
+- `git diff --check`: passed with line-ending warnings only.
+- Targeted `bun run --cwd pax-fluxia check` filtering found no diagnostics mentioning `HudRail.svelte`, `GameSpeedPanel.svelte`, `variants/hud`, `tailwind-variants`, or `design-system`.
+
+Merge guidance:
+
+- The migration continues to be additive/compatibility-first. The visual polish layer in `hud.css` remains active until enough components are recipe-owned to reduce it safely.

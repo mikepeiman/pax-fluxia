@@ -97,3 +97,17 @@ Validation:
 - `bun run --cwd pax-fluxia build`: passed.
 - `git diff --check`: passed with line-ending warnings only.
 - Targeted `check` filtering found no diagnostics in the migrated primitive paths.
+
+## Rail And Gamespeed Variant Migration
+
+Implemented:
+
+- `HudRail.svelte` now consumes `hudRail`.
+- `GameSpeedPanel.svelte` speed buttons now consume `hudButton`.
+- Existing `pf-*` classes remain as compatibility hooks.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed.
+- `git diff --check`: passed with line-ending warnings only.
+- Targeted `check` filtering found no diagnostics in the rail/gamespeed paths.

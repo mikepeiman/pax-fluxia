@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
+  import { hudRail } from "$lib/design-system";
   import type { HudDockSide } from "./types";
 
   interface Props {
@@ -19,10 +20,17 @@
     onResizePointerDown,
     children,
   }: Props = $props();
+
+  const styles = $derived(
+    hudRail({
+      side,
+      density: "expanded",
+    }),
+  );
 </script>
 
 <aside
-  class={`pf-hud-rail pf-hud-rail--${side} ${className}`}
+  class={styles.root({ class: `pf-hud-rail pf-hud-rail--${side} ${className}` })}
   style={`width:${width}px;`}
 >
   {#if onResizePointerDown}

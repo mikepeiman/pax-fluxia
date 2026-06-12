@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { GameSpeed } from "$lib/types/game.types";
   import HudIcon from "$lib/components/ui/hud/HudIcon.svelte";
+  import { hudButton } from "$lib/design-system";
   import HudPanel from "./HudPanel.svelte";
   import type { GameSpeedPanelActions } from "./types";
 
@@ -35,6 +36,18 @@
     }
     onSpeedChange(nextSpeed);
   }
+
+  function isSpeedActive(option: { value: GameSpeed }) {
+    return option.value === 0 ? isPaused : !isPaused && speed === option.value;
+  }
+
+  function speedButtonClass(option: { value: GameSpeed }) {
+    return hudButton({
+      intent: isSpeedActive(option) ? "selected" : "neutral",
+      size: "sm",
+      class: "pf-game-speed__button",
+    });
+  }
 </script>
 
 <HudPanel title="Game Speed" eyebrow="Tempo" class="pf-game-speed">
@@ -42,8 +55,8 @@
     {#each speedOptions as option}
       <button
         type="button"
-        class="pf-game-speed__button"
-        class:pf-game-speed__button--active={option.value === 0 ? isPaused : !isPaused && speed === option.value}
+        class={speedButtonClass(option)}
+        class:pf-game-speed__button--active={isSpeedActive(option)}
         onclick={() => setSpeed(option.value)}
         title={option.label}
       >
