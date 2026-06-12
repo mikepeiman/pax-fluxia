@@ -30,6 +30,27 @@ Nearby related consumers not in the top 10 but part of the same fix area:
 - `buildOwnershipGridFrontierDistanceField` at about `2.7 ms`.
 - `buildGridGradientShaderFieldTexturePlan` at about `1.6 ms`.
 
+## Parent Frame Rows
+
+The screenshot's first four rows are:
+
+| Row | Approx total | Approx self | Meaning |
+|---|---:|---:|---|
+| `Animation frame fired` | `129.7 ms` | `0.0 ms` | Browser request-animation-frame envelope for the selected frame. |
+| `Function call` / `Ticker.ts:273:22` | `129.6 ms` | `0.6 ms` | Pixi ticker callback envelope. |
+| `renderFrame` / `GameCanvas.svelte:5323:25` | `128.4 ms` | `0.5 ms` | Pax Fluxia frame orchestration envelope. |
+| `measurePerf` / `perfProbe.ts:323:17` | `126.8 ms` | `1.2 ms` | Instrumentation wrapper around the expensive render-frame section. |
+
+These are not four independent algorithms to micro-optimize. Their self time is small; their total time is high because they contain the child work listed above. They still require a plan because the user experience problem is that all child work is currently allowed to execute inside the same animation-frame envelope.
+
+Frame-level plan:
+
+1. Keep `renderFrame` as a thin compositor/orchestrator: it should draw the latest committed territory state and schedule expensive updates, not compute them synchronously.
+2. Move `computeGeometry0319` and related geometry refresh work to a Worker-backed pending/commit path.
+3. Add a frame-budget guard around territory presentation work so non-essential territory refreshes can yield when the frame is already over budget.
+4. Split `measurePerf` labels inside `renderFrame` so the diagnostics show `geometry`, `territory presentation`, `Grid Gradient shader texture`, `Pixi render`, and `interaction overlay` separately instead of one giant `measurePerf` parent.
+5. Keep `measurePerf` itself; its self time is about `1.2 ms`, so it is not the target unless later traces show instrumentation overhead dominating after child work is moved off-frame.
+
 ## Diagnosis
 
 The first Grid Gradient performance fix moved the mode-local plan/classifier off the main thread. This trace now shows the remaining jank is caused by geometry work still running synchronously in the render frame:
