@@ -1394,3 +1394,35 @@ Merge guidance:
 
 - Preserve both callback names unless all call sites are intentionally normalized in one follow-up change.
 - Do not treat the post-mortem as optional; it documents a real runtime mismatch found during the migration.
+
+## 2026-06-12 Territory Navigation Primitive Migration
+
+Scope implemented in this step:
+
+- Began migrating:
+  - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Territory.svelte`
+
+Why this matters for merge:
+
+- Territory is now the only remaining settings file with raw visible controls.
+- This slice migrates the visible navigation/control shell first:
+  - system module visibility
+  - renderer module visibility
+  - render-mode selector
+  - deprecated-mode action buttons
+  - reference transition selector
+- Existing behavior is preserved:
+  - render modes still route through `selectTerritoryStyle(...)`
+  - transition mode still writes `VS_TRANSITION_MODE` and `vsTransitionMode` through `debouncedConfigUpdate(...)`
+  - active module state still writes `territorySystemModuleVisibility` and `territoryRendererModuleVisibility`
+
+Validation:
+
+- Territory raw-control/style audit count reduced from `79` to `56`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Merge guidance:
+
+- Preserve the option-builder functions added near the top of `ControlsSection-Territory.svelte`.
+- Continue deeper Territory tuning migration through Pax primitives rather than restoring local `axis-btn`, `mode-select`, or inline style controls.

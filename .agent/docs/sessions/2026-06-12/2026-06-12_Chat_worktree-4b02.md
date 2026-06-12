@@ -150,3 +150,6 @@ Prompt:
 - Validated the completed Ships migration with a zero-match raw-control audit, `git diff --check`, and production build.
 - Found that `PaxSettingsToggleRow.svelte` only invoked `onChange` while new Ships call sites used `onToggle`.
 - Fixed the primitive to support both optional callbacks and added a regression post-mortem.
+- Began `ControlsSection-Territory.svelte` migration with the visible module/render navigation slice.
+- Migrated system module, renderer module, render-mode, deprecated-mode action, and transition-select controls to Pax primitives.
+- Validated the Territory navigation slice with raw-control/style count reduction from `79` to `56`, `git diff --check`, and production build.

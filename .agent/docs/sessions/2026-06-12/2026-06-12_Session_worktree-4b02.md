@@ -983,3 +983,41 @@ Validation:
 Next correct step:
 
 - Build and commit the toggle-row callback fix, then resume `ControlsSection-Territory.svelte`.
+
+## Territory Navigation Primitive Migration
+
+Implemented:
+
+- Began migrating `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Territory.svelte`.
+- Added Pax primitive imports:
+  - `PaxHudButton`
+  - `PaxHudSegmentedControl`
+  - `PaxHudSelect`
+  - `PaxHudSegmentedOption`
+- Added option builders for:
+  - system module visibility
+  - renderer module visibility
+  - render mode
+  - transition select
+- Migrated visible navigation/control surfaces:
+  - Territory system module selector
+  - Territory renderer module selector
+  - render-mode selector
+  - deprecated-mode action buttons
+  - render-failure text styling hook
+  - reference transition select
+
+Intent:
+
+- Remove the most visible local button/select styling from Territory before migrating deeper tuning internals.
+- Preserve existing render-mode and transition state ownership through `selectTerritoryStyle(...)` and `debouncedConfigUpdate(...)`.
+
+Validation:
+
+- Territory raw-control/style audit count reduced from `79` to `56`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Next correct step:
+
+- Continue `ControlsSection-Territory.svelte` with the Metaball CPU grid and topology-rule tuning clusters.

@@ -26,7 +26,12 @@
     territoryTuningStatus,
   } from "$lib/stores/territoryTuningStatusStore";
   import { TERRITORY_GEOMETRY_LIMITS } from "$lib/territory/geometry/geometryTuning";
-  import HudIcon from "$lib/components/ui/hud/HudIcon.svelte";
+  import {
+    PaxHudButton,
+    PaxHudSegmentedControl,
+    PaxHudSelect,
+    type PaxHudSegmentedOption,
+  } from "$lib/design-system";
 
   // ControlsSection-Territory -- Territory Rendering (Voronoi + Metaball)
 
@@ -148,6 +153,45 @@
       hideRenderModeSelector && module.id === "render-mode"
         ? { ...module, label: "Transition" }
         : module,
+    );
+  }
+
+  function systemModuleOptions(): PaxHudSegmentedOption[] {
+    return [
+      { value: "all", label: "All" },
+      { value: "none", label: "None" },
+      ...visibleSystemModules().map((module) => ({
+        value: module.id,
+        label: module.label,
+        icon: module.icon,
+      })),
+    ];
+  }
+
+  function rendererModuleOptions(): PaxHudSegmentedOption[] {
+    return [
+      { value: "all", label: "All" },
+      { value: "none", label: "None" },
+      ...rendererModules().map((module) => ({
+        value: module.id,
+        label: module.label,
+        icon: module.icon,
+      })),
+    ];
+  }
+
+  function renderModeOptions(): PaxHudSegmentedOption[] {
+    return getRenderModeOptions().map((option) => ({
+      value: option.id,
+      label: option.label,
+      title: option.disabledReason ?? option.shortDescription ?? option.label,
+      disabled: !option.selectable,
+    }));
+  }
+
+  function transitionSelectOptions(): { value: string; label: string }[] {
+    return getTransitionModeOptionsForRenderMode(resolveActiveStyleId()).map(
+      (option) => ({ value: option.id, label: option.label }),
     );
   }
 
@@ -674,43 +718,13 @@
 <div class="territory-section-shell territory-section-shell--system">
   <div class="territory-section-head">
     <h4 class="sub-heading territory-section-title">{systemTitle}</h4>
-    <div
-      class="territory-scope-toggle"
-      role="group"
-      aria-label="Territory system subsection visibility">
-      <button
-        type="button"
-        class="territory-all-toggle"
-        class:active={activeSystemModule === "all"}
-        aria-label="Show all territory system modules"
-        onclick={() => {
-          setActiveSystemModule("all");
-        }}>All</button>
-      <button
-        type="button"
-        class="territory-all-toggle"
-        class:active={activeSystemModule === "none"}
-        aria-label="Hide all territory system modules"
-        onclick={() => {
-          setActiveSystemModule("none");
-        }}>None</button>
-    </div>
-  </div>
-  <div class="territory-module-nav">
-    {#each visibleSystemModules() as module}
-      <button
-        type="button"
-        class="territory-module-chip"
-        class:active={activeSystemModule === module.id}
-        onclick={() => {
-          setActiveSystemModule(
-            activeSystemModule === module.id ? "all" : module.id,
-          );
-        }}>
-        <span class="territory-module-chip__icon"><HudIcon name={module.icon} size={16} /></span>
-        <span>{module.label}</span>
-      </button>
-    {/each}
+    <PaxHudSegmentedControl
+      value={activeSystemModule}
+      options={systemModuleOptions()}
+      ariaLabel="Territory system subsection visibility"
+      density="compact"
+      onValueChange={(value) => setActiveSystemModule(value as TerritorySystemModuleId)}
+    />
   </div>
   <div class="territory-module-grid">
     {#if showSystemModule("render-mode")}
@@ -728,46 +742,35 @@
           </p>
         </div>
         {#if !hideRenderModeSelector}
-          <div
-            class="axis-row"
-            style="--accent: #a78bfa; --accent-bg: rgba(167,139,250,0.15)">
+          <div class="axis-row territory-axis territory-axis--render-mode">
             <span class="axis-label">Render mode</span>
-            <div class="axis-buttons axis-buttons-wrap">
-              {#each getRenderModeOptions() as opt}
-                <button
-                  type="button"
-                  class="axis-btn"
-                  class:active={resolveActiveStyleId() === opt.id}
-                  disabled={!opt.selectable}
-                  title={opt.disabledReason ?? opt.shortDescription ?? opt.label}
-                  onclick={() => {
-                    if (opt.selectable) selectTerritoryStyle(opt.id);
-                  }}>{opt.label}</button>
-              {/each}
-            </div>
+            <PaxHudSegmentedControl
+              value={resolveActiveStyleId()}
+              options={renderModeOptions()}
+              ariaLabel="Territory render mode"
+              density="compact"
+              onValueChange={selectTerritoryStyle}
+            />
           </div>
         {/if}
 
         {#if !hideRenderModeSelector && isTerritoryRenderModeUiHidden(resolveActiveStyleId())}
-          <div
-            class="axis-note"
-            style="border-left: 3px solid #f59e0b; padding: 8px 10px; margin: 4px 0 8px; background: rgba(245,158,11,0.08);">
+          <div class="axis-note axis-note--warning">
             <strong>Deprecated mode active:</strong>
             <code>{resolveActiveStyleId()}</code>
             — hidden from the list above. Prefer PVV3 or PVV2 for maintained
             seams.
-            <span
-              style="display: inline-flex; gap: 6px; margin-left: 8px; flex-wrap: wrap;">
-              <button
-                type="button"
-                class="axis-btn"
+            <span class="axis-note__actions">
+              <PaxHudButton
+                label="Switch to PVV3"
+                size="sm"
                 onclick={() => selectTerritoryStyle("vs_pvv3")}
-                >Switch to PVV3</button>
-              <button
-                type="button"
-                class="axis-btn"
+              />
+              <PaxHudButton
+                label="Switch to PVV2"
+                size="sm"
                 onclick={() => selectTerritoryStyle("power_voronoi")}
-                >Switch to PVV2</button>
+              />
             </span>
           </div>
         {/if}
@@ -786,33 +789,28 @@
             · arrows <code>{$territoryRenderStatus.arrowRenderer}</code>
             {#if $territoryRenderStatus.lastRenderFailure}
               <br />
-              <span style="color: #fca5a5;"
+              <span class="axis-note__danger"
                 >Failure: {$territoryRenderStatus.lastRenderFailure}</span>
             {/if}
           </div>
         {/if}
 
         {#if showReferenceVsTransitionModeSelector()}
-          <div
-            class="axis-row"
-            style="--accent: #22d3ee; --accent-bg: rgba(34,211,238,0.15)">
+          <div class="axis-row territory-axis territory-axis--transition">
             <span class="axis-label">Transition</span>
-            <div style="display:flex; flex-direction:column; gap:6px; flex:1; min-width:0;">
-              <select
-                class="mode-select"
+            <div class="territory-axis__stack">
+              <PaxHudSelect
                 value={resolveActiveTransitionModeId()}
-                onchange={(event) => {
-                  const value = (event.target as HTMLSelectElement).value;
+                options={transitionSelectOptions()}
+                ariaLabel="Territory transition mode"
+                onValueChange={(value) => {
                   debouncedConfigUpdate(
                     "VS_TRANSITION_MODE",
                     "vsTransitionMode",
                     value,
                   );
-                }}>
-                {#each getTransitionModeOptionsForRenderMode(resolveActiveStyleId()) as option}
-                  <option value={option.id}>{option.label}</option>
-                {/each}
-              </select>
+                }}
+              />
               <div class="axis-note">
                 Conquest transition mode for the active render family.
               </div>
@@ -847,47 +845,15 @@
       {showStylesView ? "Render Families" : "Frontier Topology"}
     </h4>
     {#if showStylesView}
-      <div
-        class="territory-scope-toggle"
-        role="group"
-        aria-label="Territory rendering subsection visibility">
-        <button
-          type="button"
-          class="territory-all-toggle"
-          class:active={activeRendererModule === "all"}
-          aria-label="Show all territory rendering modules"
-          onclick={() => {
-            setActiveRendererModule("all");
-          }}>All</button>
-        <button
-          type="button"
-          class="territory-all-toggle"
-          class:active={activeRendererModule === "none"}
-          aria-label="Hide all territory rendering modules"
-          onclick={() => {
-            setActiveRendererModule("none");
-          }}>None</button>
-      </div>
+      <PaxHudSegmentedControl
+        value={activeRendererModule}
+        options={rendererModuleOptions()}
+        ariaLabel="Territory rendering subsection visibility"
+        density="compact"
+        onValueChange={(value) => setActiveRendererModule(value as TerritoryRendererModuleId)}
+      />
     {/if}
   </div>
-  {#if showStylesView}
-    <div class="territory-module-nav">
-      {#each rendererModules() as module}
-        <button
-          type="button"
-          class="territory-module-chip"
-          class:active={activeRendererModule === module.id}
-          onclick={() => {
-            setActiveRendererModule(
-              activeRendererModule === module.id ? "all" : module.id,
-            );
-          }}>
-          <span class="territory-module-chip__icon"><HudIcon name={module.icon} size={16} /></span>
-          <span>{module.label}</span>
-        </button>
-      {/each}
-    </div>
-  {/if}
   <div class="territory-module-grid">
 
 {#if showStylesView && rendererModules().length === 0}
@@ -2496,6 +2462,39 @@
     color: var(--accent, #888);
     padding-top: 4px;
     font-weight: 600;
+  }
+  .territory-axis {
+    align-items: stretch;
+  }
+  .territory-axis--render-mode {
+    --accent: #a78bfa;
+    --accent-bg: rgba(167, 139, 250, 0.15);
+  }
+  .territory-axis--transition {
+    --accent: #22d3ee;
+    --accent-bg: rgba(34, 211, 238, 0.15);
+  }
+  .territory-axis__stack {
+    min-width: 0;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .axis-note--warning {
+    margin: 4px 0 8px;
+    padding: 8px 10px;
+    border-left: 3px solid #f59e0b;
+    background: rgba(245, 158, 11, 0.08);
+  }
+  .axis-note__actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-left: 8px;
+  }
+  .axis-note__danger {
+    color: #fca5a5;
   }
   .axis-buttons {
     display: flex;
