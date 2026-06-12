@@ -1174,3 +1174,38 @@ Merge guidance:
 - If master has added new Metaball controls, render them through Pax primitives rather than restoring raw `<input>`, `<select>`, or local button/listbox skins.
 - Keep the existing helper functions and `writeConfig(...)` paths authoritative; this was a UI-system migration, not a territory rendering logic change.
 - The remaining raw-control migration work should now focus on `ControlsSection-Ships.svelte` and `ControlsSection-Territory.svelte`.
+
+## 2026-06-12 Ships Size/Shape Primitive Migration
+
+Scope implemented in this step:
+
+- Began migrating:
+  - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Ships.svelte`
+
+Why this matters for merge:
+
+- Ships is now the largest remaining raw Settings file.
+- This slice adds the local helper pattern that later Ships subsections should reuse:
+  - `writePanelConfig(panelKey, configKey, value)`
+  - `setStarSystemScale(newScale)`
+- The Star System Scale control still preserves its cascade:
+  - `STAR_RENDER_RADIUS`
+  - `STAR_RING_RADIUS`
+  - `ORBIT_BASE_RADIUS`
+  - `DAMAGED_ORBIT_RADIUS`
+  - `STAR_ICON_SCALE`
+  - `STAR_LABEL_*`
+  - `STAR_HIT_RADIUS`
+- Ship Size/Shape controls now render through `PaxSettingsRangeRow` and `PaxSettingsToggleRow` instead of raw range/checkbox markup.
+
+Validation:
+
+- Ships raw-control audit count reduced from `115` to `107`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Merge guidance:
+
+- Preserve `setStarSystemScale(...)`; do not inline that cascade back into markup.
+- Continue converting `ControlsSection-Ships.svelte` by visible subsection and keep all config key writes explicit.
+- If master has changed these specific controls, keep the shared primitive rendering and preserve the config cascade behavior.

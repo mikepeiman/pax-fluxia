@@ -759,3 +759,36 @@ Next correct step:
 - Recount raw-control density across Settings.
 - Continue systemic migration in `ControlsSection-Ships.svelte` and `ControlsSection-Territory.svelte`.
 - After those two large files are converted, shift effort from migration to visual polish against the Aurelia Drift reference.
+
+## Ships Size/Shape Primitive Migration
+
+Implemented:
+
+- Began the `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Ships.svelte` migration in the highest-density remaining Settings file.
+- Added shared local helpers:
+  - `writePanelConfig(panelKey, configKey, value)`
+  - `setStarSystemScale(newScale)`
+- Moved Star System Scale from a raw range input to `PaxSettingsRangeRow`.
+- Moved Ship Size/Shape controls to Pax primitives:
+  - Visual Radius
+  - Scale Multiplier
+  - Ship Outline
+  - Outline px
+  - Glow Intensity
+  - Glow Radius
+  - Min Contrast
+
+Intent:
+
+- Start the Ships migration with the top visible subsection and reduce duplicated inline event code before touching deeper clusters.
+- Preserve the existing star-system scale cascade that updates radius, orbit, label, and hit-radius values together.
+
+Validation:
+
+- Ships raw-control audit count reduced from `115` to `107`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Next correct step:
+
+- Continue `ControlsSection-Ships.svelte` with the Star Halos cluster, then Orbit Layout, Star Shape, Label, Arrow/Orders, Damaged Ships, Interaction, Density Coloring, and Star Glow.

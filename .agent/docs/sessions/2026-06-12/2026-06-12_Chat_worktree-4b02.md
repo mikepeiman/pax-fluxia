@@ -129,3 +129,7 @@ Prompt:
 - Continued the systemic Settings primitive migration rather than stopping for a screenshot/browser pass.
 - Finished migrating `MetaballGridTuning.svelte` grid, border, frontier, wave, flip, and Phase Field finish-tail controls to Pax primitives while preserving `writeConfig(...)` paths.
 - Validated with raw-control audit, `git diff --check`, and production build.
+- Continued into `ControlsSection-Ships.svelte` because it became the highest-density remaining raw-control file.
+- Extracted helper functions for Ships config writes and star-system scale cascade behavior.
+- Migrated Star System Scale and Ship Size/Shape controls to Pax range/toggle primitives.
+- Validated the Ships slice with raw-control count reduction, `git diff --check`, and production build.

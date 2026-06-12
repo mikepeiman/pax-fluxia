@@ -1,6 +1,11 @@
 <script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
+    import {
+        PaxSettingsRangeRow,
+        PaxSettingsToggleRow,
+    } from "$lib/design-system";
     import { DENSITY_VARIABLES } from "../settingsDefs";
+    import CategoryThemeBar from "./CategoryThemeBar.svelte";
 
     // ControlsSection-STAR SYSTEM -- Star System Appearance (extracted from GameSettingsPanel.svelte)
 
@@ -52,7 +57,87 @@
             updatePanel(panelKey, value);
         }
     }
-    import CategoryThemeBar from "./CategoryThemeBar.svelte";
+
+    function writePanelConfig(panelKey: string, configKey: string, value: number | boolean | string) {
+        (GAME_CONFIG as Record<string, any>)[configKey] = value;
+        updatePanel(panelKey, value);
+    }
+
+    function setStarSystemScale(newScale: number) {
+        const oldScale = GAME_CONFIG.STAR_SYSTEM_SCALE ?? 1;
+        if (oldScale === 0) return;
+        const ratio = newScale / oldScale;
+        const updates: [string, string, number][] = [
+            [
+                "starRenderRadius",
+                "STAR_RENDER_RADIUS",
+                GAME_CONFIG.STAR_RENDER_RADIUS * ratio,
+            ],
+            [
+                "starRingRadius",
+                "STAR_RING_RADIUS",
+                GAME_CONFIG.STAR_RING_RADIUS * ratio,
+            ],
+            [
+                "orbitBaseRadius",
+                "ORBIT_BASE_RADIUS",
+                GAME_CONFIG.ORBIT_BASE_RADIUS * ratio,
+            ],
+            [
+                "damagedOrbitRadius",
+                "DAMAGED_ORBIT_RADIUS",
+                GAME_CONFIG.DAMAGED_ORBIT_RADIUS * ratio,
+            ],
+            [
+                "starIconScale",
+                "STAR_ICON_SCALE",
+                GAME_CONFIG.STAR_ICON_SCALE * ratio,
+            ],
+            [
+                "starLabelDistance",
+                "STAR_LABEL_DISTANCE",
+                (GAME_CONFIG.STAR_LABEL_DISTANCE ?? 55) * ratio,
+            ],
+            [
+                "starLabelFontSize",
+                "STAR_LABEL_FONT_SIZE",
+                (GAME_CONFIG.STAR_LABEL_FONT_SIZE ?? 22) * ratio,
+            ],
+            [
+                "starLabelIdFontSize",
+                "STAR_LABEL_ID_FONT_SIZE",
+                (GAME_CONFIG.STAR_LABEL_ID_FONT_SIZE ?? 14) * ratio,
+            ],
+            [
+                "starLabelDamagedFontSize",
+                "STAR_LABEL_DAMAGED_FONT_SIZE",
+                (GAME_CONFIG.STAR_LABEL_DAMAGED_FONT_SIZE ?? 16) * ratio,
+            ],
+            [
+                "starLabelScale",
+                "STAR_LABEL_SCALE",
+                (GAME_CONFIG.STAR_LABEL_SCALE ?? 1.0) * ratio,
+            ],
+            [
+                "starLabelLineHeight",
+                "STAR_LABEL_LINE_HEIGHT",
+                (GAME_CONFIG.STAR_LABEL_LINE_HEIGHT ?? 18) * ratio,
+            ],
+            [
+                "starHitRadius",
+                "STAR_HIT_RADIUS",
+                (GAME_CONFIG.STAR_HIT_RADIUS ?? 50) * ratio,
+            ],
+        ];
+        for (const [, configKey, val] of updates) {
+            (GAME_CONFIG as Record<string, any>)[configKey] = val;
+        }
+        GAME_CONFIG.STAR_SYSTEM_SCALE = newScale;
+        for (const [panelKey, , val] of updates) {
+            updatePanel(panelKey, val);
+        }
+        updatePanel("starSystemScale", newScale);
+    }
 </script>
 
 <CategoryThemeBar category="ships" onApply={() => syncFromConfig?.()} />
@@ -65,91 +150,15 @@
             >{((panel.starSystemScale ?? 1) as number).toFixed(2)}×</span
         >
     </div>
-    <input
-        type="range"
-        min="0.3"
-        max="3.0"
-        step="0.05"
+    <PaxSettingsRangeRow
+        label="System Scale"
         value={panel.starSystemScale ?? 1}
-        oninput={(e) => {
-            const newScale = +(e.target as HTMLInputElement).value;
-            const oldScale = GAME_CONFIG.STAR_SYSTEM_SCALE ?? 1;
-            if (oldScale === 0) return;
-            const ratio = newScale / oldScale;
-            // Compute new values from GAME_CONFIG (ground truth) × ratio
-            const updates: [string, string, number][] = [
-                [
-                    "starRenderRadius",
-                    "STAR_RENDER_RADIUS",
-                    GAME_CONFIG.STAR_RENDER_RADIUS * ratio,
-                ],
-                [
-                    "starRingRadius",
-                    "STAR_RING_RADIUS",
-                    GAME_CONFIG.STAR_RING_RADIUS * ratio,
-                ],
-                [
-                    "orbitBaseRadius",
-                    "ORBIT_BASE_RADIUS",
-                    GAME_CONFIG.ORBIT_BASE_RADIUS * ratio,
-                ],
-                [
-                    "damagedOrbitRadius",
-                    "DAMAGED_ORBIT_RADIUS",
-                    GAME_CONFIG.DAMAGED_ORBIT_RADIUS * ratio,
-                ],
-                [
-                    "starIconScale",
-                    "STAR_ICON_SCALE",
-                    GAME_CONFIG.STAR_ICON_SCALE * ratio,
-                ],
-                [
-                    "starLabelDistance",
-                    "STAR_LABEL_DISTANCE",
-                    (GAME_CONFIG.STAR_LABEL_DISTANCE ?? 55) * ratio,
-                ],
-                [
-                    "starLabelFontSize",
-                    "STAR_LABEL_FONT_SIZE",
-                    (GAME_CONFIG.STAR_LABEL_FONT_SIZE ?? 22) * ratio,
-                ],
-                [
-                    "starLabelIdFontSize",
-                    "STAR_LABEL_ID_FONT_SIZE",
-                    (GAME_CONFIG.STAR_LABEL_ID_FONT_SIZE ?? 14) * ratio,
-                ],
-                [
-                    "starLabelDamagedFontSize",
-                    "STAR_LABEL_DAMAGED_FONT_SIZE",
-                    (GAME_CONFIG.STAR_LABEL_DAMAGED_FONT_SIZE ?? 16) * ratio,
-                ],
-                [
-                    "starLabelScale",
-                    "STAR_LABEL_SCALE",
-                    (GAME_CONFIG.STAR_LABEL_SCALE ?? 1.0) * ratio,
-                ],
-                [
-                    "starLabelLineHeight",
-                    "STAR_LABEL_LINE_HEIGHT",
-                    (GAME_CONFIG.STAR_LABEL_LINE_HEIGHT ?? 18) * ratio,
-                ],
-                [
-                    "starHitRadius",
-                    "STAR_HIT_RADIUS",
-                    (GAME_CONFIG.STAR_HIT_RADIUS ?? 50) * ratio,
-                ],
-            ];
-            // Write all to GAME_CONFIG first
-            for (const [, configKey, val] of updates) {
-                (GAME_CONFIG as any)[configKey] = val;
-            }
-            GAME_CONFIG.STAR_SYSTEM_SCALE = newScale;
-            // Batch-update all panel keys in one pass (triggers reactive re-render)
-            for (const [panelKey, , val] of updates) {
-                updatePanel(panelKey, val);
-            }
-            updatePanel("starSystemScale", newScale);
-        }}
+        min={0.3}
+        max={3}
+        step={0.05}
+        output={`${((panel.starSystemScale ?? 1) as number).toFixed(2)}x`}
+        settingConfigKey="STAR_SYSTEM_SCALE"
+        onInput={setStarSystemScale}
     />
 </div>
 
@@ -161,17 +170,15 @@
             >{((panel.shipVisualRadius ?? 3) as number).toFixed(1)}</span
         >
     </div>
-    <input
-        type="range"
-        min="1"
-        max="8"
-        step="0.5"
+    <PaxSettingsRangeRow
+        label="Visual Radius"
         value={panel.shipVisualRadius ?? 3}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.SHIP_VISUAL_RADIUS = v;
-            updatePanel("shipVisualRadius", v);
-        }}
+        min={1}
+        max={8}
+        step={0.5}
+        format="fixed1"
+        settingConfigKey="SHIP_VISUAL_RADIUS"
+        onInput={(value) => writePanelConfig("shipVisualRadius", "SHIP_VISUAL_RADIUS", value)}
     />
 </div>
 <div class="var-row">
@@ -180,54 +187,39 @@
             >{((panel.shipScaleMult ?? 0) as number).toFixed(1)}×</span
         >
     </div>
-    <input
-        type="range"
-        min="0.3"
-        max="3.0"
-        step="0.1"
-        value={panel.shipScaleMult}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.SHIP_SCALE_MULT = v;
-            updatePanel("shipScaleMult", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Scale Multiplier"
+        value={panel.shipScaleMult ?? GAME_CONFIG.SHIP_SCALE_MULT ?? 1}
+        min={0.3}
+        max={3}
+        step={0.1}
+        output={`${((panel.shipScaleMult ?? GAME_CONFIG.SHIP_SCALE_MULT ?? 1) as number).toFixed(1)}x`}
+        settingConfigKey="SHIP_SCALE_MULT"
+        onInput={(value) => writePanelConfig("shipScaleMult", "SHIP_SCALE_MULT", value)}
     />
 </div>
-<div class="var-row">
-    <div class="row-top">
-        <label
-            class="toggle-label"
-            data-setting-config-key="SHIP_OUTLINE_ON"
-            ><input
-                type="checkbox"
-                checked={panel.shipOutlineOn}
-                onchange={() => {
-                    panel.shipOutlineOn = !panel.shipOutlineOn;
-                    GAME_CONFIG.SHIP_OUTLINE_ON =
-                        panel.shipOutlineOn as boolean;
-                    updatePanel("shipOutlineOn", panel.shipOutlineOn);
-                }}
-            /> Ship Outline</label
-        >
-    </div>
-</div>
+<PaxSettingsToggleRow
+    label="Ship Outline"
+    checked={panel.shipOutlineOn ?? GAME_CONFIG.SHIP_OUTLINE_ON ?? false}
+    meta={(panel.shipOutlineOn ?? GAME_CONFIG.SHIP_OUTLINE_ON ?? false) ? "On" : "Off"}
+    settingConfigKey="SHIP_OUTLINE_ON"
+    onChange={(value) => writePanelConfig("shipOutlineOn", "SHIP_OUTLINE_ON", value)}
+/>
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Outline px</span><span class="val"
             >{((panel.shipOutlinePx ?? 0) as number).toFixed(1)}</span
         >
     </div>
-    <input
-        type="range"
-        min="0.2"
-        max="3.0"
-        step="0.1"
-        value={panel.shipOutlinePx}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.SHIP_OUTLINE_PX = v;
-            updatePanel("shipOutlinePx", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Outline px"
+        value={panel.shipOutlinePx ?? GAME_CONFIG.SHIP_OUTLINE_PX ?? 0}
+        min={0.2}
+        max={3}
+        step={0.1}
+        format="fixed1"
+        settingConfigKey="SHIP_OUTLINE_PX"
+        onInput={(value) => writePanelConfig("shipOutlinePx", "SHIP_OUTLINE_PX", value)}
     />
 </div>
 <div class="var-row">
@@ -236,17 +228,15 @@
             >{((panel.shipGlowIntensity ?? 0) as number).toFixed(2)}</span
         >
     </div>
-    <input
-        type="range"
-        min="0"
-        max="1.0"
-        step="0.02"
-        value={panel.shipGlowIntensity}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.SHIP_GLOW_INTENSITY = v;
-            updatePanel("shipGlowIntensity", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Glow Intensity"
+        value={panel.shipGlowIntensity ?? GAME_CONFIG.SHIP_GLOW_INTENSITY ?? 0}
+        min={0}
+        max={1}
+        step={0.02}
+        format="fixed2"
+        settingConfigKey="SHIP_GLOW_INTENSITY"
+        onInput={(value) => writePanelConfig("shipGlowIntensity", "SHIP_GLOW_INTENSITY", value)}
     />
 </div>
 <div class="var-row">
@@ -255,17 +245,15 @@
             >{((panel.shipGlowRadius ?? 0) as number).toFixed(1)}</span
         >
     </div>
-    <input
-        type="range"
-        min="0"
-        max="15"
-        step="0.5"
-        value={panel.shipGlowRadius}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.SHIP_GLOW_RADIUS = v;
-            updatePanel("shipGlowRadius", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Glow Radius"
+        value={panel.shipGlowRadius ?? GAME_CONFIG.SHIP_GLOW_RADIUS ?? 0}
+        min={0}
+        max={15}
+        step={0.5}
+        format="fixed1"
+        settingConfigKey="SHIP_GLOW_RADIUS"
+        onInput={(value) => writePanelConfig("shipGlowRadius", "SHIP_GLOW_RADIUS", value)}
     />
 </div>
 <div class="var-row">
@@ -274,17 +262,15 @@
             >{((panel.minColorLightness ?? 0) as number).toFixed(2)}</span
         >
     </div>
-    <input
-        type="range"
-        min="0"
-        max="0.6"
-        step="0.01"
-        value={panel.minColorLightness}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.MIN_COLOR_LIGHTNESS = v;
-            updatePanel("minColorLightness", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Min Contrast"
+        value={panel.minColorLightness ?? GAME_CONFIG.MIN_COLOR_LIGHTNESS ?? 0}
+        min={0}
+        max={0.6}
+        step={0.01}
+        format="fixed2"
+        settingConfigKey="MIN_COLOR_LIGHTNESS"
+        onInput={(value) => writePanelConfig("minColorLightness", "MIN_COLOR_LIGHTNESS", value)}
     />
 </div>
 
