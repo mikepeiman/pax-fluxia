@@ -10,6 +10,11 @@
         metaballGridPhaseFieldModeDefaults,
     } from '$lib/territory/families/metaballGrid/config';
     import { metaballGridStats } from '$lib/territory/families/metaballGrid/metaballGridStats';
+    import {
+        PaxHudButton,
+        PaxHudSegmentedControl,
+        type PaxHudSegmentedOption,
+    } from '$lib/design-system';
 
     interface Props {
         panel: Record<string, any>;
@@ -40,6 +45,14 @@
     let activeModule = $derived(
         (panel[METABALL_GRID_MODULE_PANEL_KEY] ?? 'all') as MetaballGridModuleId,
     );
+    let moduleVisibilityOptions = $derived<PaxHudSegmentedOption[]>([
+        { value: 'all', label: 'All' },
+        { value: 'none', label: 'None' },
+        ...visibleModules().map((module) => ({
+            value: module.id,
+            label: module.label,
+        })),
+    ]);
 
     function currentRenderMode(): string | null {
         return (
@@ -576,18 +589,14 @@
 </script>
 
 <div class="module-head">
-    <div class="module-scope-toggle" role="group" aria-label="Metaball grid subsection visibility">
-        <button
-            type="button"
-            class="module-all-toggle"
-            class:active={activeModule === 'all'}
-            onclick={() => setActiveModule('all')}>All</button>
-        <button
-            type="button"
-            class="module-all-toggle"
-            class:active={activeModule === 'none'}
-            onclick={() => setActiveModule('none')}>None</button>
-    </div>
+    <PaxHudSegmentedControl
+        class="module-scope-toggle"
+        value={activeModule}
+        options={moduleVisibilityOptions}
+        density="compact"
+        ariaLabel="Metaball grid subsection visibility"
+        onValueChange={(value) => setActiveModule(value as MetaballGridModuleId)}
+    />
 </div>
 
 {#if currentModeLockNote()}
@@ -595,23 +604,6 @@
         {currentModeLockNote()}
     </div>
 {/if}
-
-<div class="module-nav">
-    {#each METABALL_GRID_MODULES as module}
-        {#if module.id !== 'frontier' || isEmberLatticeMode()}
-        <button
-            type="button"
-            class="module-chip"
-            class:active={activeModule === module.id}
-            onclick={() => {
-                setActiveModule(activeModule === module.id ? 'all' : module.id);
-            }}
-        >
-            {module.label}
-        </button>
-        {/if}
-    {/each}
-</div>
 
 <div class="var-desc module-nav-note">
     <strong>Panel Sections:</strong> Grid, Frontier, Wave, Flip, and Perf only change which controls are shown in this settings panel. They do not switch the renderer or apply a visual effect by themselves.
@@ -1192,16 +1184,14 @@
     </div>
     <div class="preset-grid">
         {#each TERRITORY_FRONTIER_BENCHMARK_PRESETS as preset}
-            <button
-                type="button"
-                class="preset-chip"
-                class:active={isFrontierPresetSelected(preset)}
-                disabled={!isEmberLatticeMode()}
+            <PaxHudButton
+                label={preset.label}
+                size="sm"
+                active={isFrontierPresetSelected(preset)}
                 title={preset.description}
+                disabled={!isEmberLatticeMode()}
                 onclick={() => applyFrontierPreset(preset)}
-            >
-                {preset.label}
-            </button>
+            />
         {/each}
     </div>
 </div>
@@ -1964,83 +1954,11 @@
         margin: 0 0 8px;
     }
 
-    .module-scope-toggle {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-    }
-
     .mode-lock-note {
         margin: 0 0 10px;
         font-size: 11px;
         line-height: 1.4;
         color: rgba(255, 255, 255, 0.72);
-    }
-
-    .module-all-toggle {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 44px;
-        min-height: 28px;
-        padding: 0 10px;
-        border-radius: 999px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(7, 12, 24, 0.5);
-        color: rgba(240, 244, 248, 0.9);
-        cursor: pointer;
-        transition:
-            border-color 0.15s ease,
-            background 0.15s ease,
-            color 0.15s ease,
-            transform 0.15s ease;
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-    }
-
-    .module-all-toggle.active {
-        border-color: rgba(95, 211, 255, 0.42);
-        background: rgba(49, 105, 164, 0.26);
-        box-shadow: 0 0 0 1px rgba(95, 211, 255, 0.16);
-    }
-
-    .module-nav {
-        display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
-        gap: 8px;
-        margin: 0 0 10px;
-    }
-
-    .module-chip {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        min-height: 30px;
-        padding: 0 12px;
-        border-radius: 999px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(7, 12, 24, 0.45);
-        color: rgba(226, 232, 240, 0.84);
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        cursor: pointer;
-        transition:
-            border-color 0.15s ease,
-            background 0.15s ease,
-            color 0.15s ease,
-            transform 0.15s ease;
-    }
-
-    .module-chip.active {
-        border-color: rgba(95, 211, 255, 0.42);
-        background: rgba(49, 105, 164, 0.26);
-        box-shadow: 0 0 0 1px rgba(95, 211, 255, 0.16);
-        color: rgba(248, 250, 252, 0.98);
     }
 
     .module-block {
@@ -2054,41 +1972,6 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 8px;
         margin: 4px 0 2px;
-    }
-
-    .preset-chip {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 34px;
-        padding: 0 10px;
-        border-radius: 10px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(7, 12, 24, 0.45);
-        color: rgba(226, 232, 240, 0.84);
-        font-size: 10px;
-        font-weight: 700;
-        line-height: 1.15;
-        letter-spacing: 0.03em;
-        text-align: center;
-        cursor: pointer;
-        transition:
-            border-color 0.15s ease,
-            background 0.15s ease,
-            color 0.15s ease,
-            transform 0.15s ease;
-    }
-
-    .preset-chip.active {
-        border-color: rgba(95, 211, 255, 0.42);
-        background: rgba(49, 105, 164, 0.26);
-        box-shadow: 0 0 0 1px rgba(95, 211, 255, 0.16);
-        color: rgba(248, 250, 252, 0.98);
-    }
-
-    .preset-chip:disabled {
-        opacity: 0.5;
-        cursor: default;
     }
 
     .var-desc {

@@ -1110,3 +1110,29 @@ Merge guidance:
 
 - Preserve the wrapper around `PaxSettingsPickerRow`.
 - If future theme-library work needs richer keyboard behavior or groups, add it to the shared picker primitive rather than restoring a local dropdown implementation.
+
+## 2026-06-12 Metaball Grid Button Primitive Slice
+
+Scope implemented in this step:
+
+- Migrated button-only controls in:
+  - `pax-fluxia/src/lib/components/ui/settings/MetaballGridTuning.svelte`
+
+Why this matters for merge:
+
+- This is the first safe slice inside the large Metaball Grid tuning component.
+- Existing behavior is preserved:
+  - module visibility still uses `METABALL_GRID_MODULE_PANEL_KEY`
+  - module visibility still writes through `setActiveModule(...)`
+  - frontier presets still call `applyFrontierPreset(preset)`
+  - preset active state still uses `isFrontierPresetSelected(preset)`
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- Targeted audit found no raw buttons or old module/preset active classes in `MetaballGridTuning.svelte`.
+
+Merge guidance:
+
+- Preserve `PaxHudSegmentedControl` for module visibility and `PaxHudButton` for presets.
+- Convert the remaining Metaball raw controls in smaller subsection commits.

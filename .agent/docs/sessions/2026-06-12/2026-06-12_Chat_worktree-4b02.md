@@ -108,3 +108,4 @@ Prompt:
 - Continued UI-system work by migrating Diagnostics and Territory Engine Trace diagnostics controls to Pax primitives while preserving overlay, ruler, recorder/export, underlying-geometry, and trace-step behavior.
 - Continued UI-system work by migrating Territory Surface Style controls to Pax select/range/toggle primitives while preserving fill, border, Ember Lattice, and finish config writes.
 - Continued UI-system work by replacing Theme Select Dropdown internals with the shared settings picker primitive while preserving `GameThemeManager` integration.
+- Continued UI-system work by migrating Metaball Grid module visibility and frontier preset buttons to Pax segmented/button primitives.

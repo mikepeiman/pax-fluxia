@@ -668,3 +668,25 @@ Validation:
 Next correct step:
 
 - Split the remaining large files into safe primitive-migration slices: `ControlsSection-Ships.svelte`, `ControlsSection-Territory.svelte`, and `MetaballGridTuning.svelte`.
+
+## Metaball Grid Button Primitive Slice
+
+Implemented:
+
+- Migrated `pax-fluxia/src/lib/components/ui/settings/MetaballGridTuning.svelte` module visibility controls to `PaxHudSegmentedControl`.
+- Migrated frontier benchmark preset chips to `PaxHudButton`.
+- Removed obsolete `.module-all-toggle`, `.module-chip`, and `.preset-chip` CSS.
+
+Intent:
+
+- Establish a safe primitive-owned foothold inside the largest remaining tuning component before converting its many range/select/toggle controls.
+- Preserve `METABALL_GRID_MODULE_PANEL_KEY`, `setActiveModule(...)`, `activeModule`, and `applyFrontierPreset(...)` behavior.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- Targeted audit found no raw `<button>`, `class:active`, `.module-chip`, `.module-all-toggle`, or `.preset-chip` usage in `MetaballGridTuning.svelte`.
+
+Next correct step:
+
+- Continue `MetaballGridTuning.svelte` in subsections: Grid controls, Border controls, Frontier controls, Wave controls, Flip controls, then Perf controls.
