@@ -10,6 +10,7 @@
     step: number;
     output: string;
     ariaLabel?: string;
+    disabled?: boolean;
     class?: string;
     onInput: (value: number) => void;
   }
@@ -23,6 +24,7 @@
     step,
     output,
     ariaLabel,
+    disabled = false,
     class: className = "",
     onInput,
   }: Props = $props();
@@ -45,6 +47,7 @@
       {max}
       {step}
       {value}
+      {disabled}
       aria-label={ariaLabel ?? `${label} size`}
       oninput={(event) => onInput(event.currentTarget.valueAsNumber)}
     />

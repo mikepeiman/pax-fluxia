@@ -71,3 +71,5 @@ Prompt:
 - Continued the systemic UI implementation by adding Settings drawer/info-row primitives.
 - Migrated active Settings rail tool panes for Theme Library, Appearance, Stats, Hotkeys, and Help to those primitives.
 - Validated the slice with production build, diff check, and static audit before committing.
+- Continued into settings controls by adding range/toggle row primitives.
+- Migrated AI ranges, Logging toggles/actions, and the reusable slider wrapper through those primitives.

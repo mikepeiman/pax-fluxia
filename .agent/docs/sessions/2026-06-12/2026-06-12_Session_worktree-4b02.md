@@ -201,3 +201,31 @@ Validation:
 Next correct step:
 
 - Migrate stacked Settings section panels and remaining tuning controls into Pax settings primitives, then reduce local legacy CSS in the largest warning sources.
+
+## Settings Range And Toggle Primitive Migration
+
+Implemented:
+
+- Added `pax-fluxia/src/lib/design-system/components/PaxSettingsRangeRow.svelte`.
+- Added `pax-fluxia/src/lib/design-system/components/PaxSettingsToggleRow.svelte`.
+- Extended `pax-fluxia/src/lib/design-system/components/PaxHudRange.svelte` with disabled-state support.
+- Exported the new range/toggle rows through `pax-fluxia/src/lib/design-system/components/index.ts`.
+- Replaced the old raw-input implementation in `pax-fluxia/src/lib/components/ui/settings/SliderRow.svelte` with a wrapper around `PaxSettingsRangeRow`.
+- Migrated `pax-fluxia/src/lib/components/ui/settings/ControlsSection-AI.svelte` AI ranges to `PaxSettingsRangeRow`.
+- Migrated `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Logging.svelte` actions and toggles to `PaxHudButton` and `PaxSettingsToggleRow`.
+
+Intent:
+
+- Move settings form chrome into project-owned primitives so typography, padding, borders, range tracks, toggle switches, and button rhythm can be themed consistently.
+- Preserve existing settings keys, panel update paths, and logger flag behavior.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Targeted audit returned no matches for raw `<button>`, `<select>`, `<input>`, direct Ark imports, or direct HUD recipe calls in `ControlsSection-AI.svelte`, `ControlsSection-Logging.svelte`, `SliderRow.svelte`, live `game-hud`, or `GameSettingsPanel.svelte`.
+- Build warnings remain in known larger legacy tuning files, especially `ControlsSection-Territory.svelte` and `PerimeterFieldTuning.svelte`.
+
+Next correct step:
+
+- Continue migrating larger settings panels through these row primitives, starting with warning-heavy legacy CSS areas only after confirming selectors are truly obsolete or replacing the markup that owns them.

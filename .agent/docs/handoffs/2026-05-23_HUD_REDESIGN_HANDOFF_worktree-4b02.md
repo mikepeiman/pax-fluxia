@@ -572,3 +572,33 @@ Merge guidance:
 - Keep `PaxSettingsDrawer` and `PaxSettingsInfoRow` as the owner for top-level Settings active tool panes.
 - Continue migrating the remaining stacked section panels and tuning internals into this design-system layer.
 - Do not re-add local `settings-tool-panel`/`settings-stat-row` style islands to `GameSettingsPanel.svelte`.
+
+## 2026-06-12 Settings Range And Toggle Primitive Migration
+
+Scope implemented in this step:
+
+- Added `pax-fluxia/src/lib/design-system/components/PaxSettingsRangeRow.svelte`.
+- Added `pax-fluxia/src/lib/design-system/components/PaxSettingsToggleRow.svelte`.
+- Updated `pax-fluxia/src/lib/design-system/components/PaxHudRange.svelte` with disabled-state support.
+- Exported the new components from `pax-fluxia/src/lib/design-system/components/index.ts`.
+- Replaced `pax-fluxia/src/lib/components/ui/settings/SliderRow.svelte` raw range/nudge implementation with `PaxSettingsRangeRow`.
+- Migrated `pax-fluxia/src/lib/components/ui/settings/ControlsSection-AI.svelte` to `PaxSettingsRangeRow`.
+- Migrated `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Logging.svelte` to `PaxHudButton` and `PaxSettingsToggleRow`.
+
+Why this matters for merge:
+
+- Many older settings/tuning surfaces are still raw form controls. This step establishes reusable settings-row primitives so later migrations do not need to invent local checkbox/range/button styles.
+- `SliderRow.svelte` remains available as a compatibility wrapper, so existing callers can inherit the new range styling when they use it.
+- The behavior contracts are unchanged: AI values still update through `updatePanel` and `GAME_CONFIG`; Logging still writes `logFlags` and refreshes the section key.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Targeted audit returned no raw controls or direct Ark/recipe calls in the migrated target files.
+
+Merge guidance:
+
+- Prefer `PaxSettingsRangeRow` for numeric tuning values and `PaxSettingsToggleRow` for booleans in future settings work.
+- Keep raw input elements inside the design-system primitive layer, not inside feature settings panels.
+- Do not remove `SliderRow.svelte`; it is now a compatibility adapter for older tuning components.
