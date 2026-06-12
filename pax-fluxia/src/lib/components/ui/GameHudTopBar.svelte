@@ -155,6 +155,10 @@
                 <HudIcon name="diagnostics" />
                 <span>UI test</span>
             </a>
+            <a class="topbar-chip topbar-chip--test" href="/dev/aurelia-hud" title="Open Aurelia Drift HUD package demo">
+                <HudIcon name="gem" />
+                <span>Aurelia HUD</span>
+            </a>
 
             {#if onSettingsClick}
                 <button

@@ -13,6 +13,7 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@ark-ui/svelte": "^5.22.1",
     "@colyseus/sdk": "^0.17.31",
     "@pax/common": "workspace:*",
     "@tauri-apps/api": "^2",

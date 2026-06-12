@@ -258,3 +258,60 @@ Merge guidance:
 - Preserve the semantic icon substitutions and the refinement block in `hud.css`; these are intentional corrective overrides for visual rhythm and readability.
 - If conflicts occur in the UI test mockup, keep the new `legendItems` data model and `.legend-row` control style, because that directly fixes the partial-border issue.
 - If conflicts occur in settings files, do not reintroduce emoji/glyph prefixes unless the row is explicitly rendering through `HudIcon`.
+
+## 2026-06-12 Aurelia HUD Package Integration
+
+User provided the external package README at `C:\Users\mikep\Desktop\WebDev\pax-fluxia\pax-fluxia\pax-fluxia-hud\README.md` and requested implementation in this project.
+
+Scope implemented:
+
+- Imported the external Aurelia Drift HUD package into an isolated namespace at `pax-fluxia/src/lib/aurelia-hud/`.
+- Added the package theme file as `pax-fluxia/src/lib/aurelia-hud/aurelia-hud-theme.css`.
+- Added `@ark-ui/svelte` to `pax-fluxia/package.json` and updated `bun.lock`.
+- Added Tailwind source scanning for `./lib/aurelia-hud` in `pax-fluxia/src/app.css`.
+- Imported the Aurelia HUD theme from `pax-fluxia/src/app.css`.
+- Added Google font import for package demo fonts `Cinzel` and `Rajdhani` in `pax-fluxia/src/app.css`.
+- Added a dev route at `pax-fluxia/src/routes/dev/aurelia-hud/+page.svelte`.
+- Added a live-game topbar link labeled `Aurelia HUD` in `pax-fluxia/src/lib/components/ui/GameHudTopBar.svelte`.
+
+Important implementation boundary:
+
+- This is a package/demo integration and implementation lab, not a live gameplay HUD replacement.
+- The route mounts `<PaxHud demoTicker />` and uses the package's internal demo state.
+- The route installs a `hud.bridge` adapter whose callbacks log via the project logger. It does not yet bind to Colyseus, Pixi, `activeGameStore`, or real selected-star state.
+- The imported package still contains demo concepts from the source package. Do not treat them as accepted live-game data semantics.
+
+Imported package file set:
+
+- `pax-fluxia/src/lib/aurelia-hud/PaxHud.svelte`
+- `pax-fluxia/src/lib/aurelia-hud/TopBar.svelte`
+- `pax-fluxia/src/lib/aurelia-hud/LeftRail.svelte`
+- `pax-fluxia/src/lib/aurelia-hud/BottomDock.svelte`
+- `pax-fluxia/src/lib/aurelia-hud/TacticalStandings.svelte`
+- `pax-fluxia/src/lib/aurelia-hud/StarViewPanel.svelte`
+- `pax-fluxia/src/lib/aurelia-hud/GameSpeedPanel.svelte`
+- `pax-fluxia/src/lib/aurelia-hud/EventFeed.svelte`
+- `pax-fluxia/src/lib/aurelia-hud/OverlayLegend.svelte`
+- `pax-fluxia/src/lib/aurelia-hud/OverviewPanel.svelte`
+- `pax-fluxia/src/lib/aurelia-hud/CancelOrderDialog.svelte`
+- `pax-fluxia/src/lib/aurelia-hud/ZoomControls.svelte`
+- `pax-fluxia/src/lib/aurelia-hud/primitives/*`
+- `pax-fluxia/src/lib/aurelia-hud/state/hud-state.svelte.ts`
+- `pax-fluxia/src/lib/aurelia-hud/index.ts`
+- `pax-fluxia/src/lib/aurelia-hud/aurelia-hud-theme.css`
+
+Validation:
+
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed before the handoff documentation update.
+- Targeted `bun run --cwd pax-fluxia check` filtering found no diagnostics mentioning `aurelia-hud` or `dev/aurelia-hud`.
+- Full `bun run --cwd pax-fluxia check` still exits `1` due the known repository baseline, currently `329 errors and 819 warnings in 64 files`.
+- User asked to skip screenshot/visual QA and hand this off quickly.
+
+Merge guidance:
+
+- Keep this package isolated unless the merge target explicitly wants to replace the live HUD.
+- If conflicts occur in `pax-fluxia/src/app.css`, preserve only one Tailwind import and keep `@source "./lib/aurelia-hud";`.
+- If conflicts occur in `pax-fluxia/src/lib/components/ui/GameHudTopBar.svelte`, the only intended live-HUD change is the added `Aurelia HUD` topbar chip.
+- If production/offline/Tauri packaging is prioritized, self-host `Cinzel` and `Rajdhani` instead of relying on the Google Fonts import added for the dev route.
+- Next real integration step is to replace demo `hud-state.svelte.ts` inputs with view models derived from current game state and route bridge callbacks to real game commands.
