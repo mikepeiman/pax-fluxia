@@ -155,3 +155,18 @@ Validation:
 Next correct step:
 
 - Continue replacing remaining live HUD/settings visual structure with the Pax primitive/token system, then use that base to push the actual Aurelia Drift polish. Do not add isolated CSS patches.
+
+## Shared Settings Panel Grammar
+
+Implemented:
+
+- Reduced dark alpha stops in `--pax-border-panel-gradient` and `--pax-border-control-gradient`.
+- Rebuilt `pax-fluxia/src/lib/components/ui/settings/panel-shared.css` as the tokenized shared style bridge for legacy settings/tuning panels.
+- Wrapped the shared settings CSS in `:global` because the file is imported by many scoped Svelte components and should behave as a shared grammar, not per-component local CSS.
+- Replaced legacy green/gray UI treatment with rounded Aurelia Drift surfaces, HUD typography tokens, gold/cyan accent hierarchy, and tokenized range/select/button/toggle states.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with line-ending warnings only.
+- Build warnings still exist in unrelated local legacy CSS selectors, but the new shared stylesheet no longer creates per-import false positives.

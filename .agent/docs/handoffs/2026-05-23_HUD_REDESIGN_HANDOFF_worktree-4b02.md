@@ -502,3 +502,35 @@ Merge guidance:
 - Keep Tailwind Variants recipes in `pax-fluxia/src/lib/design-system/variants/hud.ts`; live HUD components should not call `hudButton`, `hudPanel`, or `hudRail` directly.
 - Keep existing `pf-*` compatibility classes until `pax-fluxia/src/lib/styles/hud.css` and remaining legacy scoped styles are intentionally reduced. Removing them now will regress current HUD styling.
 - Continue the visual redesign through tokens and primitives. Do not resume isolated visual patches.
+
+## 2026-06-12 Shared Settings Panel Grammar
+
+User explicitly rejected one-off visual patching and required systemic implementation. The next systemic seam was `pax-fluxia/src/lib/components/ui/settings/panel-shared.css`, which is imported by the legacy settings/tuning components.
+
+Scope implemented in this step:
+
+- Reduced the dark midpoint strength in the theme border gradients at the token source:
+  - `pax-fluxia/src/lib/design-system/pax-theme.css`
+  - `--pax-border-panel-gradient`
+  - `--pax-border-control-gradient`
+- Rebuilt `pax-fluxia/src/lib/components/ui/settings/panel-shared.css` as a tokenized Aurelia Drift bridge for legacy settings panels.
+- Converted the shared settings selectors to a `:global` block so Svelte does not emit false unused-selector warnings for every imported shared selector.
+- Replaced legacy green/gray settings treatment with the HUD token hierarchy:
+  - rounded corners through `--hud-radius-*` / `--pax-radius-*`
+  - gold-to-dark control borders through `--hud-control-border-gradient`
+  - `Rajdhani`/HUD UI font for labels
+  - `JetBrains Mono`/HUD data font for numeric values
+  - cyan active switch/range affordances
+  - gold hover/active emphasis
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Build warnings remain only in existing local legacy selectors such as `ControlsSection-Territory.svelte` and `PerimeterFieldTuning.svelte`; the shared stylesheet false-positive warnings were removed by the global bridge.
+
+Merge guidance:
+
+- Preserve `panel-shared.css` as the temporary shared grammar for legacy settings panels until those panels are migrated to `PaxHud*` primitives.
+- Do not reintroduce hard-coded `#4ade80`, generic gray borders, or local mixed fonts in settings panels; use `--hud-*`/`--pax-*` tokens.
+- If conflicts occur in `pax-theme.css`, keep the reduced dark-alpha gradient stops unless master has a newer deliberate border-gradient system.
