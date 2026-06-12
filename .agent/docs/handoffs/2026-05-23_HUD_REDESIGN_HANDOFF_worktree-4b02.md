@@ -907,3 +907,28 @@ Merge guidance:
 
 - Preserve the helper functions that isolate timing side effects.
 - If conflicts occur, preserve behavior through the helper functions and keep the primitive-owned rendering path.
+
+## 2026-06-12 Surge Settings Primitive Migration
+
+Scope implemented in this step:
+
+- Rewrote `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Surge.svelte` around `PaxSettingsRangeRow` and `PaxSettingsToggleRow`.
+- Removed raw range inputs, checkbox toggles, and old local row/toggle classes from the component.
+
+Why this matters for merge:
+
+- Surge is a dense tuning surface that previously retained the old settings control grammar.
+- Existing behavior is preserved:
+  - attack surge fields still write their `GAME_CONFIG.ATTACK_SURGE_*` fields
+  - pulse bind still writes `SURGE_PULSE_BIND_TO_TICK` and syncs duration to tick when enabled
+  - orb merge and layer controls still write the same `ORB_*` fields and panel keys
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Targeted audit found no raw controls or old row/toggle class names in `ControlsSection-Surge.svelte`.
+
+Merge guidance:
+
+- Preserve the primitive-owned rendering path and the `setPulseBindToTick(...)` helper if conflicts occur.

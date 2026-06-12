@@ -502,3 +502,26 @@ Validation:
 Next correct step:
 
 - Continue with Surge or FrontierFx, then defer the much larger Ships/Territory surfaces to smaller sub-slices.
+
+## Surge Settings Primitive Migration
+
+Implemented:
+
+- Rewrote `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Surge.svelte` around Pax settings primitives.
+- Replaced raw range controls with `PaxSettingsRangeRow`.
+- Replaced raw checkbox toggles with `PaxSettingsToggleRow`.
+- Preserved attack surge, pulse binding, orb merge, and orb-layer config write paths.
+
+Intent:
+
+- Convert another high-density visual/combat-tuning surface to the shared component system without changing gameplay semantics.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Targeted audit found no raw `<button>`, `<select>`, `<input>`, inline `style=`, active class toggles, `.var-row`, `.row-top`, `.mode-select`, `.toggle-row`, `.lock-btn`, `.toggle-switch`, or `.toggle-slider` usage in `ControlsSection-Surge.svelte`.
+
+Next correct step:
+
+- Continue with FrontierFx or split the large Ships/Territory surfaces into smaller primitive-owned sub-slices.
