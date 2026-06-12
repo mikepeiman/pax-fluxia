@@ -1,7 +1,13 @@
 <script lang="ts">
-    import { GAME_CONFIG } from '$lib/config/game.config';
-    import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
-    import { perimeterFieldDebugPlaybackStore } from '$lib/territory/families/perimeterField/perimeterFieldDebugPlaybackStore';
+    import { GAME_CONFIG } from "$lib/config/game.config";
+    import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
+    import { perimeterFieldDebugPlaybackStore } from "$lib/territory/families/perimeterField/perimeterFieldDebugPlaybackStore";
+    import {
+        PaxHudButton,
+        PaxHudRange,
+        PaxHudSelect,
+        PaxSettingsToggleRow,
+    } from "$lib/design-system";
 
     interface Props {
         panel: Record<string, any>;
@@ -9,6 +15,13 @@
     }
 
     let { panel, updatePanel }: Props = $props();
+
+    const REPLAY_SOURCE_OPTIONS = [
+        { value: "0", label: "Live" },
+        { value: "1", label: "Replay 1 (most recent)" },
+        { value: "2", label: "Replay 2" },
+        { value: "3", label: "Replay 3" },
+    ];
 
     function writeConfig(configKey: string, panelKey: string, value: unknown): void {
         (GAME_CONFIG as unknown as Record<string, unknown>)[configKey] = value;
@@ -47,11 +60,17 @@
         return Math.max(0, Math.min(maxIndex, Math.round(raw)));
     }
 
+    function scrubOutput(): string {
+        return availableScrubFrameCount > 0
+            ? `F${currentScrubFrameIndex()} / ${availableScrubFrameCount - 1}`
+            : "No frames";
+    }
+
     function setScrubFrameIndex(value: number): void {
         const maxIndex = Math.max(0, availableScrubFrameCount - 1);
         writeConfig(
-            'PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX',
-            'perimeterFieldDebugScrubFrameIndex',
+            "PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX",
+            "perimeterFieldDebugScrubFrameIndex",
             Math.max(0, Math.min(maxIndex, Math.round(value))),
         );
     }
@@ -89,138 +108,109 @@
 <div class="module-block">
     <div class="sub-heading">Perimeter Field</div>
 
-    <label class="toggle-row">
-        <input
-            type="checkbox"
-            checked={panel.perimeterFieldDebugShowVstars ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_VSTARS ?? false}
-            onchange={(event) => {
-                const value = (event.target as HTMLInputElement).checked;
-                writeConfig('PERIMETER_FIELD_DEBUG_SHOW_VSTARS', 'perimeterFieldDebugShowVstars', value);
-            }}
-        />
-        <span
-            class="var-name"
-            title="Draw the derived perimeter vstars and the conquest-local override points."
-        >
-            Show Perimeter Vstars
-        </span>
-        <span class="val">
-            {(panel.perimeterFieldDebugShowVstars ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_VSTARS ?? false)
-                ? 'On'
-                : 'Off'}
-        </span>
-    </label>
+    <PaxSettingsToggleRow
+        label="Show Perimeter Vstars"
+        checked={panel.perimeterFieldDebugShowVstars ??
+            GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_VSTARS ??
+            false}
+        description="Draw the derived perimeter vstars and conquest-local override points."
+        meta={(panel.perimeterFieldDebugShowVstars ??
+            GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_VSTARS ??
+            false)
+            ? "On"
+            : "Off"}
+        settingConfigKey="PERIMETER_FIELD_DEBUG_SHOW_VSTARS"
+        onChange={(value) =>
+            writeConfig(
+                "PERIMETER_FIELD_DEBUG_SHOW_VSTARS",
+                "perimeterFieldDebugShowVstars",
+                value,
+            )}
+    />
     <div class="var-desc">
-        Vstars are filled with owner/player color. The surrounding halo shows debug state: cyan = current/base, magenta = next-state, yellow = moving transition override.
+        Vstars are filled with owner/player color. The surrounding halo shows
+        debug state: cyan = current/base, magenta = next-state, yellow = moving
+        transition override.
     </div>
 
-    <label class="toggle-row">
-        <input
-            type="checkbox"
-            checked={panel.perimeterFieldDebugScrubEnabled ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ?? false}
-            onchange={(event) => {
-                const value = (event.target as HTMLInputElement).checked;
-                writeConfig('PERIMETER_FIELD_DEBUG_SCRUB_ENABLED', 'perimeterFieldDebugScrubEnabled', value);
-            }}
-        />
-        <span
-            class="var-name"
-            title="Explicit diagnostic preview mode. When enabled, the game view can be replaced with captured transition frames for scrub/replay inspection. When disabled, pause only pauses."
-        >
-            Enable Transition Preview
-        </span>
-        <span class="val">
-            {(panel.perimeterFieldDebugScrubEnabled ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ?? false)
-                ? 'On'
-                : 'Off'}
-        </span>
-    </label>
+    <PaxSettingsToggleRow
+        label="Enable Transition Preview"
+        checked={panel.perimeterFieldDebugScrubEnabled ??
+            GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ??
+            false}
+        description="Explicitly replace the live perimeter-field view with captured frames for scrub/replay inspection."
+        meta={(panel.perimeterFieldDebugScrubEnabled ??
+            GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED ??
+            false)
+            ? "On"
+            : "Off"}
+        settingConfigKey="PERIMETER_FIELD_DEBUG_SCRUB_ENABLED"
+        onChange={(value) =>
+            writeConfig(
+                "PERIMETER_FIELD_DEBUG_SCRUB_ENABLED",
+                "perimeterFieldDebugScrubEnabled",
+                value,
+            )}
+    />
     <div class="var-desc">
-        Explicitly turn this on to replace the live perimeter-field view with captured frames for scrub/replay inspection. Turn it off for normal gameplay; pause alone will no longer switch views.
+        Turn this on to replace the live perimeter-field view with captured
+        frames for scrub/replay inspection. Turn it off for normal gameplay;
+        pause alone will no longer switch views.
     </div>
 
-    <div class="var-row">
-        <div class="row-top">
-            <span
-                class="var-name"
-                title="Choose the active capture or one of the last three captured conquests for explicit preview mode."
-            >
-                Replay Source
-            </span>
-            <span class="val">
-                {#if (panel.perimeterFieldDebugReplaySlot ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT ?? 0) === 0}
-                    Live
-                {:else}
-                    Replay {(panel.perimeterFieldDebugReplaySlot ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT ?? 0)}
-                {/if}
-            </span>
+    <PaxHudSelect
+        label="Replay Source"
+        value={(panel.perimeterFieldDebugReplaySlot ??
+            GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT ??
+            0).toString()}
+        options={REPLAY_SOURCE_OPTIONS}
+        onValueChange={(value) =>
+            writeConfig(
+                "PERIMETER_FIELD_DEBUG_REPLAY_SLOT",
+                "perimeterFieldDebugReplaySlot",
+                parseFloat(value),
+            )}
+    />
+    <div class="var-desc">
+        Live uses the currently active conquest. Replay 1 is the most recent
+        captured conquest, then Replay 2 and Replay 3.
+    </div>
+
+    <div class="scrub-card">
+        <div class="scrub-card__header">
+            <span class="scrub-card__label">Transition Scrub</span>
+            <span class="scrub-card__value">{scrubOutput()}</span>
         </div>
         <div class="var-desc">
-            `Live` uses the currently active conquest. `Replay 1` is the most recent captured conquest, then `Replay 2` and `Replay 3`.
-        </div>
-        <select
-            class="mode-select"
-            value={(panel.perimeterFieldDebugReplaySlot ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT ?? 0).toString()}
-            onchange={(event) => {
-                const value = parseFloat((event.target as HTMLSelectElement).value);
-                writeConfig('PERIMETER_FIELD_DEBUG_REPLAY_SLOT', 'perimeterFieldDebugReplaySlot', value);
-            }}
-        >
-            <option value="0">Live</option>
-            <option value="1">Replay 1 (most recent)</option>
-            <option value="2">Replay 2</option>
-            <option value="3">Replay 3</option>
-        </select>
-    </div>
-
-    <div class="var-row">
-        <div class="row-top">
-            <span
-                class="var-name"
-                title="Exact captured transition frame index for the live conquest or selected replay. Index 0 is PREV, the last index is NEXT."
-            >
-                Transition Scrub
-            </span>
-            <span class="val">
-                {#if availableScrubFrameCount > 0}
-                    F{currentScrubFrameIndex()} / {availableScrubFrameCount - 1}
-                {:else}
-                    No frames
-                {/if}
-            </span>
-        </div>
-        <div class="var-desc">
-            In explicit preview mode, this steps through the exact captured gameplay frames for the live conquest or selected replay. Each +/- click moves exactly one conquest frame.
+            In explicit preview mode, this steps through exact captured gameplay
+            frames for the live conquest or selected replay. Each step moves
+            exactly one conquest frame.
         </div>
         <div class="scrub-controls">
-            <button
-                type="button"
-                class="scrub-step-btn"
-                disabled={availableScrubFrameCount <= 0 || currentScrubFrameIndex() <= 0}
+            <PaxHudButton
+                label="-"
+                size="sm"
+                disabled={availableScrubFrameCount <= 0 ||
+                    currentScrubFrameIndex() <= 0}
                 onclick={() => shiftScrubFrame(-1)}
-            >
-                -
-            </button>
-            <input
-                type="range"
-                min="0"
-                max={Math.max(0, availableScrubFrameCount - 1)}
-                step="1"
-                disabled={availableScrubFrameCount <= 0}
-                value={currentScrubFrameIndex()}
-                oninput={(event) => {
-                    const value = parseFloat((event.target as HTMLInputElement).value);
-                    setScrubFrameIndex(value);
-                }}
             />
-            <button
-                type="button"
-                class="scrub-step-btn"
-                disabled={availableScrubFrameCount <= 0 || currentScrubFrameIndex() >= availableScrubFrameCount - 1}
+            <PaxHudRange
+                label="Transition Scrub"
+                value={currentScrubFrameIndex()}
+                min={0}
+                max={Math.max(0, availableScrubFrameCount - 1)}
+                step={1}
+                output={scrubOutput()}
+                disabled={availableScrubFrameCount <= 0}
+                onInput={setScrubFrameIndex}
+            />
+            <PaxHudButton
+                label="+"
+                size="sm"
+                disabled={availableScrubFrameCount <= 0 ||
+                    currentScrubFrameIndex() >= availableScrubFrameCount - 1}
                 onclick={() => shiftScrubFrame(1)}
-            >
-                +
-            </button>
+            />
         </div>
     </div>
 </div>
@@ -231,57 +221,71 @@
     .module-block {
         display: flex;
         flex-direction: column;
-        gap: 0;
+        gap: 8px;
+    }
+
+    .scrub-card {
+        display: grid;
+        gap: 8px;
+        padding: 10px;
+        border: 1px solid transparent;
+        border-radius: var(--hud-radius-sm);
+        clip-path: var(--hud-rounded-corner-sm);
+        background:
+            linear-gradient(180deg, rgba(0, 18, 21, 0.76), rgba(0, 10, 13, 0.9)) padding-box,
+            var(--hud-control-border-gradient) border-box;
+    }
+
+    .scrub-card__header,
+    .scrub-controls {
+        min-width: 0;
+        display: grid;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .scrub-card__header {
+        grid-template-columns: minmax(0, 1fr) auto;
     }
 
     .scrub-controls {
-        display: grid;
         grid-template-columns: auto minmax(0, 1fr) auto;
-        gap: 8px;
-        align-items: center;
     }
 
-    .scrub-step-btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 32px;
-        min-height: 28px;
-        padding: 0 8px;
-        border-radius: 999px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(7, 12, 24, 0.5);
-        color: rgba(240, 244, 248, 0.9);
-        cursor: pointer;
-        transition:
-            border-color 0.15s ease,
-            background 0.15s ease,
-            color 0.15s ease,
-            transform 0.15s ease;
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: 0.12em;
+    .scrub-card__label {
+        overflow: hidden;
+        color: var(--hud-text-soft);
+        font-family: var(--hud-font-ui);
+        font-size: calc(0.72rem * var(--hud-type-scale, 1));
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-overflow: ellipsis;
         text-transform: uppercase;
+        white-space: nowrap;
     }
 
-    .scrub-step-btn:disabled {
-        cursor: default;
-        opacity: 0.45;
-        transform: none;
+    .scrub-card__value {
+        color: var(--hud-accent-warm-strong);
+        font-family: var(--hud-font-data);
+        font-size: calc(0.72rem * var(--hud-data-scale, 1));
+        font-weight: 800;
+        white-space: nowrap;
     }
 
     .var-desc {
-        margin: 4px 0 10px;
-        color: rgba(220, 232, 245, 0.72);
-        font-size: 10px;
+        margin: 0 0 2px;
+        color: var(--hud-text-dim);
+        font-family: var(--hud-font-copy);
+        font-size: calc(0.68rem * var(--hud-type-scale, 1));
         line-height: 1.35;
     }
 
     .sub-heading {
         margin: 12px 0 6px;
-        color: rgba(128, 222, 255, 0.92);
-        font-size: 10px;
-        font-weight: 700;
+        color: var(--hud-accent-cyan);
+        font-family: var(--hud-font-ui);
+        font-size: calc(0.68rem * var(--hud-type-scale, 1));
+        font-weight: 800;
         letter-spacing: 0.12em;
         text-transform: uppercase;
     }

@@ -1,40 +1,124 @@
 <script lang="ts">
-    import type { StarState } from "$lib/types/game.types";
-    import { logFlags } from "$lib/utils/logger";
+    import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
+    import type { PlayerState, StarState } from "$lib/types/game.types";
+    import { getStarProductionPerTick, STAR_TYPE_STATS, type StarType } from "@pax/common";
+    import HudIcon from "./HudIcon.svelte";
 
     interface Props {
         stars: StarState[];
+        players?: PlayerState[];
         localPlayerId?: string;
         onNavigateToStar: (starId: string) => void;
         onCenterFit: () => void;
     }
 
-    let { stars, localPlayerId, onNavigateToStar, onCenterFit }: Props =
-        $props();
+    type TypeInfo = {
+        label: string;
+        icon: string;
+        color: string;
+    };
 
-    // Only cycle through stars the local player owns
+    const TYPE_INFO: Record<StarType, TypeInfo> = {
+        grey: { label: "Balanced", icon: "grey", color: "#a8b6cf" },
+        yellow: { label: "Production", icon: "yellow", color: "#ffd166" },
+        blue: { label: "Transit", icon: "blue", color: "#70b7ff" },
+        purple: { label: "Repair", icon: "purple", color: "#c7a8ff" },
+        red: { label: "Defense", icon: "red", color: "#ff8a94" },
+        green: { label: "Attack", icon: "green", color: "#6be7a4" },
+        portal: { label: "Portal", icon: "portal", color: "#8b9cff" },
+    };
+
+    let { stars, players = [], localPlayerId, onNavigateToStar, onCenterFit }: Props = $props();
+
+    function resolveStarType(starType?: string | null): StarType {
+        if (!starType) return "grey";
+        return (starType in STAR_TYPE_STATS ? starType : "grey") as StarType;
+    }
+
+    function getTypeInfo(star: StarState): TypeInfo {
+        return TYPE_INFO[resolveStarType(star.starType)];
+    }
+
+    function getOwner(star: StarState): PlayerState | null {
+        return players.find((player) => player.id === star.ownerId) ?? null;
+    }
+
+    function getStarLabel(star: StarState): string {
+        return `Star ${star.id.replace(/^star-/, "")}`;
+    }
+
+    function formatDecimal(value: number): string {
+        return Number.isInteger(value) ? String(value) : value.toFixed(1);
+    }
+
     const ownedStars = $derived(
-        stars.filter((s) => s.ownerId === localPlayerId),
+        stars.filter((star) => star.ownerId === localPlayerId),
     );
 
     let currentIndex = $state(0);
-    let lastNavInfo = $state("");
 
-    // Clamp index when owned stars change
+    const selectedStar = $derived(
+        selectedStarStore.id
+            ? stars.find((star) => star.id === selectedStarStore.id) ?? null
+            : null,
+    );
+
     $effect(() => {
         if (ownedStars.length === 0) {
             currentIndex = 0;
-        } else if (currentIndex >= ownedStars.length) {
+            return;
+        }
+
+        if (selectedStar) {
+            const selectedIndex = ownedStars.findIndex((star) => star.id === selectedStar.id);
+            if (selectedIndex >= 0) {
+                currentIndex = selectedIndex;
+                return;
+            }
+        }
+
+        if (currentIndex >= ownedStars.length) {
             currentIndex = ownedStars.length - 1;
         }
     });
 
+    const displayedStar = $derived(
+        selectedStar ?? (ownedStars.length > 0 ? ownedStars[currentIndex] : null),
+    );
+
+    const displayedStarDetails = $derived.by(() => {
+        const star = displayedStar;
+        if (!star) return null;
+
+        const typeInfo = getTypeInfo(star);
+        const owner = getOwner(star);
+        const target = star.targetId
+            ? stars.find((candidate) => candidate.id === star.targetId) ?? null
+            : null;
+        const incoming = stars.filter(
+            (candidate) => candidate.targetId === star.id && candidate.id !== star.id,
+        );
+
+        return {
+            star,
+            label: getStarLabel(star),
+            typeInfo,
+            owner,
+            target,
+            incoming,
+            totalShips: (star.activeShips ?? 0) + (star.damagedShips ?? 0),
+            productionPerTick: getStarProductionPerTick(star),
+            repairRate: star.repairRate ?? 0,
+            transferRate: star.transferRate ?? 0,
+            activationRate: star.activationRate ?? 0,
+        };
+    });
+
     function prev() {
         if (ownedStars.length === 0) return;
-        currentIndex =
-            (currentIndex - 1 + ownedStars.length) % ownedStars.length;
+        currentIndex = (currentIndex - 1 + ownedStars.length) % ownedStars.length;
         const star = ownedStars[currentIndex];
-        lastNavInfo = `→${star.id} own=${star.ownerId} idx=${currentIndex}/${ownedStars.length}`;
+        selectedStarStore.select(star.id);
         onNavigateToStar(star.id);
     }
 
@@ -42,94 +126,484 @@
         if (ownedStars.length === 0) return;
         currentIndex = (currentIndex + 1) % ownedStars.length;
         const star = ownedStars[currentIndex];
-        lastNavInfo = `→${star.id} own=${star.ownerId} idx=${currentIndex}/${ownedStars.length}`;
+        selectedStarStore.select(star.id);
         onNavigateToStar(star.id);
+    }
+
+    function navigateDisplayedStar() {
+        if (!displayedStarDetails) return;
+        onNavigateToStar(displayedStarDetails.star.id);
     }
 </script>
 
-<fieldset class="star-nav-fieldset">
-    <legend class="star-nav-legend">Star View</legend>
-    <button
-        class="sn-btn"
-        onclick={prev}
-        disabled={ownedStars.length === 0}
-        title="Previous star">◂</button
-    >
-    <button
-        class="sn-btn sn-center"
-        onclick={onCenterFit}
-        title="Center & Fit map">⌖</button
-    >
-    <button
-        class="sn-btn"
-        onclick={next}
-        disabled={ownedStars.length === 0}
-        title="Next star">▸</button
-    >
-</fieldset>
+<section class="star-nav-card" aria-label="Star view">
+    <div class="star-nav-card__header">
+        <div class="star-nav-card__identity">
+            <span class="star-nav-card__eyebrow">Star View</span>
 
-{#if logFlags.canvas}
-    <div class="sn-debug">
-        <div>
-            pid={localPlayerId ?? "null"} owned={ownedStars.length}/{stars.length}
+            {#if displayedStarDetails}
+                <div class="star-nav-card__title-row">
+                    <span
+                        class="star-nav-card__type"
+                        style={`color:${displayedStarDetails.typeInfo.color}; --star-type-color:${displayedStarDetails.typeInfo.color};`}
+                    >
+                        <HudIcon name={displayedStarDetails.typeInfo.icon} size={20} />
+                    </span>
+                    <div class="star-nav-card__title-block">
+                        <span class="star-nav-card__title">{displayedStarDetails.label}</span>
+                        <span class="star-nav-card__subtitle">
+                            {displayedStarDetails.typeInfo.label}
+                        </span>
+                    </div>
+                </div>
+            {:else}
+                <div class="star-nav-card__title-row">
+                    <span class="star-nav-card__type">
+                        <HudIcon name="grey" size={20} />
+                    </span>
+                    <div class="star-nav-card__title-block">
+                        <span class="star-nav-card__title">No Star Selected</span>
+                        <span class="star-nav-card__subtitle">Choose a star on the map</span>
+                    </div>
+                </div>
+            {/if}
         </div>
-        {#if lastNavInfo}<div>{lastNavInfo}</div>{/if}
+
+        <div class="star-nav-controls">
+            <button
+                class="sn-btn"
+                onclick={prev}
+                disabled={ownedStars.length === 0}
+                title="Previous owned star"
+                aria-label="Previous owned star"
+            >
+                <HudIcon name="chevron-left" size={15} />
+            </button>
+            <button
+                class="sn-btn sn-btn--center"
+                onclick={navigateDisplayedStar}
+                disabled={!displayedStarDetails}
+                title="Center selected star"
+                aria-label="Center selected star"
+            >
+                <HudIcon name="fit" size={16} />
+            </button>
+            <button
+                class="sn-btn"
+                onclick={next}
+                disabled={ownedStars.length === 0}
+                title="Next owned star"
+                aria-label="Next owned star"
+            >
+                <HudIcon name="chevron-right" size={15} />
+            </button>
+        </div>
     </div>
-{/if}
+
+    {#if displayedStarDetails}
+        <div class="star-nav-body">
+            <div
+                class="star-orb"
+                style={`--star-type-color:${displayedStarDetails.typeInfo.color};`}
+                aria-hidden="true"
+            >
+                <span class="star-orb__ring"></span>
+                <span class="star-orb__core"></span>
+                <span class="star-orb__axis"></span>
+            </div>
+
+            <div class="star-identity-grid">
+                <div class="star-field">
+                    <span class="star-field__label">Owner</span>
+                    <span class="star-field__value star-field__value--player">
+                        <span
+                            class="star-field__dot"
+                            style={`background:${displayedStarDetails.owner?.color ?? "rgba(148,163,184,0.7)"};`}
+                        ></span>
+                        {displayedStarDetails.owner?.name ?? displayedStarDetails.star.ownerId}
+                    </span>
+                </div>
+                <div class="star-field">
+                    <span class="star-field__label">Type</span>
+                    <span class="star-field__value">{displayedStarDetails.typeInfo.label}</span>
+                </div>
+                <div class="star-field">
+                    <span class="star-field__label">
+                        <HudIcon name="ship-active" size={13} /> Active
+                    </span>
+                    <span class="star-field__value font-hud-data">
+                        {displayedStarDetails.star.activeShips}
+                    </span>
+                </div>
+                <div class="star-field">
+                    <span class="star-field__label">
+                        <HudIcon name="ship-damaged" size={13} /> Damaged
+                    </span>
+                    <span class="star-field__value font-hud-data">
+                        {displayedStarDetails.star.damagedShips}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="star-rate-grid">
+            <div class="star-rate">
+                <span class="star-rate__label">Production</span>
+                <span class="star-rate__value font-hud-data">
+                    +{formatDecimal(displayedStarDetails.productionPerTick)}
+                </span>
+            </div>
+            <div class="star-rate">
+                <span class="star-rate__label">Repair</span>
+                <span class="star-rate__value font-hud-data">
+                    {displayedStarDetails.repairRate}%
+                </span>
+            </div>
+            <div class="star-rate">
+                <span class="star-rate__label">Transfer</span>
+                <span class="star-rate__value font-hud-data">
+                    {displayedStarDetails.transferRate}%
+                </span>
+            </div>
+            <div class="star-rate">
+                <span class="star-rate__label">Activation</span>
+                <span class="star-rate__value font-hud-data">
+                    {displayedStarDetails.activationRate}%
+                </span>
+            </div>
+        </div>
+
+        <div class="star-route-strip">
+            <span class="star-route-chip font-hud-data">
+                {selectedStar ? "Selected" : `${currentIndex + 1} / ${ownedStars.length || 1}`}
+            </span>
+            <span class="star-route-chip">
+                <HudIcon name="travel" size={13} />
+                {#if displayedStarDetails.target}
+                    Target {displayedStarDetails.target.id.replace(/^star-/, "")}
+                {:else}
+                    No target
+                {/if}
+            </span>
+            <span class="star-route-chip">
+                <HudIcon name="focus" size={13} />
+                {displayedStarDetails.incoming.length} inbound
+            </span>
+            <button
+                class="star-route-fit"
+                type="button"
+                onclick={onCenterFit}
+                title="Fit full map"
+                aria-label="Fit full map"
+            >
+                <HudIcon name="fit" size={15} />
+            </button>
+        </div>
+    {:else}
+        <div class="star-nav-card__empty">
+            Click a star to inspect it, or cycle through owned stars with the side controls.
+        </div>
+    {/if}
+</section>
 
 <style>
-    .star-nav-fieldset {
-        margin: 0;
-        padding: 4px 6px 6px;
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 8px;
+    .star-nav-card {
+        display: grid;
+        gap: 14px;
+        padding: var(--hud-pad-md);
+        border: 1px solid var(--hud-border);
+        border-radius: var(--hud-radius-md);
+        background: var(--hud-panel-bg);
+        box-shadow: var(--hud-shadow-soft);
+    }
+
+    .star-nav-card__header,
+    .star-nav-card__title-row,
+    .star-nav-controls,
+    .star-field__label,
+    .star-field__value--player,
+    .star-route-strip,
+    .star-route-chip,
+    .star-route-fit {
         display: flex;
-        gap: 2px;
         align-items: center;
     }
-    .star-nav-legend {
-        font-family: "Montserrat", sans-serif;
-        font-size: 0.55rem;
-        font-weight: 600;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: rgba(255, 255, 255, 0.35);
-        padding: 0 6px;
+
+    .star-nav-card__header {
+        justify-content: space-between;
+        gap: 12px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--hud-divider);
     }
-    .sn-btn {
-        width: 32px;
-        height: 32px;
-        display: flex;
+
+    .star-nav-card__identity {
+        min-width: 0;
+        display: grid;
+        gap: 8px;
+    }
+
+    .star-nav-card__eyebrow {
+        color: var(--hud-accent);
+        font-family: var(--hud-font-ui);
+        font-size: 0.56rem;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+    }
+
+    .star-nav-card__title-row {
+        gap: 10px;
+        min-width: 0;
+    }
+
+    .star-nav-card__type {
+        width: 38px;
+        height: 38px;
+        display: inline-flex;
         align-items: center;
         justify-content: center;
-        background: transparent;
-        border: none;
-        border-radius: 4px;
-        color: rgba(255, 255, 255, 0.7);
-        font-size: 1.2rem;
+        border-radius: 12px;
+        border: 1px solid color-mix(in srgb, var(--star-type-color, var(--hud-accent)) 48%, transparent);
+        background:
+            radial-gradient(circle, color-mix(in srgb, var(--star-type-color, var(--hud-accent)) 18%, transparent), transparent 62%),
+            rgba(255, 255, 255, 0.03);
+    }
+
+    .star-nav-card__title-block {
+        min-width: 0;
+        display: grid;
+        gap: 2px;
+    }
+
+    .star-nav-card__title {
+        color: var(--hud-text-strong);
+        font-family: var(--hud-font-ui);
+        font-size: 1rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .star-nav-card__subtitle {
+        color: var(--hud-text-soft);
+        font-family: var(--hud-font-ui);
+        font-size: 0.62rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+    }
+
+    .star-nav-controls {
+        gap: 6px;
+    }
+
+    .sn-btn,
+    .star-route-fit {
+        width: 38px;
+        height: 38px;
+        justify-content: center;
+        border-radius: 12px;
+        border: 1px solid var(--hud-border);
+        background: var(--hud-button-bg);
+        color: var(--hud-text);
         cursor: pointer;
-        transition: all 0.12s ease;
+        transition:
+            border-color 0.16s ease,
+            background 0.16s ease,
+            color 0.16s ease,
+            transform 0.16s ease;
     }
-    .sn-btn:active:not(:disabled) {
-        background: rgba(0, 255, 255, 0.15);
-        color: #0ff;
+
+    .sn-btn:hover:not(:disabled),
+    .star-route-fit:hover {
+        border-color: var(--hud-border-strong);
+        background: var(--hud-button-bg-hover);
+        color: var(--hud-text-strong);
+        transform: translateY(-1px);
     }
+
     .sn-btn:disabled {
-        opacity: 0.25;
+        opacity: 0.4;
         cursor: default;
     }
-    .sn-center {
-        color: rgba(0, 255, 255, 0.6);
-        font-size: 1.3rem;
+
+    .sn-btn--center,
+    .star-route-fit {
+        color: var(--hud-accent);
     }
-    .sn-debug {
-        font-family: monospace;
+
+    .star-nav-body {
+        display: grid;
+        grid-template-columns: 86px minmax(0, 1fr);
+        gap: 14px;
+        align-items: stretch;
+    }
+
+    .star-orb {
+        position: relative;
+        min-height: 86px;
+        border-radius: 18px;
+        border: 1px solid color-mix(in srgb, var(--star-type-color, var(--hud-accent)) 28%, transparent);
+        background:
+            radial-gradient(circle at center, color-mix(in srgb, var(--star-type-color, var(--hud-accent)) 28%, transparent), transparent 44%),
+            radial-gradient(circle at center, rgba(255, 255, 255, 0.08), transparent 62%),
+            rgba(4, 9, 20, 0.78);
+        overflow: hidden;
+    }
+
+    .star-orb__ring,
+    .star-orb__core,
+    .star-orb__axis {
+        position: absolute;
+        inset: 50%;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+    }
+
+    .star-orb__ring {
+        width: 64px;
+        height: 64px;
+        border: 1px solid color-mix(in srgb, var(--star-type-color, var(--hud-accent)) 64%, transparent);
+        border-radius: 50%;
+        box-shadow:
+            inset 0 0 18px color-mix(in srgb, var(--star-type-color, var(--hud-accent)) 24%, transparent),
+            0 0 22px color-mix(in srgb, var(--star-type-color, var(--hud-accent)) 22%, transparent);
+    }
+
+    .star-orb__core {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: var(--star-type-color, var(--hud-accent));
+        box-shadow:
+            0 0 14px var(--star-type-color, var(--hud-accent)),
+            0 0 34px var(--star-type-color, var(--hud-accent));
+    }
+
+    .star-orb__axis {
+        width: 88px;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, var(--star-type-color, var(--hud-accent)), transparent);
+    }
+
+    .star-identity-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .star-field,
+    .star-rate {
+        min-width: 0;
+        display: grid;
+        gap: 5px;
+        padding: 10px;
+        border-radius: 12px;
+        border: 1px solid rgba(112, 142, 186, 0.16);
+        background: rgba(6, 12, 25, 0.78);
+    }
+
+    .star-field__label,
+    .star-rate__label {
+        gap: 6px;
+        color: var(--hud-text-soft);
+        font-family: var(--hud-font-ui);
         font-size: 0.55rem;
-        color: rgba(0, 200, 255, 0.7);
-        background: rgba(0, 0, 0, 0.5);
-        padding: 2px 6px;
-        border-radius: 4px;
-        margin-top: 2px;
-        line-height: 1.3;
+        font-weight: 800;
+        letter-spacing: 0.13em;
+        line-height: 1;
+        text-transform: uppercase;
+    }
+
+    .star-field__value,
+    .star-rate__value {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: var(--hud-text-strong);
+        font-family: var(--hud-font-ui);
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+
+    .star-field__dot {
+        width: 8px;
+        height: 8px;
+        flex: 0 0 auto;
+        border-radius: 50%;
+        box-shadow: 0 0 10px currentColor;
+    }
+
+    .star-rate-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .star-rate__value {
+        color: var(--hud-accent-strong);
+        font-size: 0.9rem;
+    }
+
+    .star-route-strip {
+        gap: 8px;
+        min-width: 0;
+        padding-top: 2px;
+    }
+
+    .star-route-chip {
+        min-width: 0;
+        min-height: 28px;
+        gap: 6px;
+        padding: 0 10px;
+        border-radius: 999px;
+        background: rgba(14, 24, 43, 0.88);
+        color: var(--hud-text-soft);
+        font-family: var(--hud-font-ui);
+        font-size: 0.66rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .star-route-fit {
+        width: 34px;
+        height: 34px;
+        margin-left: auto;
+    }
+
+    .star-nav-card__empty {
+        min-height: 126px;
+        display: grid;
+        place-items: center;
+        padding: 18px;
+        border-radius: var(--hud-radius-sm);
+        border: 1px dashed rgba(112, 142, 186, 0.24);
+        color: var(--hud-text-soft);
+        font-family: var(--hud-font-ui);
+        font-size: 0.84rem;
+        text-align: center;
+    }
+
+    @media (max-width: 1024px) {
+        .star-nav-card {
+            gap: 10px;
+            padding: var(--hud-pad-sm);
+        }
+
+        .star-nav-body {
+            grid-template-columns: 72px minmax(0, 1fr);
+            gap: 10px;
+        }
+
+        .star-orb {
+            min-height: 72px;
+        }
+
+        .star-rate-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
     }
 </style>

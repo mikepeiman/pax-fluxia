@@ -21,7 +21,7 @@
         return (
             panel.perimeterFieldGeometrySource ??
             GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE ??
-            'power_voronoi_0319'
+            "power_voronoi_0319"
         ) as string;
     }
 
@@ -58,24 +58,27 @@
 </div>
 
 <div class="var-desc">
-    Topology ownership rules are no longer duplicated here. MSR, CX, lane-pair, and DX controls live only in <strong>Topology Rules</strong>.
+    Topology ownership rules are no longer duplicated here. MSR, CX,
+    lane-pair, and DX controls live only in <strong>Topology Rules</strong>.
 </div>
 
 <style>
-    @import './panel-shared.css';
+    @import "./panel-shared.css";
 
     .var-desc {
         margin: 4px 0 10px;
-        color: rgba(220, 232, 245, 0.72);
-        font-size: 10px;
+        color: var(--hud-text-dim);
+        font-family: var(--hud-font-copy);
+        font-size: calc(0.68rem * var(--hud-type-scale, 1));
         line-height: 1.35;
     }
 
     .sub-heading {
         margin: 12px 0 6px;
-        color: rgba(128, 222, 255, 0.92);
-        font-size: 10px;
-        font-weight: 700;
+        color: var(--hud-accent-cyan);
+        font-family: var(--hud-font-ui);
+        font-size: calc(0.68rem * var(--hud-type-scale, 1));
+        font-weight: 800;
         letter-spacing: 0.12em;
         text-transform: uppercase;
     }

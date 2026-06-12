@@ -27,7 +27,7 @@ export const COMBAT_VARIABLES: SliderVarDef[] = [
     { key: 'RETREAT_CAPTURE_RATE', label: 'Retreat Capture', min: 0, max: 1, step: 0.05 },
     { key: 'SCATTER_CAPTURE_RATE', label: 'Scatter Capture', min: 0, max: 1, step: 0.05 },
     { key: 'SCATTER_DESTROY_RATE', label: 'Scatter Destroy', min: 0, max: 1, step: 0.05 },
-    { key: 'RETREAT_DAMAGED_ACTIVATION_RATE', label: '🔄 Damaged Activation', min: 0, max: 1, step: 0.05 },
+    { key: 'RETREAT_DAMAGED_ACTIVATION_RATE', label: 'Damaged Activation', min: 0, max: 1, step: 0.05 },
     { key: 'DAMAGED_SHIP_EFFECTIVENESS', label: 'Damaged Ship Defense', min: 0, max: 1, step: 0.01 },
 ];
 
@@ -54,18 +54,18 @@ export const DENSITY_VARIABLES: SliderVarDef[] = [
 // ── Log Categories ──────────────────────────────────────────────────────────
 
 export const LOG_CATEGORIES = [
-    { key: 'sys', label: '🔵 System', desc: 'Lifecycle, init' },
-    { key: 'state', label: '🟣 State', desc: 'Logic, transitions' },
-    { key: 'data', label: '🟢 Data', desc: 'Data flow' },
-    { key: 'net', label: '🟡 Network', desc: 'API, IO' },
-    { key: 'error', label: '🔴 Error', desc: 'Errors (keep ON)' },
-    { key: 'success', label: '✅ Success', desc: 'Verifications' },
-    { key: 'combat', label: '⚔️ Combat', desc: 'Battle events' },
-    { key: 'conquest', label: '🏰 Conquest', desc: 'Capture details' },
-    { key: 'input', label: '🖱️ Input', desc: 'User clicks' },
-    { key: 'repair', label: '🔧 Repair', desc: 'Ship repair' },
-    { key: 'canvas', label: '🖥️ Canvas', desc: 'Viewport, scale, center' },
-    { key: 'renderer', label: '🎨 Renderer', desc: 'Territory borders, fills' },
+    { key: 'sys', label: 'System', desc: 'Lifecycle, init' },
+    { key: 'state', label: 'State', desc: 'Logic, transitions' },
+    { key: 'data', label: 'Data', desc: 'Data flow' },
+    { key: 'net', label: 'Network', desc: 'API, IO' },
+    { key: 'error', label: 'Error', desc: 'Errors (keep ON)' },
+    { key: 'success', label: 'Success', desc: 'Verifications' },
+    { key: 'combat', label: 'Combat', desc: 'Battle events' },
+    { key: 'conquest', label: 'Conquest', desc: 'Capture details' },
+    { key: 'input', label: 'Input', desc: 'User clicks' },
+    { key: 'repair', label: 'Repair', desc: 'Ship repair' },
+    { key: 'canvas', label: 'Canvas', desc: 'Viewport, scale, center' },
+    { key: 'renderer', label: 'Renderer', desc: 'Territory borders, fills' },
 ] as const;
 
 // ── Animation Slider Definitions ────────────────────────────────────────────
@@ -792,9 +792,9 @@ export const CONFIG_TO_PANEL_KEY: Record<string, string> = Object.fromEntries(
 export type SettingsTier = 'basic' | 'advanced' | 'developer';
 
 export const TIER_LABELS: Record<SettingsTier, { label: string; icon: string; color: string }> = {
-    basic: { label: 'Basic', icon: '🎮', color: '#4ade80' },
-    advanced: { label: 'Advanced', icon: '⚙️', color: '#fbbf24' },
-    developer: { label: 'Developer', icon: '🛠️', color: '#f87171' },
+    basic: { label: 'Basic', icon: 'B', color: '#4ade80' },
+    advanced: { label: 'Advanced', icon: 'A', color: '#fbbf24' },
+    developer: { label: 'Developer', icon: 'D', color: '#f87171' },
 };
 
 // ── Markdown Export Sections ────────────────────────────────────────────────

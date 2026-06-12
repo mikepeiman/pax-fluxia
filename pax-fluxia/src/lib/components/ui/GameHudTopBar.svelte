@@ -1,94 +1,129 @@
 <script lang="ts">
-    import { territoryRenderStatus } from '$lib/stores/territoryRenderStatusStore';
-    import { gameHudStatsStore } from '$lib/stores/gameHudStatsStore';
-    import type { TerritoryModeShortcutOption } from '$lib/territory/ui/territoryModeShortcuts';
+    import type { PlayerState } from "$lib/types/game.types";
+    import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
+    import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
+    import { territoryRenderStatus } from "$lib/stores/territoryRenderStatusStore";
+    import { gameHudStatsStore } from "$lib/stores/gameHudStatsStore";
+    import type { TerritoryModeShortcutOption } from "$lib/territory/ui/territoryModeShortcuts";
+    import HudIcon from "$lib/components/ui/hud/HudIcon.svelte";
 
     interface Props {
         onMenuClick: () => void;
         onSettingsClick?: () => void;
-        showAudienceModeToggle?: boolean;
-        publicShellActive?: boolean;
-        onSwitchToPublicShell?: () => void;
-        onSwitchToDevShell?: () => void;
-        showAdvancedToggle?: boolean;
-        advancedActive?: boolean;
-        onAdvancedToggle?: () => void;
-        showInternalToggle?: boolean;
-        internalActive?: boolean;
-        onInternalToggle?: () => void;
-        onDiagnosticsClick?: () => void;
-        onThemesClick?: () => void;
-        onRulerToggle?: () => void;
-        onAuthoredMeasurementsToggle?: () => void;
-        onFitViewport?: () => void;
-        onHelpClick?: () => void;
+        onToggleLeaderboard?: () => void;
         onModeSelect: (modeId: string) => void;
         modeOptions: TerritoryModeShortcutOption[];
         fallbackActiveModeId: string;
-        currentThemeName?: string;
-        diagnosticsActive?: boolean;
-        rulerActive?: boolean;
-        authoredMeasurementsActive?: boolean;
-        authoredMeasurementsAvailable?: boolean;
+        settingsActive?: boolean;
+        leaderboardCollapsed?: boolean;
+        players?: PlayerState[];
+        localPlayerId?: string;
     }
 
     let {
         onMenuClick,
         onSettingsClick,
-        showAudienceModeToggle = false,
-        publicShellActive = false,
-        onSwitchToPublicShell,
-        onSwitchToDevShell,
-        showAdvancedToggle = false,
-        advancedActive = false,
-        onAdvancedToggle,
-        showInternalToggle = false,
-        internalActive = false,
-        onInternalToggle,
-        onDiagnosticsClick,
-        onThemesClick,
-        onRulerToggle,
-        onAuthoredMeasurementsToggle,
-        onFitViewport,
-        onHelpClick,
+        onToggleLeaderboard,
         onModeSelect,
         modeOptions,
         fallbackActiveModeId,
-        currentThemeName = 'Theme',
-        diagnosticsActive = false,
-        rulerActive = false,
-        authoredMeasurementsActive = false,
-        authoredMeasurementsAvailable = false,
+        settingsActive = false,
+        leaderboardCollapsed = false,
+        players = [],
+        localPlayerId,
     }: Props = $props();
 
     const activeModeId = $derived(
         $territoryRenderStatus.territoryMode &&
-            $territoryRenderStatus.territoryMode !== 'none'
+            $territoryRenderStatus.territoryMode !== "none"
             ? $territoryRenderStatus.territoryMode
             : fallbackActiveModeId,
     );
 
-    const statsLabel = $derived(
-        `${$gameHudStatsStore.fps} FPS · ${$gameHudStatsStore.visualShips.toLocaleString()} ships`,
+    function isLocalPlayer(player: PlayerState): boolean {
+        return player.id === localPlayerId || player.sessionId === localPlayerId;
+    }
+
+    function formatElapsed(seconds: number): string {
+        const safeSeconds = Math.max(0, Math.floor(seconds));
+        const minutes = Math.floor(safeSeconds / 60);
+        const remainder = safeSeconds % 60;
+        return `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
+    }
+
+    const localPlayer = $derived(
+        players.find((player) => isLocalPlayer(player)) ?? players[0] ?? null,
     );
+
+    const selectedStar = $derived(
+        selectedStarStore.id
+            ? (activeGameStore.stars ?? []).find((star) => star.id === selectedStarStore.id) ?? null
+            : null,
+    );
+
+    const topbarMeta = $derived.by(() => {
+        const tick = activeGameStore.currentTick ?? 0;
+        const elapsedSeconds = (tick * (activeGameStore.effectiveTickMs ?? 1000)) / 1000;
+
+        return [
+            { label: "Match", value: activeGameStore.phase === "playing" ? "Live Match" : activeGameStore.phase },
+            { label: "Timer", value: formatElapsed(elapsedSeconds) },
+            { label: "Sector", value: `${(activeGameStore.stars ?? []).length} Stars` },
+            { label: "Player", value: localPlayer ? localPlayer.name : "Observer" },
+            { label: "Selected Star", value: selectedStar ? `Star ${selectedStar.id.replace(/^star-/, "")}` : "None" },
+        ];
+    });
+
+    const topbarKpis = $derived.by(() => {
+        const player = localPlayer;
+        return [
+            {
+                icon: "ship-active",
+                value: (player?.activeShips ?? player?.totalShips ?? 0).toLocaleString(),
+                label: "ships",
+            },
+            {
+                icon: "economy",
+                value: `+${player?.production ?? 0}`,
+                label: "/tick",
+            },
+            {
+                icon: "timing",
+                value: String(activeGameStore.currentTick ?? 0),
+                label: "tick",
+            },
+        ];
+    });
+
+    const collapsedLeaderboardPlayer = $derived.by(() => {
+        const sortedPlayers = [...players].sort((left, right) => (right.totalShips ?? 0) - (left.totalShips ?? 0));
+        return sortedPlayers.find((player) => isLocalPlayer(player)) ?? sortedPlayers[0] ?? null;
+    });
+
+    const perfLabel = $derived(`${$gameHudStatsStore.fps} FPS | ${$gameHudStatsStore.visualShips.toLocaleString()} ships drawn`);
 </script>
 
 <div class="game-hud-topbar" role="toolbar" aria-label="Game quick controls">
-    <div class="game-hud-topbar__left">
-        <button
-            class="game-hud-topbar__menu-btn"
-            type="button"
-            onclick={onMenuClick}
-            title="Return to menu"
-        >
-            ← Menu
+    <div class="topbar-brand">
+        <button class="topbar-icon-button" type="button" onclick={onMenuClick} title="Return to menu" aria-label="Return to menu">
+            <HudIcon name="menu" />
         </button>
-        <div class="game-hud-topbar__stats-pill" title="Current render performance and visual ship count">
-            {statsLabel}
+        <div class="brand-mark" aria-hidden="true">
+            <HudIcon name="yellow" size={19} />
         </div>
+        <div class="brand-wordmark">Pax Fluxia</div>
     </div>
 
-    <div class="game-hud-topbar__center" aria-label="Territory render modes">
+    <div class="topbar-meta" aria-label="Match status">
+        {#each topbarMeta as item}
+            <div class="topbar-meta-item">
+                <span class="topbar-meta-item__label">{item.label}</span>
+                <span class="topbar-meta-item__value">{item.value}</span>
+            </div>
+        {/each}
+    </div>
+
+    <div class="topbar-modes" aria-label="Territory render modes">
         {#each modeOptions as option (option.id)}
             <button
                 type="button"
@@ -104,245 +139,225 @@
         {/each}
     </div>
 
-    <div class="game-hud-topbar__right">
-        {#if showAudienceModeToggle || showAdvancedToggle || showInternalToggle}
-            <div class="audience-shortcuts">
-                {#if showAudienceModeToggle}
-                    <div class="audience-mode-toggle" aria-label="Shell mode">
-                        <button
-                            type="button"
-                            class="audience-pill"
-                            class:active={!publicShellActive}
-                            onclick={onSwitchToDevShell}
-                            title="Switch to the full development shell"
-                        >
-                            Dev
-                        </button>
-                        <button
-                            type="button"
-                            class="audience-pill"
-                            class:active={publicShellActive}
-                            onclick={onSwitchToPublicShell}
-                            title="Preview the public shell without leaving dev"
-                        >
-                            Public
-                        </button>
-                    </div>
-                {/if}
-                {#if showAdvancedToggle && onAdvancedToggle}
-                    <button
-                        type="button"
-                        class="audience-pill"
-                        class:active={advancedActive}
-                        onclick={onAdvancedToggle}
-                        title={advancedActive ? "Hide advanced settings" : "Show advanced settings"}
-                    >
-                        Advanced
-                    </button>
-                {/if}
-                {#if showInternalToggle && onInternalToggle}
-                    <button
-                        type="button"
-                        class="audience-pill"
-                        class:active={internalActive}
-                        onclick={onInternalToggle}
-                        title={internalActive ? "Hide internal tools" : "Unlock internal tools"}
-                    >
-                        Internal
-                    </button>
-                {/if}
-            </div>
-        {/if}
+    <div class="topbar-status" aria-label="Player resources and HUD controls">
+        <div class="topbar-kpis" title={perfLabel}>
+            {#each topbarKpis as item}
+                <div class="topbar-kpi">
+                    <HudIcon name={item.icon} size={16} />
+                    <span class="topbar-kpi__value font-hud-data">{item.value}</span>
+                    <span class="topbar-kpi__label">{item.label}</span>
+                </div>
+            {/each}
+        </div>
 
-        {#if onThemesClick}
-            <div class="theme-shortcuts">
+        <div class="topbar-actions">
+            <a class="topbar-chip topbar-chip--test" href="/dev/ui-test" title="Open UI layout test">
+                <HudIcon name="diagnostics" />
+                <span>UI test</span>
+            </a>
+            <a class="topbar-chip topbar-chip--test" href="/dev/aurelia-hud" title="Open Aurelia Drift HUD package demo">
+                <HudIcon name="gem" />
+                <span>Aurelia HUD</span>
+            </a>
+
+            {#if onSettingsClick}
                 <button
                     type="button"
-                    class="quick-action-btn quick-action-btn--theme"
-                    onclick={onThemesClick}
-                    title="Open theme controls"
+                    class="topbar-chip"
+                    class:topbar-chip--active={settingsActive}
+                    onclick={onSettingsClick}
+                    title={settingsActive ? "Collapse settings ribbon" : "Expand settings ribbon"}
                 >
-                    🎨
+                    <HudIcon name="tune" />
+                    <span>{settingsActive ? "Ribbon Open" : "Open Ribbon"}</span>
+                    <HudIcon name={settingsActive ? "chevron-up" : "chevron-down"} size={15} />
                 </button>
+            {/if}
+
+            {#if onToggleLeaderboard}
                 <button
                     type="button"
-                    class="quick-action-btn quick-action-btn--theme-name"
-                    onclick={onThemesClick}
-                    title={`Current theme: ${currentThemeName}`}
+                    class="topbar-chip topbar-chip--leaderboard"
+                    class:topbar-chip--badge={leaderboardCollapsed}
+                    onclick={onToggleLeaderboard}
+                    title={leaderboardCollapsed ? "Expand leaderboard" : "Collapse leaderboard"}
                 >
-                    {currentThemeName}
+                    <HudIcon name="leaderboard" />
+                    {#if leaderboardCollapsed && collapsedLeaderboardPlayer}
+                        <span class="topbar-badge">
+                            <span
+                                class="topbar-badge__dot"
+                                style={`background:${collapsedLeaderboardPlayer.color};`}
+                            ></span>
+                            <span class="topbar-badge__name">
+                                {isLocalPlayer(collapsedLeaderboardPlayer) ? "You" : collapsedLeaderboardPlayer.name}
+                            </span>
+                            <span class="topbar-badge__value font-hud-data">
+                                {collapsedLeaderboardPlayer.totalShips ?? 0}
+                            </span>
+                        </span>
+                    {:else}
+                        <span>Leaderboard</span>
+                    {/if}
+                    <HudIcon name={leaderboardCollapsed ? "chevron-down" : "chevron-up"} size={15} />
                 </button>
-            </div>
-        {/if}
-
-        {#if onSettingsClick}
-            <button
-                type="button"
-                class="quick-action-btn"
-                onclick={onSettingsClick}
-                title="Settings"
-            >
-                ⚙
-            </button>
-        {/if}
-        {#if onDiagnosticsClick}
-            <button
-                type="button"
-                class="quick-action-btn"
-                class:active={diagnosticsActive}
-                onclick={onDiagnosticsClick}
-                title="Diagnostics"
-            >
-                ◎
-            </button>
-        {/if}
-        {#if onRulerToggle}
-            <button
-                type="button"
-                class="quick-action-btn"
-                class:active={rulerActive}
-                onclick={onRulerToggle}
-                title={rulerActive ? 'Turn ruler off' : 'Turn ruler on'}
-            >
-                📏
-            </button>
-        {/if}
-        {#if onAuthoredMeasurementsToggle && authoredMeasurementsAvailable}
-            <button
-                type="button"
-                class="quick-action-btn"
-                class:active={authoredMeasurementsActive}
-                onclick={onAuthoredMeasurementsToggle}
-                title={authoredMeasurementsActive ? 'Hide map measurements' : 'Show map measurements'}
-            >
-                ⇄
-            </button>
-        {/if}
-        {#if onFitViewport}
-            <button
-                type="button"
-                class="quick-action-btn quick-action-btn--desktop"
-                onclick={onFitViewport}
-                title="Fit to viewport"
-            >
-                ⛶
-            </button>
-        {/if}
-        {#if onHelpClick}
-            <button
-                type="button"
-                class="quick-action-btn quick-action-btn--desktop"
-                onclick={onHelpClick}
-                title="Help and controls"
-            >
-                ?
-            </button>
-        {/if}
+            {/if}
+        </div>
     </div>
 </div>
 
 <style>
     .game-hud-topbar {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        z-index: 220;
+        height: var(--hud-topbar-height);
         display: grid;
-        grid-template-columns: auto 1fr auto;
-        align-items: center;
+        grid-template-columns: auto minmax(360px, 1fr) minmax(0, 420px) auto;
+        align-items: stretch;
         gap: 14px;
-        min-height: 56px;
-        padding: 8px 14px;
+        min-width: 0;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--hud-divider);
         background:
-            linear-gradient(180deg, rgba(4, 8, 20, 0.96), rgba(4, 8, 20, 0.72)),
-            rgba(10, 14, 28, 0.78);
-        backdrop-filter: blur(14px);
-        border-bottom: 1px solid rgba(148, 163, 184, 0.16);
-        box-shadow: 0 12px 40px rgba(2, 6, 23, 0.32);
+            linear-gradient(180deg, rgba(5, 10, 22, 0.98), rgba(4, 8, 17, 0.9)),
+            radial-gradient(circle at top left, rgba(255, 200, 107, 0.12), transparent 32%),
+            radial-gradient(circle at top right, rgba(94, 230, 255, 0.12), transparent 40%);
+        backdrop-filter: blur(20px);
+        box-shadow: var(--hud-shadow-soft);
+        overflow: hidden;
     }
 
-    .game-hud-topbar__left,
-    .game-hud-topbar__right {
+    .topbar-brand,
+    .topbar-meta,
+    .topbar-status,
+    .topbar-actions,
+    .topbar-kpis,
+    .topbar-chip,
+    .topbar-icon-button,
+    .brand-mark,
+    .topbar-badge,
+    .topbar-kpi {
         display: flex;
         align-items: center;
-        gap: 8px;
         min-width: 0;
     }
 
-    .game-hud-topbar__center {
+    .topbar-brand {
+        gap: 10px;
+        padding-right: 8px;
+    }
+
+    .topbar-icon-button,
+    .topbar-chip,
+    .mode-shortcut {
+        border: 1px solid var(--hud-border);
+        background: rgba(10, 18, 34, 0.82);
+        color: var(--hud-text);
+        cursor: pointer;
+        transition: transform 0.14s ease, border-color 0.14s ease, background 0.14s ease, color 0.14s ease, box-shadow 0.14s ease;
+    }
+
+    .topbar-icon-button:hover,
+    .topbar-chip:hover,
+    .mode-shortcut:hover {
+        transform: translateY(-1px);
+        border-color: var(--hud-border-strong);
+        background: rgba(16, 30, 52, 0.94);
+        color: var(--hud-text-strong);
+        box-shadow: var(--hud-glow);
+    }
+
+    .topbar-icon-button {
+        width: 46px;
+        height: 46px;
+        justify-content: center;
+        border-radius: 13px;
+    }
+
+    .brand-mark {
+        width: 30px;
+        height: 30px;
+        justify-content: center;
+        color: var(--hud-accent-warm);
+        filter: drop-shadow(0 0 12px rgba(255, 200, 107, 0.42));
+    }
+
+    .brand-wordmark {
+        color: var(--hud-text-strong);
+        font-family: var(--hud-font-ui);
+        font-size: 1.18rem;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .topbar-meta {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(92px, 1fr));
+        min-width: 0;
+        border-left: 1px solid var(--hud-divider);
+        border-right: 1px solid var(--hud-divider);
+    }
+
+    .topbar-meta-item {
+        min-width: 0;
+        display: grid;
+        align-content: center;
+        gap: 2px;
+        padding: 0 14px;
+        border-right: 1px solid rgba(112, 142, 186, 0.13);
+    }
+
+    .topbar-meta-item:last-child {
+        border-right: none;
+    }
+
+    .topbar-meta-item__label,
+    .topbar-kpi__label {
+        color: var(--hud-text-dim);
+        font-family: var(--hud-font-ui);
+        font-size: 0.56rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        line-height: 1;
+        text-transform: uppercase;
+    }
+
+    .topbar-meta-item__value {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: var(--hud-text-strong);
+        font-family: var(--hud-font-ui);
+        font-size: 0.84rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+    }
+
+    .topbar-modes {
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 6px;
         min-width: 0;
-        overflow-x: auto;
-        scrollbar-width: none;
-    }
-
-    .game-hud-topbar__center::-webkit-scrollbar {
-        display: none;
-    }
-
-    .game-hud-topbar__menu-btn,
-    .quick-action-btn,
-    .mode-shortcut {
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        color: rgba(241, 245, 249, 0.94);
-        cursor: pointer;
-        transition:
-            transform 0.14s ease,
-            border-color 0.14s ease,
-            box-shadow 0.14s ease,
-            background 0.14s ease,
-            color 0.14s ease;
-    }
-
-    .game-hud-topbar__menu-btn:hover,
-    .quick-action-btn:hover,
-    .mode-shortcut:hover {
-        transform: translateY(-1px);
-        border-color: rgba(125, 211, 252, 0.42);
-        box-shadow: 0 10px 20px rgba(8, 15, 34, 0.24);
-    }
-
-    .game-hud-topbar__menu-btn {
-        padding: 6px 11px;
-        border-radius: 999px;
-        background: rgba(15, 23, 42, 0.82);
-        font-family: "Montserrat", sans-serif;
-        font-size: 0.66rem;
-        font-weight: 700;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-    }
-
-    .game-hud-topbar__stats-pill {
-        padding: 6px 11px;
-        border-radius: 999px;
-        background: rgba(3, 7, 18, 0.76);
-        border: 1px solid rgba(16, 185, 129, 0.18);
-        color: rgba(167, 243, 208, 0.92);
-        font-family: "JetBrains Mono", "Fira Code", monospace;
-        font-size: 0.68rem;
-        white-space: nowrap;
+        overflow: hidden;
     }
 
     .mode-shortcut {
         position: relative;
-        min-width: 74px;
-        padding: 5px 8px 6px;
+        min-width: 76px;
+        padding: 6px 9px 7px;
         border-radius: 10px;
         text-align: left;
-        background: rgba(15, 23, 42, 0.74);
         overflow: hidden;
+        font-family: var(--hud-font-ui);
     }
 
     .mode-shortcut::before {
         content: "";
         position: absolute;
         inset: 0;
-        opacity: 0.95;
+        opacity: 0.88;
     }
 
     .mode-shortcut > span {
@@ -352,64 +367,35 @@
     }
 
     .mode-shortcut__short {
-        font-size: 0.62rem;
+        color: var(--hud-text-strong);
+        font-size: 0.58rem;
         font-weight: 800;
-        letter-spacing: 0.14em;
+        letter-spacing: 0.16em;
         text-transform: uppercase;
     }
 
     .mode-shortcut__label {
         margin-top: 2px;
-        font-size: 0.54rem;
-        color: rgba(226, 232, 240, 0.88);
+        color: rgba(226, 232, 240, 0.86);
+        font-size: 0.52rem;
         white-space: nowrap;
     }
 
     .mode-shortcut[data-appearance="pvv4"]::before {
-        background:
-            radial-gradient(circle at 18% 22%, rgba(125, 211, 252, 0.34), transparent 44%),
-            linear-gradient(135deg, rgba(30, 64, 175, 0.9), rgba(15, 23, 42, 0.88));
+        background: radial-gradient(circle at 18% 22%, rgba(125, 211, 252, 0.28), transparent 44%), linear-gradient(135deg, rgba(30, 64, 175, 0.88), rgba(15, 23, 42, 0.9));
     }
 
     .mode-shortcut[data-appearance="perimeter"]::before {
-        background:
-            radial-gradient(circle at 82% 24%, rgba(45, 212, 191, 0.34), transparent 38%),
-            linear-gradient(135deg, rgba(13, 148, 136, 0.92), rgba(15, 23, 42, 0.86));
+        background: radial-gradient(circle at 82% 24%, rgba(45, 212, 191, 0.28), transparent 38%), linear-gradient(135deg, rgba(13, 148, 136, 0.88), rgba(15, 23, 42, 0.9));
     }
 
     .mode-shortcut[data-appearance="metaball"]::before {
-        background:
-            radial-gradient(circle at 22% 76%, rgba(251, 191, 36, 0.34), transparent 38%),
-            linear-gradient(135deg, rgba(180, 83, 9, 0.92), rgba(30, 41, 59, 0.86));
+        background: radial-gradient(circle at 22% 76%, rgba(251, 191, 36, 0.28), transparent 38%), linear-gradient(135deg, rgba(180, 83, 9, 0.86), rgba(30, 41, 59, 0.9));
     }
 
     .mode-shortcut[data-appearance="grid"]::before {
-        background:
-            linear-gradient(90deg, rgba(34, 197, 94, 0.12) 1px, transparent 1px),
-            linear-gradient(rgba(34, 197, 94, 0.12) 1px, transparent 1px),
-            linear-gradient(135deg, rgba(22, 163, 74, 0.92), rgba(15, 23, 42, 0.86));
-        background-size: 12px 12px, 12px 12px, auto;
-    }
-
-    .mode-shortcut[data-appearance="phase_edges"]::before {
-        background:
-            linear-gradient(120deg, rgba(244, 114, 182, 0.16), transparent 46%),
-            radial-gradient(circle at 74% 24%, rgba(192, 132, 252, 0.24), transparent 34%),
-            linear-gradient(135deg, rgba(126, 34, 206, 0.9), rgba(15, 23, 42, 0.88));
-    }
-
-    .mode-shortcut[data-appearance="ember"]::before {
-        background:
-            linear-gradient(120deg, rgba(248, 113, 113, 0.18), transparent 48%),
-            radial-gradient(circle at 76% 20%, rgba(251, 146, 60, 0.28), transparent 34%),
-            linear-gradient(135deg, rgba(190, 24, 93, 0.92), rgba(15, 23, 42, 0.88));
-    }
-
-    .mode-shortcut[data-appearance="phase_field"]::before {
-        background:
-            linear-gradient(120deg, rgba(56, 189, 248, 0.18), transparent 44%),
-            radial-gradient(circle at 78% 22%, rgba(244, 114, 182, 0.22), transparent 32%),
-            linear-gradient(135deg, rgba(14, 116, 144, 0.94), rgba(67, 56, 202, 0.84));
+        background: linear-gradient(90deg, rgba(34, 197, 94, 0.12) 1px, transparent 1px), linear-gradient(rgba(34, 197, 94, 0.12) 1px, transparent 1px), linear-gradient(135deg, rgba(22, 101, 52, 0.92), rgba(15, 23, 42, 0.9));
+        background-size: 8px 8px, 8px 8px, auto;
     }
 
     .mode-shortcut[data-appearance="grid_gradient"]::before {
@@ -423,116 +409,105 @@
     }
 
     .mode-shortcut.active {
-        border-color: rgba(248, 250, 252, 0.82);
-        box-shadow:
-            0 0 0 1px rgba(248, 250, 252, 0.18),
-            0 14px 24px rgba(2, 6, 23, 0.3);
+        border-color: var(--hud-border-warm);
+        box-shadow: inset 0 0 0 1px rgba(255, 200, 107, 0.18);
     }
 
-    .theme-shortcuts {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        min-width: 0;
+    .topbar-status {
+        justify-content: flex-end;
+        gap: 10px;
     }
 
-    .audience-shortcuts {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        min-width: 0;
-        flex-wrap: wrap;
-    }
-
-    .audience-mode-toggle {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 3px;
-        border-radius: 999px;
-        background: rgba(2, 6, 23, 0.58);
-        border: 1px solid rgba(148, 163, 184, 0.16);
-    }
-
-    .audience-pill {
-        min-height: 30px;
+    .topbar-kpis {
+        height: 46px;
+        gap: 9px;
         padding: 0 10px;
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        border-radius: 999px;
-        background: rgba(15, 23, 42, 0.76);
-        color: rgba(226, 232, 240, 0.86);
-        font-family: "Montserrat", sans-serif;
-        font-size: 0.6rem;
+        border: 1px solid rgba(94, 230, 255, 0.14);
+        border-radius: 14px;
+        background: rgba(7, 14, 29, 0.76);
+    }
+
+    .topbar-kpi {
+        gap: 6px;
+        color: var(--hud-accent);
+        white-space: nowrap;
+    }
+
+    .topbar-kpi__value {
+        color: var(--hud-text-strong);
+        font-size: 0.8rem;
+    }
+
+    .topbar-actions {
+        gap: 8px;
+    }
+
+    .topbar-chip {
+        height: 46px;
+        justify-content: center;
+        gap: 8px;
+        max-width: 220px;
+        padding: 0 12px;
+        border-radius: 14px;
+        font-family: var(--hud-font-ui);
+        font-size: 0.72rem;
         font-weight: 800;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        cursor: pointer;
-        transition:
-            transform 0.14s ease,
-            border-color 0.14s ease,
-            background 0.14s ease,
-            color 0.14s ease;
-    }
-
-    .audience-pill:hover {
-        transform: translateY(-1px);
-        border-color: rgba(125, 211, 252, 0.36);
-        color: #fff;
-    }
-
-    .audience-pill.active {
-        border-color: rgba(248, 250, 252, 0.58);
-        background: rgba(59, 130, 246, 0.18);
-        color: rgba(255, 255, 255, 0.98);
-    }
-
-    .quick-action-btn {
-        min-width: 32px;
-        min-height: 32px;
-        padding: 0 9px;
-        border-radius: 9px;
-        background: rgba(15, 23, 42, 0.82);
-        font-size: 0.84rem;
-        line-height: 1;
-    }
-
-    .quick-action-btn--theme-name {
-        max-width: 152px;
-        justify-content: flex-start;
-        font-size: 0.62rem;
-        font-weight: 700;
-        letter-spacing: 0.06em;
+        letter-spacing: 0.08em;
         text-transform: uppercase;
         white-space: nowrap;
+        text-decoration: none;
+    }
+
+    .topbar-chip--active {
+        border-color: var(--hud-border-strong);
+        background: var(--hud-button-bg-active);
+        color: var(--hud-text-strong);
+    }
+
+    .topbar-chip--leaderboard {
+        min-width: 148px;
+    }
+
+    .topbar-chip--badge {
+        min-width: 188px;
+    }
+
+    .topbar-badge {
+        gap: 7px;
+        min-width: 0;
+    }
+
+    .topbar-badge__dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 999px;
+        box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.04);
+    }
+
+    .topbar-badge__name {
+        max-width: 92px;
         overflow: hidden;
         text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
-    .quick-action-btn--theme {
-        color: rgba(253, 224, 71, 0.96);
+    .topbar-badge__value {
+        color: var(--hud-text-strong);
+        font-size: 0.75rem;
     }
 
-    .quick-action-btn.active {
-        border-color: rgba(87, 248, 255, 0.48);
-        color: rgba(87, 248, 255, 0.98);
-        box-shadow: 0 0 0 1px rgba(87, 248, 255, 0.16);
+    @media (max-width: 1540px) {
+        .game-hud-topbar { grid-template-columns: auto minmax(320px, 1fr) auto; }
+        .topbar-modes { display: none; }
     }
 
-    @media (max-width: 1600px) {
-        .quick-action-btn--theme-name {
-            max-width: 112px;
-        }
-    }
-
-    @media (max-width: 1360px) {
-        .quick-action-btn--desktop {
-            display: none;
-        }
+    @media (max-width: 1260px) {
+        .game-hud-topbar { grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; }
+        .topbar-meta { grid-template-columns: repeat(3, minmax(84px, 1fr)); }
+        .topbar-meta-item:nth-child(1), .topbar-meta-item:nth-child(3), .topbar-kpis { display: none; }
     }
 
     @media (max-width: 1024px) {
-        .game-hud-topbar {
-            display: none;
-        }
+        .game-hud-topbar { display: none; }
     }
 </style>

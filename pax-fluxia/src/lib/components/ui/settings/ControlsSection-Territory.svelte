@@ -27,6 +27,7 @@
     territoryTuningStatus,
   } from "$lib/stores/territoryTuningStatusStore";
   import { TERRITORY_GEOMETRY_LIMITS } from "$lib/territory/geometry/geometryTuning";
+  import HudIcon from "$lib/components/ui/hud/HudIcon.svelte";
 
   // ControlsSection-Territory -- Territory Rendering (Voronoi + Metaball)
 
@@ -126,7 +127,7 @@
   const TERRITORY_SYSTEM_MODULES: Array<
     TerritoryModuleDef<TerritorySystemViewId>
   > = [
-    { id: "render-mode", label: "Mode", icon: "◎" },
+    { id: "render-mode", label: "Mode", icon: "draw-polygon" },
   ];
 
   const TERRITORY_SYSTEM_MODULE_PANEL_KEY = "territorySystemModuleVisibility";
@@ -603,17 +604,17 @@
   > {
     const modules: Array<
       TerritoryModuleDef<TerritoryRendererViewId>
-    > = [{ id: "topology", label: "Topology", icon: "⬡" }];
+    > = [{ id: "topology", label: "Topology", icon: "circle-nodes" }];
 
     if (resolveActiveStyleId() === "metaball") {
-      modules.unshift({ id: "metaball", label: "Metaball", icon: "◉" });
+      modules.unshift({ id: "metaball", label: "Metaball", icon: "arrows-to-circle" });
     }
 
     if (resolveActiveStyleId() === "perimeter_field") {
       modules.unshift({
         id: "perimeter-field",
-      label: "Perimeter Field",
-        icon: "◎",
+        label: "Perimeter Field",
+        icon: "border-all",
       });
     }
 
@@ -621,7 +622,7 @@
       modules.unshift({
         id: "metaball-grid",
         label: "Grid",
-        icon: "▦",
+        icon: "quick-access",
       });
     }
 
@@ -638,7 +639,7 @@
       resolveActiveStyleId() === "territory_runtime" ||
       resolveActiveStyleId() === "power_voronoi_runtime"
     ) {
-      modules.push({ id: "surface", label: "Surface", icon: "✦" });
+      modules.push({ id: "surface", label: "Surface", icon: "draw-polygon" });
     }
 
     if (view === "tuning") {
@@ -728,7 +729,7 @@
             activeSystemModule === module.id ? "all" : module.id,
           );
         }}>
-        <span class="territory-module-chip__icon">{module.icon}</span>
+        <span class="territory-module-chip__icon"><HudIcon name={module.icon} size={16} /></span>
         <span>{module.label}</span>
       </button>
     {/each}
@@ -903,7 +904,7 @@
               activeRendererModule === module.id ? "all" : module.id,
             );
           }}>
-          <span class="territory-module-chip__icon">{module.icon}</span>
+          <span class="territory-module-chip__icon"><HudIcon name={module.icon} size={16} /></span>
           <span>{module.label}</span>
         </button>
       {/each}
@@ -2428,8 +2429,8 @@
   .territory-module-chip__icon {
     display: inline-grid;
     place-items: center;
-    width: 14px;
-    font-size: 11px;
+    width: 18px;
+    font-size: 13px;
     line-height: 1;
   }
   .territory-module-grid {
@@ -2444,12 +2445,6 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-  }
-  .territory-card {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin: 0 0 14px;
   }
   .territory-card__header {
     display: flex;
@@ -2579,51 +2574,6 @@
     max-height: 120px;
     overflow-y: auto;
   }
-/* Backward-compat selectors kept only to avoid breaking older saved panel state. */
-  .triple-select-row {
-    display: flex;
-    gap: 6px;
-    padding: 2px 4px;
-  }
-  .triple-select-col {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .triple-select-col .mode-select {
-    width: 100%;
-  }
-  .triple-label {
-    font-size: 9px;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-    color: #888;
-  }
-  .mode-btn {
-    flex: 1;
-    padding: 3px 6px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 3px;
-    color: rgba(255, 255, 255, 0.5);
-    font-size: 0.7rem;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .mode-btn:hover {
-    border-color: rgba(100, 200, 255, 0.3);
-    color: #93c5fd;
-  }
-  .mode-btn.active {
-    background: rgba(100, 200, 255, 0.15);
-    border-color: rgba(100, 200, 255, 0.4);
-    color: #93c5fd;
-    font-weight: 600;
-  }
-  .grayed {
-    color: #888;
-  }
   .mini-btn {
     padding: 3px 10px;
     border: 1px solid rgba(255, 255, 255, 0.15);
@@ -2647,19 +2597,14 @@
     color: #4ade80;
     box-shadow: 0 0 6px rgba(74, 222, 128, 0.25);
   }
-  .mini-btn.reference-only,
   .mini-btn:disabled {
     cursor: not-allowed;
     opacity: 0.42;
     box-shadow: none;
   }
-  .mini-btn.reference-only:hover,
   .mini-btn:disabled:hover {
     background: rgba(255, 255, 255, 0.06);
     color: rgba(255, 255, 255, 0.5);
     border-color: rgba(255, 255, 255, 0.15);
-  }
-  .engine-control-group.reference-only {
-    opacity: 0.78;
   }
 </style>

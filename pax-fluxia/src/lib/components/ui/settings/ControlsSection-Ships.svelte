@@ -58,7 +58,7 @@
 <CategoryThemeBar category="ships" onApply={() => syncFromConfig?.()} />
 
 <!-- ── Master Star System Scale ── -->
-<h4 class="sub-heading">⚡ Star System Scale</h4>
+<h4 class="sub-heading">Star System Scale</h4>
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">System Scale</span><span class="val"
@@ -908,7 +908,7 @@
 <div class="var-row" style="border-left: 3px solid #668; padding-left: 6px;">
     <div class="row-top">
         <span class="var-name" style="font-weight: bold;"
-            >🔗 Label Font Scale</span
+            >Label Font Scale</span
         ><span class="val"
             >{((panel.starLabelScale ?? 1.0) as number).toFixed(2)}×</span
         >

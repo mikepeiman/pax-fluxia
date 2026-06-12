@@ -12,11 +12,20 @@
         setStarred,
         CATEGORY_META,
     } from "$lib/config/categoryThemes";
+    import {
+        PaxHudButton,
+        PaxHudFileButton,
+        PaxHudIconButton,
+        PaxHudSelect,
+        PaxHudTextInput,
+    } from "$lib/design-system";
+    import { log } from "$lib/utils/logger";
 
     interface Props {
         category: ThemeCategory;
         onApply?: () => void;
     }
+
     let { category, onApply }: Props = $props();
 
     const meta = $derived(CATEGORY_META[category]);
@@ -25,12 +34,18 @@
         _version;
         return listCategoryPresets(category);
     });
+    let presetOptions = $derived(
+        presets.map((preset) => ({
+            value: preset.name,
+            label: preset.name,
+        })),
+    );
     let starredNames = $derived.by(() => {
         _version;
         return getStarredNames(category);
     });
     let starredPresets = $derived(
-        presets.filter((p) => starredNames.has(p.name)),
+        presets.filter((preset) => starredNames.has(preset.name)),
     );
 
     let selectedName = $state("");
@@ -38,9 +53,20 @@
     let saveName = $state("");
     let saveFlash = $state(false);
     let showEditModal = $state(false);
+    let isUserPreset = $state(false);
+
+    $effect(() => {
+        const preset = presets.find((candidate) => candidate.name === selectedName);
+        isUserPreset = preset ? !preset.builtIn : false;
+    });
+
+    function flashSaved() {
+        saveFlash = true;
+        setTimeout(() => (saveFlash = false), 600);
+    }
 
     function handleApply(name: string) {
-        const preset = presets.find((p) => p.name === name);
+        const preset = presets.find((candidate) => candidate.name === name);
         if (preset) {
             applyCategoryPreset(preset);
             selectedName = name;
@@ -52,13 +78,18 @@
         const json = JSON.stringify(preset, null, 2);
         const blob = new Blob([json], { type: "application/json" });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-        a.href = url;
+        const anchor = document.createElement("a");
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
         const safeName = preset.name.replace(/[^a-z0-9]/gi, "_").toLowerCase();
-        a.download = `pax-theme-${category}-${safeName}-${ts}.json`;
-        a.click();
+        anchor.href = url;
+        anchor.download = `pax-theme-${category}-${safeName}-${timestamp}.json`;
+        anchor.click();
         URL.revokeObjectURL(url);
+    }
+
+    function handleSelectPreset(name: string) {
+        selectedName = name;
+        if (name) handleApply(name);
     }
 
     function handleSave() {
@@ -69,8 +100,7 @@
         showSaveInput = false;
         selectedName = name;
         _version++;
-        saveFlash = true;
-        setTimeout(() => (saveFlash = false), 600);
+        flashSaved();
         downloadThemeJson(preset);
     }
 
@@ -82,12 +112,11 @@
 
     function handleUpdate() {
         if (!selectedName) return;
-        const existing = presets.find((p) => p.name === selectedName);
+        const existing = presets.find((preset) => preset.name === selectedName);
         if (!existing || existing.builtIn) return;
         const preset = saveCategoryPreset(category, selectedName);
         _version++;
-        saveFlash = true;
-        setTimeout(() => (saveFlash = false), 600);
+        flashSaved();
         downloadThemeJson(preset);
     }
 
@@ -98,20 +127,11 @@
     }
 
     function toggleStar(name: string) {
-        const isCurrentlyStarred = starredNames.has(name);
-        setStarred(category, name, !isCurrentlyStarred);
+        setStarred(category, name, !starredNames.has(name));
         _version++;
     }
 
-    let fileInput: HTMLInputElement;
-
-    function handleImport() {
-        fileInput?.click();
-    }
-
-    function onFileSelected(e: Event) {
-        const file = (e.target as HTMLInputElement).files?.[0];
-        if (!file) return;
+    function onFileSelected(file: File) {
         const reader = new FileReader();
         reader.onload = () => {
             try {
@@ -123,540 +143,299 @@
                     _version++;
                     onApply?.();
                 }
-            } catch (err) {
-                console.error(
-                    "[CategoryThemeBar] Failed to import theme:",
-                    err,
-                );
+            } catch (error) {
+                log.error("CategoryThemeBar", "Failed to import theme", error);
             }
         };
         reader.readAsText(file);
-        (e.target as HTMLInputElement).value = "";
     }
-
-    $effect(() => {
-        const p = presets.find((pr) => pr.name === selectedName);
-        isUserPreset = p ? !p.builtIn : false;
-    });
-    let isUserPreset = $state(false);
 </script>
 
-{#if presets.length > 0 || true}
-    <div class="category-theme-bar">
-        <!-- Top Row: Select & Actions -->
-        <div class="top-row">
-            <div class="action-buttons" class:hidden={showSaveInput}>
-                <select
-                    class="theme-select action-half"
-                    bind:value={selectedName}
-                    onchange={() => {
-                        if (selectedName) handleApply(selectedName);
-                    }}
-                >
-                    <option value="">{meta.icon} Select theme…</option>
-                    {#each presets as p}
-                        <option value={p.name}>
-                            {p.builtIn ? "📦 " : ""}{p.name}
-                        </option>
-                    {/each}
-                </select>
+<div class="category-theme-bar">
+    <div class="category-theme-bar__actions" class:category-theme-bar__actions--hidden={showSaveInput}>
+        <PaxHudSelect
+            class="category-theme-bar__select"
+            value={selectedName}
+            options={presetOptions}
+            placeholder="Select preset..."
+            ariaLabel={`Select ${meta.label} preset`}
+            size="sm"
+            onValueChange={handleSelectPreset}
+        />
 
-                {#if isUserPreset}
-                    <button
-                        class="action-btn update-btn"
-                        class:flash={saveFlash}
-                        onclick={handleUpdate}
-                        title="Update '{selectedName}' with current settings"
-                    >
-                        💾
-                    </button>
-                {/if}
-                <button
-                    class="action-btn create-btn"
-                    title="Create new theme from current settings"
-                    onclick={() => (showSaveInput = true)}
-                >
-                    <span class="plus-icon">+</span>
-                </button>
-                <button
-                    class="action-btn reset-btn"
-                    title="Reset to defaults"
-                    onclick={handleReset}
-                >
-                    ↺
-                </button>
-                <button
-                    class="action-btn edit-btn"
-                    title="Manage themes"
-                    onclick={() => (showEditModal = true)}
-                >
-                    ✏️
-                </button>
-                <button
-                    class="action-btn import-btn"
-                    title="Import theme from file"
-                    onclick={handleImport}
-                >
-                    📂
-                </button>
-                <input
-                    type="file"
-                    accept=".json"
-                    style="display:none"
-                    bind:this={fileInput}
-                    onchange={onFileSelected}
-                />
-            </div>
-
-            <!-- Save Input Drawer -->
-            <div class="save-drawer" class:open={showSaveInput}>
-                <input
-                    type="text"
-                    class="save-input"
-                    placeholder="Theme name…"
-                    bind:value={saveName}
-                    onkeydown={(e) => {
-                        if (e.key === "Enter") handleSave();
-                        if (e.key === "Escape") showSaveInput = false;
-                    }}
-                />
-                <button
-                    class="drawer-btn cancel"
-                    onclick={() => (showSaveInput = false)}
-                    title="Cancel">✕</button
-                >
-                <button
-                    class="drawer-btn confirm"
-                    class:flash={saveFlash}
-                    onclick={handleSave}
-                    title="Save Theme">✓</button
-                >
-            </div>
-        </div>
-
-        <!-- Starred Chips Row (only starred presets) -->
-        {#if starredPresets.length > 0}
-            <div class="chips-row">
-                {#each starredPresets as p}
-                    <button
-                        class="chip"
-                        class:active={selectedName === p.name}
-                        onclick={() => handleApply(p.name)}
-                        title={p.builtIn
-                            ? `Built-in: ${p.name}`
-                            : `User: ${p.name}`}
-                    >
-                        {p.name}
-                    </button>
-                {/each}
-            </div>
+        {#if isUserPreset}
+            <PaxHudIconButton
+                icon="save-game"
+                title={`Update ${selectedName} with current settings`}
+                active={saveFlash}
+                onclick={handleUpdate}
+            />
         {/if}
+        <PaxHudIconButton
+            icon="add"
+            title="Create new theme from current settings"
+            onclick={() => (showSaveInput = true)}
+        />
+        <PaxHudIconButton icon="reset" title="Reset to defaults" onclick={handleReset} />
+        <PaxHudIconButton
+            icon="tune"
+            title={`Manage ${meta.label} themes`}
+            onclick={() => (showEditModal = true)}
+        />
+        <PaxHudFileButton
+            icon="import"
+            title="Import theme from file"
+            accept=".json"
+            onFileSelected={onFileSelected}
+        />
     </div>
-{/if}
 
-<!-- ═══ Edit Modal ═══ -->
+    <div class="category-theme-bar__save" class:category-theme-bar__save--open={showSaveInput}>
+        <PaxHudTextInput
+            class="category-theme-bar__name-input"
+            value={saveName}
+            placeholder="Theme name..."
+            size="sm"
+            onInput={(value) => (saveName = value)}
+            onKeydown={(event) => {
+                if (event.key === "Enter") handleSave();
+                if (event.key === "Escape") showSaveInput = false;
+            }}
+        />
+        <PaxHudIconButton
+            icon="close"
+            title="Cancel theme save"
+            danger
+            onclick={() => (showSaveInput = false)}
+        />
+        <PaxHudIconButton
+            icon="focus"
+            title="Save theme"
+            active={saveFlash}
+            onclick={handleSave}
+        />
+    </div>
+
+    {#if starredPresets.length > 0}
+        <div class="category-theme-bar__chips" aria-label={`${meta.label} starred presets`}>
+            {#each starredPresets as preset}
+                <PaxHudButton
+                    label={preset.name}
+                    size="sm"
+                    active={selectedName === preset.name}
+                    title={preset.builtIn ? `Built-in: ${preset.name}` : `User: ${preset.name}`}
+                    onclick={() => handleApply(preset.name)}
+                />
+            {/each}
+        </div>
+    {/if}
+</div>
+
 {#if showEditModal}
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
-        class="modal-backdrop"
-        onclick={(e) => {
-            if (e.target === e.currentTarget) showEditModal = false;
+        class="category-theme-modal"
+        onclick={(event) => {
+            if (event.target === event.currentTarget) showEditModal = false;
         }}
     >
-        <div class="modal-panel">
-            <div class="modal-header">
-                <span class="modal-title"
-                    >{meta.icon} Manage {meta.label} Themes</span
-                >
-                <button
-                    class="modal-close"
-                    onclick={() => (showEditModal = false)}>✕</button
-                >
-            </div>
-            <div class="modal-grid">
-                {#each presets as p}
-                    <div
-                        class="modal-chip"
-                        class:active={selectedName === p.name}
-                    >
-                        <button
-                            class="modal-chip-star"
-                            onclick={() => toggleStar(p.name)}
-                            title={starredNames.has(p.name)
-                                ? "Unstar"
-                                : "Star (show as chip)"}
+        <section class="category-theme-modal__panel" aria-label={`Manage ${meta.label} themes`}>
+            <header class="category-theme-modal__header">
+                <span class="category-theme-modal__title">Manage {meta.label} Themes</span>
+                <PaxHudIconButton
+                    icon="close"
+                    title="Close theme manager"
+                    onclick={() => (showEditModal = false)}
+                />
+            </header>
+
+            {#if presets.length > 0}
+                <div class="category-theme-modal__grid">
+                    {#each presets as preset}
+                        <div
+                            class="category-theme-modal__item"
+                            class:category-theme-modal__item--active={selectedName === preset.name}
                         >
-                            {starredNames.has(p.name) ? "⭐" : "☆"}
-                        </button>
-                        <button
-                            class="modal-chip-name"
-                            onclick={() => {
-                                handleApply(p.name);
-                                showEditModal = false;
-                            }}
-                        >
-                            {p.builtIn ? "📦 " : ""}{p.name}
-                        </button>
-                        {#if !p.builtIn}
-                            <button
-                                class="modal-chip-delete"
-                                onclick={() => handleDelete(p.name)}
-                                title="Delete theme">✕</button
-                            >
-                        {/if}
-                    </div>
-                {/each}
-            </div>
-            {#if presets.length === 0}
-                <div class="modal-empty">
-                    No themes yet. Create one with the + button.
+                            <PaxHudIconButton
+                                icon={starredNames.has(preset.name) ? "yellow" : "grey"}
+                                title={starredNames.has(preset.name) ? "Unstar preset" : "Star preset"}
+                                active={starredNames.has(preset.name)}
+                                onclick={() => toggleStar(preset.name)}
+                            />
+                            <PaxHudButton
+                                class="category-theme-modal__name"
+                                label={preset.name}
+                                size="sm"
+                                active={selectedName === preset.name}
+                                onclick={() => {
+                                    handleApply(preset.name);
+                                    showEditModal = false;
+                                }}
+                            />
+                            {#if !preset.builtIn}
+                                <PaxHudIconButton
+                                    icon="close"
+                                    title="Delete theme"
+                                    danger
+                                    onclick={() => handleDelete(preset.name)}
+                                />
+                            {/if}
+                        </div>
+                    {/each}
+                </div>
+            {:else}
+                <div class="category-theme-modal__empty">
+                    No themes yet. Create one with the add button.
                 </div>
             {/if}
-        </div>
+        </section>
     </div>
 {/if}
 
 <style>
     .category-theme-bar {
+        min-width: 0;
         display: flex;
         flex-direction: column;
-        gap: 6px;
-        padding: 4px 0 8px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        margin-bottom: 8px;
+        gap: 8px;
+        margin-bottom: 10px;
+        padding: 0 0 10px;
+        border-bottom: 1px solid var(--hud-divider);
     }
 
-    .top-row {
-        position: relative;
-        width: 100%;
-        height: 30px;
-        display: flex;
-        align-items: center;
-        overflow: hidden;
-        border-radius: 5px;
-    }
-
-    .action-buttons {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        display: flex;
-        gap: 6px;
-        transition:
-            transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
-            opacity 0.2s;
-    }
-    .action-buttons.hidden {
-        transform: translateX(-15px);
-        opacity: 0;
-        pointer-events: none;
-    }
-
-    .action-half {
-        flex: 1;
+    .category-theme-bar__actions,
+    .category-theme-bar__save {
         min-width: 0;
-        height: 100%;
-    }
-
-    .theme-select {
-        background: rgba(255, 255, 255, 0.06);
-        color: #ccc;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 5px;
-        padding: 0 24px 0 10px;
-        font-size: 11.5px;
-        font-family: inherit;
-        cursor: pointer;
-        outline: none;
-        appearance: none;
-        -webkit-appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 8px center;
-        transition:
-            border-color 0.2s,
-            background 0.2s;
-    }
-    .theme-select:hover {
-        background: rgba(255, 255, 255, 0.08);
-        border-color: rgba(255, 255, 255, 0.25);
-    }
-    .theme-select:focus {
-        border-color: #4ade80;
-    }
-    .theme-select option {
-        background: #151a25;
-        color: #eee;
-    }
-
-    .action-btn {
-        background: rgba(255, 255, 255, 0.04);
-        color: #aaa;
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 5px;
-        font-size: 11.5px;
-        font-family: inherit;
-        cursor: pointer;
         display: flex;
         align-items: center;
-        justify-content: center;
         gap: 6px;
-        padding: 0 10px;
-        min-width: 30px;
-        flex-shrink: 0;
-        transition: all 0.2s;
-    }
-    .action-btn:hover {
-        background: rgba(255, 255, 255, 0.08);
-        color: #fff;
-        border-color: rgba(255, 255, 255, 0.25);
-    }
-
-    .plus-icon {
-        font-size: 14px;
-        font-weight: bold;
-        color: #888;
-        transition: color 0.2s;
-    }
-    .action-btn:hover .plus-icon {
-        color: #4ade80;
-    }
-
-    .save-drawer {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        display: flex;
-        gap: 4px;
-        transform: translateX(100%);
-        opacity: 0;
         transition:
-            transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
-            opacity 0.25s;
-        pointer-events: none;
-        background: #111520;
-        z-index: 2;
+            opacity var(--pax-motion-base, 220ms ease),
+            transform var(--pax-motion-base, 220ms ease);
     }
-    .save-drawer.open {
-        transform: translateX(0);
+
+    .category-theme-bar__actions--hidden {
+        height: 0;
+        overflow: hidden;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateX(-10px);
+    }
+
+    .category-theme-bar__save {
+        height: 0;
+        overflow: hidden;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateX(10px);
+    }
+
+    .category-theme-bar__save--open {
+        height: auto;
         opacity: 1;
         pointer-events: auto;
+        transform: translateX(0);
     }
 
-    .save-input {
-        flex: 1;
-        background: rgba(0, 0, 0, 0.2);
-        color: #fff;
-        border: 1px solid rgba(74, 222, 128, 0.3);
-        border-radius: 5px;
-        padding: 0 10px;
-        font-size: 11.5px;
-        font-family: inherit;
-        outline: none;
-        transition: border-color 0.2s;
-    }
-    .save-input:focus {
-        border-color: #4ade80;
-        box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.2) inset;
-    }
-    .save-input::placeholder {
-        color: #666;
+    :global(.category-theme-bar__select),
+    :global(.category-theme-bar__name-input) {
+        flex: 1 1 auto;
+        min-width: 0;
     }
 
-    .drawer-btn {
-        width: 30px;
-        height: 100%;
-        border: 1px solid;
-        border-radius: 5px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 14px;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-    .drawer-btn.cancel {
-        background: rgba(255, 255, 255, 0.05);
-        color: #999;
-        border-color: rgba(255, 255, 255, 0.15);
-    }
-    .drawer-btn.cancel:hover {
-        background: rgba(255, 55, 55, 0.15);
-        color: #ff5555;
-        border-color: rgba(255, 55, 55, 0.4);
-    }
-    .drawer-btn.confirm {
-        background: rgba(74, 222, 128, 0.1);
-        color: #4ade80;
-        border-color: rgba(74, 222, 128, 0.3);
-    }
-    .drawer-btn.confirm:hover {
-        background: rgba(74, 222, 128, 0.2);
-        color: #4ade80;
-        border-color: #4ade80;
-    }
-    .drawer-btn.confirm.flash {
-        background: #4ade80;
-        color: #000;
-        transform: scale(0.95);
-    }
-
-    /* ── Starred Chips ── */
-    .chips-row {
+    .category-theme-bar__chips {
         display: flex;
         flex-wrap: wrap;
-        gap: 4px;
-        width: 100%;
-    }
-    .chip {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        padding: 3px 10px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 12px;
-        background: rgba(255, 255, 255, 0.04);
-        color: #bbb;
-        font-size: 10.5px;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-    .chip:hover {
-        background: rgba(255, 255, 255, 0.08);
-        border-color: rgba(255, 255, 255, 0.25);
-        color: #fff;
-    }
-    .chip.active {
-        background: rgba(74, 222, 128, 0.12);
-        border-color: rgba(74, 222, 128, 0.4);
-        color: #4ade80;
+        gap: 6px;
+        min-width: 0;
     }
 
-    /* ── Edit Modal ── */
-    .modal-backdrop {
+    .category-theme-modal {
         position: fixed;
         inset: 0;
-        background: rgba(0, 0, 0, 0.65);
-        display: flex;
-        align-items: center;
-        justify-content: center;
         z-index: 9999;
-        backdrop-filter: blur(4px);
-    }
-    .modal-panel {
-        background: #131825;
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 12px;
-        padding: 16px 20px;
-        min-width: 320px;
-        max-width: 520px;
-        max-height: 80vh;
-        overflow-y: auto;
-        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
-    }
-    .modal-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 14px;
-        padding-bottom: 8px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    }
-    .modal-title {
-        font-size: 14px;
-        font-weight: 600;
-        color: #dde;
-    }
-    .modal-close {
-        background: none;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 6px;
-        color: #888;
-        font-size: 14px;
-        width: 28px;
-        height: 28px;
         display: flex;
         align-items: center;
         justify-content: center;
-        cursor: pointer;
-        transition: all 0.2s;
+        padding: 24px;
+        background: rgba(0, 0, 0, 0.66);
+        backdrop-filter: blur(5px);
     }
-    .modal-close:hover {
-        background: rgba(255, 55, 55, 0.15);
-        color: #ff5555;
-        border-color: rgba(255, 55, 55, 0.4);
+
+    .category-theme-modal__panel {
+        width: min(560px, 100%);
+        max-height: min(80vh, 680px);
+        overflow-y: auto;
+        border: 1px solid transparent;
+        border-radius: var(--hud-radius-md);
+        clip-path: var(--hud-rounded-corner-md);
+        background:
+            linear-gradient(180deg, rgba(3, 23, 26, 0.98), rgba(1, 8, 13, 0.99)) padding-box,
+            var(--hud-border-gradient) border-box;
+        box-shadow: var(--hud-shadow-strong);
+        padding: 14px;
+        color: var(--hud-text);
+        font-family: var(--hud-font-ui);
     }
-    .modal-grid {
+
+    .category-theme-modal__header {
         display: flex;
-        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--hud-divider);
+    }
+
+    .category-theme-modal__title {
+        min-width: 0;
+        overflow: hidden;
+        color: var(--hud-accent-warm-strong);
+        font-size: calc(0.86rem * var(--hud-title-scale, 1));
+        font-weight: 800;
+        letter-spacing: 0.09em;
+        text-overflow: ellipsis;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .category-theme-modal__grid {
+        display: grid;
         gap: 8px;
     }
-    .modal-chip {
-        display: flex;
+
+    .category-theme-modal__item {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
         align-items: center;
-        gap: 6px;
-        padding: 8px 12px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 8px;
-        background: rgba(255, 255, 255, 0.03);
-        transition: all 0.2s;
+        gap: 8px;
+        padding: 8px;
+        border: 1px solid transparent;
+        border-radius: var(--hud-radius-sm);
+        clip-path: var(--hud-rounded-corner-sm);
+        background:
+            linear-gradient(180deg, rgba(0, 18, 21, 0.78), rgba(0, 10, 13, 0.9)) padding-box,
+            var(--hud-control-border-gradient) border-box;
     }
-    .modal-chip:hover {
-        background: rgba(255, 255, 255, 0.06);
-        border-color: rgba(255, 255, 255, 0.2);
+
+    .category-theme-modal__item--active {
+        box-shadow: 0 0 18px color-mix(in srgb, var(--hud-accent-warm) 20%, transparent);
     }
-    .modal-chip.active {
-        border-color: rgba(74, 222, 128, 0.4);
-        background: rgba(74, 222, 128, 0.06);
+
+    :global(.category-theme-modal__name) {
+        width: 100%;
+        justify-content: flex-start;
     }
-    .modal-chip-star {
-        background: none;
-        border: none;
-        cursor: pointer;
-        font-size: 16px;
-        padding: 0;
-        line-height: 1;
-        transition: transform 0.15s;
-    }
-    .modal-chip-star:hover {
-        transform: scale(1.2);
-    }
-    .modal-chip-name {
-        background: none;
-        border: none;
-        color: #ccc;
-        font-size: 12px;
-        cursor: pointer;
-        padding: 0;
-        font-family: inherit;
-        transition: color 0.2s;
-    }
-    .modal-chip-name:hover {
-        color: #fff;
-    }
-    .modal-chip-delete {
-        background: none;
-        border: none;
-        color: rgba(255, 80, 80, 0.4);
-        font-size: 14px;
-        cursor: pointer;
-        padding: 0 0 0 4px;
-        line-height: 1;
-        transition: all 0.2s;
-    }
-    .modal-chip-delete:hover {
-        color: #ff5555;
-        transform: scale(1.15);
-    }
-    .modal-empty {
-        color: #556;
-        font-size: 12px;
+
+    .category-theme-modal__empty {
+        color: var(--hud-text-dim);
+        font-family: var(--hud-font-copy);
+        font-size: calc(0.76rem * var(--hud-type-scale, 1));
+        line-height: 1.4;
+        padding: 18px 4px 4px;
         text-align: center;
-        padding: 20px 0;
     }
 </style>

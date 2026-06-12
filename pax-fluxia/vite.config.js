@@ -156,9 +156,9 @@ export default defineConfig(async () => ({
   plugins: [tailwindcss(), browserBenchPlugin(), sveltekit(), settingsDumpPlugin(), mapPersistPlugin()],
   optimizeDeps: {
     include: [
+      "pixi.js",
       "txtgen",
       "@colyseus/sdk",
-      "@colyseus/schema",
     ],
   },
   resolve: {

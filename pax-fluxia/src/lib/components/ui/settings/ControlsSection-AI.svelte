@@ -1,6 +1,7 @@
 <script lang="ts">
     import { AI_VARIABLES, CONFIG_TO_PANEL_KEY } from "../settingsDefs";
     import { GAME_CONFIG } from "$lib/config/game.config";
+    import { PaxSettingsRangeRow } from "$lib/design-system";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
 
     interface Props {
@@ -57,26 +58,16 @@
 {#each GROUPS as group}
     <h4 class="sub-heading">{group.label}</h4>
     {#each varsFor(group.keys) as variable}
-        <div class="var-row">
-            <div class="row-top">
-                <span class="var-name" data-setting-config-key={variable.key}
-                    >{variable.label}</span
-                >
-                <span class="val">{getAIValue(variable.key).toFixed(2)}</span>
-            </div>
-            <input
-                type="range"
-                min={variable.min}
-                max={variable.max}
-                step={variable.step}
-                value={getAIValue(variable.key)}
-                oninput={(event) =>
-                    updateAIValue(
-                        variable.key,
-                        parseFloat((event.target as HTMLInputElement).value),
-                    )}
-            />
-        </div>
+        <PaxSettingsRangeRow
+            label={variable.label}
+            value={getAIValue(variable.key)}
+            min={variable.min}
+            max={variable.max}
+            step={variable.step}
+            format="fixed2"
+            settingConfigKey={variable.key}
+            onInput={(value) => updateAIValue(variable.key, value)}
+        />
     {/each}
 {/each}
 

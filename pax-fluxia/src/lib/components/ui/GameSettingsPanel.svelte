@@ -29,6 +29,7 @@
         PANEL_STORAGE_KEY,
         VISUALS_STORAGE_KEY,
         ANIM_LOCK_STORAGE_KEY,
+        TIER_STORAGE_KEY,
         loadVisuals,
         saveVisuals,
         applyVisuals,
@@ -40,6 +41,7 @@
         saveAnimLockRatios,
         loadAnimLockModes,
         saveAnimLockModes,
+        loadTier,
         saveTier,
         exportConfigJSON as exportConfigJSONBase,
         type AnimLockMode,
@@ -67,7 +69,6 @@
         CONFIG_TO_PANEL_KEY,
         type AnimSliderDef,
         type SettingsTier,
-        TIER_LABELS,
         MD_EXPORT_SECTIONS,
         formatAnimValue,
     } from "./settingsDefs";
@@ -84,11 +85,16 @@
         searchSettings,
         type SettingsSearchResult,
     } from "./settings/settingsSearch";
+    import ThemeLibraryPanel from "$lib/components/game-hud/ThemeLibraryPanel.svelte";
+    import HudThemePanel from "$lib/components/game-hud/HudThemePanel.svelte";
+    import TypographyTokenPanel from "$lib/components/game-hud/TypographyTokenPanel.svelte";
     import {
-        canAccessAudience,
-        resolveAudienceAccess,
-        type AudienceAccess,
-    } from "$lib/shell/audience";
+        PaxHudButton,
+        PaxHudIconButton,
+        PaxSettingsDrawer,
+        PaxSettingsInfoRow,
+    } from "$lib/design-system";
+    import HudIcon from "./hud/HudIcon.svelte";
 
     // Aliases for the imported arrays (matches existing template references)
     const logCategories = LOG_CATEGORIES;
@@ -132,27 +138,8 @@
         };
     });
 
-    function getCurrentSearchParams(): URLSearchParams | null {
-        if (typeof window === "undefined") return null;
-        try {
-            return new URL(window.location.href).searchParams;
-        } catch {
-            return null;
-        }
-    }
-
-    function audienceToTier(access: AudienceAccess): SettingsTier {
-        if (canAccessAudience("internal", access)) return "developer";
-        if (canAccessAudience("advanced", access)) return "advanced";
-        return "basic";
-    }
-
-    const fallbackAudienceAccess = resolveAudienceAccess({
-        isDev: import.meta.env.DEV,
-        searchParams: getCurrentSearchParams(),
-    });
     let tickInterval = $state(GAME_CONFIG.BASE_TICK_MS);
-    let activeTier = $state<SettingsTier>(audienceToTier(fallbackAudienceAccess));
+    let activeTier = $state<SettingsTier>(loadTier());
 
     // Panel settings (persisted via panelSync)
     let panel = $state(loadPanelSettings(panelDefaultsFromConfig()));
@@ -335,13 +322,6 @@
         applyConfigPatch(preset.values as Record<string, unknown>);
     }
 
-    function syncTierFromAudience() {
-        const nextTier = audienceToTier(audienceAccess);
-        if (activeTier === nextTier) return;
-        activeTier = nextTier;
-        saveTier(nextTier);
-    }
-
     function setTier(tier: SettingsTier) {
         activeTier = tier;
         saveTier(tier);
@@ -474,7 +454,8 @@
         a.download = `pax-config-${ts}.md`;
         a.click();
         URL.revokeObjectURL(url);
-        configStatus = `✅ Exported MD`;
+        configStatus = `Exported MD`;
+
         configStatusColor = "#4ade80";
     }
 
@@ -491,14 +472,14 @@
                 try {
                     data = JSON.parse(raw);
                 } catch {
-                    configStatus = "❌ Invalid JSON — could not parse file";
+                    configStatus = "Invalid JSON - could not parse file";
                     configStatusColor = "#f87171";
                     input.value = "";
                     return;
                 }
 
                 if (!data || typeof data !== "object" || Array.isArray(data)) {
-                    configStatus = "❌ Expected a JSON object with config keys";
+                    configStatus = "Expected a JSON object with config keys";
                     configStatusColor = "#f87171";
                     input.value = "";
                     return;
@@ -546,13 +527,13 @@
                     applyConfigPatch(acceptedPatch);
                 }
 
-                const parts = [`✅ ${applied} applied`];
+                const parts = [`${applied} applied`];
                 if (skipped) parts.push(`${skipped} unknown`);
                 if (typeErrors) parts.push(`${typeErrors} type mismatches`);
                 configStatus = parts.join(", ");
                 configStatusColor = typeErrors > 0 ? "#fbbf24" : "#4ade80";
             } catch (err) {
-                configStatus = `❌ Import failed: ${(err as Error).message}`;
+                configStatus = `Import failed: ${(err as Error).message}`;
                 configStatusColor = "#f87171";
             }
             input.value = "";
@@ -564,7 +545,7 @@
     // Tick-Ratio Locking — bind animation durations proportionally to tick
     // =========================================================================
 
-    /** 📌 Pin value exactly to tick duration (ms → BASE_TICK_MS, multipliers → 1.0) */
+    /** Pin value exactly to tick duration (ms -> BASE_TICK_MS, multipliers -> 1.0) */
 function pinValueToTickDuration(key: string) {
         const currentMode = animLockModes[key];
         if (currentMode === "pinned") {
@@ -593,7 +574,7 @@ function pinValueToTickDuration(key: string) {
         saveAnimLockModes(animLockModes);
     }
 
-    /** 🔗 Lock current ratio relative to tick (value scales proportionally when tick changes) */
+    /** Lock current ratio relative to tick (value scales proportionally when tick changes) */
 function lockRatioToTick(key: string) {
         const currentMode = animLockModes[key];
         if (currentMode === "ratio") {
@@ -642,7 +623,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         return updates;
     }
 
-    /** 🎚️ Lock current ratio relative to animation speed (value scales when anim speed changes) */
+    /** Lock current ratio relative to animation speed (value scales when anim speed changes) */
     function lockRatioToAnimSpeed(key: string) {
         const currentMode = animLockModes[key];
         if (currentMode === "animSpeed") {
@@ -742,107 +723,10 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         // Reload to fully reinitialize from clean state
         window.location.reload();
     }
-    let showSaveMapDrawer = $state(false);
-    let showLoadMapDrawer = $state(false);
-    let showSaveGameDrawer = $state(false);
-    let showLoadGameDrawer = $state(false);
-    let saveMapName = $state("");
-    let saveGameName = $state("");
 
-    function closeUtilityDrawers() {
-        showSaveMapDrawer = false;
-        showLoadMapDrawer = false;
-        showSaveGameDrawer = false;
-        showLoadGameDrawer = false;
-    }
-
-    function toggleUtilityDrawer(
-        drawer: "saveMap" | "loadMap" | "saveGame" | "loadGame",
-    ) {
-        const nextSaveMap = drawer === "saveMap" ? !showSaveMapDrawer : false;
-        const nextLoadMap = drawer === "loadMap" ? !showLoadMapDrawer : false;
-        const nextSaveGame = drawer === "saveGame" ? !showSaveGameDrawer : false;
-        const nextLoadGame = drawer === "loadGame" ? !showLoadGameDrawer : false;
-
-        showSaveMapDrawer = nextSaveMap;
-        showLoadMapDrawer = nextLoadMap;
-        showSaveGameDrawer = nextSaveGame;
-        showLoadGameDrawer = nextLoadGame;
-
-        if (nextSaveGame && !saveGameName.trim()) {
-            saveGameName = `Session ${new Date().toISOString().slice(0, 10)}`;
-        }
-    }
-
-    function getLoadableMaps(): MapDefinition[] {
-        return [...gameStore.savedMaps].sort((left, right) => {
-            const leftBuiltIn = Boolean((left as any).builtIn);
-            const rightBuiltIn = Boolean((right as any).builtIn);
-            if (leftBuiltIn !== rightBuiltIn) {
-                return leftBuiltIn ? -1 : 1;
-            }
-            return left.metadata.name.localeCompare(right.metadata.name);
-        });
-    }
-
-    async function handleLoadMapFromSettings(savedMap: MapDefinition) {
-        showLoadMapDrawer = false;
-        gameStore.loadSavedMap(savedMap);
-        await gameStore.startGame();
-        configStatus = `✅ Map "${savedMap.metadata.name}" loaded`;
-        configStatusColor = "#4ade80";
-    }
-
-    function getSavedGames() {
-        return [...gameStore.savedGames].sort(
-            (left, right) =>
-                Date.parse(right.createdAt) - Date.parse(left.createdAt),
-        );
-    }
-
-    function handleSaveMapFromSettings() {
-        const name = saveMapName.trim();
-        if (!name) return;
-        gameStore.saveCurrentMap(name);
-        saveMapName = "";
-        showSaveMapDrawer = false;
-        configStatus = `Saved map "${name}"`;
-        configStatusColor = "#4ade80";
-    }
-
-    function handleSaveGameFromSettings() {
-        const name = saveGameName.trim();
-        if (!name) return;
-        gameStore.saveCurrentGame(name);
-        saveGameName = "";
-        showSaveGameDrawer = false;
-        configStatus = `Saved game "${name}"`;
-        configStatusColor = "#4ade80";
-    }
-
-    async function handleLoadSavedGameFromSettings(game: any) {
-        showLoadGameDrawer = false;
-        gameStore.loadSavedGame(game, false);
-        await gameStore.startGame();
-        configStatus = `Loaded game "${game.name}"`;
-        configStatusColor = "#4ade80";
-    }
-
-    function handleRestartFromSettings() {
-        closeUtilityDrawers();
-        activeGameStore.playAgain();
-    }
-
-    function handleQuitFromSettings() {
-        closeUtilityDrawers();
-        activeGameStore.returnToMenu();
-    }
-
-    function handleDeleteSavedGameFromSettings(id: string) {
-        gameStore.deleteSavedGame(id);
-        configStatus = "Deleted saved game";
-        configStatusColor = "#4ade80";
-    }
+    // =========================================================================
+    // Settings header utilities
+    // =========================================================================
 
     // =========================================================================
     // Icon Toolbar — sections definition
@@ -852,24 +736,157 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     interface Props {
         forceOpenSection?: SectionId | null;
         forceOpenSectionNonce?: number;
-        audienceAccess?: AudienceAccess;
-        onRequestShowAdvanced?: () => void;
-        onRequestInternalTools?: () => void;
+        ribbonExpanded?: boolean;
+        onToggleRibbonExpanded?: () => void;
+        dockSide?: "left" | "right";
+        onToggleDockSide?: () => void;
+        onSectionActivityChange?: (hasOpenSections: boolean) => void;
+        onCloseSettings?: () => void;
+        onRestartGame?: () => void;
+        onQuitGame?: () => void;
     }
 
     let {
         forceOpenSection = null,
         forceOpenSectionNonce = 0,
-        audienceAccess = fallbackAudienceAccess,
-        onRequestShowAdvanced,
-        onRequestInternalTools,
+        ribbonExpanded = false,
+        onToggleRibbonExpanded,
+        dockSide = "right",
+        onToggleDockSide,
+        onSectionActivityChange,
+        onCloseSettings,
+        onRestartGame,
+        onQuitGame,
     }: Props = $props();
 
-    $effect(() => {
-        syncTierFromAudience();
-    });
+    type SettingsToolId =
+        | "theme_library"
+        | "appearance"
+        | "combat_tuning"
+        | "audio"
+        | "video_graphics"
+        | "stats"
+        | "diagnostics"
+        | "restart"
+        | "quit"
+        | "hotkeys"
+        | "help";
+
+    interface SettingsToolDefinition {
+        id: SettingsToolId;
+        icon: string;
+        label: string;
+        color: string;
+        sectionId?: SectionId;
+        action?: "restart" | "quit";
+    }
+
+    const SETTINGS_TOOLS: readonly SettingsToolDefinition[] = [
+        { id: "theme_library", icon: "library", label: "Themes", color: "#f6c469" },
+        {
+            id: "appearance",
+            icon: "gem",
+            label: "Appearance",
+            color: "#5ee6ff",
+            sectionId: "map_options",
+        },
+        {
+            id: "combat_tuning",
+            icon: "combat",
+            label: "Combat Tuning",
+            color: "#ff8a94",
+            sectionId: "combat_tuning",
+        },
+        { id: "audio", icon: "audio", label: "Audio", color: "#44ddbb", sectionId: "audio" },
+        {
+            id: "video_graphics",
+            icon: "draw-polygon",
+            label: "Video / Graphics",
+            color: "#93c5fd",
+            sectionId: "fleet_star_visuals",
+        },
+        { id: "stats", icon: "ranking-star", label: "Stats", color: "#f6c469" },
+        {
+            id: "diagnostics",
+            icon: "diagnostics",
+            label: "Diagnostics",
+            color: "#f59e0b",
+            sectionId: "diagnostics",
+        },
+        { id: "hotkeys", icon: "keyboard", label: "Hotkeys", color: "#8ab4ff" },
+        { id: "help", icon: "help", label: "Help", color: "#a8b6cf" },
+        {
+            id: "restart",
+            icon: "restart",
+            label: "Restart",
+            color: "#f6c469",
+            action: "restart",
+        },
+        { id: "quit", icon: "quit", label: "Quit", color: "#ff6a7a", action: "quit" },
+    ] as const;
+
+    const SECTION_TOOL_BY_ID: Partial<Record<SectionId, SettingsToolId>> = {
+        map_options: "appearance",
+        territory_styles: "appearance",
+        combat_tuning: "combat_tuning",
+        audio: "audio",
+        fleet_star_visuals: "video_graphics",
+        diagnostics: "diagnostics",
+    };
 
     const ACTIVE_SECTION_KEY = "pax-fluxia-open-sections";
+    const ACTIVE_TOOL_KEY = "pax-fluxia-active-settings-tool";
+
+    function isSettingsToolId(value: string | null): value is SettingsToolId {
+        return SETTINGS_TOOLS.some((tool) => tool.id === value);
+    }
+
+    function loadActiveTool(): SettingsToolId | null {
+        if (typeof window === "undefined") return null;
+        const value = localStorage.getItem(ACTIVE_TOOL_KEY);
+        return isSettingsToolId(value) ? value : null;
+    }
+
+    const initialActiveToolId = loadActiveTool();
+    let activeToolId = $state<SettingsToolId | null>(initialActiveToolId);
+    let activeTool = $derived(
+        activeToolId
+            ? SETTINGS_TOOLS.find((tool) => tool.id === activeToolId) ?? null
+            : null,
+    );
+    let activeToolHasPanel = $derived(Boolean(activeTool && !activeTool.action));
+
+    function persistActiveTool() {
+        if (typeof window === "undefined") return;
+        if (activeToolId) {
+            localStorage.setItem(ACTIVE_TOOL_KEY, activeToolId);
+        } else {
+            localStorage.removeItem(ACTIVE_TOOL_KEY);
+        }
+    }
+
+    function setActiveTool(id: SettingsToolId | null) {
+        activeToolId = id;
+        const tool = id
+            ? SETTINGS_TOOLS.find((candidate) => candidate.id === id) ?? null
+            : null;
+        sectionOrder = tool?.sectionId ? [tool.sectionId] : [];
+        persistActiveTool();
+        persistSectionOrder();
+    }
+
+    function handleToolClick(tool: SettingsToolDefinition) {
+        if (tool.action === "restart") {
+            onRestartGame?.();
+            return;
+        }
+        if (tool.action === "quit") {
+            onQuitGame?.();
+            return;
+        }
+        setActiveTool(activeToolId === tool.id ? null : tool.id);
+    }
+
     function loadOpenSections(): SectionId[] {
         if (typeof window === "undefined") return [];
         try {
@@ -886,15 +903,18 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     // Ordered array: last element = most recently opened (shown first in render)
-    let sectionOrder = $state<SectionId[]>(loadOpenSections());
+    let sectionOrder = $state<SectionId[]>((() => {
+        const loadedSections = loadOpenSections();
+        const startupTool = initialActiveToolId
+            ? SETTINGS_TOOLS.find((tool) => tool.id === initialActiveToolId)
+            : null;
+        if (startupTool?.sectionId && loadedSections.length === 0) {
+            return [startupTool.sectionId];
+        }
+        return loadedSections;
+    })());
     // Set for O(1) membership checks
     let openSections = $derived(new Set(sectionOrder));
-    let advancedSectionsVisible = $derived(
-        canAccessAudience("advanced", audienceAccess),
-    );
-    let internalSectionsVisible = $derived(
-        canAccessAudience("internal", audienceAccess),
-    );
 
     function persistSectionOrder() {
         if (typeof window !== "undefined") {
@@ -906,20 +926,18 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     function openSection(id: SectionId) {
-        sectionOrder = [...sectionOrder.filter((s) => s !== id), id];
+        sectionOrder = [id];
+        activeToolId = SECTION_TOOL_BY_ID[id] ?? activeToolId;
+        persistActiveTool();
         persistSectionOrder();
     }
 
     function toggleSection(id: SectionId) {
-        const idx = sectionOrder.indexOf(id);
-        if (idx >= 0) {
-            // Already open — close it
-            sectionOrder = sectionOrder.filter((s) => s !== id);
-        } else {
-            openSection(id);
+        if (sectionOrder.includes(id)) {
+            setActiveTool(null);
             return;
         }
-        persistSectionOrder();
+        openSection(id);
     }
 
     const sections = SETTINGS_SECTIONS;
@@ -958,7 +976,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     );
 
     function isSectionVisible(section: SettingsSectionDefinition): boolean {
-        if (!canAccessAudience(section.audience, audienceAccess)) return false;
         if (TIER_RANK[section.tier] > TIER_RANK[activeTier]) return false;
         if (TERRITORY_MODE_SECTION_IDS.has(section.id as SectionId)) {
             return section.id === activeTerritoryModeSectionId;
@@ -984,12 +1001,18 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     );
     let hasVisibleOpenSections = $derived(orderedOpenSections.length > 0);
 
+    $effect(() => {
+        onSectionActivityChange?.(activeToolHasPanel);
+    });
+
     let lastForceOpenSectionNonce = $state(-1);
     $effect(() => {
         if (!forceOpenSection) return;
         if (forceOpenSectionNonce === lastForceOpenSectionNonce) return;
         lastForceOpenSectionNonce = forceOpenSectionNonce;
-        ensureSectionAudience(getSectionDefinition(forceOpenSection));
+        if (activeTier !== "developer") {
+            setTier("developer");
+        }
         openSection(forceOpenSection);
     });
 
@@ -1033,13 +1056,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     let settingsSearchQuery = $state("");
     const sectionBodyNodes = new Map<SectionId, HTMLElement>();
     let settingsSearchResults = $derived.by(() =>
-        searchSettings(settingsSearchQuery, 24, activeTerritoryRenderMode).filter(
-            (result) =>
-                canAccessAudience(
-                    getSectionDefinition(result.sectionId).audience,
-                    audienceAccess,
-                ),
-        ),
+        searchSettings(settingsSearchQuery, 24, activeTerritoryRenderMode),
     );
     let matchedSectionIds = $derived.by(() =>
         settingsSearchQuery.trim()
@@ -1076,18 +1093,11 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             .trim();
     }
 
-    function ensureSectionAudience(section: SettingsSectionDefinition) {
-        if (section.audience === "advanced" && !advancedSectionsVisible) {
-            onRequestShowAdvanced?.();
-        }
-        if (section.audience === "internal" && !internalSectionsVisible) {
-            onRequestInternalTools?.();
-        }
-    }
-
     function revealSearchSection(sectionId: SectionId) {
         const section = getSectionDefinition(sectionId);
-        ensureSectionAudience(section);
+        if (TIER_RANK[section.tier] > TIER_RANK[activeTier]) {
+            setTier(section.tier);
+        }
         openSection(sectionId);
     }
 
@@ -1216,456 +1226,151 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 </script>
 
-<div class="controls-panel" use:nudgeSliders>
-    <!-- Tier Toggle (hidden — F-164: show all sections by default) -->
-    <div class="tier-bar" style="display: none;">
-        {#each ["basic", "advanced", "developer"] as const as tier}
-            <button
-                class="tier-pill"
-                class:active={activeTier === tier}
-                style="--tier-color: {TIER_LABELS[tier].color}"
-                onclick={() => setTier(tier)}
-                title="{TIER_LABELS[tier].label} settings"
-            >
-                <span class="tier-icon">{TIER_LABELS[tier].icon}</span>
-                <span class="tier-label">{TIER_LABELS[tier].label}</span>
-            </button>
-        {/each}
-    </div>
+<div
+    class="controls-panel"
+    class:controls-panel--ribbon-expanded={ribbonExpanded}
+    class:controls-panel--dock-left={dockSide === "left"}
+    use:nudgeSliders>
 
-    <div class="settings-header-tools">
-        <label class="settings-search-label" for="settings-search-input">
-            Search Settings
-        </label>
-        <div class="settings-search-row">
-            <input
-                id="settings-search-input"
-                class="settings-search-input"
-                type="search"
-                placeholder="Search labels, panel copy, config keys, variables..."
-                bind:value={settingsSearchQuery}
-                onkeydown={async (event) => {
-                    if (event.key === "Enter") {
-                        event.preventDefault();
-                        await handleSearchSubmit();
-                    } else if (event.key === "Escape" && settingsSearchQuery.trim()) {
-                        event.preventDefault();
-                        clearSettingsSearch();
-                    }
-                }}
-            />
-            {#if settingsSearchQuery.trim()}
-                <button
-                    class="settings-search-clear"
-                    type="button"
-                    onclick={clearSettingsSearch}
-                    title="Clear search"
-                >
-                    ✕
-                </button>
-            {/if}
-        </div>
-
-        {#if settingsSearchQuery.trim()}
-            <div class="settings-search-results">
-                <div class="settings-search-summary">
-                    {settingsSearchResults.length} match{settingsSearchResults.length === 1 ? "" : "es"}
-                </div>
-                {#if settingsSearchResults.length === 0}
-                    <div class="settings-search-empty">
-                        No matches. Try a control label, helper phrase, config key, or variable name.
-                    </div>
-                {:else}
-                    {#each settingsSearchResults as result}
-                        <button
-                            type="button"
-                            class="settings-search-result"
-                            onclick={() => void navigateToSearchResult(result)}
-                        >
-                            <span class="settings-search-result__title">{result.title}</span>
-                            <span class="settings-search-result__meta">
-                                {result.sectionLabel}
-                                {#if result.configKey}
-                                    · {result.configKey}
-                                {/if}
-                            </span>
-                            <span class="settings-search-result__snippet">{result.snippet}</span>
-                        </button>
-                    {/each}
-                {/if}
-            </div>
-        {/if}
-
-        {#if false}
-        <div class="settings-utility-groups">
-            <div class="settings-utility-card">
-                <div class="settings-utility-card__label">Map</div>
-                <div class="settings-utility-card__actions">
-                    <button
-                        class="full-io-btn full-load-map-btn"
-                        onclick={() => toggleUtilityDrawer("loadMap")}
-                        title="Load a saved map and restart the current game"
-                    >
-                        Load
-                    </button>
-                    <button
-                        class="full-io-btn"
-                        onclick={() => toggleUtilityDrawer("saveMap")}
-                        title="Save the current map topology"
-                    >
-                        Save
-                    </button>
-                </div>
-            </div>
-            <div class="settings-utility-card">
-                <div class="settings-utility-card__label">Game + Map</div>
-                <div class="settings-utility-card__actions">
-                    <button
-                        class="full-io-btn full-load-map-btn"
-                        onclick={() => toggleUtilityDrawer("loadGame")}
-                        title="Load a saved game and resume the full session"
-                    >
-                        Load
-                    </button>
-                    <button
-                        class="full-io-btn"
-                        onclick={() => toggleUtilityDrawer("saveGame")}
-                        title="Save the current game state and map"
-                    >
-                        Save
-                    </button>
-                </div>
-            </div>
-            <div class="settings-utility-card">
-                <div class="settings-utility-card__label">Session</div>
-                <div class="settings-utility-card__actions">
-                    <button
-                        class="full-io-btn"
-                        onclick={handleQuitFromSettings}
-                        title="Exit to the main menu"
-                    >
-                        Quit
-                    </button>
-                    <button
-                        class="full-io-btn"
-                        onclick={handleRestartFromSettings}
-                        title="Restart using the current match setup"
-                    >
-                        Restart
-                    </button>
-                </div>
-            </div>
-        </div>
-        {#if showSaveMapDrawer}
-            <div class="full-load-map-drawer">
-                <div class="settings-inline-row">
-                    <input
-                        class="settings-inline-input"
-                        type="text"
-                        placeholder="Map name"
-                        bind:value={saveMapName}
-                        onkeydown={(event) => {
-                            if (event.key === "Enter") handleSaveMapFromSettings();
-                            if (event.key === "Escape") showSaveMapDrawer = false;
-                        }}
-                    />
-                    <button
-                        class="full-io-btn"
-                        onclick={handleSaveMapFromSettings}
-                        disabled={!saveMapName.trim()}
-                    >
-                        Save
-                    </button>
-                </div>
-            </div>
-        {/if}
-        {#if showLoadMapDrawer}
-            <div class="full-load-map-drawer">
-                {#if gameStore.savedMaps.length === 0}
-                    <div class="full-load-map-empty">No saved maps available.</div>
-                {:else}
-                    <div class="full-load-map-list">
-                        {#each getLoadableMaps() as map}
-                            <button
-                                class="full-load-map-item"
-                                onclick={() => void handleLoadMapFromSettings(map)}
-                                title={`Load ${map.metadata.name}`}
-                            >
-                                <span class="full-load-map-item__name">{map.metadata.name}</span>
-                                <span class="full-load-map-item__meta">
-                                    {Boolean((map as any).builtIn) ? "Classic" : "Custom"} · {map.stars.length} stars · {map.connections.length} links
-                                </span>
-                            </button>
-                        {/each}
-                    </div>
-                {/if}
-            </div>
-        {/if}
-        {#if showSaveGameDrawer}
-            <div class="full-load-map-drawer">
-                <div class="settings-inline-row">
-                    <input
-                        class="settings-inline-input"
-                        type="text"
-                        placeholder="Save name"
-                        bind:value={saveGameName}
-                        onkeydown={(event) => {
-                            if (event.key === "Enter") handleSaveGameFromSettings();
-                            if (event.key === "Escape") showSaveGameDrawer = false;
-                        }}
-                    />
-                    <button
-                        class="full-io-btn"
-                        onclick={handleSaveGameFromSettings}
-                        disabled={!saveGameName.trim()}
-                    >
-                        Save
-                    </button>
-                </div>
-            </div>
-        {/if}
-        {#if showLoadGameDrawer}
-            <div class="full-load-map-drawer">
-                {#if gameStore.savedGames.length === 0}
-                    <div class="full-load-map-empty">No saved games available.</div>
-                {:else}
-                    <div class="full-load-map-list">
-                        {#each getSavedGames() as game}
-                            <div class="full-load-map-item full-load-map-item--saved-game">
-                                <button
-                                    class="full-load-map-item__button"
-                                    onclick={() => void handleLoadSavedGameFromSettings(game)}
-                                    title={`Load ${game.name}`}
-                                >
-                                    <span class="full-load-map-item__name">{game.name}</span>
-                                    <span class="full-load-map-item__meta">
-                                        Tick {game.tick} · {new Date(game.createdAt).toLocaleDateString()}
-                                    </span>
-                                </button>
-                                <button
-                                    class="full-io-btn full-reset-btn full-delete-btn"
-                                    onclick={() => handleDeleteSavedGameFromSettings(game.id)}
-                                    title="Delete saved game"
-                                >
-                                    ✕
-                                </button>
-                            </div>
-                        {/each}
-                    </div>
-                {/if}
-            </div>
-        {/if}
-        {/if}
-        {#if internalSectionsVisible}
-            <div class="settings-utility-row settings-utility-row--internal">
-                <button
-                    class="full-io-btn full-export-btn"
-                    onclick={() => {
-                        exportConfigJSONBase();
-                        configStatus = "Exported JSON";
-                        configStatusColor = "#4ade80";
-                    }}
-                    title="Export the current game config as JSON"
-                >
-                    JSON
-                </button>
-                <button
-                    class="full-io-btn full-export-btn"
-                    onclick={exportConfigMD}
-                    title="Export the current game config as Markdown"
-                >
-                    Markdown
-                </button>
-                <button
-                    class="full-io-btn full-import-btn"
-                    onclick={() => {
-                        const input = document.getElementById(
-                            "settings-config-import-input",
-                        ) as HTMLInputElement | null;
-                        input?.click();
-                    }}
-                    title="Import a saved game config from JSON"
-                >
-                    Import
-                </button>
-                {#if advancedSectionsVisible}
-                    <button
-                        class="full-io-btn full-reset-btn"
-                        onclick={resetToDefaults}
-                        title="Clear all localStorage and reset to factory defaults (Phase Field Default)"
-                    >
-                        Clear All
-                    </button>
-                {/if}
-            </div>
-            <input
-                id="settings-config-import-input"
-                type="file"
-                accept=".json"
-                style="display:none;"
-                onchange={importConfigJSON}
-            />
-        {/if}
-        {#if configStatus}
-            <div class="settings-utility-status" style={`color:${configStatusColor};`}>
-                {configStatus}
-            </div>
-        {/if}
-
-        {#if false}
-        <div class="settings-utility-row">
-            {#if internalSectionsVisible}
-                <button
-                    class="full-io-btn full-export-btn"
-                    onclick={() => {
-                        exportConfigJSONBase();
-                        configStatus = "✅ Exported JSON";
-                        configStatusColor = "#4ade80";
-                    }}
-                    title="Export the current game config as JSON"
-                >
-                    📥 Export JSON
-                </button>
-                <button
-                    class="full-io-btn full-export-btn"
-                    onclick={exportConfigMD}
-                    title="Export the current game config as Markdown"
-                >
-                    📄 Export MD
-                </button>
-                <button
-                    class="full-io-btn full-import-btn"
-                    onclick={() => {
-                        const input = document.getElementById(
-                            "settings-config-import-input",
-                        ) as HTMLInputElement | null;
-                        input?.click();
-                    }}
-                    title="Import a saved game config from JSON"
-                >
-                    📤 Import JSON
-                </button>
-            {/if}
-            <button
-                class="full-io-btn full-load-map-btn"
-                onclick={() => {
-                    showLoadMapDrawer = !showLoadMapDrawer;
-                }}
-                title="Load a saved map and restart the current game"
-            >
-                🗺 Load Map
-            </button>
-            {#if advancedSectionsVisible}
-                <button
-                    class="full-io-btn full-reset-btn"
-                    onclick={resetToDefaults}
-                    title="Clear all localStorage and reset to factory defaults (Phase Field Default)"
-                >
-                    🗑️ Clear All
-                </button>
-            {/if}
-        </div>
-        <input
-            id="settings-config-import-input"
-            type="file"
-            accept=".json"
-            style="display:none;"
-            onchange={importConfigJSON}
-        />
-        {#if configStatus}
-            <div class="settings-utility-status" style={`color:${configStatusColor};`}>
-                {configStatus}
-            </div>
-        {/if}
-
-        {#if showLoadMapDrawer}
-            <div class="full-load-map-drawer">
-                {#if gameStore.savedMaps.length === 0}
-                    <div class="full-load-map-empty">No saved maps available.</div>
-                {:else}
-                    <div class="full-load-map-list">
-                        {#each getLoadableMaps() as map}
-                            <button
-                                class="full-load-map-item"
-                                onclick={() => void handleLoadMapFromSettings(map)}
-                                title={`Load ${map.metadata.name}`}
-                            >
-                                <span class="full-load-map-item__name">{map.metadata.name}</span>
-                                <span class="full-load-map-item__meta">
-                                    {Boolean((map as any).builtIn) ? "Classic" : "Custom"} · {map.stars.length} stars · {map.connections.length} links
-                                </span>
-                            </button>
-                        {/each}
-                    </div>
-                {/if}
-            </div>
-        {/if}
-        {/if}
-    </div>
-
+    <div class="settings-shell" class:settings-shell--with-panel={activeToolHasPanel}>
     <!-- Icon Toolbar -->
-    <div class="icon-toolbar" class:has-active={hasVisibleOpenSections}>
-        {#each visibleSections as s}
-            <button
-                class="icon-btn"
-                class:active={openSections.has(s.id)}
-                class:search-hit={matchedSectionIds?.has(s.id)}
-                class:search-dim={matchedSectionIds && !matchedSectionIds.has(s.id)}
-                style="--accent: {s.color}"
-                onclick={() => toggleSection(s.id)}
-                title={s.label}
+    <div class="icon-toolbar" class:has-active={activeToolHasPanel}>
+        <div class="icon-toolbar__controls">
+            {#if onCloseSettings}
+                <PaxHudIconButton
+                    icon="chevron-left"
+                    size={15}
+                    class="icon-toolbar-control"
+                    onclick={onCloseSettings}
+                    title="Collapse settings to topbar"
+                />
+            {/if}
+            {#if onToggleRibbonExpanded}
+                <PaxHudIconButton
+                    icon={ribbonExpanded ? "chevron-left" : "chevron-right"}
+                    size={15}
+                    class="icon-toolbar-control"
+                    onclick={onToggleRibbonExpanded}
+                    title={ribbonExpanded ? "Collapse section ribbon" : "Expand section ribbon"}
+                />
+            {/if}
+            {#if onToggleDockSide}
+                <PaxHudIconButton
+                    icon={dockSide === "right" ? "dock-left" : "dock-right"}
+                    size={15}
+                    class="icon-toolbar-control"
+                    onclick={onToggleDockSide}
+                    title={dockSide === "right" ? "Move controls to left side" : "Move controls to right side"}
+                />
+            {/if}
+        </div>
+        {#each SETTINGS_TOOLS as tool}
+            <PaxHudButton
+                class={`icon-btn ${tool.action ? "settings-tool-action" : ""} ${tool.id === "quit" ? "settings-tool-danger" : ""}`}
+                active={activeToolId === tool.id}
+                danger={tool.id === "quit"}
+                style="--accent: {tool.color}"
+                onclick={() => handleToolClick(tool)}
+                title={tool.label}
             >
-                <span class="icon-emoji">{s.icon}</span>
-                {#if !hasVisibleOpenSections}
-                    <span class="icon-label">{s.label}</span>
-                {/if}
-            </button>
+                <span class="icon-symbol"><HudIcon name={tool.icon} /></span>
+                <span class="icon-label">{tool.label}</span>
+            </PaxHudButton>
         {/each}
-        {#if advancedSectionsVisible}
-            <button
-                class="icon-btn reset-icon"
-                title="Reset All"
-                onclick={resetToDefaults}
-            >
-                <span class="icon-emoji">↺</span>
-                {#if !hasVisibleOpenSections}
-                    <span class="icon-label">Reset</span>
-                {/if}
-            </button>
-        {/if}
     </div>
 
+    <div class="settings-content">
+    {#if activeToolId === "theme_library"}
+        <PaxSettingsDrawer
+            title="Theme Select / Library"
+            icon="library"
+            accent="#f6c469"
+            onClose={() => setActiveTool(null)}
+        >
+            <ThemeLibraryPanel />
+        </PaxSettingsDrawer>
+    {:else if activeToolId === "appearance"}
+        <PaxSettingsDrawer
+            title="Theme Tuning / Appearance"
+            icon="gem"
+            accent="#5ee6ff"
+            onClose={() => setActiveTool(null)}
+        >
+            <HudThemePanel />
+            <TypographyTokenPanel />
+            <ControlsSectionVisuals
+                {panel}
+                {updatePanel}
+                {vis}
+                {updateVisual}
+                syncFromConfig={syncAllFromConfig}
+            />
+        </PaxSettingsDrawer>
+    {:else if activeToolId === "stats"}
+        <PaxSettingsDrawer
+            title="Stats"
+            icon="ranking-star"
+            accent="#f6c469"
+            onClose={() => setActiveTool(null)}
+        >
+            <PaxSettingsInfoRow label="Tick" value={activeGameStore.currentTick ?? 0} />
+            <PaxSettingsInfoRow label="Players" value={activeGameStore.players.length} />
+            <PaxSettingsInfoRow label="Stars" value={activeGameStore.stars.length} />
+            <PaxSettingsInfoRow label="Selected" value={selectedStarStore.id ?? "None"} />
+        </PaxSettingsDrawer>
+    {:else if activeToolId === "hotkeys"}
+        <PaxSettingsDrawer
+            title="Hotkeys"
+            icon="keyboard"
+            accent="#8ab4ff"
+            onClose={() => setActiveTool(null)}
+        >
+            <PaxSettingsInfoRow label="F" value="Fit the map to the viewport." valueAlign="left" />
+            <PaxSettingsInfoRow label="Esc" value="Close active overlays or clear search focus." valueAlign="left" />
+            <PaxSettingsInfoRow label="Click star" value="Select and inspect a star." valueAlign="left" />
+            <PaxSettingsInfoRow label="Drag lane" value="Issue a route from an owned star." valueAlign="left" />
+        </PaxSettingsDrawer>
+    {:else if activeToolId === "help"}
+        <PaxSettingsDrawer
+            title="Help"
+            icon="help"
+            accent="#a8b6cf"
+            onClose={() => setActiveTool(null)}
+        >
+            <p>Select owned stars, assign routes across connected lanes, and watch active ships transfer control through the network.</p>
+            <p>Use the Settings rail for theme, appearance, combat, audio, graphics, diagnostics, hotkeys, restart, and quit.</p>
+        </PaxSettingsDrawer>
+    {:else}
     <!-- Stacked Section Panels -->
     {#each orderedOpenSections as sec (sec.id)}
         <div class="section-panel" style="--accent: {sec.color}">
             <div class="section-head-wrap">
-                <button class="section-head" onclick={() => toggleSection(sec.id)}>
-                    <span class="head-icon">{sec.icon}</span>
+                <PaxHudButton class="section-head" onclick={() => toggleSection(sec.id)} title={`Close ${sec.label}`}>
+                    <span class="head-icon"><HudIcon name={sec.icon} /></span>
                     <span class="head-label">{sec.label}</span>
-                    <span class="head-close">✕</span>
-                </button>
+                    <span class="head-close"><HudIcon name="close" size={14} /></span>
+                </PaxHudButton>
                 {#if (sectionSubsections[sec.id]?.length ?? 0) > 0}
                     <div class="section-subnav">
-                        <button
+                        <PaxHudButton
                             class="subsection-chip"
-                            class:active={(activeSubsections[sec.id] ?? "all") === "all"}
-                            type="button"
+                            active={(activeSubsections[sec.id] ?? "all") === "all"}
                             onclick={() => toggleSubsection(sec.id, "all")}
+                            title="Show all"
                         >
-                            <span class="subsection-chip__icon">◌</span>
+                            <span class="subsection-chip__icon"><HudIcon name="phase-field" size={14} /></span>
                             <span>All</span>
-                        </button>
+                        </PaxHudButton>
                         {#each sectionSubsections[sec.id] ?? [] as subsection}
-                            <button
+                            <PaxHudButton
                                 class="subsection-chip"
-                                class:active={(activeSubsections[sec.id] ?? "all") === subsection.id}
-                                type="button"
+                                active={(activeSubsections[sec.id] ?? "all") === subsection.id}
                                 onclick={() => toggleSubsection(sec.id, subsection.id)}
                                 title={subsection.label}
                             >
-                                <span class="subsection-chip__icon">{subsection.icon}</span>
+                                <span class="subsection-chip__icon"><HudIcon name={subsection.icon} size={14} /></span>
                                 <span>{subsection.label}</span>
-                            </button>
+                            </PaxHudButton>
                         {/each}
                     </div>
                 {/if}
@@ -1861,98 +1566,173 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             </div>
         </div>
     {/each}
+    {/if}
+    </div>
+    </div>
 </div>
 
 <style>
     .controls-panel {
+        --settings-ribbon-width: 68px;
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        color: #ccc;
-        font-family: inherit;
+        gap: 10px;
+        color: var(--hud-text);
+        font-family: var(--hud-font-ui);
         height: 100%;
         min-height: 0;
     }
 
-    /* ── Icon Toolbar ── */
-    .icon-toolbar {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 6px;
-        padding: 4px;
-    }
-    .icon-toolbar.has-active {
-        grid-template-columns: repeat(8, 1fr);
-        gap: 4px;
-    }
-    .icon-btn {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 4px;
-        padding: 8px 4px;
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 8px;
-        cursor: pointer;
-        color: #aaa;
-        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .icon-toolbar.has-active .icon-btn {
-        padding: 6px 2px;
-        border-radius: 6px;
-    }
-    .icon-btn:hover {
-        background: rgba(255, 255, 255, 0.08);
-        border-color: var(--accent, #555);
-        color: var(--accent, #fff);
-        transform: translateY(-1px);
-        box-shadow: 0 2px 12px
-            color-mix(in srgb, var(--accent) 30%, transparent);
-    }
-    .icon-btn.active {
-        background: color-mix(in srgb, var(--accent) 15%, transparent);
-        border-color: var(--accent);
-        color: var(--accent);
-        box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 25%, transparent);
-    }
-    .icon-btn.search-hit {
-        border-color: color-mix(in srgb, var(--accent) 58%, rgba(255, 255, 255, 0.18));
-        box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
-    }
-    .icon-btn.search-dim {
-        opacity: 0.46;
-    }
-    .icon-emoji {
-        font-size: 22px;
-        line-height: 1;
-        filter: saturate(1.3);
-    }
-    .icon-toolbar.has-active .icon-emoji {
-        font-size: 16px;
-    }
-    .icon-label {
-        font-size: 10px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        opacity: 0.7;
-        text-align: center;
-        line-height: 1.1;
-    }
-    .reset-icon {
-        --accent: #ff5555;
-    }
-    .reset-icon .icon-emoji {
-        filter: none;
+    .controls-panel--ribbon-expanded {
+        --settings-ribbon-width: 176px;
     }
 
+    .settings-shell {
+        flex: 1;
+        min-height: 0;
+        display: grid;
+        grid-template-columns: var(--settings-ribbon-width) minmax(0, 1fr);
+        grid-template-areas: "rail content";
+        gap: 14px;
+        align-items: stretch;
+    }
+
+    .controls-panel--dock-left .settings-shell {
+        grid-template-columns: minmax(0, 1fr) var(--settings-ribbon-width);
+        grid-template-areas: "content rail";
+    }
+
+    .settings-content {
+        grid-area: content;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-height: 0;
+        overflow-y: auto;
+        padding-right: 2px;
+    }
+
+    /* ── Icon Toolbar ── */
+    .icon-toolbar {
+        grid-area: rail;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 4px 4px 4px 0;
+        min-height: 0;
+        overflow-y: auto;
+    }
+
+    .icon-toolbar__controls {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    :global(.icon-toolbar-control) {
+        width: 100%;
+        min-height: 38px;
+        border: 1px solid var(--hud-border);
+        border-radius: 12px;
+        background: var(--hud-button-bg);
+        color: var(--hud-text-soft);
+        font-family: var(--hud-font-ui);
+        font-size: 0.64rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition:
+            background 0.18s,
+            border-color 0.18s,
+            color 0.18s,
+            transform 0.18s;
+    }
+
+    :global(.icon-toolbar-control:hover) {
+        background: var(--hud-button-bg-hover);
+        border-color: var(--hud-border-strong);
+        color: var(--hud-text-strong);
+        transform: translateY(-1px);
+    }
+
+    .icon-toolbar.has-active {
+        gap: 8px;
+    }
+    :global(.icon-btn) {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        width: 100%;
+        min-height: 46px;
+        padding: 10px 0;
+        background: rgba(7, 13, 26, 0.78);
+        border: 1px solid var(--hud-border);
+        border-radius: 14px;
+        cursor: pointer;
+        color: var(--hud-text-soft);
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        text-align: left;
+    }
+    :global(.icon-toolbar.has-active .icon-btn) {
+        padding: 10px 0;
+        border-radius: 12px;
+    }
+    :global(.controls-panel--ribbon-expanded .icon-btn),
+    :global(.controls-panel--ribbon-expanded .icon-toolbar.has-active .icon-btn) {
+        justify-content: flex-start;
+        padding: 10px 12px;
+    }
+    :global(.icon-btn:hover) {
+        background: rgba(14, 24, 43, 0.92);
+        border-color: color-mix(in srgb, var(--accent) 55%, var(--hud-border));
+        color: var(--hud-text-strong);
+        transform: translateY(-1px);
+        box-shadow: 0 10px 24px
+            color-mix(in srgb, var(--accent) 20%, transparent);
+    }
+    :global(.icon-btn.active) {
+        background: color-mix(in srgb, var(--accent) 13%, rgba(8, 12, 24, 0.9));
+        border-color: color-mix(in srgb, var(--accent) 75%, rgba(255, 255, 255, 0.12));
+        color: var(--hud-text-strong);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+    }
+    .icon-symbol {
+        width: 20px;
+        height: 20px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .icon-symbol :global(svg) {
+        width: 18px;
+        height: 18px;
+    }
+
+    .icon-label {
+        display: none;
+        flex: 1;
+        font-family: var(--hud-font-ui);
+        font-size: 0.62rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.11em;
+        color: inherit;
+        opacity: 0.92;
+        line-height: 1.25;
+    }
+    .controls-panel--ribbon-expanded .icon-label {
+        display: block;
+    }
     /* ── Section Panel ── */
     .section-panel {
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 8px;
+        background: var(--hud-panel-bg);
+        border: 1px solid var(--hud-border);
+        border-radius: var(--hud-radius-md);
+        box-shadow: var(--hud-shadow-soft);
         overflow: hidden;
         animation: slideIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         flex: 1;
@@ -1966,8 +1746,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .section-head-wrap {
         display: flex;
         flex-direction: column;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-        background: color-mix(in srgb, var(--accent) 9%, transparent);
+        border-bottom: 1px solid var(--hud-divider);
+        background: color-mix(in srgb, var(--accent) 8%, rgba(5, 9, 20, 0.45));
     }
     @keyframes slideIn {
         from {
@@ -1994,35 +1774,41 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         }
     }
 
-    .section-head {
+    :global(.section-head) {
         display: flex;
         align-items: center;
         gap: 8px;
         width: 100%;
-        padding: 10px 12px 8px;
+        padding: 12px 14px 10px;
         background: transparent;
         border: none;
         cursor: pointer;
         color: var(--accent);
-        font-family: inherit;
+        font-family: var(--hud-font-ui);
         transition: background 0.15s;
     }
-    .section-head:hover {
+    :global(.section-head:hover) {
         background: color-mix(in srgb, var(--accent) 18%, transparent);
     }
     .head-icon {
-        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
     }
     .head-label {
         flex: 1;
-        font-size: 15px;
+        font-size: 0.84rem;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 1.1px;
+        letter-spacing: 0.09em;
         text-align: left;
     }
     .head-close {
-        font-size: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         opacity: 0.5;
         transition: opacity 0.15s;
     }
@@ -2031,7 +1817,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     .section-body {
-        padding: 10px;
+        padding: 12px;
         display: flex;
         flex-direction: column;
         gap: 10px;
@@ -2045,17 +1831,18 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         gap: 8px;
         padding: 0 12px 12px;
     }
-    .subsection-chip {
+    :global(.subsection-chip) {
         display: inline-flex;
         align-items: center;
         gap: 6px;
         min-height: 30px;
         padding: 0 12px;
         border-radius: 999px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(7, 12, 24, 0.45);
-        color: rgba(226, 232, 240, 0.84);
-        font-size: 10px;
+        border: 1px solid var(--hud-border);
+        background: rgba(7, 12, 24, 0.62);
+        color: var(--hud-text);
+        font-family: var(--hud-font-ui);
+        font-size: 0.6rem;
         font-weight: 700;
         letter-spacing: 0.1em;
         text-transform: uppercase;
@@ -2066,7 +1853,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             color 0.15s,
             transform 0.15s;
     }
-    .subsection-chip:hover {
+    :global(.subsection-chip:hover) {
         border-color: color-mix(
             in srgb,
             var(--accent) 60%,
@@ -2076,7 +1863,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         color: rgba(241, 245, 249, 0.96);
         transform: translateY(-1px);
     }
-    .subsection-chip.active {
+    :global(.subsection-chip.active) {
         border-color: color-mix(
             in srgb,
             var(--accent) 76%,
@@ -2097,526 +1884,49 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     :global(.is-hidden-by-subsection) {
         display: none !important;
     }
-    /* ── Controls ── */
-    .sub-heading {
-        font-size: 9px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        color: var(--accent, #aabbcc);
-        margin: 4px 0 2px;
-        padding-top: 4px;
-        border-top: 1px solid rgba(255, 255, 255, 0.06);
-        font-weight: 700;
-    }
-
-    /* ── Logging ── */
-    .log-actions {
-        display: flex;
-        gap: 6px;
-        margin-bottom: 2px;
-    }
-    .btn-xs {
-        background: transparent;
-        border: 1px solid #556;
-        color: #889;
-        font-size: 9px;
-        padding: 2px 8px;
-        border-radius: 3px;
-        cursor: pointer;
-        font-weight: 600;
-        transition: all 0.15s;
-    }
-    .btn-xs:hover {
-        border-color: #fff;
-        color: #fff;
-    }
-    /* Lock buttons for tick-ratio locking */
-    .val-group {
-        display: flex;
-        align-items: center;
-        gap: 3px;
-    }
-    .lock-btn {
-        background: none;
-        border: 1px solid rgba(100, 120, 160, 0.2);
-        border-radius: 3px;
-        cursor: pointer;
-        font-size: 11px;
-        padding: 1px 4px;
-        line-height: 1.2;
-        opacity: 0.5;
-        transition:
-            opacity 0.15s,
-            background 0.15s;
-    }
-    .lock-btn:hover {
-        opacity: 0.8;
-        background: rgba(100, 120, 160, 0.15);
-    }
-    .lock-btn.active {
-        opacity: 1;
-        background: rgba(80, 180, 255, 0.2);
-        border-color: rgba(80, 180, 255, 0.5);
-    }
-    .var-row.locked input[type="range"] {
-        opacity: 0.35;
-        pointer-events: none;
-    }
-    .var-row.locked .var-name {
-        color: rgba(120, 180, 255, 0.9);
-    }
-    .toggle-row {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 2px 4px;
-        cursor: pointer;
-        font-size: 12px;
-        border-radius: 3px;
-    }
-    .toggle-row:hover {
-        background: rgba(100, 120, 160, 0.1);
-    }
-    .log-label {
-        font-weight: 600;
-        white-space: nowrap;
-    }
-    .log-desc {
-        font-size: 8px;
-        color: #556;
-        margin-left: auto;
-    }
-    .sub-heading {
-        font-size: 11px;
-        font-weight: 700;
-        color: #aabbcc;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        border-top: 1px solid rgba(255, 255, 255, 0.06);
-        padding-top: 6px;
-        margin: 0;
-    }
-    .btn-export {
-        border-color: #4a7;
-        color: #6c9;
-    }
-    .btn-export:hover {
-        border-color: #6fb;
-        color: #8fe;
-        background: rgba(80, 220, 140, 0.08);
-    }
-    .btn-import {
-        border-color: #47a;
-        color: #69c;
-    }
-    .btn-import:hover {
-        border-color: #6af;
-        color: #8cf;
-        background: rgba(80, 140, 220, 0.08);
-    }
-    /* ── Future AI Strategies ── */
-    .var-row.grayed {
-        opacity: 0.35;
-        pointer-events: none;
-        border-style: dashed;
-    }
-    .future-desc {
-        font-size: 8px;
-        color: #667;
-        padding: 0 6px 2px;
-    }
-
-    /* ── Tier Toggle ── */
-    .tier-bar {
-        display: flex;
-        gap: 3px;
-        padding: 4px 6px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    }
-    .tier-pill {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 4px;
-        padding: 4px 6px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 4px;
-        background: transparent;
-        color: #667;
-        font-size: 10px;
-        font-weight: 600;
-        font-family: inherit;
-        cursor: pointer;
-        transition: all 0.15s;
-    }
-    .tier-pill:hover {
-        border-color: var(--tier-color);
-        color: var(--tier-color);
-        background: color-mix(in srgb, var(--tier-color) 8%, transparent);
-    }
-    .tier-pill.active {
-        border-color: var(--tier-color);
-        color: var(--tier-color);
-        background: color-mix(in srgb, var(--tier-color) 15%, transparent);
-        box-shadow: 0 0 8px
-            color-mix(in srgb, var(--tier-color) 20%, transparent);
-    }
-    .tier-icon {
-        font-size: 11px;
-    }
-    .tier-label {
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .settings-header-tools {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        padding: 8px 10px 10px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .settings-search-label {
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: rgba(226, 232, 240, 0.74);
-    }
-
-    .settings-search-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .settings-search-input {
-        flex: 1;
-        min-width: 0;
-        padding: 10px 12px;
-        border: 1px solid rgba(148, 163, 184, 0.24);
-        border-radius: 10px;
-        background: rgba(15, 23, 42, 0.66);
-        color: #f8fafc;
-        font-size: 13px;
-    }
-
-    .settings-search-input:focus {
-        outline: none;
-        border-color: rgba(96, 165, 250, 0.68);
-        box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.18);
-    }
-
-    .settings-search-input::placeholder {
-        color: rgba(148, 163, 184, 0.74);
-    }
-
-    .settings-search-clear {
-        width: 34px;
-        height: 34px;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        border-radius: 8px;
-        background: rgba(255, 255, 255, 0.05);
-        color: rgba(226, 232, 240, 0.74);
-        cursor: pointer;
-        transition:
-            background 0.18s,
-            border-color 0.18s,
-            color 0.18s;
-    }
-
-    .settings-search-clear:hover {
-        background: rgba(255, 255, 255, 0.08);
-        border-color: rgba(255, 255, 255, 0.24);
-        color: #fff;
-    }
-
-    .settings-search-results {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        max-height: 260px;
-        overflow-y: auto;
-        padding: 4px 2px 0;
-    }
-
-    .settings-search-summary {
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: rgba(148, 163, 184, 0.88);
-    }
-
-    .settings-search-empty {
-        padding: 10px 12px;
-        border: 1px solid rgba(148, 163, 184, 0.14);
-        border-radius: 10px;
-        background: rgba(15, 23, 42, 0.42);
-        color: rgba(203, 213, 225, 0.78);
-        font-size: 12px;
-        line-height: 1.45;
-    }
-
-    .settings-search-result {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 4px;
-        width: 100%;
-        padding: 10px 12px;
-        border: 1px solid rgba(148, 163, 184, 0.14);
-        border-radius: 10px;
-        background: rgba(15, 23, 42, 0.46);
-        color: #e2e8f0;
-        cursor: pointer;
-        text-align: left;
-        transition:
-            background 0.18s,
-            border-color 0.18s,
-            transform 0.18s;
-    }
-
-    .settings-search-result:hover {
-        background: rgba(30, 41, 59, 0.8);
-        border-color: rgba(96, 165, 250, 0.34);
-        transform: translateY(-1px);
-    }
-
-    .settings-search-result__title {
-        font-size: 12px;
-        font-weight: 700;
-        color: #f8fafc;
-    }
-
-    .settings-search-result__meta {
-        font-size: 10px;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        color: #93c5fd;
-    }
-
-    .settings-search-result__snippet {
-        font-size: 11px;
-        line-height: 1.4;
-        color: rgba(203, 213, 225, 0.8);
-    }
-
-    .settings-utility-row {
-        display: flex;
-        gap: 6px;
-        flex-wrap: wrap;
-    }
-    .settings-utility-row--internal {
-        padding-top: 2px;
-    }
-    .settings-utility-groups {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 8px;
-    }
-    .settings-utility-card {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        padding: 10px;
-        border-radius: 10px;
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        background: rgba(15, 23, 42, 0.46);
-        min-width: 0;
-    }
-    .settings-utility-card__label {
-        font-size: 10px;
-        font-weight: 800;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: rgba(226, 232, 240, 0.78);
-    }
-    .settings-utility-card__actions {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 6px;
-    }
-    .full-io-btn {
-        flex: 1 1 120px;
-        padding: 3px 8px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 6px;
-        background: rgba(255, 255, 255, 0.04);
-        color: #aaa;
-        font-size: 11px;
-        cursor: pointer;
-        transition: all 0.15s;
-    }
-    .full-io-btn:hover {
-        background: rgba(255, 255, 255, 0.08);
-        border-color: rgba(255, 255, 255, 0.2);
-        color: #fff;
-    }
-    .settings-utility-status {
-        margin-top: 4px;
-        font-size: 10px;
-        line-height: 1.35;
-    }
-    .full-export-btn {
-        border-color: rgba(74, 222, 128, 0.22);
-        color: #b8f5c8;
-    }
-    .full-export-btn:hover {
-        box-shadow: 0 0 8px rgba(74, 222, 128, 0.15);
-    }
-    .full-import-btn {
-        border-color: rgba(250, 204, 21, 0.22);
-        color: #fce588;
-    }
-    .full-import-btn:hover {
-        box-shadow: 0 0 8px rgba(250, 204, 21, 0.15);
-    }
-    .full-reset-btn {
-        border-color: rgba(255, 68, 68, 0.35);
-        color: #ff8888;
-    }
-    .full-reset-btn:hover {
-        background: rgba(255, 68, 68, 0.1);
-        border-color: #ff4444;
-        color: #ff4444;
-        box-shadow: 0 0 8px rgba(255, 68, 68, 0.25);
-    }
-    .full-delete-btn {
-        flex: 0 0 auto;
-        min-width: 42px;
-        padding-inline: 0;
-    }
-    .full-load-map-btn {
-        border-color: rgba(125, 211, 252, 0.28);
-        color: #c7e7ff;
-    }
-    .full-load-map-btn:hover {
-        border-color: rgba(125, 211, 252, 0.45);
-        box-shadow: 0 0 8px rgba(125, 211, 252, 0.18);
-    }
-    .full-load-map-drawer {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        padding: 6px;
-        border-radius: 8px;
-        border: 1px solid rgba(125, 211, 252, 0.15);
-        background: rgba(9, 14, 24, 0.78);
-    }
-    .full-load-map-empty {
-        padding: 10px 12px;
-        border-radius: 6px;
-        background: rgba(255, 255, 255, 0.03);
-        color: #8993a4;
-        font-size: 11px;
-    }
-    .full-load-map-list {
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-        max-height: 220px;
-        overflow-y: auto;
-    }
-    .full-load-map-item {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 2px;
-        width: 100%;
-        padding: 8px 10px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 7px;
-        background: rgba(255, 255, 255, 0.04);
-        color: #d7e2f0;
-        cursor: pointer;
-        text-align: left;
-        transition:
-            border-color 0.15s,
-            background 0.15s,
-            transform 0.15s;
-    }
-    .full-load-map-item--saved-game {
-        flex-direction: row;
-        align-items: center;
-        gap: 6px;
-    }
-    .full-load-map-item__button {
-        display: flex;
-        flex: 1;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 2px;
-        width: 100%;
-        padding: 8px 10px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 7px;
-        background: rgba(255, 255, 255, 0.04);
-        color: #d7e2f0;
-        cursor: pointer;
-        text-align: left;
-        transition:
-            border-color 0.15s,
-            background 0.15s,
-            transform 0.15s;
-    }
-    .full-load-map-item:hover {
-        border-color: rgba(125, 211, 252, 0.32);
-        background: rgba(125, 211, 252, 0.08);
-        transform: translateY(-1px);
-    }
-    .full-load-map-item__button:hover {
-        border-color: rgba(125, 211, 252, 0.32);
-        background: rgba(125, 211, 252, 0.08);
-        transform: translateY(-1px);
-    }
-    .full-load-map-item__name {
-        font-size: 12px;
-        font-weight: 700;
-        color: #eef6ff;
-    }
-    .full-load-map-item__meta {
-        font-size: 10px;
-        letter-spacing: 0.03em;
-        color: #8ea3bc;
-    }
-    .settings-inline-row {
-        display: flex;
-        gap: 8px;
-        align-items: stretch;
-    }
-    .settings-inline-input {
-        flex: 1;
-        min-width: 0;
-        padding: 9px 12px;
-        border: 1px solid rgba(148, 163, 184, 0.24);
-        border-radius: 8px;
-        background: rgba(15, 23, 42, 0.72);
-        color: #f8fafc;
-        font-size: 13px;
-    }
-    .settings-inline-input:focus {
-        outline: none;
-        border-color: rgba(96, 165, 250, 0.68);
-        box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.18);
-    }
-
-    @media (max-width: 860px) {
-        .settings-utility-groups {
+    /* ── Nudge slider buttons (injected via nudgeSliders action) ── */
+    @media (max-width: 720px) {
+        .settings-shell {
             grid-template-columns: 1fr;
+            grid-template-areas:
+                "rail"
+                "content";
+        }
+
+        .icon-toolbar {
+            flex-direction: row;
+            flex-wrap: wrap;
+            padding: 0;
+        }
+
+        .icon-toolbar__controls {
+            flex-direction: row;
+            flex: 1 1 100%;
+        }
+
+        :global(.icon-btn) {
+            flex: 1 1 140px;
+            justify-content: flex-start;
+            padding: 10px 12px;
+        }
+
+        .icon-label {
+            display: block;
+        }
+
+        .settings-content {
+            overflow: visible;
+            padding-right: 0;
         }
     }
 
-    /* ── Nudge slider buttons (injected via nudgeSliders action) ── */
     :global(.nudge-slider-wrap) {
         display: flex;
         align-items: center;
         gap: 4px;
         width: 100%;
     }
-    :global(.nudge-slider-wrap) input[type="range"] {
+    :global(.nudge-slider-wrap input[type="range"]) {
         flex: 1;
         min-width: 0;
     }
@@ -2651,4 +1961,411 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         background: rgba(74, 222, 128, 0.25);
         border-color: rgba(74, 222, 128, 0.6);
     }
+    /* Aurelia Drift correction layer: this turns the settings surface into
+       a real command ribbon plus drawer instead of a text-heavy empty panel. */
+    .controls-panel {
+        gap: 12px;
+        height: auto;
+        max-height: 100%;
+        overflow: visible;
+    }
+
+    .settings-shell {
+        grid-template-columns: var(--settings-ribbon-width) minmax(0, 1fr);
+        gap: 10px;
+        flex: 0 1 auto;
+        align-items: start;
+    }
+
+    .icon-toolbar {
+        gap: 7px;
+        padding: 8px 6px;
+        border: 1px solid rgba(246, 196, 105, 0.32);
+        background:
+            linear-gradient(180deg, rgba(2, 24, 27, 0.92), rgba(1, 8, 13, 0.96)),
+            radial-gradient(circle at 50% 0%, rgba(246, 196, 105, 0.12), transparent 38%);
+        clip-path: var(--hud-cut-corner-sm);
+        box-shadow: inset 0 0 0 1px rgba(255, 231, 178, 0.05);
+        overflow-x: hidden;
+        max-height: min(52vh, calc(100vh - var(--hud-topbar-height) - 330px));
+    }
+
+    .icon-toolbar__controls {
+        gap: 7px;
+        padding-bottom: 7px;
+        border-bottom: 1px solid rgba(246, 196, 105, 0.18);
+    }
+
+    :global(.icon-toolbar-control),
+    :global(.icon-btn) {
+        min-height: 42px;
+        border-radius: 0;
+        border-color: rgba(246, 196, 105, 0.22);
+        background: rgba(0, 17, 21, 0.72);
+        color: rgba(255, 221, 160, 0.82);
+        clip-path: var(--hud-cut-corner-xs);
+        box-shadow: inset 0 0 0 1px rgba(120, 255, 244, 0.03);
+    }
+
+    :global(.icon-toolbar-control) {
+        font-size: 0;
+    }
+
+    :global(.icon-btn) {
+        padding: 0;
+    }
+
+    :global(.controls-panel--ribbon-expanded .icon-btn),
+    :global(.controls-panel--ribbon-expanded .icon-toolbar.has-active .icon-btn) {
+        min-height: 42px;
+        padding: 0 10px;
+        gap: 8px;
+    }
+
+    :global(.icon-btn:hover),
+    :global(.icon-toolbar-control:hover) {
+        background:
+            linear-gradient(180deg, rgba(21, 44, 39, 0.92), rgba(4, 23, 25, 0.94)),
+            rgba(246, 196, 105, 0.04);
+        color: var(--hud-accent-warm-strong);
+        border-color: rgba(246, 196, 105, 0.62);
+        transform: none;
+    }
+
+    :global(.icon-btn.active) {
+        background:
+            linear-gradient(180deg, rgba(97, 72, 25, 0.92), rgba(4, 29, 29, 0.96));
+        color: #fff1bf;
+        border-color: rgba(255, 214, 120, 0.78);
+        box-shadow: inset 0 0 0 1px rgba(255, 235, 175, 0.13), 0 0 18px rgba(246, 196, 105, 0.18);
+    }
+
+    .icon-symbol {
+        width: 18px;
+        height: 18px;
+    }
+
+    .icon-label {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 0.58rem;
+        line-height: 1;
+    }
+
+    .settings-content {
+        gap: 10px;
+        padding: 0 2px 0 0;
+        max-height: calc(100vh - var(--hud-topbar-height) - 24px);
+    }
+
+    .section-panel {
+        border-radius: 0;
+        border-color: rgba(246, 196, 105, 0.35);
+        background:
+            linear-gradient(180deg, rgba(3, 23, 26, 0.97), rgba(1, 8, 13, 0.99)),
+            radial-gradient(circle at 0% 0%, rgba(90, 245, 235, 0.08), transparent 42%),
+            radial-gradient(circle at 100% 0%, rgba(246, 196, 105, 0.12), transparent 44%);
+        clip-path: var(--hud-cut-corner-md);
+    }
+
+    :global(.section-head) {
+        min-height: 42px;
+        padding: 0 12px;
+        color: var(--hud-accent-warm-strong);
+        border-bottom-color: rgba(246, 196, 105, 0.2);
+        background: rgba(0, 15, 18, 0.72);
+    }
+
+    .head-icon {
+        color: var(--hud-accent-warm);
+    }
+
+    .head-label,
+    :global(.subsection-chip) {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .section-body {
+        padding: 10px;
+    }
+
+    .section-body :global(.category-theme-bar) {
+        margin: -2px -2px 10px;
+        padding: 8px;
+        border: 1px solid rgba(246, 196, 105, 0.26);
+        background:
+            linear-gradient(180deg, rgba(3, 21, 24, 0.9), rgba(0, 9, 12, 0.94)),
+            radial-gradient(circle at 0% 0%, rgba(90, 245, 235, 0.08), transparent 42%);
+        clip-path: var(--hud-cut-corner-sm);
+    }
+
+    .section-body :global(.theme-select),
+    .section-body :global(.action-btn),
+    .section-body :global(.drawer-btn),
+    .section-body :global(.chip),
+    .section-body :global(.modal-chip),
+    .section-body :global(.modal-chip button) {
+        border-radius: 0;
+        border-color: rgba(246, 196, 105, 0.28);
+        background: rgba(0, 17, 21, 0.78);
+        color: rgba(255, 229, 174, 0.9);
+        clip-path: var(--hud-cut-corner-xs);
+        font-family: var(--hud-font-ui);
+        font-weight: 800;
+        letter-spacing: 0.06em;
+    }
+
+    .section-body :global(.theme-select:focus),
+    .section-body :global(.action-btn:hover),
+    .section-body :global(.drawer-btn:hover),
+    .section-body :global(.chip:hover),
+    .section-body :global(.chip.active) {
+        border-color: rgba(255, 218, 132, 0.72);
+        background: linear-gradient(180deg, rgba(58, 48, 22, 0.9), rgba(3, 31, 32, 0.94));
+        color: #fff0ba;
+    }
+
+    .section-body :global(.sub-heading) {
+        margin: 10px 0 8px;
+        padding-top: 0;
+        border-top: none;
+        color: var(--hud-accent-warm);
+        font-family: var(--hud-font-ui);
+        font-size: 0.62rem;
+        font-weight: 900;
+        letter-spacing: 0.16em;
+    }
+
+    .section-body :global(.var-row),
+    .section-body :global(.toggle-row) {
+        border: 1px solid rgba(246, 196, 105, 0.16);
+        background: rgba(0, 15, 19, 0.62);
+        border-radius: 0;
+        clip-path: var(--hud-cut-corner-xs);
+    }
+
+    .section-body :global(.var-name) {
+        color: rgba(255, 232, 181, 0.9);
+        font-family: var(--hud-font-ui);
+        font-weight: 800;
+        letter-spacing: 0.04em;
+    }
+
+    .section-body :global(.val) {
+        color: var(--hud-accent);
+        font-family: var(--hud-font-data);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .section-body :global(input[type="range"]) {
+        accent-color: var(--hud-accent);
+    }
+
+    .icon-toolbar,
+    .section-panel,
+    .section-body :global(.category-theme-bar) {
+        border-color: transparent;
+        border-radius: var(--hud-radius-md);
+        clip-path: var(--hud-rounded-corner-md);
+        background:
+            linear-gradient(180deg, rgba(3, 23, 26, 0.97), rgba(1, 8, 13, 0.99)) padding-box,
+            var(--hud-border-gradient) border-box;
+    }
+
+    :global(.icon-toolbar-control),
+    :global(.icon-btn),
+    .section-body :global(.theme-select),
+    .section-body :global(.action-btn),
+    .section-body :global(.drawer-btn),
+    .section-body :global(.chip),
+    .section-body :global(.modal-chip),
+    .section-body :global(.modal-chip button),
+    .section-body :global(.var-row),
+    .section-body :global(.toggle-row) {
+        border-color: transparent;
+        border-radius: var(--hud-radius-xs);
+        clip-path: var(--hud-rounded-corner-xs);
+        background:
+            linear-gradient(180deg, rgba(0, 18, 21, 0.86), rgba(0, 10, 13, 0.94)) padding-box,
+            var(--hud-control-border-gradient) border-box;
+    }
+
+    :global(.icon-btn:hover),
+    :global(.icon-toolbar-control:hover),
+    .section-body :global(.theme-select:focus),
+    .section-body :global(.action-btn:hover),
+    .section-body :global(.drawer-btn:hover),
+    .section-body :global(.chip:hover),
+    .section-body :global(.chip.active) {
+        border-color: transparent;
+        background:
+            linear-gradient(180deg, rgba(58, 48, 22, 0.9), rgba(3, 31, 32, 0.94)) padding-box,
+            var(--hud-border-gradient) border-box;
+    }
+
+    :global(.icon-btn.active) {
+        border-color: transparent;
+        background:
+            linear-gradient(180deg, rgba(97, 72, 25, 0.92), rgba(4, 29, 29, 0.96)) padding-box,
+            var(--hud-border-gradient) border-box;
+    }
+
+    /* Settings ownership correction: the rail is the master component. */
+    .controls-panel {
+        --settings-ribbon-width: 64px;
+        height: 100%;
+        max-height: 100%;
+        gap: 0;
+    }
+
+    .controls-panel--ribbon-expanded {
+        --settings-ribbon-width: 168px;
+    }
+
+    .settings-shell,
+    .controls-panel--dock-left .settings-shell {
+        width: 100%;
+        height: 100%;
+        display: grid;
+        grid-template-columns: var(--settings-ribbon-width);
+        grid-template-areas: "rail";
+        gap: 10px;
+        align-items: stretch;
+        transition:
+            grid-template-columns 0.22s ease,
+            width 0.22s ease;
+    }
+
+    .settings-shell--with-panel {
+        grid-template-columns: minmax(360px, 1fr) var(--settings-ribbon-width);
+        grid-template-areas: "content rail";
+    }
+
+    .controls-panel--dock-left .settings-shell--with-panel {
+        grid-template-columns: var(--settings-ribbon-width) minmax(360px, 1fr);
+        grid-template-areas: "rail content";
+    }
+
+    .icon-toolbar {
+        width: var(--settings-ribbon-width);
+        height: 100%;
+        max-height: none;
+        padding: 8px;
+        overflow-x: hidden;
+        overflow-y: auto;
+        transition:
+            width 0.22s ease,
+            border-color 0.18s ease,
+            background 0.18s ease;
+    }
+
+    .icon-toolbar__controls {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    :global(.icon-toolbar-control),
+    :global(.icon-btn),
+    :global(.icon-toolbar.has-active .icon-btn),
+    :global(.settings-tool-action) {
+        width: 100%;
+        min-height: 44px;
+        padding: 0;
+        justify-content: center;
+    }
+
+    :global(.controls-panel--ribbon-expanded .icon-btn),
+    :global(.controls-panel--ribbon-expanded .icon-toolbar.has-active .icon-btn),
+    :global(.controls-panel--ribbon-expanded .icon-toolbar-control) {
+        justify-content: flex-start;
+        padding: 0 10px;
+    }
+
+    :global(.settings-tool-danger) {
+        --accent: var(--hud-danger);
+    }
+
+    .settings-content {
+        grid-area: content;
+        min-width: 0;
+        height: 100%;
+        max-height: calc(100vh - var(--hud-topbar-height) - 24px);
+        opacity: 1;
+        transform: translateX(0);
+        transition:
+            opacity 0.18s ease,
+            transform 0.22s ease;
+    }
+
+    .settings-shell:not(.settings-shell--with-panel) .settings-content {
+        display: none;
+        opacity: 0;
+        transform: translateX(-8px);
+    }
+
+    .icon-toolbar {
+        gap: 8px;
+        padding: 10px;
+    }
+
+    .icon-toolbar__controls {
+        gap: 8px;
+        padding-bottom: 9px;
+    }
+
+    :global(.icon-toolbar-control),
+    :global(.icon-btn),
+    :global(.icon-toolbar.has-active .icon-btn),
+    :global(.settings-tool-action) {
+        min-height: 48px;
+    }
+
+    :global(.controls-panel--ribbon-expanded .icon-btn),
+    :global(.controls-panel--ribbon-expanded .icon-toolbar.has-active .icon-btn),
+    :global(.controls-panel--ribbon-expanded .icon-toolbar-control) {
+        min-height: 46px;
+        padding: 0 12px;
+        gap: 10px;
+    }
+
+    .icon-symbol {
+        width: 21px;
+        height: 21px;
+    }
+
+    .icon-symbol :global(svg) {
+        width: calc(19px * var(--hud-icon-scale, 1));
+        height: calc(19px * var(--hud-icon-scale, 1));
+    }
+
+    .icon-label {
+        font-size: calc(0.64rem * var(--hud-label-scale, 1));
+        letter-spacing: 0.1em;
+        line-height: 1.1;
+    }
+
+    .settings-content {
+        gap: 12px;
+    }
+
+    :global(.section-head) {
+        min-height: 48px;
+        padding: 0 14px;
+    }
+
+    .head-label {
+        font-size: calc(0.86rem * var(--hud-title-scale, 1));
+        line-height: 1.1;
+    }
+
+    .section-body {
+        gap: 12px;
+        padding: 14px;
+    }
+
 </style>

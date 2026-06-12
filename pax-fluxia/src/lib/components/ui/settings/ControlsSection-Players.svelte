@@ -1,6 +1,11 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
+    import {
+        PaxColorSwatchButton,
+        PaxHudButton,
+        PaxSettingsRangeRow,
+    } from "$lib/design-system";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
     import {
         PLAYER_HUE_NUDGE_LIMIT,
@@ -29,7 +34,10 @@
     const rosterSize = $derived(
         Math.max(
             1,
-            Math.min(activeGameStore.players.length || PLAYER_PALETTE_SIZE, PLAYER_PALETTE_SIZE),
+            Math.min(
+                activeGameStore.players.length || PLAYER_PALETTE_SIZE,
+                PLAYER_PALETTE_SIZE,
+            ),
         ),
     );
 
@@ -52,7 +60,9 @@
             lightness,
         ),
     );
-    const selectedPaletteHue = $derived(fullPaletteHues[selectedPaletteIndex] ?? anchorHue);
+    const selectedPaletteHue = $derived(
+        fullPaletteHues[selectedPaletteIndex] ?? anchorHue,
+    );
 
     function persistAndApplyPalette(): void {
         savePlayerPaletteSettings({
@@ -73,7 +83,10 @@
     }
 
     function selectPaletteIndex(index: number): void {
-        selectedPaletteIndex = Math.max(0, Math.min(index, Math.max(0, rosterSize - 1)));
+        selectedPaletteIndex = Math.max(
+            0,
+            Math.min(index, Math.max(0, rosterSize - 1)),
+        );
     }
 
     function setSelectedPaletteNudge(value: number): void {
@@ -106,40 +119,30 @@
     we keep the full roster perceptually spread.
 </p>
 
-<div class="var-row">
-    <div class="row-top">
-        <span
-            class="var-name"
-            data-setting-config-key="local.playerPalette.anchorHue"
-            data-setting-description="Persisted local anchor hue used to generate the player palette."
-            >Anchor Hue</span
-        >
-        <span class="val">{Math.round(anchorHue)}°</span>
-    </div>
-    <input
-        class="hue-slider"
-        type="range"
-        min="0"
-        max="359"
-        step="1"
-        bind:value={anchorHue}
-        style="--hue: {anchorHue}"
-        oninput={() => persistAndApplyPalette()}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="Anchor Hue"
+    value={anchorHue}
+    min={0}
+    max={359}
+    step={1}
+    output={`${Math.round(anchorHue)}deg`}
+    settingConfigKey="local.playerPalette.anchorHue"
+    settingDescription="Persisted local anchor hue used to generate the player palette."
+    onInput={(value) => {
+        anchorHue = value;
+        persistAndApplyPalette();
+    }}
+/>
 
 <div class="players-preview-grid">
     {#each paletteHex as hex, index}
-        <button
-            type="button"
-            class="players-preview-slot"
-            class:is-selected={selectedPaletteIndex === index}
+        <PaxColorSwatchButton
+            color={hex}
+            label={`P${index + 1}`}
+            meta={`${Math.round(paletteHues[index] ?? 0)}deg`}
+            selected={selectedPaletteIndex === index}
             onclick={() => selectPaletteIndex(index)}
-        >
-            <span class="players-preview-swatch" style="background: {hex}"></span>
-            <span class="players-preview-label">P{index + 1}</span>
-            <span class="players-preview-hue">{Math.round(paletteHues[index] ?? 0)}°</span>
-        </button>
+        />
     {/each}
 </div>
 
@@ -147,82 +150,61 @@
 <div class="players-focus-card">
     <div class="players-focus-row">
         <span class="players-focus-label">Selected</span>
-        <span class="players-focus-value">P{selectedPaletteIndex + 1} · {Math.round(selectedPaletteHue)}°</span>
+        <span class="players-focus-value">
+            P{selectedPaletteIndex + 1} - {Math.round(selectedPaletteHue)}deg
+        </span>
     </div>
-    <div class="var-row compact-row">
-        <div class="row-top">
-            <span
-                class="var-name"
-                data-setting-config-key="local.playerPalette.nudges[selected]"
-                data-setting-description="Per-player local hue offset layered on top of the anchored palette."
-                >Hue Nudge</span
-            >
-            <span class="val">
-                {(nudges[selectedPaletteIndex] ?? 0) > 0 ? "+" : ""}{nudges[selectedPaletteIndex] ?? 0}°
-            </span>
-        </div>
-        <input
-            type="range"
-            min={-PLAYER_HUE_NUDGE_LIMIT}
-            max={PLAYER_HUE_NUDGE_LIMIT}
-            step="1"
-            value={nudges[selectedPaletteIndex] ?? 0}
-            oninput={(event) =>
-                setSelectedPaletteNudge(Number((event.currentTarget as HTMLInputElement).value))}
-        />
-    </div>
-    <button
-        type="button"
-        class="players-reset-btn"
-        onclick={resetSelectedPaletteNudge}
+    <PaxSettingsRangeRow
+        label="Hue Nudge"
+        value={nudges[selectedPaletteIndex] ?? 0}
+        min={-PLAYER_HUE_NUDGE_LIMIT}
+        max={PLAYER_HUE_NUDGE_LIMIT}
+        step={1}
+        output={`${(nudges[selectedPaletteIndex] ?? 0) > 0 ? "+" : ""}${nudges[selectedPaletteIndex] ?? 0}deg`}
+        settingConfigKey="local.playerPalette.nudges[selected]"
+        settingDescription="Per-player local hue offset layered on top of the anchored palette."
+        onInput={setSelectedPaletteNudge}
+    />
+    <PaxHudButton
+        label="Reset selected nudge"
+        size="sm"
         disabled={(nudges[selectedPaletteIndex] ?? 0) === 0}
-    >
-        Reset selected nudge
-    </button>
+        onclick={resetSelectedPaletteNudge}
+    />
 </div>
 
 <h4 class="sub-heading">Advanced Tuning</h4>
 <details class="players-detail">
     <summary>Advanced palette tuning</summary>
     <div class="players-detail-grid">
-        <div class="var-row compact-row">
-            <div class="row-top">
-                <span
-                    class="var-name"
-                    data-setting-config-key="local.playerPalette.saturation"
-                    data-setting-description="Persisted local saturation used when generating player colors."
-                    >Saturation</span
-                >
-                <span class="val">{saturation}%</span>
-            </div>
-            <input
-                type="range"
-                min="40"
-                max="100"
-                step="1"
-                bind:value={saturation}
-                oninput={() => persistAndApplyPalette()}
-            />
-        </div>
-        <div class="var-row compact-row">
-            <div class="row-top">
-                <span
-                    class="var-name"
-                    data-setting-config-key="local.playerPalette.lightness"
-                    data-setting-description="Persisted local lightness used when generating player colors."
-                    >Lightness</span
-                >
-                <span class="val">{lightness}%</span>
-            </div>
-            <input
-                type="range"
-                min="35"
-                max="70"
-                step="1"
-                bind:value={lightness}
-                oninput={() => persistAndApplyPalette()}
-            />
-        </div>
+        <PaxSettingsRangeRow
+            label="Saturation"
+            value={saturation}
+            min={40}
+            max={100}
+            step={1}
+            format="percent"
+            settingConfigKey="local.playerPalette.saturation"
+            settingDescription="Persisted local saturation used when generating player colors."
+            onInput={(value) => {
+                saturation = value;
+                persistAndApplyPalette();
+            }}
+        />
+        <PaxSettingsRangeRow
+            label="Lightness"
+            value={lightness}
+            min={35}
+            max={70}
+            step={1}
+            format="percent"
+            settingConfigKey="local.playerPalette.lightness"
+            settingDescription="Persisted local lightness used when generating player colors."
+            onInput={(value) => {
+                lightness = value;
+                persistAndApplyPalette();
+            }}
+        />
     </div>
 </details>
 
@@ -236,133 +218,53 @@
         color: rgba(210, 225, 255, 0.72);
     }
 
-    .hue-slider {
-        background: linear-gradient(
-            to right,
-            hsl(0, 82%, 56%),
-            hsl(30, 82%, 56%),
-            hsl(60, 82%, 56%),
-            hsl(120, 82%, 56%),
-            hsl(180, 82%, 56%),
-            hsl(210, 82%, 56%),
-            hsl(270, 82%, 56%),
-            hsl(330, 82%, 56%),
-            hsl(360, 82%, 56%)
-        );
-        height: 8px;
-        border-radius: 999px;
-    }
-    .hue-slider::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        width: 16px;
-        height: 16px;
-        border-radius: 50%;
-        border: 2px solid rgba(255, 255, 255, 0.92);
-        background: hsl(var(--hue, 210), 82%, 56%);
-        box-shadow: 0 0 8px rgba(0, 0, 0, 0.35);
-        cursor: pointer;
-    }
-    .hue-slider::-moz-range-thumb {
-        width: 16px;
-        height: 16px;
-        border-radius: 50%;
-        border: 2px solid rgba(255, 255, 255, 0.92);
-        background: hsl(var(--hue, 210), 82%, 56%);
-        box-shadow: 0 0 8px rgba(0, 0, 0, 0.35);
-        cursor: pointer;
-    }
-
     .players-preview-grid {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 6px;
     }
-    .players-preview-slot {
-        appearance: none;
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 4px;
-        padding: 8px 6px;
-        border-radius: 6px;
-        background: rgba(255, 255, 255, 0.03);
-        cursor: pointer;
-        transition:
-            border-color 0.15s ease,
-            box-shadow 0.15s ease,
-            transform 0.15s ease;
-    }
-    .players-preview-slot:hover {
-        border-color: rgba(120, 220, 255, 0.24);
-    }
-    .players-preview-slot.is-selected {
-        border-color: rgba(0, 210, 255, 0.5);
-        box-shadow: 0 0 0 1px rgba(0, 210, 255, 0.22);
-        transform: translateY(-1px);
-    }
-    .players-preview-swatch {
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        box-shadow: 0 0 8px rgba(0, 0, 0, 0.35);
-    }
-    .players-preview-label {
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        color: #dbeafe;
-    }
-    .players-preview-hue {
-        font-size: 10px;
-        color: rgba(180, 200, 230, 0.66);
-    }
 
     .players-focus-card {
         display: grid;
-        gap: 6px;
+        gap: 8px;
         margin-top: 8px;
         padding: 10px;
-        border-radius: 8px;
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(100, 200, 255, 0.12);
+        border: 1px solid transparent;
+        border-radius: var(--hud-radius-sm);
+        clip-path: var(--hud-rounded-corner-sm);
+        background:
+            linear-gradient(180deg, rgba(0, 18, 21, 0.78), rgba(0, 10, 13, 0.9)) padding-box,
+            var(--hud-control-border-gradient) border-box;
     }
+
     .players-focus-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
         gap: 10px;
     }
+
     .players-focus-label {
         font-size: 10px;
         letter-spacing: 0.1em;
         text-transform: uppercase;
         color: rgba(185, 220, 255, 0.72);
     }
+
     .players-focus-value {
+        min-width: 0;
+        overflow: hidden;
+        color: #dbeafe;
         font-size: 11px;
         font-weight: 700;
-        color: #dbeafe;
-    }
-    .players-reset-btn {
-        justify-self: start;
-        padding: 6px 10px;
-        border-radius: 6px;
-        border: 1px solid rgba(100, 200, 255, 0.18);
-        background: rgba(10, 20, 40, 0.55);
-        color: rgba(220, 238, 255, 0.86);
-        font-size: 11px;
-        cursor: pointer;
-    }
-    .players-reset-btn:disabled {
-        opacity: 0.45;
-        cursor: default;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .players-detail {
         margin-top: 8px;
     }
+
     .players-detail summary {
         cursor: pointer;
         font-size: 11px;
@@ -370,16 +272,15 @@
         color: rgba(190, 220, 255, 0.78);
         list-style: none;
     }
+
     .players-detail summary::-webkit-details-marker {
         display: none;
     }
+
     .players-detail-grid {
         display: grid;
         grid-template-columns: 1fr;
         gap: 6px;
         margin-top: 8px;
-    }
-    .compact-row {
-        gap: 4px;
     }
 </style>

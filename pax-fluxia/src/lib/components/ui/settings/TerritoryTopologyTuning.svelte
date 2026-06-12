@@ -5,6 +5,10 @@
     beginTerritoryTuningCompile,
     territoryTuningStatus,
   } from "$lib/stores/territoryTuningStatusStore";
+  import {
+    PaxSettingsRangeRow,
+    PaxSettingsToggleRow,
+  } from "$lib/design-system";
 
   interface Props {
     panel: Record<string, any>;
@@ -90,6 +94,26 @@
     }, delayMs);
     topologyCommitTimeouts.set(configKey, timeoutId);
   }
+
+  function numVal(panelKey: string, configKey: string, fallback: number): number {
+    const panelValue = panel[panelKey];
+    if (typeof panelValue === "number" && Number.isFinite(panelValue)) {
+      return panelValue;
+    }
+    const configValue = (GAME_CONFIG as unknown as Record<string, unknown>)[configKey];
+    if (typeof configValue === "number" && Number.isFinite(configValue)) {
+      return configValue;
+    }
+    return fallback;
+  }
+
+  function boolVal(panelKey: string, configKey: string, fallback: boolean): boolean {
+    const panelValue = panel[panelKey];
+    if (typeof panelValue === "boolean") return panelValue;
+    const configValue = (GAME_CONFIG as unknown as Record<string, unknown>)[configKey];
+    if (typeof configValue === "boolean") return configValue;
+    return fallback;
+  }
 </script>
 
 <div class="territory-section-shell territory-section-shell--topology">
@@ -121,337 +145,220 @@
         </div>
 
         <h5 class="territory-inline-heading">Minimum Footprint</h5>
-        <div
-          class="var-row"
-          title="Metaball: each cell inside this radius of a real star is assigned to that star's cluster (nearest star wins), so every owned star keeps a disc of territory. Voronoi/engine paths use the same value for geometric margins.">
-          <div class="row-top">
-            <span class="var-name">Minimum Star Margin</span><span class="val"
-              >{panel.starMargin ??
-                GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ??
-                0}px</span>
-          </div>
-          <input
-            type="range"
-            min="0"
-            max="500"
-            step="5"
-            value={panel.starMargin ?? GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 0}
-            oninput={(e) => {
-              const v = +(e.target as HTMLInputElement).value;
-              queueTopologySliderUpdate(
-                "MODIFIED_VORONOI_STAR_MARGIN",
-                "starMargin",
-                v,
-                "Minimum Star Margin",
-              );
-            }} />
-        </div>
-        <div
-          class="var-row"
-          title="Sets the frontier vertex spacing used by the live geometry compilers. Lower values produce denser frontier samples and sharper ownership contours.">
-          <div class="row-top">
-            <span class="var-name">Frontier Resolution</span><span class="val"
-              >{panel.frontierResolution ??
-                GAME_CONFIG.FRONTIER_RESOLUTION ??
-                5}px</span>
-          </div>
-          <input
-            type="range"
-            min="1"
-            max="20"
-            step="1"
-            value={panel.frontierResolution ?? GAME_CONFIG.FRONTIER_RESOLUTION ?? 5}
-            oninput={(e) => {
-              const v = +(e.target as HTMLInputElement).value;
-              queueTopologySliderUpdate(
-                "FRONTIER_RESOLUTION",
-                "frontierResolution",
-                v,
-                "Frontier Resolution",
-              );
-            }} />
-        </div>
+        <PaxSettingsRangeRow
+          label="Minimum Star Margin"
+          note="Metaball assigns cells inside this radius to a real star cluster; engine paths use it for geometric margins."
+          value={numVal("starMargin", "MODIFIED_VORONOI_STAR_MARGIN", 45)}
+          min={0}
+          max={500}
+          step={5}
+          suffix="px"
+          settingConfigKey="MODIFIED_VORONOI_STAR_MARGIN"
+          settingDescription="Minimum owned footprint around each real star."
+          onInput={(v) =>
+            queueTopologySliderUpdate(
+              "MODIFIED_VORONOI_STAR_MARGIN",
+              "starMargin",
+              v,
+              "Minimum Star Margin",
+            )}
+        />
+        <PaxSettingsRangeRow
+          label="Frontier Resolution"
+          note="Lower values produce denser frontier samples and sharper ownership contours."
+          value={numVal("frontierResolution", "FRONTIER_RESOLUTION", 5)}
+          min={1}
+          max={20}
+          step={1}
+          suffix="px"
+          settingConfigKey="FRONTIER_RESOLUTION"
+          settingDescription="Frontier vertex spacing used by live geometry compilers."
+          onInput={(v) =>
+            queueTopologySliderUpdate(
+              "FRONTIER_RESOLUTION",
+              "frontierResolution",
+              v,
+              "Frontier Resolution",
+            )}
+        />
 
         <h5 class="territory-inline-heading">Corridors</h5>
-        <div class="var-row">
-          <div class="row-top">
-            <span class="var-name">Corridor Virtual Sites (CX)</span>
-            <label class="lock-toggle">
-              <input
-                type="checkbox"
-                checked={panel.corridorEnabled ??
-                  GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED ??
-                  true}
-                onchange={(e) => {
-                  const v = (e.target as HTMLInputElement).checked;
-                  queueTopologyToggleUpdate(
-                    "MODIFIED_VORONOI_CORRIDOR_ENABLED",
-                    "corridorEnabled",
-                    v,
-                    "Corridor Virtual Sites (CX)",
-                  );
-                }} />
-              {(panel.corridorEnabled ??
-              GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED ??
-              true)
-                ? "On"
-                : "Off"}
-            </label>
-          </div>
-        </div>
-        <div class="var-row indent">
-          <div class="row-top">
-            <span class="var-name">Lane Midpoint Pairs</span>
-            <label class="lock-toggle">
-              <input
-                type="checkbox"
-                checked={panel.cxContestMidpointVstars ??
-                  GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ??
-                  true}
-                onchange={(e) => {
-                  const v = (e.target as HTMLInputElement).checked;
-                  queueTopologyToggleUpdate(
-                    "TERRITORY_CX_CONTEST_MIDPOINT_VSTARS",
-                    "cxContestMidpointVstars",
-                    v,
-                    "Lane Midpoint Pairs",
-                  );
-                }} />
-              {(panel.cxContestMidpointVstars ??
-              GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ??
-              true)
-                ? "On"
-                : "Off"}
-            </label>
-          </div>
-        </div>
-        <div
-          class="var-row indent"
-          class:disabled={!cxOn}
-          title={!cxOn ? "Turn Corridor Virtual Sites on to edit these values." : ""}>
-          <div class="row-top">
-            <span class="var-name">Lane Midpoint Pair Count</span><span class="val"
-              >{panel.cxContestPairCount ??
-                GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT ??
-                1}</span>
-          </div>
-          <input
-            type="range"
-            min="1"
-            max="10"
-            step="1"
-            disabled={!cxOn}
-            value={panel.cxContestPairCount ??
-              GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT ??
-              1}
-            oninput={(e) => {
-              const v = +(e.target as HTMLInputElement).value;
-              queueTopologySliderUpdate(
-                "TERRITORY_CX_CONTEST_PAIR_COUNT",
-                "cxContestPairCount",
-                v,
-                "Lane Midpoint Pair Count",
-              );
-            }} />
-        </div>
-        <div
-          class="var-row indent"
-          class:disabled={!cxOn}
-          title={!cxOn ? "Turn Corridor Virtual Sites on to edit these values." : ""}>
-          <div class="row-top">
-            <span class="var-name">Lane Midpoint Pair Weight</span><span class="val"
-              >{(
-                panel.cxContestPairWeight ??
-                GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT ??
-                0.5
-              ).toFixed(2)}</span>
-          </div>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            disabled={!cxOn}
-            value={panel.cxContestPairWeight ??
-              GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT ??
-              0.5}
-            oninput={(e) => {
-              const v = +(e.target as HTMLInputElement).value;
-              queueTopologySliderUpdate(
-                "TERRITORY_CX_CONTEST_PAIR_WEIGHT",
-                "cxContestPairWeight",
-                v,
-                "Lane Midpoint Pair Weight",
-              );
-            }} />
-        </div>
-        <div
-          class="var-row indent"
-          class:disabled={!cxOn}
-          title={!cxOn ? "Turn Corridor Virtual Sites on to edit these values." : ""}>
-          <div class="row-top">
-            <span class="var-name">Corridor Sample Count</span><span class="val"
-              >{(panel.cxCount ?? GAME_CONFIG.TERRITORY_CX_COUNT ?? 0) === 0
-                ? "Auto"
-                : (panel.cxCount ?? GAME_CONFIG.TERRITORY_CX_COUNT)}</span>
-          </div>
-          <input
-            type="range"
-            min="0"
-            max="20"
-            step="1"
-            disabled={!cxOn}
-            value={panel.cxCount ?? GAME_CONFIG.TERRITORY_CX_COUNT ?? 0}
-            oninput={(e) => {
-              const v = +(e.target as HTMLInputElement).value;
-              queueTopologySliderUpdate(
-                "TERRITORY_CX_COUNT",
-                "cxCount",
-                v,
-                "Corridor Sample Count",
-              );
-            }} />
-        </div>
-        <div
-          class="var-row indent"
-          class:disabled={!cxOn}
-          title={!cxOn ? "Turn Corridor Virtual Sites on to edit these values." : ""}>
-          <div class="row-top">
-            <span class="var-name">Corridor Weight</span><span class="val"
-              >{(panel.cxWeight ?? GAME_CONFIG.TERRITORY_CX_WEIGHT ?? 0.5).toFixed(
-                2,
-              )}</span>
-          </div>
-          <input
-            type="range"
-            min="0"
-            max="2"
-            step="0.05"
-            disabled={!cxOn}
-            value={panel.cxWeight ?? GAME_CONFIG.TERRITORY_CX_WEIGHT ?? 0.5}
-            oninput={(e) => {
-              const v = +(e.target as HTMLInputElement).value;
-              queueTopologySliderUpdate(
-                "TERRITORY_CX_WEIGHT",
-                "cxWeight",
-                v,
-                "Corridor Weight",
-              );
-            }} />
-        </div>
-        <div
-          class="var-row indent"
-          class:disabled={!cxOn}
-          title={!cxOn ? "Turn Corridor Virtual Sites on to edit these values." : ""}>
-          <div class="row-top">
-            <span class="var-name">Corridor Spacing</span><span class="val"
-              >{panel.corridorSpacing ??
-                GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ??
-                60}px</span>
-          </div>
-          <input
-            type="range"
-            min="10"
-            max="200"
-            step="5"
-            disabled={!cxOn}
-            value={panel.corridorSpacing ??
-              GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ??
-              60}
-            oninput={(e) => {
-              const v = +(e.target as HTMLInputElement).value;
-              queueTopologySliderUpdate(
-                "MODIFIED_VORONOI_CORRIDOR_SPACING",
-                "corridorSpacing",
-                v,
-                "Corridor Spacing",
-              );
-            }} />
-        </div>
+        <PaxSettingsToggleRow
+          label="Corridor Virtual Sites (CX)"
+          checked={boolVal("corridorEnabled", "MODIFIED_VORONOI_CORRIDOR_ENABLED", true)}
+          meta={boolVal("corridorEnabled", "MODIFIED_VORONOI_CORRIDOR_ENABLED", true) ? "On" : "Off"}
+          settingConfigKey="MODIFIED_VORONOI_CORRIDOR_ENABLED"
+          onChange={(v) =>
+            queueTopologyToggleUpdate(
+              "MODIFIED_VORONOI_CORRIDOR_ENABLED",
+              "corridorEnabled",
+              v,
+              "Corridor Virtual Sites (CX)",
+            )}
+        />
+        <PaxSettingsToggleRow
+          class="topology-indent"
+          label="Lane Midpoint Pairs"
+          checked={boolVal("cxContestMidpointVstars", "TERRITORY_CX_CONTEST_MIDPOINT_VSTARS", true)}
+          meta={boolVal("cxContestMidpointVstars", "TERRITORY_CX_CONTEST_MIDPOINT_VSTARS", true) ? "On" : "Off"}
+          settingConfigKey="TERRITORY_CX_CONTEST_MIDPOINT_VSTARS"
+          onChange={(v) =>
+            queueTopologyToggleUpdate(
+              "TERRITORY_CX_CONTEST_MIDPOINT_VSTARS",
+              "cxContestMidpointVstars",
+              v,
+              "Lane Midpoint Pairs",
+            )}
+        />
+        <PaxSettingsRangeRow
+          class="topology-indent"
+          label="Lane Midpoint Pair Count"
+          value={numVal("cxContestPairCount", "TERRITORY_CX_CONTEST_PAIR_COUNT", 1)}
+          min={1}
+          max={10}
+          step={1}
+          disabled={!cxOn}
+          settingConfigKey="TERRITORY_CX_CONTEST_PAIR_COUNT"
+          settingDescription="Turn Corridor Virtual Sites on to edit this value."
+          onInput={(v) =>
+            queueTopologySliderUpdate(
+              "TERRITORY_CX_CONTEST_PAIR_COUNT",
+              "cxContestPairCount",
+              v,
+              "Lane Midpoint Pair Count",
+            )}
+        />
+        <PaxSettingsRangeRow
+          class="topology-indent"
+          label="Lane Midpoint Pair Weight"
+          value={numVal("cxContestPairWeight", "TERRITORY_CX_CONTEST_PAIR_WEIGHT", 0.5)}
+          min={0}
+          max={1}
+          step={0.05}
+          format="fixed2"
+          disabled={!cxOn}
+          settingConfigKey="TERRITORY_CX_CONTEST_PAIR_WEIGHT"
+          settingDescription="Turn Corridor Virtual Sites on to edit this value."
+          onInput={(v) =>
+            queueTopologySliderUpdate(
+              "TERRITORY_CX_CONTEST_PAIR_WEIGHT",
+              "cxContestPairWeight",
+              v,
+              "Lane Midpoint Pair Weight",
+            )}
+        />
+        <PaxSettingsRangeRow
+          class="topology-indent"
+          label="Corridor Sample Count"
+          value={numVal("cxCount", "TERRITORY_CX_COUNT", 0)}
+          min={0}
+          max={20}
+          step={1}
+          output={numVal("cxCount", "TERRITORY_CX_COUNT", 0) === 0
+            ? "Auto"
+            : `${numVal("cxCount", "TERRITORY_CX_COUNT", 0)}`}
+          disabled={!cxOn}
+          settingConfigKey="TERRITORY_CX_COUNT"
+          settingDescription="Turn Corridor Virtual Sites on to edit this value."
+          onInput={(v) =>
+            queueTopologySliderUpdate(
+              "TERRITORY_CX_COUNT",
+              "cxCount",
+              v,
+              "Corridor Sample Count",
+            )}
+        />
+        <PaxSettingsRangeRow
+          class="topology-indent"
+          label="Corridor Weight"
+          value={numVal("cxWeight", "TERRITORY_CX_WEIGHT", 0.5)}
+          min={0}
+          max={2}
+          step={0.05}
+          format="fixed2"
+          disabled={!cxOn}
+          settingConfigKey="TERRITORY_CX_WEIGHT"
+          settingDescription="Turn Corridor Virtual Sites on to edit this value."
+          onInput={(v) =>
+            queueTopologySliderUpdate(
+              "TERRITORY_CX_WEIGHT",
+              "cxWeight",
+              v,
+              "Corridor Weight",
+            )}
+        />
+        <PaxSettingsRangeRow
+          class="topology-indent"
+          label="Corridor Spacing"
+          value={numVal("corridorSpacing", "MODIFIED_VORONOI_CORRIDOR_SPACING", 60)}
+          min={10}
+          max={200}
+          step={5}
+          suffix="px"
+          disabled={!cxOn}
+          settingConfigKey="MODIFIED_VORONOI_CORRIDOR_SPACING"
+          settingDescription="Turn Corridor Virtual Sites on to edit this value."
+          onInput={(v) =>
+            queueTopologySliderUpdate(
+              "MODIFIED_VORONOI_CORRIDOR_SPACING",
+              "corridorSpacing",
+              v,
+              "Corridor Spacing",
+            )}
+        />
 
         <h5 class="territory-inline-heading">Disconnects</h5>
-        <div class="var-row">
-          <div class="row-top">
-            <span class="var-name">Disconnect Gaps (DX)</span>
-            <label class="lock-toggle">
-              <input
-                type="checkbox"
-                checked={panel.disconnectEnabled ??
-                  GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED ??
-                  false}
-                onchange={(e) => {
-                  const v = (e.target as HTMLInputElement).checked;
-                  queueTopologyToggleUpdate(
-                    "MODIFIED_VORONOI_DISCONNECT_ENABLED",
-                    "disconnectEnabled",
-                    v,
-                    "Disconnect Gaps (DX)",
-                  );
-                }} />
-              {(panel.disconnectEnabled ??
-              GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED ??
-              false)
-                ? "On"
-                : "Off"}
-            </label>
-          </div>
-        </div>
-        <div
-          class="var-row indent"
-          class:disabled={!dxOn}
-          title={!dxOn ? "Turn Disconnect Gaps on to edit these values." : ""}>
-          <div class="row-top">
-            <span class="var-name">Disconnect Weight</span><span class="val"
-              >{(panel.dxWeight ?? GAME_CONFIG.TERRITORY_DX_WEIGHT ?? 0.3).toFixed(
-                2,
-              )}</span>
-          </div>
-          <input
-            type="range"
-            min="0"
-            max="2"
-            step="0.05"
-            disabled={!dxOn}
-            value={panel.dxWeight ?? GAME_CONFIG.TERRITORY_DX_WEIGHT ?? 0.3}
-            oninput={(e) => {
-              const v = +(e.target as HTMLInputElement).value;
-              queueTopologySliderUpdate(
-                "TERRITORY_DX_WEIGHT",
-                "dxWeight",
-                v,
-                "Disconnect Weight",
-              );
-            }} />
-        </div>
-        <div
-          class="var-row indent"
-          class:disabled={!dxOn}
-          title={!dxOn ? "Turn Disconnect Gaps on to edit these values." : ""}>
-          <div class="row-top">
-            <span class="var-name">Disconnect Distance</span><span class="val"
-              >{panel.disconnectDistance ??
-                GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ??
-                400}px</span>
-          </div>
-          <input
-            type="range"
-            min="50"
-            max="1000"
-            step="25"
-            disabled={!dxOn}
-            value={panel.disconnectDistance ??
-              GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ??
-              400}
-            oninput={(e) => {
-              const v = +(e.target as HTMLInputElement).value;
-              queueTopologySliderUpdate(
-                "MODIFIED_VORONOI_DISCONNECT_DISTANCE",
-                "disconnectDistance",
-                v,
-                "Disconnect Distance",
-              );
-            }} />
-        </div>
+        <PaxSettingsToggleRow
+          label="Disconnect Gaps (DX)"
+          checked={boolVal("disconnectEnabled", "MODIFIED_VORONOI_DISCONNECT_ENABLED", false)}
+          meta={boolVal("disconnectEnabled", "MODIFIED_VORONOI_DISCONNECT_ENABLED", false) ? "On" : "Off"}
+          settingConfigKey="MODIFIED_VORONOI_DISCONNECT_ENABLED"
+          onChange={(v) =>
+            queueTopologyToggleUpdate(
+              "MODIFIED_VORONOI_DISCONNECT_ENABLED",
+              "disconnectEnabled",
+              v,
+              "Disconnect Gaps (DX)",
+            )}
+        />
+        <PaxSettingsRangeRow
+          class="topology-indent"
+          label="Disconnect Weight"
+          value={numVal("dxWeight", "TERRITORY_DX_WEIGHT", 0.3)}
+          min={0}
+          max={2}
+          step={0.05}
+          format="fixed2"
+          disabled={!dxOn}
+          settingConfigKey="TERRITORY_DX_WEIGHT"
+          settingDescription="Turn Disconnect Gaps on to edit this value."
+          onInput={(v) =>
+            queueTopologySliderUpdate(
+              "TERRITORY_DX_WEIGHT",
+              "dxWeight",
+              v,
+              "Disconnect Weight",
+            )}
+        />
+        <PaxSettingsRangeRow
+          class="topology-indent"
+          label="Disconnect Distance"
+          value={numVal("disconnectDistance", "MODIFIED_VORONOI_DISCONNECT_DISTANCE", 400)}
+          min={50}
+          max={1000}
+          step={25}
+          suffix="px"
+          disabled={!dxOn}
+          settingConfigKey="MODIFIED_VORONOI_DISCONNECT_DISTANCE"
+          settingDescription="Turn Disconnect Gaps on to edit this value."
+          onInput={(v) =>
+            queueTopologySliderUpdate(
+              "MODIFIED_VORONOI_DISCONNECT_DISTANCE",
+              "disconnectDistance",
+              v,
+              "Disconnect Distance",
+            )}
+        />
       </div>
     </div>
   </div>
@@ -527,5 +434,9 @@
       linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.025)),
       rgba(16, 22, 34, 0.7);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  :global(.topology-indent) {
+    margin-left: 12px;
   }
 </style>

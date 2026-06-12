@@ -6,6 +6,7 @@
         type TerritoryPipelineStageId,
     } from "$lib/territory/orchestrator";
     import { territoryTraceRun } from "$lib/territory/orchestrator/traceStore";
+    import { PaxHudButton, PaxSettingsToggleRow } from "$lib/design-system";
 
     interface Props {
         panel: Record<string, any>;
@@ -169,84 +170,64 @@
 <div class="trace-diagnostics">
     <h5 class="trace-heading">Trace Inspector</h5>
 
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Trace Mode</span>
-            <label class="toggle-switch">
-                <input
-                    type="checkbox"
-                    checked={panel.territoryEngineTraceMode
-                        ?? GAME_CONFIG.TERRITORY_ENGINE_TRACE_MODE}
-                    onchange={(event) => {
-                        const value = (event.target as HTMLInputElement).checked;
-                        updatePanel("territoryEngineTraceMode", value);
-                    }}
-                />
-                <span class="toggle-slider"></span>
-            </label>
-        </div>
-    </div>
+    <PaxSettingsToggleRow
+        label="Trace Mode"
+        checked={panel.territoryEngineTraceMode
+            ?? GAME_CONFIG.TERRITORY_ENGINE_TRACE_MODE}
+        meta={(panel.territoryEngineTraceMode
+            ?? GAME_CONFIG.TERRITORY_ENGINE_TRACE_MODE) ? "On" : "Off"}
+        settingConfigKey="TERRITORY_ENGINE_TRACE_MODE"
+        onChange={(value) => updatePanel("territoryEngineTraceMode", value)}
+    />
 
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Step Mode</span>
-            <label class="toggle-switch">
-                <input
-                    type="checkbox"
-                    checked={panel.territoryEngineStepMode
-                        ?? GAME_CONFIG.TERRITORY_ENGINE_STEP_MODE}
-                    onchange={(event) => {
-                        const value = (event.target as HTMLInputElement).checked;
-                        updatePanel("territoryEngineStepMode", value);
-                    }}
-                />
-                <span class="toggle-slider"></span>
-            </label>
-        </div>
-    </div>
+    <PaxSettingsToggleRow
+        label="Step Mode"
+        checked={panel.territoryEngineStepMode
+            ?? GAME_CONFIG.TERRITORY_ENGINE_STEP_MODE}
+        meta={(panel.territoryEngineStepMode
+            ?? GAME_CONFIG.TERRITORY_ENGINE_STEP_MODE) ? "On" : "Off"}
+        settingConfigKey="TERRITORY_ENGINE_STEP_MODE"
+        onChange={(value) => updatePanel("territoryEngineStepMode", value)}
+    />
 
     {#if panel.territoryEngineStepMode ?? GAME_CONFIG.TERRITORY_ENGINE_STEP_MODE}
-        <div class="var-row compact">
-            <div class="row-top">
-                <span class="var-name">Advance Stage</span>
-                <span class="val"
+        <div class="trace-stage-card">
+            <div class="trace-stage-card__header">
+                <span class="trace-stage-card__label">Advance Stage</span>
+                <span class="trace-stage-card__value"
                     >{panel.territoryEngineStepAdvanceToken
                         ?? GAME_CONFIG.TERRITORY_ENGINE_STEP_ADVANCE_TOKEN}</span
                 >
             </div>
             <div class="trace-actions">
-                <button
-                    class="mini-btn"
-                    type="button"
+                <PaxHudButton
+                    label="Advance"
+                    size="sm"
                     onclick={() => {
                         const nextToken =
                             (panel.territoryEngineStepAdvanceToken
                                 ?? GAME_CONFIG.TERRITORY_ENGINE_STEP_ADVANCE_TOKEN) + 1;
                         updatePanel("territoryEngineStepAdvanceToken", nextToken);
                     }}
-                >
-                    Advance
-                </button>
-                <button
-                    class="mini-btn"
-                    type="button"
+                />
+                <PaxHudButton
+                    label="Reset"
+                    size="sm"
                     onclick={() => {
                         updatePanel("territoryEngineStepAdvanceToken", 0);
                     }}
-                >
-                    Reset
-                </button>
+                />
             </div>
         </div>
     {/if}
 
     <div class="trace-panel">
-        <div class="row-top">
-            <span class="var-name">Latest Trace</span>
+        <div class="trace-panel__header">
+            <span class="trace-stage-card__label">Latest Trace</span>
             {#if $territoryTraceRun}
-                <span class="val">run {$territoryTraceRun.runId}</span>
+                <span class="trace-stage-card__value">run {$territoryTraceRun.runId}</span>
             {:else}
-                <span class="val">no trace</span>
+                <span class="trace-stage-card__value">no trace</span>
             {/if}
         </div>
 
@@ -355,6 +336,42 @@
     .trace-actions {
         display: flex;
         gap: 6px;
+    }
+
+    .trace-stage-card {
+        display: grid;
+        gap: 8px;
+        padding: 9px 10px;
+        border: 1px solid transparent;
+        border-radius: var(--hud-radius-sm);
+        clip-path: var(--hud-rounded-corner-sm);
+        background:
+            linear-gradient(180deg, rgba(0, 18, 21, 0.78), rgba(0, 10, 13, 0.9)) padding-box,
+            var(--hud-control-border-gradient) border-box;
+    }
+
+    .trace-stage-card__header,
+    .trace-panel__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .trace-stage-card__label {
+        color: var(--hud-text);
+        font-family: var(--hud-font-ui);
+        font-size: calc(0.74rem * var(--hud-type-scale, 1));
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    }
+
+    .trace-stage-card__value {
+        color: var(--hud-accent-warm-strong);
+        font-family: var(--hud-font-data);
+        font-size: calc(0.68rem * var(--hud-data-scale, 1));
+        font-weight: 800;
     }
 
     .trace-panel {

@@ -1,5 +1,10 @@
 <script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
+    import {
+        PaxHudSelect,
+        PaxSettingsRangeRow,
+        PaxSettingsToggleRow,
+    } from "$lib/design-system";
 
     interface Props {
         panel: Record<string, unknown>;
@@ -16,6 +21,18 @@
         | "plasma_rim"
         | "ion_drift"
         | "geometry_strip";
+
+    const FRONTIER_FX_MODE_OPTIONS: Array<{
+        value: FrontierFxMode;
+        label: string;
+    }> = [
+        { value: "off", label: "Off" },
+        { value: "soft_fade", label: "Soft fade" },
+        { value: "stepped_moat", label: "Stepped moat" },
+        { value: "plasma_rim", label: "Plasma rim" },
+        { value: "ion_drift", label: "Ion drift" },
+        { value: "geometry_strip", label: "Geometry strip" },
+    ];
 
     function stringVal(panelKey: string, configKey: string, def: string): string {
         const pv = panel[panelKey];
@@ -60,7 +77,10 @@
 
     function supportsFrontierFx(): boolean {
         const mode = currentRenderMode();
-        return mode === "metaball_grid_phase_edges" || mode === "metaball_grid_ember_lattice";
+        return (
+            mode === "metaball_grid_phase_edges" ||
+            mode === "metaball_grid_ember_lattice"
+        );
     }
 
     function currentMode(): FrontierFxMode {
@@ -70,32 +90,15 @@
             "off",
         );
         if (
-            raw === "soft_fade"
-            || raw === "stepped_moat"
-            || raw === "plasma_rim"
-            || raw === "ion_drift"
-            || raw === "geometry_strip"
+            raw === "soft_fade" ||
+            raw === "stepped_moat" ||
+            raw === "plasma_rim" ||
+            raw === "ion_drift" ||
+            raw === "geometry_strip"
         ) {
             return raw;
         }
         return "off";
-    }
-
-    function modeLabel(mode: FrontierFxMode): string {
-        switch (mode) {
-            case "soft_fade":
-                return "Soft fade";
-            case "stepped_moat":
-                return "Stepped moat";
-            case "plasma_rim":
-                return "Plasma rim";
-            case "ion_drift":
-                return "Ion drift";
-            case "geometry_strip":
-                return "Geometry strip";
-            default:
-                return "Off";
-        }
     }
 
     function modeDescription(): string {
@@ -126,12 +129,20 @@
 
     function usesPulseControls(): boolean {
         const mode = currentMode();
-        return mode === "plasma_rim" || mode === "ion_drift" || mode === "geometry_strip";
+        return (
+            mode === "plasma_rim" ||
+            mode === "ion_drift" ||
+            mode === "geometry_strip"
+        );
     }
 
     function usesEmissiveControls(): boolean {
         const mode = currentMode();
-        return mode === "plasma_rim" || mode === "ion_drift" || mode === "geometry_strip";
+        return (
+            mode === "plasma_rim" ||
+            mode === "ion_drift" ||
+            mode === "geometry_strip"
+        );
     }
 
     function usesParticleDensityControls(): boolean {
@@ -140,253 +151,241 @@
 </script>
 
 {#if !supportsFrontierFx()}
-        <div class="axis-note">
-            Frontier FX currently applies to <strong>Phase Edges</strong> and
-            <strong>Ember Lattice</strong>. Switch the territory render
-            mode there first, then return here.
-        </div>
+    <div class="axis-note">
+        Frontier FX currently applies to <strong>Phase Edges</strong> and
+        <strong>Ember Lattice</strong>. Switch the territory render mode there
+        first, then return here.
+    </div>
 {:else}
     <div class="frontier-fx-card">
-        <div class="territory-card__header">
+        <div class="frontier-fx-card__header">
             <h4 class="axis-card-title">Frontier FX</h4>
             <p class="territory-card__intro">
-                Border-inward surface VFX driven by the same frontier-distance field
-                as the stable fill/border contract. These are fill-side presentation
-                effects only; they do not own topology or border geometry.
+                Border-inward surface VFX driven by the same frontier-distance
+                field as the stable fill/border contract. These are fill-side
+                presentation effects only; they do not own topology or border
+                geometry.
             </p>
         </div>
 
-        <div class="var-row">
-            <div class="row-top">
-                <span class="var-name">Mode</span>
-                <span class="val">{modeLabel(currentMode())}</span>
-            </div>
-            <select
-                class="mode-select"
-                value={currentMode()}
-                onchange={(event) => {
-                    const value = (event.target as HTMLSelectElement).value as FrontierFxMode;
-                    updateConfig(
-                        "TERRITORY_FRONTIER_FX_MODE",
-                        "territoryFrontierFxMode",
-                        value,
-                    );
-                }}
-            >
-                <option value="off">Off</option>
-                <option value="soft_fade">Soft fade</option>
-                <option value="stepped_moat">Stepped moat</option>
-                <option value="plasma_rim">Plasma rim</option>
-                <option value="ion_drift">Ion drift</option>
-                <option value="geometry_strip">Geometry strip</option>
-            </select>
-        </div>
+        <PaxHudSelect
+            label="Mode"
+            value={currentMode()}
+            options={FRONTIER_FX_MODE_OPTIONS}
+            onValueChange={(value) => {
+                updateConfig(
+                    "TERRITORY_FRONTIER_FX_MODE",
+                    "territoryFrontierFxMode",
+                    value as FrontierFxMode,
+                );
+            }}
+        />
 
-        <div class="var-desc">{modeDescription()}</div>
+        <p class="var-desc">{modeDescription()}</p>
 
-        <div class="var-row" class:disabled={!isModeEnabled()}>
-            <div class="row-top">
-                <span class="var-name">Width</span>
-                <span class="val">{numVal("territoryFrontierFxWidthPx", "TERRITORY_FRONTIER_FX_WIDTH_PX", 24).toFixed(0)}px</span>
-            </div>
-            <div class="var-desc">How far inward from the frontier the effect reaches.</div>
-            <input
-                type="range"
-                min="0"
-                max="96"
-                step="1"
-                disabled={!isModeEnabled()}
-                value={numVal("territoryFrontierFxWidthPx", "TERRITORY_FRONTIER_FX_WIDTH_PX", 24)}
-                oninput={(event) => {
-                    const value = parseFloat((event.target as HTMLInputElement).value);
-                    updateConfig(
-                        "TERRITORY_FRONTIER_FX_WIDTH_PX",
-                        "territoryFrontierFxWidthPx",
-                        value,
-                    );
-                }}
-            />
-        </div>
+        <PaxSettingsRangeRow
+            label="Width"
+            note="How far inward from the frontier the effect reaches."
+            value={numVal(
+                "territoryFrontierFxWidthPx",
+                "TERRITORY_FRONTIER_FX_WIDTH_PX",
+                24,
+            )}
+            min={0}
+            max={96}
+            step={1}
+            suffix="px"
+            disabled={!isModeEnabled()}
+            settingConfigKey="TERRITORY_FRONTIER_FX_WIDTH_PX"
+            onInput={(value) =>
+                updateConfig(
+                    "TERRITORY_FRONTIER_FX_WIDTH_PX",
+                    "territoryFrontierFxWidthPx",
+                    value,
+                )}
+        />
 
-        <div class="var-row" class:disabled={!isModeEnabled()}>
-            <div class="row-top">
-                <span class="var-name">Strength</span>
-                <span class="val">{numVal("territoryFrontierFxStrength", "TERRITORY_FRONTIER_FX_STRENGTH", 0.75).toFixed(2)}</span>
-            </div>
-            <div class="var-desc">Global intensity of the selected inward frontier effect.</div>
-            <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                disabled={!isModeEnabled()}
-                value={numVal("territoryFrontierFxStrength", "TERRITORY_FRONTIER_FX_STRENGTH", 0.75)}
-                oninput={(event) => {
-                    const value = parseFloat((event.target as HTMLInputElement).value);
-                    updateConfig(
-                        "TERRITORY_FRONTIER_FX_STRENGTH",
-                        "territoryFrontierFxStrength",
-                        value,
-                    );
-                }}
-            />
-        </div>
+        <PaxSettingsRangeRow
+            label="Strength"
+            note="Global intensity of the selected inward frontier effect."
+            value={numVal(
+                "territoryFrontierFxStrength",
+                "TERRITORY_FRONTIER_FX_STRENGTH",
+                0.75,
+            )}
+            min={0}
+            max={1}
+            step={0.05}
+            format="fixed2"
+            disabled={!isModeEnabled()}
+            settingConfigKey="TERRITORY_FRONTIER_FX_STRENGTH"
+            onInput={(value) =>
+                updateConfig(
+                    "TERRITORY_FRONTIER_FX_STRENGTH",
+                    "territoryFrontierFxStrength",
+                    value,
+                )}
+        />
 
-        <div class="var-row" class:disabled={!isModeEnabled() || usesSteppedControls()}>
-            <div class="row-top">
-                <span class="var-name">Softness</span>
-                <span class="val">{numVal("territoryFrontierFxSoftness", "TERRITORY_FRONTIER_FX_SOFTNESS", 1.2).toFixed(2)}</span>
-            </div>
-            <div class="var-desc">Falloff power for smooth frontier effects. Stepped moat and geometry strip use explicit banding instead.</div>
-            <input
-                type="range"
-                min="0.35"
-                max="2.5"
-                step="0.05"
-                disabled={!isModeEnabled() || usesSteppedControls()}
-                value={numVal("territoryFrontierFxSoftness", "TERRITORY_FRONTIER_FX_SOFTNESS", 1.2)}
-                oninput={(event) => {
-                    const value = parseFloat((event.target as HTMLInputElement).value);
-                    updateConfig(
-                        "TERRITORY_FRONTIER_FX_SOFTNESS",
-                        "territoryFrontierFxSoftness",
-                        value,
-                    );
-                }}
-            />
-        </div>
+        <PaxSettingsRangeRow
+            label="Softness"
+            note="Falloff power for smooth frontier effects. Stepped modes use explicit banding."
+            value={numVal(
+                "territoryFrontierFxSoftness",
+                "TERRITORY_FRONTIER_FX_SOFTNESS",
+                1.2,
+            )}
+            min={0.35}
+            max={2.5}
+            step={0.05}
+            format="fixed2"
+            disabled={!isModeEnabled() || usesSteppedControls()}
+            settingConfigKey="TERRITORY_FRONTIER_FX_SOFTNESS"
+            onInput={(value) =>
+                updateConfig(
+                    "TERRITORY_FRONTIER_FX_SOFTNESS",
+                    "territoryFrontierFxSoftness",
+                    value,
+                )}
+        />
 
-        <div class="var-row" class:disabled={!isModeEnabled() || !usesSteppedControls()}>
-            <div class="row-top">
-                <span class="var-name">Steps</span>
-                <span class="val">{Math.round(numVal("territoryFrontierFxSteps", "TERRITORY_FRONTIER_FX_STEPS", 4))}</span>
-            </div>
-            <div class="var-desc">Quantized bands for stepped moat and the moving geometry strip seam.</div>
-            <input
-                type="range"
-                min="2"
-                max="10"
-                step="1"
-                disabled={!isModeEnabled() || !usesSteppedControls()}
-                value={numVal("territoryFrontierFxSteps", "TERRITORY_FRONTIER_FX_STEPS", 4)}
-                oninput={(event) => {
-                    const value = parseInt((event.target as HTMLInputElement).value, 10);
-                    updateConfig(
-                        "TERRITORY_FRONTIER_FX_STEPS",
-                        "territoryFrontierFxSteps",
-                        value,
-                    );
-                }}
-            />
-        </div>
+        <PaxSettingsRangeRow
+            label="Steps"
+            note="Quantized bands for stepped moat and the moving geometry strip seam."
+            value={numVal(
+                "territoryFrontierFxSteps",
+                "TERRITORY_FRONTIER_FX_STEPS",
+                4,
+            )}
+            min={2}
+            max={10}
+            step={1}
+            output={`${Math.round(numVal("territoryFrontierFxSteps", "TERRITORY_FRONTIER_FX_STEPS", 4))}`}
+            disabled={!isModeEnabled() || !usesSteppedControls()}
+            settingConfigKey="TERRITORY_FRONTIER_FX_STEPS"
+            onInput={(value) =>
+                updateConfig(
+                    "TERRITORY_FRONTIER_FX_STEPS",
+                    "territoryFrontierFxSteps",
+                    value,
+                )}
+        />
 
-        <div class="var-row" class:disabled={!isModeEnabled() || !usesEmissiveControls()}>
-            <div class="row-top">
-                <span class="var-name">Glow / Emissive</span>
-                <span class="val">{numVal("territoryFrontierFxEmissive", "TERRITORY_FRONTIER_FX_EMISSIVE", 1).toFixed(2)}</span>
-            </div>
-            <div class="var-desc">Extra hot-blend weighting for plasma, ion, and geometry-strip modes.</div>
-            <input
-                type="range"
-                min="0"
-                max="2"
-                step="0.05"
-                disabled={!isModeEnabled() || !usesEmissiveControls()}
-                value={numVal("territoryFrontierFxEmissive", "TERRITORY_FRONTIER_FX_EMISSIVE", 1)}
-                oninput={(event) => {
-                    const value = parseFloat((event.target as HTMLInputElement).value);
-                    updateConfig(
-                        "TERRITORY_FRONTIER_FX_EMISSIVE",
-                        "territoryFrontierFxEmissive",
-                        value,
-                    );
-                }}
-            />
-        </div>
+        <PaxSettingsRangeRow
+            label="Glow / Emissive"
+            note="Extra hot-blend weighting for plasma, ion, and geometry-strip modes."
+            value={numVal(
+                "territoryFrontierFxEmissive",
+                "TERRITORY_FRONTIER_FX_EMISSIVE",
+                1,
+            )}
+            min={0}
+            max={2}
+            step={0.05}
+            format="fixed2"
+            disabled={!isModeEnabled() || !usesEmissiveControls()}
+            settingConfigKey="TERRITORY_FRONTIER_FX_EMISSIVE"
+            onInput={(value) =>
+                updateConfig(
+                    "TERRITORY_FRONTIER_FX_EMISSIVE",
+                    "territoryFrontierFxEmissive",
+                    value,
+                )}
+        />
 
-        <div class="var-row" class:disabled={!isModeEnabled() || !usesParticleDensityControls()}>
-            <div class="row-top">
-                <span class="var-name">Particle Density</span>
-                <span class="val">{numVal("territoryFrontierFxParticleDensity", "TERRITORY_FRONTIER_FX_PARTICLE_DENSITY", 0.45).toFixed(2)}</span>
-            </div>
-            <div class="var-desc">How densely ion-drift spark cells light up along the frontier.</div>
-            <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                disabled={!isModeEnabled() || !usesParticleDensityControls()}
-                value={numVal("territoryFrontierFxParticleDensity", "TERRITORY_FRONTIER_FX_PARTICLE_DENSITY", 0.45)}
-                oninput={(event) => {
-                    const value = parseFloat((event.target as HTMLInputElement).value);
-                    updateConfig(
-                        "TERRITORY_FRONTIER_FX_PARTICLE_DENSITY",
-                        "territoryFrontierFxParticleDensity",
-                        value,
-                    );
-                }}
-            />
-        </div>
+        <PaxSettingsRangeRow
+            label="Particle Density"
+            note="How densely ion-drift spark cells light up along the frontier."
+            value={numVal(
+                "territoryFrontierFxParticleDensity",
+                "TERRITORY_FRONTIER_FX_PARTICLE_DENSITY",
+                0.45,
+            )}
+            min={0}
+            max={1}
+            step={0.05}
+            format="fixed2"
+            disabled={!isModeEnabled() || !usesParticleDensityControls()}
+            settingConfigKey="TERRITORY_FRONTIER_FX_PARTICLE_DENSITY"
+            onInput={(value) =>
+                updateConfig(
+                    "TERRITORY_FRONTIER_FX_PARTICLE_DENSITY",
+                    "territoryFrontierFxParticleDensity",
+                    value,
+                )}
+        />
 
-        <div class="var-row" class:disabled={!isModeEnabled() || !usesPulseControls()}>
-            <div class="row-top">
-                <span class="var-name">Pulse Speed</span>
-                <span class="val">{numVal("territoryFrontierFxPulseSpeed", "TERRITORY_FRONTIER_FX_PULSE_SPEED", 1).toFixed(2)}</span>
-            </div>
-            <div class="var-desc">Animation speed for the plasma, ion-drift, and geometry-strip frontier motion.</div>
-            <input
-                type="range"
-                min="0.1"
-                max="4"
-                step="0.1"
-                disabled={!isModeEnabled() || !usesPulseControls()}
-                value={numVal("territoryFrontierFxPulseSpeed", "TERRITORY_FRONTIER_FX_PULSE_SPEED", 1)}
-                oninput={(event) => {
-                    const value = parseFloat((event.target as HTMLInputElement).value);
-                    updateConfig(
-                        "TERRITORY_FRONTIER_FX_PULSE_SPEED",
-                        "territoryFrontierFxPulseSpeed",
-                        value,
-                    );
-                }}
-            />
-        </div>
+        <PaxSettingsRangeRow
+            label="Pulse Speed"
+            note="Animation speed for plasma, ion-drift, and geometry-strip frontier motion."
+            value={numVal(
+                "territoryFrontierFxPulseSpeed",
+                "TERRITORY_FRONTIER_FX_PULSE_SPEED",
+                1,
+            )}
+            min={0.1}
+            max={4}
+            step={0.1}
+            format="fixed2"
+            disabled={!isModeEnabled() || !usesPulseControls()}
+            settingConfigKey="TERRITORY_FRONTIER_FX_PULSE_SPEED"
+            onInput={(value) =>
+                updateConfig(
+                    "TERRITORY_FRONTIER_FX_PULSE_SPEED",
+                    "territoryFrontierFxPulseSpeed",
+                    value,
+                )}
+        />
 
-        <label class="toggle-row" class:disabled={!isModeEnabled()}>
-            <input
-                type="checkbox"
-                disabled={!isModeEnabled()}
-                checked={boolVal("territoryFrontierFxApplySteadyState", "TERRITORY_FRONTIER_FX_APPLY_STEADY_STATE", true)}
-                onchange={(event) => {
-                    const value = (event.target as HTMLInputElement).checked;
-                    updateConfig(
-                        "TERRITORY_FRONTIER_FX_APPLY_STEADY_STATE",
-                        "territoryFrontierFxApplySteadyState",
-                        value,
-                    );
-                }}
-            />
-            <span class="var-name">Apply in steady state</span>
-            <span class="val">{boolVal("territoryFrontierFxApplySteadyState", "TERRITORY_FRONTIER_FX_APPLY_STEADY_STATE", true) ? "On" : "Off"}</span>
-        </label>
+        <PaxSettingsToggleRow
+            label="Apply in steady state"
+            checked={boolVal(
+                "territoryFrontierFxApplySteadyState",
+                "TERRITORY_FRONTIER_FX_APPLY_STEADY_STATE",
+                true,
+            )}
+            description="Apply the frontier effect outside active ownership transitions."
+            meta={boolVal(
+                "territoryFrontierFxApplySteadyState",
+                "TERRITORY_FRONTIER_FX_APPLY_STEADY_STATE",
+                true,
+            )
+                ? "On"
+                : "Off"}
+            disabled={!isModeEnabled()}
+            settingConfigKey="TERRITORY_FRONTIER_FX_APPLY_STEADY_STATE"
+            onChange={(value) =>
+                updateConfig(
+                    "TERRITORY_FRONTIER_FX_APPLY_STEADY_STATE",
+                    "territoryFrontierFxApplySteadyState",
+                    value,
+                )}
+        />
 
-        <label class="toggle-row" class:disabled={!isModeEnabled()}>
-            <input
-                type="checkbox"
-                disabled={!isModeEnabled()}
-                checked={boolVal("territoryFrontierFxApplyTransition", "TERRITORY_FRONTIER_FX_APPLY_TRANSITION", true)}
-                onchange={(event) => {
-                    const value = (event.target as HTMLInputElement).checked;
-                    updateConfig(
-                        "TERRITORY_FRONTIER_FX_APPLY_TRANSITION",
-                        "territoryFrontierFxApplyTransition",
-                        value,
-                    );
-                }}
-            />
-            <span class="var-name">Apply during transition</span>
-            <span class="val">{boolVal("territoryFrontierFxApplyTransition", "TERRITORY_FRONTIER_FX_APPLY_TRANSITION", true) ? "On" : "Off"}</span>
-        </label>
+        <PaxSettingsToggleRow
+            label="Apply during transition"
+            checked={boolVal(
+                "territoryFrontierFxApplyTransition",
+                "TERRITORY_FRONTIER_FX_APPLY_TRANSITION",
+                true,
+            )}
+            description="Apply the frontier effect during active territory transitions."
+            meta={boolVal(
+                "territoryFrontierFxApplyTransition",
+                "TERRITORY_FRONTIER_FX_APPLY_TRANSITION",
+                true,
+            )
+                ? "On"
+                : "Off"}
+            disabled={!isModeEnabled()}
+            settingConfigKey="TERRITORY_FRONTIER_FX_APPLY_TRANSITION"
+            onChange={(value) =>
+                updateConfig(
+                    "TERRITORY_FRONTIER_FX_APPLY_TRANSITION",
+                    "territoryFrontierFxApplyTransition",
+                    value,
+                )}
+        />
     </div>
 {/if}
 
@@ -398,47 +397,49 @@
         flex-direction: column;
         gap: 10px;
         padding: 12px;
-        border-radius: 14px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid transparent;
+        border-radius: var(--hud-radius-sm);
+        clip-path: var(--hud-rounded-corner-sm);
         background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.025)),
-            rgba(16, 22, 34, 0.7);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+            linear-gradient(180deg, rgba(0, 18, 21, 0.74), rgba(0, 10, 13, 0.9)) padding-box,
+            var(--hud-control-border-gradient) border-box;
     }
 
-    .territory-card__header {
+    .frontier-fx-card__header {
         display: flex;
         flex-direction: column;
         gap: 6px;
     }
 
     .territory-card__intro,
-    .axis-note {
+    .axis-note,
+    .var-desc {
         margin: 0;
-        font-size: 11px;
-        line-height: 1.45;
-        color: rgba(188, 207, 224, 0.72);
+        color: var(--hud-text-dim);
+        font-family: var(--hud-font-copy);
+        font-size: calc(0.7rem * var(--hud-type-scale, 1));
+        line-height: 1.42;
+    }
+
+    .axis-note {
+        padding: 12px;
+        border: 1px solid transparent;
+        border-radius: var(--hud-radius-sm);
+        clip-path: var(--hud-rounded-corner-sm);
+        background:
+            linear-gradient(180deg, rgba(0, 18, 21, 0.76), rgba(0, 10, 13, 0.9)) padding-box,
+            var(--hud-control-border-gradient) border-box;
     }
 
     .axis-card-title {
-        font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        color: rgba(236, 242, 249, 0.92);
         margin: 0;
         padding-bottom: 6px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    }
-
-    .var-desc {
-        margin: 4px 0 8px;
-        color: rgba(220, 232, 245, 0.72);
-        font-size: 10px;
-        line-height: 1.35;
-    }
-
-    .var-row.disabled,
-    .toggle-row.disabled {
-        opacity: 0.55;
+        border-bottom: 1px solid color-mix(in srgb, var(--hud-accent-warm) 22%, transparent);
+        color: var(--hud-text);
+        font-family: var(--hud-font-ui);
+        font-size: calc(0.8rem * var(--hud-type-scale, 1));
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
     }
 </style>

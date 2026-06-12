@@ -1,0 +1,52 @@
+# Session - 2026-05-08
+
+## In-game menu and settings UI redesign
+
+- Worktree: `4b02`
+- Branch state at start: detached `HEAD`
+- Lane ownership for this task:
+  - `pax-fluxia/src/lib/components/ui/hud/`
+  - related menu/settings UI surfaces as needed
+- Shared choke points to avoid unless required:
+  - `pax-fluxia/src/lib/components/game/GameCanvas.svelte`
+  - `pax-fluxia/src/lib/components/ui/GameSettingsPanel.svelte`
+  - `pax-fluxia/src/lib/stores/themeStore.svelte.ts`
+- First actions:
+  - loaded `.agent/AGENT.md`
+  - loaded `.agent/MULTI_LANE_WORKTREE_GUIDE.md`
+  - loaded `.agent/docs/agentic/AGENT-GUIDE_MCP_atlas-harness.md`
+  - loaded the `game-ui-frontend` skill
+  - created today's queue and handoff docs
+- User goal in their own words:
+  - improve the game menu / in-game settings UI
+  - interpret the annotated screenshots
+  - start by explaining what the user wants and propose a stronger design direction
+- Current task state:
+  - no code changes yet
+  - initial work is UI-spec interpretation plus surface audit
+- Known spec signals from the screenshots:
+  - unify theme selection into one top widget instead of a detached lower widget
+  - convert the icon grid cluster into a left-side vertical action rail
+  - move gamespeed and star-view widgets below the leaderboard
+  - increase star-view visual weight
+  - align leaderboard columns cleanly
+  - add a small toggle to switch dominant commander metric between active ships and total ships
+  - remove the redundant theme widget in the lower menu region
+  - remove the redundant `menu` toggle
+- Open questions to answer from code inspection:
+  - where the current theme selector is owned
+  - whether the action tiles and lower menu are separate render paths
+  - whether leaderboard metrics already expose both ship counts
+  - which HUD surface currently owns the gamespeed and star-view modules
+- Findings from surface audit:
+  - `GameContainer.svelte` owns the right sidebar composition and currently orders the stack as gamespeed -> star view -> leaderboard -> collapsible menu.
+  - `GameSettingsPanel.svelte` owns the searchable settings header plus the large icon-toolbar grid and section panels.
+  - `GameThemeManager.svelte` is embedded separately inside the lower in-game menu, while the top HUD bar also exposes a theme shortcut button and current theme label.
+  - `Leaderboard.svelte` already has both active and damaged ship counts, but it sorts by total ships and visually presents all stats in one compressed right-aligned cluster.
+  - The user's requested vertical icon rail is not a simple CSS tweak; it likely means restructuring the settings panel's icon-toolbar into a one-column rail beside the active section surface.
+- Proposed direction:
+  - treat the right side as a coherent command rail instead of independent stacked widgets
+  - move leaderboard to the top anchor of the sidebar
+  - group gamespeed and star-view directly beneath it as compact tactical tools
+  - fold theme selection into the settings header surface so search, import/export, and theme form one utility block
+  - reduce the lower menu to low-frequency actions only and remove redundant toggles/widgets

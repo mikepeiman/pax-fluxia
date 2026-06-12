@@ -1,5 +1,10 @@
 <script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
+    import {
+        PaxHudSelect,
+        PaxSettingsRangeRow,
+        PaxSettingsToggleRow,
+    } from "$lib/design-system";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
 
     interface Props {
@@ -8,421 +13,326 @@
         syncFromConfig?: () => void;
     }
 
-    let {
-        panel,
-        updatePanel,
-        syncFromConfig,
-    }: Props = $props();
+    let { panel, updatePanel, syncFromConfig }: Props = $props();
+
+    const CONQUEST_MODE_OPTIONS = [
+        { value: "immediate", label: "Immediate" },
+        { value: "surge", label: "Surge" },
+        { value: "travel", label: "Travel" },
+        { value: "arrowhead", label: "Arrowhead" },
+    ];
+
+    const ARROW_EASING_OPTIONS = [
+        { value: "easeIn", label: "Ease In" },
+        { value: "easeInOut", label: "Ease In / Out" },
+        { value: "linear", label: "Linear" },
+    ];
+
+    const ENGULF_MODE_OPTIONS = [
+        { value: "fan", label: "Fan" },
+        { value: "collapse", label: "Collapse" },
+        { value: "ring", label: "Ring" },
+        { value: "swarm", label: "Swarm" },
+    ];
 </script>
 
 <CategoryThemeBar category="conquest" onApply={() => syncFromConfig?.()} />
 
 <h4 class="sub-heading">Animation Mode</h4>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Conquest Mode</span>
-        <span class="val">{panel.conquestAnimMode}</span>
-    </div>
-    <select
-        class="mode-select"
-        value={panel.conquestAnimMode}
-        onchange={(event) => {
-            const value = (event.target as HTMLSelectElement).value as
-                | "immediate"
-                | "surge"
-                | "travel"
-                | "arrowhead";
-            GAME_CONFIG.CONQUEST_ANIMATION_MODE = value;
-            updatePanel("conquestAnimMode", value);
-        }}
-    >
-        <option value="immediate">Immediate</option>
-        <option value="surge">Surge</option>
-        <option value="travel">Travel</option>
-        <option value="arrowhead">Arrowhead</option>
-    </select>
-</div>
+<PaxHudSelect
+    label="Conquest Mode"
+    value={panel.conquestAnimMode}
+    options={CONQUEST_MODE_OPTIONS}
+    onValueChange={(value) => {
+        GAME_CONFIG.CONQUEST_ANIMATION_MODE = value as
+            | "immediate"
+            | "surge"
+            | "travel"
+            | "arrowhead";
+        updatePanel("conquestAnimMode", value);
+    }}
+/>
 
 <h4 class="sub-heading">Resolution Timing</h4>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Color Delay</span>
-        <span class="val">{panel.conquestColorDelayTicks} ticks</span>
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="10"
-        step="0.5"
-        value={panel.conquestColorDelayTicks}
-        oninput={(event) => {
-            const value = +(event.target as HTMLInputElement).value;
-            GAME_CONFIG.CONQUEST_COLOR_DELAY_TICKS = value;
-            updatePanel("conquestColorDelayTicks", value);
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="Color Delay"
+    value={panel.conquestColorDelayTicks}
+    min={0}
+    max={10}
+    step={0.5}
+    suffix=" ticks"
+    settingConfigKey="CONQUEST_COLOR_DELAY_TICKS"
+    onInput={(value) => {
+        GAME_CONFIG.CONQUEST_COLOR_DELAY_TICKS = value;
+        updatePanel("conquestColorDelayTicks", value);
+    }}
+/>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Flash Duration</span>
-        <span class="val">{panel.conquestFlashTicks} ticks</span>
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="10"
-        step="0.5"
-        value={panel.conquestFlashTicks}
-        oninput={(event) => {
-            const value = +(event.target as HTMLInputElement).value;
-            GAME_CONFIG.CONQUEST_FLASH_TICKS = value;
-            updatePanel("conquestFlashTicks", value);
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="Flash Duration"
+    value={panel.conquestFlashTicks}
+    min={0}
+    max={10}
+    step={0.5}
+    suffix=" ticks"
+    settingConfigKey="CONQUEST_FLASH_TICKS"
+    onInput={(value) => {
+        GAME_CONFIG.CONQUEST_FLASH_TICKS = value;
+        updatePanel("conquestFlashTicks", value);
+    }}
+/>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Lerp Delay</span>
-        <span class="val">{panel.conquestLerpDelayMs}ms</span>
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="5000"
-        step="10"
-        value={panel.conquestLerpDelayMs}
-        oninput={(event) => {
-            const value = +(event.target as HTMLInputElement).value;
-            GAME_CONFIG.CONQUEST_LERP_DELAY_MS = value;
-            updatePanel("conquestLerpDelayMs", value);
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="Lerp Delay"
+    value={panel.conquestLerpDelayMs}
+    min={0}
+    max={5000}
+    step={10}
+    suffix="ms"
+    settingConfigKey="CONQUEST_LERP_DELAY_MS"
+    onInput={(value) => {
+        GAME_CONFIG.CONQUEST_LERP_DELAY_MS = value;
+        updatePanel("conquestLerpDelayMs", value);
+    }}
+/>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Travel Speed</span>
-        <span class="val">{((panel.conquestTravelSpeed ?? 0) as number).toFixed(2)}x</span>
-    </div>
-    <input
-        type="range"
-        min="0.01"
-        max="2"
-        step="0.01"
-        value={panel.conquestTravelSpeed}
-        oninput={(event) => {
-            const value = +(event.target as HTMLInputElement).value;
-            GAME_CONFIG.CONQUEST_TRAVEL_SPEED = value;
-            updatePanel("conquestTravelSpeed", value);
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="Travel Speed"
+    value={panel.conquestTravelSpeed}
+    min={0.01}
+    max={2}
+    step={0.01}
+    format="multiplier"
+    settingConfigKey="CONQUEST_TRAVEL_SPEED"
+    onInput={(value) => {
+        GAME_CONFIG.CONQUEST_TRAVEL_SPEED = value;
+        updatePanel("conquestTravelSpeed", value);
+    }}
+/>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Settle Duration</span>
-        <span class="val">{panel.conquestSettleMs}ms</span>
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="5000"
-        step="10"
-        value={panel.conquestSettleMs}
-        oninput={(event) => {
-            const value = +(event.target as HTMLInputElement).value;
-            GAME_CONFIG.CONQUEST_SETTLE_MS = value;
-            updatePanel("conquestSettleMs", value);
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="Settle Duration"
+    value={panel.conquestSettleMs}
+    min={0}
+    max={5000}
+    step={10}
+    suffix="ms"
+    settingConfigKey="CONQUEST_SETTLE_MS"
+    onInput={(value) => {
+        GAME_CONFIG.CONQUEST_SETTLE_MS = value;
+        updatePanel("conquestSettleMs", value);
+    }}
+/>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Surge Stagger</span>
-        <span class="val">{panel.conquestSurgeStaggerMs}ms</span>
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="200"
-        step="5"
-        value={panel.conquestSurgeStaggerMs}
-        oninput={(event) => {
-            const value = +(event.target as HTMLInputElement).value;
-            GAME_CONFIG.CONQUEST_SURGE_STAGGER_MS = value;
-            updatePanel("conquestSurgeStaggerMs", value);
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="Surge Stagger"
+    value={panel.conquestSurgeStaggerMs}
+    min={0}
+    max={200}
+    step={5}
+    suffix="ms"
+    settingConfigKey="CONQUEST_SURGE_STAGGER_MS"
+    onInput={(value) => {
+        GAME_CONFIG.CONQUEST_SURGE_STAGGER_MS = value;
+        updatePanel("conquestSurgeStaggerMs", value);
+    }}
+/>
 
 <h4 class="sub-heading">Force Glow</h4>
-<label class="toggle-row">
-    <input
-        type="checkbox"
-        checked={panel.conquestForceGlow ?? GAME_CONFIG.CONQUEST_FORCE_GLOW ?? true}
-        onchange={(event) => {
-            const value = (event.target as HTMLInputElement).checked;
-            GAME_CONFIG.CONQUEST_FORCE_GLOW = value;
-            updatePanel("conquestForceGlow", value);
-        }}
-    />
-    <span class="var-name">Scale Glow With Force</span>
-    <span class="val">attacker size aware</span>
-</label>
+<PaxSettingsToggleRow
+    label="Scale Glow With Force"
+    checked={panel.conquestForceGlow ?? GAME_CONFIG.CONQUEST_FORCE_GLOW ?? true}
+    description="Scale conquest glow with attacker force size."
+    meta="Force"
+    settingConfigKey="CONQUEST_FORCE_GLOW"
+    onChange={(value) => {
+        GAME_CONFIG.CONQUEST_FORCE_GLOW = value;
+        updatePanel("conquestForceGlow", value);
+    }}
+/>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Glow Multiplier</span>
-        <span class="val">{((panel.conquestForceGlowMult ?? 0) as number).toFixed(2)}</span>
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.01"
-        value={panel.conquestForceGlowMult ?? GAME_CONFIG.CONQUEST_FORCE_GLOW_MULT ?? 0.15}
-        oninput={(event) => {
-            const value = +(event.target as HTMLInputElement).value;
-            GAME_CONFIG.CONQUEST_FORCE_GLOW_MULT = value;
-            updatePanel("conquestForceGlowMult", value);
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="Glow Multiplier"
+    value={panel.conquestForceGlowMult ??
+        GAME_CONFIG.CONQUEST_FORCE_GLOW_MULT ??
+        0.15}
+    min={0}
+    max={1}
+    step={0.01}
+    format="fixed2"
+    settingConfigKey="CONQUEST_FORCE_GLOW_MULT"
+    onInput={(value) => {
+        GAME_CONFIG.CONQUEST_FORCE_GLOW_MULT = value;
+        updatePanel("conquestForceGlowMult", value);
+    }}
+/>
 
 {#if panel.conquestAnimMode === "arrowhead"}
     <h4 class="sub-heading">Arrowhead Formation</h4>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Taper</span>
-            <span class="val">{((panel.arrowTaper ?? 0) as number).toFixed(2)}</span>
-        </div>
-        <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            value={panel.arrowTaper}
-            oninput={(event) => {
-                const value = +(event.target as HTMLInputElement).value;
-                GAME_CONFIG.ARROW_TAPER = value;
-                updatePanel("arrowTaper", value);
-            }}
-        />
-    </div>
+    <PaxSettingsRangeRow
+        label="Taper"
+        value={panel.arrowTaper}
+        min={0}
+        max={1}
+        step={0.05}
+        format="fixed2"
+        settingConfigKey="ARROW_TAPER"
+        onInput={(value) => {
+            GAME_CONFIG.ARROW_TAPER = value;
+            updatePanel("arrowTaper", value);
+        }}
+    />
 
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Formation Width</span>
-            <span class="val">{panel.arrowWidth === 0 ? "auto" : `${panel.arrowWidth}px`}</span>
-        </div>
-        <input
-            type="range"
-            min="0"
-            max="200"
-            step="5"
-            value={panel.arrowWidth}
-            oninput={(event) => {
-                const value = +(event.target as HTMLInputElement).value;
-                GAME_CONFIG.ARROW_WIDTH = value;
-                updatePanel("arrowWidth", value);
-            }}
-        />
-    </div>
+    <PaxSettingsRangeRow
+        label="Formation Width"
+        value={panel.arrowWidth}
+        min={0}
+        max={200}
+        step={5}
+        output={panel.arrowWidth === 0 ? "auto" : `${panel.arrowWidth}px`}
+        settingConfigKey="ARROW_WIDTH"
+        onInput={(value) => {
+            GAME_CONFIG.ARROW_WIDTH = value;
+            updatePanel("arrowWidth", value);
+        }}
+    />
 
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Arrowhead Speed</span>
-            <span class="val">{((panel.arrowSpeed ?? 0) as number).toFixed(2)}x</span>
-        </div>
-        <input
-            type="range"
-            min="0.1"
-            max="3"
-            step="0.1"
-            value={panel.arrowSpeed}
-            oninput={(event) => {
-                const value = +(event.target as HTMLInputElement).value;
-                GAME_CONFIG.ARROW_SPEED = value;
-                updatePanel("arrowSpeed", value);
-            }}
-        />
-    </div>
+    <PaxSettingsRangeRow
+        label="Arrowhead Speed"
+        value={panel.arrowSpeed}
+        min={0.1}
+        max={3}
+        step={0.1}
+        format="multiplier"
+        settingConfigKey="ARROW_SPEED"
+        onInput={(value) => {
+            GAME_CONFIG.ARROW_SPEED = value;
+            updatePanel("arrowSpeed", value);
+        }}
+    />
 
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Arrowhead Easing</span>
-            <span class="val">{panel.arrowEasing}</span>
-        </div>
-        <select
-            class="mode-select"
-            value={panel.arrowEasing}
-            onchange={(event) => {
-                const value = (event.target as HTMLSelectElement).value as
-                    | "easeIn"
-                    | "easeInOut"
-                    | "linear";
-                GAME_CONFIG.ARROW_EASING = value;
-                updatePanel("arrowEasing", value);
-            }}
-        >
-            <option value="easeIn">Ease In</option>
-            <option value="easeInOut">Ease In / Out</option>
-            <option value="linear">Linear</option>
-        </select>
-    </div>
+    <PaxHudSelect
+        label="Arrowhead Easing"
+        value={panel.arrowEasing}
+        options={ARROW_EASING_OPTIONS}
+        onValueChange={(value) => {
+            GAME_CONFIG.ARROW_EASING = value as
+                | "easeIn"
+                | "easeInOut"
+                | "linear";
+            updatePanel("arrowEasing", value);
+        }}
+    />
 
-    <label class="toggle-row">
-        <input
-            type="checkbox"
-            checked={panel.arrowStaggerAuto}
-            onchange={(event) => {
-                const value = (event.target as HTMLInputElement).checked;
-                GAME_CONFIG.ARROW_STAGGER_AUTO = value;
-                updatePanel("arrowStaggerAuto", value);
-            }}
-        />
-        <span class="var-name">Auto Stagger</span>
-        <span class="val">tick-bound</span>
-    </label>
+    <PaxSettingsToggleRow
+        label="Auto Stagger"
+        checked={panel.arrowStaggerAuto}
+        description="Bind arrowhead stagger timing to the simulation tick."
+        meta="Tick"
+        settingConfigKey="ARROW_STAGGER_AUTO"
+        onChange={(value) => {
+            GAME_CONFIG.ARROW_STAGGER_AUTO = value;
+            updatePanel("arrowStaggerAuto", value);
+        }}
+    />
 
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Arrowhead Stagger</span>
-            <span class="val">{panel.arrowStaggerAuto ? "auto" : `${panel.arrowStaggerMs}ms`}</span>
-        </div>
-        <input
-            type="range"
-            min="0"
-            max="100"
-            step="1"
-            value={panel.arrowStaggerMs}
-            oninput={(event) => {
-                const value = +(event.target as HTMLInputElement).value;
-                GAME_CONFIG.ARROW_STAGGER_MS = value;
-                updatePanel("arrowStaggerMs", value);
-            }}
-        />
-    </div>
+    <PaxSettingsRangeRow
+        label="Arrowhead Stagger"
+        value={panel.arrowStaggerMs}
+        min={0}
+        max={100}
+        step={1}
+        output={panel.arrowStaggerAuto ? "auto" : `${panel.arrowStaggerMs}ms`}
+        settingConfigKey="ARROW_STAGGER_MS"
+        onInput={(value) => {
+            GAME_CONFIG.ARROW_STAGGER_MS = value;
+            updatePanel("arrowStaggerMs", value);
+        }}
+    />
 
     <h4 class="sub-heading">Arrival Pattern</h4>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Engulf Mode</span>
-            <span class="val">{panel.arrowEngulfMode}</span>
-        </div>
-        <select
-            class="mode-select"
-            value={panel.arrowEngulfMode}
-            onchange={(event) => {
-                const value = (event.target as HTMLSelectElement).value as
-                    | "fan"
-                    | "collapse"
-                    | "ring"
-                    | "swarm";
-                GAME_CONFIG.ARROW_ENGULF_MODE = value;
-                updatePanel("arrowEngulfMode", value);
-            }}
-        >
-            <option value="fan">Fan</option>
-            <option value="collapse">Collapse</option>
-            <option value="ring">Ring</option>
-            <option value="swarm">Swarm</option>
-        </select>
-    </div>
+    <PaxHudSelect
+        label="Engulf Mode"
+        value={panel.arrowEngulfMode}
+        options={ENGULF_MODE_OPTIONS}
+        onValueChange={(value) => {
+            GAME_CONFIG.ARROW_ENGULF_MODE = value as
+                | "fan"
+                | "collapse"
+                | "ring"
+                | "swarm";
+            updatePanel("arrowEngulfMode", value);
+        }}
+    />
 
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Engulf Radius</span>
-            <span class="val">{panel.arrowEngulfRadius}px</span>
-        </div>
-        <input
-            type="range"
-            min="10"
-            max="200"
-            step="5"
-            value={panel.arrowEngulfRadius}
-            oninput={(event) => {
-                const value = +(event.target as HTMLInputElement).value;
-                GAME_CONFIG.ARROW_ENGULF_RADIUS = value;
-                updatePanel("arrowEngulfRadius", value);
-            }}
-        />
-    </div>
+    <PaxSettingsRangeRow
+        label="Engulf Radius"
+        value={panel.arrowEngulfRadius}
+        min={10}
+        max={200}
+        step={5}
+        suffix="px"
+        settingConfigKey="ARROW_ENGULF_RADIUS"
+        onInput={(value) => {
+            GAME_CONFIG.ARROW_ENGULF_RADIUS = value;
+            updatePanel("arrowEngulfRadius", value);
+        }}
+    />
 
     <div class="orb-pair">
-        <div class="var-row compact">
-            <div class="row-top">
-                <span class="var-name">Min Degrees</span>
-                <span class="val">{panel.arrowSpiralMinDeg}deg</span>
-            </div>
-            <input
-                type="range"
-                min="0"
-                max="1080"
-                step="30"
-                value={panel.arrowSpiralMinDeg}
-                oninput={(event) => {
-                    const value = +(event.target as HTMLInputElement).value;
-                    GAME_CONFIG.ARROW_SPIRAL_MIN_DEG = value;
-                    updatePanel("arrowSpiralMinDeg", value);
-                }}
-            />
-        </div>
-        <div class="var-row compact">
-            <div class="row-top">
-                <span class="var-name">Max Degrees</span>
-                <span class="val">{panel.arrowSpiralMaxDeg}deg</span>
-            </div>
-            <input
-                type="range"
-                min="0"
-                max="1080"
-                step="30"
-                value={panel.arrowSpiralMaxDeg}
-                oninput={(event) => {
-                    const value = +(event.target as HTMLInputElement).value;
-                    GAME_CONFIG.ARROW_SPIRAL_MAX_DEG = value;
-                    updatePanel("arrowSpiralMaxDeg", value);
-                }}
-            />
-        </div>
-    </div>
-
-    <label class="toggle-row">
-        <input
-            type="checkbox"
-            checked={panel.arrowSpiralRandom as boolean}
-            onchange={(event) => {
-                const value = (event.target as HTMLInputElement).checked;
-                GAME_CONFIG.ARROW_SPIRAL_RANDOM = value;
-                updatePanel("arrowSpiralRandom", value);
+        <PaxSettingsRangeRow
+            label="Min Degrees"
+            value={panel.arrowSpiralMinDeg}
+            min={0}
+            max={1080}
+            step={30}
+            suffix="deg"
+            settingConfigKey="ARROW_SPIRAL_MIN_DEG"
+            onInput={(value) => {
+                GAME_CONFIG.ARROW_SPIRAL_MIN_DEG = value;
+                updatePanel("arrowSpiralMinDeg", value);
             }}
         />
-        <span class="var-name">Random Spiral</span>
-        <span class="val">per conquest</span>
-    </label>
-
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Spiral Duration</span>
-            <span class="val">{panel.arrowSpiralDurationMs}ms</span>
-        </div>
-        <input
-            type="range"
-            min="0"
-            max="3000"
-            step="50"
-            value={panel.arrowSpiralDurationMs}
-            oninput={(event) => {
-                const value = +(event.target as HTMLInputElement).value;
-                GAME_CONFIG.ARROW_SPIRAL_DURATION_MS = value;
-                updatePanel("arrowSpiralDurationMs", value);
+        <PaxSettingsRangeRow
+            label="Max Degrees"
+            value={panel.arrowSpiralMaxDeg}
+            min={0}
+            max={1080}
+            step={30}
+            suffix="deg"
+            settingConfigKey="ARROW_SPIRAL_MAX_DEG"
+            onInput={(value) => {
+                GAME_CONFIG.ARROW_SPIRAL_MAX_DEG = value;
+                updatePanel("arrowSpiralMaxDeg", value);
             }}
         />
     </div>
+
+    <PaxSettingsToggleRow
+        label="Random Spiral"
+        checked={panel.arrowSpiralRandom as boolean}
+        description="Choose a new spiral direction for each conquest."
+        meta="Per conquest"
+        settingConfigKey="ARROW_SPIRAL_RANDOM"
+        onChange={(value) => {
+            GAME_CONFIG.ARROW_SPIRAL_RANDOM = value;
+            updatePanel("arrowSpiralRandom", value);
+        }}
+    />
+
+    <PaxSettingsRangeRow
+        label="Spiral Duration"
+        value={panel.arrowSpiralDurationMs}
+        min={0}
+        max={3000}
+        step={50}
+        suffix="ms"
+        settingConfigKey="ARROW_SPIRAL_DURATION_MS"
+        onInput={(value) => {
+            GAME_CONFIG.ARROW_SPIRAL_DURATION_MS = value;
+            updatePanel("arrowSpiralDurationMs", value);
+        }}
+    />
 {/if}
 
 <style>
