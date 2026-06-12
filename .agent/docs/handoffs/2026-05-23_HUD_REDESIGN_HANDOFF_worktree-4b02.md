@@ -791,3 +791,29 @@ Merge guidance:
 
 - Keep the `PaxSettingsRangeRow.output` prop; later migrations will need the same capability for custom values such as `auto`, `off`, or derived unit text.
 - If conflicts occur in Battle/Economy, preserve the existing config writes and favor the primitive-owned rendering path.
+
+## 2026-06-12 Travel And Conquest Settings Primitive Migration
+
+Scope implemented in this step:
+
+- Rewrote `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Travel.svelte` around `PaxHudSelect`, `PaxSettingsRangeRow`, and `PaxSettingsToggleRow`.
+- Rewrote `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Conquest.svelte` around the same primitives.
+- Removed raw select/range/checkbox markup and old local row/control classes from both files.
+
+Why this matters for merge:
+
+- Travel and Conquest are larger user-facing tuning surfaces that previously preserved the legacy settings grammar. They now follow the shared Pax primitive system.
+- Existing behavior is preserved. Values still write to the same `GAME_CONFIG` fields and call the same `updatePanel(...)` keys, including conditional Arrowhead and Oscillation sections.
+- This is an intentional full-file primitive migration. If conflicts occur, compare behavior by config/panel key rather than trying to keep the old local markup.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Targeted audit found no raw controls, inline styles, active class toggles, or old local row/control class names in the migrated Travel/Conquest files.
+
+Merge guidance:
+
+- Preserve the primitive rendering path and the conditional sections.
+- Do not reintroduce local `.var-row`, `.toggle-row`, or `.mode-select` markup in these files.
+- If master has newer config keys in these surfaces, port those keys into `PaxSettingsRangeRow`, `PaxSettingsToggleRow`, or `PaxHudSelect` rather than restoring raw controls.

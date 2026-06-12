@@ -397,3 +397,29 @@ Validation:
 Next correct step:
 
 - Continue with Travel/Conquest and then Audio. Audio should get a reusable picker/menu primitive rather than a local custom dropdown.
+
+## Travel And Conquest Settings Primitive Migration
+
+Implemented:
+
+- Rewrote `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Travel.svelte` around Pax primitives.
+- Rewrote `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Conquest.svelte` around Pax primitives.
+- Replaced raw selects with `PaxHudSelect`.
+- Replaced raw range controls with `PaxSettingsRangeRow`.
+- Replaced raw checkbox toggles with `PaxSettingsToggleRow`.
+- Removed old local raw-control classes and inline display markup from both surfaces.
+
+Intent:
+
+- Convert two larger but mechanically simple tuning surfaces to the same component system before taking on Audio's custom file picker.
+- Preserve existing `GAME_CONFIG` writes and `updatePanel(...)` keys while unifying the visible control grammar.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Targeted audit returned no raw `<button>`, `<select>`, `<input>`, inline `style=`, active class toggles, old `.var-row`, `.row-top`, `.mode-select`, or `.toggle-row` usage in Travel/Conquest.
+
+Next correct step:
+
+- Migrate Audio with a reusable settings picker/menu primitive for sound-file selection and preview, rather than preserving its current local dropdown island.

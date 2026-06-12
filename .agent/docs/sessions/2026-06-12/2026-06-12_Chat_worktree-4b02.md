@@ -97,3 +97,4 @@ Prompt:
 - Continued UI-system work by adding a Pax file-button primitive and migrating shared `CategoryThemeBar.svelte` to Pax visible controls.
 - Continued UI-system work by migrating `ControlsSection-Visuals.svelte` to Pax visible controls while preserving existing visual config writes.
 - Continued UI-system work by extending the range-row primitive for custom value text and migrating Battle/Combat plus Economy settings ranges to Pax primitives.
+- Continued UI-system work by rewriting Travel and Conquest settings controls around Pax select/range/toggle primitives.
