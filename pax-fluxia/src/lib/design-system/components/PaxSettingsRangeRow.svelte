@@ -12,6 +12,7 @@
     step: number;
     format?: RangeFormat;
     suffix?: string;
+    output?: string;
     note?: string;
     disabled?: boolean;
     settingConfigKey?: string;
@@ -28,6 +29,7 @@
     step,
     format = "raw",
     suffix = "",
+    output,
     note,
     disabled = false,
     settingConfigKey,
@@ -76,7 +78,7 @@
     {max}
     {step}
     {disabled}
-    output={displayValue(value)}
+    output={output ?? displayValue(value)}
     ariaLabel={label}
     onInput={onInput}
   />

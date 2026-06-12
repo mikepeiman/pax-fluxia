@@ -766,3 +766,28 @@ Merge guidance:
 - Preserve the helper functions that wrap existing config writes; they are the behavior compatibility layer for the visual-system migration.
 - If conflicts occur, keep the primitive rendering path and compare only the values passed into the helper functions.
 - Do not restore raw lane-mode buttons or raw background thumbnail buttons; use Pax primitives or add a new primitive if the interaction needs a different shape.
+
+## 2026-06-12 Combat And Economy Settings Primitive Migration
+
+Scope implemented in this step:
+
+- Extended `pax-fluxia/src/lib/design-system/components/PaxSettingsRangeRow.svelte` with an optional `output` prop for custom value text.
+- Migrated `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Battle.svelte` to `PaxSettingsRangeRow`.
+- Migrated `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Economy.svelte` to `PaxSettingsRangeRow`.
+
+Why this matters for merge:
+
+- Battle/Combat and Economy are compact high-use Settings sections and now share the same range row chrome, typography, spacing, and border treatment as the already migrated Visuals/AI/Perimeter surfaces.
+- The `output` prop prevents feature panels from reintroducing local row markup when a value display differs from the raw numeric value.
+- Data flow is unchanged: combat variables still use `CONFIG_TO_PANEL_KEY`, economy values still write the same `GAME_CONFIG` fields, transfer rate still uses the incoming callback, and Max Transfer still displays `unlimited` at zero.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Targeted audit found no raw controls or old local row/control class names in the migrated Battle/Economy files.
+
+Merge guidance:
+
+- Keep the `PaxSettingsRangeRow.output` prop; later migrations will need the same capability for custom values such as `auto`, `off`, or derived unit text.
+- If conflicts occur in Battle/Economy, preserve the existing config writes and favor the primitive-owned rendering path.

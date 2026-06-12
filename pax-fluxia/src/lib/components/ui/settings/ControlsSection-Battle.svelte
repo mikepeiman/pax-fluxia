@@ -1,6 +1,7 @@
 <script lang="ts">
     import { COMBAT_VARIABLES, CONFIG_TO_PANEL_KEY } from "../settingsDefs";
     import { GAME_CONFIG } from "$lib/config/game.config";
+    import { PaxSettingsRangeRow } from "$lib/design-system";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
 
     interface Props {
@@ -67,26 +68,16 @@
 {#each GROUPS as group}
     <h4 class="sub-heading">{group.label}</h4>
     {#each varsFor(group.keys) as variable}
-        <div class="var-row">
-            <div class="row-top">
-                <span class="var-name" data-setting-config-key={variable.key}
-                    >{variable.label}</span
-                >
-                <span class="val">{getCombatValue(variable.key).toFixed(2)}</span>
-            </div>
-            <input
-                type="range"
-                min={variable.min}
-                max={variable.max}
-                step={variable.step}
-                value={getCombatValue(variable.key)}
-                oninput={(event) =>
-                    updateCombatValue(
-                        variable.key,
-                        parseFloat((event.target as HTMLInputElement).value),
-                    )}
-            />
-        </div>
+        <PaxSettingsRangeRow
+            label={variable.label}
+            value={getCombatValue(variable.key)}
+            min={variable.min}
+            max={variable.max}
+            step={variable.step}
+            format="fixed2"
+            settingConfigKey={variable.key}
+            onInput={(value) => updateCombatValue(variable.key, value)}
+        />
     {/each}
 {/each}
 

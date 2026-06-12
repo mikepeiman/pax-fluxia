@@ -373,3 +373,27 @@ Validation:
 Next correct step:
 
 - Continue migrating remaining high-use settings sections, starting with Audio/Travel/Conquest/Battle surfaces, while keeping raw controls inside design-system primitives only.
+
+## Combat And Economy Settings Primitive Migration
+
+Implemented:
+
+- Extended `pax-fluxia/src/lib/design-system/components/PaxSettingsRangeRow.svelte` with an optional `output` prop so feature panels can show custom range text without restoring local row markup.
+- Migrated `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Battle.svelte` from raw range inputs to `PaxSettingsRangeRow`.
+- Migrated `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Economy.svelte` from raw range inputs to `PaxSettingsRangeRow`.
+- Preserved existing combat/economy config writes, panel-key updates, transfer-rate callback, and `0 = unlimited` Max Transfer display.
+
+Intent:
+
+- Convert two compact, frequently visible Settings sections to the shared component grammar.
+- Improve the primitive instead of adding one-off Economy-specific markup for the Max Transfer display case.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Targeted audit returned no raw `<button>`, `<select>`, `<input>`, inline `style=`, active class toggles, old `.var-row`, `.row-top`, `.mode-select`, or `.toggle-row` usage in the migrated Battle/Economy files and the touched range-row primitive.
+
+Next correct step:
+
+- Continue with Travel/Conquest and then Audio. Audio should get a reusable picker/menu primitive rather than a local custom dropdown.
