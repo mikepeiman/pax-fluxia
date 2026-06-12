@@ -1,4 +1,5 @@
 export { default as PaxHudButton } from "./PaxHudButton.svelte";
+export { default as PaxHudFileButton } from "./PaxHudFileButton.svelte";
 export { default as PaxHudIconButton } from "./PaxHudIconButton.svelte";
 export { default as PaxHudPanel } from "./PaxHudPanel.svelte";
 export { default as PaxHudRange } from "./PaxHudRange.svelte";

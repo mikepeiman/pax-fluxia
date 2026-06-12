@@ -705,3 +705,35 @@ Merge guidance:
 - Keep `pixi.js` in the client optimize include list unless master has a stronger Pixi import stabilization strategy.
 - Do not re-add `@colyseus/schema` to the client optimize include list unless `pax-fluxia` directly imports it.
 - Existing dev servers may need a restart or forced optimization for this to take effect.
+
+## 2026-06-12 Category Theme Bar Primitive Migration
+
+Scope implemented in this step:
+
+- Added `pax-fluxia/src/lib/design-system/components/PaxHudFileButton.svelte`.
+- Exported the file-button primitive from `pax-fluxia/src/lib/design-system/components/index.ts`.
+- Rebuilt `pax-fluxia/src/lib/components/ui/settings/CategoryThemeBar.svelte` around Pax primitives:
+  - `PaxHudSelect`
+  - `PaxHudIconButton`
+  - `PaxHudButton`
+  - `PaxHudTextInput`
+  - `PaxHudFileButton`
+- Replaced raw `console.error` import failure reporting with `log.error`.
+- Removed old raw-control styling for theme select/action buttons/save drawer/modal raw buttons.
+
+Why this matters for merge:
+
+- `CategoryThemeBar.svelte` is shared across many settings/tuning panels. This is a high-leverage migration away from repeated local control styling.
+- Visible controls now go through the Pax primitive system; the only raw file input is encapsulated inside `PaxHudFileButton`.
+- Category preset behavior should remain unchanged: select/apply, save/export, update/export, reset, import, star/unstar, delete, and modal close.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Targeted audit found no raw visible controls, raw console error, `HudIcon`, or old raw-control class names in `CategoryThemeBar.svelte`.
+
+Merge guidance:
+
+- Keep file picker mechanics inside `PaxHudFileButton`; do not reintroduce hidden file inputs in shared feature panels.
+- If merge conflicts occur in `CategoryThemeBar.svelte`, preserve behavior first, but keep visible control rendering on Pax primitives.

@@ -315,3 +315,34 @@ Notes:
 
 - If a dev server is already running, restart it or run with Vite force optimization so the updated dependency cache is used.
 - This is a dev import/loading fix. It does not change gameplay logic, Pixi rendering code, or HUD component behavior.
+
+## Category Theme Bar Primitive Migration
+
+Implemented:
+
+- Added `pax-fluxia/src/lib/design-system/components/PaxHudFileButton.svelte`.
+- Exported `PaxHudFileButton` through `pax-fluxia/src/lib/design-system/components/index.ts`.
+- Rebuilt `pax-fluxia/src/lib/components/ui/settings/CategoryThemeBar.svelte` around Pax primitives:
+  - `PaxHudSelect` for preset selection
+  - `PaxHudIconButton` for update/add/reset/manage/save/cancel/delete/star controls
+  - `PaxHudButton` for starred preset chips and modal preset names
+  - `PaxHudTextInput` for new preset naming
+  - `PaxHudFileButton` for JSON import
+- Replaced raw `console.error` import failure reporting with `log.error`.
+- Removed old local raw-control CSS for theme select/actions/drawer buttons/modal raw buttons.
+
+Intent:
+
+- Convert a shared, high-traffic Settings utility surface to the Pax primitive system so theme/preset controls follow the same tokenized button/select/input grammar as the rest of the HUD work.
+- Keep category preset behavior unchanged: apply, save/export, update/export, reset, import, star/unstar, delete, and close modal.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Targeted audit found no raw `<button>`, `<select>`, `<input>`, `console.error`, `HudIcon`, or old raw-control class names in `CategoryThemeBar.svelte`.
+- The only `<input>` in this slice is inside `PaxHudFileButton`, which is the intended primitive boundary for browser file selection.
+
+Next correct step:
+
+- Continue converting shared/high-traffic settings components first, then return to live HUD polish with fewer local style islands.

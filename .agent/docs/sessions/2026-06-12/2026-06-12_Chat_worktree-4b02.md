@@ -94,3 +94,4 @@ Prompt:
 - Updated Vite client dependency optimization to prebundle `pixi.js`.
 - Removed stale `@colyseus/schema` from client dependency optimization after confirming it is not imported by `pax-fluxia/src`.
 - Validated with forced Vite optimization, production build, and diff check.
+- Continued UI-system work by adding a Pax file-button primitive and migrating shared `CategoryThemeBar.svelte` to Pax visible controls.
