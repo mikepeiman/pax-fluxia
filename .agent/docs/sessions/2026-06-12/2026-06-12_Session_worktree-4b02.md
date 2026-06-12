@@ -525,3 +525,28 @@ Validation:
 Next correct step:
 
 - Continue with FrontierFx or split the large Ships/Territory surfaces into smaller primitive-owned sub-slices.
+
+## Frontier FX Settings Primitive Migration
+
+Implemented:
+
+- Rewrote `pax-fluxia/src/lib/components/ui/settings/ControlsSection-FrontierFx.svelte` around Pax primitives.
+- Replaced the mode select with `PaxHudSelect`.
+- Replaced effect ranges with `PaxSettingsRangeRow`.
+- Replaced steady-state/transition toggles with `PaxSettingsToggleRow`.
+- Preserved the render-mode support gate, mode descriptions, and `updateConfig(...)` writes.
+- Retokenized the local card/note shell with HUD variables.
+
+Intent:
+
+- Convert a contained territory visual-effects surface to the shared component system without altering territory renderer logic.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Targeted audit found no raw `<button>`, `<select>`, `<input>`, inline `style=`, active class toggles, `.var-row`, `.row-top`, `.mode-select`, `.toggle-row`, `.lock-btn`, `.toggle-switch`, or `.toggle-slider` usage in `ControlsSection-FrontierFx.svelte`.
+
+Next correct step:
+
+- Continue with smaller sub-slices from Ships/Territory/Metaball tuning, because those files are too large for a safe single rewrite.

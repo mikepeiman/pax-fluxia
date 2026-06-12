@@ -102,3 +102,4 @@ Prompt:
 - Cleaned up live mobile `SpeedControls.svelte` by moving it to `PaxHudButton` and removing the recurring Svelte prop-state warning.
 - Continued UI-system work by rewriting Timing settings around Pax range/toggle/button primitives while preserving timing lock behavior.
 - Continued UI-system work by rewriting Surge settings around Pax range/toggle primitives while preserving surge/orb config behavior.
+- Continued UI-system work by rewriting Frontier FX settings around Pax select/range/toggle primitives while preserving territory visual-effect config behavior.

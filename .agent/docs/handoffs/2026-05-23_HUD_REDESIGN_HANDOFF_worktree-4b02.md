@@ -932,3 +932,30 @@ Validation:
 Merge guidance:
 
 - Preserve the primitive-owned rendering path and the `setPulseBindToTick(...)` helper if conflicts occur.
+
+## 2026-06-12 Frontier FX Settings Primitive Migration
+
+Scope implemented in this step:
+
+- Rewrote `pax-fluxia/src/lib/components/ui/settings/ControlsSection-FrontierFx.svelte` around `PaxHudSelect`, `PaxSettingsRangeRow`, and `PaxSettingsToggleRow`.
+- Removed raw select/range/checkbox markup and old local row/toggle class usage.
+- Retokenized the Frontier FX explanatory card and unsupported-renderer note.
+
+Why this matters for merge:
+
+- Frontier FX is a contained territory visual-effects tuning surface and now follows the same Pax primitive pattern as the other migrated Settings sections.
+- Existing behavior is preserved:
+  - render-mode support check still limits controls to Phase Edges and Ember Lattice
+  - mode descriptions still derive from `currentMode()`
+  - all controls still write through `updateConfig(...)` to the same `TERRITORY_FRONTIER_FX_*` config keys and panel keys
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Targeted audit found no raw controls or old row/toggle class names in `ControlsSection-FrontierFx.svelte`.
+
+Merge guidance:
+
+- Preserve the render-mode gate and `updateConfig(...)` helper.
+- If master adds new Frontier FX controls, render them through Pax primitives rather than restoring raw controls.
