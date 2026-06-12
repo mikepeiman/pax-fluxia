@@ -43,6 +43,11 @@
         { value: "linear", label: "Linear" },
     ];
 
+    const STAR_SHAPE_MODE_OPTIONS: PaxHudSegmentedOption[] = [
+        { value: "polygon", label: "Polygon" },
+        { value: "circle", label: "Circle" },
+    ];
+
     function applyGlowDominantOwnershipPreset() {
         const config = GAME_CONFIG as Record<string, any>;
         const updates: Array<[string, string, boolean | number]> = [
@@ -620,181 +625,114 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Shape Mode</span>
-        <div style="display: flex; gap: 4px;">
-            <button
-                class="mode-btn"
-                class:active={panel.starShapeMode === "polygon"}
-                onclick={() => {
-                    GAME_CONFIG.STAR_SHAPE_MODE = "polygon";
-                    updatePanel("starShapeMode", "polygon");
-                }}>Polygon</button
-            >
-            <button
-                class="mode-btn"
-                class:active={panel.starShapeMode === "circle"}
-                onclick={() => {
-                    GAME_CONFIG.STAR_SHAPE_MODE = "circle";
-                    updatePanel("starShapeMode", "circle");
-                }}>Circle</button
-            >
-        </div>
     </div>
+    <PaxHudSegmentedControl
+        value={panel.starShapeMode ?? GAME_CONFIG.STAR_SHAPE_MODE ?? "polygon"}
+        options={STAR_SHAPE_MODE_OPTIONS}
+        ariaLabel="Star shape mode"
+        density="compact"
+        onValueChange={(value) => writePanelConfig("starShapeMode", "STAR_SHAPE_MODE", value)}
+    />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Icon Scale</span><span class="val"
-            >{((panel.starIconScale ?? 0.55) as number).toFixed(2)}</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0.2"
-        max="0.8"
-        step="0.05"
-        value={panel.starIconScale ?? 0.55}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.STAR_ICON_SCALE = v;
-            updatePanel("starIconScale", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Icon Scale"
+        value={panel.starIconScale ?? GAME_CONFIG.STAR_ICON_SCALE ?? 0.55}
+        min={0.2}
+        max={0.8}
+        step={0.05}
+        format="fixed2"
+        settingConfigKey="STAR_ICON_SCALE"
+        onInput={(value) => writePanelConfig("starIconScale", "STAR_ICON_SCALE", value)}
     />
 </div>
 {#if panel.starShapeMode === "polygon"}
     <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Corner Radius</span><span class="val"
-                >{((panel.starCornerRadius ?? 0.3) as number).toFixed(2)}</span
-            >
-        </div>
-        <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            value={panel.starCornerRadius ?? 0.3}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.STAR_CORNER_RADIUS = v;
-                updatePanel("starCornerRadius", v);
-            }}
+        <PaxSettingsRangeRow
+            label="Corner Radius"
+            value={panel.starCornerRadius ?? GAME_CONFIG.STAR_CORNER_RADIUS ?? 0.3}
+            min={0}
+            max={1}
+            step={0.05}
+            format="fixed2"
+            settingConfigKey="STAR_CORNER_RADIUS"
+            onInput={(value) => writePanelConfig("starCornerRadius", "STAR_CORNER_RADIUS", value)}
         />
     </div>
 {/if}
 
 <h4 class="sub-heading">Ownership Ring</h4>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Ring Radius</span><span class="val"
-            >{((panel.starRingRadius ?? 30) as number).toFixed(0)}px</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="60"
-        step="1"
-        value={panel.starRingRadius ?? 30}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.STAR_RING_RADIUS = v;
-            updatePanel("starRingRadius", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Ring Radius"
+        value={panel.starRingRadius ?? GAME_CONFIG.STAR_RING_RADIUS ?? 30}
+        min={0}
+        max={60}
+        step={1}
+        suffix="px"
+        settingConfigKey="STAR_RING_RADIUS"
+        onInput={(value) => writePanelConfig("starRingRadius", "STAR_RING_RADIUS", value)}
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-            <span class="var-name">Ring Offset</span><span class="val"
-            >{((panel.starRingOffset ?? 20) as number).toFixed(0)}px</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="40"
-        step="1"
-        value={panel.starRingOffset ?? 20}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.STAR_RING_OFFSET = v;
-            updatePanel("starRingOffset", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Ring Offset"
+        value={panel.starRingOffset ?? GAME_CONFIG.STAR_RING_OFFSET ?? 20}
+        min={0}
+        max={40}
+        step={1}
+        suffix="px"
+        settingConfigKey="STAR_RING_OFFSET"
+        onInput={(value) => writePanelConfig("starRingOffset", "STAR_RING_OFFSET", value)}
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Ring Width</span><span class="val"
-            >{((panel.starRingWidth ?? 2) as number).toFixed(1)}</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="6"
-        step="0.5"
-        value={panel.starRingWidth ?? 2}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.STAR_RING_WIDTH = v;
-            updatePanel("starRingWidth", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Ring Width"
+        value={panel.starRingWidth ?? GAME_CONFIG.STAR_RING_WIDTH ?? 2}
+        min={0}
+        max={6}
+        step={0.5}
+        format="fixed1"
+        settingConfigKey="STAR_RING_WIDTH"
+        onInput={(value) => writePanelConfig("starRingWidth", "STAR_RING_WIDTH", value)}
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Ring Alpha</span><span class="val"
-            >{((panel.starRingAlpha ?? 0.8) as number).toFixed(2)}</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.05"
-        value={panel.starRingAlpha ?? 0.8}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.STAR_RING_ALPHA = v;
-            updatePanel("starRingAlpha", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Ring Alpha"
+        value={panel.starRingAlpha ?? GAME_CONFIG.STAR_RING_ALPHA ?? 0.8}
+        min={0}
+        max={1}
+        step={0.05}
+        format="fixed2"
+        settingConfigKey="STAR_RING_ALPHA"
+        onInput={(value) => writePanelConfig("starRingAlpha", "STAR_RING_ALPHA", value)}
     />
 </div>
 <!-- Ownership-ring SLA -->
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Ring Saturation</span><span class="val"
-            >{((panel.starRingSaturation ?? 1.0) as number).toFixed(2)}</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="2"
-        step="0.05"
-        value={panel.starRingSaturation ?? 1.0}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.STAR_RING_SATURATION = v;
-            updatePanel("starRingSaturation", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Ring Saturation"
+        value={panel.starRingSaturation ?? GAME_CONFIG.STAR_RING_SATURATION ?? 1.0}
+        min={0}
+        max={2}
+        step={0.05}
+        format="fixed2"
+        settingConfigKey="STAR_RING_SATURATION"
+        onInput={(value) => writePanelConfig("starRingSaturation", "STAR_RING_SATURATION", value)}
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Ring Lightness</span><span class="val"
-            >{((panel.starRingLightness ?? 1.0) as number).toFixed(2)}</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="2"
-        step="0.05"
-        value={panel.starRingLightness ?? 1.0}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.STAR_RING_LIGHTNESS = v;
-            updatePanel("starRingLightness", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Ring Lightness"
+        value={panel.starRingLightness ?? GAME_CONFIG.STAR_RING_LIGHTNESS ?? 1.0}
+        min={0}
+        max={2}
+        step={0.05}
+        format="fixed2"
+        settingConfigKey="STAR_RING_LIGHTNESS"
+        onInput={(value) => writePanelConfig("starRingLightness", "STAR_RING_LIGHTNESS", value)}
     />
 </div>
 

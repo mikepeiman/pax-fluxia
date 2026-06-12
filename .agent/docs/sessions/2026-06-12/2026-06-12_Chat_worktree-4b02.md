@@ -139,3 +139,6 @@ Prompt:
 - Continued `ControlsSection-Ships.svelte` by migrating Orbit Layout range controls to Pax range primitives.
 - Preserved orbit/star radius config writes through `writePanelConfig(...)`.
 - Validated the Orbit Layout slice with raw-control count reduction, `git diff --check`, and production build.
+- Continued `ControlsSection-Ships.svelte` by migrating Star Shape and Ownership Ring controls to Pax segmented/range primitives.
+- Preserved `STAR_SHAPE_MODE`, `STAR_ICON_SCALE`, `STAR_CORNER_RADIUS`, and `STAR_RING_*` config writes through `writePanelConfig(...)`.
+- Validated the Star Shape/Ownership Ring slice with raw-control count reduction from `83` to `70`, `git diff --check`, and production build.

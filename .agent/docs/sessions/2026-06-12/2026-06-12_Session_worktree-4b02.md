@@ -855,3 +855,40 @@ Validation:
 Next correct step:
 
 - Continue `ControlsSection-Ships.svelte` with Star Shape and Ownership Ring controls.
+
+## Ships Star Shape And Ownership Ring Primitive Migration
+
+Implemented:
+
+- Continued migrating `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Ships.svelte`.
+- Added `STAR_SHAPE_MODE_OPTIONS` for the shared segmented shape-mode control.
+- Migrated Star Shape controls to Pax primitives:
+  - Shape Mode
+  - Icon Scale
+  - Corner Radius
+- Migrated Ownership Ring controls to `PaxSettingsRangeRow`:
+  - Ring Radius
+  - Ring Offset
+  - Ring Width
+  - Ring Alpha
+  - Ring Saturation
+  - Ring Lightness
+
+Intent:
+
+- Remove another contiguous raw-control island from Ships while keeping live tuning behavior intact.
+- Preserve existing `GAME_CONFIG` keys and `panel` keys through `writePanelConfig(...)`.
+
+Validation:
+
+- Ships raw-control audit count reduced from `83` to `70`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Runtime note:
+
+- The Pixi dev-shell error report remains covered by the existing Vite mitigation: `pixi.js` is prebundled and deduped in `pax-fluxia/vite.config.js`. If the error appears from an already-running dev server, restart the dev server and force Vite optimization before retesting.
+
+Next correct step:
+
+- Continue `ControlsSection-Ships.svelte` with Star Labels, including the label layout segmented control and the label-scale cascade.

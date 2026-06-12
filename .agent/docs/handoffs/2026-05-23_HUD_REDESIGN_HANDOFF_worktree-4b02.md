@@ -1269,3 +1269,39 @@ Merge guidance:
 
 - Keep Orbit Layout controls on `PaxSettingsRangeRow`.
 - Preserve the direct config key writes through `writePanelConfig(...)`.
+
+## 2026-06-12 Ships Star Shape And Ownership Ring Primitive Migration
+
+Scope implemented in this step:
+
+- Continued migrating:
+  - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Ships.svelte`
+
+Why this matters for merge:
+
+- Star Shape and Ownership Ring were still using raw range inputs, local mode buttons, inline style, and active-class state.
+- They now use shared Pax primitives:
+  - `PaxHudSegmentedControl`
+  - `PaxSettingsRangeRow`
+- Existing behavior is preserved:
+  - `STAR_SHAPE_MODE`
+  - `STAR_ICON_SCALE`
+  - `STAR_CORNER_RADIUS`
+  - `STAR_RING_RADIUS`
+  - `STAR_RING_OFFSET`
+  - `STAR_RING_WIDTH`
+  - `STAR_RING_ALPHA`
+  - `STAR_RING_SATURATION`
+  - `STAR_RING_LIGHTNESS`
+
+Validation:
+
+- Ships raw-control audit count reduced from `83` to `70`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Merge guidance:
+
+- Preserve `STAR_SHAPE_MODE_OPTIONS` and the segmented control for Star Shape mode.
+- Keep Ownership Ring ranges on `PaxSettingsRangeRow`.
+- If master has added new star-shape or ownership-ring controls, wire them through Pax primitives and keep config writes explicit through `writePanelConfig(...)`.
