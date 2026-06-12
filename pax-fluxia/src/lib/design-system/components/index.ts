@@ -9,6 +9,7 @@ export type { PaxHudSegmentedOption } from "./PaxHudSegmentedControl.svelte";
 export { default as PaxHudSelect } from "./PaxHudSelect.svelte";
 export { default as PaxHudTextInput } from "./PaxHudTextInput.svelte";
 export { default as PaxHudTooltip } from "./PaxHudTooltip.svelte";
+export { default as PaxColorSwatchButton } from "./PaxColorSwatchButton.svelte";
 export { default as PaxSettingsDrawer } from "./PaxSettingsDrawer.svelte";
 export { default as PaxSettingsInfoRow } from "./PaxSettingsInfoRow.svelte";
 export { default as PaxSettingsPickerRow } from "./PaxSettingsPickerRow.svelte";

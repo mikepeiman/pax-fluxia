@@ -576,3 +576,28 @@ Validation:
 Next correct step:
 
 - Recount remaining raw-control density, then split Ships/Territory/Metaball into smaller safe primitive-migration slices.
+
+## Players, Transition, And Topology Primitive Migration
+
+Implemented:
+
+- Added `pax-fluxia/src/lib/design-system/components/PaxColorSwatchButton.svelte` and exported it from the design-system component barrel.
+- Rewrote `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Players.svelte` around `PaxSettingsRangeRow`, `PaxHudButton`, and `PaxColorSwatchButton`.
+- Rewrote `pax-fluxia/src/lib/components/ui/settings/TerritoryTransitionTuning.svelte` around `PaxSettingsToggleRow`, `PaxHudRange`, `PaxHudButton`, and `PaxHudSelect`.
+- Rewrote `pax-fluxia/src/lib/components/ui/settings/TerritoryTopologyTuning.svelte` around `PaxSettingsRangeRow` and `PaxSettingsToggleRow`.
+
+Intent:
+
+- Remove another batch of raw settings controls and local one-off button/swatch skins.
+- Keep dynamic player color presentation reusable and themeable by moving swatch styling into a design-system primitive.
+- Preserve all existing player palette persistence/application, transition lock callbacks, topology compile scheduling, and territory config writes.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- Targeted audit found no raw `<button>`, `<select>`, `<input>`, inline `style=`, active class toggles, old row/toggle/lock class names, or mojibake degree markers in the three touched settings panels.
+
+Next correct step:
+
+- Recount remaining raw-control density.
+- Continue with `TerritorySurfaceStyleTuning.svelte` or `ControlsSection-Diagnostics.svelte`, then split the much larger `MetaballGridTuning.svelte`, `ControlsSection-Territory.svelte`, and `ControlsSection-Ships.svelte` into smaller safe commits.

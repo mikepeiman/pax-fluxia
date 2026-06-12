@@ -992,3 +992,37 @@ Merge guidance:
 
 - Preserve `PaxHudSelect.disabled`; it is now part of the primitive contract.
 - If conflicts occur, keep the behavior-specific helper functions and render through Pax primitives.
+
+## 2026-06-12 Players, Transition, And Topology Primitive Migration
+
+Scope implemented in this step:
+
+- Added reusable color-choice primitive:
+  - `pax-fluxia/src/lib/design-system/components/PaxColorSwatchButton.svelte`
+  - `pax-fluxia/src/lib/design-system/components/index.ts`
+- Migrated player palette controls:
+  - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Players.svelte`
+- Migrated territory transition controls:
+  - `pax-fluxia/src/lib/components/ui/settings/TerritoryTransitionTuning.svelte`
+- Migrated territory topology controls:
+  - `pax-fluxia/src/lib/components/ui/settings/TerritoryTopologyTuning.svelte`
+
+Why this matters for merge:
+
+- These panels previously retained local raw controls, local swatch buttons, lock buttons, raw selects, and corrupted degree glyph output.
+- Existing behavior is preserved:
+  - player palette still persists through `savePlayerPaletteSettings(...)` and applies through `activeGameStore.applyPlayerColors(...)`
+  - selected player nudge still clamps through `clampPlayerHueNudge(...)`
+  - transition lock buttons still call `pinValueToTickDuration(...)`, `lockRatioToTick(...)`, and `lockRatioToAnimSpeed(...)`
+  - transition burst basis still writes `METABALL_BURST_BOUNDARY_BASIS`
+  - topology sliders/toggles still call `queueTopologySliderUpdate(...)` or `queueTopologyToggleUpdate(...)`, preserving delayed `GAME_CONFIG` writes and `bumpTerritoryVisualConfig()`
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- Targeted audit found no raw controls or old local control classes in the three migrated settings panels.
+
+Merge guidance:
+
+- Preserve `PaxColorSwatchButton`; it is now the correct primitive for dynamic color choices in Settings.
+- If conflicts occur in these panels, preserve the existing helper/dataflow functions and render the surface through Pax primitives rather than restoring raw inputs/buttons/selects.

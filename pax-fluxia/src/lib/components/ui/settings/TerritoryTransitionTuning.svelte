@@ -6,10 +6,21 @@
         coerceVsTransitionModeForRenderMode,
         getTransitionModeOptionsForRenderMode,
     } from "$lib/territory/transitions/territoryTransitionModes";
+    import {
+        PaxHudButton,
+        PaxHudRange,
+        PaxHudSelect,
+        PaxSettingsToggleRow,
+    } from "$lib/design-system";
 
     const VS_SLIDERS = ANIM_SLIDERS.filter(
         (slider) => slider.group === "VS Transition",
     );
+    const BURST_BOUNDARY_BASIS_OPTIONS =
+        METABALL_BURST_BOUNDARY_BASIS_OPTIONS.map((option) => ({
+            value: option.id,
+            label: option.label,
+        }));
 
     interface Props {
         panel: Record<string, any>;
@@ -252,119 +263,83 @@
     Final handoff smoothing is shared in Timing → End Settle. The controls here still govern the renderer-specific travel and influence behavior before that settle window.
 </div>
 
-<label class="toggle-row">
-    <input
-        type="checkbox"
-        checked={panel.vsBindToTick ?? GAME_CONFIG.VS_BIND_TO_TICK ?? true}
-        onchange={(event) => {
-            const value = (event.target as HTMLInputElement).checked;
-            GAME_CONFIG.VS_BIND_TO_TICK = value;
-            updatePanel("vsBindToTick", value);
-        }}
-    />
-        <span
-            class="var-name"
-            data-setting-config-key="VS_BIND_TO_TICK"
-            data-setting-description={modeSemantics.bindDesc}
-            title={modeSemantics.bindDesc}>{modeSemantics.bindLabel}</span>
-    <span class="val">
-        {(panel.vsBindToTick ?? GAME_CONFIG.VS_BIND_TO_TICK ?? true)
-            ? "On"
-            : "Off"}
-    </span>
-</label>
+<PaxSettingsToggleRow
+    label={modeSemantics.bindLabel}
+    checked={panel.vsBindToTick ?? GAME_CONFIG.VS_BIND_TO_TICK ?? true}
+    description={modeSemantics.bindDesc}
+    meta={(panel.vsBindToTick ?? GAME_CONFIG.VS_BIND_TO_TICK ?? true) ? "On" : "Off"}
+    settingConfigKey="VS_BIND_TO_TICK"
+    onChange={(value) => {
+        GAME_CONFIG.VS_BIND_TO_TICK = value;
+        updatePanel("vsBindToTick", value);
+    }}
+/>
 <div class="row-hint row-hint--tight">{modeSemantics.bindDesc}</div>
 
 {#each visibleSliders as semantic}
     {@const slider = semantic.slider}
-    <div class="var-row" class:locked={animLockModes[slider.key] != null}>
-        <div class="row-top">
-                    <span
-                        class="var-name"
-                        data-setting-config-key={slider.key}
-                        data-setting-description={semantic.desc}
-                        title={semantic.desc}>{semantic.label}</span
-                    >
-            <span class="val-group">
-                <span class="val"
-                    >{formatAnimValue(getAnimValue(slider.key), slider.unit ?? "")}</span
-                >
-                <button
-                    class="lock-btn"
-                    class:active={animLockModes[slider.key] === "pinned"}
-                    title={animLockModes[slider.key] === "pinned"
-                        ? "Pinned to tick duration - click to unpin"
-                        : "Pin value = tick duration"}
-                    onclick={() => pinValueToTickDuration(slider.key)}>P</button
-                >
-                <button
-                    class="lock-btn"
-                    class:active={animLockModes[slider.key] === "ratio"}
-                    title={animLockModes[slider.key] === "ratio"
-                        ? `Locked at ${(animLockRatios[slider.key] ?? 0).toFixed(3)}x tick - click to unlock`
-                        : "Lock current ratio to tick"}
-                    onclick={() => lockRatioToTick(slider.key)}>R</button
-                >
-                <button
-                    class="lock-btn"
-                    class:active={animLockModes[slider.key] === "animSpeed"}
-                    title={animLockModes[slider.key] === "animSpeed"
-                        ? `Locked at ${(animLockRatios[slider.key] ?? 0).toFixed(3)}x animation speed - click to unlock`
-                        : "Lock current ratio to animation speed"}
-                    onclick={() => lockRatioToAnimSpeed(slider.key)}>A</button
-                >
-            </span>
-        </div>
-        {#if semantic.desc}
-            <div class="row-hint row-hint--tight">{semantic.desc}</div>
-        {/if}
-        <input
-            type="range"
+    <div
+        class="transition-slider-row"
+        class:transition-slider-row--locked={animLockModes[slider.key] != null}
+        data-setting-config-key={slider.key}
+        data-setting-description={semantic.desc}
+    >
+        <PaxHudRange
+            label={semantic.label}
+            note={semantic.desc}
+            value={getAnimValue(slider.key)}
             min={slider.min}
             max={slider.max}
             step={slider.step}
-            value={getAnimValue(slider.key)}
+            output={formatAnimValue(getAnimValue(slider.key), slider.unit ?? "")}
             disabled={animLockModes[slider.key] != null}
-            oninput={(event) => {
-                const value = parseFloat(
-                    (event.target as HTMLInputElement).value,
-                );
-                setAnimValue(slider.key, value);
-            }}
+            ariaLabel={semantic.label}
+            onInput={(value) => setAnimValue(slider.key, value)}
         />
+        <div class="transition-slider-row__locks" aria-label={`${semantic.label} lock controls`}>
+            <PaxHudButton
+                label="P"
+                size="sm"
+                active={animLockModes[slider.key] === "pinned"}
+                title={animLockModes[slider.key] === "pinned"
+                    ? "Pinned to tick duration - click to unpin"
+                    : "Pin value = tick duration"}
+                onclick={() => pinValueToTickDuration(slider.key)}
+            />
+            <PaxHudButton
+                label="R"
+                size="sm"
+                active={animLockModes[slider.key] === "ratio"}
+                title={animLockModes[slider.key] === "ratio"
+                    ? `Locked at ${(animLockRatios[slider.key] ?? 0).toFixed(3)}x tick - click to unlock`
+                    : "Lock current ratio to tick"}
+                onclick={() => lockRatioToTick(slider.key)}
+            />
+            <PaxHudButton
+                label="A"
+                size="sm"
+                active={animLockModes[slider.key] === "animSpeed"}
+                title={animLockModes[slider.key] === "animSpeed"
+                    ? `Locked at ${(animLockRatios[slider.key] ?? 0).toFixed(3)}x animation speed - click to unlock`
+                    : "Lock current ratio to animation speed"}
+                onclick={() => lockRatioToAnimSpeed(slider.key)}
+            />
+        </div>
     </div>
 {/each}
 
 {#if showMetaballBurstBoundaryBasis}
-    <div class="var-row">
-        <div class="row-top">
-                    <span
-                        class="var-name"
-                        data-setting-config-key="METABALL_BURST_BOUNDARY_BASIS"
-                        >Burst Boundary Basis</span
-                    >
-            <span class="val">
-                {panel.metaballBurstBoundaryBasis ??
-                    GAME_CONFIG.METABALL_BURST_BOUNDARY_BASIS ??
-                    "t0_region_contour"}
-            </span>
-        </div>
-        <select
-            class="mode-select"
-            value={panel.metaballBurstBoundaryBasis ??
-                GAME_CONFIG.METABALL_BURST_BOUNDARY_BASIS ??
-                "t0_region_contour"}
-            onchange={(event) => {
-                const value = (event.target as HTMLSelectElement).value;
-                GAME_CONFIG.METABALL_BURST_BOUNDARY_BASIS = value as any;
-                updatePanel("metaballBurstBoundaryBasis", value);
-            }}
-        >
-            {#each METABALL_BURST_BOUNDARY_BASIS_OPTIONS as option}
-                <option value={option.id}>{option.label}</option>
-            {/each}
-        </select>
-    </div>
+    <PaxHudSelect
+        label="Burst Boundary Basis"
+        value={panel.metaballBurstBoundaryBasis ??
+            GAME_CONFIG.METABALL_BURST_BOUNDARY_BASIS ??
+            "t0_region_contour"}
+        options={BURST_BOUNDARY_BASIS_OPTIONS}
+        onValueChange={(value) => {
+            GAME_CONFIG.METABALL_BURST_BOUNDARY_BASIS = value as any;
+            updatePanel("metaballBurstBoundaryBasis", value);
+        }}
+    />
 {/if}
 
 <style>
@@ -375,5 +350,22 @@
         font-size: 11px;
         line-height: 1.45;
         color: rgba(187, 205, 223, 0.82);
+    }
+
+    .transition-slider-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: end;
+        gap: 8px;
+    }
+
+    .transition-slider-row--locked {
+        opacity: 0.62;
+    }
+
+    .transition-slider-row__locks {
+        display: flex;
+        gap: 5px;
+        padding-bottom: 10px;
     }
 </style>
