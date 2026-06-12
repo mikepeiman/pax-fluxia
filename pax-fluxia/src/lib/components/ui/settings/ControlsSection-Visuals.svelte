@@ -1,10 +1,19 @@
 <script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
+    import { BG_IMAGES } from "$lib/config/bgManifest";
     import { resolveEffectiveLaneMarginPx } from "$lib/lanes/laneMargin";
     import { gameStore } from "$lib/stores/gameStore.svelte";
+    import {
+        PaxHudButton,
+        PaxHudSelect,
+        PaxHudSegmentedControl,
+        PaxSettingsRangeRow,
+        PaxSettingsToggleRow,
+        type PaxHudSegmentedOption,
+    } from "$lib/design-system";
+    import CategoryThemeBar from "./CategoryThemeBar.svelte";
 
-    // ControlsSection-VISUALS — In-Game Settings Controls: Map & Grid
-    // Extracted from GameSettingsPanel.svelte
+    // ControlsSection-VISUALS - In-Game Settings Controls: Map & Grid
 
     interface Props {
         panel: Record<string, any>;
@@ -13,6 +22,7 @@
         updateVisual: (key: string, val: any) => void;
         syncFromConfig?: () => void;
     }
+
     let {
         panel,
         updatePanel,
@@ -20,17 +30,37 @@
         updateVisual,
         syncFromConfig,
     }: Props = $props();
-    import { BG_IMAGES } from "$lib/config/bgManifest";
-    import CategoryThemeBar from "./CategoryThemeBar.svelte";
+
+    const bgImages = BG_IMAGES;
+    const mapConfig = GAME_CONFIG as typeof GAME_CONFIG & {
+        MAPGEN_LANE_MARGIN_ENABLED?: boolean;
+        MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS?: boolean;
+    };
+
+    const LABEL_ANIM_OPTIONS = [
+        { value: "rolling", label: "Rolling (lerp)" },
+        { value: "fade", label: "Fade (snap + flash)" },
+        { value: "instant", label: "Instant" },
+    ];
+
+    const LANE_PATH_OPTIONS: PaxHudSegmentedOption[] = [
+        {
+            value: "straight",
+            label: "Straight",
+            title: "Chord only between linked stars",
+        },
+        {
+            value: "curved",
+            label: "Curve if needed",
+            title: "Satisfy lane margin with chord or, if needed, curve/kink vs stars and other lanes",
+        },
+    ];
 
     let lanePathUiMode = $derived(
         (panel.mapgenLaneMode ?? GAME_CONFIG.MAPGEN_LANE_MODE ?? "curved") as
             | "straight"
             | "curved",
     );
-    const mapConfig = GAME_CONFIG as typeof GAME_CONFIG & {
-        MAPGEN_LANE_MARGIN_ENABLED?: boolean;
-    };
     let laneMarginEnabled = $derived(
         (panel.mapgenLaneMarginEnabled ??
             mapConfig.MAPGEN_LANE_MARGIN_ENABLED ??
@@ -50,510 +80,420 @@
         }),
     );
 
-    // ── Background Image Picker ──
-    let bgImages = $state<string[]>(BG_IMAGES);
+    function rebuildLaneConstraints() {
+        (gameStore as any).rebuildLaneConstraintsFromConfig?.();
+    }
 
-    // Background change uses updateVisual to sync immediately
     function changeBg(img: string) {
         updateVisual("bgImage", img);
+    }
+
+    function updateBgAlpha(value: number) {
+        GAME_CONFIG.BG_IMAGE_ALPHA = value;
+        updatePanel("bgImageAlpha", value);
+        window.dispatchEvent(
+            new CustomEvent("pax-bg-alpha-change", { detail: value }),
+        );
+    }
+
+    function updateLaneMarginEnabled(value: boolean) {
+        mapConfig.MAPGEN_LANE_MARGIN_ENABLED = value;
+        updatePanel("mapgenLaneMarginEnabled", value);
+        rebuildLaneConstraints();
+    }
+
+    function updateLaneMarginPx(value: number) {
+        GAME_CONFIG.MAPGEN_LANE_MARGIN_PX = value;
+        updatePanel("mapgenLaneMarginPx", value);
+        rebuildLaneConstraints();
+    }
+
+    function updateReshapeBias(value: number) {
+        GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS = value;
+        updatePanel("mapgenLaneCurveVsPruneBias", value);
+        rebuildLaneConstraints();
+    }
+
+    function updateRecomputeConnectivity(value: boolean) {
+        mapConfig.MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS = value;
+        updatePanel("mapgenRecomputeConnectivityOnAuthoredMaps", value);
+        rebuildLaneConstraints();
+    }
+
+    function updateLanePath(value: string) {
+        const next = value === "straight" ? "straight" : "curved";
+        updatePanel("mapgenLaneMode", next);
+        rebuildLaneConstraints();
+    }
+
+    function updateLabelAnimMode(value: string) {
+        const next = value === "fade" || value === "instant" ? value : "rolling";
+        GAME_CONFIG.LABEL_ANIM_MODE = next;
+        updatePanel("labelAnimMode", next);
+    }
+
+    function updateNumberTransitionMs(value: number) {
+        GAME_CONFIG.NUMBER_TRANSITION_MS = value;
+        updatePanel("numberTransitionMs", value);
+    }
+
+    function updateArrowLength(percent: number) {
+        const value = percent / 100;
+        GAME_CONFIG.ARROW_LENGTH_FRACTION = value;
+        updatePanel("arrowLengthFraction", value);
+    }
+
+    function updateOrderArrowsFollowLanePaths(value: boolean) {
+        GAME_CONFIG.ORDER_ARROWS_FOLLOW_LANE_PATHS = value;
+        updatePanel("orderArrowsFollowLanePaths", value);
+    }
+
+    function updateArrowPathPadding(value: number) {
+        GAME_CONFIG.ARROW_PATH_PADDING = value;
+        updatePanel("arrowPathPadding", value);
+    }
+
+    function updateStaticOrbits(value: boolean) {
+        GAME_CONFIG.STATIC_ORBITS = value;
+        updatePanel("staticOrbits", value);
+    }
+
+    function updateSelectionHex(value: boolean) {
+        GAME_CONFIG.SHOW_SELECTION_HEX = value;
+        updatePanel("showSelectionHex", value);
     }
 </script>
 
 <CategoryThemeBar category="visuals" onApply={() => syncFromConfig?.()} />
 
-<section data-subsection-id="background">
+<section data-subsection-id="background" class="visuals-section">
     <h4 class="sub-heading">Background</h4>
-    <div class="var-row">
-        <div class="row-top">
-            <span
-                class="var-name"
-                data-setting-config-key="BG_IMAGE_URL"
-                data-setting-description="Background image asset path displayed behind the battlefield."
-                >Background Asset</span
-            >
-            <span class="val">{vis.bgImage || "none"}</span>
-        </div>
-    </div>
-    <div class="bg-grid">
-        <button
-            class="bg-thumb"
-            class:active={!vis.bgImage}
-            onclick={() => changeBg("")}
-            title="No background"
+    <div class="visuals-summary">
+        <span
+            data-setting-config-key="BG_IMAGE_URL"
+            data-setting-description="Background image asset path displayed behind the battlefield."
         >
-            <span class="bg-none-icon">∅</span>
-        </button>
+            Background Asset
+        </span>
+        <strong>{vis.bgImage || "none"}</strong>
+    </div>
+
+    <div class="visuals-bg-grid">
+        <PaxHudButton
+            class="visuals-bg-thumb"
+            active={!vis.bgImage}
+            title="No background"
+            onclick={() => changeBg("")}
+        >
+            <span class="visuals-bg-none">None</span>
+        </PaxHudButton>
         {#each bgImages as img}
-            <button
-                class="bg-thumb"
-                class:active={vis.bgImage === img}
-                onclick={() => changeBg(img)}
+            <PaxHudButton
+                class="visuals-bg-thumb"
+                active={vis.bgImage === img}
                 title={img
                     .replace(/\.(png|jpe?g|webp|avif)$/i, "")
                     .replace(/^pax-fluxia-/, "")}
+                onclick={() => changeBg(img)}
             >
                 <img
                     src="/assets/{img}"
                     alt={img}
-                    class="bg-thumb-img"
+                    class="visuals-bg-thumb__img"
                     loading="lazy"
                 />
-            </button>
+            </PaxHudButton>
         {/each}
     </div>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">BG Opacity</span><span class="val"
-                >{(
-                    (panel.bgImageAlpha ??
-                        GAME_CONFIG.BG_IMAGE_ALPHA ??
-                        0.35) as number
-                ).toFixed(2)}</span
-            >
-        </div>
-        <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            value={panel.bgImageAlpha ?? GAME_CONFIG.BG_IMAGE_ALPHA ?? 0.35}
-            oninput={(e) => {
-                const v = parseFloat((e.target as HTMLInputElement).value);
-                GAME_CONFIG.BG_IMAGE_ALPHA = v;
-                updatePanel("bgImageAlpha", v);
-                window.dispatchEvent(
-                    new CustomEvent("pax-bg-alpha-change", { detail: v }),
-                );
-            }}
+
+    <PaxSettingsRangeRow
+        label="BG Opacity"
+        value={panel.bgImageAlpha ?? GAME_CONFIG.BG_IMAGE_ALPHA ?? 0.35}
+        min={0}
+        max={1}
+        step={0.05}
+        format="fixed2"
+        settingConfigKey="BG_IMAGE_ALPHA"
+        onInput={updateBgAlpha}
+    />
+</section>
+
+<section data-subsection-id="map-layout" class="visuals-section">
+    <h4 class="sub-heading">Map Layout</h4>
+    <p class="visuals-note">
+        <strong>Lane margin</strong> is the minimum distance from a non-endpoint
+        star center to the nearest point on a lane. <strong>Reshape bias</strong>
+        controls how hard the solver reshapes a violating connection before
+        removing it during connectivity recompute.
+    </p>
+
+    <PaxSettingsToggleRow
+        label="Use dedicated lane margin"
+        checked={laneMarginEnabled}
+        description="When off, curved-lane clearance falls back to the active territory minimum star margin."
+        meta={laneMarginEnabled ? "On" : `Fallback ${Math.round(effectiveLaneMarginPx)}px`}
+        settingConfigKey="MAPGEN_LANE_MARGIN_ENABLED"
+        onChange={updateLaneMarginEnabled}
+    />
+
+    <PaxSettingsRangeRow
+        label="Lane margin (mapgen)"
+        note={`Effective lane clearance: ${Math.round(effectiveLaneMarginPx)}px${!laneMarginEnabled ? " using territory star margin fallback" : ""}`}
+        value={panel.mapgenLaneMarginPx ?? GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ?? 75}
+        min={0}
+        max={250}
+        step={5}
+        suffix="px"
+        disabled={!laneMarginEnabled}
+        settingConfigKey="MAPGEN_LANE_MARGIN_PX"
+        onInput={updateLaneMarginPx}
+    />
+
+    <PaxSettingsRangeRow
+        label="Reshape bias"
+        note="0 removes violating connections during connectivity recompute; 1 exhausts reshaping first."
+        value={panel.mapgenLaneCurveVsPruneBias ??
+            GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS ??
+            0.55}
+        min={0}
+        max={1}
+        step={0.05}
+        format="fixed2"
+        settingConfigKey="MAPGEN_LANE_CURVE_VS_PRUNE_BIAS"
+        onInput={updateReshapeBias}
+    />
+
+    <PaxSettingsToggleRow
+        label="Recompute connectivity"
+        checked={panel.mapgenRecomputeConnectivityOnAuthoredMaps ??
+            mapConfig.MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS ??
+            false}
+        description="Allow authored maps to recompute connectivity instead of reshaping only."
+        meta={(panel.mapgenRecomputeConnectivityOnAuthoredMaps ??
+            mapConfig.MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS ??
+            false)
+            ? "On"
+            : "Off"}
+        settingConfigKey="MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS"
+        onChange={updateRecomputeConnectivity}
+    />
+
+    <div class="visuals-control-card">
+        <span class="visuals-control-card__label">Lane path</span>
+        <PaxHudSegmentedControl
+            value={lanePathUiMode}
+            options={LANE_PATH_OPTIONS}
+            ariaLabel="Lane path: straight chords or curved when needed"
+            onValueChange={updateLanePath}
         />
     </div>
 </section>
 
-<section data-subsection-id="map-layout">
-    <h4 class="sub-heading">Map Layout</h4>
-    <p class="future-desc" style="margin:0 0 8px;font-size:11px;opacity:0.75">
-        <strong>Lane margin</strong> — dedicated minimum distance from a non-endpoint star
-        center to the nearest point on a lane. <strong>Reshape bias</strong> — how hard the solver
-        tries to reshape a violating connection before removing it during connectivity recompute.
-    </p>
-<label class="toggle-row">
-    <input
-        type="checkbox"
-        checked={laneMarginEnabled}
-        onchange={(e) => {
-            const v = (e.target as HTMLInputElement).checked;
-            mapConfig.MAPGEN_LANE_MARGIN_ENABLED = v;
-            updatePanel("mapgenLaneMarginEnabled", v);
-            (gameStore as any).rebuildLaneConstraintsFromConfig?.();
-        }}
-    />
-    <span
-        class="var-name"
-        data-setting-config-key="MAPGEN_LANE_MARGIN_ENABLED"
-        data-setting-description="When off, curved-lane clearance falls back to the active territory minimum star margin instead of MAPGEN_LANE_MARGIN_PX."
-        >Use dedicated lane margin</span
-    >
-    <span class="val">{laneMarginEnabled ? "On" : `Fallback (${Math.round(effectiveLaneMarginPx)}px)`}</span>
-</label>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Lane margin (mapgen)</span><span class="val"
-            >{Math.round(
-                panel.mapgenLaneMarginPx ?? GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ?? 75,
-            )}px</span
-        >
+<section data-subsection-id="labels-inspector" class="visuals-section">
+    <h4 class="sub-heading">Labels &amp; Inspector</h4>
+
+    <div class="visuals-control-card">
+        <PaxHudSelect
+            label="Label Anim Mode"
+            value={GAME_CONFIG.LABEL_ANIM_MODE ?? "rolling"}
+            options={LABEL_ANIM_OPTIONS}
+            onValueChange={updateLabelAnimMode}
+        />
     </div>
-    <div class="row-bottom" style="font-size:10px;opacity:0.68;">
-        Effective lane clearance: {Math.round(effectiveLaneMarginPx)}px
-        {#if !laneMarginEnabled}
-            (falling back to the active territory minimum star margin)
-        {/if}
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="250"
-        step="5"
-        disabled={!laneMarginEnabled}
-        value={panel.mapgenLaneMarginPx ?? GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ?? 75}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.MAPGEN_LANE_MARGIN_PX = v;
-            updatePanel("mapgenLaneMarginPx", v);
-            (gameStore as any).rebuildLaneConstraintsFromConfig?.();
-        }}
+
+    <PaxSettingsRangeRow
+        label="Label Transition"
+        value={panel.numberTransitionMs ?? 120}
+        min={0}
+        max={500}
+        step={10}
+        suffix="ms"
+        settingConfigKey="NUMBER_TRANSITION_MS"
+        onInput={updateNumberTransitionMs}
     />
-</div>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Reshape bias</span><span class="val"
-            >{(
-                panel.mapgenLaneCurveVsPruneBias ??
-                GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS ??
-                0.55
-            ).toFixed(2)}</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.05"
-        value={panel.mapgenLaneCurveVsPruneBias ??
-            GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS ??
-            0.55}
-        title="0 = remove violating connections during connectivity recompute; 1 = exhaust reshaping first"
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS = v;
-            updatePanel("mapgenLaneCurveVsPruneBias", v);
-            (gameStore as any).rebuildLaneConstraintsFromConfig?.();
-        }}
-    />
-</div>
-<label class="toggle-row"
-    ><input
-        type="checkbox"
-        checked={panel.mapgenRecomputeConnectivityOnAuthoredMaps ??
-            (GAME_CONFIG as any).MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS ??
-            false}
-        onchange={(e) => {
-            const v = (e.target as HTMLInputElement).checked;
-            (GAME_CONFIG as any).MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS = v;
-            updatePanel("mapgenRecomputeConnectivityOnAuthoredMaps", v);
-            (gameStore as any).rebuildLaneConstraintsFromConfig?.();
-        }}
-    />
-    <span class="var-name">Recompute connectivity</span><span
-        class="val"
-        style="font-size:9px;opacity:0.6"
-        >{(panel.mapgenRecomputeConnectivityOnAuthoredMaps ??
-            (GAME_CONFIG as any).MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS ??
-            false)
-            ? "authored maps: recompute on"
-            : "authored maps: off reshapes only"}</span
-    ></label
->
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Lane path</span>
-        <div
-            class="map-lane-mode-segment"
-            role="group"
-            aria-label="Lane path: straight chords or curved when needed"
-        >
-            <button
-                type="button"
-                class="map-lane-mode-segment__btn"
-                class:map-lane-mode-segment__btn--active={lanePathUiMode === "straight"}
-                title="Chord only between linked stars"
-                aria-pressed={lanePathUiMode === "straight"}
-                onclick={() => {
-                    updatePanel("mapgenLaneMode", "straight");
-                    (gameStore as any).rebuildLaneConstraintsFromConfig?.();
-                }}>Straight</button
-            >
-            <button
-                type="button"
-                class="map-lane-mode-segment__btn"
-                class:map-lane-mode-segment__btn--active={lanePathUiMode === "curved"}
-                title="Satisfy lane margin with chord or, if needed, curve/kink vs stars and other lanes"
-                aria-pressed={lanePathUiMode === "curved"}
-                onclick={() => {
-                    updatePanel("mapgenLaneMode", "curved");
-                    (gameStore as any).rebuildLaneConstraintsFromConfig?.();
-                }}>Curve if needed</button
-            >
-        </div>
-    </div>
-</div>
 </section>
 
-<section data-subsection-id="labels-inspector">
-<h4 class="sub-heading">Labels & inspector</h4>
-<!-- Label Number Animation Mode -->
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Label Anim Mode</span>
-        <select
-            class="val"
-            style="background:#111;color:#ccc;border:1px solid #444;border-radius:3px;font-size:11px;padding:1px 4px;"
-            value={GAME_CONFIG.LABEL_ANIM_MODE ?? "rolling"}
-            onchange={(e) => {
-                const v = (e.target as HTMLSelectElement).value;
-                GAME_CONFIG.LABEL_ANIM_MODE = v as
-                    | "rolling"
-                    | "fade"
-                    | "instant";
-                updatePanel("labelAnimMode", v);
-            }}
-        >
-            <option value="rolling">Rolling (lerp)</option>
-            <option value="fade">Fade (snap + flash)</option>
-            <option value="instant">Instant</option>
-        </select>
-    </div>
-</div>
-<!-- Label Transition Duration -->
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Label Transition</span><span class="val"
-            >{panel.numberTransitionMs ?? 120}ms</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="500"
-        step="10"
-        value={panel.numberTransitionMs ?? 120}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.NUMBER_TRANSITION_MS = v;
-            updatePanel("numberTransitionMs", v);
-        }}
-    />
-</div>
+<section data-subsection-id="connections" class="visuals-section">
+    <h4 class="sub-heading">Connections</h4>
 
- </section>
-
-<section data-subsection-id="connections">
-<h4 class="sub-heading">Connections</h4>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Arrow Length</span><span class="val"
-            >{Math.round(((panel.arrowLengthFraction ?? 0.5) as number) * 100)}%</span
-        >
-    </div>
-    <input
-        type="range"
-        min="10"
-        max="100"
-        step="1"
+    <PaxSettingsRangeRow
+        label="Arrow Length"
         value={Math.round(((panel.arrowLengthFraction ?? 0.5) as number) * 100)}
-        oninput={(e) => {
-            const v = parseInt((e.target as HTMLInputElement).value) / 100;
-            GAME_CONFIG.ARROW_LENGTH_FRACTION = v;
-            updatePanel("arrowLengthFraction", v);
-        }}
+        min={10}
+        max={100}
+        step={1}
+        format="percent"
+        settingConfigKey="ARROW_LENGTH_FRACTION"
+        onInput={updateArrowLength}
     />
-</div>
-<label class="toggle-row"
-    ><input
-        type="checkbox"
+
+    <PaxSettingsToggleRow
+        label="Arrows follow lane paths"
         checked={panel.orderArrowsFollowLanePaths ??
             GAME_CONFIG.ORDER_ARROWS_FOLLOW_LANE_PATHS ??
             false}
-        onchange={(e) => {
-            const v = (e.target as HTMLInputElement).checked;
-            GAME_CONFIG.ORDER_ARROWS_FOLLOW_LANE_PATHS = v;
-            updatePanel("orderArrowsFollowLanePaths", v);
-        }}
+        description="Match arrows to straight or curved lane geometry."
+        meta="Lane"
+        settingConfigKey="ORDER_ARROWS_FOLLOW_LANE_PATHS"
+        onChange={updateOrderArrowsFollowLanePaths}
     />
-    <span class="var-name">Arrows follow lane paths</span><span
-        class="val"
-        style="font-size:9px;opacity:0.6">straight or curved to match lane</span
-    ></label
->
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Arrow Path Padding</span><span class="val"
-            >{Math.round(
-                panel.arrowPathPadding ?? GAME_CONFIG.ARROW_PATH_PADDING ?? 0,
-            )}px</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="40"
-        step="1"
+
+    <PaxSettingsRangeRow
+        label="Arrow Path Padding"
         value={panel.arrowPathPadding ?? GAME_CONFIG.ARROW_PATH_PADDING ?? 0}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.ARROW_PATH_PADDING = v;
-            updatePanel("arrowPathPadding", v);
-        }}
+        min={0}
+        max={40}
+        step={1}
+        suffix="px"
+        settingConfigKey="ARROW_PATH_PADDING"
+        onInput={updateArrowPathPadding}
     />
-</div>
-<label class="toggle-row"
-    ><input
-        type="checkbox"
+
+    <PaxSettingsToggleRow
+        label="Static Orbits"
         checked={panel.staticOrbits}
-        onchange={(e) => {
-            const v = (e.target as HTMLInputElement).checked;
-            GAME_CONFIG.STATIC_ORBITS = v;
-            updatePanel("staticOrbits", v);
-        }}
+        description="Disable orbital rotation."
+        meta={panel.staticOrbits ? "Static" : "Motion"}
+        settingConfigKey="STATIC_ORBITS"
+        onChange={updateStaticOrbits}
     />
-    <span class="var-name">Static Orbits</span><span
-        class="val"
-        style="font-size:9px;opacity:0.6">No rotation</span
-    ></label
->
-<label class="toggle-row"
-    ><input
-        type="checkbox"
+
+    <PaxSettingsToggleRow
+        label="Selection Hex"
         checked={panel.showSelectionHex}
-        onchange={(e) => {
-            const v = (e.target as HTMLInputElement).checked;
-            GAME_CONFIG.SHOW_SELECTION_HEX = v;
-            updatePanel("showSelectionHex", v);
-        }}
+        description="Show a hex border on the active star."
+        meta={panel.showSelectionHex ? "On" : "Off"}
+        settingConfigKey="SHOW_SELECTION_HEX"
+        onChange={updateSelectionHex}
     />
-    <span class="var-name">Selection Hex</span><span
-        class="val"
-        style="font-size:9px;opacity:0.6">Hex border on active star</span
-    ></label
->
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Lane Width</span><span class="val"
-            >{vis.laneWidth.toFixed(1)}</span
-        >
-    </div>
-    <input
-        type="range"
+
+    <PaxSettingsRangeRow
+        label="Lane Width"
+        value={vis.laneWidth}
         min={0.5}
         max={8}
         step={0.5}
-        value={vis.laneWidth}
-        oninput={(e) =>
-            updateVisual(
-                "laneWidth",
-                parseFloat((e.target as HTMLInputElement).value),
-            )}
+        format="fixed1"
+        onInput={(value) => updateVisual("laneWidth", value)}
     />
-</div>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Lane Opacity</span><span class="val"
-            >{vis.laneAlpha.toFixed(2)}</span
-        >
-    </div>
-    <input
-        type="range"
+
+    <PaxSettingsRangeRow
+        label="Lane Opacity"
+        value={vis.laneAlpha}
         min={0.05}
         max={1}
         step={0.05}
-        value={vis.laneAlpha}
-        oninput={(e) =>
-            updateVisual(
-                "laneAlpha",
-                parseFloat((e.target as HTMLInputElement).value),
-            )}
+        format="fixed2"
+        onInput={(value) => updateVisual("laneAlpha", value)}
     />
-</div>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Shadow Width</span><span class="val"
-            >{vis.shadowWidth.toFixed(1)}</span
-        >
-    </div>
-    <input
-        type="range"
+
+    <PaxSettingsRangeRow
+        label="Shadow Width"
+        value={vis.shadowWidth}
         min={0}
         max={10}
         step={1}
-        value={vis.shadowWidth}
-        oninput={(e) =>
-            updateVisual(
-                "shadowWidth",
-                parseFloat((e.target as HTMLInputElement).value),
-            )}
+        format="fixed1"
+        onInput={(value) => updateVisual("shadowWidth", value)}
     />
-</div>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Shadow Opacity</span><span class="val"
-            >{vis.shadowAlpha.toFixed(2)}</span
-        >
-    </div>
-    <input
-        type="range"
+
+    <PaxSettingsRangeRow
+        label="Shadow Opacity"
+        value={vis.shadowAlpha}
         min={0}
         max={1}
         step={0.05}
-        value={vis.shadowAlpha}
-        oninput={(e) =>
-            updateVisual(
-                "shadowAlpha",
-                parseFloat((e.target as HTMLInputElement).value),
-            )}
+        format="fixed2"
+        onInput={(value) => updateVisual("shadowAlpha", value)}
     />
-</div>
 </section>
 
 <style>
     @import "./panel-shared.css";
-    .map-lane-mode-segment {
-        display: inline-flex;
-        border-radius: 6px;
-        overflow: hidden;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        background: rgba(0, 0, 0, 0.35);
+
+    .visuals-section {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
     }
-    .map-lane-mode-segment__btn {
+
+    .visuals-note {
         margin: 0;
-        padding: 6px 12px;
-        min-height: 30px;
+        color: var(--hud-text-dim);
+        font-family: var(--hud-font-copy);
+        font-size: calc(0.7rem * var(--hud-type-scale, 1));
+        line-height: 1.4;
+    }
+
+    .visuals-summary,
+    .visuals-control-card {
         min-width: 0;
-        flex: 1 1 0;
-        font-size: 11px;
-        font-weight: 500;
-        color: #9aa;
-        background: transparent;
-        border: none;
-        cursor: pointer;
-        transition:
-            background 0.12s,
-            color 0.12s;
+        display: grid;
+        gap: 8px;
+        padding: 10px;
+        border: 1px solid transparent;
+        border-radius: var(--hud-radius-sm);
+        clip-path: var(--hud-rounded-corner-sm);
+        background:
+            linear-gradient(180deg, rgba(0, 18, 21, 0.78), rgba(0, 10, 13, 0.9)) padding-box,
+            var(--hud-control-border-gradient) border-box;
     }
-    .map-lane-mode-segment__btn:hover {
-        color: #e2e8f0;
-        background: rgba(255, 255, 255, 0.06);
-    }
-    .map-lane-mode-segment__btn--active {
-        color: #ecfdf5;
-        background: rgba(74, 222, 128, 0.22);
-    }
-    .map-lane-mode-segment__btn + .map-lane-mode-segment__btn {
-        border-left: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    .bg-grid {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        margin-bottom: 8px;
-    }
-    .bg-thumb {
-        width: 48px;
-        height: 32px;
-        border: 2px solid rgba(255, 255, 255, 0.1);
-        border-radius: 6px;
-        overflow: hidden;
-        cursor: pointer;
-        background: #111;
-        display: flex;
+
+    .visuals-summary {
+        grid-template-columns: minmax(0, 1fr) auto;
         align-items: center;
-        justify-content: center;
+    }
+
+    .visuals-summary span,
+    .visuals-control-card__label {
+        min-width: 0;
+        overflow: hidden;
+        color: var(--hud-text-soft);
+        font-family: var(--hud-font-ui);
+        font-size: calc(0.72rem * var(--hud-type-scale, 1));
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-overflow: ellipsis;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .visuals-summary strong {
+        max-width: 160px;
+        overflow: hidden;
+        color: var(--hud-accent-warm-strong);
+        font-family: var(--hud-font-data);
+        font-size: calc(0.68rem * var(--hud-data-scale, 1));
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .visuals-bg-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));
+        gap: 8px;
+    }
+
+    :global(.visuals-bg-thumb) {
+        width: 100%;
+        height: 38px;
+        min-height: 38px;
         padding: 0;
-        transition: border-color 0.15s;
+        overflow: hidden;
     }
-    .bg-thumb:hover {
-        border-color: rgba(255, 255, 255, 0.35);
-    }
-    .bg-thumb.active {
-        border-color: #4ade80;
-        box-shadow: 0 0 6px rgba(74, 222, 128, 0.3);
-    }
-    .bg-thumb-img {
+
+    .visuals-bg-thumb__img {
         width: 100%;
         height: 100%;
         object-fit: cover;
     }
-    .bg-none-icon {
-        font-size: 16px;
-        color: #666;
+
+    .visuals-bg-none {
+        color: var(--hud-text-muted);
+        font-family: var(--hud-font-ui);
+        font-size: calc(0.66rem * var(--hud-type-scale, 1));
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
     }
 </style>

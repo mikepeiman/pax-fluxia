@@ -737,3 +737,32 @@ Merge guidance:
 
 - Keep file picker mechanics inside `PaxHudFileButton`; do not reintroduce hidden file inputs in shared feature panels.
 - If merge conflicts occur in `CategoryThemeBar.svelte`, preserve behavior first, but keep visible control rendering on Pax primitives.
+
+## 2026-06-12 Visuals Settings Primitive Migration
+
+Scope implemented in this step:
+
+- Rebuilt `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Visuals.svelte` around Pax design-system primitives.
+- Converted background thumbnails to `PaxHudButton`.
+- Converted the lane-path segmented control to `PaxHudSegmentedControl`.
+- Converted ranges/toggles/selects to `PaxSettingsRangeRow`, `PaxSettingsToggleRow`, and `PaxHudSelect`.
+- Removed obsolete local raw-control styling for the old background grid buttons and lane-mode segmented buttons.
+
+Why this matters for merge:
+
+- Visuals is a high-traffic Appearance settings surface. It now follows the same tokenized button/select/range/toggle grammar as the Settings rail and shared category theme bar.
+- Existing data flow is preserved. The component still writes to the same `GAME_CONFIG` keys, panel keys, `updateVisual(...)` paths, background-alpha event, and lane-constraint rebuild calls.
+- This is not a gameplay/rendering semantic change; it is a component-ownership and visual-system migration.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Targeted audit found no raw visible controls or obsolete local raw-control class names in `ControlsSection-Visuals.svelte`.
+- Remaining build warnings are known baseline warnings outside this migrated file: `SpeedControls.svelte` state initialization, dynamic/static import chunking for `gameStore`, and large chunks.
+
+Merge guidance:
+
+- Preserve the helper functions that wrap existing config writes; they are the behavior compatibility layer for the visual-system migration.
+- If conflicts occur, keep the primitive rendering path and compare only the values passed into the helper functions.
+- Do not restore raw lane-mode buttons or raw background thumbnail buttons; use Pax primitives or add a new primitive if the interaction needs a different shape.

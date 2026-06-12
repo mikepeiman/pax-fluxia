@@ -346,3 +346,30 @@ Validation:
 Next correct step:
 
 - Continue converting shared/high-traffic settings components first, then return to live HUD polish with fewer local style islands.
+
+## Visuals Settings Primitive Migration
+
+Implemented:
+
+- Rebuilt `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Visuals.svelte` around the Pax primitive layer.
+- Replaced raw background thumbnail buttons with `PaxHudButton`.
+- Replaced the lane-path button group with `PaxHudSegmentedControl`.
+- Replaced raw select, range, and checkbox controls with `PaxHudSelect`, `PaxSettingsRangeRow`, and `PaxSettingsToggleRow`.
+- Kept `CategoryThemeBar` at the top of the Visuals section now that it is primitive-owned.
+- Removed old local raw-control CSS for background thumbs and the lane-mode segmented group.
+
+Intent:
+
+- Convert a broad high-traffic Appearance/Visuals surface to the same component grammar as the rest of the Settings rail.
+- Preserve existing behavior and config writes for background opacity, lane margin, lane path mode, label animation, arrows, orbits, selection hex, lane width/opacity, and shadow styling.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Targeted audit found no raw `<button>`, `<select>`, `<input>`, old `map-lane-mode-segment`, `bg-thumb`, `future-desc`, or inline `style=` usage in `ControlsSection-Visuals.svelte`.
+- Build still reports known baseline warnings outside this slice: `SpeedControls.svelte` non-reactive state initialization, dynamic/static `gameStore` import chunking, and large chunks.
+
+Next correct step:
+
+- Continue migrating remaining high-use settings sections, starting with Audio/Travel/Conquest/Battle surfaces, while keeping raw controls inside design-system primitives only.

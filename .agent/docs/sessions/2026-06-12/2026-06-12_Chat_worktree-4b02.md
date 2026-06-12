@@ -95,3 +95,4 @@ Prompt:
 - Removed stale `@colyseus/schema` from client dependency optimization after confirming it is not imported by `pax-fluxia/src`.
 - Validated with forced Vite optimization, production build, and diff check.
 - Continued UI-system work by adding a Pax file-button primitive and migrating shared `CategoryThemeBar.svelte` to Pax visible controls.
+- Continued UI-system work by migrating `ControlsSection-Visuals.svelte` to Pax visible controls while preserving existing visual config writes.
