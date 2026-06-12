@@ -87,6 +87,7 @@
         type SettingsSearchResult,
     } from "./settings/settingsSearch";
     import ThemeLibraryPanel from "$lib/components/game-hud/ThemeLibraryPanel.svelte";
+    import HudThemePanel from "$lib/components/game-hud/HudThemePanel.svelte";
     import TypographyTokenPanel from "$lib/components/game-hud/TypographyTokenPanel.svelte";
     import HudIcon from "./hud/HudIcon.svelte";
 
@@ -1317,6 +1318,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 </button>
             </div>
             <div class="section-body">
+                <HudThemePanel />
                 <TypographyTokenPanel />
                 <ControlsSectionVisuals
                     {panel}

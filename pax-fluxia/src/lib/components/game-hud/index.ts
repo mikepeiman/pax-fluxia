@@ -3,6 +3,7 @@ export { default as BottomCommandBar } from "./BottomCommandBar.svelte";
 export { default as HudIconButton } from "./HudIconButton.svelte";
 export { default as HudPanel } from "./HudPanel.svelte";
 export { default as HudRail } from "./HudRail.svelte";
+export { default as HudThemePanel } from "./HudThemePanel.svelte";
 export { default as HudTopbar } from "./HudTopbar.svelte";
 export { default as PlayerStandingsPanel } from "./PlayerStandingsPanel.svelte";
 export { default as QuickAccessDock } from "./QuickAccessDock.svelte";

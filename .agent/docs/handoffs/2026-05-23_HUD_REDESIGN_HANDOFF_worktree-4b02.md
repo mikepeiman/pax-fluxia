@@ -352,3 +352,33 @@ Merge guidance:
 - Treat `--hud-*` in `app.css` as compatibility aliases, not the source of new theme work.
 - New or refactored HUD components should consume `pax-fluxia/src/lib/design-system/variants/hud.ts` recipes instead of adding one-off class strings.
 - Future visible work should add the in-game theme selector under Appearance and then migrate one HUD component at a time to the new recipes.
+
+## 2026-06-12 In-Game Theme Selector
+
+Scope implemented in this step:
+
+- Added shared reactive theme state at `pax-fluxia/src/lib/design-system/themeState.svelte.ts`.
+- Updated `pax-fluxia/src/lib/components/game/GameContainer.svelte` to read `paxThemeState.current` directly for `data-pax-theme`.
+- Added `pax-fluxia/src/lib/components/game-hud/HudThemePanel.svelte`.
+- Mounted `HudThemePanel` at the top of the Appearance settings panel in `pax-fluxia/src/lib/components/ui/GameSettingsPanel.svelte`.
+- Exported `HudThemePanel` from `pax-fluxia/src/lib/components/game-hud/index.ts`.
+- The panel supports selecting `Aurelia Drift` or `Cyber Flux`, persists through `pax-ui-theme-id`, updates the root document theme, and exports the active theme descriptor JSON.
+
+Intentional boundary:
+
+- This is a development-facing theme switcher, not the final Theme Library rewrite.
+- It selects between hard-coded theme ids currently defined in `pax-theme.css` and `theme.ts`.
+- It does not yet import arbitrary theme token JSON back into runtime.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed.
+- `git diff --check`: passed with line-ending warnings only.
+- Targeted `bun run --cwd pax-fluxia check` filtering found no diagnostics mentioning `HudThemePanel`, `themeState`, `design-system`, `pax-theme`, `GameSettingsPanel.svelte`, or `GameContainer.svelte`.
+- Full `bun run --cwd pax-fluxia check` remains blocked by the known repository baseline.
+
+Merge guidance:
+
+- Keep `HudThemePanel` inside Appearance; do not move it to bottom quick access or the Theme Library surface.
+- Keep `paxThemeState` as the single runtime source for UI skin selection.
+- Future theme import/export should extend `theme.ts`/`themeState.svelte.ts`, not the older gameplay settings `themeStore`.

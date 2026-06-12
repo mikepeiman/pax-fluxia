@@ -60,3 +60,26 @@ Validation:
 - `bun run --cwd pax-fluxia build`: passed after installing `tailwind-merge`.
 - `git diff --check`: passed with line-ending warnings only.
 - Targeted `check` filtering found no new diagnostics in the design-system files.
+
+## In-Game Theme Selector Step
+
+Implemented:
+
+- Added `pax-fluxia/src/lib/design-system/themeState.svelte.ts`.
+- Changed `GameContainer.svelte` to consume `paxThemeState.current`.
+- Added `pax-fluxia/src/lib/components/game-hud/HudThemePanel.svelte`.
+- Added the panel to Appearance above Typography controls.
+- Exported the component through `game-hud/index.ts`.
+
+Behavior:
+
+- Selecting a theme updates `document.documentElement.dataset.paxTheme`.
+- The game shell inherits the same current theme id through `data-pax-theme`.
+- The selected theme persists in `localStorage` under `pax-ui-theme-id`.
+- The panel can export the active theme descriptor JSON for inspection.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed.
+- `git diff --check`: passed with line-ending warnings only.
+- Targeted `check` filtering found no diagnostics in the new theme panel/state paths.
