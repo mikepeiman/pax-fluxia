@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { GridClassification, GridWavePlan } from '$lib/territory/families/metaballGrid/metaballGridTypes';
 import { buildGridGradientShaderFieldTexturePlan, resolvePackedOwnerIndexAtProgress } from '$lib/territory/families/gridGradient/shaderField';
+import { buildTypedDataFromClassification } from '$lib/territory/families/gridGradient/typedClassification';
 
 function makeClassification(): GridClassification {
     const vstars = [
@@ -120,5 +121,44 @@ describe('buildGridGradientShaderFieldTexturePlan', () => {
         expect(plan.activeTransitionCells).toBe(2);
         expect(plan.activeDrawableTransitionCells).toBe(2);
         expect(plan.activeOffsetZoneTransitionCells).toBe(1);
+    });
+
+    it('packs owner and role data from typed classification arrays', () => {
+        const classification = makeClassification();
+        const typedClassification = buildTypedDataFromClassification(classification);
+        const flipTimeByteByCell = new Uint8Array([255, 128, 64, 0]);
+        const plan = buildGridGradientShaderFieldTexturePlan({
+            planKey: 'p1',
+            presentationKey: 'v1',
+            classification,
+            typedClassification,
+            flipTimeByteByCell,
+            wavePlan: makeWavePlan(),
+            palette: {
+                ownerColorIdx: new Map([['red', 0], ['blue', 1]]),
+                fillHexByColorIdx: [0xff0000, 0x0000ff],
+                fillColorByOwnerId: new Map([['red', 0xff0000], ['blue', 0x0000ff]]),
+                colorByOwnerId: new Map([['red', 0xff0000], ['blue', 0x0000ff]]),
+            },
+            settings: {
+                fillAlpha: 0.5,
+                borderOffsetPx: 0,
+                edgeSizePx: 1,
+                centerSizePx: 8,
+                curvePower: 1,
+            } as never,
+            distanceField: {
+                nearestBoundaryPxByCell: new Float32Array([0, 5, 10, 0]),
+            } as never,
+            ownerIndexByCell: new Int32Array([0, 1, 1, -1]),
+            ownerMaxDistancePxByIndex: [10, 10],
+            world: { width: 20, height: 20, minX: 100, minY: 50 },
+        });
+
+        expect(plan.emittableCells).toBe(3);
+        expect(plan.activeTransitionCells).toBe(2);
+        expect(plan.outsideCells).toBe(1);
+        expect(resolvePackedOwnerIndexAtProgress({ plan, cellIndex: 1, progress: 0.25 })).toBe(1);
+        expect(resolvePackedOwnerIndexAtProgress({ plan, cellIndex: 1, progress: 0.75 })).toBe(2);
     });
 });

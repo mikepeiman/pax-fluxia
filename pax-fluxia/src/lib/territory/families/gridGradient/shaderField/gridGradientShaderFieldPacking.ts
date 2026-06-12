@@ -94,12 +94,41 @@ function buildCellOwnerMaps(params: BuildGridGradientShaderFieldTexturePlanParam
     const prevOwnerByCell = new Uint16Array(count);
     const nextOwnerByCell = new Uint16Array(count);
 
+    const typed = params.typedClassification;
+    if (typed) {
+        const ownerPaletteIndexByTypedIndex = new Int32Array(typed.ownerIdByIndex.length);
+        ownerPaletteIndexByTypedIndex.fill(TRANSPARENT_OWNER_INDEX);
+        for (let ownerIndex = 0; ownerIndex < typed.ownerIdByIndex.length; ownerIndex += 1) {
+            const ownerId = typed.ownerIdByIndex[ownerIndex];
+            const colorIdx = params.palette.ownerColorIdx.get(ownerId) ?? -1;
+            ownerPaletteIndexByTypedIndex[ownerIndex] =
+                colorIdx < 0 ? TRANSPARENT_OWNER_INDEX : colorIdx + 1;
+        }
+        for (let i = 0; i < count; i += 1) {
+            const prevOwnerIndex = typed.prevOwnerIndexByCell[i] ?? -1;
+            const nextOwnerIndex = typed.nextOwnerIndexByCell[i] ?? -1;
+            prevOwnerByCell[i] = prevOwnerIndex < 0
+                ? TRANSPARENT_OWNER_INDEX
+                : ownerPaletteIndexByTypedIndex[prevOwnerIndex] ?? TRANSPARENT_OWNER_INDEX;
+            nextOwnerByCell[i] = nextOwnerIndex < 0
+                ? TRANSPARENT_OWNER_INDEX
+                : ownerPaletteIndexByTypedIndex[nextOwnerIndex] ?? TRANSPARENT_OWNER_INDEX;
+        }
+        return { prevOwnerByCell, nextOwnerByCell };
+    }
+
     for (const v of params.classification.vstars) {
         const i = v.iy * params.classification.cols + v.ix;
-        const prevColorIdx = v.prevOwnerId === null ? -1 : params.palette.ownerColorIdx.get(v.prevOwnerId) ?? -1;
-        const nextColorIdx = v.nextOwnerId === null ? -1 : params.palette.ownerColorIdx.get(v.nextOwnerId) ?? -1;
-        prevOwnerByCell[i] = prevColorIdx < 0 ? TRANSPARENT_OWNER_INDEX : prevColorIdx + 1;
-        nextOwnerByCell[i] = nextColorIdx < 0 ? TRANSPARENT_OWNER_INDEX : nextColorIdx + 1;
+        const prevColorIdx = v.prevOwnerId === null
+            ? -1
+            : params.palette.ownerColorIdx.get(v.prevOwnerId) ?? -1;
+        const nextColorIdx = v.nextOwnerId === null
+            ? -1
+            : params.palette.ownerColorIdx.get(v.nextOwnerId) ?? -1;
+        prevOwnerByCell[i] =
+            prevColorIdx < 0 ? TRANSPARENT_OWNER_INDEX : prevColorIdx + 1;
+        nextOwnerByCell[i] =
+            nextColorIdx < 0 ? TRANSPARENT_OWNER_INDEX : nextColorIdx + 1;
     }
 
     return { prevOwnerByCell, nextOwnerByCell };
@@ -142,39 +171,88 @@ export function buildGridGradientShaderFieldTexturePlan(
     let activeOffsetZoneTransitionCells = 0;
     let outsideCells = 0;
 
-    for (const v of params.classification.vstars) {
-        const cellIndex = v.iy * cols + v.ix;
-        const ownerOffset = cellIndex * 4;
-        const metricsOffset = cellIndex * 4;
-        const prevOwner = ownerMaps.prevOwnerByCell[cellIndex] ?? TRANSPARENT_OWNER_INDEX;
-        const nextOwner = ownerMaps.nextOwnerByCell[cellIndex] ?? TRANSPARENT_OWNER_INDEX;
+    if (params.typedClassification && params.flipTimeByteByCell) {
+        const typed = params.typedClassification;
+        for (let cellIndex = 0; cellIndex < totalCells; cellIndex += 1) {
+            const ownerOffset = cellIndex * 4;
+            const metricsOffset = cellIndex * 4;
+            const prevOwner = ownerMaps.prevOwnerByCell[cellIndex] ?? TRANSPARENT_OWNER_INDEX;
+            const nextOwner = ownerMaps.nextOwnerByCell[cellIndex] ?? TRANSPARENT_OWNER_INDEX;
 
-        packU16(prevOwner, ownerTextureData, ownerOffset);
-        packU16(nextOwner, ownerTextureData, ownerOffset + 2);
+            packU16(prevOwner, ownerTextureData, ownerOffset);
+            packU16(nextOwner, ownerTextureData, ownerOffset + 2);
 
-        const ownerIndex = params.ownerIndexByCell[cellIndex] ?? -1;
-        const distancePx = params.distanceField.nearestBoundaryPxByCell[cellIndex] ?? 0;
-        const maxDistance = ownerIndex >= 0 ? params.ownerMaxDistancePxByIndex[ownerIndex] ?? distancePx : distancePx;
-        const distanceBand = resolveDistanceBand({
-            distancePx,
-            ownerMaxDistancePx: maxDistance,
-            borderOffsetPx: params.settings.borderOffsetPx,
-        });
-        metricsTextureData[metricsOffset] = distanceBand;
+            const ownerIndex = params.ownerIndexByCell[cellIndex] ?? -1;
+            const distancePx =
+                params.distanceField.nearestBoundaryPxByCell[cellIndex] ?? 0;
+            const maxDistance =
+                ownerIndex >= 0
+                    ? params.ownerMaxDistancePxByIndex[ownerIndex] ?? distancePx
+                    : distancePx;
+            const distanceBand = resolveDistanceBand({
+                distancePx,
+                ownerMaxDistancePx: maxDistance,
+                borderOffsetPx: params.settings.borderOffsetPx,
+            });
+            metricsTextureData[metricsOffset] = distanceBand;
+            const roleByte = typed.roleCodeByCell[cellIndex] ?? 0;
+            const ix = cellIndex % cols;
+            const iy = Math.floor(cellIndex / cols);
+            metricsTextureData[metricsOffset + 1] =
+                params.flipTimeByteByCell[cellIndex] ?? 0;
+            metricsTextureData[metricsOffset + 2] = roleByte;
+            metricsTextureData[metricsOffset + 3] = hashCellByte(ix, iy);
 
-        const flipTime = params.wavePlan.flipTimeByVId.get(v.id) ?? (v.role === 'native' ? 1 : 0);
-        metricsTextureData[metricsOffset + 1] = Math.round(clamp01(flipTime) * 255);
-        metricsTextureData[metricsOffset + 2] = ROLE_BYTE[v.role] ?? 0;
-        metricsTextureData[metricsOffset + 3] = hashCellByte(v.ix, v.iy);
-
-        if (v.role !== 'native' && v.role !== 'outside') {
-            activeTransitionCells += 1;
-            activeDrawableTransitionCells += 1;
-            if (params.settings.borderOffsetPx > 0 && distanceBand <= 0) {
-                activeOffsetZoneTransitionCells += 1;
+            if (roleByte !== ROLE_BYTE.native && roleByte !== ROLE_BYTE.outside) {
+                activeTransitionCells += 1;
+                activeDrawableTransitionCells += 1;
+                if (params.settings.borderOffsetPx > 0 && distanceBand <= 0) {
+                    activeOffsetZoneTransitionCells += 1;
+                }
             }
+            if (roleByte === ROLE_BYTE.outside) outsideCells += 1;
         }
-        if (v.role === 'outside') outsideCells += 1;
+    } else {
+        for (const v of params.classification.vstars) {
+            const cellIndex = v.iy * cols + v.ix;
+            const ownerOffset = cellIndex * 4;
+            const metricsOffset = cellIndex * 4;
+            const prevOwner = ownerMaps.prevOwnerByCell[cellIndex] ?? TRANSPARENT_OWNER_INDEX;
+            const nextOwner = ownerMaps.nextOwnerByCell[cellIndex] ?? TRANSPARENT_OWNER_INDEX;
+
+            packU16(prevOwner, ownerTextureData, ownerOffset);
+            packU16(nextOwner, ownerTextureData, ownerOffset + 2);
+
+            const ownerIndex = params.ownerIndexByCell[cellIndex] ?? -1;
+            const distancePx = params.distanceField.nearestBoundaryPxByCell[cellIndex] ?? 0;
+            const maxDistance = ownerIndex >= 0 ? params.ownerMaxDistancePxByIndex[ownerIndex] ?? distancePx : distancePx;
+            const distanceBand = resolveDistanceBand({
+                distancePx,
+                ownerMaxDistancePx: maxDistance,
+                borderOffsetPx: params.settings.borderOffsetPx,
+            });
+            metricsTextureData[metricsOffset] = distanceBand;
+
+            const roleByte = ROLE_BYTE[v.role] ?? 0;
+            metricsTextureData[metricsOffset + 1] =
+                Math.round(
+                    clamp01(
+                        params.wavePlan.flipTimeByVId.get(v.id) ??
+                            (v.role === 'native' ? 1 : 0),
+                    ) * 255,
+                );
+            metricsTextureData[metricsOffset + 2] = roleByte;
+            metricsTextureData[metricsOffset + 3] = hashCellByte(v.ix, v.iy);
+
+            if (roleByte !== ROLE_BYTE.native && roleByte !== ROLE_BYTE.outside) {
+                activeTransitionCells += 1;
+                activeDrawableTransitionCells += 1;
+                if (params.settings.borderOffsetPx > 0 && distanceBand <= 0) {
+                    activeOffsetZoneTransitionCells += 1;
+                }
+            }
+            if (roleByte === ROLE_BYTE.outside) outsideCells += 1;
+        }
     }
 
     return {
@@ -196,7 +274,9 @@ export function buildGridGradientShaderFieldTexturePlan(
         paletteSize: palette.paletteSize,
         ownerIdByPaletteIndex: palette.ownerIdByPaletteIndex,
         totalCells,
-        emittableCells: params.classification.emittableVstars.length,
+        emittableCells:
+            params.typedClassification?.emittableCellIndices.length ??
+            params.classification.emittableVstars.length,
         activeTransitionCells,
         activeDrawableTransitionCells,
         activeOffsetZoneTransitionCells,

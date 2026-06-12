@@ -17,8 +17,6 @@ import type {
 } from '../RenderFamilyTypes';
 import {
     buildGridGradientBorderDots,
-    buildGridGradientOwnerDistanceSummary,
-    buildOwnerIndexByCell,
     isGridGradientTransitionRole,
     resolveGridGradientDrawableCellSize,
     resolveGridGradientTransitionBlendT,
@@ -59,11 +57,21 @@ import type {
     GridGradientShaderFieldStats,
     GridGradientShaderFieldTexturePlan,
 } from './shaderField/gridGradientShaderFieldTypes';
+import type {
+    GridGradientPlanWorkerGeometry,
+    GridGradientPlanWorkerRequest,
+    GridGradientPlanWorkerResponse,
+} from './gridGradientPlanWorkerTypes';
+import type { GridGradientOwnerGrid } from './typedClassification';
 
 interface PlanResolveResult {
     readonly plan: CachedGridGradientPlan;
     readonly cacheHit: boolean;
     readonly rebuildReason: string | null;
+    readonly requestedPlanKey: string;
+    readonly requestedPlanPending: boolean;
+    readonly workerScheduled: boolean;
+    readonly workerWaitMs: number | null;
 }
 
 interface GridGradientVisualTransition {
@@ -80,6 +88,15 @@ interface GridGradientProgressState {
     readonly clockSource: GridGradientClockSource;
     readonly visibleFrameState: GridGradientVisibleFrameState;
     readonly usingVisualTransition: boolean;
+}
+
+interface GridGradientPlanWorkerRequestMeta {
+    readonly requestId: number;
+    readonly planKey: string;
+    readonly requestedAtMs: number;
+    readonly startedAtMs: number | null;
+    readonly durationMs: number | null;
+    readonly beginVisualTransition: boolean;
 }
 
 interface DistanceInputs {
@@ -160,6 +177,20 @@ export class GridGradientFamily implements RenderFamily {
     private vectorBorderSignature: string | null = null;
     private borderDotCount = 0;
     private vectorBorderCount = 0;
+    private planWorker: Worker | null = null;
+    private nextPlanWorkerRequestId = 1;
+    private activePlanWorkerMeta: GridGradientPlanWorkerRequestMeta | null = null;
+    private queuedPlanWorker:
+        | {
+              readonly request: GridGradientPlanWorkerRequest;
+              readonly meta: GridGradientPlanWorkerRequestMeta;
+          }
+        | null = null;
+    private latestPlanWorkerResponse: GridGradientPlanWorkerResponse | null = null;
+    private latestPlanWorkerMeta: GridGradientPlanWorkerRequestMeta | null = null;
+    private readonly ownerGridCache = new Map<string, GridGradientOwnerGrid>();
+    private planWorkerFailed = false;
+    private loggedPlanWorkerFailure = false;
     private lastDebugSnapshot: Record<string, unknown> | null = null;
     private emaUpdateMs = 0;
     private loggedShaderFailure = false;
@@ -263,6 +294,167 @@ export class GridGradientFamily implements RenderFamily {
         this.activeVisualTransition = null;
     }
 
+    private ensurePlanWorker(): Worker | null {
+        if (this.planWorkerFailed) return null;
+        if (typeof window === 'undefined' || typeof Worker === 'undefined') {
+            return null;
+        }
+        if (this.planWorker) return this.planWorker;
+        const worker = new Worker(
+            new URL('./gridGradientPlan.worker.ts', import.meta.url),
+            { type: 'module' },
+        );
+        worker.onmessage = (
+            event: MessageEvent<GridGradientPlanWorkerResponse>,
+        ) => {
+            const response = event.data;
+            const activeMeta = this.activePlanWorkerMeta;
+            if (activeMeta && activeMeta.requestId === response.requestId) {
+                this.latestPlanWorkerResponse = response;
+                this.latestPlanWorkerMeta = activeMeta;
+                this.activePlanWorkerMeta = null;
+            }
+            if (this.queuedPlanWorker) {
+                const next = this.queuedPlanWorker;
+                this.queuedPlanWorker = null;
+                this.activePlanWorkerMeta = next.meta;
+                worker.postMessage(next.request);
+            }
+        };
+        worker.onerror = (event) => {
+            worker.terminate();
+            this.planWorker = null;
+            this.planWorkerFailed = true;
+            this.activePlanWorkerMeta = null;
+            this.queuedPlanWorker = null;
+            this.latestPlanWorkerResponse = null;
+            this.latestPlanWorkerMeta = null;
+            if (!this.loggedPlanWorkerFailure) {
+                log.error(
+                    'GridGradientFamily',
+                    'Grid Gradient plan worker failed; using synchronous plan fallback.',
+                    event.error ?? event.message,
+                );
+                this.loggedPlanWorkerFailure = true;
+            }
+        };
+        this.planWorker = worker;
+        return worker;
+    }
+
+    private commitPendingWorkerPlan(nowMs: number): boolean {
+        const response = this.latestPlanWorkerResponse;
+        const meta = this.latestPlanWorkerMeta;
+        if (!response || !meta) return false;
+        if (
+            this.isWorkerPlanCommitBlocked({
+                planKey: response.planKey,
+                nowMs,
+            })
+        ) {
+            return false;
+        }
+        this.latestPlanWorkerResponse = null;
+        this.latestPlanWorkerMeta = null;
+        if (response.planKey !== meta.planKey) return false;
+        this.cachedPlan = response.plan;
+        this.cachedShaderTexturePlan = null;
+        this.borderDotSignature = null;
+        if (meta.beginVisualTransition && this.lastVisualTransitionPlanKey !== meta.planKey) {
+            this.beginVisualTransition(
+                meta.planKey,
+                meta.startedAtMs ?? nowMs,
+                meta.durationMs ?? response.plan.planBuildMs,
+            );
+        }
+        return true;
+    }
+
+    private hasPendingPlanRequest(planKey: string): boolean {
+        return (
+            this.activePlanWorkerMeta?.planKey === planKey ||
+            this.queuedPlanWorker?.meta.planKey === planKey ||
+            this.latestPlanWorkerMeta?.planKey === planKey
+        );
+    }
+
+    private enqueuePlanWorkerRequest(params: {
+        readonly request: GridGradientPlanWorkerRequest;
+        readonly meta: GridGradientPlanWorkerRequestMeta;
+    }): boolean {
+        const worker = this.ensurePlanWorker();
+        if (!worker) return false;
+        if (this.activePlanWorkerMeta?.planKey === params.meta.planKey) return true;
+        if (this.queuedPlanWorker?.meta.planKey === params.meta.planKey) return true;
+        if (this.latestPlanWorkerMeta?.planKey === params.meta.planKey) return true;
+        if (this.activePlanWorkerMeta) {
+            this.queuedPlanWorker = params;
+            return true;
+        }
+        this.activePlanWorkerMeta = params.meta;
+        worker.postMessage(params.request);
+        return true;
+    }
+
+    private buildWorkerGeometry(
+        geometry: ResolvedGeometrySnapshot,
+    ): GridGradientPlanWorkerGeometry {
+        return {
+            version: geometry.version,
+            territoryRegions: geometry.territoryRegions,
+        };
+    }
+
+    private buildWorkerRequest(params: {
+        readonly input: RenderFamilyInput;
+        readonly planKey: string;
+        readonly prevGeometry: ResolvedGeometrySnapshot;
+        readonly geometry: ResolvedGeometrySnapshot;
+        readonly settings: GridGradientSettings;
+        readonly beginVisualTransition: boolean;
+    }): {
+        request: GridGradientPlanWorkerRequest;
+        meta: GridGradientPlanWorkerRequestMeta;
+    } {
+        const requestId = this.nextPlanWorkerRequestId++;
+        const durationMs = params.input.activeTransition?.durationMs ?? null;
+        return {
+            request: {
+                requestId,
+                planKey: params.planKey,
+                world: params.input.world,
+                stars: params.input.stars.map((star) => ({
+                    id: star.id,
+                    ownerId: star.ownerId,
+                    x: star.x,
+                    y: star.y,
+                })),
+                prevGeometry: this.buildWorkerGeometry(params.prevGeometry),
+                geometry: this.buildWorkerGeometry(params.geometry),
+                settings: params.settings,
+                activeTransition: params.input.activeTransition ?? null,
+            },
+            meta: {
+                requestId,
+                planKey: params.planKey,
+                requestedAtMs: params.input.nowMs,
+                startedAtMs: params.input.activeTransition?.startedAtMs ?? null,
+                durationMs,
+                beginVisualTransition: params.beginVisualTransition,
+            },
+        };
+    }
+
+    private isWorkerPlanCommitBlocked(params: {
+        readonly planKey: string;
+        readonly nowMs: number;
+    }): boolean {
+        const active = this.activeVisualTransition;
+        if (!active) return false;
+        if (active.planKey === params.planKey) return false;
+        return params.nowMs - active.startedAtMs < active.durationMs;
+    }
+
     private resolvePlan(params: {
         readonly input: RenderFamilyInput;
         readonly geometry: ResolvedGeometrySnapshot;
@@ -316,6 +508,10 @@ export class GridGradientFamily implements RenderFamily {
                 plan: this.cachedPlan,
                 cacheHit: true,
                 rebuildReason: null,
+                requestedPlanKey: planKey,
+                requestedPlanPending: false,
+                workerScheduled: false,
+                workerWaitMs: null,
             };
         }
 
@@ -324,23 +520,80 @@ export class GridGradientFamily implements RenderFamily {
             this.activeVisualTransition !== null &&
             this.cachedPlan?.planKey === this.activeVisualTransition.planKey;
         if (visualTransitionStillActive && this.cachedPlan) {
+            let workerScheduled = false;
+            const alreadyPending = this.hasPendingPlanRequest(planKey);
+            if (!alreadyPending) {
+                const workerRequest = this.buildWorkerRequest({
+                    input: params.input,
+                    planKey,
+                    prevGeometry,
+                    geometry: params.geometry,
+                    settings: params.settings,
+                    beginVisualTransition: false,
+                });
+                workerScheduled = this.enqueuePlanWorkerRequest(workerRequest);
+            }
             this.logTransitionDebug(params.settings, 'resolve_plan.keep_visual_transition_plan', {
                 planKey: this.cachedPlan.planKey,
+                requestedPlanKey: planKey,
                 activeVisualTransition: this.activeVisualTransition,
+                workerScheduled: workerScheduled || alreadyPending,
             });
             return {
                 plan: this.cachedPlan,
                 cacheHit: true,
-                rebuildReason: null,
+                rebuildReason: 'visual_transition_hold',
+                requestedPlanKey: planKey,
+                requestedPlanPending: workerScheduled || alreadyPending,
+                workerScheduled: workerScheduled || alreadyPending,
+                workerWaitMs: this.resolveWorkerWaitMs(planKey, params.input.nowMs),
             };
         }
 
         const rebuildReason = this.cachedPlan ? 'key_change' : 'initial';
+        const beginVisualTransition =
+            hasActiveTransition &&
+            Boolean(params.input.activeTransition) &&
+            this.lastVisualTransitionPlanKey !== planKey;
+        if (this.cachedPlan) {
+            const alreadyPending = this.hasPendingPlanRequest(planKey);
+            let workerScheduled = alreadyPending;
+            if (!alreadyPending) {
+                const workerRequest = this.buildWorkerRequest({
+                    input: params.input,
+                    planKey,
+                    prevGeometry,
+                    geometry: params.geometry,
+                    settings: params.settings,
+                    beginVisualTransition,
+                });
+                workerScheduled = this.enqueuePlanWorkerRequest(workerRequest);
+            }
+            if (workerScheduled) {
+                this.logTransitionDebug(params.settings, 'resolve_plan.worker_pending', {
+                    rebuildReason,
+                    requestedPlanKey: planKey,
+                    cachedPlanKey: this.cachedPlan.planKey,
+                    workerWaitMs: this.resolveWorkerWaitMs(planKey, params.input.nowMs),
+                });
+                return {
+                    plan: this.cachedPlan,
+                    cacheHit: true,
+                    rebuildReason: 'worker_pending',
+                    requestedPlanKey: planKey,
+                    requestedPlanPending: true,
+                    workerScheduled: true,
+                    workerWaitMs: this.resolveWorkerWaitMs(planKey, params.input.nowMs),
+                };
+            }
+        }
+
         this.logTransitionDebug(params.settings, 'resolve_plan.rebuild_start', {
             rebuildReason,
             planKey,
             geometryVersion: params.geometry.version,
             prevGeometryVersion: prevGeometry.version,
+            workerFallback: true,
         });
         this.cachedPlan = buildGridGradientPlan({
             input: params.input,
@@ -348,6 +601,7 @@ export class GridGradientFamily implements RenderFamily {
             prevGeometry,
             settings: params.settings,
             planKey,
+            ownerGridCache: this.ownerGridCache,
         });
         this.logTransitionDebug(params.settings, 'resolve_plan.rebuild_done', {
             rebuildReason,
@@ -357,19 +611,15 @@ export class GridGradientFamily implements RenderFamily {
         });
         this.cachedShaderTexturePlan = null;
         this.borderDotSignature = null;
-        if (
-            hasActiveTransition &&
-            params.input.activeTransition &&
-            this.lastVisualTransitionPlanKey !== planKey
-        ) {
+        if (beginVisualTransition && params.input.activeTransition) {
             this.logTransitionDebug(params.settings, 'resolve_plan.begin_visual_transition.rebuild', {
                 planKey,
-                nowMs: params.input.nowMs,
+                startedAtMs: params.input.activeTransition.startedAtMs,
                 durationMs: params.input.activeTransition.durationMs,
             });
             this.beginVisualTransition(
                 planKey,
-                params.input.nowMs,
+                params.input.activeTransition.startedAtMs,
                 params.input.activeTransition.durationMs,
             );
         }
@@ -377,12 +627,29 @@ export class GridGradientFamily implements RenderFamily {
             plan: this.cachedPlan,
             cacheHit: false,
             rebuildReason,
+            requestedPlanKey: planKey,
+            requestedPlanPending: false,
+            workerScheduled: false,
+            workerWaitMs: null,
         };
+    }
+
+    private resolveWorkerWaitMs(planKey: string, nowMs: number): number | null {
+        const meta =
+            this.activePlanWorkerMeta?.planKey === planKey
+                ? this.activePlanWorkerMeta
+                : this.queuedPlanWorker?.meta.planKey === planKey
+                  ? this.queuedPlanWorker.meta
+                  : this.latestPlanWorkerMeta?.planKey === planKey
+                    ? this.latestPlanWorkerMeta
+                    : null;
+        return meta ? Math.max(0, nowMs - meta.requestedAtMs) : null;
     }
 
     private resolveProgressState(params: {
         readonly input: RenderFamilyInput;
         readonly plan: CachedGridGradientPlan;
+        readonly requestedPlanPending: boolean;
     }): GridGradientProgressState {
         const activeVisual = this.activeVisualTransition;
         if (activeVisual && activeVisual.planKey === params.plan.planKey) {
@@ -394,6 +661,15 @@ export class GridGradientFamily implements RenderFamily {
                 clockSource: 'local',
                 visibleFrameState: 'transition',
                 usingVisualTransition: true,
+            };
+        }
+
+        if (params.requestedPlanPending && params.input.activeTransition) {
+            return {
+                progress: 0,
+                clockSource: 'none',
+                visibleFrameState: 'steady',
+                usingVisualTransition: false,
             };
         }
 
@@ -431,6 +707,7 @@ export class GridGradientFamily implements RenderFamily {
         }
 
         this.expireVisualTransition(input.nowMs);
+        const committedWorkerPlan = this.commitPendingWorkerPlan(input.nowMs);
         this.root.visible = true;
         const rendererDiagnostics = resolvePixiRendererDiagnostics(input.renderer);
         this.logTransitionDebug(settings, 'update.entry', {
@@ -451,10 +728,19 @@ export class GridGradientFamily implements RenderFamily {
         });
         const planResult = this.resolvePlan({ input, geometry, settings });
         const { plan } = planResult;
-        const progressState = this.resolveProgressState({ input, plan });
+        const progressState = this.resolveProgressState({
+            input,
+            plan,
+            requestedPlanPending: planResult.requestedPlanPending,
+        });
         this.logTransitionDebug(settings, 'update.plan_and_progress', {
             planCacheHit: planResult.cacheHit,
             planRebuildReason: planResult.rebuildReason,
+            requestedPlanKey: planResult.requestedPlanKey,
+            requestedPlanPending: planResult.requestedPlanPending,
+            workerScheduled: planResult.workerScheduled,
+            workerWaitMs: planResult.workerWaitMs,
+            committedWorkerPlan,
             plan: this.summarizePlanRoles(plan),
             progressState,
         });
@@ -694,6 +980,11 @@ export class GridGradientFamily implements RenderFamily {
             backendFallbackReason,
             planCacheHit: planResult.cacheHit,
             planRebuildReason: planResult.rebuildReason,
+            requestedPlanKey: planResult.requestedPlanKey,
+            requestedPlanPending: planResult.requestedPlanPending,
+            planWorkerScheduled: planResult.workerScheduled,
+            planWorkerWaitMs: planResult.workerWaitMs,
+            committedWorkerPlan,
             presentationCacheHit: shaderTextureResult?.cacheHit ?? false,
             presentationRebuildReason:
                 shaderTextureResult?.rebuildReason ??
@@ -754,6 +1045,8 @@ export class GridGradientFamily implements RenderFamily {
                 requestedDrawBackend,
                 cells: plan.classification.vstars.length,
                 planCacheHit: planResult.cacheHit,
+                requestedPlanPending: planResult.requestedPlanPending,
+                classificationAlgorithm: plan.classificationAlgorithm,
                 presentationCacheHit: shaderTextureResult?.cacheHit ?? false,
             },
             updateStartMs,
@@ -767,6 +1060,13 @@ export class GridGradientFamily implements RenderFamily {
         this.borderDotGraphics.clear();
         this.vectorBorderGraphics.clear();
         this.shaderFieldRenderer.hide();
+        this.planWorker?.terminate();
+        this.planWorker = null;
+        this.activePlanWorkerMeta = null;
+        this.queuedPlanWorker = null;
+        this.latestPlanWorkerResponse = null;
+        this.latestPlanWorkerMeta = null;
+        this.ownerGridCache.clear();
         this.root.visible = false;
         this.cachedPlan = null;
         this.cachedShaderTexturePlan = null;
@@ -787,15 +1087,17 @@ export class GridGradientFamily implements RenderFamily {
         let activeDrawableTransitionCells = 0;
         let activeMixingTransitionCells = 0;
         let outsideCells = 0;
-        for (const cell of params.plan.classification.vstars) {
-            if (cell.role === 'outside') {
+        for (let cellIndex = 0; cellIndex < params.plan.typed.roleCodeByCell.length; cellIndex += 1) {
+            const roleCode = params.plan.typed.roleCodeByCell[cellIndex] ?? 0;
+            if (roleCode === 0) {
                 outsideCells += 1;
-            } else if (cell.role !== 'native') {
+            } else if (roleCode !== 1) {
                 activeTransitionCells += 1;
                 activeDrawableTransitionCells += 1;
                 const blendT = resolveGridGradientTransitionBlendT({
                     progress: params.progress,
-                    flipTime: params.plan.wavePlan.flipTimeByVId.get(cell.id) ?? 0.5,
+                    flipTime:
+                        (params.plan.flipTimeByteByCell[cellIndex] ?? 128) / 255,
                     flipWindow: params.settings.flipWindow,
                 });
                 if (blendT > 0.02 && blendT < 0.98) {
@@ -817,10 +1119,19 @@ export class GridGradientFamily implements RenderFamily {
         readonly palette: GridGradientPalette;
     }): DistanceInputs {
         const ownerSummaryStartMs = performance.now();
-        const ownerIndexByCell = buildOwnerIndexByCell({
-            classification: params.plan.classification,
-            ownerIndexByOwnerId: params.palette.ownerColorIdx,
-        });
+        const ownerIndexByCell = new Int32Array(
+            params.plan.classification.cols * params.plan.classification.rows,
+        );
+        ownerIndexByCell.fill(-1);
+        for (let cellIndex = 0; cellIndex < ownerIndexByCell.length; cellIndex += 1) {
+            const typedOwnerIndex =
+                params.plan.typed.nextOwnerIndexByCell[cellIndex] ?? -1;
+            if (typedOwnerIndex < 0) continue;
+            const ownerId = params.plan.typed.ownerIdByIndex[typedOwnerIndex];
+            ownerIndexByCell[cellIndex] = ownerId
+                ? params.palette.ownerColorIdx.get(ownerId) ?? -1
+                : -1;
+        }
         const ownerIndexBuildMs = performance.now() - ownerSummaryStartMs;
 
         const size = params.plan.classification.cols * params.plan.classification.rows;
@@ -844,11 +1155,22 @@ export class GridGradientFamily implements RenderFamily {
         const distanceBuildMs = performance.now() - distanceStartMs;
 
         const summaryStartMs = performance.now();
-        const distanceSummary = buildGridGradientOwnerDistanceSummary({
-            classification: params.plan.classification,
-            ownerIndexByOwnerId: params.palette.ownerColorIdx,
-            distanceField,
-        });
+        const ownerMaxDistancePxByIndex: number[] = [];
+        for (let cellIndex = 0; cellIndex < ownerIndexByCell.length; cellIndex += 1) {
+            const ownerIndex = ownerIndexByCell[cellIndex] ?? -1;
+            if (ownerIndex < 0) continue;
+            const distancePx =
+                distanceField.nearestBoundaryPxByCell[cellIndex] ?? 0;
+            if (!Number.isFinite(distancePx)) continue;
+            ownerMaxDistancePxByIndex[ownerIndex] = Math.max(
+                ownerMaxDistancePxByIndex[ownerIndex] ?? 0,
+                distancePx,
+            );
+        }
+        const distanceSummary = {
+            ownerMaxDistancePxByIndex,
+            ownerIndexByCell,
+        };
         const ownerSummaryBuildMs =
             ownerIndexBuildMs + performance.now() - summaryStartMs;
 
@@ -908,6 +1230,8 @@ export class GridGradientFamily implements RenderFamily {
             planKey: params.plan.planKey,
             presentationKey,
             classification: params.plan.classification,
+            typedClassification: params.plan.typed,
+            flipTimeByteByCell: params.plan.flipTimeByteByCell,
             wavePlan: params.plan.wavePlan,
             palette: params.palette,
             settings: params.settings,
@@ -1159,6 +1483,11 @@ export class GridGradientFamily implements RenderFamily {
         readonly backendFallbackReason: string | null;
         readonly planCacheHit: boolean;
         readonly planRebuildReason: string | null;
+        readonly requestedPlanKey: string;
+        readonly requestedPlanPending: boolean;
+        readonly planWorkerScheduled: boolean;
+        readonly planWorkerWaitMs: number | null;
+        readonly committedWorkerPlan: boolean;
         readonly presentationCacheHit: boolean;
         readonly presentationRebuildReason: string | null;
         readonly shaderStats: GridGradientShaderFieldStats;
@@ -1190,6 +1519,12 @@ export class GridGradientFamily implements RenderFamily {
             planCacheHit: params.planCacheHit,
             presentationCacheHit: params.presentationCacheHit,
             planKey: params.plan.planKey,
+            requestedPlanKey: params.requestedPlanKey,
+            requestedPlanPending: params.requestedPlanPending,
+            planWorkerScheduled: params.planWorkerScheduled,
+            planWorkerWaitMs: params.planWorkerWaitMs,
+            committedWorkerPlan: params.committedWorkerPlan,
+            classificationAlgorithm: params.plan.classificationAlgorithm,
             geometryVersion: params.geometry.version,
             requestedSpacingPx: params.plan.classification.requestedSpacingPx,
             effectiveSpacingPx: params.plan.classification.spacingPx,
@@ -1231,8 +1566,16 @@ export class GridGradientFamily implements RenderFamily {
             backendFallbackReason: params.backendFallbackReason,
             planCacheHit: params.planCacheHit,
             planRebuildReason: params.planRebuildReason,
+            requestedPlanKey: params.requestedPlanKey,
+            requestedPlanPending: params.requestedPlanPending,
+            planWorkerScheduled: params.planWorkerScheduled,
+            planWorkerWaitMs: params.planWorkerWaitMs,
+            committedWorkerPlan: params.committedWorkerPlan,
             presentationCacheHit: params.presentationCacheHit,
             presentationRebuildReason: params.presentationRebuildReason,
+            classificationAlgorithm: params.plan.classificationAlgorithm,
+            prevOwnerGridCacheHit: params.plan.prevOwnerGridCacheHit,
+            nextOwnerGridCacheHit: params.plan.nextOwnerGridCacheHit,
             requestedSpacingPx: params.plan.classification.requestedSpacingPx,
             effectiveSpacingPx: params.plan.classification.spacingPx,
             totalCells: params.plan.classification.vstars.length,
@@ -1261,7 +1604,11 @@ export class GridGradientFamily implements RenderFamily {
             curvePower: params.settings.curvePower,
             borderOffsetPx: params.settings.borderOffsetPx,
             lastClassificationBuildMs: params.plan.classificationBuildMs,
+            lastOwnerGridBuildMs: params.plan.ownerGridBuildMs,
+            lastClassificationMaterializeMs:
+                params.plan.classificationMaterializeMs,
             lastWavePlanBuildMs: params.plan.wavePlanBuildMs,
+            lastPlanBuildMs: params.plan.planBuildMs,
             lastDistanceBuildMs: params.distanceBuildMs,
             lastOwnerSummaryBuildMs: params.ownerSummaryBuildMs,
             lastSceneBuildMs: params.sceneBuildMs,
@@ -1298,13 +1645,19 @@ export class GridGradientFamily implements RenderFamily {
                 this.activeVisualTransition?.durationMs ?? null,
             shaderUniformProgress: params.shaderStats.uniformProgress,
             shaderUniformTimeSec: params.shaderStats.uniformTimeSec,
-            requestedPlanPending: false,
             clockSource: params.progressState.clockSource,
             visibleFrameState: params.progressState.visibleFrameState,
         });
     }
 
     dispose(): void {
+        this.planWorker?.terminate();
+        this.planWorker = null;
+        this.activePlanWorkerMeta = null;
+        this.queuedPlanWorker = null;
+        this.latestPlanWorkerResponse = null;
+        this.latestPlanWorkerMeta = null;
+        this.ownerGridCache.clear();
         this.shaderFieldRenderer.dispose();
         this.fillGraphics.destroy();
         this.borderDotGraphics.destroy();

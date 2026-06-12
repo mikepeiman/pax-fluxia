@@ -13,8 +13,16 @@ export interface GridGradientStats {
     readonly backendFallbackReason: string | null;
     readonly planCacheHit: boolean;
     readonly planRebuildReason: string | null;
+    readonly requestedPlanKey: string | null;
+    readonly requestedPlanPending: boolean;
+    readonly planWorkerScheduled: boolean;
+    readonly planWorkerWaitMs: number | null;
+    readonly committedWorkerPlan: boolean;
     readonly presentationCacheHit: boolean;
     readonly presentationRebuildReason: string | null;
+    readonly classificationAlgorithm: string;
+    readonly prevOwnerGridCacheHit: boolean;
+    readonly nextOwnerGridCacheHit: boolean;
     readonly requestedSpacingPx: number;
     readonly effectiveSpacingPx: number;
     readonly totalCells: number;
@@ -41,7 +49,10 @@ export interface GridGradientStats {
     readonly curvePower: number;
     readonly borderOffsetPx: number;
     readonly lastClassificationBuildMs: number;
+    readonly lastOwnerGridBuildMs: number;
+    readonly lastClassificationMaterializeMs: number;
     readonly lastWavePlanBuildMs: number;
+    readonly lastPlanBuildMs: number;
     readonly lastDistanceBuildMs: number;
     readonly lastOwnerSummaryBuildMs: number;
     readonly lastSceneBuildMs: number;
@@ -66,7 +77,6 @@ export interface GridGradientStats {
     readonly localVisualTransitionDurationMs: number | null;
     readonly shaderUniformProgress: number | null;
     readonly shaderUniformTimeSec: number | null;
-    readonly requestedPlanPending: boolean;
     readonly clockSource: 'none' | 'scheduler' | 'local';
     readonly visibleFrameState:
         | 'steady'
@@ -89,8 +99,16 @@ const INITIAL: GridGradientStats = {
     backendFallbackReason: null,
     planCacheHit: false,
     planRebuildReason: null,
+    requestedPlanKey: null,
+    requestedPlanPending: false,
+    planWorkerScheduled: false,
+    planWorkerWaitMs: null,
+    committedWorkerPlan: false,
     presentationCacheHit: false,
     presentationRebuildReason: null,
+    classificationAlgorithm: 'unknown',
+    prevOwnerGridCacheHit: false,
+    nextOwnerGridCacheHit: false,
     requestedSpacingPx: 0,
     effectiveSpacingPx: 0,
     totalCells: 0,
@@ -117,7 +135,10 @@ const INITIAL: GridGradientStats = {
     curvePower: 0,
     borderOffsetPx: 0,
     lastClassificationBuildMs: 0,
+    lastOwnerGridBuildMs: 0,
+    lastClassificationMaterializeMs: 0,
     lastWavePlanBuildMs: 0,
+    lastPlanBuildMs: 0,
     lastDistanceBuildMs: 0,
     lastOwnerSummaryBuildMs: 0,
     lastSceneBuildMs: 0,
@@ -142,7 +163,6 @@ const INITIAL: GridGradientStats = {
     localVisualTransitionDurationMs: null,
     shaderUniformProgress: null,
     shaderUniformTimeSec: null,
-    requestedPlanPending: false,
     clockSource: 'none',
     visibleFrameState: 'steady',
 };

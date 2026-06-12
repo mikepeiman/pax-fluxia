@@ -54,6 +54,37 @@ Selection flow:
 4. `GameCanvas.svelte` registers `GridGradientFamily`, builds `RenderFamilyInput`, and calls `GridGradientFamily.update()`.
 5. The family exports diagnostics through `gridGradientStats` and the family debug snapshot.
 
+## Plan And Performance Path
+
+Grid Gradient keeps one render-family runtime path. The family builds a mode-local plan, then uses shader-field or graphics presentation over that plan.
+
+Current plan path:
+
+1. `GridGradientFamily.resolvePlan()` builds a plan key from world, geometry versions, grid settings, and active conquest transition state.
+2. If the requested plan is cached, the family renders it immediately.
+3. If a cached plan exists but the requested plan changed, `GridGradientFamily` queues `gridGradientPlan.worker.ts` and keeps rendering the cached plan while the worker builds.
+4. Worker results are committed on the main thread after they are safe to display. A steady post-transition plan is not committed over an active visual transition early.
+5. Transition worker commits use the original conquest `startedAtMs` and `durationMs`, so fill timing stays aligned with the rest of conquest presentation.
+6. Synchronous `buildGridGradientPlan()` remains only for first-plan/no-Worker fallback.
+
+Current classifier path:
+
+- `typedClassification.ts` builds typed owner/role arrays for Grid Gradient.
+- Square and hex-offset layouts use a scanline raster classifier.
+- Jittered layouts use the existing point classifier path because random offsets make row-span raster filling a different sampling problem.
+- Steady PREV/NEXT owner grids are cached by geometry, grid settings, owner ids, and owned-star signature.
+- The object-shaped `GridClassification` is still materialized for graphics fallback, border dots, wave planning, diagnostics, and compatibility.
+
+Current shader packing path:
+
+- `gridGradientShaderFieldPacking.ts` packs owner, role, flip-time, distance, and palette textures from typed arrays when available.
+- The object-cell fallback remains for compatibility and tests.
+
+Diagnostics:
+
+- The existing diagnostics panel shows `Plan Worker`, `Classifier`, `Build Split`, `Plan Cache`, and `Transition` rows for this mode.
+- These rows are the expected way to verify worker use, classifier path, owner-grid cache hits, and plan-pending state.
+
 ## Constraints
 
 - Do not move this mode to a direct legacy renderer path unless a future architecture note explains why.
@@ -61,6 +92,8 @@ Selection flow:
 - Do not fabricate region geometry inside the family. Sampling is a presentation decision over resolved input geometry.
 - Keep vector borders as the default readability path.
 - Keep border dots optional until user verification proves them readable.
+- Do not reduce spacing, cell count, shader quality, or border quality as a performance fix unless the user explicitly accepts that visual tradeoff.
+- Keep jittered-grid behavior on the point classifier path unless parity is proven for an alternate algorithm.
 
 ## Validation Recorded
 
@@ -70,3 +103,10 @@ Selection flow:
 - `bun run build` passes in `pax-fluxia/`.
 - `bun run check` is not clean in this worktree because of existing repo-wide diagnostics outside the Grid Gradient files.
 - Browser verification was not performed because the project rule requires explicit browser permission.
+
+2026-06-12:
+
+- Added targeted typed-classification parity tests and shader typed-packing tests.
+- `bun test ./src/lib/territory/families/gridGradient/typedClassification.test.ts ./src/lib/territory/families/gridGradient/gridGradientShaderFieldPacking.test.ts ./src/lib/territory/families/gridGradient/GridGradientFamily.test.ts ./src/lib/territory/families/gridGradient/gridGradientScene.test.ts ./src/lib/territory/families/gridGradient/gridGradientShaderFieldShaders.test.ts ./src/lib/territory/families/gridGradient/transitionTraceLogger.test.ts ./src/lib/territory/families/metaballGrid/buildGridClassification.test.ts ./src/lib/territory/families/metaballGrid/planGridWave.test.ts` passed.
+- `bun run build` passes in `pax-fluxia/`.
+- User should still verify live Chrome Performance behavior during conquest: plan/classification work should no longer dominate main-thread animation frames after the first plan is cached.

@@ -1,5 +1,6 @@
 import type * as PIXI from 'pixi.js';
 import type { GridClassification, GridWavePlan } from '../../metaballGrid/metaballGridTypes';
+import type { GridGradientTypedClassification } from '../typedClassification';
 import type { GridGradientSettings } from '../settings';
 import type { GridGradientPalette } from '../paint';
 import type { OwnershipGridFrontierDistanceField } from '$lib/territory/frontier';
@@ -102,6 +103,8 @@ export interface BuildGridGradientShaderFieldTexturePlanParams {
     readonly planKey: string;
     readonly presentationKey: string;
     readonly classification: GridClassification;
+    readonly typedClassification?: GridGradientTypedClassification;
+    readonly flipTimeByteByCell?: Uint8Array;
     readonly wavePlan: GridWavePlan;
     readonly palette: GridGradientPalette;
     readonly settings: GridGradientSettings;

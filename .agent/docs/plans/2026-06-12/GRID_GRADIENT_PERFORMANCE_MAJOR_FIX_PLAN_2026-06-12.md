@@ -70,7 +70,7 @@ Work:
   - star positions
 - Refactor `GridGradientFamily.resolvePlan()` so it queues a worker request instead of calling `buildGridGradientPlan()` on the main thread.
 - While a requested transition plan is pending, render the cached steady/previous plan and freeze progress at PRE.
-- When the worker response arrives, commit the plan and start the local visual transition from `input.nowMs`, using the same transition duration.
+- When the worker response arrives, commit the plan and start the local visual transition from the transition's original `startedAtMs`, using the same transition duration.
 - Keep synchronous build only as a no-Worker fallback.
 
 Expected result:
@@ -192,11 +192,31 @@ Expected result:
 - Existing Grid Gradient transition endpoint tests must remain green.
 - Add parity tests for optimized classifier vs current classifier before switching it on by default.
 
-## Implementation Order
+## Implementation Status - 2026-06-12
+
+Implemented in `codex/grid-gradient-territory-mode`:
+
+1. Added `typedClassification.ts` for Grid Gradient-specific typed classification.
+2. Added a scanline raster path for non-jittered square/hex grids and kept jittered grids on the existing point classifier path.
+3. Added steady owner-grid caching by geometry/grid/settings/owner signature, then diffed PREV/NEXT typed owner arrays into roles.
+4. Added `gridGradientPlan.worker.ts` and worker request/response types.
+5. Updated `GridGradientFamily.resolvePlan()` so cached plans keep rendering while changed plans build off-thread; synchronous build remains only for first plan or no-Worker fallback.
+6. Updated shader-field texture packing to consume typed owner, role, and flip-time arrays directly when present.
+7. Exposed plan worker, classifier, cache-hit, and plan split diagnostics in the existing diagnostics panel.
+8. Added targeted parity/packing tests.
+
+Live verification still needed:
+
+- Confirm Chrome Performance no longer shows `buildGridGradientPlan`, `buildGridClassification`, or `resolveOwnerAt` blocking animation frames during normal Grid Gradient conquest after the first plan is cached.
+- Confirm visual quality at accepted Grid Gradient settings is unchanged.
+- Confirm diagnostics show `Classifier raster_scanline` for square/hex layouts and `point_polygon` for jittered layouts.
+- Confirm `Plan Worker` moves through pending/committed during conquests instead of long main-thread rebuilds.
+
+## Original Implementation Order
 
 1. Workerize current Grid Gradient plan build using the existing classifier.
 2. Add diagnostics to prove main-thread de-jank and cache behavior.
-3. Add typed raster classifier behind a feature flag or internal switch.
+3. Add typed raster classifier behind an internal switch.
 4. Prove classifier parity with tests, then route Grid Gradient to it.
 5. Convert shader packing to typed plan data.
 6. Add prewarm scheduling only after the above path is stable.
