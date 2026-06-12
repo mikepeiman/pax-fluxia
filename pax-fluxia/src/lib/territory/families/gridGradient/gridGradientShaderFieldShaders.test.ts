@@ -58,6 +58,9 @@ describe('gridGradientShaderFieldBitGl', () => {
         expect(source).toContain('sideCenter');
         expect(source).toContain('bool transitionRole = role >= 1.5;');
         expect(source).toContain('!transitionRole && uBorderOffsetPx > 0.001');
+        expect(source).toContain('isTransitionEndpointSide');
+        expect(source).toContain('bool transitionSizing = role >= 1.5 && !isTransitionEndpointSide(role, sideAlpha);');
+        expect(source).toContain('float markSeed = endpointSide ? noiseSeed : noiseSeed + side * 0.173;');
         expect(source).toContain('transitionFloorPx');
         expect(source).not.toContain('vec4 color = mix(prevColor, nextColor, t)');
     });

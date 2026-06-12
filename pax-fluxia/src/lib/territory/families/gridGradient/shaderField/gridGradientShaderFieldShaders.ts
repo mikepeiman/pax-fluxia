@@ -148,12 +148,35 @@ export const gridGradientShaderFieldBitGl = {
                 if (role < 1.5) return 1.0;
                 float a = saturate(sideAlpha);
                 if (a <= 0.0001) return 0.0;
+                if (a >= 0.9999) return 1.0;
                 return sqrt(a);
             }
 
             float transitionBlendT(float progress, float flipTime) {
                 float waveWindow = max(0.28, uFlipWindow);
                 return smoothstep(flipTime - waveWindow, flipTime + waveWindow, saturate(progress));
+            }
+
+            bool isTransitionEndpointSide(float role, float sideAlpha) {
+                return role >= 1.5 && saturate(sideAlpha) >= 0.9999;
+            }
+
+            float resolveSideRadius(float role, float sideAlpha, float distanceBand) {
+                bool transitionSizing = role >= 1.5 && !isTransitionEndpointSide(role, sideAlpha);
+                if (!transitionSizing && uBorderOffsetPx > 0.001 && distanceBand <= 0.001) {
+                    return 0.0;
+                }
+
+                float drawableDistanceBand =
+                    transitionSizing ? max(distanceBand, 0.18) : distanceBand;
+                float distanceT = pow(saturate(drawableDistanceBand), max(0.01, uCurvePower));
+                float sizePx = mix(uEdgeSizePx, uCenterSizePx, distanceT);
+                if (transitionSizing) {
+                    float transitionFloorPx =
+                        min(uCenterSizePx, max(uEdgeSizePx, min(3.0, uSpacingPx * 0.5)));
+                    sizePx = max(sizePx, transitionFloorPx);
+                }
+                return sizePx * 0.5;
             }
 
             vec2 transitionSideOffset(
@@ -186,7 +209,6 @@ export const gridGradientShaderFieldBitGl = {
                 float distanceBand,
                 float noiseSeed,
                 vec2 center,
-                float radius,
                 vec2 ownerSalt
             ) {
                 float allowed = roleAllowsSide(role, side);
@@ -198,10 +220,15 @@ export const gridGradientShaderFieldBitGl = {
                 float scale = transitionMarkScale(role, sideAlpha);
                 if (scale <= 0.001) return vec4(0.0);
 
+                float radius = resolveSideRadius(role, sideAlpha, distanceBand);
+                if (radius <= 0.001) return vec4(0.0);
+
+                bool endpointSide = isTransitionEndpointSide(role, sideAlpha);
                 vec2 sideCenter =
                     center +
                     transitionSideOffset(cell, role, sideAlpha, side, ownerSalt);
-                float mask = markMask(worldPos - sideCenter, radius * scale, noiseSeed + side * 0.173);
+                float markSeed = endpointSide ? noiseSeed : noiseSeed + side * 0.173;
+                float mask = markMask(worldPos - sideCenter, radius * scale, markSeed);
                 if (mask <= 0.001) return vec4(0.0);
 
                 float pulse = 1.0;
@@ -242,16 +269,6 @@ export const gridGradientShaderFieldBitGl = {
                     return vec4(0.0);
                 }
 
-                float drawableDistanceBand = transitionRole ? max(distanceBand, 0.18) : distanceBand;
-                float distanceT = pow(saturate(drawableDistanceBand), max(0.01, uCurvePower));
-                float sizePx = mix(uEdgeSizePx, uCenterSizePx, distanceT);
-                if (transitionRole) {
-                    float transitionFloorPx =
-                        min(uCenterSizePx, max(uEdgeSizePx, min(3.0, uSpacingPx * 0.5)));
-                    sizePx = max(sizePx, transitionFloorPx);
-                }
-                float radius = sizePx * 0.5;
-
                 vec2 ownerSalt = vec2(prevOwner * 17.0, nextOwner * 31.0);
 
                 vec2 center = uWorldOrigin + (cell + 0.5) * uSpacingPx;
@@ -282,7 +299,6 @@ export const gridGradientShaderFieldBitGl = {
                         distanceBand,
                         noiseSeed,
                         center,
-                        radius,
                         ownerSalt
                     );
                 }
@@ -301,7 +317,6 @@ export const gridGradientShaderFieldBitGl = {
                         distanceBand,
                         noiseSeed,
                         center,
-                        radius,
                         ownerSalt
                     )
                 );
@@ -317,7 +332,6 @@ export const gridGradientShaderFieldBitGl = {
                         distanceBand,
                         noiseSeed,
                         center,
-                        radius,
                         ownerSalt
                     )
                 );

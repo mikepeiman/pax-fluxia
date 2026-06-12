@@ -14,6 +14,7 @@ import type {
 } from './config';
 
 const INF = 1_000_000_000;
+const TRANSITION_ENDPOINT_ALPHA = 0.9999;
 
 export interface GridGradientSizingParams {
     readonly distancePx: number;
@@ -96,6 +97,16 @@ export function isGridGradientTransitionRole(role: GridVRole): boolean {
     return role !== 'native' && role !== 'outside';
 }
 
+export function isGridGradientTransitionEndpoint(params: {
+    readonly role: GridVRole;
+    readonly alpha: number;
+}): boolean {
+    return (
+        isGridGradientTransitionRole(params.role) &&
+        clamp01(params.alpha) >= TRANSITION_ENDPOINT_ALPHA
+    );
+}
+
 export function resolveGridGradientTransitionFloorSizePx(params: {
     readonly spacingPx: number;
     readonly edgeSizePx: number;
@@ -111,10 +122,19 @@ export function resolveGridGradientDrawableCellSize(
     params: GridGradientSizingParams & {
         readonly role: GridVRole;
         readonly spacingPx: number;
+        readonly alpha?: number;
     },
 ): number {
     const baseSizePx = resolveGridGradientCellSize(params);
-    if (!isGridGradientTransitionRole(params.role)) return baseSizePx;
+    if (
+        !isGridGradientTransitionRole(params.role) ||
+        isGridGradientTransitionEndpoint({
+            role: params.role,
+            alpha: params.alpha ?? 0,
+        })
+    ) {
+        return baseSizePx;
+    }
     return Math.max(
         baseSizePx,
         resolveGridGradientTransitionFloorSizePx({

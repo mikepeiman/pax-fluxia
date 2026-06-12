@@ -37,3 +37,30 @@ User verification needed:
 
 - In Grid Gradient, trigger conquest and watch the conquered star's ownership ring and outer glow. They should fade between player colors instead of snapping.
 - Watch the territory fill transition for a repeated restart at the beginning or after handoff. It should advance once through the conquest.
+
+## Current Follow-Up
+
+### Grid Gradient terminal-frame alignment
+
+User-reported state:
+
+- The star glow transition is improved, but the prior implementation used a wrong timing thought: star glow fallback duration was tied to Conquest `Color Delay` instead of the territory transition duration.
+- The final frame of the fill transition does not match the settled NEXT state; the dots are different or in different places.
+
+Correction plan:
+
+- Use `TERRITORY_TRANSITION_MS`, with `TERRITORY_TRANSITION_BIND_TO_TICK` clamping through `resolveTerritoryTransitionDurationMs()`, for the star owner blend duration.
+- Keep `CONQUEST_COLOR_DELAY_TICKS` only as the legacy pending `transitionTime` timestamp, not as conquest-transition visual duration.
+- Change Grid Gradient transition endpoints so a full-alpha terminal side uses settled/native dot sizing, border-offset suppression, and seed behavior.
+- Validate with focused Grid Gradient shader/scene tests, star timing tests, and `bun run build`.
+
+Implemented:
+
+- Added `buildConquestStarOwnerPendingState()` and routed `conquestHandler.ts` pending star owner state through it.
+- Updated shader-field and CPU fallback fill rendering so terminal transition sides resolve with settled dot sizing and seed behavior.
+- Added regression tests for timing source, endpoint sizing, shader endpoint semantics, and config restoration between tests.
+
+Validation:
+
+- Focused transition/Grid Gradient/star tests passed.
+- `bun run build` in `pax-fluxia/` passed with existing unused-CSS and chunk-size warnings.

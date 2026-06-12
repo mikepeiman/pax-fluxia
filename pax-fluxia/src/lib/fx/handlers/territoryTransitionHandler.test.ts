@@ -8,6 +8,9 @@ import {
     territoryTransitions,
 } from './territoryTransitionHandler';
 
+const originalTransitionBindToTick = GAME_CONFIG.TERRITORY_TRANSITION_BIND_TO_TICK;
+const originalTransitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS;
+
 function makeConquestEvent(): ConquestEvent {
     return {
         tick: 12,
@@ -37,8 +40,8 @@ function makeContext(gameTime: number, effectiveTickMs = 400): FXContext {
 
 afterEach(() => {
     territoryTransitions.reset();
-    GAME_CONFIG.TERRITORY_TRANSITION_BIND_TO_TICK = false;
-    GAME_CONFIG.TERRITORY_TRANSITION_MS = 400;
+    GAME_CONFIG.TERRITORY_TRANSITION_BIND_TO_TICK = originalTransitionBindToTick;
+    GAME_CONFIG.TERRITORY_TRANSITION_MS = originalTransitionMs;
 });
 
 describe('territoryTransitionHandler', () => {

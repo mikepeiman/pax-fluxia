@@ -160,6 +160,34 @@ describe('grid gradient scene helpers', () => {
         expect(visibleTransition).toBeGreaterThan(2);
     });
 
+    it('uses settled sizing for a terminal next-side transition cell', () => {
+        const midTransition = resolveGridGradientDrawableCellSize({
+            role: 'dispossessed',
+            distancePx: 4,
+            ownerMaxDistancePx: 100,
+            edgeSizePx: 0.5,
+            centerSizePx: 4,
+            curvePower: 2.7,
+            borderOffsetPx: 8,
+            spacingPx: 6,
+            alpha: 0.5,
+        });
+        const terminalNext = resolveGridGradientDrawableCellSize({
+            role: 'dispossessed',
+            distancePx: 4,
+            ownerMaxDistancePx: 100,
+            edgeSizePx: 0.5,
+            centerSizePx: 4,
+            curvePower: 2.7,
+            borderOffsetPx: 8,
+            spacingPx: 6,
+            alpha: 1,
+        });
+
+        expect(midTransition).toBeGreaterThan(0);
+        expect(terminalNext).toBe(0);
+    });
+
     it('lets curve power change size progression', () => {
         const gentle = resolveGridGradientCellSize({
             distancePx: 50,

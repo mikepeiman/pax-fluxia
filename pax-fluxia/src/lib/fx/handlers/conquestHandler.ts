@@ -13,6 +13,7 @@ import { animationStore } from '$lib/stores/animationStore.svelte';
 import { executeConquestTransfer } from '$lib/animations/conquest';
 import type { FXHandler } from '../FXRegistry';
 import { assignShipLaneGeometry } from '$lib/lanes/applyLaneTravelPath';
+import { buildConquestStarOwnerPendingState } from './conquestStarOwnerTransition';
 
 /** Guard: prevent compounding slowmo when multiple conquests fire rapidly */
 let conquestSlowmoActive = false;
@@ -44,15 +45,13 @@ export const coreConquestHandler: FXHandler<ConquestEvent> = {
         // ── DELAYED STAR COLOR ──
         // Duration in ticks × effectiveTickMs auto-scales with game speed
         {
-            const colorDelay = (GAME_CONFIG.CONQUEST_COLOR_DELAY_TICKS ?? 2) * ctx.effectiveTickMs;
-            const conquestNow = ctx.gameTime;
-            ctx.vsm.addPendingConquest(event.starId, {
+            // Star glow/ring blending uses the territory transition duration.
+            ctx.vsm.addPendingConquest(event.starId, buildConquestStarOwnerPendingState({
                 previousOwner: event.previousOwner,
                 newOwner: event.newOwner,
-                startedAtMs: conquestNow,
-                durationMs: colorDelay,
-                transitionTime: conquestNow + colorDelay,
-            });
+                gameTime: ctx.gameTime,
+                effectiveTickMs: ctx.effectiveTickMs,
+            }));
         }
 
         // ── CONQUEST FLASH ──

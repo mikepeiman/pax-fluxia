@@ -994,26 +994,7 @@ export class GridGradientFamily implements RenderFamily {
                           ownerIndex
                       ] ?? distancePx
                     : distancePx;
-            const sizePx = resolveGridGradientDrawableCellSize({
-                distancePx,
-                ownerMaxDistancePx,
-                edgeSizePx: params.settings.edgeSizePx,
-                centerSizePx: params.settings.centerSizePx,
-                curvePower: params.settings.curvePower,
-                borderOffsetPx: params.settings.borderOffsetPx,
-                role: cell.role,
-                spacingPx: params.plan.classification.spacingPx,
-            });
-            if (sizePx <= 0) continue;
-            if (activeRole) {
-                activeDrawableTransitionCells += 1;
-                if (
-                    params.settings.borderOffsetPx > 0 &&
-                    distancePx < params.settings.borderOffsetPx
-                ) {
-                    activeOffsetZoneTransitionCells += 1;
-                }
-            }
+            let countedDrawableTransitionCell = false;
 
             const drawSide = (
                 ownerId: string | null,
@@ -1025,6 +1006,28 @@ export class GridGradientFamily implements RenderFamily {
                 if (colorIdx === undefined) return;
                 const color = params.palette.fillHexByColorIdx[colorIdx];
                 if (color === undefined) return;
+                const sizePx = resolveGridGradientDrawableCellSize({
+                    distancePx,
+                    ownerMaxDistancePx,
+                    edgeSizePx: params.settings.edgeSizePx,
+                    centerSizePx: params.settings.centerSizePx,
+                    curvePower: params.settings.curvePower,
+                    borderOffsetPx: params.settings.borderOffsetPx,
+                    role: cell.role,
+                    spacingPx: params.plan.classification.spacingPx,
+                    alpha,
+                });
+                if (sizePx <= 0) return;
+                if (activeRole && !countedDrawableTransitionCell) {
+                    activeDrawableTransitionCells += 1;
+                    if (
+                        params.settings.borderOffsetPx > 0 &&
+                        distancePx < params.settings.borderOffsetPx
+                    ) {
+                        activeOffsetZoneTransitionCells += 1;
+                    }
+                    countedDrawableTransitionCell = true;
+                }
                 const transitionScale = resolveGridGradientTransitionScale({
                     role: cell.role,
                     alpha,
