@@ -962,3 +962,24 @@ Validation:
 Next correct step:
 
 - Continue the systemic settings migration in `ControlsSection-Territory.svelte`, then shift remaining effort from primitive migration to Aurelia Drift visual polish and live HUD layout fidelity.
+
+## Toggle Row Callback Alias Fix
+
+Implemented:
+
+- Updated `pax-fluxia/src/lib/design-system/components/PaxSettingsToggleRow.svelte`.
+- Added optional `onToggle` support alongside the existing `onChange` callback.
+- Added `.agent/docs/project/post-mortems/2026-06-12_pax-settings-toggle-row-callback-alias.md`.
+
+Intent:
+
+- Correct a runtime callback mismatch introduced during Ships migration where several new toggles used `onToggle` but the primitive only invoked `onChange`.
+- Keep existing `onChange` call sites working while making the new Ships call sites functional.
+
+Validation:
+
+- Pending build after this note; commit this fix separately from Territory migration work.
+
+Next correct step:
+
+- Build and commit the toggle-row callback fix, then resume `ControlsSection-Territory.svelte`.

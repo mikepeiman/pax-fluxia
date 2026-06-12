@@ -148,3 +148,5 @@ Prompt:
 - Completed `ControlsSection-Ships.svelte` by migrating Order Arrows, Damaged Ships, Interaction, Density Coloring, and Star Glow to Pax primitives.
 - Preserved `ARROW_*`, `DAMAGED_*`, `STAR_HIT_RADIUS`, `DENSITY_*`, and `STAR_GLOW_*` config write paths.
 - Validated the completed Ships migration with a zero-match raw-control audit, `git diff --check`, and production build.
+- Found that `PaxSettingsToggleRow.svelte` only invoked `onChange` while new Ships call sites used `onToggle`.
+- Fixed the primitive to support both optional callbacks and added a regression post-mortem.

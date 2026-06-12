@@ -1374,3 +1374,23 @@ Merge guidance:
 - Keep all Ships controls on Pax primitives.
 - Preserve `getArrowOutlineTone()` and `setArrowOutlineTone(...)` for mapping UI tone labels to numeric outline colors.
 - If master has added new Ships controls, do not restore raw HTML controls; add them through `PaxSettingsRangeRow`, `PaxSettingsToggleRow`, `PaxHudSegmentedControl`, `PaxHudSelect`, or another Pax primitive.
+
+## 2026-06-12 Toggle Row Callback Alias Fix
+
+Scope implemented in this step:
+
+- Fixed primitive callback compatibility in:
+  - `pax-fluxia/src/lib/design-system/components/PaxSettingsToggleRow.svelte`
+- Added post-mortem:
+  - `.agent/docs/project/post-mortems/2026-06-12_pax-settings-toggle-row-callback-alias.md`
+
+Why this matters for merge:
+
+- Several migrated Ships toggles use `onToggle`.
+- Existing older toggle rows use `onChange`.
+- The primitive now accepts and invokes both optional callbacks, so both migrated and older call sites are functional.
+
+Merge guidance:
+
+- Preserve both callback names unless all call sites are intentionally normalized in one follow-up change.
+- Do not treat the post-mortem as optional; it documents a real runtime mismatch found during the migration.
