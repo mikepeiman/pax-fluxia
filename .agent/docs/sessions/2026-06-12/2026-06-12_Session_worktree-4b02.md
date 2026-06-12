@@ -423,3 +423,33 @@ Validation:
 Next correct step:
 
 - Migrate Audio with a reusable settings picker/menu primitive for sound-file selection and preview, rather than preserving its current local dropdown island.
+
+## Audio Settings Primitive Migration
+
+Implemented:
+
+- Added `pax-fluxia/src/lib/design-system/components/PaxSettingsPickerRow.svelte`.
+- Exported `PaxSettingsPickerRow` and `PaxSettingsPickerOption` from the design-system component index.
+- Rewrote `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte` around Pax primitives:
+  - `PaxSettingsToggleRow` for master enabled and separate-conquest routing.
+  - `PaxSettingsRangeRow` for master volume, sound volume, and offset controls.
+  - `PaxSettingsPickerRow` for sound-file selection and per-file preview.
+  - `PaxHudButton` for per-sound test actions.
+- Removed the feature-owned custom dropdown, raw range inputs, raw toggle inputs, test buttons, offset rows, and old local file-picker classes.
+- Replaced picker glyph arrows/play symbols with `HudIcon` registry icons inside the primitive.
+
+Intent:
+
+- Move Audio, a top-level Settings rail item, out of local bespoke control styling and into the shared design-system grammar.
+- Add a reusable picker primitive before migrating custom menu/dropdown settings elsewhere.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Feature-level audit found no raw `<button>`, `<select>`, `<input>`, inline `style=`, active class toggles, old file-picker classes, `.setting-row`, `.toggle-row`, `.test-btn`, or `.offset-row` in `ControlsSection-Audio.svelte`.
+- Picker primitive audit found no text-glyph arrows/play icons or old file-picker class names.
+
+Next correct step:
+
+- Continue raw-control migration in Ships/Timing/Surge/FrontierFx or start reducing remaining live HUD warnings such as `SpeedControls.svelte`.

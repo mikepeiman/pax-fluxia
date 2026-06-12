@@ -817,3 +817,40 @@ Merge guidance:
 - Preserve the primitive rendering path and the conditional sections.
 - Do not reintroduce local `.var-row`, `.toggle-row`, or `.mode-select` markup in these files.
 - If master has newer config keys in these surfaces, port those keys into `PaxSettingsRangeRow`, `PaxSettingsToggleRow`, or `PaxHudSelect` rather than restoring raw controls.
+
+## 2026-06-12 Audio Settings Primitive Migration
+
+Scope implemented in this step:
+
+- Added `pax-fluxia/src/lib/design-system/components/PaxSettingsPickerRow.svelte`.
+- Exported the picker primitive and option type from `pax-fluxia/src/lib/design-system/components/index.ts`.
+- Rewrote `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte` around Pax primitives.
+- Removed Audio's feature-owned raw file-picker/dropdown, range inputs, checkbox toggles, offset rows, and test buttons.
+- Picker chevrons and preview action now render through `HudIcon`, not text glyphs.
+
+Why this matters for merge:
+
+- Audio is a top-level Settings rail surface and previously remained one of the most visibly legacy settings panels.
+- The new `PaxSettingsPickerRow` is reusable for compact option menus that need custom item metadata and optional preview/action buttons.
+- Existing audio behavior is preserved:
+  - master mute still goes through `audioManager.toggleMute()`
+  - master volume still uses `audioManager.setMasterVolume(...)`
+  - per-sound volume still uses `audioManager.setSoundVolume(...)`
+  - file choice still uses `audioManager.setSoundFile(...)`
+  - direct file preview still creates `new Audio('/sounds/...')`
+  - offsets still use `audioManager.setSoundOffset(...)`
+  - conquest subtype routing still uses `audioManager.setSeparateConquestSounds(...)`
+  - panel sync still maps through `CONFIG_TO_PANEL_KEY`
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Feature-level audit found no raw controls or legacy dropdown/control classes in `ControlsSection-Audio.svelte`.
+- Picker primitive audit found no text-glyph arrows/play icons.
+
+Merge guidance:
+
+- Preserve `PaxSettingsPickerRow` as the owner for compact custom settings menus.
+- If conflicts occur in Audio, preserve the audio-manager method calls and panel key mapping; then render through Pax primitives.
+- Do not restore the old local `.file-picker`, `.setting-row`, `.test-btn`, or `.offset-row` control island.

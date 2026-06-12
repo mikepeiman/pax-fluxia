@@ -11,5 +11,7 @@ export { default as PaxHudTextInput } from "./PaxHudTextInput.svelte";
 export { default as PaxHudTooltip } from "./PaxHudTooltip.svelte";
 export { default as PaxSettingsDrawer } from "./PaxSettingsDrawer.svelte";
 export { default as PaxSettingsInfoRow } from "./PaxSettingsInfoRow.svelte";
+export { default as PaxSettingsPickerRow } from "./PaxSettingsPickerRow.svelte";
+export type { PaxSettingsPickerOption } from "./PaxSettingsPickerRow.svelte";
 export { default as PaxSettingsRangeRow } from "./PaxSettingsRangeRow.svelte";
 export { default as PaxSettingsToggleRow } from "./PaxSettingsToggleRow.svelte";
