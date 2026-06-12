@@ -1,0 +1,236 @@
+/* ============================================================
+   PAX FLUXIA — HUD design system
+   Tailwind v4 (CSS-first config). Import this once in your app.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Rajdhani:wght@400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  /* ---- Surfaces ---- */
+  --color-void: #03080b; /* deep space / page backdrop          */
+  --color-hull: #0a1316; /* primary panel plate                 */
+  --color-hull-2: #101c21; /* raised plate / rows                 */
+  --color-hull-3: #16262c; /* hover / active row                  */
+  --color-line: #1f3036; /* neutral hairline                    */
+
+  /* ---- Chrome (gold bezels) ---- */
+  --color-gold-0: #463e28; /* recessed trim                       */
+  --color-gold-1: #8a7a4d; /* standard hairline                   */
+  --color-gold-2: #c9a85c; /* lit trim / labels                   */
+  --color-gold-3: #ecd28a; /* blazing highlight                   */
+
+  /* ---- Faction: Luminara Accord (player) ---- */
+  --color-teal-0: #0d3a37;
+  --color-teal-1: #18968d;
+  --color-teal-2: #39e0d2;
+  --color-teal-3: #9af2ea;
+
+  /* ---- Faction: Vaelari Combine ---- */
+  --color-amber-0: #3d3015;
+  --color-amber-1: #9c7c34;
+  --color-amber-2: #e8b54a;
+  --color-amber-3: #f5d98f;
+
+  /* ---- Auxiliary star/faction hues ---- */
+  --color-ice: #5aa7ff;
+  --color-nova: #c75cde;
+  --color-danger: #e0564a;
+
+  /* ---- Text ---- */
+  --color-text: #d8e4e4;
+  --color-text-dim: #8aa0a4;
+  --color-text-faint: #587074;
+
+  /* ---- Type ---- */
+  --font-display: 'Cinzel', 'Times New Roman', serif;
+  --font-ui: 'Rajdhani', 'Segoe UI', system-ui, sans-serif;
+
+  /* ---- Glow ---- */
+  --shadow-glow-teal: 0 0 14px rgb(57 224 210 / 0.35);
+  --shadow-glow-gold: 0 0 14px rgb(201 168 92 / 0.3);
+  --shadow-glow-danger: 0 0 12px rgb(224 86 74 / 0.35);
+
+  /* ---- Motion ---- */
+  --animate-hud-pulse: hud-pulse 2.4s ease-in-out infinite;
+  --animate-hud-shimmer: hud-shimmer 2.8s linear infinite;
+
+  @keyframes hud-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.55;
+    }
+  }
+  @keyframes hud-shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+}
+
+/* ============================================================
+   Ornament & chrome utilities
+   ============================================================ */
+@utility bevel {
+  /* Cuts the top-left and bottom-right corners. Depth via --bv. */
+  --bv: 12px;
+  clip-path: polygon(
+    var(--bv) 0,
+    100% 0,
+    100% calc(100% - var(--bv)),
+    calc(100% - var(--bv)) 100%,
+    0 100%,
+    0 var(--bv)
+  );
+}
+
+@utility bevel-sym {
+  /* Cuts all four corners. */
+  --bv: 8px;
+  clip-path: polygon(
+    var(--bv) 0,
+    calc(100% - var(--bv)) 0,
+    100% var(--bv),
+    100% calc(100% - var(--bv)),
+    calc(100% - var(--bv)) 100%,
+    var(--bv) 100%,
+    0 calc(100% - var(--bv)),
+    0 var(--bv)
+  );
+}
+
+@utility wing-l {
+  /* Top-bar plate, outer-left edge raked. */
+  clip-path: polygon(16px 0, 100% 0, 100% 100%, 0 100%);
+}
+
+@utility wing-r {
+  /* Top-bar plate, outer-right edge raked. */
+  clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 100%, 0 100%);
+}
+
+@utility dock-plate {
+  /* Bottom dock: wide base, raked top corners. */
+  clip-path: polygon(22px 0, calc(100% - 22px) 0, 100% 100%, 0 100%);
+}
+
+@utility hud-label {
+  /* Small-caps command label */
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+@utility hud-num {
+  font-family: var(--font-ui);
+  font-variant-numeric: tabular-nums;
+}
+
+@layer components {
+  /* 1px gold hairline frame that survives clip-path:
+     outer element carries the gradient, inner plate sits 1px inset. */
+  .hud-frame {
+    padding: 1px;
+    background: linear-gradient(
+      168deg,
+      var(--color-gold-1) 0%,
+      var(--color-gold-0) 34%,
+      var(--color-gold-0) 62%,
+      var(--color-gold-1) 100%
+    );
+  }
+  .hud-frame > .hud-plate {
+    --bv: calc(var(--panel-bv, 12px) - 1px);
+  }
+  .hud-frame-lit {
+    background: linear-gradient(
+      168deg,
+      var(--color-gold-2) 0%,
+      var(--color-gold-0) 40%,
+      var(--color-gold-1) 100%
+    );
+  }
+  .hud-frame-teal {
+    background: linear-gradient(
+      168deg,
+      var(--color-teal-1) 0%,
+      var(--color-teal-0) 45%,
+      var(--color-teal-1) 100%
+    );
+  }
+  .hud-plate {
+    background:
+      linear-gradient(180deg, rgb(16 28 33 / 0.92) 0%, rgb(8 15 18 / 0.94) 100%);
+    backdrop-filter: blur(6px);
+  }
+
+  /* Corner bracket ticks (placed on the two square corners) */
+  .hud-bracket {
+    position: absolute;
+    width: 9px;
+    height: 9px;
+    border-color: var(--color-gold-2);
+    border-style: solid;
+    pointer-events: none;
+  }
+  .hud-bracket-tr {
+    top: -2px;
+    right: -2px;
+    border-width: 1px 1px 0 0;
+  }
+  .hud-bracket-bl {
+    bottom: -2px;
+    left: -2px;
+    border-width: 0 0 1px 1px;
+  }
+
+  /* Diamond stud ornament */
+  .hud-stud {
+    width: 5px;
+    height: 5px;
+    rotate: 45deg;
+    background: var(--color-gold-2);
+    box-shadow: 0 0 6px rgb(201 168 92 / 0.5);
+    flex: none;
+  }
+  .hud-stud-teal {
+    background: var(--color-teal-2);
+    box-shadow: 0 0 6px rgb(57 224 210 / 0.5);
+  }
+
+  /* Focus ring for the whole HUD */
+  .hud-root :is(button, [role='checkbox'], [role='radio'], a, input):focus-visible {
+    outline: 1px solid var(--color-gold-3);
+    outline-offset: 2px;
+  }
+
+  /* Slim gilded scrollbars inside panels */
+  .hud-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-gold-0) transparent;
+  }
+  .hud-scroll::-webkit-scrollbar {
+    width: 5px;
+  }
+  .hud-scroll::-webkit-scrollbar-thumb {
+    background: var(--color-gold-0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-root *,
+  .hud-root *::before,
+  .hud-root *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
