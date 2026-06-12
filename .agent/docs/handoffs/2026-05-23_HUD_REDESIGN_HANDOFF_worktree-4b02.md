@@ -382,3 +382,22 @@ Merge guidance:
 - Keep `HudThemePanel` inside Appearance; do not move it to bottom quick access or the Theme Library surface.
 - Keep `paxThemeState` as the single runtime source for UI skin selection.
 - Future theme import/export should extend `theme.ts`/`themeState.svelte.ts`, not the older gameplay settings `themeStore`.
+
+## 2026-06-12 First Tailwind Variants Primitive Migration
+
+Scope implemented in this step:
+
+- Updated `pax-fluxia/src/lib/components/game-hud/HudPanel.svelte` to consume `hudPanel` slots from `pax-fluxia/src/lib/design-system/variants/hud.ts`.
+- Updated `pax-fluxia/src/lib/components/game-hud/HudIconButton.svelte` to consume the `hudButton` recipe.
+- Preserved existing `pf-hud-panel`, `pf-hud-panel__*`, and `pf-hud-icon-button` compatibility classes to avoid a visual regression while moving ownership toward the design-system recipes.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed.
+- `git diff --check`: passed with line-ending warnings only.
+- Targeted `bun run --cwd pax-fluxia check` filtering found no diagnostics mentioning `HudPanel.svelte`, `HudIconButton.svelte`, `variants/hud`, `tailwind-variants`, or `design-system`.
+
+Merge guidance:
+
+- This is the intended migration pattern for the rest of the HUD: add variant recipes while retaining compatibility classes until the legacy `hud.css` rules can be safely reduced.
+- Do not remove the `pf-*` classes from migrated primitives yet; downstream CSS still depends on them.

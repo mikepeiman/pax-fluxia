@@ -83,3 +83,17 @@ Validation:
 - `bun run --cwd pax-fluxia build`: passed.
 - `git diff --check`: passed with line-ending warnings only.
 - Targeted `check` filtering found no diagnostics in the new theme panel/state paths.
+
+## First Tailwind Variants Primitive Migration
+
+Implemented:
+
+- `HudPanel.svelte` now consumes `hudPanel` slot recipes.
+- `HudIconButton.svelte` now consumes `hudButton`.
+- Existing `pf-*` classes were retained as compatibility hooks.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed.
+- `git diff --check`: passed with line-ending warnings only.
+- Targeted `check` filtering found no diagnostics in the migrated primitive paths.
