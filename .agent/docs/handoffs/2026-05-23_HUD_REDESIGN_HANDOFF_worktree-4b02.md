@@ -419,3 +419,24 @@ Validation:
 Merge guidance:
 
 - The migration continues to be additive/compatibility-first. The visual polish layer in `hud.css` remains active until enough components are recipe-owned to reduce it safely.
+
+## 2026-06-12 Svelte Inspector Dev Tool
+
+User asked to add the Svelte inspector docs/tooling link without interrupting design work: `https://github.com/sveltejs/vite-plugin-svelte/blob/main/docs/inspector.md`.
+
+Scope implemented in this step:
+
+- Enabled Svelte Inspector through `pax-fluxia/svelte.config.js` with `vitePlugin.inspector: true`.
+- Did not touch live HUD components, styles, routes, data contracts, or game logic.
+- Did not add a permanent visible inspector toggle to the UI; the documented default key path keeps the tooling available during development without contaminating normal HUD visual review.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Full `check` was not rerun for this dev-tool-only change because the current repository baseline already has known unrelated failures.
+
+Merge guidance:
+
+- Preserve the top-level `vitePlugin.inspector` block in `pax-fluxia/svelte.config.js` if dev inspector access is desired.
+- This is dev tooling only; the installed plugin type docs state inspector defaults off for production builds.

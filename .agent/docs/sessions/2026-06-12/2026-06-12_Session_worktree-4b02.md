@@ -111,3 +111,21 @@ Validation:
 - `bun run --cwd pax-fluxia build`: passed.
 - `git diff --check`: passed with line-ending warnings only.
 - Targeted `check` filtering found no diagnostics in the rail/gamespeed paths.
+
+## Svelte Inspector Dev Tool
+
+Implemented:
+
+- Enabled Svelte Inspector in `pax-fluxia/svelte.config.js` with the top-level `vitePlugin.inspector: true` option.
+- Kept the change isolated to dev tooling; no live HUD component or theme code changed.
+
+Notes:
+
+- The project uses SvelteKit through `pax-fluxia/vite.config.js`, but Svelte Inspector is configured through the Svelte config consumed by the SvelteKit Vite plugin.
+- The installed `@sveltejs/vite-plugin-svelte` type definition exposes `inspector?: InspectorOptions | boolean` and documents that it defaults false for builds.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Full `check` was not rerun for this dev-tool-only change because the current repository baseline already has known unrelated failures.
