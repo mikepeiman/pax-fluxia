@@ -8,6 +8,7 @@
         type InAppConquestBenchmarkMode,
         type InAppConquestBenchmarkSummary,
     } from "$lib/perf/inAppConquestBench";
+    import { PaxHudButton, PaxHudSelect } from "$lib/design-system";
 
     let selectedMode = $state<InAppConquestBenchmarkMode>("metaball_grid");
     let runningScenario = $state<"conquest_animation" | "conquest_diagnostic" | null>(
@@ -23,6 +24,12 @@
     });
     const benchReady = $derived(
         typeof window !== "undefined" && Boolean(window.__PAX_BENCH__),
+    );
+    const modeOptions = $derived(
+        IN_APP_CONQUEST_BENCHMARK_MODES.map((option) => ({
+            value: option.id,
+            label: option.label,
+        })),
     );
 
     function refreshTargets(): void {
@@ -45,7 +52,7 @@
                       : [],
               ).length
             : 0;
-        return `${String(bundle.version ?? "unknown")} · steps=${steps} · failing=${failing}`;
+        return `${String(bundle.version ?? "unknown")} - steps=${steps} - failing=${failing}`;
     }
 
     async function runScenario(
@@ -77,47 +84,40 @@
 </div>
 
 <div class="row-hint">
-    Current conquest timing: {transitionTargets.effectiveTransitionMs}ms · target {transitionTargets.targetFrames60fps}
-    frames at 60fps · minimum {transitionTargets.minimumFrames30fps} frames at 30fps
+    Current conquest timing: {transitionTargets.effectiveTransitionMs}ms - target {transitionTargets.targetFrames60fps}
+    frames at 60fps - minimum {transitionTargets.minimumFrames30fps} frames at 30fps
 </div>
 
 <div class="row-hint">
-    Tick bind: {GAME_CONFIG.TERRITORY_TRANSITION_BIND_TO_TICK ? "on" : "off"} · configured transition:
+    Tick bind: {GAME_CONFIG.TERRITORY_TRANSITION_BIND_TO_TICK ? "on" : "off"} - configured transition:
     {GAME_CONFIG.TERRITORY_TRANSITION_MS}ms
 </div>
 
-<div class="slider-row">
-    <span class="slider-label">Scenario Mode</span>
-    <select
-        class="mode-select"
-        bind:value={selectedMode}
-        disabled={runningScenario !== null}
-    >
-        {#each IN_APP_CONQUEST_BENCHMARK_MODES as option}
-            <option value={option.id}>{option.label}</option>
-        {/each}
-    </select>
-</div>
+<PaxHudSelect
+    label="Scenario Mode"
+    value={selectedMode}
+    options={modeOptions}
+    disabled={runningScenario !== null}
+    onValueChange={(value) => {
+        selectedMode = value as InAppConquestBenchmarkMode;
+    }}
+/>
 
 <div class="snapshot-actions">
-    <button
-        class="snapshot-btn"
-        disabled={!benchReady || runningScenario !== null}
-        onclick={() => void runScenario("conquest_animation")}
-    >
-        {runningScenario === "conquest_animation"
+    <PaxHudButton
+        label={runningScenario === "conquest_animation"
             ? "Running Animation..."
             : "Run Conquest Animation"}
-    </button>
-    <button
-        class="snapshot-btn"
         disabled={!benchReady || runningScenario !== null}
-        onclick={() => void runScenario("conquest_diagnostic")}
-    >
-        {runningScenario === "conquest_diagnostic"
+        onclick={() => void runScenario("conquest_animation")}
+    />
+    <PaxHudButton
+        label={runningScenario === "conquest_diagnostic"
             ? "Running Diagnostic..."
             : "Run Conquest Diagnostic"}
-    </button>
+        disabled={!benchReady || runningScenario !== null}
+        onclick={() => void runScenario("conquest_diagnostic")}
+    />
 </div>
 
 {#if !benchReady}
@@ -134,11 +134,11 @@
     <div class="readout">
         {lastResult.scenarioId === "conquest_animation"
             ? "Animation"
-            : "Diagnostic"} result · avg {formatMs(lastResult.frameStats.avgFrameMs)} · p95 {formatMs(lastResult.frameStats.p95FrameMs)}
-        · max {formatMs(lastResult.frameStats.maxFrameMs)} · frames {String(lastResult.frameStats.frameCount ?? "n/a")}
+            : "Diagnostic"} result - avg {formatMs(lastResult.frameStats.avgFrameMs)} - p95 {formatMs(lastResult.frameStats.p95FrameMs)}
+        - max {formatMs(lastResult.frameStats.maxFrameMs)} - frames {String(lastResult.frameStats.frameCount ?? "n/a")}
     </div>
     <div class="row-hint">
-        Capture window: {lastResult.captureDurationMs}ms · target {lastResult.targetFrames60fps} @ 60fps · minimum
+        Capture window: {lastResult.captureDurationMs}ms - target {lastResult.targetFrames60fps} @ 60fps - minimum
         {lastResult.minimumFrames30fps} @ 30fps
     </div>
     {#if lastResult.bundleSummary}
@@ -151,11 +151,17 @@
 <style>
     @import "./panel-shared.css";
 
+    .snapshot-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
     .warning {
-        color: rgba(245, 179, 98, 0.96);
+        color: var(--hud-accent-warm-strong);
     }
 
     .error {
-        color: rgba(255, 132, 132, 0.96);
+        color: var(--hud-danger);
     }
 </style>

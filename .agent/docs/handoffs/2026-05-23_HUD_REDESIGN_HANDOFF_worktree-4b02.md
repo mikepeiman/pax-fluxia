@@ -959,3 +959,36 @@ Merge guidance:
 
 - Preserve the render-mode gate and `updateConfig(...)` helper.
 - If master adds new Frontier FX controls, render them through Pax primitives rather than restoring raw controls.
+
+## 2026-06-12 Small Settings Utility Primitive Batch
+
+Scope implemented in this step:
+
+- Added disabled-state support to `pax-fluxia/src/lib/design-system/components/PaxHudSelect.svelte`.
+- Migrated these smaller utility components to Pax primitives:
+  - `pax-fluxia/src/lib/components/ui/settings/TerritoryGeometrySourceTuning.svelte`
+  - `pax-fluxia/src/lib/components/ui/settings/SettingsDumpDiagnosticsControls.svelte`
+  - `pax-fluxia/src/lib/components/ui/settings/PerfScenarioRunner.svelte`
+  - `pax-fluxia/src/lib/components/ui/settings/PerimeterFieldDiagnosticsControls.svelte`
+  - `pax-fluxia/src/lib/components/ui/settings/TerritorySlaWidget.svelte`
+
+Why this matters for merge:
+
+- These components were small but still visually inconsistent raw-control islands inside Settings and diagnostics surfaces.
+- Existing behavior is preserved:
+  - geometry source still writes `PERIMETER_FIELD_GEOMETRY_SOURCE` and bumps territory visual config
+  - live settings dump still toggles/dumps through `settingsDump` utilities
+  - perf scenario runner still disables mode changes while running and calls the same benchmark functions
+  - perimeter diagnostics still writes debug config and clamps scrub frame indices
+  - SLA widget still updates the passed config/panel keys through `onUpdate(...)`
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Targeted audit found no raw controls or old local control class names in the touched utility components.
+
+Merge guidance:
+
+- Preserve `PaxHudSelect.disabled`; it is now part of the primitive contract.
+- If conflicts occur, keep the behavior-specific helper functions and render through Pax primitives.

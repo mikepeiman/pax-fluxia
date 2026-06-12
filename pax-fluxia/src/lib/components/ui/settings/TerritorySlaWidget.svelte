@@ -1,14 +1,16 @@
 <script lang="ts">
     /**
      * Modular Saturation / Lightness / Alpha (hue = player palette).
-     * Optional border-width row first → “width + SLA” for borders.
-     * Styling matches ControlsSection + panel-shared (sub-heading, var-row).
+     * Optional border-width row first means "width + SLA" for borders.
      */
     import { GAME_CONFIG } from "$lib/config/game.config";
+    import {
+        PaxSettingsRangeRow,
+        PaxSettingsToggleRow,
+    } from "$lib/design-system";
 
     interface Props {
         title: string;
-        /** Short note under title (not between slider label and track). */
         help?: string;
         panel: Record<string, unknown>;
         onUpdate: (
@@ -96,121 +98,88 @@
 <div class="territory-sla-widget" class:territory-sla-widget--disabled={!enabled}>
     <h4 class="sub-heading">{title}</h4>
     {#if configEnabled && panelEnabled}
-        <label class="toggle-row territory-sla-widget__toggle">
-            <input
-                type="checkbox"
-                checked={enabled}
-                onchange={(event) => {
-                    const value = (event.target as HTMLInputElement).checked;
-                    onUpdate(configEnabled, panelEnabled, value);
-                }}
-            />
-            <span class="var-name">{enabledLabel}</span>
-            <span class="val">{enabled ? "On" : "Off"}</span>
-        </label>
+        <PaxSettingsToggleRow
+            label={enabledLabel}
+            checked={enabled}
+            meta={enabled ? "On" : "Off"}
+            settingConfigKey={configEnabled}
+            onChange={(value) => onUpdate(configEnabled, panelEnabled, value)}
+        />
     {/if}
     {#if help}
-        <div
-            class="row-bottom"
-            style="font-size:11px;opacity:0.72;margin-bottom:8px;line-height:1.35;"
-        >
-            {help}
-        </div>
+        <div class="territory-sla-widget__help">{help}</div>
     {/if}
 
     {#if configWidth && panelWidth && defaultWidth !== undefined}
-        <div class="var-row">
-            <div class="row-top">
-                <span class="var-name">Width (px)</span><span class="val"
-                    >{val(panelWidth, configWidth, defaultWidth).toFixed(
-                        widthStep < 1 ? 1 : 0,
-                    )}</span
-                >
-            </div>
-            <input
-                type="range"
-                min={widthMin}
-                max={widthMax}
-                step={widthStep}
-                value={val(panelWidth, configWidth, defaultWidth)}
-                oninput={(e) => {
-                    const v = +(e.target as HTMLInputElement).value;
-                    onUpdate(configWidth, panelWidth, v);
-                }}
-            />
-        </div>
+        <PaxSettingsRangeRow
+            label="Width (px)"
+            value={val(panelWidth, configWidth, defaultWidth)}
+            min={widthMin}
+            max={widthMax}
+            step={widthStep}
+            output={val(panelWidth, configWidth, defaultWidth).toFixed(
+                widthStep < 1 ? 1 : 0,
+            )}
+            disabled={!enabled}
+            settingConfigKey={configWidth}
+            onInput={(value) => onUpdate(configWidth, panelWidth, value)}
+        />
     {/if}
 
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Saturation</span><span class="val"
-                >{val(panelSat, configSat, defaultSat).toFixed(2)}</span
-            >
-        </div>
-        <input
-            type="range"
-            min="0"
-            max="2"
-            step="0.05"
-            value={val(panelSat, configSat, defaultSat)}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                onUpdate(configSat, panelSat, v);
-            }}
-        />
-    </div>
+    <PaxSettingsRangeRow
+        label="Saturation"
+        value={val(panelSat, configSat, defaultSat)}
+        min={0}
+        max={2}
+        step={0.05}
+        format="fixed2"
+        disabled={!enabled}
+        settingConfigKey={configSat}
+        onInput={(value) => onUpdate(configSat, panelSat, value)}
+    />
 
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Lightness</span><span class="val"
-                >{val(panelLight, configLight, defaultLight).toFixed(2)}</span
-            >
-        </div>
-        <input
-            type="range"
-            min="0.2"
-            max="2"
-            step="0.05"
-            value={val(panelLight, configLight, defaultLight)}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                onUpdate(configLight, panelLight, v);
-            }}
-        />
-    </div>
+    <PaxSettingsRangeRow
+        label="Lightness"
+        value={val(panelLight, configLight, defaultLight)}
+        min={0.2}
+        max={2}
+        step={0.05}
+        format="fixed2"
+        disabled={!enabled}
+        settingConfigKey={configLight}
+        onInput={(value) => onUpdate(configLight, panelLight, value)}
+    />
 
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Alpha</span><span class="val"
-                >{val(panelAlpha, configAlpha, defaultAlpha).toFixed(2)}</span
-            >
-        </div>
-        <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={val(panelAlpha, configAlpha, defaultAlpha)}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                onUpdate(configAlpha, panelAlpha, v);
-            }}
-        />
-    </div>
+    <PaxSettingsRangeRow
+        label="Alpha"
+        value={val(panelAlpha, configAlpha, defaultAlpha)}
+        min={0}
+        max={1}
+        step={0.01}
+        format="fixed2"
+        disabled={!enabled}
+        settingConfigKey={configAlpha}
+        onInput={(value) => onUpdate(configAlpha, panelAlpha, value)}
+    />
 </div>
 
 <style>
     @import "./panel-shared.css";
 
     .territory-sla-widget {
+        display: grid;
+        gap: 8px;
         margin: 4px 0 10px;
-    }
-
-    .territory-sla-widget__toggle {
-        margin: 0 0 6px;
     }
 
     .territory-sla-widget--disabled {
         opacity: 0.82;
+    }
+
+    .territory-sla-widget__help {
+        color: var(--hud-text-dim);
+        font-family: var(--hud-font-copy);
+        font-size: calc(0.68rem * var(--hud-type-scale, 1));
+        line-height: 1.35;
     }
 </style>

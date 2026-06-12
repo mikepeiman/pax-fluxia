@@ -13,6 +13,7 @@
     ariaLabel?: string;
     placeholder?: string;
     size?: HudFieldVariants["size"];
+    disabled?: boolean;
     class?: string;
     onValueChange: (value: string) => void;
   }
@@ -24,6 +25,7 @@
     ariaLabel,
     placeholder,
     size = "md",
+    disabled = false,
     class: className = "",
     onValueChange,
   }: Props = $props();
@@ -38,6 +40,7 @@
   <select
     class={styles.input()}
     {value}
+    {disabled}
     aria-label={ariaLabel ?? label}
     onchange={(event) => onValueChange(event.currentTarget.value)}
   >

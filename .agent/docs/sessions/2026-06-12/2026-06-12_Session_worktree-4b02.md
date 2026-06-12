@@ -550,3 +550,29 @@ Validation:
 Next correct step:
 
 - Continue with smaller sub-slices from Ships/Territory/Metaball tuning, because those files are too large for a safe single rewrite.
+
+## Small Settings Utility Primitive Batch
+
+Implemented:
+
+- Extended `pax-fluxia/src/lib/design-system/components/PaxHudSelect.svelte` with a `disabled` prop.
+- Migrated `TerritoryGeometrySourceTuning.svelte` to `PaxHudSelect`.
+- Migrated `SettingsDumpDiagnosticsControls.svelte` to `PaxSettingsToggleRow` and `PaxHudButton`.
+- Migrated `PerfScenarioRunner.svelte` to `PaxHudSelect` and `PaxHudButton`, preserving disabled state during running scenarios.
+- Migrated `PerimeterFieldDiagnosticsControls.svelte` to `PaxSettingsToggleRow`, `PaxHudSelect`, `PaxHudRange`, and `PaxHudButton`.
+- Migrated `TerritorySlaWidget.svelte` to `PaxSettingsToggleRow` and `PaxSettingsRangeRow`.
+
+Intent:
+
+- Clear several small settings/diagnostic islands before tackling the largest files.
+- Improve the select primitive rather than dropping behavior in perf scenario controls.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Targeted audit found no raw `<button>`, `<select>`, `<input>`, inline `style=`, active class toggles, `.var-row`, `.row-top`, `.mode-select`, `.toggle-row`, `.lock-btn`, `.toggle-switch`, `.toggle-slider`, `.scrub-step-btn`, `.mini-action-btn`, `.snapshot-btn`, or `.slider-row` usage in the touched utility components.
+
+Next correct step:
+
+- Recount remaining raw-control density, then split Ships/Territory/Metaball into smaller safe primitive-migration slices.
