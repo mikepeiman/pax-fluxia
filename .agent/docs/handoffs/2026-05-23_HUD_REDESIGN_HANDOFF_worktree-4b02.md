@@ -854,3 +854,27 @@ Merge guidance:
 - Preserve `PaxSettingsPickerRow` as the owner for compact custom settings menus.
 - If conflicts occur in Audio, preserve the audio-manager method calls and panel key mapping; then render through Pax primitives.
 - Do not restore the old local `.file-picker`, `.setting-row`, `.test-btn`, or `.offset-row` control island.
+
+## 2026-06-12 SpeedControls Primitive And Warning Cleanup
+
+Scope implemented in this step:
+
+- Migrated `pax-fluxia/src/lib/components/ui/hud/SpeedControls.svelte` to render speed/start/pause controls through `PaxHudButton`.
+- Removed direct `HudIcon` usage and raw local `<button>` controls from the component.
+- Changed `currentSpeed` from `$state(speed || 1)` to a neutral initial value synchronized by effect, clearing Svelte's prop-state warning.
+
+Why this matters for merge:
+
+- `SpeedControls.svelte` is a live HUD component used in the mobile controls bar.
+- The same build warning appeared in every production build after prior changes. This step removes that warning and continues component-base enforcement outside the newer desktop `game-hud` folder.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- Build output no longer reports `SpeedControls.svelte` or `state_referenced_locally`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Targeted audit found no raw controls or old active-state classes in `SpeedControls.svelte`.
+
+Merge guidance:
+
+- Preserve the `PaxHudButton` path here. If mobile controls are redesigned later, reuse the Pax primitive layer instead of reintroducing local raw button skins.

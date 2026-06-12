@@ -453,3 +453,27 @@ Validation:
 Next correct step:
 
 - Continue raw-control migration in Ships/Timing/Surge/FrontierFx or start reducing remaining live HUD warnings such as `SpeedControls.svelte`.
+
+## SpeedControls Primitive And Warning Cleanup
+
+Implemented:
+
+- Migrated `pax-fluxia/src/lib/components/ui/hud/SpeedControls.svelte` from raw local buttons to `PaxHudButton`.
+- Kept layout/size CSS local, but moved visible button chrome and active styling into the Pax button primitive.
+- Changed `currentSpeed` initialization so it no longer captures the initial `speed` prop value directly in `$state(...)`.
+
+Intent:
+
+- Remove the recurring `state_referenced_locally` build warning from a live HUD component.
+- Continue enforcing the component-base rule in mobile live HUD controls, not only the desktop `game-hud` layer.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- Build output no longer reports `SpeedControls.svelte` or `state_referenced_locally`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Targeted audit found no raw `<button>`, `<select>`, `<input>`, local `HudIcon`, class directives, or old `.speed-btn--active` class usage in `SpeedControls.svelte`.
+
+Next correct step:
+
+- Continue settings primitive migration in Ships/Timing/Surge/FrontierFx, or address remaining non-component build warnings separately if they become review blockers.

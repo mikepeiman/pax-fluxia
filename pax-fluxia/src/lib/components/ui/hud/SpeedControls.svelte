@@ -1,5 +1,5 @@
 <script lang="ts">
-    import HudIcon from "./HudIcon.svelte";
+    import { PaxHudButton } from "$lib/design-system";
     import type { GameSpeed } from "$lib/types/game.types";
 
     interface Props {
@@ -25,7 +25,7 @@
         onStart,
     }: Props = $props();
 
-    let currentSpeed = $state<GameSpeed>(speed || 1);
+    let currentSpeed = $state<GameSpeed>(1);
 
     $effect(() => {
         if (speed > 0) {
@@ -54,31 +54,36 @@
 
 <div class="speed-controls-container">
     {#if !hasStarted}
-        <button class="start-btn" onclick={handleStart}>
-            <HudIcon name="play-1" size={18} />
-            <span>Start</span>
-        </button>
+        <PaxHudButton
+            class="start-btn"
+            icon="play-1"
+            iconSize={18}
+            label="Start"
+            onclick={handleStart}
+        />
     {/if}
 
     <div class="speed-controls">
-        <button
+        <PaxHudButton
             class="speed-btn speed-btn--pause"
-            class:speed-btn--active={isPaused}
+            icon="pause"
+            iconSize={17}
+            active={isPaused}
+            pressed={isPaused}
             onclick={isPaused ? onResume : onPause}
             title={isPaused ? "Resume (Spacebar)" : "Pause (Spacebar)"}
-        >
-            <HudIcon name="pause" size={17} />
-        </button>
+        />
 
         {#each speeds as option}
-            <button
+            <PaxHudButton
                 class="speed-btn"
-                class:speed-btn--active={!isPaused && currentSpeed === option.value}
+                icon={option.icon}
+                iconSize={17}
+                active={!isPaused && currentSpeed === option.value}
+                pressed={!isPaused && currentSpeed === option.value}
                 onclick={() => handleSpeedClick(option.value)}
                 title={`${option.label} speed`}
-            >
-                <HudIcon name={option.icon} size={17} />
-            </button>
+            />
         {/each}
     </div>
 </div>
@@ -96,41 +101,17 @@
         gap: var(--hud-gap-xs);
     }
 
-    .start-btn,
-    .speed-btn {
+    .speed-controls-container :global(.start-btn),
+    .speed-controls :global(.speed-btn) {
         min-height: 38px;
-        border-radius: 12px;
-        border: 1px solid var(--hud-border);
-        background: var(--hud-button-bg);
-        color: var(--hud-text);
-        cursor: pointer;
-        transition:
-            border-color 0.16s ease,
-            background 0.16s ease,
-            color 0.16s ease,
-            transform 0.16s ease;
     }
 
-    .start-btn:hover,
-    .speed-btn:hover {
-        border-color: var(--hud-border-strong);
-        background: var(--hud-button-bg-hover);
-        color: var(--hud-text-strong);
-        transform: translateY(-1px);
-    }
-
-    .start-btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
+    .speed-controls-container :global(.start-btn) {
         gap: 8px;
         padding: 0 14px;
-        font-family: var(--hud-font-ui);
         font-size: 0.72rem;
         font-weight: 700;
         letter-spacing: 0.14em;
-        text-transform: uppercase;
-        color: var(--hud-accent-warm);
     }
 
     .speed-controls {
@@ -138,27 +119,14 @@
         padding: 0;
     }
 
-    .speed-btn {
+    .speed-controls :global(.speed-btn) {
         width: 42px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
+        min-width: 42px;
         padding: 0;
     }
 
-    .speed-btn--pause {
+    .speed-controls :global(.speed-btn--pause) {
         margin-right: 2px;
-    }
-
-    .speed-btn--active {
-        border-color: var(--hud-border-strong);
-        background: var(--hud-button-bg-active);
-        color: var(--hud-accent);
-        box-shadow: inset 0 0 0 1px rgba(94, 230, 255, 0.14);
-    }
-
-    .speed-btn--active:hover {
-        color: var(--hud-accent-strong);
     }
 
     @media (max-width: 1024px) {
@@ -167,7 +135,7 @@
             min-width: 0;
         }
 
-        .start-btn {
+        .speed-controls-container :global(.start-btn) {
             min-height: 34px;
             font-size: 0.66rem;
         }
@@ -176,7 +144,7 @@
             gap: 4px;
         }
 
-        .speed-btn {
+        .speed-controls :global(.speed-btn) {
             width: 36px;
             min-width: 36px;
             min-height: 34px;
