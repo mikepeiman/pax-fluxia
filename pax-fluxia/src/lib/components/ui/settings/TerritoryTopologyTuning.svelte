@@ -128,14 +128,14 @@
             <span class="var-name">Minimum Star Margin</span><span class="val"
               >{panel.starMargin ??
                 GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ??
-                45}px</span>
+                0}px</span>
           </div>
           <input
             type="range"
             min="0"
             max="500"
             step="5"
-            value={panel.starMargin ?? GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45}
+            value={panel.starMargin ?? GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 0}
             oninput={(e) => {
               const v = +(e.target as HTMLInputElement).value;
               queueTopologySliderUpdate(

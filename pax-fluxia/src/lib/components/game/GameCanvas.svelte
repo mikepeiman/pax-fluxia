@@ -174,14 +174,8 @@
     import { getDirectedLanePolyline } from "$lib/lanes/lanePolylineCache";
     import { trimLanePolylineToStarRims } from "$lib/lanes/laneGeometry";
     import { computeLaneHeadingForNearside } from "$lib/lanes/applyLaneTravelPath";
-    import { measurePerf, recordPerfEvent } from "$lib/perf/perfProbe";
-    import {
-        logPipelineStage,
-        summarizeConnections,
-        summarizeGeometry,
-        summarizeOwnership,
-        summarizeStars,
-    } from "$lib/perf/pipelineTelemetry";
+    import { resolveEffectiveLaneMarginPx } from "$lib/lanes/laneMargin";
+    import { measurePerf } from "$lib/perf/perfProbe";
     import {
         resetTerritoryRenderStatus,
         setTerritoryRenderStatus,
@@ -350,15 +344,15 @@
               path: string;
           };
     type OrderDispatchMode = "queued" | "immediate";
-    type InteractionVisualAckKind =
+    type InteractionVisualAcknowledgmentKind =
         | "issue"
         | "defer"
         | "cancel"
         | "select"
         | "clear";
-    interface PendingInteractionVisualAck {
+    interface PendingInteractionVisualAcknowledgment {
         requestId: number;
-        kind: InteractionVisualAckKind;
+        kind: InteractionVisualAcknowledgmentKind;
         path: string;
         sourceId: string | null;
         targetId: string | null;
@@ -379,9 +373,9 @@
     let lastOrderQueueFlushKinds: string[] = [];
     let lastOrderQueueFlushRequestIds: number[] = [];
     let lastOrderQueueScheduleMode = "";
-    const pendingInteractionVisualAcks: PendingInteractionVisualAck[] = [];
-    let lastInteractionLocalAck: Record<string, unknown> | null = null;
-    let lastInteractionVisualAck: Record<string, unknown> | null = null;
+    const pendingInteractionVisualAcknowledgments: PendingInteractionVisualAcknowledgment[] = [];
+    let lastInteractionLocalAcknowledgment: Record<string, unknown> | null = null;
+    let lastInteractionVisualAcknowledgment: Record<string, unknown> | null = null;
     type BackgroundTaskScheduler = {
         postTask?: (
             callback: () => void | Promise<void>,
@@ -445,15 +439,7 @@
     ): number {
         const queueDelayMs = Math.max(0, performance.now() - event.timeStamp);
         if (queueDelayMs < thresholdMs) return queueDelayMs;
-        recordPerfEvent(`input.${kind}.handled`, {
-            queueDelayMs,
-            eventTimeStampMs: event.timeStamp,
-            button: "button" in event ? event.button : undefined,
-            pointerType:
-                "pointerType" in event ? event.pointerType : "mouse",
-            clientX: event.clientX,
-            clientY: event.clientY,
-        });
+
         return queueDelayMs;
     }
 
@@ -461,7 +447,7 @@
         step: string,
         detail: Record<string, unknown> = {},
     ): void {
-        recordPerfEvent(`input.orderPath.${step}`, detail);
+
     }
 
     function nextOrderMutationRequestId(): number {
@@ -530,94 +516,82 @@
         );
     }
 
-    function queueInteractionVisualAck(
-        ack: Omit<PendingInteractionVisualAck, "requestId" | "recordedAtMs"> & {
+    function queueInteractionVisualAcknowledgment(
+        acknowledgment: Omit<PendingInteractionVisualAcknowledgment, "requestId" | "recordedAtMs"> & {
             requestId?: number;
         },
     ): number {
-        const requestId = ack.requestId ?? nextOrderMutationRequestId();
-        pendingInteractionVisualAcks.push({
-            ...ack,
+        const requestId = acknowledgment.requestId ?? nextOrderMutationRequestId();
+        pendingInteractionVisualAcknowledgments.push({
+            ...acknowledgment,
             requestId,
             recordedAtMs: performance.now(),
         });
         return requestId;
     }
 
-    function isInteractionVisualAckVisible(
-        ack: PendingInteractionVisualAck,
+    function isInteractionVisualAcknowledgmentVisible(
+        acknowledgment: PendingInteractionVisualAcknowledgment,
     ): boolean {
         const orderKey =
-            ack.sourceId && ack.targetId
-                ? `${ack.sourceId}|${ack.targetId}`
+            acknowledgment.sourceId && acknowledgment.targetId
+                ? `${acknowledgment.sourceId}|${acknowledgment.targetId}`
                 : null;
-        if (ack.kind === "issue") {
-            const visibleTargetId = ack.sourceId
-                ? getVisibleOrderTargetId(ack.sourceId)
+        if (acknowledgment.kind === "issue") {
+            const visibleTargetId = acknowledgment.sourceId
+                ? getVisibleOrderTargetId(acknowledgment.sourceId)
                 : null;
             return Boolean(
                 (orderKey && pendingOrders.has(orderKey)) ||
-                    (ack.targetId && visibleTargetId === ack.targetId),
+                    (acknowledgment.targetId && visibleTargetId === acknowledgment.targetId),
             );
         }
-        if (ack.kind === "defer") {
+        if (acknowledgment.kind === "defer") {
             return Boolean(orderKey && deferredOrders.has(orderKey));
         }
-        if (ack.kind === "cancel") {
-            const visibleTargetId = ack.sourceId
-                ? getVisibleOrderTargetId(ack.sourceId)
+        if (acknowledgment.kind === "cancel") {
+            const visibleTargetId = acknowledgment.sourceId
+                ? getVisibleOrderTargetId(acknowledgment.sourceId)
                 : null;
             return Boolean(
-                ack.sourceId &&
-                    !hasQueuedOrderEntryForSource(ack.sourceId) &&
+                acknowledgment.sourceId &&
+                    !hasQueuedOrderEntryForSource(acknowledgment.sourceId) &&
                     !visibleTargetId,
             );
         }
-        return activeStarId === ack.activeStarId;
+        return activeStarId === acknowledgment.activeStarId;
     }
 
-    function commitInteractionVisualAck(
-        ack: PendingInteractionVisualAck,
+    function commitInteractionVisualAcknowledgment(
+        acknowledgment: PendingInteractionVisualAcknowledgment,
         reason: "immediate" | "frame",
     ): void {
         const nowMs = performance.now();
         const detail = {
-            requestId: ack.requestId,
-            kind: ack.kind,
-            path: ack.path,
-            sourceId: ack.sourceId,
-            targetId: ack.targetId,
-            activeStarId: ack.activeStarId,
+            requestId: acknowledgment.requestId,
+            kind: acknowledgment.kind,
+            path: acknowledgment.path,
+            sourceId: acknowledgment.sourceId,
+            targetId: acknowledgment.targetId,
+            activeStarId: acknowledgment.activeStarId,
             pendingOrders: pendingOrders.size,
             deferredOrders: deferredOrders.size,
-            visualLagMs: nowMs - ack.recordedAtMs,
+            visualLagMs: nowMs - acknowledgment.recordedAtMs,
             reason,
         };
-        lastInteractionVisualAck = {
+        lastInteractionVisualAcknowledgment = {
             atMs: nowMs,
             ...detail,
         };
-        recordPerfEvent("input.interaction.visualAck", detail);
-        logPipelineStage({
-            channel: "renderer",
-            context: "GameCanvas",
-            stage: "interaction_visual_ack",
-            from: "Optimistic interaction state",
-            to: "Visible order or selection overlay",
-            purpose:
-                "Confirm the command or selection has reached a visible UI surface",
-            summary:
-                `requestId=${ack.requestId} kind=${ack.kind} path=${ack.path} ` +
-                `visualLagMs=${detail.visualLagMs.toFixed(3)} reason=${reason}`,
-            detail,
-        });
+
+
     }
 
     function presentInteractionVisualStateNow(): boolean {
         const { stars } = ensureInteractionCaches();
         if (stars.length === 0) return false;
         measurePerf(
-            "game.input.visualAck.present",
+            "game.input.visualAcknowledgment.present",
             () => {
                 renderInteractionOverlayNow();
             },
@@ -631,23 +605,23 @@
         return true;
     }
 
-    function tryFlushInteractionVisualAcksImmediately(): void {
-        if (pendingInteractionVisualAcks.length === 0) return;
+    function tryFlushInteractionVisualAcknowledgmentsImmediately(): void {
+        if (pendingInteractionVisualAcknowledgments.length === 0) return;
         if (!presentInteractionVisualStateNow()) return;
         for (
-            let index = pendingInteractionVisualAcks.length - 1;
+            let index = pendingInteractionVisualAcknowledgments.length - 1;
             index >= 0;
             index -= 1
         ) {
-            const ack = pendingInteractionVisualAcks[index]!;
-            if (!isInteractionVisualAckVisible(ack)) continue;
-            commitInteractionVisualAck(ack, "immediate");
-            pendingInteractionVisualAcks.splice(index, 1);
+            const acknowledgment = pendingInteractionVisualAcknowledgments[index]!;
+            if (!isInteractionVisualAcknowledgmentVisible(acknowledgment)) continue;
+            commitInteractionVisualAcknowledgment(acknowledgment, "immediate");
+            pendingInteractionVisualAcknowledgments.splice(index, 1);
         }
     }
 
-    function recordInteractionLocalAck(params: {
-        kind: InteractionVisualAckKind;
+    function recordInteractionLocalAcknowledgment(params: {
+        kind: InteractionVisualAcknowledgmentKind;
         path: string;
         sourceId?: string | null;
         targetId?: string | null;
@@ -656,7 +630,7 @@
         dispatchMode?: OrderDispatchMode;
         extra?: Record<string, unknown>;
     }): number {
-        const requestId = queueInteractionVisualAck({
+        const requestId = queueInteractionVisualAcknowledgment({
             requestId: params.requestId,
             kind: params.kind,
             path: params.path,
@@ -674,40 +648,27 @@
             dispatchMode: params.dispatchMode ?? null,
             ...(params.extra ?? {}),
         };
-        lastInteractionLocalAck = {
+        lastInteractionLocalAcknowledgment = {
             atMs: performance.now(),
             ...detail,
         };
         noteInteractivePressure(
-            "interactionLocalAck",
+            "interactionLocalAcknowledgment",
             ORDER_MUTATION_PRIORITY_WINDOW_MS,
         );
-        recordPerfEvent("input.interaction.localAck", detail);
-        logPipelineStage({
-            channel: "input",
-            context: "GameCanvas",
-            stage: "interaction_local_ack",
-            from: "Pointer handler",
-            to: "Optimistic local interaction state",
-            purpose:
-                "Acknowledge command or selection intent before heavyweight rendering catches up",
-            summary:
-                `requestId=${requestId} kind=${params.kind} path=${params.path} ` +
-                `source=${params.sourceId ?? "null"} target=${params.targetId ?? "null"} ` +
-                `active=${params.activeStarId ?? "null"}`,
-            detail,
-        });
-        tryFlushInteractionVisualAcksImmediately();
+
+
+        tryFlushInteractionVisualAcknowledgmentsImmediately();
         return requestId;
     }
 
-    function flushInteractionVisualAcks(): void {
-        if (pendingInteractionVisualAcks.length === 0) return;
-        for (let index = pendingInteractionVisualAcks.length - 1; index >= 0; index -= 1) {
-            const ack = pendingInteractionVisualAcks[index]!;
-            if (!isInteractionVisualAckVisible(ack)) continue;
-            commitInteractionVisualAck(ack, "frame");
-            pendingInteractionVisualAcks.splice(index, 1);
+    function flushInteractionVisualAcknowledgments(): void {
+        if (pendingInteractionVisualAcknowledgments.length === 0) return;
+        for (let index = pendingInteractionVisualAcknowledgments.length - 1; index >= 0; index -= 1) {
+            const acknowledgment = pendingInteractionVisualAcknowledgments[index]!;
+            if (!isInteractionVisualAcknowledgmentVisible(acknowledgment)) continue;
+            commitInteractionVisualAcknowledgment(acknowledgment, "frame");
+            pendingInteractionVisualAcknowledgments.splice(index, 1);
         }
     }
 
@@ -769,23 +730,14 @@
         );
         lastOrderQueueFlushFinishedAtMs = performance.now();
         lastOrderQueueFlushMutationCount = mutations.length;
-        recordPerfEvent("input.orderQueue.flushed", {
-            mutationCount: mutations.length,
-            kinds: mutations.map((mutation) => mutation.kind),
-            requestIds: mutations.map((mutation) => mutation.requestId),
-            queueDelayMs: lastOrderMutationQueueDelayMs,
-            flushMs:
-                lastOrderQueueFlushFinishedAtMs - lastOrderQueueFlushStartedAtMs,
-        });
+
     }
 
     function scheduleQueuedOrderMutations(): void {
         if (orderDispatchScheduled) return;
         orderDispatchScheduled = true;
         lastOrderQueueScheduleAtMs = performance.now();
-        recordPerfEvent("input.orderQueue.scheduled", {
-            mutationCount: queuedOrderMutations.length,
-        });
+
         const scheduler = getTaskScheduler();
         if (scheduler?.postTask) {
             lastOrderQueueScheduleMode = "scheduler-user-blocking";
@@ -848,20 +800,12 @@
                 },
                 { kind: mutation.kind, requestId },
             );
-            recordPerfEvent("input.orderMutation.immediate", {
-                kind: mutation.kind,
-                requestId,
-            });
+
             return requestId;
         }
         queuedOrderMutations.push(queuedMutation);
         lastOrderMutationQueuedAtMs = enqueuedAtMs;
-        recordPerfEvent("input.orderQueue.enqueued", {
-            kind: mutation.kind,
-            mutationCount: queuedOrderMutations.length,
-            requestId,
-            path: mutation.path,
-        });
+
         scheduleQueuedOrderMutations();
         return requestId;
     }
@@ -886,7 +830,7 @@
             performance.now() + durationMs,
         );
         if (kind) {
-            recordPerfEvent(`input.${kind}`, { durationMs });
+
         }
     }
 
@@ -899,7 +843,7 @@
             recentInteraction ||
             hasBrowserInputPending() ||
             queuedOrderMutations.length > 0 ||
-            pendingInteractionVisualAcks.length > 0
+            pendingInteractionVisualAcknowledgments.length > 0
         );
     }
 
@@ -909,7 +853,7 @@
             (nowMs < territoryInputPriorityUntilMs ||
                 hasBrowserInputPending() ||
                 queuedOrderMutations.length > 0 ||
-                pendingInteractionVisualAcks.length > 0)
+                pendingInteractionVisualAcknowledgments.length > 0)
         );
     }
 
@@ -972,17 +916,7 @@
             "renderInputYield",
             ORDER_MUTATION_PRIORITY_WINDOW_MS,
         );
-        recordPerfEvent("game.renderFrame.inputYield", {
-            stage,
-            reason: yieldState.reason,
-            elapsedMs: yieldState.elapsedMs,
-            queuedOrderMutations: queuedOrderMutations.length,
-            pendingInteractionVisualAcks: pendingInteractionVisualAcks.length,
-            activePointers: activePointers.size,
-            isDragging,
-            isPanning,
-            isPinching,
-        });
+
         return true;
     }
 
@@ -1024,28 +958,8 @@
         staleMs: number;
     }): void {
         if (!shipRenderDeferralActive) return;
-        recordPerfEvent("game.ships.defer.stop", {
-            deferredFrames: deferredShipRenderFrameCount,
-            cadenceSkips: shipRenderCadenceSkipCount,
-            lastShipRenderCostMs,
-            reason: deferredShipRenderReason,
-            cadenceMs: shipScheduler.cadenceMs,
-            staleMs: shipScheduler.staleMs,
-        });
-        logPipelineStage({
-            channel: "input",
-            context: "GameCanvas",
-            stage: "ship_render_defer_stop",
-            from: "Ship render scheduler",
-            to: "Normal ship cadence",
-            purpose:
-                "Resume heavier ship rendering after interaction pressure subsides",
-            summary:
-                `deferredFrames=${deferredShipRenderFrameCount} ` +
-                `cadenceSkips=${shipRenderCadenceSkipCount} ` +
-                `reason=${deferredShipRenderReason} ` +
-                `lastShipRenderMs=${lastShipRenderCostMs.toFixed(3)}`,
-        });
+
+
         shipRenderDeferralActive = false;
         deferredShipRenderFrameCount = 0;
         shipRenderCadenceSkipCount = 0;
@@ -1082,26 +996,8 @@
             if (!shipRenderDeferralActive) {
                 shipRenderDeferralActive = true;
                 deferredShipRenderReason = shipScheduler.reason;
-                recordPerfEvent("game.ships.defer.start", {
-                    lastShipRenderCostMs,
-                    reason: shipScheduler.reason,
-                    cadenceMs: shipScheduler.cadenceMs,
-                    staleMs: shipScheduler.staleMs,
-                });
-                logPipelineStage({
-                    channel: "input",
-                    context: "GameCanvas",
-                    stage: "ship_render_defer_start",
-                    from: "Input pressure window",
-                    to: "Ship render scheduler",
-                    purpose:
-                        "Prioritize command input and camera interaction over heavy ship rendering",
-                    summary:
-                        `reason=${shipScheduler.reason} ` +
-                        `lastShipRenderMs=${lastShipRenderCostMs.toFixed(3)} ` +
-                        `cadenceMs=${shipScheduler.cadenceMs} ` +
-                        `staleMs=${shipScheduler.staleMs.toFixed(3)}`,
-                });
+
+
             }
             return false;
         }
@@ -1158,26 +1054,7 @@
         lastShipRenderReason = rescueShipCadence
             ? `yield_rescue:${shipScheduler.reason}`
             : shipScheduler.reason;
-        logPipelineStage({
-            channel: "renderer",
-            context: "GameCanvas",
-            stage: "ships_present",
-            from: "Visual ship state + travel animation snapshot",
-            to: "Pixi ship, glow, orb, and particle layers",
-            purpose:
-                "Project orbital, damaged, and traveling ships into the visible fleet presentation layers",
-            summary:
-                `${summarizeStars(params.stars)} ` +
-                `traveling=${shipState.travelingShips.length} ` +
-                `pendingConquests=${shipState.pendingConquests.size}`,
-            perfEventName: "game.renderFrame.shipsPresent",
-            perfDetail: {
-                travelingShips: shipState.travelingShips.length,
-                pendingConquests: shipState.pendingConquests.size,
-                context: params.context,
-                reason: lastShipRenderReason,
-            },
-        });
+
 
         measurePerf("game.renderFrame.shipParticleUpdate", () => {
             for (let i = shipParticleIndex; i < shipParticlePool.length; i++) {
@@ -2019,17 +1896,7 @@
                 })) ?? [],
             virtualStars: [],
         };
-        logPipelineStage({
-            channel: "state",
-            context: "GameCanvas",
-            stage: "ownership_snapshot",
-            from: "Active stars + transition overlay",
-            to: "Render-family ownership snapshot",
-            purpose: "Provide ownership state for family geometry and scene builders",
-            summary:
-                `${summarizeStars(stars)} ${summarizeOwnership(snapshot)}`,
-            perfEventName: "game.renderFrame.ownershipSnapshot",
-        });
+
         return snapshot;
     }
 
@@ -2724,18 +2591,7 @@
                 configSource: source,
             });
             renderFamilyGeometryCacheKey = key;
-            logPipelineStage({
-                channel: "renderer",
-                context: "GameCanvas",
-                stage: "geometry_cache_refresh",
-                from: "Stars + lane topology",
-                to: "Cached render-family geometry",
-                purpose: "Refresh geometry only when world topology or ownership changes",
-                summary:
-                    `${summarizeStars(stars)} ${summarizeConnections(lanes)} ` +
-                    summarizeGeometry(renderFamilyGeometryCache),
-                perfEventName: "game.renderFrame.geometryCacheRefresh",
-            });
+
         }
         return renderFamilyGeometryCache;
     }
@@ -2817,12 +2673,7 @@
                 transitionDiagnosticPrevKey = key;
                 transitionDiagnosticPrevGeometry = renderFamilyStableGeometry;
                 transitionDiagnosticPrevOwnership = renderFamilyStableOwnership;
-                recordPerfEvent("territory.renderFamily.prevFrame", {
-                    source: "presented_frame_cache",
-                    transitionKey: key,
-                    geometryVersion: renderFamilyStableGeometry.version,
-                    ownershipVersion: renderFamilyStableOwnership.version,
-                });
+
             } else {
                 const revertedStars = revertStarsForTransitionDiagnostic(
                     params.activeTransition,
@@ -2851,12 +2702,7 @@
                 transitionDiagnosticPrevKey = key;
                 transitionDiagnosticPrevGeometry = geometry;
                 transitionDiagnosticPrevOwnership = ownership;
-                recordPerfEvent("territory.renderFamily.prevFrame", {
-                    source: "transition_rebuild",
-                    transitionKey: key,
-                    geometryVersion: geometry.version,
-                    ownershipVersion: ownership.version,
-                });
+
             }
         }
         return {
@@ -4663,8 +4509,8 @@
         if (queuedOrderMutations.length > 0) {
             return { active: true, reason: "queued_orders" };
         }
-        if (pendingInteractionVisualAcks.length > 0) {
-            return { active: true, reason: "pending_visual_ack" };
+        if (pendingInteractionVisualAcknowledgments.length > 0) {
+            return { active: true, reason: "pending_visual_acknowledgment" };
         }
         return { active: false, reason: "ready" };
     }
@@ -4739,35 +4585,8 @@
                     territoryPresentationLastYieldAgeMs = decision.requestAgeMs;
                     territoryPresentationLastYieldRequestId = request.requestId;
                     territoryPresentationLastYieldReason = decision.reason;
-                    recordPerfEvent("game.territory.async.yield", {
-                        requestId: request.requestId,
-                        activeMode: request.activeMode,
-                        requestAgeMs: decision.requestAgeMs,
-                        reason: decision.reason,
-                        queuedOrderMutations: queuedOrderMutations.length,
-                        pendingVisualAcks: pendingInteractionVisualAcks.length,
-                    });
-                    logPipelineStage({
-                        channel: "input",
-                        context: "GameCanvas",
-                        stage: "territory_async_yield",
-                        from: "Territory presentation queue",
-                        to: "Delayed async territory retry",
-                        purpose:
-                            "Keep heavy territory presentation off the current main-thread turn while input pressure is active",
-                        summary:
-                            `requestId=${request.requestId} mode=${request.activeMode} ` +
-                            `reason=${decision.reason} ageMs=${decision.requestAgeMs.toFixed(3)}`,
-                        detail: {
-                            requestId: request.requestId,
-                            activeMode: request.activeMode,
-                            requestAgeMs: decision.requestAgeMs,
-                            reason: decision.reason,
-                            queuedOrderMutations: queuedOrderMutations.length,
-                            pendingVisualAcks:
-                                pendingInteractionVisualAcks.length,
-                        },
-                    });
+
+
                     scheduleTerritoryPresentationQueueDelay(
                         TERRITORY_ASYNC_REQUEUE_DELAY_MS,
                     );
@@ -4781,25 +4600,8 @@
                 if (decision.forced) {
                     territoryPresentationForcedCount += 1;
                 }
-                recordPerfEvent("game.territory.async.start", {
-                    requestId: request.requestId,
-                    activeMode: request.activeMode,
-                    queueWaitMs: territoryPresentationLastQueueWaitMs,
-                    cadenceMs: request.territoryScheduler.cadenceMs,
-                    staleMs: request.territoryScheduler.staleMs,
-                });
-                logPipelineStage({
-                    channel: "input",
-                    context: "GameCanvas",
-                    stage: "territory_async_start",
-                    from: "Territory presentation queue",
-                    to: "Territory renderer commit",
-                    purpose:
-                        "Run heavy territory presentation work outside the pointer-handling turn",
-                    summary:
-                        `requestId=${request.requestId} mode=${request.activeMode} ` +
-                        `queueWaitMs=${territoryPresentationLastQueueWaitMs.toFixed(3)}`,
-                });
+
+
                 runTerritoryUpdate(
                     `game.renderFrame.territory.${request.activeMode}`,
                     () => {
@@ -4816,35 +4618,8 @@
                 territoryPresentationLastCommitLagMs =
                     territoryPresentationLastFinishedAtMs - request.enqueuedAtMs;
                 territoryPresentationCompletedCount += 1;
-                recordPerfEvent("game.territory.async.finish", {
-                    requestId: request.requestId,
-                    activeMode: request.activeMode,
-                    queueWaitMs: territoryPresentationLastQueueWaitMs,
-                    commitLagMs: territoryPresentationLastCommitLagMs,
-                    lastTerritoryUpdateCostMs,
-                    supersededCount: territoryPresentationSupersededCount,
-                });
-                logPipelineStage({
-                    channel: "renderer",
-                    context: "GameCanvas",
-                    stage: "territory_async_finish",
-                    from: "Territory renderer commit",
-                    to: "Visible territory layer",
-                    purpose:
-                        "Record the final async territory presentation cost and commit lag for the current render mode",
-                    summary:
-                        `requestId=${request.requestId} mode=${request.activeMode} ` +
-                        `commitLagMs=${territoryPresentationLastCommitLagMs.toFixed(3)} ` +
-                        `updateMs=${lastTerritoryUpdateCostMs.toFixed(3)}`,
-                    detail: {
-                        requestId: request.requestId,
-                        activeMode: request.activeMode,
-                        queueWaitMs: territoryPresentationLastQueueWaitMs,
-                        commitLagMs: territoryPresentationLastCommitLagMs,
-                        lastTerritoryUpdateCostMs,
-                        supersededCount: territoryPresentationSupersededCount,
-                    },
-                });
+
+
             }
         } finally {
             territoryPresentationRunning = false;
@@ -4886,88 +4661,19 @@
             territoryPresentationPendingRequest.signature === nextRequest.signature
         ) {
             territoryPresentationDedupedCount += 1;
-            recordPerfEvent("game.territory.async.deduped", {
-                pendingRequestId: territoryPresentationPendingRequest.requestId,
-                activeMode: nextRequest.activeMode,
-            });
-            logPipelineStage({
-                channel: "input",
-                context: "GameCanvas",
-                stage: "territory_async_deduped",
-                from: "Queued territory request",
-                to: "Existing territory request",
-                purpose:
-                    "Keep one pending territory presentation for the same semantic scene state instead of churning identical replacements",
-                summary:
-                    `pending=${territoryPresentationPendingRequest.requestId} ` +
-                    `mode=${nextRequest.activeMode}`,
-                detail: {
-                    pendingRequestId: territoryPresentationPendingRequest.requestId,
-                    activeMode: nextRequest.activeMode,
-                    cadenceMs: request.territoryScheduler.cadenceMs,
-                    staleMs: request.territoryScheduler.staleMs,
-                    reason: request.territoryScheduler.reason,
-                },
-            });
+
+
             return;
         }
         territoryPresentationRequestSeq = nextRequest.requestId;
         territoryPresentationLastQueuedAtMs = nextRequest.enqueuedAtMs;
         if (territoryPresentationPendingRequest) {
             territoryPresentationSupersededCount += 1;
-            recordPerfEvent("game.territory.async.replaced", {
-                replacedRequestId: territoryPresentationPendingRequest.requestId,
-                nextRequestId: nextRequest.requestId,
-                activeMode: nextRequest.activeMode,
-            });
-            logPipelineStage({
-                channel: "input",
-                context: "GameCanvas",
-                stage: "territory_async_replace",
-                from: "Queued territory request",
-                to: "Newer territory request",
-                purpose:
-                    "Replace an older queued territory presentation with a fresher scene snapshot",
-                summary:
-                    `replaced=${territoryPresentationPendingRequest.requestId} ` +
-                    `next=${nextRequest.requestId} mode=${nextRequest.activeMode}`,
-                detail: {
-                    replacedRequestId:
-                        territoryPresentationPendingRequest.requestId,
-                    nextRequestId: nextRequest.requestId,
-                    activeMode: nextRequest.activeMode,
-                    cadenceMs: request.territoryScheduler.cadenceMs,
-                    staleMs: request.territoryScheduler.staleMs,
-                    reason: request.territoryScheduler.reason,
-                },
-            });
+
+
         } else {
-            recordPerfEvent("game.territory.async.queued", {
-                requestId: nextRequest.requestId,
-                activeMode: nextRequest.activeMode,
-                cadenceMs: request.territoryScheduler.cadenceMs,
-                staleMs: request.territoryScheduler.staleMs,
-            });
-            logPipelineStage({
-                channel: "input",
-                context: "GameCanvas",
-                stage: "territory_async_queue",
-                from: "Render-frame territory request",
-                to: "Territory presentation queue",
-                purpose:
-                    "Queue heavy territory presentation so input and order mutation work can stay responsive",
-                summary:
-                    `requestId=${nextRequest.requestId} mode=${nextRequest.activeMode} ` +
-                    `cadenceMs=${request.territoryScheduler.cadenceMs} ` +
-                    `staleMs=${request.territoryScheduler.staleMs.toFixed(3)}`,
-                detail: {
-                    requestId: nextRequest.requestId,
-                    activeMode: nextRequest.activeMode,
-                    cadenceMs: request.territoryScheduler.cadenceMs,
-                    staleMs: request.territoryScheduler.staleMs,
-                    reason: request.territoryScheduler.reason,
-                },
-            });
+
+
         }
         territoryPresentationPendingRequest = nextRequest;
         scheduleTerritoryPresentationQueue();
@@ -4999,25 +4705,7 @@
         if (!rendered) {
             return;
         }
-        logPipelineStage({
-            channel: "renderer",
-            context: "GameCanvas",
-            stage: "interaction_overlay_present",
-            from: "Confirmed + optimistic order state",
-            to: "2D interaction overlay canvas",
-            purpose:
-                "Project active orders, selection, and drag intent into a lightweight overlay that can update independently of the Pixi scene",
-            summary:
-                `pending=${pendingOrders.size} deferred=${deferredOrders.size} ` +
-                summarizeStars(stars),
-            perfEventName: "game.renderFrame.interactionOverlayPresent",
-            perfDetail: {
-                pendingOrders: pendingOrders.size,
-                deferredOrders: deferredOrders.size,
-                activeStarId,
-                dragSourceId,
-            },
-        });
+
     }
 
     function finalizeRenderFrame(params: {
@@ -5027,7 +4715,7 @@
         if (!params.interactionOverlayPresented) {
             presentInteractionOverlayFrame(params.stars);
         }
-        flushInteractionVisualAcks();
+        flushInteractionVisualAcknowledgments();
         fpsFrameCount++;
         const now = performance.now();
         if (now - fpsLastTime >= 1000) {
@@ -5274,49 +4962,13 @@
                     if (!territoryDeferralActive) {
                         territoryDeferralActive = true;
                         deferredTerritoryReason = territoryScheduler.reason;
-                        recordPerfEvent("game.territory.defer.start", {
-                            lastTerritoryUpdateCostMs,
-                            reason: territoryScheduler.reason,
-                            cadenceMs: territoryScheduler.cadenceMs,
-                            staleMs: territoryScheduler.staleMs,
-                        });
-                        logPipelineStage({
-                            channel: "input",
-                            context: "GameCanvas",
-                            stage: "territory_defer_start",
-                            from: "Input pressure window",
-                            to: "Territory renderer scheduler",
-                            purpose: "Prioritize order input and camera interaction over heavy territory updates",
-                            summary:
-                                `reason=${territoryScheduler.reason} ` +
-                                `lastTerritoryUpdateMs=${lastTerritoryUpdateCostMs.toFixed(3)} ` +
-                                `cadenceMs=${territoryScheduler.cadenceMs} ` +
-                                `staleMs=${territoryScheduler.staleMs.toFixed(3)}`,
-                        });
+
+
                     }
                 } else {
                     if (territoryDeferralActive) {
-                        recordPerfEvent("game.territory.defer.stop", {
-                            deferredFrames: deferredTerritoryFrameCount,
-                            cadenceSkips: territoryCadenceSkipCount,
-                            lastTerritoryUpdateCostMs,
-                            reason: deferredTerritoryReason,
-                            cadenceMs: territoryScheduler.cadenceMs,
-                            staleMs: territoryScheduler.staleMs,
-                        });
-                        logPipelineStage({
-                            channel: "input",
-                            context: "GameCanvas",
-                            stage: "territory_defer_stop",
-                            from: "Territory renderer scheduler",
-                            to: "Normal territory cadence",
-                            purpose: "Resume heavier territory updates after interactive pressure subsides",
-                            summary:
-                                `deferredFrames=${deferredTerritoryFrameCount} ` +
-                                `cadenceSkips=${territoryCadenceSkipCount} ` +
-                                `reason=${deferredTerritoryReason} ` +
-                                `lastTerritoryUpdateMs=${lastTerritoryUpdateCostMs.toFixed(3)}`,
-                        });
+
+
                         territoryDeferralActive = false;
                         deferredTerritoryFrameCount = 0;
                         territoryCadenceSkipCount = 0;
@@ -5332,12 +4984,7 @@
                         territoryScheduler,
                         run: () => {
             territoryLastMode = activeTerritoryMode;
-            recordPerfEvent("game.territory.schedule.run", {
-                mode: activeTerritoryMode,
-                cadenceMs: territoryScheduler.cadenceMs,
-                staleMs: territoryScheduler.staleMs,
-                lastTerritoryUpdateCostMs,
-            });
+
 
             // Hide all children first — only the active renderer will re-show its own
             const activeVoronoiContainer = voronoiContainer!;
@@ -6536,25 +6183,7 @@
                     colorUtils,
                 );
             });
-            logPipelineStage({
-                channel: "renderer",
-                context: "GameCanvas",
-                stage: "stars_present",
-                from: "Star state snapshot",
-                to: "Pixi star + label layers",
-                purpose:
-                    "Project star ownership, ship counts, and conquest effects into visible star sprites",
-                summary: summarizeStars(stars),
-                perfEventName: "game.renderFrame.starsPresent",
-                perfDetail: {
-                    activeStarId,
-                    dragSourceId,
-                    pendingConquests: pendingConquests.size,
-                    cadenceMs: starsScheduler.cadenceMs,
-                    staleMs: starsScheduler.staleMs,
-                    reason: starsScheduler.reason,
-                },
-            });
+
         }
 
         if (shouldYieldRenderFrameForInput(frameStartedAtMs, "after_stars")) {
@@ -6597,23 +6226,7 @@
                         );
                     },
                 );
-                logPipelineStage({
-                    channel: "renderer",
-                    context: "GameCanvas",
-                    stage: "connections_present",
-                    from: "Lane topology snapshot",
-                    to: "Pixi connection graphics",
-                    purpose:
-                        "Project stable connection truth into the visible lane network layer",
-                    summary: summarizeConnections(connections),
-                    perfEventName: "game.renderFrame.connectionsPresent",
-                    perfDetail: {
-                        connectionCount: connections.length,
-                        cadenceMs: connectionsScheduler.cadenceMs,
-                        staleMs: connectionsScheduler.staleMs,
-                        reason: connectionsScheduler.reason,
-                        },
-                    });
+
                 }
             }
         }
@@ -6985,15 +6598,15 @@
             lastOrderQueueFlushKinds,
             lastOrderQueueFlushRequestIds,
             lastOrderQueueScheduleMode,
-            pendingInteractionVisualAckCount: pendingInteractionVisualAcks.length,
-            pendingInteractionVisualAcks: pendingInteractionVisualAcks.map(
-                (ack) => ({
-                    ...ack,
-                    ageMs: performance.now() - ack.recordedAtMs,
+            pendingInteractionVisualAcknowledgmentCount: pendingInteractionVisualAcknowledgments.length,
+            pendingInteractionVisualAcknowledgments: pendingInteractionVisualAcknowledgments.map(
+                (acknowledgment) => ({
+                    ...acknowledgment,
+                    ageMs: performance.now() - acknowledgment.recordedAtMs,
                 }),
             ),
-            lastInteractionLocalAck,
-            lastInteractionVisualAck,
+            lastInteractionLocalAcknowledgment,
+            lastInteractionVisualAcknowledgment,
             territoryPresentationScheduled,
             territoryPresentationRunning,
             territoryPresentationPostedCount,
@@ -7310,7 +6923,7 @@
         }
 
         const measurement = buildRulerMeasurement(start, end, {
-            laneMarginPx: GAME_CONFIG.MAPGEN_LANE_MARGIN_PX,
+            laneMarginPx: resolveEffectiveLaneMarginPx(GAME_CONFIG),
             starPairLabel,
             relatedLaneKey,
             relatedLaneLabel,
@@ -7561,7 +7174,7 @@
         if (event.button === 2) {
             event.preventDefault();
             if (star && isLocalPlayerStar(star)) {
-                // Queue the gameplay mutation so the optimistic cancel ack is not
+                // Queue the gameplay mutation so the optimistic cancel acknowledgment is not
                 // blocked behind synchronous store/reactivity work on the input task.
                 const requestId = doCancelOrder(
                     star.id,
@@ -7570,7 +7183,7 @@
                 );
                 // OPTIMISTIC UI: Remove from pending immediately
                 removeQueuedOrderEntriesFromSource(star.id, pendingOrders);
-                recordInteractionLocalAck({
+                recordInteractionLocalAcknowledgment({
                     kind: "cancel",
                     path: "pointerdown.rightclick",
                     sourceId: star.id,
@@ -7582,7 +7195,7 @@
             }
             // Also clear selection
             activeStarId = null;
-            recordInteractionLocalAck({
+            recordInteractionLocalAcknowledgment({
                 kind: "clear",
                 path: "pointerdown.rightclick",
                 sourceId: star?.id ?? null,
@@ -7742,7 +7355,7 @@
                     );
                     if (success) {
                         addPendingOrder(dragSourceId, targetStar.id);
-                        recordInteractionLocalAck({
+                        recordInteractionLocalAcknowledgment({
                             kind: "issue",
                             path: "pointermove.dragThrough",
                             sourceId: dragSourceId,
@@ -7784,7 +7397,7 @@
                     if (success) {
                         // Add visual indicator for deferred order (dashed line)
                         addPendingOrder(dragSourceId, targetStar.id, true); // true = deferred
-                        recordInteractionLocalAck({
+                        recordInteractionLocalAcknowledgment({
                             kind: "defer",
                             path: "pointermove.dragThrough",
                             sourceId: dragSourceId,
@@ -7865,7 +7478,7 @@
                         "pointerup.doubletap",
                     );
                     removeQueuedOrderEntriesFromSource(star.id, pendingOrders);
-                    recordInteractionLocalAck({
+                    recordInteractionLocalAcknowledgment({
                         kind: "cancel",
                         path: "pointerup.doubletap",
                         sourceId: star.id,
@@ -7947,7 +7560,7 @@
                     if (success) {
                         // OPTIMISTIC UI: Add immediately for instant arrow display
                         addPendingOrder(dragSourceId, targetStar.id);
-                        recordInteractionLocalAck({
+                        recordInteractionLocalAcknowledgment({
                             kind: "issue",
                             path: "pointerup.drag",
                             sourceId: dragSourceId,
@@ -8001,7 +7614,7 @@
             // Case 1: Clicked same star -> TOGGLE (deselect)
             if (activeStarId === targetStar.id) {
                 activeStarId = null;
-                recordInteractionLocalAck({
+                recordInteractionLocalAcknowledgment({
                     kind: "select",
                     path: "pointerup.click.toggle",
                     targetId: targetStar.id,
@@ -8045,7 +7658,7 @@
                         );
                         if (success) {
                             addPendingOrder(activeStarId, targetStar.id);
-                            recordInteractionLocalAck({
+                            recordInteractionLocalAcknowledgment({
                                 kind: "issue",
                                 path: "pointerup.click",
                                 sourceId: activeStarId,
@@ -8081,7 +7694,7 @@
                         );
                         if (success) {
                             addPendingOrder(activeStarId, targetStar.id, true);
-                            recordInteractionLocalAck({
+                            recordInteractionLocalAcknowledgment({
                                 kind: "defer",
                                 path: "pointerup.click",
                                 sourceId: activeStarId,
@@ -8129,7 +7742,7 @@
 
                 // Always select the new star (whether order was issued or not)
                 activeStarId = targetStar.id;
-                recordInteractionLocalAck({
+                recordInteractionLocalAcknowledgment({
                     kind: "select",
                     path: "pointerup.click.handoff",
                     targetId: targetStar.id,
@@ -8148,7 +7761,7 @@
             // Case 3: No prior selection -> just select
             else {
                 activeStarId = targetStar.id;
-                recordInteractionLocalAck({
+                recordInteractionLocalAcknowledgment({
                     kind: "select",
                     path: "pointerup.click.new",
                     targetId: targetStar.id,
@@ -8208,7 +7821,7 @@
                 "contextmenu.rightclick",
             );
             removeQueuedOrderEntriesFromSource(star.id, pendingOrders);
-            recordInteractionLocalAck({
+            recordInteractionLocalAcknowledgment({
                 kind: "cancel",
                 path: "contextmenu.rightclick",
                 sourceId: star.id,
@@ -8233,7 +7846,7 @@
             // Right-click on enemy star - cancel any deferred order
             if (hasQueuedOrderEntryForSource(star.id)) {
                 removeQueuedOrderEntriesFromSource(star.id, deferredOrders);
-                recordInteractionLocalAck({
+                recordInteractionLocalAcknowledgment({
                     kind: "cancel",
                     path: "contextmenu.defer_cancel",
                     sourceId: star.id,
@@ -8259,7 +7872,7 @@
     function clearSelection() {
         activeStarId = null;
         cancelDrag();
-        recordInteractionLocalAck({
+        recordInteractionLocalAcknowledgment({
             kind: "clear",
             path: "selection.clear",
             activeStarId: null,

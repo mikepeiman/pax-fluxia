@@ -1,4 +1,4 @@
-import { logPipelineStage, summarizeScene } from '$lib/perf/pipelineTelemetry';
+
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 import type { MetaballSceneInput } from '$lib/renderers/MetaballRenderer';
 import type { RenderFamilyInput } from '../RenderFamilyTypes';
@@ -84,33 +84,7 @@ export function buildMetaballStaticScene(
             baseContext.clusterShips,
         ),
     };
-    logPipelineStage({
-        channel: 'renderer',
-        context: 'MetaballScene',
-        stage: 'static_scene',
-        from: 'Metaball base context',
-        to: 'Cached static scene',
-        purpose: 'Freeze stable owned-star and corridor sample field',
-        summary: summarizeScene({
-            staticSamples: staticScene.staticSamples,
-            dynamicSamples: [],
-            samples: staticScene.staticSamples,
-            sceneFingerprint: staticScene.staticFingerprint,
-            ownedStars: staticScene.baseContext.ownedStars,
-            clusterShips: staticScene.baseContext.clusterShips,
-        }),
-        perfEventName: 'territory.metaball.staticSceneBuilt',
-        perfDetail: {
-            staticSampleCount: staticScene.staticSamples.length,
-            ownedStarCount: staticScene.baseContext.ownedStars.length,
-            clusterCount: staticScene.baseContext.clusterMap.size,
-        },
-        logDetail: {
-            baseContext: staticScene.baseContext,
-            staticSamples: staticScene.staticSamples,
-            staticFingerprint: staticScene.staticFingerprint,
-        },
-    });
+
     return staticScene;
 }
 
@@ -173,37 +147,6 @@ export function buildMetaballScene(
         sceneFingerprint: `${resolvedStaticScene.staticFingerprint}::${dynamicFingerprint}`,
         fingerprint: `${resolvedStaticScene.staticFingerprint}::${dynamicFingerprint}`,
     };
-    logPipelineStage({
-        channel: 'renderer',
-        context: 'MetaballScene',
-        stage: 'scene_build',
-        from: 'Static scene + transition deltas',
-        to: 'MetaballSceneInput',
-        purpose: 'Assemble renderer-ready sample field for metaball grid solve',
-        summary: summarizeScene(sceneInput),
-        perfEventName: 'territory.metaball.sceneBuilt',
-        perfDetail: {
-            staticSampleCount: sceneInput.staticSamples.length,
-            dynamicSampleCount: sceneInput.dynamicSamples.length,
-            sampleCount: sceneInput.samples.length,
-        },
-        logDetail: {
-            staticFingerprint: sceneInput.staticFingerprint,
-            dynamicFingerprint: sceneInput.dynamicFingerprint,
-            sceneFingerprint: sceneInput.sceneFingerprint,
-            ownedStars: sceneInput.ownedStars,
-            clusterMap: Object.fromEntries(
-                [...sceneInput.clusterMap.entries()].map(([starId, cluster]) => [
-                    starId,
-                    cluster,
-                ]),
-            ),
-            playerColors: sceneInput.playerColors,
-            clusterShips: sceneInput.clusterShips,
-            staticSamples: sceneInput.staticSamples,
-            dynamicSamples: sceneInput.dynamicSamples,
-            samples: sceneInput.samples,
-        },
-    });
+
     return sceneInput;
 }

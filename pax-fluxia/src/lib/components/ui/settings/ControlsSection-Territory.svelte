@@ -1311,19 +1311,19 @@
   <!-- MSR — Minimum Star Region -->
   <div
     class="var-row"
-    title="Sets the target minimum frontier distance around owned stars. This value shapes territory geometry upstream and also acts as the fallback lane margin when dedicated lane margin is disabled.">
+    title="Sets the target minimum frontier distance around owned stars. This value shapes territory geometry only; lane margin is a separate map-layout/editor control.">
     <div class="row-top">
       <span class="var-name">Minimum Star Margin</span><span class="val"
         >{panel.starMargin ??
           GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ??
-          45}px</span>
+          0}px</span>
     </div>
     <input
       type="range"
       min={topologyLimits.starMargin.min}
       max={topologyLimits.starMargin.max}
       step="5"
-      value={panel.starMargin ?? GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45}
+      value={panel.starMargin ?? GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 0}
       oninput={(e) => {
         const v = +(e.target as HTMLInputElement).value;
         queueTopologySliderUpdate(

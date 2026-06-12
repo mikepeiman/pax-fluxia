@@ -50,7 +50,7 @@
 
 | Term | Definition |
 |------|-----------|
-| **Lane Margin** | Distance from the center of a non-endpoint star to the nearest point on a lane |
+| **Lane Margin** | Optional map-layout/editor clearance: distance from the center of a non-endpoint star to the nearest point on a lane |
 | **Straight Line** | The direct line between two connected stars |
 | **Adjusted Lane** | A lane whose geometry changed to satisfy lane margin while preserving the same connection |
 | **Connectivity Restore** | An explicit connection added only when the feasible graph would otherwise be disconnected |
@@ -78,7 +78,7 @@
 - **Implementation:** `src/lib/territory/disconnect/buildDisconnectVirtualSites.ts` L1-229+.
 
 ### MSR — Minimum Star Range
-- **Expansion:** *margin around a star within which lanes that do not originate at that star should not pass.*
-- **Current implementation:** power-diagram site-weight term (`MODIFIED_VORONOI_STAR_MARGIN`, internally squared) in `powerVoronoiTerritoryGeometryGenerator.ts` L110-125. Not a hard "push geometry inward" stage — a weighting nudge. Can feel weak or ambiguous rather than presenting as a clean visible moat.
-- **Semantics vs. implementation gap:** the *correct* semantic is a constraint on lane routing: lanes whose endpoints are neither endpoint of a given star must stay outside that star's MSR. A lane-level enforcement filter in `src/lib/lanes/**` is currently **missing**. The power-diagram weighting is the only MSR effect today.
-- **Moat clarification:** the visible "moat" around stars at high MSR values is a side effect of the weighting scheme (uncovered regions in the power-diagram), not a requested feature. The fallback in `buildGridClassification.ts` L63-88 (`resolveOwnerByNearestStar` + `coverageRadiusPxSq`) exists to mask it by attributing uncovered cells to the nearest owned star.
+- **Expansion:** *territory/frontier breathing room around owned stars.*
+- **Current implementation:** power-diagram site-weight term (`MODIFIED_VORONOI_STAR_MARGIN`, internally squared) in `powerVoronoiTerritoryGeometryGenerator.ts` L110-125 plus explicit post-solve minimum-star-margin cleanup in the resolved geometry path.
+- **Not lane routing:** MSR no longer acts as lane margin fallback and must not trigger gameplay lane rerouting. Lane Margin is a separate map-layout/editor control.
+- **Default:** `MODIFIED_VORONOI_STAR_MARGIN = 0`; MSR is inactive unless explicitly tuned.

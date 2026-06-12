@@ -534,6 +534,7 @@ const SCOPE_LABEL_META: LabelScopeMap = {
             key: 'TERRITORY_FRONTIER_FX_APPLY_TRANSITION',
         },
         'Use dedicated lane margin': { key: 'MAPGEN_LANE_MARGIN_ENABLED' },
+        'Use lane margin': { key: 'MAPGEN_LANE_MARGIN_ENABLED' },
         'Lane margin (mapgen)': { key: 'MAPGEN_LANE_MARGIN_PX' },
         'Cell size (px)': { key: 'METABALL_CELL_SIZE' },
         'Influence radius': { key: 'METABALL_INFLUENCE_RADIUS' },
@@ -642,6 +643,9 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         },
         'MSR (territory boundaries)': { key: 'MODIFIED_VORONOI_STAR_MARGIN' },
         'Use dedicated lane margin': {
+            key: 'MAPGEN_LANE_MARGIN_ENABLED',
+        },
+        'Use lane margin': {
             key: 'MAPGEN_LANE_MARGIN_ENABLED',
         },
         'Lane margin (mapgen)': { key: 'MAPGEN_LANE_MARGIN_PX' },

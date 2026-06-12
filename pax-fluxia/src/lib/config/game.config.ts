@@ -333,7 +333,8 @@ interface GameConfigType {
     SHOW_CONNECTIONS: boolean;
     /**
      * Minimum distance (px) from mapgen lane chords / sampled centerlines to non-endpoint stars.
-     * Drives Delaunay pass-through prune and curved-lane solver only — **not** territory MSR.
+     * Drives Delaunay pass-through prune and curved-lane solver only when enabled.
+     * Independent from territory MSR; defaults inactive.
      */
     MAPGEN_LANE_MARGIN_ENABLED: boolean;
     MAPGEN_LANE_MARGIN_PX: number;
@@ -546,7 +547,7 @@ interface GameConfigType {
     DF_DISCONNECT_WEIGHT: number;   // Disconnect influence weight multiplier (default 0.3)
 
     // ── Modified Voronoi Territory (F-138) ────────────────────────────────────
-    MODIFIED_VORONOI_STAR_MARGIN: number;      // Territory/frontier breathing room around owned stars (px, 0–500); also becomes fallback lane margin when dedicated lane margin is disabled
+    MODIFIED_VORONOI_STAR_MARGIN: number;      // Territory/frontier breathing room around owned stars (px, 0-500); independent from lane margin
     TERRITORY_MSR_STAR_BIAS: number;           // Optional advanced solve-time star resistance against corridor / lane-pair / disconnect shaping (0.0-2.0, default 0.0)
     TERRITORY_MSR_STAR_POWER_ENABLED: boolean; // Legacy compatibility only; replaced in surfaced UI by TERRITORY_MSR_STAR_BIAS
     TERRITORY_MSR_STAR_POWER_MODE: string;     // Legacy compatibility only; old MSR star-power conversion mode ('linear'|'squared'|'exponent')
@@ -789,6 +790,9 @@ function loadSavedConfig(): Partial<GameConfigType> {
                 const buf = Number(o.MAPGEN_LANE_BUFFER_PX) || 30;
                 const msr = Number(o.MODIFIED_VORONOI_STAR_MARGIN) || 45;
                 o.MAPGEN_LANE_MARGIN_PX = msr + buf;
+                if (!('MAPGEN_LANE_MARGIN_ENABLED' in o)) {
+                    o.MAPGEN_LANE_MARGIN_ENABLED = true;
+                }
                 delete o.MAPGEN_LANE_BUFFER_PX;
             }
             if ('PERIMETER_FIELD_GEOMETRY_SOURCE' in o) {

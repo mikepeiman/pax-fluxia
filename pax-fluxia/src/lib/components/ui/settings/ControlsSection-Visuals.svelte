@@ -1,7 +1,6 @@
 <script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { resolveEffectiveLaneMarginPx } from "$lib/lanes/laneMargin";
-    import { gameStore } from "$lib/stores/gameStore.svelte";
 
     // ControlsSection-VISUALS — In-Game Settings Controls: Map & Grid
     // Extracted from GameSettingsPanel.svelte
@@ -34,7 +33,7 @@
     let laneMarginEnabled = $derived(
         (panel.mapgenLaneMarginEnabled ??
             mapConfig.MAPGEN_LANE_MARGIN_ENABLED ??
-            true) as boolean,
+            false) as boolean,
     );
     let effectiveLaneMarginPx = $derived(
         resolveEffectiveLaneMarginPx({
@@ -42,11 +41,7 @@
             MAPGEN_LANE_MARGIN_PX:
                 panel.mapgenLaneMarginPx ??
                 GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ??
-                75,
-            MODIFIED_VORONOI_STAR_MARGIN:
-                panel.starMargin ??
-                GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ??
-                45,
+                0,
         }),
     );
 
@@ -144,29 +139,28 @@
             const v = (e.target as HTMLInputElement).checked;
             mapConfig.MAPGEN_LANE_MARGIN_ENABLED = v;
             updatePanel("mapgenLaneMarginEnabled", v);
-            (gameStore as any).rebuildLaneConstraintsFromConfig?.();
         }}
     />
     <span
         class="var-name"
         data-setting-config-key="MAPGEN_LANE_MARGIN_ENABLED"
-        data-setting-description="When off, curved-lane clearance falls back to the active territory minimum star margin instead of MAPGEN_LANE_MARGIN_PX."
-        >Use dedicated lane margin</span
+        data-setting-description="When off, lane clearance and automatic lane reshaping are inactive."
+        >Use lane margin</span
     >
-    <span class="val">{laneMarginEnabled ? "On" : `Fallback (${Math.round(effectiveLaneMarginPx)}px)`}</span>
+    <span class="val">{laneMarginEnabled ? "On" : "Off"}</span>
 </label>
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Lane margin (mapgen)</span><span class="val"
             >{Math.round(
-                panel.mapgenLaneMarginPx ?? GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ?? 75,
+                panel.mapgenLaneMarginPx ?? GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ?? 0,
             )}px</span
         >
     </div>
     <div class="row-bottom" style="font-size:10px;opacity:0.68;">
         Effective lane clearance: {Math.round(effectiveLaneMarginPx)}px
         {#if !laneMarginEnabled}
-            (falling back to the active territory minimum star margin)
+            (inactive)
         {/if}
     </div>
     <input
@@ -175,12 +169,11 @@
         max="250"
         step="5"
         disabled={!laneMarginEnabled}
-        value={panel.mapgenLaneMarginPx ?? GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ?? 75}
+        value={panel.mapgenLaneMarginPx ?? GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ?? 0}
         oninput={(e) => {
             const v = +(e.target as HTMLInputElement).value;
             GAME_CONFIG.MAPGEN_LANE_MARGIN_PX = v;
             updatePanel("mapgenLaneMarginPx", v);
-            (gameStore as any).rebuildLaneConstraintsFromConfig?.();
         }}
     />
 </div>
@@ -207,7 +200,6 @@
             const v = +(e.target as HTMLInputElement).value;
             GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS = v;
             updatePanel("mapgenLaneCurveVsPruneBias", v);
-            (gameStore as any).rebuildLaneConstraintsFromConfig?.();
         }}
     />
 </div>
@@ -221,7 +213,6 @@
             const v = (e.target as HTMLInputElement).checked;
             (GAME_CONFIG as any).MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS = v;
             updatePanel("mapgenRecomputeConnectivityOnAuthoredMaps", v);
-            (gameStore as any).rebuildLaneConstraintsFromConfig?.();
         }}
     />
     <span class="var-name">Recompute connectivity</span><span
@@ -250,7 +241,6 @@
                 aria-pressed={lanePathUiMode === "straight"}
                 onclick={() => {
                     updatePanel("mapgenLaneMode", "straight");
-                    (gameStore as any).rebuildLaneConstraintsFromConfig?.();
                 }}>Straight</button
             >
             <button
@@ -261,7 +251,6 @@
                 aria-pressed={lanePathUiMode === "curved"}
                 onclick={() => {
                     updatePanel("mapgenLaneMode", "curved");
-                    (gameStore as any).rebuildLaneConstraintsFromConfig?.();
                 }}>Curve if needed</button
             >
         </div>

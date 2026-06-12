@@ -5,11 +5,6 @@ import {
     type MetaballRenderMetrics,
     type MetaballRendererRuntime,
 } from '$lib/renderers/MetaballRenderer';
-import {
-    logPipelineStage,
-    summarizeRendererMetrics,
-    summarizeScene,
-} from '$lib/perf/pipelineTelemetry';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 import type { RenderFamily, RenderFamilyInput, RenderFamilyOutput } from '../RenderFamilyTypes';
 import {
@@ -151,36 +146,7 @@ export class MetaballFamily implements RenderFamily {
                         this.staticScene ?? undefined,
                     ),
             );
-            logPipelineStage({
-                channel: 'renderer',
-                context: 'MetaballFamily',
-                stage: 'family_scene',
-                from: 'RenderFamilyInput',
-                to: 'MetaballSceneInput',
-                purpose: 'Hand off stable and dynamic sample fields to the grid renderer',
-                summary: summarizeScene(sceneInput),
-                perfEventName: 'territory.metaball.familySceneReady',
-                perfDetail: {
-                    staticSceneCacheHit,
-                    conquestCacheEntries: this.conquestCache.size,
-                    staticSceneKeyLength: staticSceneKey.length,
-                },
-                logDetail: {
-                    renderInput: {
-                        world: input.world,
-                        gameTick: input.gameTick,
-                        nowMs: input.nowMs,
-                        paused: input.paused,
-                        activeTransition: input.activeTransition,
-                        ownershipVersion: input.ownership?.version ?? null,
-                        geometryVersion: input.geometry?.version ?? null,
-                    },
-                    staticSceneCacheHit,
-                    staticSceneKey,
-                    conquestCacheKeys: [...this.conquestCache.keys()],
-                    sceneInput,
-                },
-            });
+
             const renderMetrics: MetaballRenderMetrics = {
                 solveMs: 0,
                 textureUploadMs: 0,
@@ -204,25 +170,7 @@ export class MetaballFamily implements RenderFamily {
                     },
                 );
             });
-            logPipelineStage({
-                channel: 'renderer',
-                context: 'MetaballFamily',
-                stage: 'family_render',
-                from: 'MetaballSceneInput',
-                to: 'PIXI display root',
-                purpose: 'Upload metaball texture and borders for presentation',
-                summary: summarizeRendererMetrics(renderMetrics),
-                perfEventName: 'territory.metaball.familyRendered',
-                perfDetail: {
-                    sceneFingerprint: sceneInput.sceneFingerprint,
-                    staticSceneCacheHit,
-                },
-                logDetail: {
-                    sceneFingerprint: sceneInput.sceneFingerprint,
-                    staticSceneCacheHit,
-                    renderMetrics,
-                },
-            });
+
             return { container: this.root };
         });
     }

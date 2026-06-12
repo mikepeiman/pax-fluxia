@@ -1,11 +1,5 @@
+
 import { GAME_CONFIG } from '../../../config/game.config';
-import {
-    logPipelineStage,
-    summarizePerimeterSourceData,
-    summarizePerimeterVSet,
-    summarizeScene,
-    summarizeTransitionPlan,
-} from '$lib/perf/pipelineTelemetry';
 import type { ColorUtils } from '../../../renderers/RenderContext';
 import type {
     MetaballInfluenceSample,
@@ -96,17 +90,7 @@ function finalizeBuiltScene(
     builtScene: PerimeterFieldBuiltScene,
     detail?: Record<string, unknown>,
 ): PerimeterFieldBuiltScene {
-    logPipelineStage({
-        channel: 'renderer',
-        context: 'PerimeterFieldScene',
-        stage: 'scene_build',
-        from: 'Perimeter samples + transition state',
-        to: 'MetaballSceneInput',
-        purpose: 'Assemble shared renderer scene for perimeter-field mode',
-        summary: summarizeScene(builtScene.sceneInput),
-        perfEventName: 'territory.perimeterField.sceneBuilt',
-        detail,
-    });
+
     return builtScene;
 }
 
@@ -468,33 +452,7 @@ function getCachedPerimeterSourceData(params: {
     const cacheKey = buildPerimeterSourceCacheKey(params);
     const cached = perimeterSourceCache.get(cacheKey);
     if (cached) {
-        logPipelineStage({
-            channel: 'renderer',
-            context: 'PerimeterFieldScene',
-            stage: 'source_cache_hit',
-            from: 'Geometry + perimeter sampling tunables',
-            to: 'Cached perimeter source samples',
-            purpose: 'Reuse stable perimeter sampling output when geometry and tunables are unchanged',
-            summary: summarizePerimeterSourceData(cached),
-            perfEventName: 'territory.perimeterField.sourceCacheHit',
-            detail: {
-                cacheKey,
-                geometryVersion: params.geometry.version,
-                debugState: params.debugState,
-            },
-            logDetail: {
-                cacheKey,
-                geometry: params.geometry,
-                ownerToCluster: Object.fromEntries(params.ownerToCluster.entries()),
-                spacing: params.spacing,
-                offsetPx: params.offsetPx,
-                strength: params.strength,
-                debugState: params.debugState,
-                cachedSources: cached.sources,
-                cachedSampleSets: cached.sampleSets,
-                cachedFlattenedSamples: cached.flattenedSamples,
-            },
-        });
+
         return cached;
     }
 
@@ -514,33 +472,7 @@ function getCachedPerimeterSourceData(params: {
         flattenedSamples: flattenPerimeterSampleSets(sampleSets),
     };
     perimeterSourceCache.set(cacheKey, built);
-    logPipelineStage({
-        channel: 'renderer',
-        context: 'PerimeterFieldScene',
-        stage: 'source_cache_miss',
-        from: 'Geometry + perimeter sampling tunables',
-        to: 'New perimeter source samples',
-        purpose: 'Sample perimeter-field region loops into reusable source sets for scene construction',
-        summary: summarizePerimeterSourceData(built),
-        perfEventName: 'territory.perimeterField.sourceCacheMiss',
-        detail: {
-            cacheKey,
-            geometryVersion: params.geometry.version,
-            debugState: params.debugState,
-        },
-        logDetail: {
-            cacheKey,
-            geometry: params.geometry,
-            ownerToCluster: Object.fromEntries(params.ownerToCluster.entries()),
-            spacing: params.spacing,
-            offsetPx: params.offsetPx,
-            strength: params.strength,
-            debugState: params.debugState,
-            sources,
-            sampleSets,
-            flattenedSamples: built.flattenedSamples,
-        },
-    });
+
     return built;
 }
 
@@ -795,38 +727,7 @@ function buildPlanScene(params: {
             ownerToCluster: clusterScene.ownerToCluster,
         },
     });
-    logPipelineStage({
-        channel: 'renderer',
-        context: 'PerimeterFieldScene',
-        stage: 'plan_scene_input',
-        from: 'Geometry + transition plan',
-        to: 'Perimeter plan-scene sampling',
-        purpose: 'Assemble plan-engine V-set inputs before shared renderer scene construction',
-        summary:
-            `${summarizePerimeterVSet(currentVs)} ` +
-            summarizeTransitionPlan(params.transitionPlan ?? {}),
-        perfEventName: 'territory.perimeterField.planSceneInputBuilt',
-        detail: {
-            geometryVersion: params.geometry.version,
-            hasTransitionPlan: Boolean(params.transitionPlan),
-            freezeBase: params.freezeBase,
-            geometrySource: params.geometrySource,
-        },
-        logDetail: {
-            geometry: params.geometry,
-            geometrySource: params.geometrySource,
-            freezeBase: params.freezeBase,
-            transitionPlan: params.transitionPlan,
-            currentVs,
-            clusterScene: {
-                ownedStars: clusterScene.ownedStars,
-                clusterMap: Object.fromEntries(clusterScene.clusterMap.entries()),
-                ownerToCluster: Object.fromEntries(clusterScene.ownerToCluster.entries()),
-                playerColors: clusterScene.playerColors,
-                clusterShips: clusterScene.clusterShips,
-            },
-        },
-    });
+
 
     if (!params.transitionPlan) {
         const staticSamples = currentVs.map((v, index) =>

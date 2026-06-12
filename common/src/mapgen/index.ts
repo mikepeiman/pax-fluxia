@@ -69,7 +69,7 @@ export function generateMap(config: MapGenConfig): MapGenResult {
         y: pos.y,
     }));
 
-    const laneMarginPx = Math.max(0, config.mapgenLaneMarginPx ?? 75);
+    const laneMarginPx = Math.max(0, config.mapgenLaneMarginPx ?? 0);
     const curveVsPruneBias = Math.min(1, Math.max(0, config.mapgenLaneCurveVsPruneBias ?? 0));
 
     const preferredConnections = generateConnections(

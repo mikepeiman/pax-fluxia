@@ -11,7 +11,6 @@
     import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
     import { gameStore } from "$lib/stores/gameStore.svelte";
     import { animationStore } from "$lib/stores/animationStore.svelte";
-    import { patchTouchesLaneTopology } from "$lib/lanes/laneMargin";
     import { log, logFlags } from "$lib/utils/logger";
     import { normalizeBgImagePath } from "$lib/config/bgManifest";
     import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
@@ -295,20 +294,6 @@
         );
         applyTimingBindingsAndLocks();
         syncRuntimeViewsFromConfig();
-        const affectsLaneTopology = patchTouchesLaneTopology(
-            configPatch,
-            GAME_CONFIG,
-        );
-        const affectsLanePaths =
-            affectsLaneTopology
-            || 'MAPGEN_LANE_MODE' in configPatch;
-        const affectsAuthoredConnectivityPolicy =
-            'MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS' in configPatch;
-        if (affectsLaneTopology) {
-            (gameStore as any).rebuildLaneConstraintsFromConfig?.();
-        } else if (affectsLanePaths || affectsAuthoredConnectivityPolicy) {
-            (gameStore as any).rebuildLaneConstraintsFromConfig?.();
-        }
         if (typeof window !== "undefined" && "BG_IMAGE_URL" in configPatch) {
             window.dispatchEvent(
                 new CustomEvent("pax-bg-change", {

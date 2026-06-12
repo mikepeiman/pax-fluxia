@@ -1,9 +1,4 @@
 import type { ResolvedGeometrySnapshot } from '../../contracts/GeometryContracts';
-import {
-    logPipelineStage,
-    summarizePerimeterVSet,
-    summarizeTransitionPlan,
-} from '$lib/perf/pipelineTelemetry';
 import type {
     FrontierSection,
     FrontierTopology,
@@ -285,33 +280,7 @@ export function sampleVSetFromGeometry(params: {
     const cacheKey = buildVSetCacheKey(params);
     const cached = sampledVSetCache.get(cacheKey);
     if (cached) {
-        logPipelineStage({
-            channel: 'renderer',
-            context: 'PerimeterFieldPlanEngine',
-            stage: 'vset_cache_hit',
-            from: 'Geometry + sampling options',
-            to: 'Cached perimeter V-set',
-            purpose: 'Reuse perimeter-field sample points without resampling unchanged topology',
-            summary: summarizePerimeterVSet(cached as readonly PerimeterV[]),
-            perfEventName: 'territory.perimeterField.vsetCacheHit',
-            detail: {
-                cacheKey,
-                geometryVersion: params.geometry.version,
-            },
-            logDetail: {
-                cacheKey,
-                geometry: params.geometry,
-                options: {
-                    spacing: params.options.spacing,
-                    offsetPx: params.options.offsetPx,
-                    strength: params.options.strength,
-                    ownerToCluster: Object.fromEntries(
-                        params.options.ownerToCluster.entries(),
-                    ),
-                },
-                cachedVSet: cached,
-            },
-        });
+
         return cached as PerimeterV[];
     }
 
@@ -383,33 +352,7 @@ export function sampleVSetFromGeometry(params: {
     }
 
     sampledVSetCache.set(cacheKey, vs);
-    logPipelineStage({
-        channel: 'renderer',
-        context: 'PerimeterFieldPlanEngine',
-        stage: 'vset_cache_miss',
-        from: 'Geometry + sampling options',
-        to: 'New perimeter V-set',
-        purpose: 'Sample perimeter-field frontier loops into cached V points for rendering and transition planning',
-        summary: summarizePerimeterVSet(vs),
-        perfEventName: 'territory.perimeterField.vsetCacheMiss',
-        detail: {
-            cacheKey,
-            geometryVersion: geometry.version,
-            topologySections: topology.sections.size,
-            topologyLoops: topology.loops.length,
-        },
-        logDetail: {
-            cacheKey,
-            geometry,
-            options: {
-                spacing: options.spacing,
-                offsetPx: options.offsetPx,
-                strength: options.strength,
-                ownerToCluster: Object.fromEntries(options.ownerToCluster.entries()),
-            },
-            sampledVSet: vs,
-        },
-    });
+
     return vs;
 }
 
@@ -1048,23 +991,6 @@ export function buildTransitionPlan(params: {
         nextGeometry: params.nextGeometry,
         changedSections,
     };
-    logPipelineStage({
-        channel: 'renderer',
-        context: 'PerimeterFieldPlanEngine',
-        stage: 'transition_plan',
-        from: 'Previous + next perimeter V-sets',
-        to: 'Perimeter transition plan',
-        purpose: 'Match preserved sections and build movers, appearing, and disappearing boundary samples',
-        summary:
-            `${summarizePerimeterVSet(params.prevVSet)} ` +
-            `${summarizePerimeterVSet(params.nextVSet)} ` +
-            summarizeTransitionPlan(plan),
-        perfEventName: 'territory.perimeterField.transitionPlanBuilt',
-        detail: {
-            conquestKey: params.conquestKey,
-            prevGeometryVersion: params.prevGeometry.version,
-            nextGeometryVersion: params.nextGeometry.version,
-        },
-    });
+
     return plan;
 }

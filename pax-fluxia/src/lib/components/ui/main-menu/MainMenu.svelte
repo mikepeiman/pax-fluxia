@@ -5,6 +5,7 @@
     import { generateMapThumbnail } from "$lib/utils/mapThumbnail";
     import { gameStore } from "$lib/stores/gameStore.svelte";
     import { GAME_CONFIG, buildEngineConfig } from "$lib/config/game.config";
+    import { resolveEffectiveLaneMarginPx } from "$lib/lanes/laneMargin";
     import {
         loadPanelSettings,
         savePanelSettings,
@@ -46,7 +47,6 @@
     import {
         measurePerf,
         measurePerfAsync,
-        recordPerfEvent,
     } from "$lib/perf/perfProbe";
 
     type MapMode = "random" | "classic" | "custom";
@@ -85,8 +85,8 @@
     let specialStarPercentage = $state(loadSetting("specialStarPercentage", 20));
     let tickDuration = $state(loadSetting("tickDuration", GAME_CONFIG.BASE_TICK_MS));
 
-    let menuStarMargin = $state(45);
-    let menuLaneMargin = $state(75);
+    let menuStarMargin = $state(0);
+    let menuLaneMargin = $state(0);
     let menuCurveVsPruneBias = $state(0.55);
     let menuLaneMode = $state<"straight" | "curved">("curved");
 
@@ -419,12 +419,12 @@
             msr: Math.round(
                 panelSettings.starMargin ??
                     GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ??
-                    45,
+                    0,
             ),
             laneMargin: Math.round(
                 panelSettings.mapgenLaneMarginPx ??
                     GAME_CONFIG.MAPGEN_LANE_MARGIN_PX ??
-                    75,
+                    0,
             ),
             curveVsPruneBias: Math.min(
                 1,
@@ -465,6 +465,7 @@
             neutralStarCount,
             specialStarPercentage,
             menuStarMargin,
+            laneMarginEnabled: GAME_CONFIG.MAPGEN_LANE_MARGIN_ENABLED === true,
             menuLaneMargin,
             menuCurveVsPruneBias,
             menuLaneMode,
@@ -509,7 +510,10 @@
             neutralStarCount,
             specialStarPercentage,
             mapgenStarMarginPx: menuStarMargin,
-            mapgenLaneMarginPx: menuLaneMargin,
+            mapgenLaneMarginPx: resolveEffectiveLaneMarginPx({
+                MAPGEN_LANE_MARGIN_ENABLED: GAME_CONFIG.MAPGEN_LANE_MARGIN_ENABLED,
+                MAPGEN_LANE_MARGIN_PX: menuLaneMargin,
+            }),
             mapgenLaneCurveVsPruneBias: menuCurveVsPruneBias,
             mapLaneMode: menuLaneMode,
         };
@@ -737,7 +741,7 @@
     async function startSPGame() {
         if (startPending) return;
         startPending = true;
-        recordPerfEvent("menu.startGame.requested");
+
         try {
             await measurePerfAsync("menu.startGame.total", async () => {
                 measurePerf("menu.startGame.saveSettings", () => {

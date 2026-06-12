@@ -37,10 +37,9 @@ declare global {
 }
 
 const MAX_MEASURE_SAMPLES = 64;
-// Long benchmark soaks need enough retained focus events to keep the
-// worst late-run frame spikes attributable when we summarize afterward.
+// Long benchmark soaks need enough retained measure samples to keep late
+// frame spikes attributable when benchmark summaries inspect the event stream.
 const MAX_EVENT_SAMPLES = 65536;
-let browserObserversInstalled = false;
 
 function perfNow(): number {
     return typeof performance !== "undefined" ? performance.now() : Date.now();
@@ -60,7 +59,6 @@ export function setPerfUserTimingEnabled(enabled: boolean): void {
 
 export function enablePerfCapture(): void {
     globalThis.__PAX_PERF_CAPTURE__ = true;
-    ensureBrowserPerfObservers();
     resetPerfCapture();
 }
 
@@ -177,122 +175,6 @@ function sanitizePerfDetail(value: unknown): PerfDetail {
     } catch {
         return { value: String(value) };
     }
-}
-
-function ensureBrowserPerfObservers(): void {
-    if (
-        browserObserversInstalled ||
-        typeof window === "undefined" ||
-        typeof PerformanceObserver === "undefined"
-    ) {
-        return;
-    }
-
-    const observe = (
-        entryType: string,
-        onEntry: (entry: PerformanceEntry) => void,
-    ): void => {
-        try {
-            const observer = new PerformanceObserver((list) => {
-                for (const entry of list.getEntries()) {
-                    onEntry(entry);
-                }
-            });
-            observer.observe({ type: entryType, buffered: true });
-        } catch {
-            // Ignore unsupported observers in narrower browser builds.
-        }
-    };
-
-    observe("longtask", (entry) => {
-        recordPerfEvent("browser.longtask", {
-            durationMs: entry.duration,
-            startTimeMs: entry.startTime,
-            name: entry.name,
-            entryType: entry.entryType,
-        });
-    });
-
-    observe("paint", (entry) => {
-        recordPerfEvent("browser.paint", {
-            durationMs: entry.duration,
-            startTimeMs: entry.startTime,
-            name: entry.name,
-        });
-    });
-
-    observe("layout-shift", (entry) => {
-        const shift = entry as PerformanceEntry & {
-            value?: number;
-            hadRecentInput?: boolean;
-            sources?: unknown[];
-        };
-        recordPerfEvent("browser.layoutShift", {
-            durationMs: entry.duration,
-            startTimeMs: entry.startTime,
-            value: typeof shift.value === "number" ? shift.value : 0,
-            hadRecentInput: Boolean(shift.hadRecentInput),
-            sourceCount: Array.isArray(shift.sources) ? shift.sources.length : 0,
-        });
-    });
-
-    observe("largest-contentful-paint", (entry) => {
-        const lcp = entry as PerformanceEntry & {
-            renderTime?: number;
-            loadTime?: number;
-            size?: number;
-            url?: string;
-        };
-        recordPerfEvent("browser.lcp", {
-            startTimeMs: entry.startTime,
-            renderTimeMs:
-                typeof lcp.renderTime === "number" ? lcp.renderTime : 0,
-            loadTimeMs: typeof lcp.loadTime === "number" ? lcp.loadTime : 0,
-            size: typeof lcp.size === "number" ? lcp.size : 0,
-            url: typeof lcp.url === "string" ? lcp.url : null,
-        });
-    });
-
-    observe("long-animation-frame", (entry) => {
-        const longFrame = entry as PerformanceEntry & {
-            blockingDuration?: number;
-            scripts?: Array<{ duration?: number; sourceURL?: string }>;
-        };
-        recordPerfEvent("browser.longAnimationFrame", {
-            durationMs: entry.duration,
-            startTimeMs: entry.startTime,
-            blockingDurationMs:
-                typeof longFrame.blockingDuration === "number"
-                    ? longFrame.blockingDuration
-                    : 0,
-            scriptCount: Array.isArray(longFrame.scripts)
-                ? longFrame.scripts.length
-                : 0,
-            topScriptUrl:
-                Array.isArray(longFrame.scripts) &&
-                typeof longFrame.scripts[0]?.sourceURL === "string"
-                    ? longFrame.scripts[0].sourceURL
-                    : null,
-        });
-    });
-
-    observe("event", (entry) => {
-        const detail = entry as PerformanceEventTiming & {
-            interactionId?: number;
-        };
-        recordPerfEvent("browser.eventTiming", {
-            name: detail.name,
-            durationMs: detail.duration,
-            startTimeMs: detail.startTime,
-            processingStartMs: detail.processingStart,
-            processingEndMs: detail.processingEnd,
-            interactionId: typeof detail.interactionId === "number"
-                ? detail.interactionId
-                : undefined,
-        });
-    });
-
-    browserObserversInstalled = true;
 }
 
 function mark(label: string): void {

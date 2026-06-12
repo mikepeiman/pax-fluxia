@@ -184,13 +184,13 @@ function printScenario(name: string, scenario: any): void {
             `  - target handled down=${round(Number(orderLatency?.pointerTargetPointerDownHandled?.avgMs ?? 0))}ms up=${round(Number(orderLatency?.pointerTargetPointerUpHandled?.avgMs ?? 0))}ms`,
         );
         console.log(
-            `  - target synthetic dispatch=${round(Number(orderLatency?.pointerTargetPointerDownDispatchLead?.avgMs ?? 0))}ms browser-queue=${round(Number(orderLatency?.pointerTargetPointerDownQueueDelay?.avgMs ?? 0))}ms handled->localAck=${round(Number(orderLatency?.pointerIssueHandledToLocalAckAfterTargetClick?.avgMs ?? 0))}ms`,
+            `  - target synthetic dispatch=${round(Number(orderLatency?.pointerTargetPointerDownDispatchLead?.avgMs ?? 0))}ms browser-queue=${round(Number(orderLatency?.pointerTargetPointerDownQueueDelay?.avgMs ?? 0))}ms handled->localAcknowledgment=${round(Number(orderLatency?.pointerIssueHandledToLocalAcknowledgmentAfterTargetClick?.avgMs ?? 0))}ms`,
         );
         console.log(
-            `  - target handled->visualAck=${round(Number(orderLatency?.pointerIssueHandledToVisualAckAfterTargetClick?.avgMs ?? 0))}ms handled->commit=${round(Number(orderLatency?.pointerIssueHandledToCommitAfterTargetClick?.avgMs ?? 0))}ms`,
+            `  - target handled->visualAcknowledgment=${round(Number(orderLatency?.pointerIssueHandledToVisualAcknowledgmentAfterTargetClick?.avgMs ?? 0))}ms handled->commit=${round(Number(orderLatency?.pointerIssueHandledToCommitAfterTargetClick?.avgMs ?? 0))}ms`,
         );
         console.log(
-            `  - issue local-ack=${round(Number(orderLatency?.pointerIssueLocalAckAfterTargetClick?.avgMs ?? 0))}ms visual-ack=${round(Number(orderLatency?.pointerIssueVisualAckAfterTargetClick?.avgMs ?? 0))}ms visual-gap=${round(Number(orderLatency?.pointerIssueLocalToVisualGapMs ?? 0))}ms`,
+            `  - issue local-acknowledgment=${round(Number(orderLatency?.pointerIssueLocalAcknowledgmentAfterTargetClick?.avgMs ?? 0))}ms visual-acknowledgment=${round(Number(orderLatency?.pointerIssueVisualAcknowledgmentAfterTargetClick?.avgMs ?? 0))}ms visual-gap=${round(Number(orderLatency?.pointerIssueLocalToVisualGapMs ?? 0))}ms`,
         );
         console.log(
             `  - pointer issue=${round(Number(orderLatency?.pointerIssueCommit?.avgMs ?? 0))}ms direct issue=${round(Number(orderLatency?.directIssueCommit?.avgMs ?? 0))}ms gap=${round(Number(orderLatency?.pointerVsDirectIssueGapMs ?? 0))}ms`,
@@ -199,16 +199,16 @@ function printScenario(name: string, scenario: any): void {
             `  - target-click issue=${round(Number(orderLatency?.pointerIssueAfterTargetClick?.avgMs ?? 0))}ms direct issue=${round(Number(orderLatency?.directIssueCommit?.avgMs ?? 0))}ms gap=${round(Number(orderLatency?.pointerTargetClickVsDirectIssueGapMs ?? 0))}ms`,
         );
         console.log(
-            `  - cancel local-ack=${round(Number(orderLatency?.pointerCancelLocalAck?.avgMs ?? 0))}ms visual-ack=${round(Number(orderLatency?.pointerCancelVisualAck?.avgMs ?? 0))}ms visual-gap=${round(Number(orderLatency?.pointerCancelLocalToVisualGapMs ?? 0))}ms`,
+            `  - cancel local-acknowledgment=${round(Number(orderLatency?.pointerCancelLocalAcknowledgment?.avgMs ?? 0))}ms visual-acknowledgment=${round(Number(orderLatency?.pointerCancelVisualAcknowledgment?.avgMs ?? 0))}ms visual-gap=${round(Number(orderLatency?.pointerCancelLocalToVisualGapMs ?? 0))}ms`,
         );
         console.log(
             `  - cancel handled down=${round(Number(orderLatency?.pointerCancelPointerDownHandled?.avgMs ?? 0))}ms up=${round(Number(orderLatency?.pointerCancelPointerUpHandled?.avgMs ?? 0))}ms rightclick=${round(Number(orderLatency?.pointerCancelContextMenuHandled?.avgMs ?? 0))}ms`,
         );
         console.log(
-            `  - cancel synthetic dispatch=${round(Number(orderLatency?.pointerCancelPointerDownDispatchLead?.avgMs ?? 0))}ms browser-queue=${round(Number(orderLatency?.pointerCancelPointerDownQueueDelay?.avgMs ?? 0))}ms rightclick-dispatch=${round(Number(orderLatency?.pointerCancelContextMenuDispatchLead?.avgMs ?? 0))}ms rightclick-queue=${round(Number(orderLatency?.pointerCancelContextMenuQueueDelay?.avgMs ?? 0))}ms handled->localAck=${round(Number(orderLatency?.pointerCancelHandledToLocalAck?.avgMs ?? 0))}ms`,
+            `  - cancel synthetic dispatch=${round(Number(orderLatency?.pointerCancelPointerDownDispatchLead?.avgMs ?? 0))}ms browser-queue=${round(Number(orderLatency?.pointerCancelPointerDownQueueDelay?.avgMs ?? 0))}ms rightclick-dispatch=${round(Number(orderLatency?.pointerCancelContextMenuDispatchLead?.avgMs ?? 0))}ms rightclick-queue=${round(Number(orderLatency?.pointerCancelContextMenuQueueDelay?.avgMs ?? 0))}ms handled->localAcknowledgment=${round(Number(orderLatency?.pointerCancelHandledToLocalAcknowledgment?.avgMs ?? 0))}ms`,
         );
         console.log(
-            `  - cancel handled->visualAck=${round(Number(orderLatency?.pointerCancelHandledToVisualAck?.avgMs ?? 0))}ms handled->commit=${round(Number(orderLatency?.pointerCancelHandledToCommit?.avgMs ?? 0))}ms`,
+            `  - cancel handled->visualAcknowledgment=${round(Number(orderLatency?.pointerCancelHandledToVisualAcknowledgment?.avgMs ?? 0))}ms handled->commit=${round(Number(orderLatency?.pointerCancelHandledToCommit?.avgMs ?? 0))}ms`,
         );
         console.log(
             `  - pointer cancel=${round(Number(orderLatency?.pointerCancelCommit?.avgMs ?? 0))}ms cancel-event=${round(Number(orderLatency?.pointerCancelOrderPathEvent?.avgMs ?? 0))}ms direct cancel=${round(Number(orderLatency?.directCancelCommit?.avgMs ?? 0))}ms gap=${round(Number(orderLatency?.pointerVsDirectCancelGapMs ?? 0))}ms`,
@@ -233,7 +233,7 @@ function printScenario(name: string, scenario: any): void {
             `  - orderQueue scheduleMode=${String(scheduler?.orders?.scheduleMode ?? "n/a")} queueDelay=${round(Number(scheduler?.orders?.lastQueueDelayMs ?? 0))}ms flushCount=${Number(scheduler?.orders?.lastQueueFlushMutationCount ?? 0)}`,
         );
         console.log(
-            `  - interaction pendingAcks=${Number(scheduler?.interactions?.pendingVisualAckCount ?? 0)} lastLocal=${String(scheduler?.interactions?.lastLocalAck?.path ?? "n/a")} lastVisual=${String(scheduler?.interactions?.lastVisualAck?.path ?? "n/a")}`,
+            `  - interaction pendingAcknowledgments=${Number(scheduler?.interactions?.pendingVisualAcknowledgmentCount ?? 0)} lastLocal=${String(scheduler?.interactions?.lastLocalAcknowledgment?.path ?? "n/a")} lastVisual=${String(scheduler?.interactions?.lastVisualAcknowledgment?.path ?? "n/a")}`,
         );
     }
     const interactionEvents = (scenario?.perf?.interactionEvents ?? []).slice(0, 8);

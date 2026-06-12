@@ -19,12 +19,7 @@
 
 import * as PIXI from 'pixi.js';
 import { GAME_CONFIG } from '$lib/config/game.config';
-import {
-    logPipelineStage,
-    summarizeRendererMetrics,
-    summarizeScene,
-} from '$lib/perf/pipelineTelemetry';
-import { measurePerf, recordPerfEvent } from '$lib/perf/perfProbe';
+import { measurePerf } from '$lib/perf/perfProbe';
 import type { StarState, StarConnection } from '$lib/types/game.types';
 import { findConnectedClustersOptimized } from './territoryUtils';
 import type { ColorUtils } from './RenderContext';
@@ -1263,12 +1258,7 @@ function ensureMetaballWorker(runtime: MetaballRendererRuntime): Worker | null {
         }
     };
     worker.onerror = (event: ErrorEvent) => {
-        recordPerfEvent('territory.metaballRenderer.workerError', {
-            message: event.message,
-            filename: event.filename,
-            lineno: event.lineno,
-            colno: event.colno,
-        });
+
         workerState.worker = null;
         workerState.activeRequestId = 0;
         workerState.activeFingerprint = '';
@@ -1407,31 +1397,7 @@ function enqueueMetaballWorkerRequest(
         if (request.staticSamples) {
             workerState.loadedStaticFieldFingerprint = request.staticFieldFingerprint;
         }
-        logPipelineStage({
-            channel: 'renderer',
-            context: 'MetaballRenderer',
-            stage: 'worker_request_queued',
-            from: 'MetaballSceneInput',
-            to: 'Queued worker request',
-            purpose: 'Hold the newest metaball solve request while a previous worker solve is still active',
-            perfEventName: 'territory.metaballRenderer.workerRequestQueued',
-            perfDetail: {
-                requestId: request.requestId,
-                fingerprint: request.fingerprint,
-                staticSampleCount: request.staticSamples?.length ?? 0,
-                dynamicSampleCount: request.dynamicSamples.length,
-            },
-            logDetail: {
-                requestId: request.requestId,
-                fingerprint: request.fingerprint,
-                staticFieldFingerprint: request.staticFieldFingerprint,
-                dynamicFieldFingerprint: request.dynamicFieldFingerprint,
-                config: request.config,
-                staticSamples: request.staticSamples,
-                dynamicSamples: request.dynamicSamples,
-                ownedStars: request.ownedStars,
-            },
-        });
+
         return;
     }
     workerState.activeRequestId = request.requestId;
@@ -1439,33 +1405,7 @@ function enqueueMetaballWorkerRequest(
     if (request.staticSamples) {
         workerState.loadedStaticFieldFingerprint = request.staticFieldFingerprint;
     }
-    logPipelineStage({
-        channel: 'renderer',
-        context: 'MetaballRenderer',
-        stage: 'worker_request_posted',
-        from: 'MetaballSceneInput',
-        to: 'Metaball grid worker',
-        purpose: 'Dispatch the latest cached scene field to the worker for async solve and stroke extraction',
-        perfEventName: 'territory.metaballRenderer.workerRequestPosted',
-        perfDetail: {
-            requestId: request.requestId,
-            fingerprint: request.fingerprint,
-            staticSampleCount: request.staticSamples?.length ?? 0,
-            dynamicSampleCount: request.dynamicSamples.length,
-        },
-        logDetail: {
-            requestId: request.requestId,
-            fingerprint: request.fingerprint,
-            staticFieldFingerprint: request.staticFieldFingerprint,
-            dynamicFieldFingerprint: request.dynamicFieldFingerprint,
-            config: request.config,
-            playerColors: request.playerColors,
-            clusterShips: request.clusterShips,
-            ownedStars: request.ownedStars,
-            staticSamples: request.staticSamples,
-            dynamicSamples: request.dynamicSamples,
-        },
-    });
+
     worker.postMessage(request);
 }
 
@@ -1517,50 +1457,7 @@ function commitMetaballWorkerResponse(
     metrics.workerDynamicBuildMs = response.dynamicBuildMs;
     metrics.workerClassificationMs = response.classificationMs;
     metrics.workerStrokeBuildMs = response.strokeBuildMs;
-    logPipelineStage({
-        channel: 'renderer',
-        context: 'MetaballRenderer',
-        stage: 'worker_response_commit',
-        from: 'Metaball grid worker',
-        to: 'Texture upload + border graphics',
-        purpose: 'Commit the solved worker field into the Pixi fill texture and stroke layer',
-        summary: summarizeRendererMetrics(metrics),
-        perfEventName: 'territory.metaballRenderer.workerResponseCommitted',
-        perfDetail: {
-            requestId: response.requestId,
-            fingerprint: response.fingerprint,
-            cellCount: response.cellCount,
-            staticCacheHit: response.staticCacheHit,
-            textureUploadMs: metrics.textureUploadMs,
-            borderMs: metrics.borderMs,
-            solveMs: metrics.solveMs,
-        },
-        logDetail: {
-            requestId: response.requestId,
-            fingerprint: response.fingerprint,
-            cols: response.cols,
-            rows: response.rows,
-            cellSize: response.cellSize,
-            gridOriginX: response.gridOriginX,
-            gridOriginY: response.gridOriginY,
-            cellCount: response.cellCount,
-            numPlayers: response.numPlayers,
-            staticSampleCount: response.staticSampleCount,
-            dynamicSampleCount: response.dynamicSampleCount,
-            staticCacheHit: response.staticCacheHit,
-            staticBuildMs: response.staticBuildMs,
-            dynamicBuildMs: response.dynamicBuildMs,
-            classificationMs: response.classificationMs,
-            strokeBuildMs: response.strokeBuildMs,
-            metrics,
-            strokes: response.strokes.map((stroke) => ({
-                color: stroke.color,
-                alpha: stroke.alpha,
-                width: stroke.width,
-                pathCount: stroke.paths.length,
-            })),
-        },
-    });
+
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────
@@ -1677,18 +1574,7 @@ function renderMetaballImpl(
     if (fingerprint === cachedFingerprint) {
         metrics.reusedFingerprint = true;
         metrics.totalMs = performance.now() - totalStart;
-        logPipelineStage({
-            channel: 'renderer',
-            context: 'MetaballRenderer',
-            stage: 'render_skip',
-            from: 'Scene fingerprint',
-            to: 'Existing GPU resources',
-            purpose: 'Reuse cached metaball presentation when scene fingerprint is unchanged',
-            summary:
-                `${summarizeScene(sceneInput ?? {})} ` +
-                summarizeRendererMetrics(metrics),
-            perfEventName: 'territory.metaball.rendererSkipped',
-        });
+
         applyBlurFilter();
         return;
     }
@@ -1701,16 +1587,7 @@ function renderMetaballImpl(
             territorySprite.visible = false;
             borderGraphics!.visible = false;
         }
-        logPipelineStage({
-            channel: 'renderer',
-            context: 'MetaballRenderer',
-            stage: 'render_empty',
-            from: 'Scene input',
-            to: 'Hidden territory layer',
-            purpose: 'Skip render work when there are no owned stars to visualize',
-            summary: summarizeScene(sceneInput ?? {}),
-            perfEventName: 'territory.metaball.rendererEmpty',
-        });
+
         return;
     }
 
@@ -1950,61 +1827,13 @@ function renderMetaballImpl(
             workerState.latestResponse = null;
             applyBlurFilter();
             metrics.totalMs = performance.now() - totalStart;
-            recordPerfEvent('territory.metaballRenderer.workerSolve', {
-                staticCacheHit: readyResponse.staticCacheHit,
-                staticBuildMs: readyResponse.staticBuildMs,
-                dynamicBuildMs: readyResponse.dynamicBuildMs,
-                classificationMs: readyResponse.classificationMs,
-                strokeBuildMs: readyResponse.strokeBuildMs,
-                solveMs: readyResponse.solveMs,
-                borderMs: readyResponse.borderMs,
-                workerRequestMs: metrics.workerRequestMs,
-                workerPostMs: metrics.workerPostMs,
-                workerCommitMs: metrics.workerCommitMs,
-                staticSamples: readyResponse.staticSampleCount,
-                dynamicSamples: readyResponse.dynamicSampleCount,
-            });
-            logPipelineStage({
-                channel: 'renderer',
-                context: 'MetaballRenderer',
-                stage: 'render_commit',
-                from: 'MetaballSceneInput',
-                to: 'Texture sprite + border graphics',
-                purpose: 'Commit worker-solved territory presentation on the main thread',
-                summary:
-                    `${summarizeScene(sceneInput ?? {})} ` +
-                    summarizeRendererMetrics(metrics),
-                perfEventName: 'territory.metaball.rendererCommitted',
-                detail: {
-                    worldWidth,
-                    worldHeight,
-                    workerSolve: 1,
-                    cellCount: readyResponse.cellCount,
-                    staticSamples: readyResponse.staticSampleCount,
-                    dynamicSamples: readyResponse.dynamicSampleCount,
-                },
-            });
+
+
             return;
         }
 
         metrics.totalMs = performance.now() - totalStart;
-        logPipelineStage({
-            channel: 'renderer',
-            context: 'MetaballRenderer',
-            stage: 'render_deferred',
-            from: 'MetaballSceneInput',
-            to: 'Worker solve queue',
-            purpose: 'Defer expensive metaball solve to a worker so input and UI remain responsive',
-            summary:
-                `${summarizeScene(sceneInput ?? {})} ` +
-                summarizeRendererMetrics(metrics),
-            detail: {
-                worldWidth,
-                worldHeight,
-                activeRequestId: workerState.activeRequestId,
-                queuedFingerprint: workerState.queuedRequest?.fingerprint ?? null,
-            },
-        });
+
         applyBlurFilter();
         return;
     }
@@ -2404,22 +2233,7 @@ function renderMetaballImpl(
     cachedFingerprint = fingerprint;
     applyBlurFilter();
     metrics.totalMs = performance.now() - totalStart;
-    logPipelineStage({
-        channel: 'renderer',
-        context: 'MetaballRenderer',
-        stage: 'render_commit',
-        from: 'MetaballSceneInput',
-        to: 'Texture sprite + border graphics',
-        purpose: 'Solve grid ownership field and upload visual presentation',
-        summary:
-            `${summarizeScene(sceneInput ?? {})} ` +
-            summarizeRendererMetrics(metrics),
-        perfEventName: 'territory.metaball.rendererCommitted',
-        detail: {
-            worldWidth,
-            worldHeight,
-        },
-    });
+
 }
 
 function applyBlurFilter(): void {

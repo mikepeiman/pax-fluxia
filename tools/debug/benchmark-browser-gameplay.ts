@@ -682,7 +682,7 @@ const FOCUS_MEASURE_PATTERNS = [
     "game.renderFrame.selectionOverlay",
     "game.input.clientRect.refresh",
     "game.input.dragPreview.present",
-    "game.input.visualAck.present",
+    "game.input.visualAcknowledgment.present",
     "game.input.orderQueue.flush",
     "game.input.orderImmediate",
     "territory.metaballRenderer",
@@ -1097,16 +1097,16 @@ function summarizeTerritorySchedulerSnapshot(
             ),
         },
         interactions: {
-            pendingVisualAckCount: Number(
-                scheduler.pendingInteractionVisualAckCount ?? 0,
+            pendingVisualAcknowledgmentCount: Number(
+                scheduler.pendingInteractionVisualAcknowledgmentCount ?? 0,
             ),
-            pendingVisualAcks: Array.isArray(
-                scheduler.pendingInteractionVisualAcks,
+            pendingVisualAcknowledgments: Array.isArray(
+                scheduler.pendingInteractionVisualAcknowledgments,
             )
-                ? scheduler.pendingInteractionVisualAcks
+                ? scheduler.pendingInteractionVisualAcknowledgments
                 : [],
-            lastLocalAck: scheduler.lastInteractionLocalAck ?? null,
-            lastVisualAck: scheduler.lastInteractionVisualAck ?? null,
+            lastLocalAcknowledgment: scheduler.lastInteractionLocalAcknowledgment ?? null,
+            lastVisualAcknowledgment: scheduler.lastInteractionVisualAcknowledgment ?? null,
         },
         transitionDiagnostics: {
             captureState:
@@ -1640,21 +1640,21 @@ function summarizeOrderPathGap(
             actionResult?.pointerSamples,
             "sourcePointerUpHandledMs",
         ),
-        pointerIssueLocalAck: summarizeSampleMetric(
+        pointerIssueLocalAcknowledgment: summarizeSampleMetric(
             actionResult?.pointerSamples,
-            "issueLocalAckMs",
+            "issueLocalAcknowledgmentMs",
         ),
-        pointerIssueLocalAckAfterTargetClick: summarizeSampleMetric(
+        pointerIssueLocalAcknowledgmentAfterTargetClick: summarizeSampleMetric(
             actionResult?.pointerSamples,
-            "issueLocalAckAfterTargetClickMs",
+            "issueLocalAcknowledgmentAfterTargetClickMs",
         ),
-        pointerIssueVisualAck: summarizeSampleMetric(
+        pointerIssueVisualAcknowledgment: summarizeSampleMetric(
             actionResult?.pointerSamples,
-            "issueVisualAckMs",
+            "issueVisualAcknowledgmentMs",
         ),
-        pointerIssueVisualAckAfterTargetClick: summarizeSampleMetric(
+        pointerIssueVisualAcknowledgmentAfterTargetClick: summarizeSampleMetric(
             actionResult?.pointerSamples,
-            "issueVisualAckAfterTargetClickMs",
+            "issueVisualAcknowledgmentAfterTargetClickMs",
         ),
         pointerSourceSelect: summarizeSampleMetric(
             actionResult?.pointerSamples,
@@ -1680,13 +1680,13 @@ function summarizeOrderPathGap(
             actionResult?.pointerSamples,
             "targetPointerUpHandledMs",
         ),
-        pointerIssueHandledToLocalAckAfterTargetClick: summarizeSampleMetric(
+        pointerIssueHandledToLocalAcknowledgmentAfterTargetClick: summarizeSampleMetric(
             actionResult?.pointerSamples,
-            "issueHandledToLocalAckAfterTargetClickMs",
+            "issueHandledToLocalAcknowledgmentAfterTargetClickMs",
         ),
-        pointerIssueHandledToVisualAckAfterTargetClick: summarizeSampleMetric(
+        pointerIssueHandledToVisualAcknowledgmentAfterTargetClick: summarizeSampleMetric(
             actionResult?.pointerSamples,
-            "issueHandledToVisualAckAfterTargetClickMs",
+            "issueHandledToVisualAcknowledgmentAfterTargetClickMs",
         ),
         pointerIssueHandledToCommitAfterTargetClick: summarizeSampleMetric(
             actionResult?.pointerSamples,
@@ -1748,25 +1748,25 @@ function summarizeOrderPathGap(
             actionResult?.pointerSamples,
             "cancelRightclickQueueDelayMs",
         ),
-        pointerCancelLocalAck: summarizeSampleMetric(
+        pointerCancelLocalAcknowledgment: summarizeSampleMetric(
             actionResult?.pointerSamples,
-            "cancelLocalAckMs",
+            "cancelLocalAcknowledgmentMs",
         ),
-        pointerCancelHandledToLocalAck: summarizeSampleMetric(
+        pointerCancelHandledToLocalAcknowledgment: summarizeSampleMetric(
             actionResult?.pointerSamples,
-            "cancelHandledToLocalAckMs",
+            "cancelHandledToLocalAcknowledgmentMs",
         ),
-        pointerCancelHandledToVisualAck: summarizeSampleMetric(
+        pointerCancelHandledToVisualAcknowledgment: summarizeSampleMetric(
             actionResult?.pointerSamples,
-            "cancelHandledToVisualAckMs",
+            "cancelHandledToVisualAcknowledgmentMs",
         ),
         pointerCancelHandledToCommit: summarizeSampleMetric(
             actionResult?.pointerSamples,
             "cancelHandledToCommitMs",
         ),
-        pointerCancelVisualAck: summarizeSampleMetric(
+        pointerCancelVisualAcknowledgment: summarizeSampleMetric(
             actionResult?.pointerSamples,
-            "cancelVisualAckMs",
+            "cancelVisualAcknowledgmentMs",
         ),
         pointerCancelOrderPathEvent: summarizeSampleMetric(
             actionResult?.pointerSamples,
@@ -1828,7 +1828,7 @@ function summarizeOrderPathGap(
                 Number(
                     summarizeSampleMetric(
                         actionResult?.pointerSamples,
-                        "issueVisualAckAfterTargetClickMs",
+                        "issueVisualAcknowledgmentAfterTargetClickMs",
                     )?.avgMs ?? Number.NaN,
                 ),
             ) &&
@@ -1836,7 +1836,7 @@ function summarizeOrderPathGap(
                 Number(
                     summarizeSampleMetric(
                         actionResult?.pointerSamples,
-                        "issueLocalAckAfterTargetClickMs",
+                        "issueLocalAcknowledgmentAfterTargetClickMs",
                     )?.avgMs ?? Number.NaN,
                 ),
             )
@@ -1844,13 +1844,13 @@ function summarizeOrderPathGap(
                       Number(
                           summarizeSampleMetric(
                               actionResult?.pointerSamples,
-                              "issueVisualAckAfterTargetClickMs",
+                              "issueVisualAcknowledgmentAfterTargetClickMs",
                           )?.avgMs ?? 0,
                       ) -
                           Number(
                               summarizeSampleMetric(
                                   actionResult?.pointerSamples,
-                                  "issueLocalAckAfterTargetClickMs",
+                                  "issueLocalAcknowledgmentAfterTargetClickMs",
                               )?.avgMs ?? 0,
                           ),
                   )
@@ -1860,7 +1860,7 @@ function summarizeOrderPathGap(
                 Number(
                     summarizeSampleMetric(
                         actionResult?.pointerSamples,
-                        "cancelVisualAckMs",
+                        "cancelVisualAcknowledgmentMs",
                     )?.avgMs ?? Number.NaN,
                 ),
             ) &&
@@ -1868,7 +1868,7 @@ function summarizeOrderPathGap(
                 Number(
                     summarizeSampleMetric(
                         actionResult?.pointerSamples,
-                        "cancelLocalAckMs",
+                        "cancelLocalAcknowledgmentMs",
                     )?.avgMs ?? Number.NaN,
                 ),
             )
@@ -1876,13 +1876,13 @@ function summarizeOrderPathGap(
                       Number(
                           summarizeSampleMetric(
                               actionResult?.pointerSamples,
-                              "cancelVisualAckMs",
+                              "cancelVisualAcknowledgmentMs",
                           )?.avgMs ?? 0,
                       ) -
                           Number(
                               summarizeSampleMetric(
                                   actionResult?.pointerSamples,
-                                  "cancelLocalAckMs",
+                                  "cancelLocalAcknowledgmentMs",
                               )?.avgMs ?? 0,
                           ),
                   )
@@ -2523,10 +2523,10 @@ async function executePointerOrderLoop(
             { button: 0 },
             800,
         );
-        const sourceSelectLocalAck = await waitForPerfEvent(
+        const sourceSelectLocalAcknowledgment = await waitForPerfEvent(
             client,
             issueEventStartIndex,
-            "input.interaction.localAck",
+            "input.interaction.localAcknowledgment",
             {
                 kind: "select",
                 targetId: String(path.sourceId),
@@ -2597,12 +2597,12 @@ async function executePointerOrderLoop(
             { button: 0 },
             800,
         );
-        const issueLocalAck = await waitForAnyPerfEvent(
+        const issueLocalAcknowledgment = await waitForAnyPerfEvent(
             client,
             issueEventStartIndex,
             [
                 {
-                    name: "input.interaction.localAck",
+                    name: "input.interaction.localAcknowledgment",
                     detailMatchers: {
                         kind: "issue",
                         sourceId: String(path.sourceId),
@@ -2610,7 +2610,7 @@ async function executePointerOrderLoop(
                     },
                 },
                 {
-                    name: "input.interaction.localAck",
+                    name: "input.interaction.localAcknowledgment",
                     detailMatchers: {
                         kind: "defer",
                         sourceId: String(path.sourceId),
@@ -2620,12 +2620,12 @@ async function executePointerOrderLoop(
             ],
             800,
         );
-        const issueVisualAck = await waitForAnyPerfEvent(
+        const issueVisualAcknowledgment = await waitForAnyPerfEvent(
             client,
             issueEventStartIndex,
             [
                 {
-                    name: "input.interaction.visualAck",
+                    name: "input.interaction.visualAcknowledgment",
                     detailMatchers: {
                         kind: "issue",
                         sourceId: String(path.sourceId),
@@ -2633,7 +2633,7 @@ async function executePointerOrderLoop(
                     },
                 },
                 {
-                    name: "input.interaction.visualAck",
+                    name: "input.interaction.visualAcknowledgment",
                     detailMatchers: {
                         kind: "defer",
                         sourceId: String(path.sourceId),
@@ -2723,20 +2723,20 @@ async function executePointerOrderLoop(
             { button: 2 },
             800,
         );
-        const cancelLocalAck = await waitForPerfEvent(
+        const cancelLocalAcknowledgment = await waitForPerfEvent(
             client,
             cancelEventStartIndex,
-            "input.interaction.localAck",
+            "input.interaction.localAcknowledgment",
             {
                 kind: "cancel",
                 sourceId: String(path.sourceId),
             },
             800,
         );
-        const cancelVisualAck = await waitForPerfEvent(
+        const cancelVisualAcknowledgment = await waitForPerfEvent(
             client,
             cancelEventStartIndex,
-            "input.interaction.visualAck",
+            "input.interaction.visualAcknowledgment",
             {
                 kind: "cancel",
                 sourceId: String(path.sourceId),
@@ -2787,8 +2787,8 @@ async function executePointerOrderLoop(
         if (stressLoop) {
             await stressLoop;
         }
-        const sourceSelectLocalAckMs = getEventDeltaMs(
-            sourceSelectLocalAck,
+        const sourceSelectLocalAcknowledgmentMs = getEventDeltaMs(
+            sourceSelectLocalAcknowledgment,
             issueStartedAt,
         );
         const sourcePointerDownHandledMs = getEventDeltaMs(
@@ -2829,22 +2829,22 @@ async function executePointerOrderLoop(
             targetPointerUpHandled,
             targetClickStartedAt,
         );
-        const issueLocalAckMs = getEventDeltaMs(issueLocalAck, issueStartedAt);
-        const issueLocalAckAfterTargetClickMs = getEventDeltaMs(
-            issueLocalAck,
+        const issueLocalAcknowledgmentMs = getEventDeltaMs(issueLocalAcknowledgment, issueStartedAt);
+        const issueLocalAcknowledgmentAfterTargetClickMs = getEventDeltaMs(
+            issueLocalAcknowledgment,
             targetClickStartedAt,
         );
-        const issueVisualAckMs = getEventDeltaMs(issueVisualAck, issueStartedAt);
-        const issueVisualAckAfterTargetClickMs = getEventDeltaMs(
-            issueVisualAck,
+        const issueVisualAcknowledgmentMs = getEventDeltaMs(issueVisualAcknowledgment, issueStartedAt);
+        const issueVisualAcknowledgmentAfterTargetClickMs = getEventDeltaMs(
+            issueVisualAcknowledgment,
             targetClickStartedAt,
         );
-        const issueHandledToLocalAckAfterTargetClickMs = subtractMetricMs(
-            issueLocalAckAfterTargetClickMs,
+        const issueHandledToLocalAcknowledgmentAfterTargetClickMs = subtractMetricMs(
+            issueLocalAcknowledgmentAfterTargetClickMs,
             targetPointerUpHandledMs,
         );
-        const issueHandledToVisualAckAfterTargetClickMs = subtractMetricMs(
-            issueVisualAckAfterTargetClickMs,
+        const issueHandledToVisualAcknowledgmentAfterTargetClickMs = subtractMetricMs(
+            issueVisualAcknowledgmentAfterTargetClickMs,
             targetPointerUpHandledMs,
         );
         const issueCommitMs = round(
@@ -2945,24 +2945,24 @@ async function executePointerOrderLoop(
                   ) - targetClickStartedAt,
               )
             : null;
-        const issueAckKind = getEventDetailValue(issueLocalAck, "kind");
-        const issueAckPath = getEventDetailValue(issueLocalAck, "path");
-        const issueRequestId = getEventDetailValue(issueLocalAck, "requestId");
-        const issueVisualAckReason = getEventDetailValue(
-            issueVisualAck,
+        const issueAcknowledgmentKind = getEventDetailValue(issueLocalAcknowledgment, "kind");
+        const issueAcknowledgmentPath = getEventDetailValue(issueLocalAcknowledgment, "path");
+        const issueRequestId = getEventDetailValue(issueLocalAcknowledgment, "requestId");
+        const issueVisualAcknowledgmentReason = getEventDetailValue(
+            issueVisualAcknowledgment,
             "reason",
         );
-        const cancelLocalAckMs = getEventDeltaMs(cancelLocalAck, cancelStartedAt);
-        const cancelHandledToLocalAckMs = subtractMetricMs(
-            cancelLocalAckMs,
+        const cancelLocalAcknowledgmentMs = getEventDeltaMs(cancelLocalAcknowledgment, cancelStartedAt);
+        const cancelHandledToLocalAcknowledgmentMs = subtractMetricMs(
+            cancelLocalAcknowledgmentMs,
             cancelPointerDownHandledMs,
         );
-        const cancelVisualAckMs = getEventDeltaMs(
-            cancelVisualAck,
+        const cancelVisualAcknowledgmentMs = getEventDeltaMs(
+            cancelVisualAcknowledgment,
             cancelStartedAt,
         );
-        const cancelHandledToVisualAckMs = subtractMetricMs(
-            cancelVisualAckMs,
+        const cancelHandledToVisualAcknowledgmentMs = subtractMetricMs(
+            cancelVisualAcknowledgmentMs,
             cancelPointerDownHandledMs,
         );
         const cancelQueueFlushMs = cancelQueueFlush.event
@@ -2999,18 +2999,20 @@ async function executePointerOrderLoop(
             : null;
         const cancelOrderPathEventName =
             cancelOrderPathEvent.matchedName ?? null;
-        const cancelAckPath = getEventDetailValue(cancelLocalAck, "path");
+        const cancelAcknowledgmentPath = getEventDetailValue(cancelLocalAcknowledgment, "path");
         const cancelRequestId = getEventDetailValue(
-            cancelLocalAck,
+            cancelLocalAcknowledgment,
             "requestId",
         );
-        const cancelVisualAckReason = getEventDetailValue(
-            cancelVisualAck,
+        const cancelVisualAcknowledgmentReason = getEventDetailValue(
+            cancelVisualAcknowledgment,
             "reason",
         );
         const benchmarkInvalidReasons: string[] = [];
-        if (!sourceSelectLocalAck.event) {
-            benchmarkInvalidReasons.push("missing_source_select_local_ack");
+        if (!sourceSelectLocalAcknowledgment.event) {
+            benchmarkInvalidReasons.push(
+                "missing_source_select_local_acknowledgment",
+            );
         }
         if (!sourceSelectEvent.event) {
             benchmarkInvalidReasons.push("missing_source_select");
@@ -3035,8 +3037,8 @@ async function executePointerOrderLoop(
             benchmarkInvalidReasons.push("unexpected_cancel_order_path_event");
         }
         for (const [metricName, metricValue] of Object.entries({
-            issueLocalAckAfterTargetClickMs,
-            issueVisualAckAfterTargetClickMs,
+            issueLocalAcknowledgmentAfterTargetClickMs,
+            issueVisualAcknowledgmentAfterTargetClickMs,
             issueAfterTargetClickMs,
             issueQueueFlushAfterTargetClickMs,
             issuePerfEventAfterTargetClickMs,
@@ -3062,18 +3064,18 @@ async function executePointerOrderLoop(
             sourcePointerDownDispatchLeadMs,
             sourcePointerDownQueueDelayMs,
             sourcePointerUpHandledMs,
-            sourceSelectLocalAckMs,
+            sourceSelectLocalAcknowledgmentMs,
             sourceSelectMs,
             targetPointerDownHandledMs,
             targetPointerDownDispatchLeadMs,
             targetPointerDownQueueDelayMs,
             targetPointerUpHandledMs,
-            issueLocalAckMs,
-            issueLocalAckAfterTargetClickMs,
-            issueVisualAckMs,
-            issueVisualAckAfterTargetClickMs,
-            issueHandledToLocalAckAfterTargetClickMs,
-            issueHandledToVisualAckAfterTargetClickMs,
+            issueLocalAcknowledgmentMs,
+            issueLocalAcknowledgmentAfterTargetClickMs,
+            issueVisualAcknowledgmentMs,
+            issueVisualAcknowledgmentAfterTargetClickMs,
+            issueHandledToLocalAcknowledgmentAfterTargetClickMs,
+            issueHandledToVisualAcknowledgmentAfterTargetClickMs,
             issueCommitMs,
             issueAfterTargetClickMs,
             issueHandledToCommitAfterTargetClickMs,
@@ -3093,24 +3095,24 @@ async function executePointerOrderLoop(
             issueOrderPathEventAfterTargetClickMs,
             issueOrderPathEventName:
                 issueOrderPathEvent.matchedName ?? null,
-            issueAckKind,
-            issueAckPath,
+            issueAcknowledgmentKind,
+            issueAcknowledgmentPath,
             issueRequestId,
-            issueVisualAckReason,
+            issueVisualAcknowledgmentReason,
             issueMatched: issueApplied.matched ?? false,
             cancelMatched: cancelApplied.matched ?? false,
-            cancelLocalAckMs,
-            cancelHandledToLocalAckMs,
-            cancelVisualAckMs,
-            cancelHandledToVisualAckMs,
+            cancelLocalAcknowledgmentMs,
+            cancelHandledToLocalAcknowledgmentMs,
+            cancelVisualAcknowledgmentMs,
+            cancelHandledToVisualAcknowledgmentMs,
             cancelQueueFlushMs,
             cancelPerfEventMs,
             cancelHandledToCommitMs,
             cancelOrderPathEventMs,
             cancelOrderPathEventName,
-            cancelAckPath,
+            cancelAcknowledgmentPath,
             cancelRequestId,
-            cancelVisualAckReason,
+            cancelVisualAcknowledgmentReason,
             issueStatus: issueApplied.status ?? null,
             cancelStatus: cancelApplied.status ?? null,
             benchmarkValid: benchmarkInvalidReasons.length === 0,

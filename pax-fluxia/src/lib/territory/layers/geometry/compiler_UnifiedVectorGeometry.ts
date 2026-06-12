@@ -43,12 +43,6 @@ import {
     createEmptyTerritoryGeometryData,
     isCompileError,
 } from './modes/geometryModeUtils';
-import {
-    logPipelineStage,
-    summarizeConnections,
-    summarizeOwnership,
-    summarizeStars,
-} from '../../../perf/pipelineTelemetry';
 import { log } from '../../../utils/logger';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -110,39 +104,7 @@ export function compileVectorGeometry(
     options: CompileVectorGeometryOptions = {},
 ): ResolvedGeometrySnapshot {
     log.renderer('Compiler', `compileVectorGeometry() — ownership v${input.ownership.version}, ${input.stars.length} stars`);
-    logPipelineStage({
-        channel: 'renderer',
-        context: 'UnifiedVectorGeometry',
-        stage: 'compile_input',
-        from: 'Ownership + live topology',
-        to: 'Vector geometry compiler',
-        purpose: 'Accept gameplay topology and ownership as the resolved geometry build request',
-        summary:
-            `${summarizeStars(input.stars)} ${summarizeConnections(input.lanes)} ` +
-            summarizeOwnership(input.ownership),
-        perfEventName: 'territory.geometry.compileInput',
-        perfDetail: {
-            worldWidth: input.world.width,
-            worldHeight: input.world.height,
-            styleMode: input.styleMode,
-        },
-        logDetail: {
-            world: input.world,
-            styleMode: input.styleMode,
-            tunables: serializeTunables(input.tunables),
-            stars: input.stars,
-            lanes: input.lanes,
-            ownership: {
-                version: input.ownership.version,
-                starOwners: Object.fromEntries(
-                    input.ownership.starOwners?.entries() ?? [],
-                ),
-                contestedLaneIds: input.ownership.contestedLaneIds ?? [],
-                conquestEvents: input.ownership.conquestEvents ?? [],
-                virtualStars: input.ownership.virtualStars ?? [],
-            },
-        },
-    });
+
 
     const settings = buildGeneratorSettings(input.world, input.tunables);
     const sourceMode = options.sourceMode ?? 'unified_vector';
@@ -166,28 +128,7 @@ export function compileVectorGeometry(
     }
 
     const geometry = result as TerritoryGeometryData;
-    logPipelineStage({
-        channel: 'renderer',
-        context: 'UnifiedVectorGeometry',
-        stage: 'generator_output',
-        from: 'Power-Voronoi geometry generator',
-        to: 'Raw territory geometry',
-        purpose: 'Capture the direct geometry compiler output before resolved adaptation',
-        summary:
-            `mergedTerritories=${geometry.mergedTerritories.length} ` +
-            `sharedPolylines=${geometry.sharedPolylines.length} ` +
-            `worldBorders=${geometry.worldBorderPolylines.length}`,
-        perfEventName: 'territory.geometry.generatorOutput',
-        perfDetail: {
-            fingerprint: geometry.fingerprint,
-        },
-        logDetail: {
-            fingerprint: geometry.fingerprint,
-            mergedTerritories: geometry.mergedTerritories,
-            sharedPolylines: geometry.sharedPolylines,
-            worldBorderPolylines: geometry.worldBorderPolylines,
-        },
-    });
+
 
     // ── Step 2: Build resolved frontier polylines ──
     const frontierPolylines = buildResolvedFrontierPolylines(geometry);
@@ -195,100 +136,23 @@ export function compileVectorGeometry(
     const allInterOwnerPolylines = frontierPolylines.filter(
         (p) => !p.ownerPairKey.includes('__world__') && !p.ownerPairKey.endsWith('|world'),
     );
-    logPipelineStage({
-        channel: 'renderer',
-        context: 'UnifiedVectorGeometry',
-        stage: 'frontier_polylines',
-        from: 'Raw geometry polylines',
-        to: 'Resolved frontier polylines',
-        purpose: 'Normalize inter-owner and world-border frontiers into stable polyline records',
-        summary:
-            `interOwner=${allInterOwnerPolylines.length} worldBorders=${worldBorderPolylines.length}`,
-        perfEventName: 'territory.geometry.frontiersBuilt',
-        logDetail: {
-            frontierPolylines: allInterOwnerPolylines,
-            worldBorderPolylines,
-        },
-    });
+
 
     // ── Step 3: Build territory regions ──
     const territoryRegions = buildTerritoryRegions(geometry);
-    logPipelineStage({
-        channel: 'renderer',
-        context: 'UnifiedVectorGeometry',
-        stage: 'territory_regions',
-        from: 'Merged raw territories',
-        to: 'Territory regions',
-        purpose: 'Assign stable region identity to owner polygons for downstream sampling and rendering',
-        summary: `regions=${territoryRegions.length}`,
-        perfEventName: 'territory.geometry.regionsBuilt',
-        logDetail: {
-            territoryRegions,
-        },
-    });
+
 
     // ── Step 4: Build shared frontier map (D-90 multimap) ──
     const sharedFrontierMap = buildSharedFrontierMap(allInterOwnerPolylines);
-    logPipelineStage({
-        channel: 'renderer',
-        context: 'UnifiedVectorGeometry',
-        stage: 'shared_frontier_map',
-        from: 'Resolved frontier polylines',
-        to: 'Owner-pair frontier multimap',
-        purpose: 'Group frontiers by owner pair for topology and border consumers',
-        summary: `ownerPairs=${sharedFrontierMap.size}`,
-        perfEventName: 'territory.geometry.sharedFrontierMapBuilt',
-        logDetail: {
-            sharedFrontierMap: serializeSharedFrontierMap(sharedFrontierMap),
-        },
-    });
+
 
     // ── Step 5: Build frontier topology from TMAP ──
     const frontierTopology = buildFrontierTopologyFromGeometry(geometry, input);
-    logPipelineStage({
-        channel: 'renderer',
-        context: 'UnifiedVectorGeometry',
-        stage: 'frontier_topology',
-        from: 'Frontier multimap + TMAP',
-        to: 'Resolved frontier topology',
-        purpose: 'Build vertices, sections, loops, and adjacency for geometric reasoning',
-        summary: frontierTopology
-            ? `vertices=${frontierTopology.vertices.size} sections=${frontierTopology.sections.size} loops=${frontierTopology.loops.length}`
-            : 'topology=missing',
-        perfEventName: 'territory.geometry.topologyBuilt',
-        logDetail: frontierTopology
-            ? {
-                  topology: {
-                      vertices: Object.fromEntries(
-                          frontierTopology.vertices.entries(),
-                      ),
-                      sections: Object.fromEntries(
-                          frontierTopology.sections.entries(),
-                      ),
-                      loops: frontierTopology.loops,
-                  },
-              }
-            : {
-                  topology: null,
-              },
-    });
+
 
     // ── Step 6: Build owner shells (FG2 concepts absorbed) ──
     const { shells, shellLoops } = buildOwnerShells(geometry);
-    logPipelineStage({
-        channel: 'renderer',
-        context: 'UnifiedVectorGeometry',
-        stage: 'shell_classification',
-        from: 'Territory regions',
-        to: 'Shells + shell loops',
-        purpose: 'Classify outer and hole loops for shell-aware territory consumers',
-        summary: `shells=${shells.length} shellLoops=${shellLoops.length}`,
-        perfEventName: 'territory.geometry.shellsBuilt',
-        logDetail: {
-            shells,
-            shellLoops,
-        },
-    });
+
 
     // ── Step 7: Assemble resolved snapshot ──
     const snapshot: ResolvedGeometrySnapshot = {
@@ -319,25 +183,7 @@ export function compileVectorGeometry(
         provenance: buildProvenance(input, settings),
         diagnostics: buildDiagnostics(frontierTopology, shells),
     };
-    logPipelineStage({
-        channel: 'renderer',
-        context: 'UnifiedVectorGeometry',
-        stage: 'resolved_snapshot',
-        from: 'Resolved geometry sub-artifacts',
-        to: 'ResolvedGeometrySnapshot',
-        purpose: 'Publish the full geometry contract consumed by render families and diagnostics',
-        summary:
-            `regions=${snapshot.territoryRegions.length} frontiers=${snapshot.frontierPolylines.length} ` +
-            `worldBorders=${snapshot.worldBorderPolylines.length} shells=${snapshot.shells.length}`,
-        perfEventName: 'territory.geometry.snapshotBuilt',
-        perfDetail: {
-            version: snapshot.version,
-            ownershipVersion: snapshot.ownershipVersion,
-        },
-        logDetail: {
-            snapshot,
-        },
-    });
+
 
     log.renderer('Compiler',
         `Compiled: ${territoryRegions.length} regions, ` +

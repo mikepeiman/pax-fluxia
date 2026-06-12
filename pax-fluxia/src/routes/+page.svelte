@@ -469,7 +469,7 @@
     rel="stylesheet" />
 </svelte:head>
 
-<PaxFluxiaHud />
+<!-- <PaxFluxiaHud /> -->
 
 <main>
   {#if showGame && gameContainerRenderPromise}

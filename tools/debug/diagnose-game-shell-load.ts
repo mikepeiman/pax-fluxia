@@ -977,8 +977,8 @@ async function main(): Promise<void> {
                                         lastRenderFrameInputYieldReason:
                                             territory?.lastRenderFrameInputYieldReason ??
                                             "",
-                                        pendingInteractionVisualAckCount:
-                                            territory?.pendingInteractionVisualAckCount ??
+                                        pendingInteractionVisualAcknowledgmentCount:
+                                            territory?.pendingInteractionVisualAcknowledgmentCount ??
                                             0,
                                         queuedOrderMutations:
                                             territory?.queuedOrderMutations ?? 0,

@@ -1,11 +1,5 @@
 import { GAME_CONFIG } from '$lib/config/game.config';
-import {
-    logPipelineStage,
-    summarizeConnections,
-    summarizeGeometry,
-    summarizeOwnership,
-    summarizeStars,
-} from '$lib/perf/pipelineTelemetry';
+
 import type { StarConnection, StarState } from '$lib/types/game.types';
 import { log } from '$lib/utils/logger';
 import type { ResolvedGeometrySnapshot } from '../contracts/GeometryContracts';
@@ -35,27 +29,7 @@ export function buildOwnershipSnapshotFromStars(
         conquestEvents: [],
         virtualStars: [],
     };
-    logPipelineStage({
-        channel: 'state',
-        context: 'RenderFamilyGeometry',
-        stage: 'ownership_snapshot',
-        from: 'Live stars',
-        to: 'OwnershipSnapshot',
-        purpose: 'Normalize owner assignments for geometry and scene builders',
-        summary: `${summarizeStars(stars)} ${summarizeOwnership(snapshot)}`,
-        perfEventName: 'territory.ownership.snapshotBuilt',
-        perfDetail: {
-            starCount: stars.length,
-            ownedStarCount: snapshot.starOwners.size,
-        },
-        logDetail: {
-            stars,
-            starOwners: Object.fromEntries(snapshot.starOwners.entries()),
-            contestedLaneIds: snapshot.contestedLaneIds,
-            conquestEvents: snapshot.conquestEvents,
-            virtualStars: snapshot.virtualStars,
-        },
-    });
+
     return snapshot;
 }
 
@@ -84,42 +58,7 @@ export function buildVectorRenderFamilyGeometry(params: {
             params.ownership ?? buildOwnershipSnapshotFromStars(params.stars),
         styleMode: runtimeSettings.selection.styleMode,
     });
-    logPipelineStage({
-        channel: 'renderer',
-        context: 'RenderFamilyGeometry',
-        stage: 'vector_geometry',
-        from: 'Ownership snapshot + live topology',
-        to: 'ResolvedGeometrySnapshot',
-        purpose: 'Build render-family geometry for vector-driven territory families',
-        summary:
-            `${summarizeStars(params.stars)} ${summarizeConnections(params.lanes)} ` +
-            summarizeGeometry(geometry),
-        perfEventName: 'territory.geometry.vectorBuilt',
-        perfDetail: {
-            starCount: params.stars.length,
-            laneCount: params.lanes.length,
-            regionCount: geometry.territoryRegions.length,
-            frontierCount: geometry.frontierPolylines.length,
-            shellLoopCount: geometry.shellLoops.length,
-        },
-        logDetail: {
-            stars: params.stars,
-            lanes: params.lanes,
-            ownership:
-                params.ownership == null
-                    ? null
-                    : {
-                          version: params.ownership.version,
-                          starOwners: Object.fromEntries(
-                              params.ownership.starOwners.entries(),
-                          ),
-                          contestedLaneIds: params.ownership.contestedLaneIds,
-                          conquestEvents: params.ownership.conquestEvents,
-                          virtualStars: params.ownership.virtualStars,
-                      },
-            geometry,
-        },
-    });
+
     return geometry;
 }
 
@@ -226,28 +165,7 @@ export function buildPerimeterFieldRenderFamilyGeometry(params: {
         configSource,
     });
     if (adapted) {
-        logPipelineStage({
-            channel: 'renderer',
-            context: 'RenderFamilyGeometry',
-            stage: 'perimeter_geometry_authority',
-            from: 'Geometry_0319 raw shared frontiers/world borders',
-            to: 'ResolvedGeometrySnapshot',
-            purpose: 'Resolve one shared-boundary geometry seam for all 0319 live consumers',
-            summary:
-                `${summarizeStars(params.stars)} ${summarizeConnections(params.lanes)} ` +
-                summarizeGeometry(adapted),
-            perfEventName: 'territory.geometry.perimeterBuilt',
-            detail: {
-                geometrySource,
-                requestedGeometrySource,
-                authorityStage:
-                    adapted.diagnostics.stageLadder?.authoritativeSeamFingerprint ??
-                    null,
-                displayStage:
-                    adapted.diagnostics.stageLadder?.displayBorderFingerprint ??
-                    null,
-            },
-        });
+
         return adapted;
     }
 
@@ -263,21 +181,6 @@ export function buildPerimeterFieldRenderFamilyGeometry(params: {
         ownership,
         styleMode: runtimeSettings.selection.styleMode,
     });
-    logPipelineStage({
-        channel: 'renderer',
-        context: 'RenderFamilyGeometry',
-        stage: 'perimeter_geometry_fallback',
-        from: 'Live topology',
-        to: 'ResolvedGeometrySnapshot',
-        purpose: 'Fallback perimeter-field geometry compilation path',
-        summary:
-            `${summarizeStars(params.stars)} ${summarizeConnections(params.lanes)} ` +
-            summarizeGeometry(geometry),
-        perfEventName: 'territory.geometry.perimeterFallbackBuilt',
-        detail: {
-            geometrySource,
-            requestedGeometrySource,
-        },
-    });
+
     return geometry;
 }

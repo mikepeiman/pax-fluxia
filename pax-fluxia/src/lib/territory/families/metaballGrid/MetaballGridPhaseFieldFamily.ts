@@ -1550,12 +1550,13 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             Number(
                 (input.configSource?.MODIFIED_VORONOI_STAR_MARGIN as number | undefined) ??
                     GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ??
-                    45,
+                    0,
             ) || 0,
         );
         const requestedPlanKey = [
             transitionKey,
             currentGeometry.version,
+            input.prevGeometry?.version ?? '',
             settings.spacingPx,
             settings.originMode,
             settings.distribution,
@@ -1570,8 +1571,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
 
         if (
             !this.cachedPlan ||
-            this.lastPlanParamsKey !== requestedPlanKey ||
-            this.cachedPlan.nextGeometryRef !== currentGeometry
+            this.lastPlanParamsKey !== requestedPlanKey
         ) {
             this.cachedPlan = this.buildCachedPlan(
                 input,

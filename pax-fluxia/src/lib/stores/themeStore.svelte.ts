@@ -7,7 +7,6 @@
 
 import { getBuiltinGameThemes } from '$lib/config/builtinThemes';
 import { normalizeBgImagePath } from '$lib/config/bgManifest';
-import { patchTouchesLaneTopology } from '$lib/lanes/laneMargin';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import {
     buildThemeDisplayName,
@@ -36,7 +35,6 @@ import { setSettingsFromConfigPatch } from '$lib/components/ui/settingsState';
 import { audioManager } from '$lib/services/audioManager.svelte';
 import { activeGameStore } from '$lib/stores/activeGameStore.svelte';
 import { animationStore } from '$lib/stores/animationStore.svelte';
-import { gameStore } from '$lib/stores/gameStore.svelte';
 import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
 
 
@@ -139,27 +137,6 @@ function applyThemeValuesFallback(
 
     activeGameStore.updateTickInterval(GAME_CONFIG.BASE_TICK_MS);
     animationStore.setAnimationSpeed(GAME_CONFIG.ANIMATION_SPEED_MS);
-
-    const affectsLaneTopology = patchTouchesLaneTopology(
-        valuesPatch,
-        GAME_CONFIG,
-    );
-    const affectsLanePaths =
-        affectsLaneTopology
-        || 'MAPGEN_LANE_MODE' in valuesPatch;
-    const affectsAuthoredConnectivityPolicy =
-        'MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS' in valuesPatch;
-    if (affectsLaneTopology) {
-        gameStore.rebuildConnectionsFromLaneClearance();
-    } else if (affectsLanePaths || affectsAuthoredConnectivityPolicy) {
-        if (affectsLanePaths) {
-            gameStore.refreshLanePolylinesFromConfig();
-        } else if ((GAME_CONFIG as any).MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS) {
-            gameStore.rebuildConnectionsFromLaneClearance();
-        } else {
-            gameStore.refreshLanePolylinesFromConfig();
-        }
-    }
 
     bumpTerritoryVisualConfig();
 

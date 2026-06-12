@@ -130,7 +130,7 @@ export function resolveRuntimeMap(
             stars.map((star) => ({ id: star.id, x: star.x, y: star.y })),
             autoConnections,
             options.mapLaneMode ?? 'curved',
-            options.mapgenLaneMarginPx ?? 75,
+            options.mapgenLaneMarginPx ?? 0,
         );
     }
 

@@ -85,7 +85,7 @@ export interface MapGenConfig {
     /**
      * Minimum distance (px) from a Delaunay chord / sampled lane centerline to any non-endpoint star.
      * Single knob for lane topology + curved solver (independent of territory MSR).
-     * Default **75** ≈ prior defaults 45 MSR + 30 “buffer”.
+     * Default **0** means lane adjustment is inactive unless an editor/tool explicitly enables it.
      */
     mapgenLaneMarginPx?: number;
     /**

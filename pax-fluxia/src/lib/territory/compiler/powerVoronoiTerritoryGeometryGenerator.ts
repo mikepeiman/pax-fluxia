@@ -28,7 +28,6 @@ import { weightedVoronoi } from 'd3-weighted-voronoi';
 import type { StarState, StarConnection } from '../../types/game.types';
 import { computeCorridorVirtuals, computeDisconnectVirtuals, DISCONNECT_OWNER_ID } from '../../renderers/territoryFeatures';
 import { findConnectedClustersOptimized } from '../../renderers/territoryUtils';
-import { resolveGeometryLaneConstraints } from '../../lanes/geometryLaneConstraints';
 import { log } from '../../utils/logger';
 import type { CompileError } from './types';
 import { executeChainWalk, flattenLoopPoints } from './chainWalkCore';
@@ -1103,14 +1102,6 @@ export function generateVoronoiTerritoryGeometry(
         clearanceRadiusPx: config.starCoreGuardRadius,
     }));
 
-        const laneConstraints = config.corridorEnabled
-            ? resolveGeometryLaneConstraints({
-                  stars,
-                  connections,
-                  laneMarginPx: config.starMargin,
-              })
-            : null;
-
         if (config.corridorEnabled) {
             const corridorVirtuals = computeCorridorVirtuals(
                 ownedStars,
@@ -1118,7 +1109,8 @@ export function generateVoronoiTerritoryGeometry(
                 config.corridorSpacing,
                 config.cxWeight,
                 config.cxCount || undefined,
-                laneConstraints?.resolver,
+                // Use authored/cache lane paths only; territory geometry must not reroute lanes.
+                undefined,
                 config.cxContestMidpointVstars,
                 true,
                 true,

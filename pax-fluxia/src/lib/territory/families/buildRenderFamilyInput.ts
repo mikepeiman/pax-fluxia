@@ -1,11 +1,5 @@
 import { GAME_CONFIG } from '$lib/config/game.config';
-import {
-    logPipelineStage,
-    summarizeConnections,
-    summarizeGeometry,
-    summarizeOwnership,
-    summarizeStars,
-} from '$lib/perf/pipelineTelemetry';
+
 import type { StarState, StarConnection } from '$lib/types/game.types';
 import type { ResolvedGeometrySnapshot } from '../contracts/GeometryContracts';
 import type {
@@ -31,16 +25,6 @@ function collectRenderFamilyTunables(params: {
     }
 
     return tunables;
-}
-
-function summarizeTunables(
-    tunables: ReadonlyMap<string, RenderFamilyTunableValue>,
-): string {
-    const preview = [...tunables.entries()]
-        .slice(0, 4)
-        .map(([key, value]) => `${key}=${String(value)}`)
-        .join(',');
-    return `tunables=${tunables.size}${preview ? ` preview=${preview}` : ''}`;
 }
 
 export function buildRenderFamilyInput(params: {
@@ -89,42 +73,6 @@ export function buildRenderFamilyInput(params: {
         activeTransition: params.activeTransition ?? null,
         transitionSessions: params.transitionSessions ?? null,
     };
-    logPipelineStage({
-        channel: 'renderer',
-        context: 'RenderFamilyInput',
-        stage: 'family_input',
-        from: 'GameCanvas frame state',
-        to: 'Render-family contract',
-        purpose: 'Freeze stars, lanes, ownership, geometry, and tunables into a single family update payload',
-        summary:
-            `${summarizeStars(input.stars)} ${summarizeConnections(input.lanes)} ` +
-            `${input.ownership ? summarizeOwnership(input.ownership) : 'ownership=null'} ` +
-            `${summarizeGeometry(input.geometry)} prev=${summarizeGeometry(input.prevGeometry ?? null)} ` +
-            `${summarizeTunables(tunables)}`,
-        perfEventName: 'territory.renderFamily.inputBuilt',
-        detail: {
-            nowMs: input.nowMs,
-            paused: input.paused,
-            gameTick: input.gameTick ?? null,
-            activeTransitionEvents: input.activeTransition?.events.length ?? 0,
-            transitionSessions: input.transitionSessions?.length ?? 0,
-        },
-        logDetail: {
-            nowMs: input.nowMs,
-            paused: input.paused,
-            gameTick: input.gameTick ?? null,
-            world: input.world,
-            stars: input.stars,
-            lanes: input.lanes,
-            ownership: input.ownership,
-            geometry: input.geometry,
-            prevGeometry: input.prevGeometry,
-            tunables: Object.fromEntries(tunables.entries()),
-            configSource: input.configSource,
-            renderer: input.renderer,
-            activeTransition: input.activeTransition,
-            transitionSessions: input.transitionSessions,
-        },
-    });
+
     return input;
 }

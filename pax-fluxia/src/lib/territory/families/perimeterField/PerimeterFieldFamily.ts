@@ -5,12 +5,6 @@ import {
     type MetaballRenderMetrics,
     type MetaballRendererRuntime,
 } from '$lib/renderers/MetaballRenderer';
-import {
-    logPipelineStage,
-    summarizeGeometry,
-    summarizeRendererMetrics,
-    summarizeScene,
-} from '$lib/perf/pipelineTelemetry';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 import type { StarState } from '$lib/types/game.types';
 import type { ResolvedGeometrySnapshot } from '../../contracts/GeometryContracts';
@@ -221,19 +215,7 @@ export class PerimeterFieldFamily implements RenderFamily {
                 this.lastDebugSnapshot = null;
                 return { container: this.root };
             }
-            logPipelineStage({
-                channel: 'renderer',
-                context: 'PerimeterFieldFamily',
-                stage: 'geometry_input',
-                from: 'RenderFamilyInput.geometry',
-                to: 'PerimeterField family pipeline',
-                purpose: 'Receive current territory geometry for sample-field planning',
-                summary: summarizeGeometry(currentGeometry),
-                perfEventName: 'territory.perimeterField.geometryReceived',
-                logDetail: {
-                    geometry: currentGeometry,
-                },
-            });
+
 
             const transitionKey = buildTransitionKey(input);
             const geometrySource =
@@ -340,43 +322,7 @@ export class PerimeterFieldFamily implements RenderFamily {
                     }),
             );
             this.lastDebugSnapshot = builtScene.debug;
-            logPipelineStage({
-                channel: 'renderer',
-                context: 'PerimeterFieldFamily',
-                stage: 'family_scene',
-                from: 'Geometry + transition plan',
-                to: 'MetaballSceneInput',
-                purpose: 'Translate perimeter samples into renderer-ready influence fields',
-                summary: summarizeScene(builtScene.sceneInput),
-                perfEventName: 'territory.perimeterField.familySceneReady',
-                perfDetail: {
-                    displayStars: displayStars.length,
-                    oldGeometryCacheHit,
-                    transitionPlanCacheHit,
-                    geometrySource,
-                    transitionEngine,
-                },
-                logDetail: {
-                    renderInput: {
-                        world: input.world,
-                        gameTick: input.gameTick,
-                        nowMs: input.nowMs,
-                        paused: input.paused,
-                        activeTransition: input.activeTransition,
-                        ownershipVersion: input.ownership?.version ?? null,
-                        geometryVersion: currentGeometry.version,
-                        geometrySource,
-                        transitionEngine,
-                    },
-                    oldGeometryCacheHit,
-                    transitionPlanCacheHit,
-                    oldGeometry: this.oldGeometry,
-                    transitionPlan: this.transitionPlan,
-                    displayStars,
-                    debugSnapshot: builtScene.debug,
-                    sceneInput: builtScene.sceneInput,
-                },
-            });
+
             const renderMetrics: MetaballRenderMetrics = {
                 solveMs: 0,
                 textureUploadMs: 0,
@@ -401,30 +347,7 @@ export class PerimeterFieldFamily implements RenderFamily {
                     },
                 );
             });
-            logPipelineStage({
-                channel: 'renderer',
-                context: 'PerimeterFieldFamily',
-                stage: 'family_render',
-                from: 'MetaballSceneInput',
-                to: 'PIXI display root',
-                purpose: 'Render perimeter-field sample solve through the shared metaball substrate',
-                summary: summarizeRendererMetrics(renderMetrics),
-                perfEventName: 'territory.perimeterField.familyRendered',
-                perfDetail: {
-                    geometrySource,
-                    transitionEngine,
-                    oldGeometryCacheHit,
-                    transitionPlanCacheHit,
-                },
-                logDetail: {
-                    geometrySource,
-                    transitionEngine,
-                    oldGeometryCacheHit,
-                    transitionPlanCacheHit,
-                    renderMetrics,
-                    sceneFingerprint: builtScene.sceneInput.sceneFingerprint,
-                },
-            });
+
 
             return { container: this.root };
         });

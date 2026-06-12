@@ -276,6 +276,9 @@ export function loadPanelSettings<T extends Record<string, any>>(defaults: T): T
                           ? defaults.starMargin
                           : 45;
                 stored.mapgenLaneMarginPx = starM + buf;
+                if (!('mapgenLaneMarginEnabled' in stored)) {
+                    stored.mapgenLaneMarginEnabled = true;
+                }
                 delete stored.mapgenLaneBufferPx;
             }
             if (migrateLegacyMetaballGridPanelSettings(stored)) {

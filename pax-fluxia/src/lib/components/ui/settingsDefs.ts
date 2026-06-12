@@ -267,6 +267,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'STAR_GLOW_ON' },
     { configKey: 'DENSITY_DARKEN_ALT' },
     { configKey: 'SHOW_HEX_GRID' },
+    { panelKey: 'mapgenLaneMarginEnabled', configKey: 'MAPGEN_LANE_MARGIN_ENABLED' },
     { panelKey: 'mapgenLaneMarginPx', configKey: 'MAPGEN_LANE_MARGIN_PX' },
     { panelKey: 'mapgenLaneCurveVsPruneBias', configKey: 'MAPGEN_LANE_CURVE_VS_PRUNE_BIAS' },
     { panelKey: 'mapgenLaneMode', configKey: 'MAPGEN_LANE_MODE' },

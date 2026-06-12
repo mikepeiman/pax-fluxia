@@ -1,11 +1,6 @@
+
 import { GAME_CONFIG } from '../../../config/game.config';
 import { getLanePolyline } from '../../../lanes/lanePolylineCache';
-import {
-    logPipelineStage,
-    summarizeConnections,
-    summarizeMetaballBaseContext,
-    summarizeStars,
-} from '$lib/perf/pipelineTelemetry';
 import type { ColorUtils } from '../../../renderers/RenderContext';
 import type { StarConnection, StarState } from '../../../types/game.types';
 import { buildCorridorVirtualSites } from '../../corridor/buildCorridorVirtualSites';
@@ -427,38 +422,6 @@ export function buildMetaballBaseContext(
         samples,
         ensureOwnerClusterIdx,
     };
-    logPipelineStage({
-        channel: 'renderer',
-        context: 'MetaballSceneBase',
-        stage: 'base_context',
-        from: 'Stars + lanes + overrides',
-        to: 'Clustered metaball sample field',
-        purpose: 'Build stable owner clusters, strengths, palette, and influence samples for metaball scenes',
-        summary:
-            `${summarizeStars(input.stars)} ${summarizeConnections(input.lanes)} ` +
-            summarizeMetaballBaseContext(context),
-        perfEventName: 'territory.metaball.baseContextBuilt',
-        perfDetail: {
-            actualStars: actualStars.length,
-            effectiveStars: effectiveStars.length,
-            ownedStars: ownedStars.length,
-            overrides: overrides?.size ?? 0,
-        },
-        logDetail: {
-            stars: input.stars,
-            lanes: input.lanes,
-            actualStars,
-            effectiveStars,
-            ownedStars,
-            overrides: Object.fromEntries(overrides?.entries() ?? []),
-            clusterMap: Object.fromEntries(context.clusterMap.entries()),
-            starStrengthById: Object.fromEntries(
-                context.starStrengthById.entries(),
-            ),
-            playerColors: context.playerColors,
-            clusterShips: context.clusterShips,
-            samples: context.samples,
-        },
-    });
+
     return context;
 }

@@ -348,4 +348,3 @@ export function summarizeRendererMetrics(
     }
     return parts.join(" ");
 }
-

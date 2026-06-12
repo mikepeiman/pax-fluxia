@@ -953,7 +953,7 @@ export function renderModifiedVoronoi(
         }
     }
     const maxMargin = minStarDist / 2;
-    const rawMargin = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
+    const rawMargin = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 0;
     const starMargin = Math.min(rawMargin, maxMargin);
     if (MV_DEV && rawMargin > maxMargin) {
         console.log(`[ModifiedVoronoi] Star margin capped: ${rawMargin}px → ${starMargin.toFixed(1)}px (minStarDist=${minStarDist.toFixed(1)}px)`);

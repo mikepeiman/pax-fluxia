@@ -100,7 +100,6 @@ import {
 } from './edgeShaping';
 import {
     recordPerfDuration,
-    recordPerfEvent,
 } from '$lib/perf/perfProbe';
 import {
     resetMetaballGridStats,
@@ -3019,12 +3018,7 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                     || sessionPlan.planKey !== sessionPlanKey
                 ) {
                     this.capturedSessionPlanRebuildCount += 1;
-                    recordPerfEvent('territory.phaseEdges.capturedSessionPlanRebuild', {
-                        sessionKey: session.sessionKey,
-                        cause: sessionPlan ? 'plan_key_changed' : 'cache_miss',
-                        planKey: sessionPlanKey,
-                        eventCount: session.events.length,
-                    });
+
                     sessionPlan = this.buildPlanForCapturedSession({
                         input,
                         planKey: sessionPlanKey,

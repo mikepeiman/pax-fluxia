@@ -1271,7 +1271,7 @@ export function renderPowerVoronoi(
     const borderAlpha = GAME_CONFIG.VORONOI_BORDER_ALPHA ?? 0.4;
     const satMult = GAME_CONFIG.VORONOI_SATURATION ?? 1.0;
     const lightMult = GAME_CONFIG.VORONOI_LIGHTNESS ?? 0.7;
-    const starMargin = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
+    const starMargin = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 0;
 
     // ── F-165: Early conquest detection — zero conquered star weight BEFORE geometry ──
     // ONLY when VS weight-lerp transition method is running or about to start.
@@ -1481,7 +1481,7 @@ export function renderPowerVoronoi(
             }));
 
             // console.log('[DIAG-DURATION]', { baseDuration, wlTransitionMs, tickMs });
-            const wlStarMargin = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45;
+            const wlStarMargin = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 0;
             const wlTunables = readNormalizedGeometryTunables();
         const wlDefaultWeight = buildRealSiteWeight(
             wlStarMargin,
