@@ -1339,3 +1339,38 @@ Merge guidance:
 - Preserve `setStarLabelScale(...)`; do not re-inline the cascade into markup.
 - Preserve `STAR_LABEL_LAYOUT_OPTIONS` and `STAR_LABEL_COLOR_MODE_OPTIONS`.
 - If master has changed star-label settings, keep the shared Pax primitive rendering and keep all existing `STAR_LABEL_*` config keys explicit.
+
+## 2026-06-12 Ships Remaining Controls Primitive Migration
+
+Scope implemented in this step:
+
+- Completed the remaining raw-control migration in:
+  - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Ships.svelte`
+
+Why this matters for merge:
+
+- `ControlsSection-Ships.svelte` now has no raw visible controls, inline style attributes, or local active-class toggles.
+- The final migrated clusters are:
+  - Order Arrows
+  - Damaged Ships
+  - Interaction
+  - Density Coloring
+  - Star Glow
+- Existing behavior is preserved:
+  - `ARROW_*` keys still drive arrow geometry, VFX, force scaling, dash, and outline behavior
+  - `DAMAGED_ORBIT_RADIUS`, `DAMAGED_ORBIT_EVADE`, and `DAMAGED_SHIP_SCALE` still drive damaged ship rendering
+  - `STAR_HIT_RADIUS` still drives the interaction hit zone
+  - `DENSITY_*` variables still render from `DENSITY_VARIABLES` and `DENSITY_PANEL_MAP`
+  - `STAR_GLOW_*` keys still drive star glow
+
+Validation:
+
+- Targeted audit for `ControlsSection-Ships.svelte`: no matches for `<button>`, `<select>`, `<input>`, `style=`, `class:active`, or `class:is-active`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Merge guidance:
+
+- Keep all Ships controls on Pax primitives.
+- Preserve `getArrowOutlineTone()` and `setArrowOutlineTone(...)` for mapping UI tone labels to numeric outline colors.
+- If master has added new Ships controls, do not restore raw HTML controls; add them through `PaxSettingsRangeRow`, `PaxSettingsToggleRow`, `PaxHudSegmentedControl`, `PaxHudSelect`, or another Pax primitive.

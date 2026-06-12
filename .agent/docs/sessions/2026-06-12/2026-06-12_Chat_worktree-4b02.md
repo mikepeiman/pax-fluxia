@@ -145,3 +145,6 @@ Prompt:
 - Continued `ControlsSection-Ships.svelte` by migrating Star Labels controls to Pax segmented/range/toggle primitives.
 - Extracted `setStarLabelScale(newScale)` to preserve the existing multi-key font metric cascade.
 - Validated the Star Labels slice with raw-control count reduction from `70` to `35`, `git diff --check`, and production build.
+- Completed `ControlsSection-Ships.svelte` by migrating Order Arrows, Damaged Ships, Interaction, Density Coloring, and Star Glow to Pax primitives.
+- Preserved `ARROW_*`, `DAMAGED_*`, `STAR_HIT_RADIUS`, `DENSITY_*`, and `STAR_GLOW_*` config write paths.
+- Validated the completed Ships migration with a zero-match raw-control audit, `git diff --check`, and production build.

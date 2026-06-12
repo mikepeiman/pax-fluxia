@@ -925,3 +925,40 @@ Validation:
 Next correct step:
 
 - Continue `ControlsSection-Ships.svelte` with Order Arrows, Damaged Ships, Interaction, Density Coloring, and Star Glow.
+
+## Ships Remaining Controls Primitive Migration
+
+Implemented:
+
+- Completed the remaining `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Ships.svelte` migration.
+- Added arrow option/helper support:
+  - `ARROW_HEAD_STYLE_OPTIONS`
+  - `ARROW_OUTLINE_TONE_OPTIONS`
+  - `getArrowOutlineTone()`
+  - `setArrowOutlineTone(tone)`
+- Migrated Order Arrows controls to Pax primitives:
+  - arrowhead size/style/spread/notch
+  - shaft width, opacity, length, gradient steps, flow speed
+  - dash length/gap, head VFX/opacity
+  - force reactivity/ceiling
+  - outline width/opacity/tone
+- Migrated the remaining non-arrow controls:
+  - Damaged Ships orbit radius, evade toggle, and damaged scale
+  - Interaction hit zone radius
+  - Density Coloring variable loop and alternate darkening toggle
+  - Star Glow enabled/radius/intensity
+
+Intent:
+
+- Finish the Ships settings migration so the entire file is owned by the shared Pax primitive/token system.
+- Preserve all existing `GAME_CONFIG` writes and `panel` update keys.
+
+Validation:
+
+- `ControlsSection-Ships.svelte` raw visible-control audit is now `0` for `<button>`, `<select>`, `<input>`, inline `style=`, `class:active`, and `class:is-active`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Next correct step:
+
+- Continue the systemic settings migration in `ControlsSection-Territory.svelte`, then shift remaining effort from primitive migration to Aurelia Drift visual polish and live HUD layout fidelity.

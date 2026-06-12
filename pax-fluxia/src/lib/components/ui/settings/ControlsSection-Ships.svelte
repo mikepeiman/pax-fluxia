@@ -31,12 +31,18 @@
         DENSITY_TIERS: 'densityTiers',
     };
 
-    const ARROW_HEAD_STYLES = [
+    const ARROW_HEAD_STYLE_OPTIONS: PaxHudSegmentedOption[] = [
         { value: "triangle", label: "Triangle" },
         { value: "chevron", label: "Chevron" },
         { value: "kite", label: "Kite" },
         { value: "spear", label: "Spear" },
-    ] as const;
+    ];
+
+    const ARROW_OUTLINE_TONE_OPTIONS: PaxHudSegmentedOption[] = [
+        { value: "shadow", label: "Shadow" },
+        { value: "steel", label: "Steel" },
+        { value: "bright", label: "Bright" },
+    ];
 
     const HALO_FLEET_MODE_OPTIONS: PaxHudSegmentedOption[] = [
         { value: "stepped", label: "Stepped" },
@@ -196,6 +202,18 @@
             updatePanel(panelKey, val);
         }
         updatePanel("starLabelScale", newScale);
+    }
+
+    function getArrowOutlineTone(): string {
+        const color = panel.arrowOutlineColor ?? GAME_CONFIG.ARROW_OUTLINE_COLOR ?? 0x000000;
+        if (color === 0x18273f) return "steel";
+        if (color === 0xffffff) return "bright";
+        return "shadow";
+    }
+
+    function setArrowOutlineTone(tone: string) {
+        const color = tone === "steel" ? 0x18273f : tone === "bright" ? 0xffffff : 0x000000;
+        writePanelConfig("arrowOutlineColor", "ARROW_OUTLINE_COLOR", color);
     }
 </script>
 
@@ -1059,448 +1077,268 @@
 <!-- ── Order Arrows ── -->
 <h4 class="sub-heading">Order Arrows</h4>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Arrowhead Size</span><span class="val"
-            >{((panel.arrowHeadSize ?? 30) as number).toFixed(0)}px</span
-        >
-    </div>
-    <input
-        type="range"
-        min="5"
-        max="60"
-        step="5"
-        value={panel.arrowHeadSize ?? 30}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.ARROW_HEAD_SIZE = v;
-            updatePanel("arrowHeadSize", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Arrowhead Size"
+        value={panel.arrowHeadSize ?? GAME_CONFIG.ARROW_HEAD_SIZE ?? 30}
+        min={5}
+        max={60}
+        step={5}
+        suffix="px"
+        settingConfigKey="ARROW_HEAD_SIZE"
+        onInput={(value) => writePanelConfig("arrowHeadSize", "ARROW_HEAD_SIZE", value)}
     />
 </div>
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Arrowhead Style</span>
-        <div style="display: flex; gap: 4px; flex-wrap: wrap;">
-            {#each ARROW_HEAD_STYLES as style}
-                <button
-                    class="mode-btn"
-                    class:active={(panel.arrowHeadStyle ?? GAME_CONFIG.ARROW_HEAD_STYLE ?? "triangle") === style.value}
-                    onclick={() => {
-                        GAME_CONFIG.ARROW_HEAD_STYLE = style.value;
-                        updatePanel("arrowHeadStyle", style.value);
-                    }}>{style.label}</button
-                >
-            {/each}
-        </div>
     </div>
-</div>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Arrowhead Spread</span><span class="val"
-            >{Math.round(
-                panel.arrowHeadSpreadDeg ??
-                    GAME_CONFIG.ARROW_HEAD_SPREAD_DEG ??
-                    30,
-            )}°</span
-        >
-    </div>
-    <input
-        type="range"
-        min="10"
-        max="70"
-        step="1"
-        value={panel.arrowHeadSpreadDeg ??
-            GAME_CONFIG.ARROW_HEAD_SPREAD_DEG ??
-            30}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.ARROW_HEAD_SPREAD_DEG = v;
-            updatePanel("arrowHeadSpreadDeg", v);
-        }}
+    <PaxHudSegmentedControl
+        value={panel.arrowHeadStyle ?? GAME_CONFIG.ARROW_HEAD_STYLE ?? "triangle"}
+        options={ARROW_HEAD_STYLE_OPTIONS}
+        ariaLabel="Arrowhead style"
+        density="compact"
+        onValueChange={(value) => writePanelConfig("arrowHeadStyle", "ARROW_HEAD_STYLE", value)}
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Arrowhead Notch</span><span class="val"
-            >{((panel.arrowHeadNotch ?? GAME_CONFIG.ARROW_HEAD_NOTCH ?? 0.2) as number).toFixed(2)}</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.05"
+    <PaxSettingsRangeRow
+        label="Arrowhead Spread"
+        value={panel.arrowHeadSpreadDeg ?? GAME_CONFIG.ARROW_HEAD_SPREAD_DEG ?? 30}
+        min={10}
+        max={70}
+        step={1}
+        suffix="deg"
+        settingConfigKey="ARROW_HEAD_SPREAD_DEG"
+        onInput={(value) => writePanelConfig("arrowHeadSpreadDeg", "ARROW_HEAD_SPREAD_DEG", value)}
+    />
+</div>
+<div class="var-row">
+    <PaxSettingsRangeRow
+        label="Arrowhead Notch"
         value={panel.arrowHeadNotch ?? GAME_CONFIG.ARROW_HEAD_NOTCH ?? 0.2}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.ARROW_HEAD_NOTCH = v;
-            updatePanel("arrowHeadNotch", v);
-        }}
+        min={0}
+        max={1}
+        step={0.05}
+        format="fixed2"
+        settingConfigKey="ARROW_HEAD_NOTCH"
+        onInput={(value) => writePanelConfig("arrowHeadNotch", "ARROW_HEAD_NOTCH", value)}
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Shaft Width</span><span class="val"
-            >{((panel.arrowShaftWidth ?? 6) as number).toFixed(0)}px</span
-        >
-    </div>
-    <input
-        type="range"
-        min="1"
-        max="12"
-        step="1"
-        value={panel.arrowShaftWidth ?? 6}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.ARROW_SHAFT_WIDTH = v;
-            updatePanel("arrowShaftWidth", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Shaft Width"
+        value={panel.arrowShaftWidth ?? GAME_CONFIG.ARROW_SHAFT_WIDTH ?? 6}
+        min={1}
+        max={12}
+        step={1}
+        suffix="px"
+        settingConfigKey="ARROW_SHAFT_WIDTH"
+        onInput={(value) => writePanelConfig("arrowShaftWidth", "ARROW_SHAFT_WIDTH", value)}
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Arrow Opacity</span><span class="val"
-            >{((panel.arrowAlpha ?? 0.6) as number).toFixed(2)}</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0.1"
-        max="1.0"
-        step="0.05"
-        value={panel.arrowAlpha ?? 0.6}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.ARROW_ALPHA = v;
-            updatePanel("arrowAlpha", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Arrow Opacity"
+        value={panel.arrowAlpha ?? GAME_CONFIG.ARROW_ALPHA ?? 0.6}
+        min={0.1}
+        max={1.0}
+        step={0.05}
+        format="fixed2"
+        settingConfigKey="ARROW_ALPHA"
+        onInput={(value) => writePanelConfig("arrowAlpha", "ARROW_ALPHA", value)}
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Arrow Length</span><span class="val"
-            >{((panel.arrowLengthFraction ?? 0.5) as number).toFixed(2)}</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0.1"
-        max="1.0"
-        step="0.05"
-        value={panel.arrowLengthFraction ?? 0.5}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.ARROW_LENGTH_FRACTION = v;
-            updatePanel("arrowLengthFraction", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Arrow Length"
+        value={panel.arrowLengthFraction ?? GAME_CONFIG.ARROW_LENGTH_FRACTION ?? 0.5}
+        min={0.1}
+        max={1.0}
+        step={0.05}
+        format="fixed2"
+        settingConfigKey="ARROW_LENGTH_FRACTION"
+        onInput={(value) => writePanelConfig("arrowLengthFraction", "ARROW_LENGTH_FRACTION", value)}
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Gradient Steps</span><span class="val"
-            >{Math.round(
-                panel.arrowShaftSteps ?? GAME_CONFIG.ARROW_SHAFT_STEPS ?? 6,
-            )}</span
-        >
-    </div>
-    <input
-        type="range"
-        min="1"
-        max="16"
-        step="1"
+    <PaxSettingsRangeRow
+        label="Gradient Steps"
         value={panel.arrowShaftSteps ?? GAME_CONFIG.ARROW_SHAFT_STEPS ?? 6}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.ARROW_SHAFT_STEPS = v;
-            updatePanel("arrowShaftSteps", v);
-        }}
+        min={1}
+        max={16}
+        step={1}
+        settingConfigKey="ARROW_SHAFT_STEPS"
+        onInput={(value) => writePanelConfig("arrowShaftSteps", "ARROW_SHAFT_STEPS", value)}
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Flow Speed</span><span class="val"
-            >{((panel.arrowFlowSpeed ?? GAME_CONFIG.ARROW_FLOW_SPEED ?? 1.2) as number).toFixed(2)}×</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="3"
-        step="0.05"
+    <PaxSettingsRangeRow
+        label="Flow Speed"
         value={panel.arrowFlowSpeed ?? GAME_CONFIG.ARROW_FLOW_SPEED ?? 1.2}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.ARROW_FLOW_SPEED = v;
-            updatePanel("arrowFlowSpeed", v);
-        }}
+        min={0}
+        max={3}
+        step={0.05}
+        format="multiplier"
+        settingConfigKey="ARROW_FLOW_SPEED"
+        onInput={(value) => writePanelConfig("arrowFlowSpeed", "ARROW_FLOW_SPEED", value)}
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Dash Length</span><span class="val"
-            >{((panel.arrowDashLength ?? 15) as number).toFixed(0)}px</span
-        >
-    </div>
-    <input
-        type="range"
-        min="3"
-        max="30"
-        step="1"
-        value={panel.arrowDashLength ?? 15}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.ARROW_DASH_LENGTH = v;
-            updatePanel("arrowDashLength", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Dash Length"
+        value={panel.arrowDashLength ?? GAME_CONFIG.ARROW_DASH_LENGTH ?? 15}
+        min={3}
+        max={30}
+        step={1}
+        suffix="px"
+        settingConfigKey="ARROW_DASH_LENGTH"
+        onInput={(value) => writePanelConfig("arrowDashLength", "ARROW_DASH_LENGTH", value)}
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Head VFX</span><span class="val"
-            >{((panel.arrowHeadVfxAlpha ?? GAME_CONFIG.ARROW_HEAD_VFX_ALPHA ?? 0.16) as number).toFixed(2)}</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.05"
+    <PaxSettingsRangeRow
+        label="Head VFX"
         value={panel.arrowHeadVfxAlpha ?? GAME_CONFIG.ARROW_HEAD_VFX_ALPHA ?? 0.16}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.ARROW_HEAD_VFX_ALPHA = v;
-            updatePanel("arrowHeadVfxAlpha", v);
-        }}
+        min={0}
+        max={1}
+        step={0.05}
+        format="fixed2"
+        settingConfigKey="ARROW_HEAD_VFX_ALPHA"
+        onInput={(value) => writePanelConfig("arrowHeadVfxAlpha", "ARROW_HEAD_VFX_ALPHA", value)}
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Force Reactivity</span><span class="val"
-            >{((panel.arrowForceIntensity ?? GAME_CONFIG.ARROW_FORCE_INTENSITY ?? 0.4) as number).toFixed(2)}</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.05"
+    <PaxSettingsRangeRow
+        label="Force Reactivity"
         value={panel.arrowForceIntensity ?? GAME_CONFIG.ARROW_FORCE_INTENSITY ?? 0.4}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.ARROW_FORCE_INTENSITY = v;
-            updatePanel("arrowForceIntensity", v);
-        }}
+        min={0}
+        max={1}
+        step={0.05}
+        format="fixed2"
+        settingConfigKey="ARROW_FORCE_INTENSITY"
+        onInput={(value) => writePanelConfig("arrowForceIntensity", "ARROW_FORCE_INTENSITY", value)}
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Force Ceiling</span><span class="val"
-            >{Math.round(
-                panel.arrowForceIntensityMaxShips ??
-                    GAME_CONFIG.ARROW_FORCE_INTENSITY_MAX_SHIPS ??
-                    250,
-            )} ships</span
-        >
-    </div>
-    <input
-        type="range"
-        min="25"
-        max="1000"
-        step="25"
-        value={panel.arrowForceIntensityMaxShips ??
-            GAME_CONFIG.ARROW_FORCE_INTENSITY_MAX_SHIPS ??
-            250}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.ARROW_FORCE_INTENSITY_MAX_SHIPS = v;
-            updatePanel("arrowForceIntensityMaxShips", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Force Ceiling"
+        value={panel.arrowForceIntensityMaxShips ?? GAME_CONFIG.ARROW_FORCE_INTENSITY_MAX_SHIPS ?? 250}
+        min={25}
+        max={1000}
+        step={25}
+        suffix=" ships"
+        settingConfigKey="ARROW_FORCE_INTENSITY_MAX_SHIPS"
+        onInput={(value) => writePanelConfig("arrowForceIntensityMaxShips", "ARROW_FORCE_INTENSITY_MAX_SHIPS", value)}
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Dash Gap</span><span class="val"
-            >{((panel.arrowDashGap ?? 10) as number).toFixed(0)}px</span
-        >
-    </div>
-    <input
-        type="range"
-        min="2"
-        max="25"
-        step="1"
-        value={panel.arrowDashGap ?? 10}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.ARROW_DASH_GAP = v;
-            updatePanel("arrowDashGap", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Dash Gap"
+        value={panel.arrowDashGap ?? GAME_CONFIG.ARROW_DASH_GAP ?? 10}
+        min={2}
+        max={25}
+        step={1}
+        suffix="px"
+        settingConfigKey="ARROW_DASH_GAP"
+        onInput={(value) => writePanelConfig("arrowDashGap", "ARROW_DASH_GAP", value)}
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Head Opacity</span><span class="val"
-            >{((panel.arrowHeadAlpha ?? 0.6) as number).toFixed(2)}</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0.1"
-        max="1.0"
-        step="0.05"
-        value={panel.arrowHeadAlpha ?? 0.6}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.ARROW_HEAD_ALPHA = v;
-            updatePanel("arrowHeadAlpha", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Head Opacity"
+        value={panel.arrowHeadAlpha ?? GAME_CONFIG.ARROW_HEAD_ALPHA ?? 0.6}
+        min={0.1}
+        max={1.0}
+        step={0.05}
+        format="fixed2"
+        settingConfigKey="ARROW_HEAD_ALPHA"
+        onInput={(value) => writePanelConfig("arrowHeadAlpha", "ARROW_HEAD_ALPHA", value)}
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Outline Width</span><span class="val"
-            >{((panel.arrowOutlineWidth ?? 0) as number).toFixed(1)}px</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="5"
-        step="0.5"
-        value={panel.arrowOutlineWidth ?? 0}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.ARROW_OUTLINE_WIDTH = v;
-            updatePanel("arrowOutlineWidth", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Outline Width"
+        value={panel.arrowOutlineWidth ?? GAME_CONFIG.ARROW_OUTLINE_WIDTH ?? 0}
+        min={0}
+        max={5}
+        step={0.5}
+        output={`${(panel.arrowOutlineWidth ?? GAME_CONFIG.ARROW_OUTLINE_WIDTH ?? 0).toFixed(1)}px`}
+        settingConfigKey="ARROW_OUTLINE_WIDTH"
+        onInput={(value) => writePanelConfig("arrowOutlineWidth", "ARROW_OUTLINE_WIDTH", value)}
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Outline Opacity</span><span class="val"
-            >{((panel.arrowOutlineAlpha ?? 0.6) as number).toFixed(2)}</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="1.0"
-        step="0.05"
-        value={panel.arrowOutlineAlpha ?? 0.6}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.ARROW_OUTLINE_ALPHA = v;
-            updatePanel("arrowOutlineAlpha", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Outline Opacity"
+        value={panel.arrowOutlineAlpha ?? GAME_CONFIG.ARROW_OUTLINE_ALPHA ?? 0.6}
+        min={0}
+        max={1.0}
+        step={0.05}
+        format="fixed2"
+        settingConfigKey="ARROW_OUTLINE_ALPHA"
+        onInput={(value) => writePanelConfig("arrowOutlineAlpha", "ARROW_OUTLINE_ALPHA", value)}
     />
 </div>
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Outline Tone</span>
-        <div style="display: flex; gap: 4px; flex-wrap: wrap;">
-            <button
-                class="mode-btn"
-                class:active={(panel.arrowOutlineColor ?? GAME_CONFIG.ARROW_OUTLINE_COLOR ?? 0x000000) === 0x000000}
-                onclick={() => {
-                    GAME_CONFIG.ARROW_OUTLINE_COLOR = 0x000000;
-                    updatePanel("arrowOutlineColor", 0x000000);
-                }}>Shadow</button
-            >
-            <button
-                class="mode-btn"
-                class:active={(panel.arrowOutlineColor ?? GAME_CONFIG.ARROW_OUTLINE_COLOR ?? 0x000000) === 0x18273f}
-                onclick={() => {
-                    GAME_CONFIG.ARROW_OUTLINE_COLOR = 0x18273f;
-                    updatePanel("arrowOutlineColor", 0x18273f);
-                }}>Steel</button
-            >
-            <button
-                class="mode-btn"
-                class:active={(panel.arrowOutlineColor ?? GAME_CONFIG.ARROW_OUTLINE_COLOR ?? 0x000000) === 0xffffff}
-                onclick={() => {
-                    GAME_CONFIG.ARROW_OUTLINE_COLOR = 0xffffff;
-                    updatePanel("arrowOutlineColor", 0xffffff);
-                }}>Bright</button
-            >
-        </div>
     </div>
+    <PaxHudSegmentedControl
+        value={getArrowOutlineTone()}
+        options={ARROW_OUTLINE_TONE_OPTIONS}
+        ariaLabel="Arrow outline tone"
+        density="compact"
+        onValueChange={setArrowOutlineTone}
+    />
 </div>
 
 <!-- ── Damaged Ships ── -->
 <h4 class="sub-heading">Damaged Ships</h4>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Orbit Radius</span><span class="val"
-            >{((panel.damagedOrbitRadius ?? GAME_CONFIG.DAMAGED_ORBIT_RADIUS ?? 15) as number).toFixed(0)}px</span
-        >
-    </div>
-    <input
-        type="range"
-        min="4"
-        max="40"
-        step="1"
+    <PaxSettingsRangeRow
+        label="Orbit Radius"
         value={panel.damagedOrbitRadius ?? GAME_CONFIG.DAMAGED_ORBIT_RADIUS ?? 15}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.DAMAGED_ORBIT_RADIUS = v;
-            updatePanel("damagedOrbitRadius", v);
-        }}
+        min={4}
+        max={40}
+        step={1}
+        suffix="px"
+        settingConfigKey="DAMAGED_ORBIT_RADIUS"
+        onInput={(value) => writePanelConfig("damagedOrbitRadius", "DAMAGED_ORBIT_RADIUS", value)}
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <label class="toggle-label">
-            <input
-                type="checkbox"
-                checked={panel.damagedOrbitEvade ?? GAME_CONFIG.DAMAGED_ORBIT_EVADE ?? false}
-                onchange={() => {
-                    const v = !(panel.damagedOrbitEvade ?? GAME_CONFIG.DAMAGED_ORBIT_EVADE ?? false);
-                    GAME_CONFIG.DAMAGED_ORBIT_EVADE = v;
-                    updatePanel("damagedOrbitEvade", v);
-                }}
-            />
-            <span class="var-name">Evade Incoming Fire</span>
-        </label>
-    </div>
+    <PaxSettingsToggleRow
+        label="Evade Incoming Fire"
+        checked={panel.damagedOrbitEvade ?? GAME_CONFIG.DAMAGED_ORBIT_EVADE ?? false}
+        settingConfigKey="DAMAGED_ORBIT_EVADE"
+        onToggle={(value) => writePanelConfig("damagedOrbitEvade", "DAMAGED_ORBIT_EVADE", value)}
+    />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Damaged Scale</span><span class="val"
-            >{((panel.damagedShipScale ?? 0.7) as number).toFixed(2)}×</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0.1"
-        max="1.5"
-        step="0.05"
-        value={panel.damagedShipScale ?? 0.7}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.DAMAGED_SHIP_SCALE = v;
-            updatePanel("damagedShipScale", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Damaged Scale"
+        value={panel.damagedShipScale ?? GAME_CONFIG.DAMAGED_SHIP_SCALE ?? 0.7}
+        min={0.1}
+        max={1.5}
+        step={0.05}
+        format="multiplier"
+        settingConfigKey="DAMAGED_SHIP_SCALE"
+        onInput={(value) => writePanelConfig("damagedShipScale", "DAMAGED_SHIP_SCALE", value)}
     />
 </div>
 
 <!-- ── Interaction ── -->
 <h4 class="sub-heading">Interaction</h4>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Hit Zone Radius</span><span class="val"
-            >{((panel.starHitRadius ?? 50) as number).toFixed(0)}px</span
-        >
-    </div>
-    <input
-        type="range"
-        min="20"
-        max="120"
-        step="5"
-        value={panel.starHitRadius ?? 50}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.STAR_HIT_RADIUS = v;
-            updatePanel("starHitRadius", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Hit Zone Radius"
+        value={panel.starHitRadius ?? GAME_CONFIG.STAR_HIT_RADIUS ?? 50}
+        min={20}
+        max={120}
+        step={5}
+        suffix="px"
+        settingConfigKey="STAR_HIT_RADIUS"
+        onInput={(value) => writePanelConfig("starHitRadius", "STAR_HIT_RADIUS", value)}
     />
 </div>
 
@@ -1509,95 +1347,59 @@
 {#each DENSITY_VARIABLES as v}
     {@const panelKey = DENSITY_PANEL_MAP[v.key] ?? v.key}
     <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">{v.label}</span>
-            <span class="val">{((panel[panelKey] ?? (GAME_CONFIG as any)[v.key] ?? v.min) as number).toFixed(2)}</span>
-        </div>
-        <input
-            type="range"
+        <PaxSettingsRangeRow
+            label={v.label}
+            value={panel[panelKey] ?? (GAME_CONFIG as Record<string, any>)[v.key] ?? v.min}
             min={v.min}
             max={v.max}
             step={v.step}
-            value={panel[panelKey] ?? (GAME_CONFIG as any)[v.key] ?? v.min}
-            oninput={(e) => {
-                const val = parseFloat((e.target as HTMLInputElement).value);
-                (GAME_CONFIG as any)[v.key] = val;
-                updatePanel(panelKey, val);
-            }}
+            format="fixed2"
+            settingConfigKey={v.key}
+            onInput={(value) => writePanelConfig(panelKey, v.key, value)}
         />
     </div>
 {/each}
 <div class="var-row">
-    <div class="row-top">
-        <label class="toggle-label">
-            <input
-                type="checkbox"
-                checked={panel.densityDarkenAlt}
-                onchange={() => {
-                    const v = !panel.densityDarkenAlt;
-                    GAME_CONFIG.DENSITY_DARKEN_ALT = v;
-                    updatePanel("densityDarkenAlt", v);
-                }}
-            />
-            <span class="var-name">Alternate Darkening</span>
-        </label>
-    </div>
+    <PaxSettingsToggleRow
+        label="Alternate Darkening"
+        checked={panel.densityDarkenAlt ?? GAME_CONFIG.DENSITY_DARKEN_ALT ?? false}
+        settingConfigKey="DENSITY_DARKEN_ALT"
+        onToggle={(value) => writePanelConfig("densityDarkenAlt", "DENSITY_DARKEN_ALT", value)}
+    />
 </div>
 
 <!-- ── Star Glow ── -->
 <h4 class="sub-heading">Star Glow</h4>
 <div class="var-row">
-    <div class="row-top">
-        <label class="toggle-label">
-            <input
-                type="checkbox"
-                checked={panel.starGlowOn}
-                onchange={() => {
-                    const v = !panel.starGlowOn;
-                    GAME_CONFIG.STAR_GLOW_ON = v;
-                    updatePanel("starGlowOn", v);
-                }}
-            />
-            <span class="var-name">Glow Enabled</span>
-        </label>
-    </div>
-</div>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Glow Radius</span><span class="val"
-            >{((panel.starGlowRadiusMult ?? 1.3) as number).toFixed(1)}×</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0.5"
-        max="3.0"
-        step="0.1"
-        value={panel.starGlowRadiusMult ?? 1.3}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.STAR_GLOW_RADIUS_MULT = v;
-            updatePanel("starGlowRadiusMult", v);
-        }}
+    <PaxSettingsToggleRow
+        label="Glow Enabled"
+        checked={panel.starGlowOn ?? GAME_CONFIG.STAR_GLOW_ON ?? false}
+        settingConfigKey="STAR_GLOW_ON"
+        onToggle={(value) => writePanelConfig("starGlowOn", "STAR_GLOW_ON", value)}
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Glow Intensity</span><span class="val"
-            >{((panel.starGlowIntensity ?? 0.25) as number).toFixed(2)}</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="1.0"
-        step="0.02"
-        value={panel.starGlowIntensity ?? 0.25}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.STAR_GLOW_INTENSITY = v;
-            updatePanel("starGlowIntensity", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Glow Radius"
+        value={panel.starGlowRadiusMult ?? GAME_CONFIG.STAR_GLOW_RADIUS_MULT ?? 1.3}
+        min={0.5}
+        max={3.0}
+        step={0.1}
+        output={`${(panel.starGlowRadiusMult ?? GAME_CONFIG.STAR_GLOW_RADIUS_MULT ?? 1.3).toFixed(1)}x`}
+        settingConfigKey="STAR_GLOW_RADIUS_MULT"
+        onInput={(value) => writePanelConfig("starGlowRadiusMult", "STAR_GLOW_RADIUS_MULT", value)}
+    />
+</div>
+<div class="var-row">
+    <PaxSettingsRangeRow
+        label="Glow Intensity"
+        value={panel.starGlowIntensity ?? GAME_CONFIG.STAR_GLOW_INTENSITY ?? 0.25}
+        min={0}
+        max={1.0}
+        step={0.02}
+        format="fixed2"
+        settingConfigKey="STAR_GLOW_INTENSITY"
+        onInput={(value) => writePanelConfig("starGlowIntensity", "STAR_GLOW_INTENSITY", value)}
     />
 </div>
 
