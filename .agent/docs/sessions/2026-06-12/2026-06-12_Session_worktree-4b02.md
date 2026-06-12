@@ -623,3 +623,26 @@ Validation:
 Next correct step:
 
 - Continue with `TerritorySurfaceStyleTuning.svelte` and `ThemeSelectDropdown.svelte`, then split the large `MetaballGridTuning.svelte`, `ControlsSection-Territory.svelte`, and `ControlsSection-Ships.svelte`.
+
+## Territory Surface Style Primitive Migration
+
+Implemented:
+
+- Migrated `pax-fluxia/src/lib/components/ui/settings/TerritorySurfaceStyleTuning.svelte` to `PaxHudSelect`, `PaxSettingsRangeRow`, and `PaxSettingsToggleRow`.
+- Converted Cell Paint, Perimeter Placement, Border Paint, Ember Lattice Border Geometry, and Finish controls away from raw selects/ranges/toggles.
+- Added local option arrays for select-driven surface controls.
+- Removed obsolete legacy row-disabled CSS selectors.
+
+Intent:
+
+- Move a visual-polish-critical territory style surface onto the shared primitive/token base.
+- Preserve all existing `onUpdate(configKey, panelKey, value)` write paths.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- Targeted audit found no raw `<button>`, `<select>`, `<input>`, inline `style=`, active class toggles, old row/toggle classes, `.var-row`, `.row-top`, or `.mode-select` usage in `TerritorySurfaceStyleTuning.svelte`.
+
+Next correct step:
+
+- Decide whether to wrap/replace `ThemeSelectDropdown.svelte` or begin splitting one of the large remaining files: `MetaballGridTuning.svelte`, `ControlsSection-Territory.svelte`, or `ControlsSection-Ships.svelte`.

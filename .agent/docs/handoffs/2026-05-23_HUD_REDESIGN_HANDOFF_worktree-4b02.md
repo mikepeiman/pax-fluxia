@@ -1056,3 +1056,31 @@ Merge guidance:
 
 - Preserve the helper functions and primitive rendering path if conflicts occur.
 - Do not restore `.mini-action-btn`, `.toggle-row`, raw range inputs, or old trace row wrappers in Diagnostics.
+
+## 2026-06-12 Territory Surface Style Primitive Migration
+
+Scope implemented in this step:
+
+- Migrated territory style controls:
+  - `pax-fluxia/src/lib/components/ui/settings/TerritorySurfaceStyleTuning.svelte`
+
+Why this matters for merge:
+
+- This file owns much of the visible territory fill/border/style tuning and previously retained raw range/select/toggle controls.
+- Existing behavior is preserved:
+  - all controls still write through the passed `onUpdate(configKey, panelKey, value)` contract
+  - Cell Paint still writes `METABALL_GRID_CELL_*` and boundary-fill keys
+  - Perimeter Placement still writes `PERIMETER_FIELD_INWARD_OFFSET_PX`
+  - Border Paint still writes `METABALL_GRID_BORDER_*` and outer frontier border keys
+  - Ember Lattice controls still respect the existing edit gates and write frontier geometry/junction keys
+  - Finish controls still write blur and Chaikin config keys
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- Targeted audit found no raw controls or old local row/toggle class names in `TerritorySurfaceStyleTuning.svelte`.
+
+Merge guidance:
+
+- Preserve the shared primitive rendering path and local option arrays.
+- If master changes add new style controls, add them through `PaxHudSelect`, `PaxSettingsRangeRow`, or `PaxSettingsToggleRow`.

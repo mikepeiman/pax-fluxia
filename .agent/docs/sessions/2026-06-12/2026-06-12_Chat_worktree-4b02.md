@@ -106,3 +106,4 @@ Prompt:
 - Continued UI-system work by adding disabled select support and migrating small utility/diagnostic settings components to Pax primitives.
 - Continued UI-system work by adding a reusable color swatch primitive and migrating Players palette, Territory Transition tuning, and Territory Topology tuning to Pax primitives while preserving existing data/config flows.
 - Continued UI-system work by migrating Diagnostics and Territory Engine Trace diagnostics controls to Pax primitives while preserving overlay, ruler, recorder/export, underlying-geometry, and trace-step behavior.
+- Continued UI-system work by migrating Territory Surface Style controls to Pax select/range/toggle primitives while preserving fill, border, Ember Lattice, and finish config writes.

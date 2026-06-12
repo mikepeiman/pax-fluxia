@@ -4,6 +4,11 @@
         metaballGridFamilyConfigDefaults,
         metaballGridPhaseEdgesModeDefaults,
     } from "$lib/territory/families/metaballGrid/config";
+    import {
+        PaxHudSelect,
+        PaxSettingsRangeRow,
+        PaxSettingsToggleRow,
+    } from "$lib/design-system";
     import TerritorySlaWidget from "./TerritorySlaWidget.svelte";
 
     type StyleSectionId = "fill" | "border" | "finish";
@@ -29,6 +34,29 @@
         showFinishSection?: boolean;
         styleFamily?: TerritoryStyleFamily;
     }
+
+    const CELL_SHAPE_OPTIONS = [
+        { value: "square", label: "Square" },
+        { value: "circle", label: "Circle" },
+        { value: "diamond", label: "Diamond" },
+        { value: "hex", label: "Hex" },
+    ];
+
+    const BORDER_MODE_OPTIONS = [
+        { value: "off", label: "Off" },
+        { value: "territory_edge", label: "Territory edge" },
+        { value: "per_cell", label: "Per cell" },
+    ];
+
+    const FRONTIER_BORDER_GEOMETRY_OPTIONS = [
+        { value: "contour_matched", label: "Rounded contour-matched" },
+        { value: "shared_edge", label: "Straight shared edge" },
+    ];
+
+    const JUNCTION_RENDER_OPTIONS = [
+        { value: "gap", label: "Gap trim" },
+        { value: "bubble", label: "Bubble" },
+    ];
 
     let {
         panel,
@@ -298,179 +326,109 @@
                     primitive and boundary inset, not ownership topology.
                 </div>
 
-                <div class="var-row">
-                    <div class="row-top">
-                        <span class="var-name" title="Per-cell primitive used to paint the visible fill.">
-                            Cell Shape
-                        </span>
-                        <span class="val">
-                            {#if currentCellShape() === "square"}Square
-                            {:else if currentCellShape() === "circle"}Circle
-                            {:else if currentCellShape() === "diamond"}Diamond
-                            {:else}Hex{/if}
-                        </span>
-                    </div>
-                    <select
-                        class="mode-select"
-                        value={currentCellShape()}
-                        onchange={(event) => {
-                            const value = (event.target as HTMLSelectElement).value;
-                            onUpdate(
-                                "METABALL_GRID_CELL_SHAPE",
-                                "metaballGridCellShape",
-                                value,
-                            );
-                        }}
-                    >
-                        <option value="square">Square</option>
-                        <option value="circle">Circle</option>
-                        <option value="diamond">Diamond</option>
-                        <option value="hex">Hex</option>
-                    </select>
-                </div>
+                <PaxHudSelect
+                    label="Cell Shape"
+                    value={currentCellShape()}
+                    options={CELL_SHAPE_OPTIONS}
+                    onValueChange={(value) => {
+                        onUpdate(
+                            "METABALL_GRID_CELL_SHAPE",
+                            "metaballGridCellShape",
+                            value,
+                        );
+                    }}
+                />
 
-                <div class="var-row">
-                    <div class="row-top">
-                        <span class="var-name" title="Per-cell inward shrink on every side.">
-                            Cell Inset
-                        </span>
-                        <span class="val">{numVal("metaballGridCellInsetPx", "METABALL_GRID_CELL_INSET_PX", 0).toFixed(1)}px</span>
-                    </div>
-                    <div class="var-desc">
-                        Creates visible gridline separation between cells without changing the underlying owner classification.
-                    </div>
-                    <input
-                        type="range"
-                        min="0"
-                        max="48"
-                        step="0.5"
-                        value={numVal("metaballGridCellInsetPx", "METABALL_GRID_CELL_INSET_PX", 0)}
-                        oninput={(event) => {
-                            const value = parseFloat((event.target as HTMLInputElement).value);
-                            onUpdate(
-                                "METABALL_GRID_CELL_INSET_PX",
-                                "metaballGridCellInsetPx",
-                                value,
-                            );
-                        }}
-                    />
-                </div>
+                <PaxSettingsRangeRow
+                    label="Cell Inset"
+                    note="Creates visible gridline separation between cells without changing owner classification."
+                    value={numVal("metaballGridCellInsetPx", "METABALL_GRID_CELL_INSET_PX", 0)}
+                    min={0}
+                    max={48}
+                    step={0.5}
+                    output={`${numVal("metaballGridCellInsetPx", "METABALL_GRID_CELL_INSET_PX", 0).toFixed(1)}px`}
+                    settingConfigKey="METABALL_GRID_CELL_INSET_PX"
+                    onInput={(value) => {
+                        onUpdate(
+                            "METABALL_GRID_CELL_INSET_PX",
+                            "metaballGridCellInsetPx",
+                            value,
+                        );
+                    }}
+                />
 
-                <div
-                    class="var-row"
-                    class:disabled={currentCellShape() !== "square"}
-                >
-                    <div class="row-top">
-                        <span class="var-name" title="Rounded-corner radius for square cells only.">
-                            Square Corner
-                        </span>
-                        <span class="val">{numVal("metaballGridCellCornerPx", "METABALL_GRID_CELL_CORNER_PX", 0).toFixed(1)}px</span>
-                    </div>
-                    <div class="var-desc">
-                        Only applies when the cell primitive is Square.
-                    </div>
-                    <input
-                        type="range"
-                        min="0"
-                        max="48"
-                        step="0.5"
-                        disabled={currentCellShape() !== "square"}
-                        value={numVal("metaballGridCellCornerPx", "METABALL_GRID_CELL_CORNER_PX", 0)}
-                        oninput={(event) => {
-                            const value = parseFloat((event.target as HTMLInputElement).value);
-                            onUpdate(
-                                "METABALL_GRID_CELL_CORNER_PX",
-                                "metaballGridCellCornerPx",
-                                value,
-                            );
-                        }}
-                    />
-                </div>
+                <PaxSettingsRangeRow
+                    label="Square Corner"
+                    note="Only applies when the cell primitive is Square."
+                    value={numVal("metaballGridCellCornerPx", "METABALL_GRID_CELL_CORNER_PX", 0)}
+                    min={0}
+                    max={48}
+                    step={0.5}
+                    output={`${numVal("metaballGridCellCornerPx", "METABALL_GRID_CELL_CORNER_PX", 0).toFixed(1)}px`}
+                    disabled={currentCellShape() !== "square"}
+                    settingConfigKey="METABALL_GRID_CELL_CORNER_PX"
+                    onInput={(value) => {
+                        onUpdate(
+                            "METABALL_GRID_CELL_CORNER_PX",
+                            "metaballGridCellCornerPx",
+                            value,
+                        );
+                    }}
+                />
 
-                <div class="var-row">
-                    <div class="row-top">
-                        <span class="var-name" title="When on, territory boundary fills stay flush to the visible border by default. When off, boundary cells inherit the legacy cell inset and junction-gap pullback.">
-                            Flush Boundary Fill
-                        </span>
-                        <span class="val">{currentBoundaryFillFlush() ? "On" : "Off"}</span>
-                    </div>
-                    <div class="var-desc">
-                        Keeps the visible fill locked to the visible territory frontier by default. Leave this <strong>On</strong> for complete fills, then use <strong>Inward Offset</strong> only when you intentionally want the fill pulled back.
-                    </div>
-                    <label class="toggle-row">
-                        <input
-                            type="checkbox"
-                            checked={currentBoundaryFillFlush()}
-                            onchange={(event) => {
-                                const value = (event.target as HTMLInputElement).checked;
-                                onUpdate(
-                                    "METABALL_GRID_BOUNDARY_FILL_FLUSH",
-                                    "metaballGridBoundaryFillFlush",
-                                    value,
-                                );
-                            }}
-                        />
-                        <span class="var-name">Boundary fill matches border</span>
-                        <span class="val">{currentBoundaryFillFlush() ? "On" : "Off"}</span>
-                    </label>
-                </div>
+                <PaxSettingsToggleRow
+                    label="Boundary fill matches border"
+                    checked={currentBoundaryFillFlush()}
+                    description="Keeps the visible fill locked to the visible territory frontier."
+                    meta={currentBoundaryFillFlush() ? "On" : "Off"}
+                    settingConfigKey="METABALL_GRID_BOUNDARY_FILL_FLUSH"
+                    onChange={(value) => {
+                        onUpdate(
+                            "METABALL_GRID_BOUNDARY_FILL_FLUSH",
+                            "metaballGridBoundaryFillFlush",
+                            value,
+                        );
+                    }}
+                />
 
-                <div class="var-row">
-                    <div class="row-top">
-                        <span class="var-name" title="Extra inset applied to boundary / in-transition fill cells.">
-                            Inward Offset
-                        </span>
-                        <span class="val">{numVal("metaballGridInwardOffsetPx", "METABALL_GRID_INWARD_OFFSET_PX", 0).toFixed(0)}px</span>
-                    </div>
-                    <div class="var-desc">
-                        Adds explicit pullback from the visible territory frontier. With <strong>Boundary fill matches border</strong> on, <strong>0px</strong> means the fill stays flush in both centered-blended states.
-                    </div>
-                    <input
-                        type="range"
-                        min="0"
-                        max="60"
-                        step="1"
-                        value={numVal("metaballGridInwardOffsetPx", "METABALL_GRID_INWARD_OFFSET_PX", 0)}
-                        oninput={(event) => {
-                            const value = parseFloat((event.target as HTMLInputElement).value);
-                            onUpdate(
-                                "METABALL_GRID_INWARD_OFFSET_PX",
-                                "metaballGridInwardOffsetPx",
-                                value,
-                            );
-                        }}
-                    />
-                </div>
+                <PaxSettingsRangeRow
+                    label="Inward Offset"
+                    note="Adds explicit pullback from the visible territory frontier."
+                    value={numVal("metaballGridInwardOffsetPx", "METABALL_GRID_INWARD_OFFSET_PX", 0)}
+                    min={0}
+                    max={60}
+                    step={1}
+                    suffix="px"
+                    settingConfigKey="METABALL_GRID_INWARD_OFFSET_PX"
+                    onInput={(value) => {
+                        onUpdate(
+                            "METABALL_GRID_INWARD_OFFSET_PX",
+                            "metaballGridInwardOffsetPx",
+                            value,
+                        );
+                    }}
+                />
             {/if}
 
             {#if isPerimeterFieldFamily()}
                 <div class="sub-heading territory-style-subheading">Perimeter Placement</div>
-                <div class="var-row">
-                    <div class="row-top">
-                        <span class="var-name" title="How far derived perimeter vstars sit inside the source boundary.">
-                            Perimeter Inward Offset
-                        </span>
-                        <span class="val">{numVal("perimeterFieldInwardOffsetPx", "PERIMETER_FIELD_INWARD_OFFSET_PX", 10).toFixed(0)}px</span>
-                    </div>
-                    <div class="var-desc">
-                        Pulls the visible fill surface inward from the sampled source perimeter without changing the source topology.
-                    </div>
-                    <input
-                        type="range"
-                        min="0"
-                        max="60"
-                        step="1"
-                        value={numVal("perimeterFieldInwardOffsetPx", "PERIMETER_FIELD_INWARD_OFFSET_PX", 10)}
-                        oninput={(event) => {
-                            const value = parseFloat((event.target as HTMLInputElement).value);
-                            onUpdate(
-                                "PERIMETER_FIELD_INWARD_OFFSET_PX",
-                                "perimeterFieldInwardOffsetPx",
-                                value,
-                            );
-                        }}
-                    />
-                </div>
+                <PaxSettingsRangeRow
+                    label="Perimeter Inward Offset"
+                    note="Pulls the visible fill surface inward from the sampled source perimeter without changing source topology."
+                    value={numVal("perimeterFieldInwardOffsetPx", "PERIMETER_FIELD_INWARD_OFFSET_PX", 10)}
+                    min={0}
+                    max={60}
+                    step={1}
+                    suffix="px"
+                    settingConfigKey="PERIMETER_FIELD_INWARD_OFFSET_PX"
+                    onInput={(value) => {
+                        onUpdate(
+                            "PERIMETER_FIELD_INWARD_OFFSET_PX",
+                            "perimeterFieldInwardOffsetPx",
+                            value,
+                        );
+                    }}
+                />
             {/if}
         </section>
     {/if}
@@ -514,302 +472,165 @@
                     </div>
                 {/if}
 
-                <div class="var-row">
-                    <div class="row-top">
-                        <span class="var-name" title="Which visible boundary gets stroked.">
-                            Border Mode
-                        </span>
-                        <span class="val">
-                            {#if currentBorderMode() === "off"}Off
-                            {:else if currentBorderMode() === "per_cell"}Per cell
-                            {:else}Territory edge{/if}
-                        </span>
-                    </div>
-                    <div class="var-desc">
-                        Per-cell outlines every visible cell. Territory edge only strokes the true owner boundary.
-                    </div>
-                    <select
-                        class="mode-select"
-                        value={currentBorderMode()}
-                        onchange={(event) => {
-                            const value = (event.target as HTMLSelectElement).value;
-                            onUpdate(
-                                "METABALL_GRID_BORDER_MODE",
-                                "metaballGridBorderMode",
-                                value,
-                            );
-                        }}
-                    >
-                        <option value="off">Off</option>
-                        <option value="territory_edge">Territory edge</option>
-                        <option value="per_cell">Per cell</option>
-                    </select>
-                </div>
+                <PaxHudSelect
+                    label="Border Mode"
+                    value={currentBorderMode()}
+                    options={BORDER_MODE_OPTIONS}
+                    onValueChange={(value) => {
+                        onUpdate(
+                            "METABALL_GRID_BORDER_MODE",
+                            "metaballGridBorderMode",
+                            value,
+                        );
+                    }}
+                />
 
-                <label
-                    class="toggle-row"
-                    class:disabled={currentBorderMode() === "off" || currentDistribution() !== "square"}
-                    title="Centered-blended borders draw a single shared stroke where opposing owners meet. This changes the border presentation only; it does not own fill geometry."
-                >
-                    <input
-                        type="checkbox"
-                        disabled={currentBorderMode() === "off" || currentDistribution() !== "square"}
-                        checked={currentBorderBlend()}
-                        onchange={(event) => {
-                            const value = (event.target as HTMLInputElement).checked;
-                            onUpdate(
-                                "METABALL_GRID_BORDER_BLEND",
-                                "metaballGridBorderBlend",
-                                value,
-                            );
-                        }}
-                    />
-                    <span class="var-name">Centered-blended borders</span>
-                    <span class="val">{currentBorderBlend() ? "On" : "Off"}</span>
-                </label>
+                <PaxSettingsToggleRow
+                    label="Centered-blended borders"
+                    checked={currentBorderBlend()}
+                    disabled={currentBorderMode() === "off" || currentDistribution() !== "square"}
+                    description="Draws a single shared stroke where opposing owners meet."
+                    meta={currentBorderBlend() ? "On" : "Off"}
+                    settingConfigKey="METABALL_GRID_BORDER_BLEND"
+                    onChange={(value) => {
+                        onUpdate(
+                            "METABALL_GRID_BORDER_BLEND",
+                            "metaballGridBorderBlend",
+                            value,
+                        );
+                    }}
+                />
                 <div class="var-desc">
                     When enabled on a Square grid, opposing-owner boundaries are drawn once as a shared blended stroke. The fill surface stays on the same geometry either way; this toggle only changes how the frontier stroke is presented.
                 </div>
 
                 {#if usesEdgeForwardDefaults()}
-                    <label
-                        class="toggle-row"
-                        class:disabled={currentBorderMode() === "off"}
-                        title="Draw the owner-vs-world perimeter around the outside of the filled map area. Off means only inter-owner frontiers are stroked."
-                    >
-                        <input
-                            type="checkbox"
-                            disabled={currentBorderMode() === "off"}
-                            checked={currentFrontierOuterBorderEnabled()}
-                            onchange={(event) => {
-                                const value = (event.target as HTMLInputElement).checked;
-                                onUpdate(
-                                    "TERRITORY_FRONTIER_OUTER_BORDER_ENABLED",
-                                    "territoryFrontierOuterBorderEnabled",
-                                    value,
-                                );
-                            }}
-                        />
-                        <span class="var-name">Outer perimeter border</span>
-                        <span class="val">{currentFrontierOuterBorderEnabled() ? "On" : "Off"}</span>
-                    </label>
+                    <PaxSettingsToggleRow
+                        label="Outer perimeter border"
+                        checked={currentFrontierOuterBorderEnabled()}
+                        disabled={currentBorderMode() === "off"}
+                        description="Draw the owner-vs-world perimeter around the filled map area."
+                        meta={currentFrontierOuterBorderEnabled() ? "On" : "Off"}
+                        settingConfigKey="TERRITORY_FRONTIER_OUTER_BORDER_ENABLED"
+                        onChange={(value) => {
+                            onUpdate(
+                                "TERRITORY_FRONTIER_OUTER_BORDER_ENABLED",
+                                "territoryFrontierOuterBorderEnabled",
+                                value,
+                            );
+                        }}
+                    />
                     <div class="var-desc">
                         First-class owner-vs-world perimeter toggle. This is not the same as the internal faction frontiers.
                     </div>
                 {/if}
 
-                <div class="var-row">
-                    <div class="row-top">
-                        <span class="var-name" title="Chaikin passes applied to the visible border polyline.">
-                            Border Chaikin Passes
-                        </span>
-                        <span class="val">{Math.round(numVal("metaballGridBorderChaikinPasses", "METABALL_GRID_BORDER_CHAIKIN_PASSES", usesEdgeForwardDefaults() ? metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES : metaballGridFamilyConfigDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES))}</span>
-                    </div>
-                    <div class="var-desc">
-                        Global visible border smoothing. In Ember Lattice this also applies to whichever border geometry family is currently selected.
-                    </div>
-                    <input
-                        type="range"
-                        min="0"
-                        max="4"
-                        step="1"
-                        value={numVal("metaballGridBorderChaikinPasses", "METABALL_GRID_BORDER_CHAIKIN_PASSES", usesEdgeForwardDefaults() ? metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES : metaballGridFamilyConfigDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES)}
-                        oninput={(event) => {
-                            const value = parseInt((event.target as HTMLInputElement).value, 10);
-                            onUpdate(
-                                "METABALL_GRID_BORDER_CHAIKIN_PASSES",
-                                "metaballGridBorderChaikinPasses",
-                                value,
-                            );
-                        }}
-                    />
-                </div>
+                <PaxSettingsRangeRow
+                    label="Border Chaikin Passes"
+                    note="Global visible border smoothing."
+                    value={numVal("metaballGridBorderChaikinPasses", "METABALL_GRID_BORDER_CHAIKIN_PASSES", usesEdgeForwardDefaults() ? metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES : metaballGridFamilyConfigDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES)}
+                    min={0}
+                    max={4}
+                    step={1}
+                    settingConfigKey="METABALL_GRID_BORDER_CHAIKIN_PASSES"
+                    onInput={(value) => {
+                        onUpdate(
+                            "METABALL_GRID_BORDER_CHAIKIN_PASSES",
+                            "metaballGridBorderChaikinPasses",
+                            value,
+                        );
+                    }}
+                />
             {/if}
 
             {#if isEmberLatticeFamily()}
                 <div class="sub-heading territory-style-subheading">Ember Lattice Border Geometry</div>
 
-                <div
-                    class="var-row"
-                    class:disabled={!canEditFrontierBorderGeometry()}
-                >
-                    <div class="row-top">
-                        <span class="var-name" title="Switch between the straighter steady-state border family and the rounded contour-matched family.">
-                            Frontier Border Geometry
-                        </span>
-                        <span class="val">
-                            {#if currentFrontierBorderGeometryMode() === "shared_edge"}Straight shared edge
-                            {:else}Rounded contour-matched{/if}
-                        </span>
-                    </div>
-                    <div class="var-desc">
-                        Only applies on the Ember Lattice control path with Square distribution, Territory edge borders, and Centered-blended borders enabled.
-                    </div>
-                    <select
-                        class="mode-select"
-                        disabled={!canEditFrontierBorderGeometry()}
-                        value={currentFrontierBorderGeometryMode()}
-                        onchange={(event) => {
-                            const value = (event.target as HTMLSelectElement).value;
-                            onUpdate(
-                                "TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE",
-                                "territoryFrontierBorderGeometryMode",
-                                value,
-                            );
-                        }}
-                    >
-                        <option value="contour_matched">Rounded contour-matched</option>
-                        <option value="shared_edge">Straight shared edge</option>
-                    </select>
-                </div>
+                <PaxHudSelect
+                    label="Frontier Border Geometry"
+                    value={currentFrontierBorderGeometryMode()}
+                    options={FRONTIER_BORDER_GEOMETRY_OPTIONS}
+                    disabled={!canEditFrontierBorderGeometry()}
+                    onValueChange={(value) => {
+                        onUpdate(
+                            "TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE",
+                            "territoryFrontierBorderGeometryMode",
+                            value,
+                        );
+                    }}
+                />
 
-                <div
-                    class="var-row"
-                    class:disabled={!canEditSharedEdgeControls()}
-                    title={!canEditSharedEdgeControls() ? sharedEdgeControlGateReason() ?? "" : ""}
-                >
-                    <div class="row-top">
-                        <span class="var-name" title="Extra rounding pressure on straight shared-edge control borders.">
-                            Shared Edge Smoothing
-                        </span>
-                        <span class="val">{Math.round(numVal("metaballGridEdgeSmoothingPasses", "METABALL_GRID_EDGE_SMOOTHING_PASSES", metaballGridPhaseEdgesModeDefaults.METABALL_GRID_EDGE_SMOOTHING_PASSES))}</span>
-                    </div>
-                    <div class="var-desc">
-                        {#if !canEditSharedEdgeControls() && sharedEdgeControlGateReason()}
-                            {sharedEdgeControlGateReason()}
-                        {:else}
-                            Only affects the Straight shared edge border family. Rounded contour-matched borders ignore this knob because they already derive from the rounded frontier surface.
-                        {/if}
-                    </div>
-                    <input
-                        type="range"
-                        min="0"
-                        max="4"
-                        step="1"
-                        disabled={!canEditSharedEdgeControls()}
-                        value={numVal("metaballGridEdgeSmoothingPasses", "METABALL_GRID_EDGE_SMOOTHING_PASSES", metaballGridPhaseEdgesModeDefaults.METABALL_GRID_EDGE_SMOOTHING_PASSES)}
-                        oninput={(event) => {
-                            const value = parseInt((event.target as HTMLInputElement).value, 10);
-                            onUpdate(
-                                "METABALL_GRID_EDGE_SMOOTHING_PASSES",
-                                "metaballGridEdgeSmoothingPasses",
-                                value,
-                            );
-                        }}
-                    />
-                </div>
+                <PaxSettingsRangeRow
+                    label="Shared Edge Smoothing"
+                    note={sharedEdgeControlGateReason() ??
+                        "Only affects the Straight shared edge border family."}
+                    value={numVal("metaballGridEdgeSmoothingPasses", "METABALL_GRID_EDGE_SMOOTHING_PASSES", metaballGridPhaseEdgesModeDefaults.METABALL_GRID_EDGE_SMOOTHING_PASSES)}
+                    min={0}
+                    max={4}
+                    step={1}
+                    disabled={!canEditSharedEdgeControls()}
+                    settingConfigKey="METABALL_GRID_EDGE_SMOOTHING_PASSES"
+                    onInput={(value) => {
+                        onUpdate(
+                            "METABALL_GRID_EDGE_SMOOTHING_PASSES",
+                            "metaballGridEdgeSmoothingPasses",
+                            value,
+                        );
+                    }}
+                />
 
-                <div
-                    class="var-row"
-                    class:disabled={!canEditSharedEdgeJunctionControls()}
-                    title={!canEditSharedEdgeJunctionControls() ? sharedEdgeControlGateReason() ?? "" : ""}
-                >
-                    <div class="row-top">
-                        <span class="var-name" title="How straight shared-edge multi-owner junctions are presented.">
-                            Junction Render
-                        </span>
-                        <span class="val">
-                            {#if currentFrontierJunctionRenderMode() === "bubble"}Bubble{:else}Gap trim{/if}
-                        </span>
-                    </div>
-                    <div class="var-desc">
-                        {#if !canEditSharedEdgeJunctionControls() && sharedEdgeControlGateReason()}
-                            {sharedEdgeControlGateReason()}
-                        {:else}
-                            Controls the three-way-or-more junction treatment on the Straight shared edge border family. Gap trim keeps the trimmed pixel gap; Bubble replaces that gap with a blended multi-owner bubble marker.
-                        {/if}
-                    </div>
-                    <select
-                        class="mode-select"
-                        disabled={!canEditSharedEdgeJunctionControls()}
-                        value={currentFrontierJunctionRenderMode()}
-                        onchange={(event) => {
-                            const value = (event.target as HTMLSelectElement).value;
-                            onUpdate(
-                                "TERRITORY_FRONTIER_JUNCTION_RENDER_MODE",
-                                "territoryFrontierJunctionRenderMode",
-                                value,
-                            );
-                        }}
-                    >
-                        <option value="gap">Gap trim</option>
-                        <option value="bubble">Bubble</option>
-                    </select>
-                </div>
+                <PaxHudSelect
+                    label="Junction Render"
+                    value={currentFrontierJunctionRenderMode()}
+                    options={JUNCTION_RENDER_OPTIONS}
+                    disabled={!canEditSharedEdgeJunctionControls()}
+                    onValueChange={(value) => {
+                        onUpdate(
+                            "TERRITORY_FRONTIER_JUNCTION_RENDER_MODE",
+                            "territoryFrontierJunctionRenderMode",
+                            value,
+                        );
+                    }}
+                />
 
-                <div
-                    class="var-row"
-                    class:disabled={!canEditSharedEdgeControls()}
-                    title={!canEditSharedEdgeControls() ? sharedEdgeControlGateReason() ?? "" : ""}
-                >
-                    <div class="row-top">
-                        <span class="var-name" title="Trim open straight shared-edge chains inward at their endpoints. This is the low-pixel three-way junction gap slider.">
-                            Junction Gap Trim
-                        </span>
-                        <span class="val">{numVal("metaballGridEdgeTrimPx", "METABALL_GRID_EDGE_TRIM_PX", metaballGridPhaseEdgesModeDefaults.METABALL_GRID_EDGE_TRIM_PX).toFixed(1)}px</span>
-                    </div>
-                    <div class="var-desc">
-                        {#if !canEditSharedEdgeControls() && sharedEdgeControlGateReason()}
-                            {sharedEdgeControlGateReason()}
-                        {:else}
-                            This is the small three-way-junction gap control for the Straight shared edge border family. It trims open shared-edge chains at multi-owner junctions; it should no longer secretly move the fill unless you deliberately switch back to the legacy non-flush boundary behavior.
-                        {/if}
-                    </div>
-                    <input
-                        type="range"
-                        min="0"
-                        max="12"
-                        step="0.5"
-                        disabled={!canEditSharedEdgeControls()}
-                        value={numVal("metaballGridEdgeTrimPx", "METABALL_GRID_EDGE_TRIM_PX", metaballGridPhaseEdgesModeDefaults.METABALL_GRID_EDGE_TRIM_PX)}
-                        oninput={(event) => {
-                            const value = parseFloat((event.target as HTMLInputElement).value);
-                            onUpdate(
-                                "METABALL_GRID_EDGE_TRIM_PX",
-                                "metaballGridEdgeTrimPx",
-                                value,
-                            );
-                        }}
-                    />
-                </div>
+                <PaxSettingsRangeRow
+                    label="Junction Gap Trim"
+                    note={sharedEdgeControlGateReason() ??
+                        "Trims open straight shared-edge chains at multi-owner junctions."}
+                    value={numVal("metaballGridEdgeTrimPx", "METABALL_GRID_EDGE_TRIM_PX", metaballGridPhaseEdgesModeDefaults.METABALL_GRID_EDGE_TRIM_PX)}
+                    min={0}
+                    max={12}
+                    step={0.5}
+                    output={`${numVal("metaballGridEdgeTrimPx", "METABALL_GRID_EDGE_TRIM_PX", metaballGridPhaseEdgesModeDefaults.METABALL_GRID_EDGE_TRIM_PX).toFixed(1)}px`}
+                    disabled={!canEditSharedEdgeControls()}
+                    settingConfigKey="METABALL_GRID_EDGE_TRIM_PX"
+                    onInput={(value) => {
+                        onUpdate(
+                            "METABALL_GRID_EDGE_TRIM_PX",
+                            "metaballGridEdgeTrimPx",
+                            value,
+                        );
+                    }}
+                />
 
-                <div
-                    class="var-row"
-                    class:disabled={!canEditSharedEdgeJunctionControls() || currentFrontierJunctionRenderMode() !== "bubble"}
-                    title={
-                        !canEditSharedEdgeJunctionControls()
-                            ? sharedEdgeControlGateReason() ?? ""
-                            : currentFrontierJunctionRenderMode() !== "bubble"
-                              ? "Requires Junction Render = Bubble."
-                              : ""
-                    }
-                >
-                    <div class="row-top">
-                        <span class="var-name" title="Radius of the blended bubble marker drawn at straight shared-edge junctions with three or more contributing owners.">
-                            Junction Bubble Radius
-                        </span>
-                        <span class="val">{numVal("territoryFrontierJunctionRadiusPx", "TERRITORY_FRONTIER_JUNCTION_RADIUS_PX", 6).toFixed(1)}px</span>
-                    </div>
-                    <div class="var-desc">
-                        Experimental. Draws a small multi-owner bubble at straight shared-edge junctions, using the average of the contributing border colors.
-                    </div>
-                    <input
-                        type="range"
-                        min="0"
-                        max="16"
-                        step="0.5"
-                        disabled={!canEditSharedEdgeJunctionControls() || currentFrontierJunctionRenderMode() !== "bubble"}
-                        value={numVal("territoryFrontierJunctionRadiusPx", "TERRITORY_FRONTIER_JUNCTION_RADIUS_PX", 6)}
-                        oninput={(event) => {
-                            const value = parseFloat((event.target as HTMLInputElement).value);
-                            onUpdate(
-                                "TERRITORY_FRONTIER_JUNCTION_RADIUS_PX",
-                                "territoryFrontierJunctionRadiusPx",
-                                value,
-                            );
-                        }}
-                    />
-                </div>
+                <PaxSettingsRangeRow
+                    label="Junction Bubble Radius"
+                    note="Draws a small multi-owner bubble at straight shared-edge junctions."
+                    value={numVal("territoryFrontierJunctionRadiusPx", "TERRITORY_FRONTIER_JUNCTION_RADIUS_PX", 6)}
+                    min={0}
+                    max={16}
+                    step={0.5}
+                    output={`${numVal("territoryFrontierJunctionRadiusPx", "TERRITORY_FRONTIER_JUNCTION_RADIUS_PX", 6).toFixed(1)}px`}
+                    disabled={!canEditSharedEdgeJunctionControls() || currentFrontierJunctionRenderMode() !== "bubble"}
+                    settingConfigKey="TERRITORY_FRONTIER_JUNCTION_RADIUS_PX"
+                    onInput={(value) => {
+                        onUpdate(
+                            "TERRITORY_FRONTIER_JUNCTION_RADIUS_PX",
+                            "territoryFrontierJunctionRadiusPx",
+                            value,
+                        );
+                    }}
+                />
             {/if}
         </section>
     {/if}
@@ -822,90 +643,62 @@
                 These affect presentation, not ownership geometry.
             </div>
 
-            <div class="var-row">
-                <div class="row-top">
-                    <span class="var-name">GPU blur</span><span class="val"
-                        >{Math.round(numVal("metaballBlur", "METABALL_BLUR", 0))}</span
-                    >
-                </div>
-                <input
-                    type="range"
-                    min="0"
-                    max="16"
-                    step="1"
-                    value={numVal("metaballBlur", "METABALL_BLUR", 0)}
-                    oninput={(event) => {
-                        const value = +(event.target as HTMLInputElement).value;
-                        onUpdate("METABALL_BLUR", "metaballBlur", value);
-                    }}
-                />
-            </div>
+            <PaxSettingsRangeRow
+                label="GPU Blur"
+                value={numVal("metaballBlur", "METABALL_BLUR", 0)}
+                min={0}
+                max={16}
+                step={1}
+                settingConfigKey="METABALL_BLUR"
+                onInput={(value) => {
+                    onUpdate("METABALL_BLUR", "metaballBlur", value);
+                }}
+            />
 
-            <label
-                class="toggle-row"
-                title="When blur is above 0: off blurs fill only. On applies the blur pass to fill and border strokes together."
-            >
-                <input
-                    type="checkbox"
-                    checked={boolVal(
-                        "metaballBlurAffectsBorders",
+            <PaxSettingsToggleRow
+                label="Blur affects borders"
+                checked={boolVal(
+                    "metaballBlurAffectsBorders",
+                    "METABALL_BLUR_AFFECTS_BORDERS",
+                    false,
+                )}
+                description="When blur is above 0, apply the blur pass to fill and border strokes together."
+                meta={boolVal(
+                    "metaballBlurAffectsBorders",
+                    "METABALL_BLUR_AFFECTS_BORDERS",
+                    false,
+                )
+                    ? "On"
+                    : "Off"}
+                settingConfigKey="METABALL_BLUR_AFFECTS_BORDERS"
+                onChange={(value) => {
+                    onUpdate(
                         "METABALL_BLUR_AFFECTS_BORDERS",
-                        false,
-                    )}
-                    onchange={(event) => {
-                        const value = (event.target as HTMLInputElement).checked;
-                        onUpdate(
-                            "METABALL_BLUR_AFFECTS_BORDERS",
-                            "metaballBlurAffectsBorders",
-                            value,
-                        );
-                    }}
-                />
-                <span class="var-name">Blur affects borders</span>
-                <span class="val"
-                    >{boolVal(
                         "metaballBlurAffectsBorders",
-                        "METABALL_BLUR_AFFECTS_BORDERS",
-                        false,
-                    )
-                        ? "On"
-                        : "Off"}</span
-                >
-            </label>
+                        value,
+                    );
+                }}
+            />
 
-            <div class="var-row">
-                <div class="row-top">
-                    <span class="var-name">Border Chaikin passes</span><span
-                        class="val"
-                        >{Math.round(
-                            numVal(
-                                "metaballChaikinPasses",
-                                "METABALL_CHAIKIN_PASSES",
-                                0,
-                            ),
-                        )}</span
-                    >
-                </div>
-                <input
-                    type="range"
-                    min="0"
-                    max="4"
-                    step="1"
-                    value={numVal(
-                        "metaballChaikinPasses",
+            <PaxSettingsRangeRow
+                label="Border Chaikin Passes"
+                value={numVal(
+                    "metaballChaikinPasses",
+                    "METABALL_CHAIKIN_PASSES",
+                    0,
+                )}
+                min={0}
+                max={4}
+                step={1}
+                settingConfigKey="METABALL_CHAIKIN_PASSES"
+                onInput={(value) => {
+                    onUpdate(
                         "METABALL_CHAIKIN_PASSES",
-                        0,
-                    )}
-                    oninput={(event) => {
-                        const value = +(event.target as HTMLInputElement).value;
-                        onUpdate(
-                            "METABALL_CHAIKIN_PASSES",
-                            "metaballChaikinPasses",
-                            value,
-                        );
-                    }}
-                />
-            </div>
+                        "metaballChaikinPasses",
+                        value,
+                    );
+                }}
+            />
         </section>
     {/if}
 </div>
@@ -943,8 +736,4 @@
         text-transform: uppercase;
     }
 
-    .var-row.disabled,
-    .toggle-row.disabled {
-        opacity: 0.55;
-    }
 </style>
