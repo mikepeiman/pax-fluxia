@@ -878,3 +878,32 @@ Validation:
 Merge guidance:
 
 - Preserve the `PaxHudButton` path here. If mobile controls are redesigned later, reuse the Pax primitive layer instead of reintroducing local raw button skins.
+
+## 2026-06-12 Timing Settings Primitive Migration
+
+Scope implemented in this step:
+
+- Rewrote `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Timing.svelte` around Pax primitives.
+- Replaced raw timing ranges with `PaxSettingsRangeRow` and `PaxHudRange`.
+- Replaced raw binding toggles with `PaxSettingsToggleRow`.
+- Replaced P/R/A lock buttons with `PaxHudButton`.
+
+Why this matters for merge:
+
+- Timing is a top-level Settings category and previously retained local range/toggle/lock styling.
+- Behavior is preserved:
+  - tick interval still calls `updateTickInterval(...)`, updates panel state, and recalculates animation locks
+  - animation speed still writes through `animationStore.setAnimationSpeed(...)` and `GAME_CONFIG.ANIMATION_SPEED_MS`
+  - territory transition binding still writes `TERRITORY_TRANSITION_BIND_TO_TICK`
+  - lock controls still call `pinValueToTickDuration(...)`, `lockRatioToTick(...)`, and `lockRatioToAnimSpeed(...)`
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Targeted audit found no raw controls or old timing row/toggle/lock class names in `ControlsSection-Timing.svelte`.
+
+Merge guidance:
+
+- Preserve the helper functions that isolate timing side effects.
+- If conflicts occur, preserve behavior through the helper functions and keep the primitive-owned rendering path.

@@ -477,3 +477,28 @@ Validation:
 Next correct step:
 
 - Continue settings primitive migration in Ships/Timing/Surge/FrontierFx, or address remaining non-component build warnings separately if they become review blockers.
+
+## Timing Settings Primitive Migration
+
+Implemented:
+
+- Rewrote `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Timing.svelte` around Pax primitives.
+- Replaced raw range controls with `PaxSettingsRangeRow` and `PaxHudRange`.
+- Replaced raw toggle switches with `PaxSettingsToggleRow`.
+- Replaced territory-transition lock buttons with `PaxHudButton`.
+- Preserved tick interval updates, animation lock recalculation, animation-speed binding, territory-transition binding, and P/R/A lock callbacks.
+
+Intent:
+
+- Convert a top-level timing Settings category to the shared component system.
+- Remove old local lock/toggle/range markup while preserving the timing data flow.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Targeted audit found no raw `<button>`, `<select>`, `<input>`, inline `style=`, active class toggles, `.var-row`, `.row-top`, `.mode-select`, `.toggle-row`, `.lock-btn`, `.toggle-switch`, or `.toggle-slider` usage in `ControlsSection-Timing.svelte`.
+
+Next correct step:
+
+- Continue with Surge or FrontierFx, then defer the much larger Ships/Territory surfaces to smaller sub-slices.

@@ -100,3 +100,4 @@ Prompt:
 - Continued UI-system work by rewriting Travel and Conquest settings controls around Pax select/range/toggle primitives.
 - Continued UI-system work by adding a reusable settings picker primitive and rewriting Audio settings around Pax primitives while preserving audio manager behavior.
 - Cleaned up live mobile `SpeedControls.svelte` by moving it to `PaxHudButton` and removing the recurring Svelte prop-state warning.
+- Continued UI-system work by rewriting Timing settings around Pax range/toggle/button primitives while preserving timing lock behavior.

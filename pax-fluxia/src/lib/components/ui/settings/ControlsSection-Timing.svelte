@@ -6,6 +6,12 @@
         recalcAnimLocksOnTickChange,
         recalcAnimLocksOnAnimSpeedChange,
     } from "../panelSync";
+    import {
+        PaxHudButton,
+        PaxHudRange,
+        PaxSettingsRangeRow,
+        PaxSettingsToggleRow,
+    } from "$lib/design-system";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
 
     const TT_SLIDER_KEY = "TERRITORY_TRANSITION_MS";
@@ -41,7 +47,6 @@
         updateTickInterval,
         animLockModes,
         animLockRatios,
-        animValues,
         getAnimValue,
         setAnimValue,
         formatAnimValue,
@@ -56,206 +61,243 @@
             setAnimValue(key, value);
         }
     }
+
+    function updateTick(value: number) {
+        updateTickInterval(value);
+        updatePanel("tickInterval", value);
+        applyAnimUpdates(
+            recalcAnimLocksOnTickChange(
+                value,
+                animLockModes,
+                animLockRatios,
+                ANIM_SLIDERS,
+            ),
+        );
+
+        if (panel.bindAnimToTick) {
+            animationStore.setAnimationSpeed(value);
+            GAME_CONFIG.ANIMATION_SPEED_MS = value;
+            updatePanel("animSpeed", value);
+        }
+
+        if (panel.territoryTransitionBindToTick) {
+            setAnimValue(TT_SLIDER_KEY, value);
+        }
+    }
+
+    function setBindAnimToTick(value: boolean) {
+        GAME_CONFIG.BIND_ANIMATION_TO_TICK = value;
+        updatePanel("bindAnimToTick", value);
+
+        if (value) {
+            animationStore.setAnimationSpeed(tickInterval);
+            GAME_CONFIG.ANIMATION_SPEED_MS = tickInterval;
+            updatePanel("animSpeed", tickInterval);
+        }
+    }
+
+    function updateAnimationSpeed(value: number) {
+        animationStore.setAnimationSpeed(value);
+        GAME_CONFIG.ANIMATION_SPEED_MS = value;
+        updatePanel("animSpeed", value);
+        applyAnimUpdates(
+            recalcAnimLocksOnAnimSpeedChange(
+                value,
+                animLockModes,
+                animLockRatios,
+                ANIM_SLIDERS,
+            ),
+        );
+    }
+
+    function setTerritoryTransitionBindToTick(value: boolean) {
+        GAME_CONFIG.TERRITORY_TRANSITION_BIND_TO_TICK = value;
+        updatePanel("territoryTransitionBindToTick", value);
+
+        if (value) {
+            setAnimValue(TT_SLIDER_KEY, tickInterval);
+        }
+    }
+
+    const transitionLocked = $derived(
+        animLockModes[TT_SLIDER_KEY] != null ||
+            panel.territoryTransitionBindToTick,
+    );
 </script>
 
 <CategoryThemeBar category="timing" onApply={() => syncFromConfig?.()} />
 
 <h4 class="sub-heading">Global Rhythm</h4>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Tick Interval</span>
-        <span class="val">{tickInterval}ms</span>
-    </div>
-    <input
-        type="range"
-        min="100"
-        max="5000"
-        step="50"
-        value={tickInterval}
-        oninput={(event) => {
-            const value = parseInt((event.target as HTMLInputElement).value);
-            updateTickInterval(value);
-            updatePanel("tickInterval", value);
-            applyAnimUpdates(
-                recalcAnimLocksOnTickChange(
-                    value,
-                    animLockModes,
-                    animLockRatios,
-                    ANIM_SLIDERS,
-                ),
-            );
+<PaxSettingsRangeRow
+    label="Tick Interval"
+    value={tickInterval}
+    min={100}
+    max={5000}
+    step={50}
+    suffix="ms"
+    settingConfigKey="BASE_TICK_MS"
+    onInput={updateTick}
+/>
 
-            if (panel.bindAnimToTick) {
-                animationStore.setAnimationSpeed(value);
-                GAME_CONFIG.ANIMATION_SPEED_MS = value;
-                updatePanel("animSpeed", value);
-            }
+<PaxSettingsToggleRow
+    label="Bind Animation Speed To Tick"
+    checked={panel.bindAnimToTick}
+    description="Keep animation speed synchronized with the simulation tick interval."
+    meta={panel.bindAnimToTick ? "Bound" : "Free"}
+    settingConfigKey="BIND_ANIMATION_TO_TICK"
+    onChange={setBindAnimToTick}
+/>
 
-            if (panel.territoryTransitionBindToTick) {
-                setAnimValue(TT_SLIDER_KEY, value);
-            }
-        }}
-    />
-</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Bind Animation Speed To Tick</span>
-        <label class="toggle-switch">
-            <input
-                type="checkbox"
-                checked={panel.bindAnimToTick}
-                onchange={(event) => {
-                    const value = (event.target as HTMLInputElement).checked;
-                    GAME_CONFIG.BIND_ANIMATION_TO_TICK = value;
-                    updatePanel("bindAnimToTick", value);
-
-                    if (value) {
-                        animationStore.setAnimationSpeed(tickInterval);
-                        GAME_CONFIG.ANIMATION_SPEED_MS = tickInterval;
-                        updatePanel("animSpeed", tickInterval);
-                    }
-                }}
-            />
-            <span class="toggle-slider"></span>
-        </label>
-    </div>
-</div>
-
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Animation Speed</span>
-        <span class="val">{animationStore.speedMs}ms</span>
-    </div>
-    <input
-        type="range"
-        min="100"
-        max="5000"
-        step="50"
-        value={animationStore.speedMs}
-        disabled={panel.bindAnimToTick as boolean}
-        oninput={(event) => {
-            const value = parseInt((event.target as HTMLInputElement).value);
-            animationStore.setAnimationSpeed(value);
-            GAME_CONFIG.ANIMATION_SPEED_MS = value;
-            updatePanel("animSpeed", value);
-            applyAnimUpdates(
-                recalcAnimLocksOnAnimSpeedChange(
-                    value,
-                    animLockModes,
-                    animLockRatios,
-                    ANIM_SLIDERS,
-                ),
-            );
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="Animation Speed"
+    value={animationStore.speedMs}
+    min={100}
+    max={5000}
+    step={50}
+    suffix="ms"
+    disabled={panel.bindAnimToTick as boolean}
+    settingConfigKey="ANIMATION_SPEED_MS"
+    onInput={updateAnimationSpeed}
+/>
 
 <h4 class="sub-heading">Transition Clock</h4>
 {#if conquestTransitionSlider}
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Bind Territory Transition To Tick</span>
-            <label class="toggle-switch">
-                <input
-                    type="checkbox"
-                    checked={panel.territoryTransitionBindToTick}
-                    onchange={(event) => {
-                        const value = (event.target as HTMLInputElement).checked;
-                        GAME_CONFIG.TERRITORY_TRANSITION_BIND_TO_TICK = value;
-                        updatePanel("territoryTransitionBindToTick", value);
+    <PaxSettingsToggleRow
+        label="Bind Territory Transition To Tick"
+        checked={panel.territoryTransitionBindToTick}
+        description="Keep territory transition duration matched to the tick interval."
+        meta={panel.territoryTransitionBindToTick ? "Bound" : "Free"}
+        settingConfigKey="TERRITORY_TRANSITION_BIND_TO_TICK"
+        onChange={setTerritoryTransitionBindToTick}
+    />
 
-                        if (value) {
-                            setAnimValue(TT_SLIDER_KEY, tickInterval);
-                        }
-                    }}
-                />
-                <span class="toggle-slider"></span>
-            </label>
-        </div>
-    </div>
-
-    <div
-        class="var-row"
-        class:locked={animLockModes[TT_SLIDER_KEY] != null ||
-            panel.territoryTransitionBindToTick}
-    >
-        <div class="row-top">
-            <span class="var-name">Territory Transition</span>
-            <span class="val-group">
-                <span class="val">
-                    {formatAnimValue(
-                        getAnimValue(TT_SLIDER_KEY),
-                        conquestTransitionSlider.unit ?? "",
-                    )}
-                </span>
-                <button
-                    class="lock-btn"
-                    class:active={animLockModes[TT_SLIDER_KEY] === "pinned"}
-                    title={animLockModes[TT_SLIDER_KEY] === "pinned"
-                        ? "Pinned to tick duration - click to unpin"
-                        : "Pin value to tick duration"}
-                    onclick={() => pinValueToTickDuration(TT_SLIDER_KEY)}>P</button
-                >
-                <button
-                    class="lock-btn"
-                    class:active={animLockModes[TT_SLIDER_KEY] === "ratio"}
-                    title={animLockModes[TT_SLIDER_KEY] === "ratio"
-                        ? `Locked at ${(animLockRatios[TT_SLIDER_KEY] ?? 0).toFixed(3)}x tick - click to unlock`
-                        : "Lock current ratio to tick"}
-                    onclick={() => lockRatioToTick(TT_SLIDER_KEY)}>R</button
-                >
-                <button
-                    class="lock-btn"
-                    class:active={animLockModes[TT_SLIDER_KEY] === "animSpeed"}
-                    title={animLockModes[TT_SLIDER_KEY] === "animSpeed"
-                        ? `Locked at ${(animLockRatios[TT_SLIDER_KEY] ?? 0).toFixed(3)}x animation speed - click to unlock`
-                        : "Lock current ratio to animation speed"}
-                    onclick={() => lockRatioToAnimSpeed(TT_SLIDER_KEY)}>A</button
-                >
+    <div class="timing-lock-card" class:timing-lock-card--locked={transitionLocked}>
+        <div class="timing-lock-card__header">
+            <span class="timing-lock-card__label">Territory Transition</span>
+            <span class="timing-lock-card__value">
+                {formatAnimValue(
+                    getAnimValue(TT_SLIDER_KEY),
+                    conquestTransitionSlider.unit ?? "",
+                )}
             </span>
         </div>
-        <input
-            type="range"
+        <div class="timing-lock-card__actions" aria-label="Territory transition lock controls">
+            <PaxHudButton
+                label="P"
+                size="sm"
+                active={animLockModes[TT_SLIDER_KEY] === "pinned"}
+                pressed={animLockModes[TT_SLIDER_KEY] === "pinned"}
+                title={animLockModes[TT_SLIDER_KEY] === "pinned"
+                    ? "Pinned to tick duration - click to unpin"
+                    : "Pin value to tick duration"}
+                onclick={() => pinValueToTickDuration(TT_SLIDER_KEY)}
+            />
+            <PaxHudButton
+                label="R"
+                size="sm"
+                active={animLockModes[TT_SLIDER_KEY] === "ratio"}
+                pressed={animLockModes[TT_SLIDER_KEY] === "ratio"}
+                title={animLockModes[TT_SLIDER_KEY] === "ratio"
+                    ? `Locked at ${(animLockRatios[TT_SLIDER_KEY] ?? 0).toFixed(3)}x tick - click to unlock`
+                    : "Lock current ratio to tick"}
+                onclick={() => lockRatioToTick(TT_SLIDER_KEY)}
+            />
+            <PaxHudButton
+                label="A"
+                size="sm"
+                active={animLockModes[TT_SLIDER_KEY] === "animSpeed"}
+                pressed={animLockModes[TT_SLIDER_KEY] === "animSpeed"}
+                title={animLockModes[TT_SLIDER_KEY] === "animSpeed"
+                    ? `Locked at ${(animLockRatios[TT_SLIDER_KEY] ?? 0).toFixed(3)}x animation speed - click to unlock`
+                    : "Lock current ratio to animation speed"}
+                onclick={() => lockRatioToAnimSpeed(TT_SLIDER_KEY)}
+            />
+        </div>
+        <PaxHudRange
+            label="Territory Transition"
+            value={getAnimValue(TT_SLIDER_KEY)}
             min={conquestTransitionSlider.min}
             max={conquestTransitionSlider.max}
             step={conquestTransitionSlider.step}
-            value={getAnimValue(TT_SLIDER_KEY)}
-            disabled={animLockModes[TT_SLIDER_KEY] != null ||
-                panel.territoryTransitionBindToTick}
-            oninput={(event) => {
-                const value = parseFloat((event.target as HTMLInputElement).value);
-                setAnimValue(TT_SLIDER_KEY, value);
-            }}
+            output={formatAnimValue(
+                getAnimValue(TT_SLIDER_KEY),
+                conquestTransitionSlider.unit ?? "",
+            )}
+            disabled={transitionLocked}
+            onInput={(value) => setAnimValue(TT_SLIDER_KEY, value)}
         />
     </div>
 {/if}
 
 {#if conquestTransitionSettleSlider}
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">End Settle</span>
-            <span class="val">
-                {formatAnimValue(
-                    getAnimValue(TT_SETTLE_SLIDER_KEY),
-                    conquestTransitionSettleSlider.unit ?? "",
-                )}
-            </span>
-        </div>
-        <input
-            type="range"
-            min={conquestTransitionSettleSlider.min}
-            max={conquestTransitionSettleSlider.max}
-            step={conquestTransitionSettleSlider.step}
-            value={getAnimValue(TT_SETTLE_SLIDER_KEY)}
-            oninput={(event) => {
-                const value = parseFloat((event.target as HTMLInputElement).value);
-                setAnimValue(TT_SETTLE_SLIDER_KEY, value);
-            }}
-        />
-    </div>
+    <PaxSettingsRangeRow
+        label="End Settle"
+        value={getAnimValue(TT_SETTLE_SLIDER_KEY)}
+        min={conquestTransitionSettleSlider.min}
+        max={conquestTransitionSettleSlider.max}
+        step={conquestTransitionSettleSlider.step}
+        output={formatAnimValue(
+            getAnimValue(TT_SETTLE_SLIDER_KEY),
+            conquestTransitionSettleSlider.unit ?? "",
+        )}
+        settingConfigKey={TT_SETTLE_SLIDER_KEY}
+        onInput={(value) => setAnimValue(TT_SETTLE_SLIDER_KEY, value)}
+    />
 {/if}
 
 <style>
     @import "./panel-shared.css";
+
+    .timing-lock-card {
+        min-width: 0;
+        display: grid;
+        gap: 9px;
+        padding: 10px;
+        border: 1px solid transparent;
+        border-radius: var(--hud-radius-sm);
+        clip-path: var(--hud-rounded-corner-sm);
+        background:
+            linear-gradient(180deg, rgba(0, 18, 21, 0.78), rgba(0, 10, 13, 0.9)) padding-box,
+            var(--hud-control-border-gradient) border-box;
+    }
+
+    .timing-lock-card--locked {
+        opacity: 0.78;
+    }
+
+    .timing-lock-card__header,
+    .timing-lock-card__actions {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .timing-lock-card__header {
+        justify-content: space-between;
+    }
+
+    .timing-lock-card__actions {
+        flex-wrap: wrap;
+    }
+
+    .timing-lock-card__label {
+        overflow: hidden;
+        color: var(--hud-text-soft);
+        font-family: var(--hud-font-ui);
+        font-size: calc(0.72rem * var(--hud-type-scale, 1));
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-overflow: ellipsis;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .timing-lock-card__value {
+        color: var(--hud-accent-warm-strong);
+        font-family: var(--hud-font-data);
+        font-size: calc(0.72rem * var(--hud-data-scale, 1));
+        font-weight: 800;
+        white-space: nowrap;
+    }
 </style>
