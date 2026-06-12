@@ -256,3 +256,34 @@ Validation:
 Next correct step:
 
 - Remove or replace the remaining obsolete Territory selectors after checking whether each selector has live markup ownership.
+
+## Territory Obsolete CSS Cleanup
+
+Implemented:
+
+- Removed obsolete local CSS-only selectors from `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Territory.svelte`:
+  - `.territory-card`
+  - `.triple-select-row`
+  - `.triple-select-col`
+  - `.triple-label`
+  - `.mode-btn`
+  - `.grayed`
+  - `.mini-btn.reference-only`
+  - `.engine-control-group.reference-only`
+- Preserved live local styling for `.territory-card__header`, `.territory-card__intro`, `.engine-control-group`, `.mini-btn`, `.mini-btn:hover`, `.mini-btn.active`, and disabled mini buttons.
+
+Intent:
+
+- Remove warning-only dead CSS after confirming the selectors had no live markup owner in this component.
+- Avoid deleting or moving any Territory user controls in this cleanup slice.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Build output no longer reports `css_unused_selector` warnings for `ControlsSection-Territory.svelte` or `PerimeterFieldTuning.svelte`.
+- Targeted search returned no stale selector names in `ControlsSection-Territory.svelte`.
+
+Next correct step:
+
+- Continue migrating high-traffic legacy settings controls into Pax primitives; the previous Territory/Perimeter unused-selector warning set is cleared.

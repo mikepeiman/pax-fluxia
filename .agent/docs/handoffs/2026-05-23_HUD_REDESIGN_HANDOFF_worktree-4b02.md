@@ -631,3 +631,42 @@ Merge guidance:
 
 - Keep this component primitive-owned; do not restore old `.var-row`/`.toggle-row`/`.module-chip` local markup.
 - Remaining warning-heavy settings cleanup is now concentrated in `ControlsSection-Territory.svelte`.
+
+## 2026-06-12 Territory Obsolete CSS Cleanup
+
+Scope implemented in this step:
+
+- Removed obsolete CSS-only selectors from `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Territory.svelte`:
+  - `.territory-card`
+  - `.triple-select-row`
+  - `.triple-select-col`
+  - `.triple-label`
+  - `.mode-btn`
+  - `.grayed`
+  - `.mini-btn.reference-only`
+  - `.engine-control-group.reference-only`
+- Preserved live selector groups that still have markup ownership:
+  - `.territory-card__header`
+  - `.territory-card__intro`
+  - `.engine-control-group`
+  - `.mini-btn`
+  - `.mini-btn:hover`
+  - `.mini-btn.active`
+  - `.mini-btn:disabled`
+
+Why this matters for merge:
+
+- This is a dead-CSS cleanup only. It should not affect runtime behavior, settings data flow, or user controls.
+- It clears the production build `css_unused_selector` warnings previously reported for this file after the shared settings grammar work.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- Build output no longer reports `ControlsSection-Territory.svelte` or `PerimeterFieldTuning.svelte` unused-selector warnings.
+- Targeted search found no stale removed selector names in `ControlsSection-Territory.svelte`.
+
+Merge guidance:
+
+- If master still has these dead selectors, prefer removing them.
+- Do not remove the preserved live `.mini-btn` or `.engine-control-group` styles unless their markup is migrated to Pax primitives in the same change.
