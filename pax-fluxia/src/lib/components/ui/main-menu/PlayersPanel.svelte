@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { fly } from "svelte/transition";
-    import type { PlayerConfig } from "../menuDefs";
+    import type { PlayerConfig } from "./menuDefs";
     import HueDial from "./HueDial.svelte";
     import PlayerColorPopover from "./PlayerColorPopover.svelte";
 

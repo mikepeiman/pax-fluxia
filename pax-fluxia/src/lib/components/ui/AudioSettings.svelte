@@ -7,7 +7,7 @@
         type SoundType,
     } from "$lib/services/audioManager.svelte";
     import { fade, fly } from "svelte/transition";
-    import { getMenuThemeCssVars, type MenuTheme } from "./menuTheme";
+    import { getMenuThemeCssVars, type MenuTheme } from "./main-menu/menuTheme";
 
     const CONQUEST_TYPES: SoundType[] = [
         "conquest",

@@ -1,6 +1,7 @@
 .DS_Store
 node_modules
 build
+dist
 .svelte-kit
 package
 .env
@@ -10,4 +11,7 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .agent-harness/context-cache/
 .agent-harness/metrics/
+.agent-harness/graphify/
+graphify-out/
+graphify-code-mirror/
 pax-fluxia/.agent-harness/

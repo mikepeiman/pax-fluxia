@@ -102,9 +102,3 @@ export function calculateProduction(
 ): number {
     return getStarProductionPerTick(star, cfg);
 }
-
-/** @deprecated Use applyRepair instead */
-export function calculateRepair(star: Star): number {
-    if (star.damagedShips <= 0) return 0;
-    return Math.max(1, Math.floor(star.damagedShips * (star.repairRate / 100)));
-}
