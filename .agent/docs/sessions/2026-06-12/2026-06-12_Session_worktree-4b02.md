@@ -829,3 +829,29 @@ Validation:
 Next correct step:
 
 - Continue `ControlsSection-Ships.svelte` with Orbit Layout, then Star Shape and label/color controls.
+
+## Ships Orbit Layout Primitive Migration
+
+Implemented:
+
+- Migrated Orbit Layout controls in `ControlsSection-Ships.svelte` to `PaxSettingsRangeRow`:
+  - Inner Orbit Padding
+  - Orbit Spacing Size
+  - Ring Spacing
+  - Ships Per Ring
+  - Max Ships/Star
+  - Star Radius
+
+Intent:
+
+- Remove another simple raw range cluster while preserving direct config writes for orbit spacing and star radius.
+
+Validation:
+
+- Ships raw-control audit count reduced from `89` to `83`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Next correct step:
+
+- Continue `ControlsSection-Ships.svelte` with Star Shape and Ownership Ring controls.

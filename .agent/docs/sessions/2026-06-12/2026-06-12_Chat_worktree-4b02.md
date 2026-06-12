@@ -136,3 +136,6 @@ Prompt:
 - Continued `ControlsSection-Ships.svelte` by migrating Star Halos controls to Pax range/toggle/button/segmented primitives.
 - Preserved halo preset behavior and `SHOW_STAR_POWER`, `STAR_POWER_*`, and `HALO_FLEET_*` config writes.
 - Validated the halo slice with raw-control count reduction, `git diff --check`, and production build.
+- Continued `ControlsSection-Ships.svelte` by migrating Orbit Layout range controls to Pax range primitives.
+- Preserved orbit/star radius config writes through `writePanelConfig(...)`.
+- Validated the Orbit Layout slice with raw-control count reduction, `git diff --check`, and production build.

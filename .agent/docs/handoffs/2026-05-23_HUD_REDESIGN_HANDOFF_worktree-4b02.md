@@ -1240,3 +1240,32 @@ Merge guidance:
 
 - Preserve `HALO_FLEET_MODE_OPTIONS` and the segmented control for fleet mode.
 - If merge conflicts occur, keep `applyGlowDominantOwnershipPreset()` as the behavior owner and keep the UI on Pax primitives.
+
+## 2026-06-12 Ships Orbit Layout Primitive Migration
+
+Scope implemented in this step:
+
+- Continued migrating:
+  - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Ships.svelte`
+
+Why this matters for merge:
+
+- Orbit Layout is now on `PaxSettingsRangeRow` for simple range controls.
+- Existing behavior is preserved:
+  - `ORBIT_BASE_RADIUS`
+  - `SHIP_BASE_SIZE`
+  - `ORBIT_RING_MULT`
+  - `ORBIT_DENSITY`
+  - `MAX_VISUAL_SHIPS`
+  - `STAR_RENDER_RADIUS`
+
+Validation:
+
+- Ships raw-control audit count reduced from `89` to `83`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Merge guidance:
+
+- Keep Orbit Layout controls on `PaxSettingsRangeRow`.
+- Preserve the direct config key writes through `writePanelConfig(...)`.

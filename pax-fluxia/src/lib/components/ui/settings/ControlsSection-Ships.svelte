@@ -518,17 +518,15 @@
             >{((panel.orbitBaseRadius ?? 0) as number).toFixed(1)}</span
         >
     </div>
-    <input
-        type="range"
-        min="0"
-        max="20"
-        step="0.5"
-        value={panel.orbitBaseRadius}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.ORBIT_BASE_RADIUS = v;
-            updatePanel("orbitBaseRadius", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Inner Orbit Padding"
+        value={panel.orbitBaseRadius ?? GAME_CONFIG.ORBIT_BASE_RADIUS ?? 0}
+        min={0}
+        max={20}
+        step={0.5}
+        format="fixed1"
+        settingConfigKey="ORBIT_BASE_RADIUS"
+        onInput={(value) => writePanelConfig("orbitBaseRadius", "ORBIT_BASE_RADIUS", value)}
     />
 </div>
 <div class="var-row">
@@ -537,17 +535,15 @@
             >{((panel.shipBaseSize ?? 0) as number).toFixed(1)}</span
         >
     </div>
-    <input
-        type="range"
-        min="1"
-        max="12"
-        step="0.1"
-        value={panel.shipBaseSize}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.SHIP_BASE_SIZE = v;
-            updatePanel("shipBaseSize", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Orbit Spacing Size"
+        value={panel.shipBaseSize ?? GAME_CONFIG.SHIP_BASE_SIZE ?? 1}
+        min={1}
+        max={12}
+        step={0.1}
+        format="fixed1"
+        settingConfigKey="SHIP_BASE_SIZE"
+        onInput={(value) => writePanelConfig("shipBaseSize", "SHIP_BASE_SIZE", value)}
     />
 </div>
 <div class="var-row">
@@ -556,17 +552,15 @@
             >{((panel.orbitRingMult ?? 0) as number).toFixed(1)}×</span
         >
     </div>
-    <input
-        type="range"
-        min="0.5"
-        max="4"
-        step="0.1"
-        value={panel.orbitRingMult}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.ORBIT_RING_MULT = v;
-            updatePanel("orbitRingMult", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Ring Spacing"
+        value={panel.orbitRingMult ?? GAME_CONFIG.ORBIT_RING_MULT ?? 0.5}
+        min={0.5}
+        max={4}
+        step={0.1}
+        output={`${((panel.orbitRingMult ?? GAME_CONFIG.ORBIT_RING_MULT ?? 0.5) as number).toFixed(1)}x`}
+        settingConfigKey="ORBIT_RING_MULT"
+        onInput={(value) => writePanelConfig("orbitRingMult", "ORBIT_RING_MULT", value)}
     />
 </div>
 <div class="var-row">
@@ -575,17 +569,15 @@
             >{((panel.orbitDensity ?? 0) as number).toFixed(1)}</span
         >
     </div>
-    <input
-        type="range"
-        min="0.5"
-        max="4"
-        step="0.1"
-        value={panel.orbitDensity}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.ORBIT_DENSITY = v;
-            updatePanel("orbitDensity", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Ships Per Ring"
+        value={panel.orbitDensity ?? GAME_CONFIG.ORBIT_DENSITY ?? 0.5}
+        min={0.5}
+        max={4}
+        step={0.1}
+        format="fixed1"
+        settingConfigKey="ORBIT_DENSITY"
+        onInput={(value) => writePanelConfig("orbitDensity", "ORBIT_DENSITY", value)}
     />
 </div>
 <div class="var-row">
@@ -594,17 +586,15 @@
             >{panel.maxVisualShips}</span
         >
     </div>
-    <input
-        type="range"
-        min="10"
-        max="500"
-        step="10"
-        value={panel.maxVisualShips}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.MAX_VISUAL_SHIPS = v;
-            updatePanel("maxVisualShips", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Max Ships/Star"
+        value={panel.maxVisualShips ?? GAME_CONFIG.MAX_VISUAL_SHIPS ?? 10}
+        min={10}
+        max={500}
+        step={10}
+        output={`${panel.maxVisualShips ?? GAME_CONFIG.MAX_VISUAL_SHIPS ?? 10}`}
+        settingConfigKey="MAX_VISUAL_SHIPS"
+        onInput={(value) => writePanelConfig("maxVisualShips", "MAX_VISUAL_SHIPS", value)}
     />
 </div>
 <div class="var-row">
@@ -613,17 +603,15 @@
             >{((panel.starRenderRadius ?? 0) as number).toFixed(0)}</span
         >
     </div>
-    <input
-        type="range"
-        min="5"
-        max="50"
-        step="1"
-        value={panel.starRenderRadius}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.STAR_RENDER_RADIUS = v;
-            updatePanel("starRenderRadius", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Star Radius"
+        value={panel.starRenderRadius ?? GAME_CONFIG.STAR_RENDER_RADIUS ?? 5}
+        min={5}
+        max={50}
+        step={1}
+        output={`${panel.starRenderRadius ?? GAME_CONFIG.STAR_RENDER_RADIUS ?? 5}`}
+        settingConfigKey="STAR_RENDER_RADIUS"
+        onInput={(value) => writePanelConfig("starRenderRadius", "STAR_RENDER_RADIUS", value)}
     />
 </div>
 
