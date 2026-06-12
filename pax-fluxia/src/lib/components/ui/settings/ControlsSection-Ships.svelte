@@ -1,8 +1,11 @@
 <script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
     import {
+        PaxHudButton,
+        PaxHudSegmentedControl,
         PaxSettingsRangeRow,
         PaxSettingsToggleRow,
+        type PaxHudSegmentedOption,
     } from "$lib/design-system";
     import { DENSITY_VARIABLES } from "../settingsDefs";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
@@ -34,6 +37,11 @@
         { value: "kite", label: "Kite" },
         { value: "spear", label: "Spear" },
     ] as const;
+
+    const HALO_FLEET_MODE_OPTIONS: PaxHudSegmentedOption[] = [
+        { value: "stepped", label: "Stepped" },
+        { value: "linear", label: "Linear" },
+    ];
 
     function applyGlowDominantOwnershipPreset() {
         const config = GAME_CONFIG as Record<string, any>;
@@ -276,23 +284,13 @@
 
 <!-- ── Star Halos (F-47) ── -->
 <h4 class="sub-heading">Star Halos</h4>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Show Halos</span>
-        <label class="toggle-switch">
-            <input
-                type="checkbox"
-                checked={panel.showStarPower}
-                onchange={(e) => {
-                    const v = (e.target as HTMLInputElement).checked;
-                    GAME_CONFIG.SHOW_STAR_POWER = v;
-                    updatePanel("showStarPower", v);
-                }}
-            />
-            <span class="toggle-slider"></span>
-        </label>
-    </div>
-</div>
+<PaxSettingsToggleRow
+    label="Show Halos"
+    checked={panel.showStarPower ?? GAME_CONFIG.SHOW_STAR_POWER ?? false}
+    meta={(panel.showStarPower ?? GAME_CONFIG.SHOW_STAR_POWER ?? false) ? "On" : "Off"}
+    settingConfigKey="SHOW_STAR_POWER"
+    onChange={(value) => writePanelConfig("showStarPower", "SHOW_STAR_POWER", value)}
+/>
 {#if panel.showStarPower}
     <div class="var-row">
         <div class="row-top">
@@ -300,17 +298,15 @@
                 >{((panel.starPowerAlpha ?? 0) as number).toFixed(2)}</span
             >
         </div>
-        <input
-            type="range"
-            min="0"
-            max="0.3"
-            step="0.005"
-            value={panel.starPowerAlpha}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.STAR_POWER_ALPHA = v;
-                updatePanel("starPowerAlpha", v);
-            }}
+        <PaxSettingsRangeRow
+            label="Halo Alpha"
+            value={panel.starPowerAlpha ?? GAME_CONFIG.STAR_POWER_ALPHA ?? 0}
+            min={0}
+            max={0.3}
+            step={0.005}
+            format="fixed2"
+            settingConfigKey="STAR_POWER_ALPHA"
+            onInput={(value) => writePanelConfig("starPowerAlpha", "STAR_POWER_ALPHA", value)}
         />
     </div>
     <div class="var-row">
@@ -319,17 +315,15 @@
                 >{((panel.starPowerRadiusMult ?? 0) as number).toFixed(1)}</span
             >
         </div>
-        <input
-            type="range"
-            min="1"
-            max="8"
-            step="0.5"
-            value={panel.starPowerRadiusMult}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.STAR_POWER_RADIUS_MULT = v;
-                updatePanel("starPowerRadiusMult", v);
-            }}
+        <PaxSettingsRangeRow
+            label="Halo Radius"
+            value={panel.starPowerRadiusMult ?? GAME_CONFIG.STAR_POWER_RADIUS_MULT ?? 1}
+            min={1}
+            max={8}
+            step={0.5}
+            format="fixed1"
+            settingConfigKey="STAR_POWER_RADIUS_MULT"
+            onInput={(value) => writePanelConfig("starPowerRadiusMult", "STAR_POWER_RADIUS_MULT", value)}
         />
     </div>
     <div class="var-row">
@@ -338,17 +332,15 @@
                 >{panel.starPowerLayers}</span
             >
         </div>
-        <input
-            type="range"
-            min="1"
-            max="12"
-            step="1"
-            value={panel.starPowerLayers}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.STAR_POWER_LAYERS = v;
-                updatePanel("starPowerLayers", v);
-            }}
+        <PaxSettingsRangeRow
+            label="Halo Layers"
+            value={panel.starPowerLayers ?? GAME_CONFIG.STAR_POWER_LAYERS ?? 1}
+            min={1}
+            max={12}
+            step={1}
+            output={`${panel.starPowerLayers ?? GAME_CONFIG.STAR_POWER_LAYERS ?? 1}`}
+            settingConfigKey="STAR_POWER_LAYERS"
+            onInput={(value) => writePanelConfig("starPowerLayers", "STAR_POWER_LAYERS", value)}
         />
     </div>
     <div class="var-row">
@@ -357,17 +349,15 @@
                 >{((panel.starPowerBlur ?? 0) as number).toFixed(0)}px</span
             >
         </div>
-        <input
-            type="range"
-            min="0"
-            max="20"
-            step="1"
-            value={panel.starPowerBlur}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.STAR_POWER_BLUR = v;
-                updatePanel("starPowerBlur", v);
-            }}
+        <PaxSettingsRangeRow
+            label="Halo Blur"
+            value={panel.starPowerBlur ?? GAME_CONFIG.STAR_POWER_BLUR ?? 0}
+            min={0}
+            max={20}
+            step={1}
+            suffix="px"
+            settingConfigKey="STAR_POWER_BLUR"
+            onInput={(value) => writePanelConfig("starPowerBlur", "STAR_POWER_BLUR", value)}
         />
     </div>
     <div class="var-row">
@@ -378,19 +368,15 @@
                     1) as number).toFixed(2)}</span
             >
         </div>
-        <input
-            type="range"
-            min="0.4"
-            max="2.5"
-            step="0.05"
-            value={panel.starPowerLayerCurve ??
-                GAME_CONFIG.STAR_POWER_LAYER_CURVE ??
-                1}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.STAR_POWER_LAYER_CURVE = v;
-                updatePanel("starPowerLayerCurve", v);
-            }}
+        <PaxSettingsRangeRow
+            label="Layer Curve"
+            value={panel.starPowerLayerCurve ?? GAME_CONFIG.STAR_POWER_LAYER_CURVE ?? 1}
+            min={0.4}
+            max={2.5}
+            step={0.05}
+            format="fixed2"
+            settingConfigKey="STAR_POWER_LAYER_CURVE"
+            onInput={(value) => writePanelConfig("starPowerLayerCurve", "STAR_POWER_LAYER_CURVE", value)}
         />
     </div>
     <div class="var-row">
@@ -401,19 +387,15 @@
                     0) as number).toFixed(2)}</span
             >
         </div>
-        <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            value={panel.starPowerEdgeBandStrength ??
-                GAME_CONFIG.STAR_POWER_EDGE_BAND_STRENGTH ??
-                0}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.STAR_POWER_EDGE_BAND_STRENGTH = v;
-                updatePanel("starPowerEdgeBandStrength", v);
-            }}
+        <PaxSettingsRangeRow
+            label="Edge Band"
+            value={panel.starPowerEdgeBandStrength ?? GAME_CONFIG.STAR_POWER_EDGE_BAND_STRENGTH ?? 0}
+            min={0}
+            max={1}
+            step={0.05}
+            format="fixed2"
+            settingConfigKey="STAR_POWER_EDGE_BAND_STRENGTH"
+            onInput={(value) => writePanelConfig("starPowerEdgeBandStrength", "STAR_POWER_EDGE_BAND_STRENGTH", value)}
         />
     </div>
     <div class="var-row">
@@ -424,52 +406,37 @@
                     0.2) as number).toFixed(2)}</span
             >
         </div>
-        <input
-            type="range"
-            min="0.05"
-            max="0.6"
-            step="0.01"
-            value={panel.starPowerEdgeBandWidth ??
-                GAME_CONFIG.STAR_POWER_EDGE_BAND_WIDTH ??
-                0.2}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.STAR_POWER_EDGE_BAND_WIDTH = v;
-                updatePanel("starPowerEdgeBandWidth", v);
-            }}
+        <PaxSettingsRangeRow
+            label="Edge Width"
+            value={panel.starPowerEdgeBandWidth ?? GAME_CONFIG.STAR_POWER_EDGE_BAND_WIDTH ?? 0.2}
+            min={0.05}
+            max={0.6}
+            step={0.01}
+            format="fixed2"
+            settingConfigKey="STAR_POWER_EDGE_BAND_WIDTH"
+            onInput={(value) => writePanelConfig("starPowerEdgeBandWidth", "STAR_POWER_EDGE_BAND_WIDTH", value)}
         />
     </div>
     <div class="var-row">
         <div class="row-top">
             <span class="var-name">Glow-Dominant Ownership</span>
-            <button
-                type="button"
-                class="mode-btn"
+            <PaxHudButton
+                label="Apply Experimental Preset"
+                size="sm"
                 onclick={applyGlowDominantOwnershipPreset}
-                >Apply Experimental Preset</button
-            >
+            />
         </div>
         <div class="mini-help">
             Opt-in halo-heavy preset for ownership readability experiments.
         </div>
     </div>
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Fleet Glow</span>
-            <label class="toggle-switch">
-                <input
-                    type="checkbox"
-                    checked={panel.haloFleetScale}
-                    onchange={(e) => {
-                        const v = (e.target as HTMLInputElement).checked;
-                        GAME_CONFIG.HALO_FLEET_SCALE = v;
-                        updatePanel("haloFleetScale", v);
-                    }}
-                />
-                <span class="toggle-slider"></span>
-            </label>
-        </div>
-    </div>
+    <PaxSettingsToggleRow
+        label="Fleet Glow"
+        checked={panel.haloFleetScale ?? GAME_CONFIG.HALO_FLEET_SCALE ?? false}
+        meta={(panel.haloFleetScale ?? GAME_CONFIG.HALO_FLEET_SCALE ?? false) ? "On" : "Off"}
+        settingConfigKey="HALO_FLEET_SCALE"
+        onChange={(value) => writePanelConfig("haloFleetScale", "HALO_FLEET_SCALE", value)}
+    />
     {#if panel.haloFleetScale}
         <div class="var-row">
             <div class="row-top">
@@ -479,40 +446,27 @@
                     )}×</span
                 >
             </div>
-            <input
-                type="range"
-                min="0"
-                max="2"
-                step="0.1"
-                value={panel.haloFleetIntensity}
-                oninput={(e) => {
-                    const v = +(e.target as HTMLInputElement).value;
-                    GAME_CONFIG.HALO_FLEET_INTENSITY = v;
-                    updatePanel("haloFleetIntensity", v);
-                }}
+            <PaxSettingsRangeRow
+                label="Fleet Intensity"
+                value={panel.haloFleetIntensity ?? GAME_CONFIG.HALO_FLEET_INTENSITY ?? 0}
+                min={0}
+                max={2}
+                step={0.1}
+                output={`${((panel.haloFleetIntensity ?? GAME_CONFIG.HALO_FLEET_INTENSITY ?? 0) as number).toFixed(1)}x`}
+                settingConfigKey="HALO_FLEET_INTENSITY"
+                onInput={(value) => writePanelConfig("haloFleetIntensity", "HALO_FLEET_INTENSITY", value)}
             />
         </div>
         <div class="var-row">
             <div class="row-top">
                 <span class="var-name">Fleet Mode</span>
-                <div style="display: flex; gap: 4px;">
-                    <button
-                        class="mode-btn"
-                        class:active={panel.haloFleetMode === "stepped"}
-                        onclick={() => {
-                            GAME_CONFIG.HALO_FLEET_MODE = "stepped";
-                            updatePanel("haloFleetMode", "stepped");
-                        }}>Stepped</button
-                    >
-                    <button
-                        class="mode-btn"
-                        class:active={panel.haloFleetMode === "linear"}
-                        onclick={() => {
-                            GAME_CONFIG.HALO_FLEET_MODE = "linear";
-                            updatePanel("haloFleetMode", "linear");
-                        }}>Linear</button
-                    >
-                </div>
+                <PaxHudSegmentedControl
+                    ariaLabel="Halo fleet mode"
+                    value={panel.haloFleetMode ?? GAME_CONFIG.HALO_FLEET_MODE ?? "stepped"}
+                    options={HALO_FLEET_MODE_OPTIONS}
+                    density="compact"
+                    onValueChange={(value) => writePanelConfig("haloFleetMode", "HALO_FLEET_MODE", value)}
+                />
             </div>
         </div>
         {#if panel.haloFleetMode === "stepped"}
@@ -522,17 +476,15 @@
                         >{panel.haloFleetStepSize} ships</span
                     >
                 </div>
-                <input
-                    type="range"
-                    min="100"
-                    max="2000"
-                    step="100"
-                    value={panel.haloFleetStepSize}
-                    oninput={(e) => {
-                        const v = +(e.target as HTMLInputElement).value;
-                        GAME_CONFIG.HALO_FLEET_STEP_SIZE = v;
-                        updatePanel("haloFleetStepSize", v);
-                    }}
+                <PaxSettingsRangeRow
+                    label="Step Size"
+                    value={panel.haloFleetStepSize ?? GAME_CONFIG.HALO_FLEET_STEP_SIZE ?? 100}
+                    min={100}
+                    max={2000}
+                    step={100}
+                    output={`${panel.haloFleetStepSize ?? GAME_CONFIG.HALO_FLEET_STEP_SIZE ?? 100} ships`}
+                    settingConfigKey="HALO_FLEET_STEP_SIZE"
+                    onInput={(value) => writePanelConfig("haloFleetStepSize", "HALO_FLEET_STEP_SIZE", value)}
                 />
             </div>
         {/if}
@@ -543,17 +495,15 @@
                         >{panel.haloFleetMaxShips}</span
                     >
                 </div>
-                <input
-                    type="range"
-                    min="50"
-                    max="5000"
-                    step="50"
-                    value={panel.haloFleetMaxShips}
-                    oninput={(e) => {
-                        const v = +(e.target as HTMLInputElement).value;
-                        GAME_CONFIG.HALO_FLEET_MAX_SHIPS = v;
-                        updatePanel("haloFleetMaxShips", v);
-                    }}
+                <PaxSettingsRangeRow
+                    label="Max Ships"
+                    value={panel.haloFleetMaxShips ?? GAME_CONFIG.HALO_FLEET_MAX_SHIPS ?? 50}
+                    min={50}
+                    max={5000}
+                    step={50}
+                    output={`${panel.haloFleetMaxShips ?? GAME_CONFIG.HALO_FLEET_MAX_SHIPS ?? 50}`}
+                    settingConfigKey="HALO_FLEET_MAX_SHIPS"
+                    onInput={(value) => writePanelConfig("haloFleetMaxShips", "HALO_FLEET_MAX_SHIPS", value)}
                 />
             </div>
         {/if}

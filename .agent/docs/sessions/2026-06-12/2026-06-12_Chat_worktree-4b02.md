@@ -133,3 +133,6 @@ Prompt:
 - Extracted helper functions for Ships config writes and star-system scale cascade behavior.
 - Migrated Star System Scale and Ship Size/Shape controls to Pax range/toggle primitives.
 - Validated the Ships slice with raw-control count reduction, `git diff --check`, and production build.
+- Continued `ControlsSection-Ships.svelte` by migrating Star Halos controls to Pax range/toggle/button/segmented primitives.
+- Preserved halo preset behavior and `SHOW_STAR_POWER`, `STAR_POWER_*`, and `HALO_FLEET_*` config writes.
+- Validated the halo slice with raw-control count reduction, `git diff --check`, and production build.

@@ -1209,3 +1209,34 @@ Merge guidance:
 - Preserve `setStarSystemScale(...)`; do not inline that cascade back into markup.
 - Continue converting `ControlsSection-Ships.svelte` by visible subsection and keep all config key writes explicit.
 - If master has changed these specific controls, keep the shared primitive rendering and preserve the config cascade behavior.
+
+## 2026-06-12 Ships Star Halos Primitive Migration
+
+Scope implemented in this step:
+
+- Continued migrating:
+  - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Ships.svelte`
+
+Why this matters for merge:
+
+- Star Halos had raw toggles, sliders, a local preset button, a local two-button mode group, and an inline style hook.
+- It now uses:
+  - `PaxSettingsToggleRow`
+  - `PaxSettingsRangeRow`
+  - `PaxHudButton`
+  - `PaxHudSegmentedControl`
+- Existing behavior is preserved:
+  - `applyGlowDominantOwnershipPreset()` still applies the same experimental preset updates.
+  - `SHOW_STAR_POWER`, `STAR_POWER_*`, `HALO_FLEET_*` config writes remain explicit.
+  - fleet mode remains gated by `panel.haloFleetScale` and still switches between `stepped` and `linear`.
+
+Validation:
+
+- Ships raw-control audit count reduced from `107` to `89`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Merge guidance:
+
+- Preserve `HALO_FLEET_MODE_OPTIONS` and the segmented control for fleet mode.
+- If merge conflicts occur, keep `applyGlowDominantOwnershipPreset()` as the behavior owner and keep the UI on Pax primitives.

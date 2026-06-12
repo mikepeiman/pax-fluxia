@@ -792,3 +792,40 @@ Validation:
 Next correct step:
 
 - Continue `ControlsSection-Ships.svelte` with the Star Halos cluster, then Orbit Layout, Star Shape, Label, Arrow/Orders, Damaged Ships, Interaction, Density Coloring, and Star Glow.
+
+## Ships Star Halos Primitive Migration
+
+Implemented:
+
+- Added `PaxHudButton`, `PaxHudSegmentedControl`, and `PaxHudSegmentedOption` usage to `ControlsSection-Ships.svelte`.
+- Added `HALO_FLEET_MODE_OPTIONS` for the two-option fleet glow mode control.
+- Migrated Star Halos controls to Pax primitives:
+  - Show Halos
+  - Halo Alpha
+  - Halo Radius
+  - Halo Layers
+  - Halo Blur
+  - Layer Curve
+  - Edge Band
+  - Edge Width
+  - Glow-Dominant Ownership preset button
+  - Fleet Glow
+  - Fleet Intensity
+  - Fleet Mode
+  - Step Size
+  - Max Ships
+
+Intent:
+
+- Remove the next visible legacy control cluster in Ships while preserving all halo/fleet config writes.
+- Replace the raw two-button fleet mode group and inline style hook with a shared segmented control.
+
+Validation:
+
+- Ships raw-control audit count reduced from `107` to `89`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Next correct step:
+
+- Continue `ControlsSection-Ships.svelte` with Orbit Layout, then Star Shape and label/color controls.
