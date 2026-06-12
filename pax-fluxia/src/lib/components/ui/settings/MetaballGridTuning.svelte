@@ -13,6 +13,9 @@
     import {
         PaxHudButton,
         PaxHudSegmentedControl,
+        PaxHudSelect,
+        PaxSettingsRangeRow,
+        PaxSettingsToggleRow,
         type PaxHudSegmentedOption,
     } from '$lib/design-system';
 
@@ -41,6 +44,84 @@
     ] as const;
 
     const METABALL_GRID_MODULE_PANEL_KEY = 'metaballGridModuleVisibility';
+
+    const ORIGIN_MODE_OPTIONS = [
+        { value: 'centered', label: 'Centered (half-spacing offset)' },
+        { value: 'corner', label: 'Corner / origin (0,0 anchor)' },
+    ];
+
+    const DISTRIBUTION_OPTIONS = [
+        { value: 'square', label: 'Square' },
+        { value: 'hex_offset', label: 'Hex offset' },
+        { value: 'jittered', label: 'Jittered' },
+    ];
+
+    const CELL_SHAPE_OPTIONS = [
+        { value: 'square', label: 'Square' },
+        { value: 'circle', label: 'Circle' },
+        { value: 'diamond', label: 'Diamond' },
+        { value: 'hex', label: 'Hex (pointy-top honeycomb)' },
+    ];
+
+    const BORDER_MODE_OPTIONS = [
+        { value: 'off', label: 'Off (no borders)' },
+        { value: 'territory_edge', label: 'Territory edge (owner boundaries only)' },
+        { value: 'per_cell', label: 'Per cell (full grid outline)' },
+    ];
+
+    const FRONTIER_TECHNIQUE_OPTIONS = [
+        { value: 'control', label: 'Current control' },
+        { value: 'shader_frontier_band', label: 'Shader frontier band' },
+        { value: 'marching_squares_midpoint', label: 'Marching squares (midpoint)' },
+        { value: 'marching_squares_scalar', label: 'Marching squares (scalar)' },
+        { value: 'marching_triangles_fixed', label: 'Marching triangles (fixed)' },
+        { value: 'marching_triangles_checkerboard', label: 'Marching triangles (checkerboard)' },
+        { value: 'marching_triangles_gradient', label: 'Marching triangles (gradient)' },
+    ];
+
+    const FRONTIER_PHASE_SAMPLING_OPTIONS = [
+        { value: 'nearest', label: 'Nearest' },
+        { value: 'linear', label: 'Linear' },
+    ];
+
+    const FRONTIER_TRIANGLE_DIAGONAL_OPTIONS = [
+        { value: 'fixed', label: 'Fixed' },
+        { value: 'checkerboard', label: 'Checkerboard' },
+        { value: 'gradient', label: 'Gradient chosen' },
+    ];
+
+    const ADJACENCY_OPTIONS = [
+        { value: '8', label: '8-connected (diagonals)' },
+        { value: '4', label: '4-connected (orthogonal only)' },
+    ];
+
+    const WAVE_GEOMETRY_OPTIONS = [
+        { value: 'grid_bfs', label: 'Grid BFS (step-by-step)' },
+        { value: 'euclidean_band', label: 'Euclidean band (distance buckets)' },
+        { value: 'conquered_star_radial', label: 'Conquered star radial' },
+        { value: 'pre_to_post_frontier', label: 'Pre to post frontier' },
+    ];
+
+    const WAVE_SEEDING_OPTIONS = [
+        { value: 'winner_natives', label: 'Winner natives (multi-source)' },
+        { value: 'conquered_star_center', label: 'Conquered star center' },
+        { value: 'winner_nearest_edge', label: 'Winner nearest edge (4-adj)' },
+    ];
+
+    const FLIP_TRANSITION_OPTIONS = [
+        { value: 'hard', label: 'Hard (instant)' },
+        { value: 'lerp_per_cell', label: 'Lerp per cell (local window)' },
+        { value: 'dual_pass_blend', label: 'Dual pass blend (always two)' },
+    ];
+
+    const WAVE_EASE_OPTIONS = [
+        { value: 'linear', label: 'Linear (no easing)' },
+        { value: 'ease_in', label: 'Ease in (quadratic)' },
+        { value: 'ease_out', label: 'Ease out (quadratic)' },
+        { value: 'ease_in_out', label: 'Ease in-out' },
+        { value: 'back_out', label: 'Back out (slight overshoot)' },
+        { value: 'elastic_out', label: 'Elastic out (spring)' },
+    ];
 
     let activeModule = $derived(
         (panel[METABALL_GRID_MODULE_PANEL_KEY] ?? 'all') as MetaballGridModuleId,
@@ -617,202 +698,115 @@
 
 {#if showModule('grid')}
 <div class="module-block">
-<label class="toggle-row">
-    <input
-        type="checkbox"
-        checked={panel.metaballGridEnabled ?? GAME_CONFIG.METABALL_GRID_ENABLED ?? false}
-        onchange={(event) => {
-            const value = (event.target as HTMLInputElement).checked;
-            writeConfig('METABALL_GRID_ENABLED', 'metaballGridEnabled', value);
-        }}
-    />
-    <span class="var-name" title="Master enable flag for the metaball-grid mode. When off, the family short-circuits to no cells.">
-        Metaball Grid Enabled
-    </span>
-    <span class="val">
-        {(panel.metaballGridEnabled ?? GAME_CONFIG.METABALL_GRID_ENABLED ?? false) ? 'On' : 'Off'}
-    </span>
-</label>
+<PaxSettingsToggleRow
+    label="Metaball Grid Enabled"
+    checked={panel.metaballGridEnabled ?? GAME_CONFIG.METABALL_GRID_ENABLED ?? false}
+    description="Master enable flag for the metaball-grid mode."
+    meta={(panel.metaballGridEnabled ?? GAME_CONFIG.METABALL_GRID_ENABLED ?? false) ? 'On' : 'Off'}
+    settingConfigKey="METABALL_GRID_ENABLED"
+    onChange={(value) => {
+        writeConfig('METABALL_GRID_ENABLED', 'metaballGridEnabled', value);
+    }}
+/>
 <div class="var-desc">
     Master switch for the metaball-grid conquest family. Leave on to preview; the render mode selector in "Mode" must also be set to "Metaball grid".
 </div>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="World-space spacing between grid cell centers in pixels. Smaller = denser grid, heavier CPU.">
-            {currentPlannerSpacingLabel()}
-        </span>
-        <span class="val">{currentSpacingPx()}px</span>
-    </div>
-    <div class="var-desc">
-        {currentPlannerSpacingDescription()}
-    </div>
-    <input
-        type="range"
-        min="4"
-        max="200"
-        step="1"
-        value={currentSpacingPx()}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('METABALL_GRID_SPACING_PX', 'metaballGridSpacingPx', value);
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label={currentPlannerSpacingLabel()}
+    note={currentPlannerSpacingDescription()}
+    value={currentSpacingPx()}
+    min={4}
+    max={200}
+    step={1}
+    suffix="px"
+    settingConfigKey="METABALL_GRID_SPACING_PX"
+    onInput={(value) => {
+        writeConfig('METABALL_GRID_SPACING_PX', 'metaballGridSpacingPx', value);
+    }}
+/>
 
 {#if isPhaseFieldMode()}
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Visible fill-pattern lattice spacing in pixels. Larger = chunkier interior pattern. Smaller = denser interior pattern and more fill-render work.">
-            Pattern Spacing
-        </span>
-        <span class="val">{currentPatternSpacingPx()}px</span>
-    </div>
-    <div class="var-desc">
-        Visible interior fill-pattern spacing for the PRE/NEXT ownership fills. This affects steady-state fill density and the masked transition fills. It does not change conquest timing density or the active frontier cell size.
-    </div>
-    <input
-        type="range"
-        min="1"
-        max="64"
-        step="1"
-        value={currentPatternSpacingPx()}
-        oninput={(event) => {
-            const raw = parseFloat((event.target as HTMLInputElement).value);
-            const value = snapPatternSpacingPx(raw);
-            writeConfig('METABALL_GRID_PATTERN_SPACING_PX', 'metaballGridPatternSpacingPx', value);
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="Pattern Spacing"
+    note="Visible interior fill-pattern spacing for the PRE/NEXT ownership fills."
+    value={currentPatternSpacingPx()}
+    min={1}
+    max={64}
+    step={1}
+    suffix="px"
+    settingConfigKey="METABALL_GRID_PATTERN_SPACING_PX"
+    onInput={(raw) => {
+        const value = snapPatternSpacingPx(raw);
+        writeConfig('METABALL_GRID_PATTERN_SPACING_PX', 'metaballGridPatternSpacingPx', value);
+    }}
+/>
 {/if}
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Alias control for Cell Spacing. There is no separate density scalar in metaball-grid; denser output means smaller spacing. 1.0x equals 48 px spacing.">
-            Grid Density
-        </span>
-        <span class="val">
-            {spacingToDensityMultiplier(currentSpacingPx()).toFixed(2)}x
-            <span class="perf-sub">~{Math.round(spacingToDensityCellsPerMpx(currentSpacingPx()))} cells/Mpx</span>
-        </span>
-    </div>
-    <div class="var-desc">
-        Direct density alias for Cell Spacing. Higher density means more grid cells and sharper ownership edges, but heavier CPU. Effective density can still be reduced by Max Cells.
-    </div>
-    <input
-        type="range"
-        min="0.10"
-        max="8.00"
-        step="0.05"
-        value={spacingToDensityMultiplier(currentSpacingPx())}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig(
-                'METABALL_GRID_SPACING_PX',
-                'metaballGridSpacingPx',
-                densityMultiplierToSpacing(value),
-            );
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="Grid Density"
+    note={`Direct density alias for Cell Spacing. About ${Math.round(spacingToDensityCellsPerMpx(currentSpacingPx()))} cells/Mpx.`}
+    value={spacingToDensityMultiplier(currentSpacingPx())}
+    min={0.1}
+    max={8}
+    step={0.05}
+    output={`${spacingToDensityMultiplier(currentSpacingPx()).toFixed(2)}x`}
+    settingConfigKey="METABALL_GRID_SPACING_PX"
+    onInput={(value) => {
+        writeConfig(
+            'METABALL_GRID_SPACING_PX',
+            'metaballGridSpacingPx',
+            densityMultiplierToSpacing(value),
+        );
+    }}
+/>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Where the grid is anchored in world space. 'Centered' offsets by half-spacing so cells center within the world bounds; 'Corner / origin' starts cells at (0,0).">
-            Origin Mode
-        </span>
-        <span class="val">{currentOriginMode() === 'centered' ? 'Centered' : 'Corner'}</span>
-    </div>
-    <div class="var-desc">
-        Anchor mode for grid sample positions. Centered places the first cell at (spacing/2, spacing/2); Corner / origin places it at (0, 0).
-    </div>
-    <select
-        class="mode-select"
-        value={currentOriginMode()}
-        onchange={(event) => {
-            const value = (event.target as HTMLSelectElement).value;
-            writeConfig('METABALL_GRID_ORIGIN_MODE', 'metaballGridOriginMode', value);
-        }}
-    >
-        <option value="centered">Centered (half-spacing offset)</option>
-        <option value="corner">Corner / origin (0,0 anchor)</option>
-    </select>
-</div>
+<PaxHudSelect
+    label="Origin Mode"
+    value={currentOriginMode()}
+    options={ORIGIN_MODE_OPTIONS}
+    onValueChange={(value) => {
+        writeConfig('METABALL_GRID_ORIGIN_MODE', 'metaballGridOriginMode', value);
+    }}
+/>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Placement pattern for the grid sample points before ownership resolution. Square = classical lattice. Hex offset = odd rows shifted by half-spacing. Jittered = deterministic scatter from the square lattice.">
-            Distribution
-        </span>
-        <span class="val">
-            {#if currentDistribution() === 'square'}Square
-            {:else if currentDistribution() === 'hex_offset'}Hex offset
-            {:else}Jittered{/if}
-        </span>
-    </div>
-    <div class="var-desc">
-        Controls the planner lattice itself, not just how cells are painted. Hex offset changes cell-center placement to honeycomb packing. Jittered keeps the same ownership logic but scatters sample centers deterministically.
-    </div>
-    <select
-        class="mode-select"
-        value={currentDistribution()}
-        onchange={(event) => {
-            const value = (event.target as HTMLSelectElement).value;
-            writeConfig('METABALL_GRID_DISTRIBUTION', 'metaballGridDistribution', value);
-        }}
-    >
-        <option value="square">Square</option>
-        <option value="hex_offset">Hex offset</option>
-        <option value="jittered">Jittered</option>
-    </select>
-</div>
+<PaxHudSelect
+    label="Distribution"
+    value={currentDistribution()}
+    options={DISTRIBUTION_OPTIONS}
+    onValueChange={(value) => {
+        writeConfig('METABALL_GRID_DISTRIBUTION', 'metaballGridDistribution', value);
+    }}
+/>
 
-<div class="var-row" class:disabled={currentDistribution() !== 'jittered'}>
-    <div class="row-top">
-        <span class="var-name" title="Deterministic per-cell scatter as a fraction of spacing. Only active when Distribution = Jittered.">
-            Position Jitter
-        </span>
-        <span class="val">{(panel.metaballGridPositionJitter ?? GAME_CONFIG.METABALL_GRID_POSITION_JITTER ?? 0).toFixed(3)}</span>
-    </div>
-    <div class="var-desc">
-        Fraction of spacing used to scatter each cell center. 0 = none. 0.5 is the practical upper limit before neighbouring cells swap order.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="0.5"
-        step="0.005"
-        disabled={currentDistribution() !== 'jittered'}
-        value={panel.metaballGridPositionJitter ?? GAME_CONFIG.METABALL_GRID_POSITION_JITTER ?? 0}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('METABALL_GRID_POSITION_JITTER', 'metaballGridPositionJitter', value);
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="Position Jitter"
+    note="Deterministic per-cell scatter as a fraction of spacing."
+    value={panel.metaballGridPositionJitter ?? GAME_CONFIG.METABALL_GRID_POSITION_JITTER ?? 0}
+    min={0}
+    max={0.5}
+    step={0.005}
+    output={(panel.metaballGridPositionJitter ?? GAME_CONFIG.METABALL_GRID_POSITION_JITTER ?? 0).toFixed(3)}
+    disabled={currentDistribution() !== 'jittered'}
+    settingConfigKey="METABALL_GRID_POSITION_JITTER"
+    onInput={(value) => {
+        writeConfig('METABALL_GRID_POSITION_JITTER', 'metaballGridPositionJitter', value);
+    }}
+/>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Hard cap on total cells. If the requested spacing would exceed this count, the planner coarsens spacing upward to stay under the cap.">
-            Max Cells
-        </span>
-        <span class="val">{Math.round(panel.metaballGridMaxCells ?? GAME_CONFIG.METABALL_GRID_MAX_CELLS ?? 0)}</span>
-    </div>
-    <div class="var-desc">
-        Planner safety cap. Use the Perf tab to compare requested spacing against effective spacing when this cap is active. Set to 0 to remove the cap.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="200000"
-        step="1000"
-        value={panel.metaballGridMaxCells ?? GAME_CONFIG.METABALL_GRID_MAX_CELLS ?? 0}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('METABALL_GRID_MAX_CELLS', 'metaballGridMaxCells', value);
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="Max Cells"
+    note="Planner safety cap. Set to 0 to remove the cap."
+    value={panel.metaballGridMaxCells ?? GAME_CONFIG.METABALL_GRID_MAX_CELLS ?? 0}
+    min={0}
+    max={200000}
+    step={1000}
+    output={`${Math.round(panel.metaballGridMaxCells ?? GAME_CONFIG.METABALL_GRID_MAX_CELLS ?? 0)}`}
+    settingConfigKey="METABALL_GRID_MAX_CELLS"
+    onInput={(value) => {
+        writeConfig('METABALL_GRID_MAX_CELLS', 'metaballGridMaxCells', value);
+    }}
+/>
 
 </div>
 {/if}
@@ -837,19 +831,14 @@
     <div class="var-desc">
         Visual primitive drawn per cell. Square packs tightly; circle and diamond leave corner gaps for a stippled look; hex draws pointy-top hexagons with honeycomb row-offset tessellation (≈13% vertical gap reads as fine grid lines — pure pointy-top can't perfectly tile a square grid).
     </div>
-    <select
-        class="mode-select"
+    <PaxHudSelect
+        label="Cell Shape"
         value={currentCellShape()}
-        onchange={(event) => {
-            const value = (event.target as HTMLSelectElement).value;
+        options={CELL_SHAPE_OPTIONS}
+        onValueChange={(value) => {
             writeConfig('METABALL_GRID_CELL_SHAPE', 'metaballGridCellShape', value);
         }}
-    >
-        <option value="square">Square</option>
-        <option value="circle">Circle</option>
-        <option value="diamond">Diamond</option>
-        <option value="hex">Hex (pointy-top honeycomb)</option>
-    </select>
+    />
 </div>
 
 <div class="var-row">
@@ -862,14 +851,15 @@
     <div class="var-desc">
         Per-cell inward shrink on every side. 0 = fully tiled; small values draw visible grid lines; large values isolate each cell as a small shape.
     </div>
-    <input
-        type="range"
-        min="0"
-        max="48"
-        step="0.5"
+    <PaxSettingsRangeRow
+        label="Cell Inset"
         value={panel.metaballGridCellInsetPx ?? GAME_CONFIG.METABALL_GRID_CELL_INSET_PX ?? 0}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
+        min={0}
+        max={48}
+        step={0.5}
+        output={`${panel.metaballGridCellInsetPx ?? GAME_CONFIG.METABALL_GRID_CELL_INSET_PX ?? 0}px`}
+        settingConfigKey="METABALL_GRID_CELL_INSET_PX"
+        onInput={(value) => {
             writeConfig('METABALL_GRID_CELL_INSET_PX', 'metaballGridCellInsetPx', value);
         }}
     />
@@ -885,14 +875,15 @@
     <div class="var-desc">
         Contracts the resolved fill surface inward after MSR/CX/DX/LP shaping. The cell pattern is drawn inside that inset surface.
     </div>
-    <input
-        type="range"
-        min="0"
-        max="24"
-        step="1"
+    <PaxSettingsRangeRow
+        label="Inward Offset"
         value={panel.metaballGridInwardOffsetPx ?? GAME_CONFIG.METABALL_GRID_INWARD_OFFSET_PX ?? 0}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
+        min={0}
+        max={24}
+        step={1}
+        suffix="px"
+        settingConfigKey="METABALL_GRID_INWARD_OFFSET_PX"
+        onInput={(value) => {
             writeConfig('METABALL_GRID_INWARD_OFFSET_PX', 'metaballGridInwardOffsetPx', value);
         }}
     />
@@ -908,14 +899,15 @@
     <div class="var-desc">
         Rounded-corner radius for square cells. Ignored for circle and diamond primitives. Clamped to half the cell size.
     </div>
-    <input
-        type="range"
-        min="0"
-        max="48"
-        step="0.5"
+    <PaxSettingsRangeRow
+        label="Square Corner"
         value={panel.metaballGridCellCornerPx ?? GAME_CONFIG.METABALL_GRID_CELL_CORNER_PX ?? 0}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
+        min={0}
+        max={48}
+        step={0.5}
+        output={`${panel.metaballGridCellCornerPx ?? GAME_CONFIG.METABALL_GRID_CELL_CORNER_PX ?? 0}px`}
+        settingConfigKey="METABALL_GRID_CELL_CORNER_PX"
+        onInput={(value) => {
             writeConfig('METABALL_GRID_CELL_CORNER_PX', 'metaballGridCellCornerPx', value);
         }}
     />
@@ -935,69 +927,44 @@
     <div class="var-desc">
         Border stroke target. Per-cell draws a full grid outline; Territory-edge only outlines ownership boundaries — cheap and distinctive. Width/alpha/HSL come from the Territory border SLA widget below.
     </div>
-    <select
-        class="mode-select"
+    <PaxHudSelect
+        label="Border Mode"
         value={currentBorderMode()}
+        options={BORDER_MODE_OPTIONS}
         disabled={isEmberLatticeMode() && currentFrontierTechnique() !== 'control'}
-        onchange={(event) => {
-            const value = (event.target as HTMLSelectElement).value;
+        onValueChange={(value) => {
             writeConfig('METABALL_GRID_BORDER_MODE', 'metaballGridBorderMode', value);
         }}
-    >
-        <option value="off">Off (no borders)</option>
-        <option value="territory_edge">Territory edge (owner boundaries only)</option>
-        <option value="per_cell">Per cell (full grid outline)</option>
-    </select>
+    />
 </div>
 
-<label
-    class="toggle-row"
-    class:disabled={(isEmberLatticeMode() && currentFrontierTechnique() !== 'control') || currentBorderMode() !== 'territory_edge'}
->
-    <input
-        type="checkbox"
-        disabled={(isEmberLatticeMode() && currentFrontierTechnique() !== 'control') || currentBorderMode() !== 'territory_edge'}
-        checked={currentBorderBlend()}
-        onchange={(event) => {
-            const value = (event.target as HTMLInputElement).checked;
-            writeConfig('METABALL_GRID_BORDER_BLEND', 'metaballGridBorderBlend', value);
-        }}
-    />
-    <span class="var-name" title={currentBorderBlendTitle()}>
-        {currentBorderBlendLabel()}
-    </span>
-    <span class="val">
-        {currentBorderBlend() ? 'On' : 'Off'}
-    </span>
-</label>
-<div class="var-desc">
-    {currentBorderBlendDescription()}
-</div>
+<PaxSettingsToggleRow
+    label={currentBorderBlendLabel()}
+    checked={currentBorderBlend()}
+    disabled={(isEmberLatticeMode() && currentFrontierTechnique() !== 'control') || currentBorderMode() !== 'territory_edge'}
+    description={currentBorderBlendDescription()}
+    meta={currentBorderBlend() ? 'On' : 'Off'}
+    settingConfigKey="METABALL_GRID_BORDER_BLEND"
+    onChange={(value) => {
+        writeConfig('METABALL_GRID_BORDER_BLEND', 'metaballGridBorderBlend', value);
+    }}
+/>
 
 {#if isPhaseFieldMode()}
-<label class="toggle-row">
-    <input
-        type="checkbox"
-        checked={currentPhaseFieldFrontierHighlight()}
-        onchange={(event) => {
-            const value = (event.target as HTMLInputElement).checked;
-            writeConfig(
-                'METABALL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT',
-                'metaballGridPhaseFieldFrontierHighlight',
-                value,
-            );
-        }}
-    />
-    <span
-        class="var-name"
-        title="Phase Field only: add a winner-side accent at the active conquest front. This is separate from the steady territory border stroke."
-    >
-        Frontier Highlight
-    </span>
-    <span class="val">
-        {currentPhaseFieldFrontierHighlight() ? 'On' : 'Off'}
-    </span>
-</label>
+<PaxSettingsToggleRow
+    label="Frontier Highlight"
+    checked={currentPhaseFieldFrontierHighlight()}
+    description="Phase Field only: add a winner-side accent at the active conquest front."
+    meta={currentPhaseFieldFrontierHighlight() ? 'On' : 'Off'}
+    settingConfigKey="METABALL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT"
+    onChange={(value) => {
+        writeConfig(
+            'METABALL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT',
+            'metaballGridPhaseFieldFrontierHighlight',
+            value,
+        );
+    }}
+/>
 <div class="var-desc">
     Phase Field only. Adds a conquest-local winner-side rim at the active front. The Frontier Fade controls in Flip govern how this accent disappears near completion.
 </div>
@@ -1005,155 +972,95 @@
 
 {#if showGridEdgeShapingControls()}
     {#if usesBorderChaikinControl()}
-        <div class="var-row">
-            <div class="row-top">
-                <span class="var-name" title="Number of Chaikin corner-cutting passes applied to each territory-edge polyline before it is stroked. 0 = axis-aligned (pixelated corners). 1..2 = rounded. 3..4 = very smooth but more vertices.">
-                    Border Chaikin Passes
-                </span>
-                <span class="val">{currentBorderChaikinPasses()}</span>
-            </div>
-            <div class="var-desc">
-                Smoothing for territory-edge polylines. Each pass roughly doubles the vertex count, trading CPU for rounder boundaries. Only the centered-blended edge path renders polylines, so this also requires Border Mode = "Territory edge" + Centered-blended = on.
-            </div>
-            <input
-                type="range"
-                min="0"
-                max="4"
-                step="1"
-                value={currentBorderChaikinPasses()}
-                oninput={(event) => {
-                    const value = parseInt((event.target as HTMLInputElement).value, 10);
-                    writeConfig('METABALL_GRID_BORDER_CHAIKIN_PASSES', 'metaballGridBorderChaikinPasses', value);
-                }}
-            />
-        </div>
+        <PaxSettingsRangeRow
+            label="Border Chaikin Passes"
+            note="Rounds territory-edge polylines; higher values trade CPU for softer boundaries."
+            value={currentBorderChaikinPasses()}
+            min={0}
+            max={4}
+            step={1}
+            output={`${currentBorderChaikinPasses()}`}
+            settingConfigKey="METABALL_GRID_BORDER_CHAIKIN_PASSES"
+            onInput={(value) => {
+                writeConfig('METABALL_GRID_BORDER_CHAIKIN_PASSES', 'metaballGridBorderChaikinPasses', value);
+            }}
+        />
     {/if}
 
     {#if usesSharedEdgeSmoothingControl()}
-        <div class="var-row">
-            <div class="row-top">
-                <span class="var-name" title="Extra rounding pressure applied to shared boundary corners before the edge polyline is stroked. 0 keeps the current cell-corner profile; higher values make boundary cells read softer even before Chaikin smoothing.">
-                    Shared Edge Smoothing
-                </span>
-                <span class="val">{panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}</span>
-            </div>
-            <div class="var-desc">
-                {sharedEdgeSmoothingDescription()}
-            </div>
-            <input
-                type="range"
-                min="0"
-                max="4"
-                step="1"
-                value={panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}
-                oninput={(event) => {
-                    const value = parseInt((event.target as HTMLInputElement).value, 10);
-                    writeConfig('METABALL_GRID_EDGE_SMOOTHING_PASSES', 'metaballGridEdgeSmoothingPasses', value);
-                }}
-            />
-        </div>
-    {/if}
-
-    <div class="var-row">
-        <div class="row-top">
-            <span class="var-name" title="Trim open shared-boundary polylines inward by this many pixels at each endpoint. Intended to stay near 0 while the edge-shaping mode is stabilized.">
-                Shared Edge Trim
-            </span>
-            <span class="val">{(panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0).toFixed(1)}px</span>
-        </div>
-        <div class="var-desc">
-            {sharedEdgeTrimDescription()}
-        </div>
-        <input
-            type="range"
-            min="0"
-            max="12"
-            step="0.5"
-            value={panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0}
-            oninput={(event) => {
-                const value = parseFloat((event.target as HTMLInputElement).value);
-                writeConfig('METABALL_GRID_EDGE_TRIM_PX', 'metaballGridEdgeTrimPx', value);
+        <PaxSettingsRangeRow
+            label="Shared Edge Smoothing"
+            note={sharedEdgeSmoothingDescription()}
+            value={panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}
+            min={0}
+            max={4}
+            step={1}
+            output={`${panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}`}
+            settingConfigKey="METABALL_GRID_EDGE_SMOOTHING_PASSES"
+            onInput={(value) => {
+                writeConfig('METABALL_GRID_EDGE_SMOOTHING_PASSES', 'metaballGridEdgeSmoothingPasses', value);
             }}
         />
-    </div>
-{:else if isEmberLatticeMode()}
-<div class="var-row" class:disabled={!isControlFrontierTechnique() || currentBorderMode() !== 'territory_edge'}>
-    <div class="row-top">
-        <span class="var-name" title="Number of Chaikin corner-cutting passes applied to each territory-edge polyline before it is stroked. 0 = axis-aligned (pixelated corners). 1..2 = rounded. 3..4 = very smooth but more vertices.">
-            Border Chaikin Passes
-        </span>
-        <span class="val">{currentBorderChaikinPasses()}</span>
-    </div>
-    <div class="var-desc">
-        Smoothing for territory-edge boundaries. In <strong>Straight shared edge</strong> mode it smooths the shared-edge polyline; in <strong>Rounded contour-matched</strong> mode it smooths the contour-derived border so the fill and border stay coupled.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="4"
-        step="1"
-        disabled={!isControlFrontierTechnique() || currentBorderMode() !== 'territory_edge'}
-        value={currentBorderChaikinPasses()}
-        oninput={(event) => {
-            const value = parseInt((event.target as HTMLInputElement).value, 10);
-            writeConfig('METABALL_GRID_BORDER_CHAIKIN_PASSES', 'metaballGridBorderChaikinPasses', value);
-        }}
-    />
-</div>
+    {/if}
 
-<div
-    class="var-row"
-    class:disabled={!canUseControlFrontierBorderGeometry() || currentFrontierBorderGeometryMode() !== 'shared_edge'}
->
-    <div class="row-top">
-        <span class="var-name" title="Extra rounding pressure applied to shared boundary corners before the edge polyline is stroked. 0 keeps the current cell-corner profile; higher values make boundary cells read softer even before Chaikin smoothing.">
-            Shared Edge Smoothing
-        </span>
-        <span class="val">{panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}</span>
-    </div>
-    <div class="var-desc">
-        Additional shared-edge softening for the straight control border path. Rounded contour-matched mode does not use this knob.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="4"
-        step="1"
-        disabled={!canUseControlFrontierBorderGeometry() || currentFrontierBorderGeometryMode() !== 'shared_edge'}
-        value={panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}
-        oninput={(event) => {
-            const value = parseInt((event.target as HTMLInputElement).value, 10);
-            writeConfig('METABALL_GRID_EDGE_SMOOTHING_PASSES', 'metaballGridEdgeSmoothingPasses', value);
-        }}
-    />
-</div>
-
-<div
-    class="var-row"
-    class:disabled={!canUseControlFrontierBorderGeometry() || currentFrontierBorderGeometryMode() !== 'shared_edge'}
->
-    <div class="row-top">
-        <span class="var-name" title="Trim open shared-boundary polylines inward by this many pixels at each endpoint. Intended to stay near 0 while the edge-shaping mode is stabilized.">
-            Shared Edge Trim
-        </span>
-        <span class="val">{(panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0).toFixed(1)}px</span>
-    </div>
-    <div class="var-desc">
-        Endpoint trim for open shared-edge chains. Rounded contour-matched mode does not use this path.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="12"
-        step="0.5"
-        disabled={!canUseControlFrontierBorderGeometry() || currentFrontierBorderGeometryMode() !== 'shared_edge'}
+    <PaxSettingsRangeRow
+        label="Shared Edge Trim"
+        note={sharedEdgeTrimDescription()}
         value={panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
+        min={0}
+        max={12}
+        step={0.5}
+        output={`${(panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0).toFixed(1)}px`}
+        settingConfigKey="METABALL_GRID_EDGE_TRIM_PX"
+        onInput={(value) => {
             writeConfig('METABALL_GRID_EDGE_TRIM_PX', 'metaballGridEdgeTrimPx', value);
         }}
     />
-</div>
+{:else if isEmberLatticeMode()}
+<PaxSettingsRangeRow
+    label="Border Chaikin Passes"
+    note="Rounds territory-edge boundaries for the control frontier path."
+    value={currentBorderChaikinPasses()}
+    min={0}
+    max={4}
+    step={1}
+    output={`${currentBorderChaikinPasses()}`}
+    disabled={!isControlFrontierTechnique() || currentBorderMode() !== 'territory_edge'}
+    settingConfigKey="METABALL_GRID_BORDER_CHAIKIN_PASSES"
+    onInput={(value) => {
+        writeConfig('METABALL_GRID_BORDER_CHAIKIN_PASSES', 'metaballGridBorderChaikinPasses', value);
+    }}
+/>
+
+<PaxSettingsRangeRow
+    label="Shared Edge Smoothing"
+    note="Additional shared-edge softening for the straight control border path."
+    value={panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}
+    min={0}
+    max={4}
+    step={1}
+    output={`${panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}`}
+    disabled={!canUseControlFrontierBorderGeometry() || currentFrontierBorderGeometryMode() !== 'shared_edge'}
+    settingConfigKey="METABALL_GRID_EDGE_SMOOTHING_PASSES"
+    onInput={(value) => {
+        writeConfig('METABALL_GRID_EDGE_SMOOTHING_PASSES', 'metaballGridEdgeSmoothingPasses', value);
+    }}
+/>
+
+<PaxSettingsRangeRow
+    label="Shared Edge Trim"
+    note="Endpoint trim for open shared-edge chains."
+    value={panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0}
+    min={0}
+    max={12}
+    step={0.5}
+    output={`${(panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0).toFixed(1)}px`}
+    disabled={!canUseControlFrontierBorderGeometry() || currentFrontierBorderGeometryMode() !== 'shared_edge'}
+    settingConfigKey="METABALL_GRID_EDGE_TRIM_PX"
+    onInput={(value) => {
+        writeConfig('METABALL_GRID_EDGE_TRIM_PX', 'metaballGridEdgeTrimPx', value);
+    }}
+/>
 {:else if currentBorderMode() === 'territory_edge' && usesSingularCenterlineTerritoryBorders()}
     <div class="var-desc">
         Singular blended territory borders ignore grid-edge shaping. Turn this off to tune the grid-edge fallback path.
@@ -1196,226 +1103,116 @@
     </div>
 </div>
 
-<div class="var-row" class:disabled={!isEmberLatticeMode()}>
-    <div class="row-top">
-        <span class="var-name" title="Requested frontier implementation. Control = existing shared-edge path. Shader band = linear sampled phase texture. The contour options extract explicit geometry from the phase field.">
-            Frontier Technique
-        </span>
-        <span class="val">
-            {#if currentFrontierTechnique() === 'control'}Control
-            {:else if currentFrontierTechnique() === 'shader_frontier_band'}Shader band
-            {:else if currentFrontierTechnique() === 'marching_squares_midpoint'}MS midpoint
-            {:else if currentFrontierTechnique() === 'marching_squares_scalar'}MS scalar
-            {:else if currentFrontierTechnique() === 'marching_triangles_fixed'}MT fixed
-            {:else if currentFrontierTechnique() === 'marching_triangles_checkerboard'}MT checker
-            {:else}MT gradient{/if}
-        </span>
-    </div>
-    <div class="var-desc">
-        Control keeps the current square-cell shared-edge baseline. The new options use a shared frontier utility layer and are gated to Ember Lattice.
-    </div>
-    <select
-        class="mode-select"
-        disabled={!isEmberLatticeMode()}
-        value={currentFrontierTechnique()}
-        onchange={(event) => {
-            const value = (event.target as HTMLSelectElement).value;
-            writeConfig('TERRITORY_FRONTIER_TECHNIQUE', 'territoryFrontierTechnique', value);
-        }}
-    >
-        <option value="control">Current control</option>
-        <option value="shader_frontier_band">Shader frontier band</option>
-        <option value="marching_squares_midpoint">Marching squares (midpoint)</option>
-        <option value="marching_squares_scalar">Marching squares (scalar)</option>
-        <option value="marching_triangles_fixed">Marching triangles (fixed)</option>
-        <option value="marching_triangles_checkerboard">Marching triangles (checkerboard)</option>
-        <option value="marching_triangles_gradient">Marching triangles (gradient)</option>
-    </select>
-</div>
+<PaxHudSelect
+    label="Frontier Technique"
+    value={currentFrontierTechnique()}
+    options={FRONTIER_TECHNIQUE_OPTIONS}
+    disabled={!isEmberLatticeMode()}
+    onValueChange={(value) => {
+        writeConfig('TERRITORY_FRONTIER_TECHNIQUE', 'territoryFrontierTechnique', value);
+    }}
+/>
 
-<div class="var-row" class:disabled={!canUseEmberFrontierTechnique() || !isShaderFrontierTechnique()}>
-    <div class="row-top">
-        <span class="var-name" title="Sampling mode for the phase texture used by the shader frontier band.">
-            Phase Sampling
-        </span>
-        <span class="val">{currentFrontierPhaseSampling() === 'linear' ? 'Linear' : 'Nearest'}</span>
-    </div>
-    <div class="var-desc">
-        Linear filtering is the cheapest visual softening step from the source document. It only affects the scalar phase texture, never owner IDs.
-    </div>
-    <select
-        class="mode-select"
-        disabled={!canUseEmberFrontierTechnique() || !isShaderFrontierTechnique()}
-        value={currentFrontierPhaseSampling()}
-        onchange={(event) => {
-            const value = (event.target as HTMLSelectElement).value;
-            writeConfig('TERRITORY_FRONTIER_PHASE_SAMPLING', 'territoryFrontierPhaseSampling', value);
-        }}
-    >
-        <option value="nearest">Nearest</option>
-        <option value="linear">Linear</option>
-    </select>
-</div>
+<PaxHudSelect
+    label="Phase Sampling"
+    value={currentFrontierPhaseSampling()}
+    options={FRONTIER_PHASE_SAMPLING_OPTIONS}
+    disabled={!canUseEmberFrontierTechnique() || !isShaderFrontierTechnique()}
+    onValueChange={(value) => {
+        writeConfig('TERRITORY_FRONTIER_PHASE_SAMPLING', 'territoryFrontierPhaseSampling', value);
+    }}
+/>
 
-<div class="var-row" class:disabled={!canUseEmberFrontierTechnique() || currentFrontierTechnique() === 'control'}>
-    <div class="row-top">
-        <span class="var-name" title="Number of separable 3-tap blur passes applied to the scalar phase field before the frontier is rendered or contoured.">
-            Blur Passes
-        </span>
-        <span class="val">{currentFrontierBlurPasses()}</span>
-    </div>
-    <div class="var-desc">
-        Each pass is a tiny [0.25, 0.5, 0.25] horizontal + vertical blur. Use 0 for raw frontier geometry, 1 for the recommended cheap smoothing pass.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="2"
-        step="1"
-        disabled={!canUseEmberFrontierTechnique() || currentFrontierTechnique() === 'control'}
-        value={currentFrontierBlurPasses()}
-        oninput={(event) => {
-            const value = parseInt((event.target as HTMLInputElement).value, 10);
-            writeConfig('TERRITORY_FRONTIER_BLUR_PASSES', 'territoryFrontierBlurPasses', value);
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="Blur Passes"
+    note="Tiny horizontal and vertical blur passes before the frontier is rendered or contoured."
+    value={currentFrontierBlurPasses()}
+    min={0}
+    max={2}
+    step={1}
+    output={`${currentFrontierBlurPasses()}`}
+    disabled={!canUseEmberFrontierTechnique() || currentFrontierTechnique() === 'control'}
+    settingConfigKey="TERRITORY_FRONTIER_BLUR_PASSES"
+    onInput={(value) => {
+        writeConfig('TERRITORY_FRONTIER_BLUR_PASSES', 'territoryFrontierBlurPasses', value);
+    }}
+/>
 
-<div class="var-row" class:disabled={!canUseEmberFrontierTechnique() || !isTriangleFrontierTechnique()}>
-    <div class="row-top">
-        <span class="var-name" title="How marching triangles chooses the square-split diagonal.">
-            Triangle Diagonal
-        </span>
-        <span class="val">
-            {#if currentFrontierTriangleDiagonalPolicy() === 'fixed'}Fixed
-            {:else if currentFrontierTriangleDiagonalPolicy() === 'checkerboard'}Checkerboard
-            {:else}Gradient{/if}
-        </span>
-    </div>
-    <div class="var-desc">
-        Fixed is the cheapest prototype. Checkerboard reduces directional bias. Gradient chooses the diagonal from the local phase slope.
-    </div>
-    <select
-        class="mode-select"
-        disabled={!canUseEmberFrontierTechnique() || !isTriangleFrontierTechnique()}
-        value={currentFrontierTriangleDiagonalPolicy()}
-        onchange={(event) => {
-            const value = (event.target as HTMLSelectElement).value;
-            writeConfig(
-                'TERRITORY_FRONTIER_TRIANGLE_DIAGONAL_POLICY',
-                'territoryFrontierTriangleDiagonalPolicy',
-                value,
-            );
-        }}
-    >
-        <option value="fixed">Fixed</option>
-        <option value="checkerboard">Checkerboard</option>
-        <option value="gradient">Gradient chosen</option>
-    </select>
-</div>
+<PaxHudSelect
+    label="Triangle Diagonal"
+    value={currentFrontierTriangleDiagonalPolicy()}
+    options={FRONTIER_TRIANGLE_DIAGONAL_OPTIONS}
+    disabled={!canUseEmberFrontierTechnique() || !isTriangleFrontierTechnique()}
+    onValueChange={(value) => {
+        writeConfig(
+            'TERRITORY_FRONTIER_TRIANGLE_DIAGONAL_POLICY',
+            'territoryFrontierTriangleDiagonalPolicy',
+            value,
+        );
+    }}
+/>
 
-<div class="var-row" class:disabled={!canUseEmberFrontierTechnique() || !isContourFrontierTechnique()}>
-    <div class="row-top">
-        <span class="var-name" title="Post-contour Chaikin smoothing passes.">
-            Frontier Chaikin
-        </span>
-        <span class="val">{currentFrontierChaikinPasses()}</span>
-    </div>
-    <div class="var-desc">
-        Applied after contour extraction only. One pass is the recommended first test; two gets smoother and more rounded.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="3"
-        step="1"
-        disabled={!canUseEmberFrontierTechnique() || !isContourFrontierTechnique()}
-        value={currentFrontierChaikinPasses()}
-        oninput={(event) => {
-            const value = parseInt((event.target as HTMLInputElement).value, 10);
-            writeConfig('TERRITORY_FRONTIER_CHAIKIN_PASSES', 'territoryFrontierChaikinPasses', value);
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="Frontier Chaikin"
+    note="Post-contour smoothing passes."
+    value={currentFrontierChaikinPasses()}
+    min={0}
+    max={3}
+    step={1}
+    output={`${currentFrontierChaikinPasses()}`}
+    disabled={!canUseEmberFrontierTechnique() || !isContourFrontierTechnique()}
+    settingConfigKey="TERRITORY_FRONTIER_CHAIKIN_PASSES"
+    onInput={(value) => {
+        writeConfig('TERRITORY_FRONTIER_CHAIKIN_PASSES', 'territoryFrontierChaikinPasses', value);
+    }}
+/>
 
-<div class="var-row" class:disabled={!canUseEmberFrontierTechnique() || !isShaderFrontierTechnique()}>
-    <div class="row-top">
-        <span class="var-name" title="Additional softness on the shader frontier band, in world pixels before conversion to phase-space width.">
-            Shader Softness
-        </span>
-        <span class="val">{currentFrontierShaderSoftnessPx().toFixed(1)}px</span>
-    </div>
-    <div class="var-desc">
-        Softens the `abs(phase - progress)` band after linear sampling. Larger values broaden the feather.
-    </div>
-    <input
-        type="range"
-        min="0.5"
-        max="20"
-        step="0.5"
-        disabled={!canUseEmberFrontierTechnique() || !isShaderFrontierTechnique()}
-        value={currentFrontierShaderSoftnessPx()}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig(
-                'TERRITORY_FRONTIER_SHADER_SOFTNESS_PX',
-                'territoryFrontierShaderSoftnessPx',
-                value,
-            );
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="Shader Softness"
+    note="Softens the shader frontier band after phase sampling."
+    value={currentFrontierShaderSoftnessPx()}
+    min={0.5}
+    max={20}
+    step={0.5}
+    output={`${currentFrontierShaderSoftnessPx().toFixed(1)}px`}
+    disabled={!canUseEmberFrontierTechnique() || !isShaderFrontierTechnique()}
+    settingConfigKey="TERRITORY_FRONTIER_SHADER_SOFTNESS_PX"
+    onInput={(value) => {
+        writeConfig(
+            'TERRITORY_FRONTIER_SHADER_SOFTNESS_PX',
+            'territoryFrontierShaderSoftnessPx',
+            value,
+        );
+    }}
+/>
 
-<div class="var-row" class:disabled={!canUseEmberFrontierTechnique() || !isShaderFrontierTechnique()}>
-    <div class="row-top">
-        <span class="var-name" title="Half-width of the shader frontier band, in world pixels before conversion to phase-space width.">
-            Band Width
-        </span>
-        <span class="val">{currentFrontierBandWidthPx().toFixed(1)}px</span>
-    </div>
-    <div class="var-desc">
-        Controls how thick the shader frontier band reads on screen. The contour techniques still use the existing border width control for stroke thickness.
-    </div>
-    <input
-        type="range"
-        min="0.5"
-        max="12"
-        step="0.5"
-        disabled={!canUseEmberFrontierTechnique() || !isShaderFrontierTechnique()}
-        value={currentFrontierBandWidthPx()}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig('TERRITORY_FRONTIER_BAND_WIDTH_PX', 'territoryFrontierBandWidthPx', value);
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="Band Width"
+    note="Visible half-width of the shader frontier band."
+    value={currentFrontierBandWidthPx()}
+    min={0.5}
+    max={12}
+    step={0.5}
+    output={`${currentFrontierBandWidthPx().toFixed(1)}px`}
+    disabled={!canUseEmberFrontierTechnique() || !isShaderFrontierTechnique()}
+    settingConfigKey="TERRITORY_FRONTIER_BAND_WIDTH_PX"
+    onInput={(value) => {
+        writeConfig('TERRITORY_FRONTIER_BAND_WIDTH_PX', 'territoryFrontierBandWidthPx', value);
+    }}
+/>
 </div>
 {/if}
 
 {#if showModule('wave')}
 <div class="module-block">
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Neighborhood used when a grid_bfs wave expands over the grid.">
-            Adjacency
-        </span>
-        <span class="val">{currentAdjacency() === '4' ? '4-connected' : '8-connected'}</span>
-    </div>
-    <div class="var-desc">
-        4-connected produces square-fronted waves; 8-connected produces more diagonal/rounded fronts.
-    </div>
-    <select
-        class="mode-select"
-        value={currentAdjacency()}
-        onchange={(event) => {
-            const value = (event.target as HTMLSelectElement).value;
-            writeConfig('METABALL_GRID_ADJACENCY', 'metaballGridAdjacency', value);
-        }}
-    >
-        <option value="8">8-connected (diagonals)</option>
-        <option value="4">4-connected (orthogonal only)</option>
-    </select>
-</div>
+<PaxHudSelect
+    label="Adjacency"
+    value={currentAdjacency()}
+    options={ADJACENCY_OPTIONS}
+    onValueChange={(value) => {
+        writeConfig('METABALL_GRID_ADJACENCY', 'metaballGridAdjacency', value);
+    }}
+/>
 
 <div class="var-row">
     <div class="row-top">
@@ -1432,19 +1229,14 @@
     <div class="var-desc">
         Grid BFS follows grid neighbors step-by-step; Euclidean band bins cells by distance to nearest seed; the phase-edge geometries derive flip time directly from conquest-local frontier relationships.
     </div>
-    <select
-        class="mode-select"
+    <PaxHudSelect
+        label="Wave Geometry"
         value={currentWaveGeometry()}
-        onchange={(event) => {
-            const value = (event.target as HTMLSelectElement).value;
+        options={WAVE_GEOMETRY_OPTIONS}
+        onValueChange={(value) => {
             writeConfig('METABALL_GRID_WAVE_GEOMETRY', 'metaballGridWaveGeometry', value);
         }}
-    >
-        <option value="grid_bfs">Grid BFS (step-by-step)</option>
-        <option value="euclidean_band">Euclidean band (distance buckets)</option>
-        <option value="conquered_star_radial">Conquered star radial</option>
-        <option value="pre_to_post_frontier">Pre → post frontier</option>
-    </select>
+    />
 </div>
 
 <div class="var-row">
@@ -1461,18 +1253,14 @@
     <div class="var-desc">
         Winner natives spreads from the entire winner footprint. Conquered star center is a point source. Winner nearest edge picks the winner-owned cell(s) closest to the conquered star.
     </div>
-    <select
-        class="mode-select"
+    <PaxHudSelect
+        label="Wave Seeding"
         value={currentWaveSeeding()}
-        onchange={(event) => {
-            const value = (event.target as HTMLSelectElement).value;
+        options={WAVE_SEEDING_OPTIONS}
+        onValueChange={(value) => {
             writeConfig('METABALL_GRID_WAVE_SEEDING', 'metaballGridWaveSeeding', value);
         }}
-    >
-        <option value="winner_natives">Winner natives (multi-source)</option>
-        <option value="conquered_star_center">Conquered star center</option>
-        <option value="winner_nearest_edge">Winner nearest edge (4-adj)</option>
-    </select>
+    />
 </div>
 </div>
 {/if}
@@ -1493,18 +1281,14 @@
     <div class="var-desc">
         Hard looks like pixel-flip; lerp_per_cell crossfades within ±window; dual_pass_blend always emits both passes with complementary alphas.
     </div>
-    <select
-        class="mode-select"
+    <PaxHudSelect
+        label="Flip Transition"
         value={currentFlipTransition()}
-        onchange={(event) => {
-            const value = (event.target as HTMLSelectElement).value;
+        options={FLIP_TRANSITION_OPTIONS}
+        onValueChange={(value) => {
             writeConfig('METABALL_GRID_FLIP_TRANSITION', 'metaballGridFlipTransition', value);
         }}
-    >
-        <option value="hard">Hard (instant)</option>
-        <option value="lerp_per_cell">Lerp per cell (local window)</option>
-        <option value="dual_pass_blend">Dual pass blend (always two)</option>
-    </select>
+    />
 </div>
 
 <div class="var-row">
@@ -1517,14 +1301,16 @@
     <div class="var-desc">
         Crossfade half-width for lerp_per_cell and dual_pass_blend. Larger values soften flips; 0 collapses to hard behavior.
     </div>
-    <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.005"
+    <PaxSettingsRangeRow
+        label="Flip Window"
+        note="Crossfade half-width around each cell flip time."
         value={panel.metaballGridFlipWindow ?? GAME_CONFIG.METABALL_GRID_FLIP_WINDOW ?? 0.06}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
+        min={0}
+        max={1}
+        step={0.005}
+        output={`${(panel.metaballGridFlipWindow ?? GAME_CONFIG.METABALL_GRID_FLIP_WINDOW ?? 0.06).toFixed(3)}`}
+        settingConfigKey="METABALL_GRID_FLIP_WINDOW"
+        onInput={(value) => {
             writeConfig('METABALL_GRID_FLIP_WINDOW', 'metaballGridFlipWindow', value);
         }}
     />
@@ -1547,21 +1333,14 @@
     <div class="var-desc">
         Remaps transition progress before the flip math runs. Back-out / elastic-out briefly overshoot 1 so the NEXT cells visibly "settle" into place — good with Lerp / Dual-pass flip modes.
     </div>
-    <select
-        class="mode-select"
+    <PaxHudSelect
+        label="Wave Easing"
         value={currentWaveEase()}
-        onchange={(event) => {
-            const value = (event.target as HTMLSelectElement).value;
+        options={WAVE_EASE_OPTIONS}
+        onValueChange={(value) => {
             writeConfig('METABALL_GRID_WAVE_EASE', 'metaballGridWaveEase', value);
         }}
-    >
-        <option value="linear">Linear (no easing)</option>
-        <option value="ease_in">Ease in (quadratic)</option>
-        <option value="ease_out">Ease out (quadratic)</option>
-        <option value="ease_in_out">Ease in-out</option>
-        <option value="back_out">Back out (slight overshoot)</option>
-        <option value="elastic_out">Elastic out (spring)</option>
-    </select>
+    />
 </div>
 
 <div class="var-row">
@@ -1574,14 +1353,16 @@
     <div class="var-desc">
         Deterministic per-cell scatter of flip-time (seeded by cell id, stable across runs). Great for softening straight wave fronts.
     </div>
-    <input
-        type="range"
-        min="0"
-        max="0.5"
-        step="0.005"
+    <PaxSettingsRangeRow
+        label="FlipTime Jitter"
+        note="Deterministic per-cell scatter of flip time."
         value={panel.metaballGridFlipWindowJitter ?? GAME_CONFIG.METABALL_GRID_FLIP_WINDOW_JITTER ?? 0}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
+        min={0}
+        max={0.5}
+        step={0.005}
+        output={`${(panel.metaballGridFlipWindowJitter ?? GAME_CONFIG.METABALL_GRID_FLIP_WINDOW_JITTER ?? 0).toFixed(3)}`}
+        settingConfigKey="METABALL_GRID_FLIP_WINDOW_JITTER"
+        onInput={(value) => {
             writeConfig('METABALL_GRID_FLIP_WINDOW_JITTER', 'metaballGridFlipWindowJitter', value);
         }}
     />
@@ -1591,7 +1372,7 @@
 
 {#if showModule('perf')}
 <div class="module-block">
-<div class="var-desc" style="opacity:0.9;margin-bottom:8px;">
+<div class="var-desc perf-intro">
     Live planner/readout surface for metaball-grid. Requested spacing is the knob value; effective spacing is what the planner actually used after max-cell coarsening. Painted cells are the cells that survived the current frame’s alpha/scene cull.
 </div>
 
@@ -1749,198 +1530,135 @@
     </div>
 </div>
 {#if isPhaseFieldMode()}
-<div class="var-desc" style="margin:14px 0 8px; opacity:0.92;">
+<div class="var-desc finish-tail-intro">
     Phase Field finish tail. These controls only affect how the PRE cell mask resolves into the smooth POST territory at the end of conquest.
 </div>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Normalized conquest time (0..1) when the PRE cell overlay starts fading away. Lower starts the settle earlier; higher keeps the chunky mask visible longer.">
-            Finish Fade Start
-        </span>
-        <span class="val">{currentPhaseFieldFinishFadeStart().toFixed(3)}</span>
-    </div>
-    <div class="var-desc">
-        Start of the end-tail alpha fade for PRE-side cells, measured against the overall conquest clock before wave easing.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.005"
-        value={currentPhaseFieldFinishFadeStart()}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig(
-                'METABALL_GRID_PHASE_FIELD_FINISH_FADE_START',
-                'metaballGridPhaseFieldFinishFadeStart',
-                value,
-            );
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="Finish Fade Start"
+    note="Start of the end-tail alpha fade for PRE-side cells."
+    value={currentPhaseFieldFinishFadeStart()}
+    min={0}
+    max={1}
+    step={0.005}
+    output={currentPhaseFieldFinishFadeStart().toFixed(3)}
+    settingConfigKey="METABALL_GRID_PHASE_FIELD_FINISH_FADE_START"
+    onInput={(value) => {
+        writeConfig(
+            'METABALL_GRID_PHASE_FIELD_FINISH_FADE_START',
+            'metaballGridPhaseFieldFinishFadeStart',
+            value,
+        );
+    }}
+/>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Normalized conquest time (0..1) when the PRE cell overlay finishes fading out. Set close to 1 for a late dissolve into steady POST territory.">
-            Finish Fade End
-        </span>
-        <span class="val">{currentPhaseFieldFinishFadeEnd().toFixed(3)}</span>
-    </div>
-    <div class="var-desc">
-        End of the end-tail alpha fade for PRE-side cells. The interval between start and end controls how gradual the settle feels.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.005"
-        value={currentPhaseFieldFinishFadeEnd()}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig(
-                'METABALL_GRID_PHASE_FIELD_FINISH_FADE_END',
-                'metaballGridPhaseFieldFinishFadeEnd',
-                value,
-            );
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="Finish Fade End"
+    note="End of the end-tail alpha fade for PRE-side cells."
+    value={currentPhaseFieldFinishFadeEnd()}
+    min={0}
+    max={1}
+    step={0.005}
+    output={currentPhaseFieldFinishFadeEnd().toFixed(3)}
+    settingConfigKey="METABALL_GRID_PHASE_FIELD_FINISH_FADE_END"
+    onInput={(value) => {
+        writeConfig(
+            'METABALL_GRID_PHASE_FIELD_FINISH_FADE_END',
+            'metaballGridPhaseFieldFinishFadeEnd',
+            value,
+        );
+    }}
+/>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Normalized conquest time (0..1) when transition cells begin shrinking toward their final cleanup size.">
-            Size Collapse Start
-        </span>
-        <span class="val">{currentPhaseFieldSizeCollapseStart().toFixed(3)}</span>
-    </div>
-    <div class="var-desc">
-        Start of the size-collapse tail. Earlier values make the grid read more like a dissolve into territory truth instead of holding chunk size until the end.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.005"
-        value={currentPhaseFieldSizeCollapseStart()}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig(
-                'METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_START',
-                'metaballGridPhaseFieldSizeCollapseStart',
-                value,
-            );
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="Size Collapse Start"
+    note="Start of the size-collapse tail."
+    value={currentPhaseFieldSizeCollapseStart()}
+    min={0}
+    max={1}
+    step={0.005}
+    output={currentPhaseFieldSizeCollapseStart().toFixed(3)}
+    settingConfigKey="METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_START"
+    onInput={(value) => {
+        writeConfig(
+            'METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_START',
+            'metaballGridPhaseFieldSizeCollapseStart',
+            value,
+        );
+    }}
+/>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Normalized conquest time (0..1) when transition cells finish shrinking.">
-            Size Collapse End
-        </span>
-        <span class="val">{currentPhaseFieldSizeCollapseEnd().toFixed(3)}</span>
-    </div>
-    <div class="var-desc">
-        End of the size-collapse tail. A later end keeps the cell read visible almost to steady-state; an earlier end makes the POST geometry take over sooner.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.005"
-        value={currentPhaseFieldSizeCollapseEnd()}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig(
-                'METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_END',
-                'metaballGridPhaseFieldSizeCollapseEnd',
-                value,
-            );
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="Size Collapse End"
+    note="End of the size-collapse tail."
+    value={currentPhaseFieldSizeCollapseEnd()}
+    min={0}
+    max={1}
+    step={0.005}
+    output={currentPhaseFieldSizeCollapseEnd().toFixed(3)}
+    settingConfigKey="METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_END"
+    onInput={(value) => {
+        writeConfig(
+            'METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_END',
+            'metaballGridPhaseFieldSizeCollapseEnd',
+            value,
+        );
+    }}
+/>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Smallest cell size the phase-field cleanup tail collapses toward. 1px gives the smoothest dissolve into POST territory.">
-            Final Cell Size
-        </span>
-        <span class="val">{currentPhaseFieldFinalCellSizePx().toFixed(1)}px</span>
-    </div>
-    <div class="var-desc">
-        Final cell size at the end of the completion tail. Lower values make the block mask melt into the POST shape instead of dropping away as large chunks.
-    </div>
-    <input
-        type="range"
-        min="1"
-        max="32"
-        step="0.5"
-        value={currentPhaseFieldFinalCellSizePx()}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig(
-                'METABALL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX',
-                'metaballGridPhaseFieldFinalCellSizePx',
-                value,
-            );
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="Final Cell Size"
+    note="Smallest cell size the phase-field cleanup tail collapses toward."
+    value={currentPhaseFieldFinalCellSizePx()}
+    min={1}
+    max={32}
+    step={0.5}
+    output={`${currentPhaseFieldFinalCellSizePx().toFixed(1)}px`}
+    settingConfigKey="METABALL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX"
+    onInput={(value) => {
+        writeConfig(
+            'METABALL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX',
+            'metaballGridPhaseFieldFinalCellSizePx',
+            value,
+        );
+    }}
+/>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Normalized conquest time (0..1) when the phase-field frontier accent begins fading. This is the cleanup control for whether the edge lingers after the cells start settling.">
-            Frontier Fade Start
-        </span>
-        <span class="val">{currentPhaseFieldFrontierFadeStart().toFixed(3)}</span>
-    </div>
-    <div class="var-desc">
-        Start of the winner-side frontier-accent fade. Use this to keep a brief rim of motion even after the fill has begun settling.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.005"
-        value={currentPhaseFieldFrontierFadeStart()}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig(
-                'METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_START',
-                'metaballGridPhaseFieldFrontierFadeStart',
-                value,
-            );
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="Frontier Fade Start"
+    note="Start of the winner-side frontier accent fade."
+    value={currentPhaseFieldFrontierFadeStart()}
+    min={0}
+    max={1}
+    step={0.005}
+    output={currentPhaseFieldFrontierFadeStart().toFixed(3)}
+    settingConfigKey="METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_START"
+    onInput={(value) => {
+        writeConfig(
+            'METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_START',
+            'metaballGridPhaseFieldFrontierFadeStart',
+            value,
+        );
+    }}
+/>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Normalized conquest time (0..1) when the phase-field frontier accent is fully gone.">
-            Frontier Fade End
-        </span>
-        <span class="val">{currentPhaseFieldFrontierFadeEnd().toFixed(3)}</span>
-    </div>
-    <div class="var-desc">
-        End of the winner-side frontier-accent fade. A slightly earlier value prevents the border highlight from hanging after the map has otherwise resolved.
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.005"
-        value={currentPhaseFieldFrontierFadeEnd()}
-        oninput={(event) => {
-            const value = parseFloat((event.target as HTMLInputElement).value);
-            writeConfig(
-                'METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END',
-                'metaballGridPhaseFieldFrontierFadeEnd',
-                value,
-            );
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="Frontier Fade End"
+    note="End of the winner-side frontier accent fade."
+    value={currentPhaseFieldFrontierFadeEnd()}
+    min={0}
+    max={1}
+    step={0.005}
+    output={currentPhaseFieldFrontierFadeEnd().toFixed(3)}
+    settingConfigKey="METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END"
+    onInput={(value) => {
+        writeConfig(
+            'METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END',
+            'metaballGridPhaseFieldFrontierFadeEnd',
+            value,
+        );
+    }}
+/>
 {/if}
 </div>
 {/if}
@@ -1979,6 +1697,16 @@
         color: rgba(220, 232, 245, 0.72);
         font-size: 10px;
         line-height: 1.35;
+    }
+
+    .perf-intro {
+        margin-bottom: 8px;
+        opacity: 0.9;
+    }
+
+    .finish-tail-intro {
+        margin: 14px 0 8px;
+        opacity: 0.92;
     }
 
     .var-row.disabled {

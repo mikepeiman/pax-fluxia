@@ -109,3 +109,23 @@ Prompt:
 - Continued UI-system work by migrating Territory Surface Style controls to Pax select/range/toggle primitives while preserving fill, border, Ember Lattice, and finish config writes.
 - Continued UI-system work by replacing Theme Select Dropdown internals with the shared settings picker primitive while preserving `GameThemeManager` integration.
 - Continued UI-system work by migrating Metaball Grid module visibility and frontier preset buttons to Pax segmented/button primitives.
+
+## User Request
+
+Prompt:
+
+> Maybe irrelevant as you are in-progress, but
+> ```
+> logger.ts:119 ERROR [LandingRoute] Game shell import failed (1/2) Error: Extension type environment already has a handler
+>     at Object.handle (Extensions.ts:328:19)
+>     at Object.handleByNamedList (Extensions.ts:385:21)
+>     at autoDetectEnvironment.ts:5:12
+> ```
+
+## Agent Response Summary
+
+- Confirmed the Pixi mitigation is already present in `pax-fluxia/vite.config.js`: `pixi.js` is in `optimizeDeps.include` and `resolve.dedupe`.
+- Treated any recurrence in an already-running dev server as likely stale Vite optimization state requiring dev-server restart/forced optimize before retest.
+- Continued the systemic Settings primitive migration rather than stopping for a screenshot/browser pass.
+- Finished migrating `MetaballGridTuning.svelte` grid, border, frontier, wave, flip, and Phase Field finish-tail controls to Pax primitives while preserving `writeConfig(...)` paths.
+- Validated with raw-control audit, `git diff --check`, and production build.

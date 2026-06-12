@@ -1136,3 +1136,41 @@ Merge guidance:
 
 - Preserve `PaxHudSegmentedControl` for module visibility and `PaxHudButton` for presets.
 - Convert the remaining Metaball raw controls in smaller subsection commits.
+
+## 2026-06-12 Metaball Grid Full Control Primitive Migration
+
+Scope implemented in this step:
+
+- Completed the control migration in:
+  - `pax-fluxia/src/lib/components/ui/settings/MetaballGridTuning.svelte`
+
+Why this matters for merge:
+
+- `MetaballGridTuning.svelte` was one of the largest remaining Settings files mixing raw Svelte controls, local select/range styling, inline styles, and Pax primitives.
+- This step moves its visible interactive controls to the shared Pax primitive/token system:
+  - `PaxHudSelect`
+  - `PaxSettingsRangeRow`
+  - `PaxSettingsToggleRow`
+  - prior `PaxHudSegmentedControl`
+  - prior `PaxHudButton`
+- Existing render/tuning behavior is preserved:
+  - module visibility still uses `METABALL_GRID_MODULE_PANEL_KEY`
+  - all controls still write through existing `writeConfig(configKey, panelKey, value)`
+  - grid controls still write `METABALL_GRID_*` spacing/density/origin/distribution/jitter/max-cell keys
+  - Phase Field controls still write `METABALL_GRID_CELL_*`, border, finish-tail, and frontier-highlight keys
+  - Frontier controls still write `TERRITORY_FRONTIER_*` keys
+  - Wave/Flip controls still write `METABALL_GRID_ADJACENCY`, `METABALL_GRID_WAVE_*`, and `METABALL_GRID_FLIP_*` keys
+  - stats/readout surface remains a readout and was not converted into fake controls
+
+Validation:
+
+- `rg -n "<button|<select|<input|style=|class:active|class:is-active" pax-fluxia/src/lib/components/ui/settings/MetaballGridTuning.svelte`: no matches.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Merge guidance:
+
+- Preserve the local option arrays added near the top of `MetaballGridTuning.svelte`; they are the intended single source for select labels in this component.
+- If master has added new Metaball controls, render them through Pax primitives rather than restoring raw `<input>`, `<select>`, or local button/listbox skins.
+- Keep the existing helper functions and `writeConfig(...)` paths authoritative; this was a UI-system migration, not a territory rendering logic change.
+- The remaining raw-control migration work should now focus on `ControlsSection-Ships.svelte` and `ControlsSection-Territory.svelte`.

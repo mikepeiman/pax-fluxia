@@ -690,3 +690,72 @@ Validation:
 Next correct step:
 
 - Continue `MetaballGridTuning.svelte` in subsections: Grid controls, Border controls, Frontier controls, Wave controls, Flip controls, then Perf controls.
+
+## Metaball Grid Full Control Primitive Migration
+
+Implemented:
+
+- Finished the remaining control migration inside `pax-fluxia/src/lib/components/ui/settings/MetaballGridTuning.svelte`.
+- Added local option arrays for Grid, Frontier, Wave, and Flip select-driven controls.
+- Migrated Grid controls to Pax primitives:
+  - enable toggle
+  - cell/base spacing
+  - Phase Field pattern spacing
+  - density alias
+  - origin mode
+  - distribution
+  - position jitter
+  - max cells
+- Migrated Phase Field grid controls to Pax primitives:
+  - cell shape
+  - cell inset
+  - inward offset
+  - square corner
+  - border mode
+  - border blend
+  - frontier highlight
+  - border/edge shaping controls
+- Migrated Frontier controls to Pax primitives:
+  - frontier technique
+  - phase sampling
+  - blur passes
+  - triangle diagonal
+  - frontier Chaikin
+  - shader softness
+  - band width
+- Migrated Wave controls to Pax primitives:
+  - adjacency
+  - wave geometry
+  - wave seeding
+- Migrated Flip controls to Pax primitives:
+  - flip transition
+  - flip window
+  - wave easing
+  - flip-time jitter
+- Migrated Phase Field finish-tail controls to `PaxSettingsRangeRow`:
+  - finish fade start/end
+  - size collapse start/end
+  - final cell size
+  - frontier fade start/end
+- Replaced the remaining inline style attributes in this component with local classes.
+
+Intent:
+
+- Remove the largest remaining mixed raw-control island from Settings and put the Metaball Grid tuning surface under the shared Pax primitive/token grammar.
+- Preserve renderer/tuning behavior by keeping all existing `writeConfig(configKey, panelKey, value)` calls and current helper functions.
+
+Validation:
+
+- `rg -n "<button|<select|<input|style=|class:active|class:is-active" pax-fluxia/src/lib/components/ui/settings/MetaballGridTuning.svelte`: no matches.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; only existing large-chunk warnings remain.
+
+Runtime note:
+
+- The reported Pixi dev-shell error `Extension type environment already has a handler` is still treated as a Vite/dev optimization cache issue if it appears in an already-running server. The code fix from the earlier slice keeps `pixi.js` in `optimizeDeps.include` and `resolve.dedupe`; if it persists locally, restart the dev server and force Vite optimization before retesting.
+
+Next correct step:
+
+- Recount raw-control density across Settings.
+- Continue systemic migration in `ControlsSection-Ships.svelte` and `ControlsSection-Territory.svelte`.
+- After those two large files are converted, shift effort from migration to visual polish against the Aurelia Drift reference.
