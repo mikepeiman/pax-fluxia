@@ -9,3 +9,4 @@
 - Grid Gradient plan performance needs two layers: off-thread planning to protect animation frames, and typed/raster classification to reduce the plan work itself.
 - Transition worker commits must keep the original conquest start time and duration; starting at commit time would desynchronize conquest visuals.
 - Existing diagnostics should show worker scheduling, classifier path, cache hits, and build splits so performance claims can be checked from the UI.
+- After Grid Gradient plan workerization, remaining conquest jank is mostly synchronous `power_voronoi_0319` geometry/frontier work; the next major pass should move render-family geometry compilation off the animation frame and share frontier-chain outputs.
