@@ -1026,3 +1026,33 @@ Merge guidance:
 
 - Preserve `PaxColorSwatchButton`; it is now the correct primitive for dynamic color choices in Settings.
 - If conflicts occur in these panels, preserve the existing helper/dataflow functions and render the surface through Pax primitives rather than restoring raw inputs/buttons/selects.
+
+## 2026-06-12 Diagnostics Primitive Migration
+
+Scope implemented in this step:
+
+- Migrated diagnostics controls:
+  - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Diagnostics.svelte`
+  - `pax-fluxia/src/lib/components/ui/settings/TerritoryEngineTraceDiagnostics.svelte`
+
+Why this matters for merge:
+
+- Diagnostics was one of the remaining Settings islands using raw checkboxes, range inputs, mini action buttons, and legacy row wrappers.
+- Existing behavior is preserved:
+  - overlay toggles still update `overlayConfig`
+  - star inspector still uses `localStorage` key `pax-show-star-info` and dispatches `pax-star-info-toggle`
+  - map transpose still mutates `mapTranspose.active` and dispatches resize
+  - ruler toggles, clear, and H/S/L/A color controls still use `rulerTool`
+  - transition recorder controls still call the same recorder, package, download, and clear functions
+  - underlying geometry still writes `PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY` and bumps territory visual config
+  - territory engine trace step buttons still update `territoryEngineStepAdvanceToken`
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- Targeted audit found no raw controls or old local row/toggle class names in the two migrated diagnostics components.
+
+Merge guidance:
+
+- Preserve the helper functions and primitive rendering path if conflicts occur.
+- Do not restore `.mini-action-btn`, `.toggle-row`, raw range inputs, or old trace row wrappers in Diagnostics.

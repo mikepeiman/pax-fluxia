@@ -601,3 +601,25 @@ Next correct step:
 
 - Recount remaining raw-control density.
 - Continue with `TerritorySurfaceStyleTuning.svelte` or `ControlsSection-Diagnostics.svelte`, then split the much larger `MetaballGridTuning.svelte`, `ControlsSection-Territory.svelte`, and `ControlsSection-Ships.svelte` into smaller safe commits.
+
+## Diagnostics Primitive Migration
+
+Implemented:
+
+- Migrated `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Diagnostics.svelte` to use `PaxSettingsToggleRow`, `PaxSettingsRangeRow`, and `PaxHudButton` for overlay, measurement/ruler, recorder/export, and underlying-geometry controls.
+- Migrated `pax-fluxia/src/lib/components/ui/settings/TerritoryEngineTraceDiagnostics.svelte` to use `PaxSettingsToggleRow` and `PaxHudButton`.
+- Removed obsolete local `.mini-action-btn`, raw ruler-label, and legacy row wrapper selectors from the migrated diagnostics surfaces.
+
+Intent:
+
+- Remove another visible Settings/Diagnostics island from raw inputs/buttons and old row/toggle styling.
+- Preserve debugging and export behavior while standardizing control chrome through Pax primitives.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- Targeted audit found no raw `<button>`, `<select>`, `<input>`, inline `style=`, active class toggles, old toggle/lock classes, `.var-row`, or `.row-top` usage in the two touched diagnostics components.
+
+Next correct step:
+
+- Continue with `TerritorySurfaceStyleTuning.svelte` and `ThemeSelectDropdown.svelte`, then split the large `MetaballGridTuning.svelte`, `ControlsSection-Territory.svelte`, and `ControlsSection-Ships.svelte`.

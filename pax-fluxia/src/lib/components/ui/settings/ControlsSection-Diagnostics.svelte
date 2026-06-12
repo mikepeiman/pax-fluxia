@@ -29,6 +29,11 @@
         downloadDiagnosticPackage,
     } from "$lib/territory/devtools/TransitionBundleSerializer";
     import { getTerritoryRenderModeLabel } from "$lib/territory/ui/territoryRenderModeCatalog";
+    import {
+        PaxHudButton,
+        PaxSettingsRangeRow,
+        PaxSettingsToggleRow,
+    } from "$lib/design-system";
 
     interface Props {
         panel: Record<string, any>;
@@ -110,8 +115,7 @@
         syncOverlayState();
     }
 
-    function toggleUnderlyingGeometry(event: Event): void {
-        const value = (event.currentTarget as HTMLInputElement).checked;
+    function setUnderlyingGeometry(value: boolean): void {
         GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY = value;
         updatePanel("perimeterFieldDebugShowGeometry", value);
         bumpTerritoryVisualConfig();
@@ -132,9 +136,9 @@
 
     function setRulerColor(
         key: "h" | "s" | "l" | "a",
-        value: string,
+        value: number,
     ): void {
-        rulerTool.setColor(key, Number(value));
+        rulerTool.setColor(key, value);
     }
 
     function toggleRecorder(): void {
@@ -296,126 +300,102 @@
 
 <section data-subsection-id="overlays">
     <h4 class="sub-heading">Overlays</h4>
-    <label class="toggle-row">
-        <input
-            type="checkbox"
-            checked={panel.showHexGrid}
-            onchange={(event) => {
-                const value = (event.currentTarget as HTMLInputElement).checked;
-                GAME_CONFIG.SHOW_HEX_GRID = value;
-                updatePanel("showHexGrid", value);
-            }}
-        />
-        <span class="var-name">Show Hex Grid</span>
-    </label>
-    <label class="toggle-row">
-        <input
-            type="checkbox"
-            checked={typeof localStorage !== "undefined" &&
-                localStorage.getItem("pax-show-star-info") === "true"}
-            onchange={(event) => {
-                const value = (event.currentTarget as HTMLInputElement).checked;
-                localStorage.setItem("pax-show-star-info", value ? "true" : "false");
-                window.dispatchEvent(
-                    new CustomEvent("pax-star-info-toggle", {
-                        detail: value,
-                    }),
-                );
-            }}
-        />
-        <span
-            class="var-name"
-            data-setting-config-key="local.ui.starInspectorVisible"
-            data-setting-description="Local-only toggle persisted in localStorage as pax-show-star-info."
-        >
-            Star Inspector
-        </span>
-        <span class="debug-hint">click star to inspect</span>
-    </label>
-    <label class="toggle-row">
-        <input
-            type="checkbox"
-            checked={mapTranspose.active}
-            onchange={(event) => {
-                const value = (event.currentTarget as HTMLInputElement).checked;
-                mapTranspose.active = value;
-                window.dispatchEvent(new Event("resize"));
-            }}
-        />
-        <span
-            class="var-name"
-            data-setting-config-key="local.mapTranspose.active"
-            data-setting-description="Local-only transpose flag that swaps display axes without mutating star data."
-        >
-            Rotate Map (Transpose)
-        </span>
-        <span class="debug-hint">Flip X↔Y axes</span>
-    </label>
-    <label class="toggle-row">
-        <input type="checkbox" checked={overlayEnabled} onchange={toggleOverlay} />
-        <span class="var-name">{overlayEnabled ? "Overlay ON" : "Overlay OFF"}</span>
-    </label>
+    <PaxSettingsToggleRow
+        label="Show Hex Grid"
+        checked={panel.showHexGrid}
+        meta={panel.showHexGrid ? "On" : "Off"}
+        settingConfigKey="SHOW_HEX_GRID"
+        onChange={(value) => {
+            GAME_CONFIG.SHOW_HEX_GRID = value;
+            updatePanel("showHexGrid", value);
+        }}
+    />
+    <PaxSettingsToggleRow
+        label="Star Inspector"
+        checked={typeof localStorage !== "undefined" &&
+            localStorage.getItem("pax-show-star-info") === "true"}
+        description="Click a star to inspect."
+        meta={typeof localStorage !== "undefined" &&
+            localStorage.getItem("pax-show-star-info") === "true"
+            ? "On"
+            : "Off"}
+        settingConfigKey="local.ui.starInspectorVisible"
+        onChange={(value) => {
+            localStorage.setItem("pax-show-star-info", value ? "true" : "false");
+            window.dispatchEvent(
+                new CustomEvent("pax-star-info-toggle", {
+                    detail: value,
+                }),
+            );
+        }}
+    />
+    <PaxSettingsToggleRow
+        label="Rotate Map (Transpose)"
+        checked={mapTranspose.active}
+        description="Flip X/Y display axes without mutating star data."
+        meta={mapTranspose.active ? "On" : "Off"}
+        settingConfigKey="local.mapTranspose.active"
+        onChange={(value) => {
+            mapTranspose.active = value;
+            window.dispatchEvent(new Event("resize"));
+        }}
+    />
+    <PaxSettingsToggleRow
+        label={overlayEnabled ? "Overlay ON" : "Overlay OFF"}
+        checked={overlayEnabled}
+        meta={overlayEnabled ? "On" : "Off"}
+        onChange={toggleOverlay}
+    />
     {#if overlayEnabled}
-        <label class="toggle-row indent">
-            <input
-                type="checkbox"
-                checked={overlayShowActiveFront}
-                onchange={toggleOverlayActiveFront}
-            />
-            <span class="var-name">Active front bridge + anchors + gold sections</span>
-        </label>
-        <label class="toggle-row indent">
-            <input
-                type="checkbox"
-                checked={overlayShowVertices}
-                onchange={toggleOverlayVertices}
-            />
-            <span class="var-name">Structural vertices</span>
-        </label>
-        <label class="toggle-row indent">
-            <input
-                type="checkbox"
-                checked={overlayPolylineSamples}
-                onchange={togglePolylineSamples}
-            />
-            <span class="var-name">Polyline samples</span>
-        </label>
-    {/if}
-    <label class="toggle-row" class:is-disabled={!hasAuthoredMeasurements}>
-        <input
-            type="checkbox"
-            checked={$authoredMeasurementsUi.visible}
-            disabled={!hasAuthoredMeasurements}
-            onchange={toggleAuthoredMeasurements}
+        <PaxSettingsToggleRow
+            class="diagnostics-indent"
+            label="Active Front"
+            checked={overlayShowActiveFront}
+            description="Bridge, anchors, and gold sections."
+            meta={overlayShowActiveFront ? "On" : "Off"}
+            onChange={toggleOverlayActiveFront}
         />
-        <span class="var-name">Show authored measurements</span>
-        <span class="debug-hint">
-            {hasAuthoredMeasurements
-                ? `${activeGameStore.mapDiagnostics.measurements.length} lines`
-                : "No authored measurements"}
-        </span>
-    </label>
+        <PaxSettingsToggleRow
+            class="diagnostics-indent"
+            label="Structural Vertices"
+            checked={overlayShowVertices}
+            meta={overlayShowVertices ? "On" : "Off"}
+            onChange={toggleOverlayVertices}
+        />
+        <PaxSettingsToggleRow
+            class="diagnostics-indent"
+            label="Polyline Samples"
+            checked={overlayPolylineSamples}
+            meta={overlayPolylineSamples ? "On" : "Off"}
+            onChange={togglePolylineSamples}
+        />
+    {/if}
+    <PaxSettingsToggleRow
+        label="Show authored measurements"
+        checked={$authoredMeasurementsUi.visible}
+        disabled={!hasAuthoredMeasurements}
+        meta={hasAuthoredMeasurements
+            ? `${activeGameStore.mapDiagnostics.measurements.length} lines`
+            : "None"}
+        onChange={toggleAuthoredMeasurements}
+    />
 </section>
 
 <section data-subsection-id="measurements">
     <h4 class="sub-heading">Measurements</h4>
     <div class="row">
-        <label class="toggle-row">
-            <input
-                type="checkbox"
-                checked={$rulerTool.enabled}
-                onchange={toggleRuler}
-            />
-            <span class="var-name">{$rulerTool.enabled ? "Ruler ON" : "Ruler OFF"}</span>
-        </label>
-        <button
-            class="mini-action-btn"
-            type="button"
+        <PaxSettingsToggleRow
+            label={$rulerTool.enabled ? "Ruler ON" : "Ruler OFF"}
+            checked={$rulerTool.enabled}
+            meta={$rulerTool.enabled ? "On" : "Off"}
+            onChange={toggleRuler}
+        />
+        <PaxHudButton
+            label="Clear"
+            size="sm"
             disabled={!$rulerTool.start && !$rulerTool.end}
             onclick={clearRuler}
-        >
-            Clear
-        </button>
+        />
     </div>
     <div class="ruler-readout">
         <div><span>Start</span><span>{formatPoint($rulerTool.start)}</span></div>
@@ -432,71 +412,58 @@
         {/if}
     </div>
     <div class="ruler-controls">
-        <label>
-            <span>H</span>
-            <input
-                type="range"
-                min="0"
-                max="360"
-                value={$rulerTool.color.h}
-                oninput={(event) =>
-                    setRulerColor("h", (event.currentTarget as HTMLInputElement).value)}
-            />
-            <strong>{$rulerTool.color.h.toFixed(0)}°</strong>
-        </label>
-        <label>
-            <span>S</span>
-            <input
-                type="range"
-                min="0"
-                max="100"
-                value={$rulerTool.color.s}
-                oninput={(event) =>
-                    setRulerColor("s", (event.currentTarget as HTMLInputElement).value)}
-            />
-            <strong>{$rulerTool.color.s.toFixed(0)}%</strong>
-        </label>
-        <label>
-            <span>L</span>
-            <input
-                type="range"
-                min="0"
-                max="100"
-                value={$rulerTool.color.l}
-                oninput={(event) =>
-                    setRulerColor("l", (event.currentTarget as HTMLInputElement).value)}
-            />
-            <strong>{$rulerTool.color.l.toFixed(0)}%</strong>
-        </label>
-        <label>
-            <span>A</span>
-            <input
-                type="range"
-                min="0.05"
-                max="1"
-                step="0.01"
-                value={$rulerTool.color.a}
-                oninput={(event) =>
-                    setRulerColor("a", (event.currentTarget as HTMLInputElement).value)}
-            />
-            <strong>{$rulerTool.color.a.toFixed(2)}</strong>
-        </label>
+        <PaxSettingsRangeRow
+            label="Hue"
+            value={$rulerTool.color.h}
+            min={0}
+            max={360}
+            step={1}
+            output={`${$rulerTool.color.h.toFixed(0)}deg`}
+            settingConfigKey="local.ruler.color.h"
+            onInput={(value) => setRulerColor("h", value)}
+        />
+        <PaxSettingsRangeRow
+            label="Saturation"
+            value={$rulerTool.color.s}
+            min={0}
+            max={100}
+            step={1}
+            format="percent"
+            settingConfigKey="local.ruler.color.s"
+            onInput={(value) => setRulerColor("s", value)}
+        />
+        <PaxSettingsRangeRow
+            label="Lightness"
+            value={$rulerTool.color.l}
+            min={0}
+            max={100}
+            step={1}
+            format="percent"
+            settingConfigKey="local.ruler.color.l"
+            onInput={(value) => setRulerColor("l", value)}
+        />
+        <PaxSettingsRangeRow
+            label="Alpha"
+            value={$rulerTool.color.a}
+            min={0.05}
+            max={1}
+            step={0.01}
+            format="fixed2"
+            settingConfigKey="local.ruler.color.a"
+            onInput={(value) => setRulerColor("a", value)}
+        />
     </div>
 </section>
 
 <section data-subsection-id="recorder">
     <h4 class="sub-heading">Recorder & Bundles</h4>
     <div class="row">
-        <label class="toggle-row">
-            <input
-                type="checkbox"
-                checked={$transitionSnapshotRecorderStore.enabled}
-                onchange={toggleRecorder}
-            />
-            <span class="var-name">
-                {$transitionSnapshotRecorderStore.enabled ? "Recording" : "Recorder Off"}
-            </span>
-        </label>
+        <PaxSettingsToggleRow
+            label={$transitionSnapshotRecorderStore.enabled ? "Recording" : "Recorder Off"}
+            checked={$transitionSnapshotRecorderStore.enabled}
+            meta={`${bundleList.length} bundle${bundleList.length === 1 ? "" : "s"}`}
+            onChange={toggleRecorder}
+        />
         <span class="debug-hint">
             {bundleList.length} bundle{bundleList.length === 1 ? "" : "s"}
         </span>
@@ -517,22 +484,19 @@
                         <span class="bundle-frames">{frameLabel(bundle)}</span>
                     </div>
                     <div class="bundle-actions">
-                        <button
-                            class="mini-action-btn primary"
-                            type="button"
+                        <PaxHudButton
+                            label={downloading === `pkg:${bundle.id}` ? "..." : "Pkg"}
+                            size="sm"
+                            intent="primary"
                             disabled={downloading === `pkg:${bundle.id}`}
                             onclick={() => void packageOne(bundle)}
-                        >
-                            {downloading === `pkg:${bundle.id}` ? "…" : "Pkg"}
-                        </button>
-                        <button
-                            class="mini-action-btn"
-                            type="button"
+                        />
+                        <PaxHudButton
+                            label={downloading === bundle.id ? "..." : "DL"}
+                            size="sm"
                             disabled={downloading === bundle.id}
                             onclick={() => void downloadOne(bundle)}
-                        >
-                            {downloading === bundle.id ? "…" : "DL"}
-                        </button>
+                        />
                     </div>
                 </div>
             {/each}
@@ -543,37 +507,31 @@
 <section data-subsection-id="exports">
     <h4 class="sub-heading">Exports</h4>
     <div class="actions-row">
-        <button
-            class="mini-action-btn primary"
-            type="button"
+        <PaxHudButton
+            label={downloading === "__pkg_all__" ? "Packaging..." : "Export All Packages"}
+            size="sm"
+            intent="primary"
             disabled={bundleList.length === 0 || downloading !== null}
             onclick={() => void packageAll()}
-        >
-            {downloading === "__pkg_all__" ? "Packaging…" : "Export All Packages"}
-        </button>
-        <button
-            class="mini-action-btn"
-            type="button"
+        />
+        <PaxHudButton
+            label={downloading === "__all__" ? "Downloading..." : "Download All Files"}
+            size="sm"
             disabled={bundleList.length === 0 || downloading !== null}
             onclick={() => void downloadAll()}
-        >
-            {downloading === "__all__" ? "Downloading…" : "Download All Files"}
-        </button>
-        <button
-            class="mini-action-btn danger"
-            type="button"
+        />
+        <PaxHudButton
+            label="Clear Bundles"
+            size="sm"
+            danger
             disabled={bundleList.length === 0}
             onclick={clearBundles}
-        >
-            Clear Bundles
-        </button>
-        <button
-            class="mini-action-btn"
-            type="button"
+        />
+        <PaxHudButton
+            label="Refresh Live Values"
+            size="sm"
             onclick={() => syncFromConfig?.()}
-        >
-            Refresh Live Values
-        </button>
+        />
     </div>
 </section>
 
@@ -581,23 +539,19 @@
 
 <section data-subsection-id="mode-diagnostics">
     <h4 class="sub-heading">Mode Diagnostics</h4>
-    <label
-        class="toggle-row"
-        class:is-disabled={!showUnderlyingGeometrySupported}
-    >
-        <input
-            type="checkbox"
-            checked={panel.perimeterFieldDebugShowGeometry ?? GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY ?? false}
-            disabled={!showUnderlyingGeometrySupported}
-            onchange={toggleUnderlyingGeometry}
-        />
-        <span class="var-name">Show Underlying Geometry</span>
-        <span class="debug-hint">
-            {showUnderlyingGeometrySupported
-                ? "Draw active territory geometry truth"
-                : "Unavailable for this mode"}
-        </span>
-    </label>
+    <PaxSettingsToggleRow
+        label="Show Underlying Geometry"
+        checked={panel.perimeterFieldDebugShowGeometry ??
+            GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY ??
+            false}
+        disabled={!showUnderlyingGeometrySupported}
+        description={showUnderlyingGeometrySupported
+            ? "Draw active territory geometry truth."
+            : "Unavailable for this mode."}
+        meta={showUnderlyingGeometrySupported ? "Supported" : "N/A"}
+        settingConfigKey="PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY"
+        onChange={setUnderlyingGeometry}
+    />
     <div class="status-grid">
         <div><span>Mode</span><code>{getTerritoryRenderModeLabel($territoryRenderStatus.territoryMode)}</code></div>
         <div><span>Geometry</span><span>{$territoryRenderStatus.geometryReady === null ? "pending" : $territoryRenderStatus.geometryReady ? "ready" : "missing"}</span></div>
@@ -718,55 +672,14 @@
         gap: 8px;
     }
 
-    .indent {
-        padding-left: 18px;
-    }
-
-    .toggle-row.is-disabled {
-        opacity: 0.45;
-        cursor: default;
+    :global(.diagnostics-indent) {
+        margin-left: 12px;
     }
 
     .debug-hint {
         margin-left: auto;
         font-size: 9px;
         color: #888;
-    }
-
-    .mini-action-btn {
-        padding: 5px 10px;
-        border-radius: 999px;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        background: rgba(255, 255, 255, 0.05);
-        color: rgba(220, 220, 240, 0.82);
-        font-size: 0.68rem;
-        font-weight: 700;
-        letter-spacing: 0.06em;
-        cursor: pointer;
-        transition:
-            border-color 0.15s ease,
-            background 0.15s ease,
-            color 0.15s ease;
-    }
-
-    .mini-action-btn:hover:not(:disabled) {
-        border-color: rgba(87, 248, 255, 0.38);
-        background: rgba(87, 248, 255, 0.12);
-        color: rgba(248, 250, 252, 0.96);
-    }
-
-    .mini-action-btn:disabled {
-        cursor: default;
-        opacity: 0.45;
-    }
-
-    .mini-action-btn.primary {
-        border-color: rgba(87, 248, 255, 0.34);
-    }
-
-    .mini-action-btn.danger:hover:not(:disabled) {
-        border-color: rgba(248, 113, 113, 0.45);
-        background: rgba(248, 113, 113, 0.12);
     }
 
     .ruler-readout {
@@ -796,15 +709,6 @@
         margin-top: 10px;
         display: grid;
         gap: 6px;
-    }
-
-    .ruler-controls label {
-        display: grid;
-        grid-template-columns: 16px 1fr auto;
-        gap: 8px;
-        align-items: center;
-        font-size: 0.68rem;
-        color: rgba(220, 220, 240, 0.82);
     }
 
     .bundle-list {
