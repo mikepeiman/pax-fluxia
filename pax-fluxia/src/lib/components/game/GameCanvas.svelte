@@ -30,6 +30,7 @@
     import { FXOrchestrator } from "$lib/fx/orchestrator";
     import {
         territoryTransitions,
+        type TerritoryTransitionEntry,
     } from "$lib/fx/handlers/territoryTransitionHandler";
     import {
         createContainers,
@@ -41,6 +42,7 @@
     import { createColorUtils } from "$lib/renderers/colorUtils";
     import {
         renderStars as renderStarsModule,
+        type StarOwnerTransition,
         type StarLabelView,
     } from "$lib/renderers/StarRenderer";
     import {
@@ -1863,6 +1865,7 @@
 
     const gridGradientTransitionTraceState =
         createGridGradientTransitionTraceState();
+    const renderFamilyPendingPreviewStartedAtMsByKey = new Map<string, number>();
 
     function logGridGradientTransition(stage: string, data: Record<string, unknown>): void {
         logGridGradientTransitionTrace({
@@ -1872,6 +1875,30 @@
             label: stage,
             data,
         });
+    }
+
+    function syncRenderFamilyPendingPreviewStarts(params: {
+        nowMs: number;
+        pendingConquests: ReadonlyArray<import("@pax/common").ConquestEvent>;
+        activeEntries: ReadonlyArray<TerritoryTransitionEntry>;
+    }): ReadonlyMap<string, number> {
+        const liveKeys = new Set<string>();
+        for (const entry of params.activeEntries) {
+            liveKeys.add(transitionIdentityKey(entry.event));
+        }
+        for (const conquest of params.pendingConquests) {
+            const key = transitionIdentityKey(conquest);
+            liveKeys.add(key);
+            if (!renderFamilyPendingPreviewStartedAtMsByKey.has(key)) {
+                renderFamilyPendingPreviewStartedAtMsByKey.set(key, params.nowMs);
+            }
+        }
+        for (const key of [...renderFamilyPendingPreviewStartedAtMsByKey.keys()]) {
+            if (!liveKeys.has(key)) {
+                renderFamilyPendingPreviewStartedAtMsByKey.delete(key);
+            }
+        }
+        return renderFamilyPendingPreviewStartedAtMsByKey;
     }
 
     function optionalArrayLength(value: unknown): number | null {
@@ -1958,16 +1985,23 @@
         activeSessions: readonly RenderFamilyTransitionSession[];
         transitionPresentationSignature: string;
     } {
+        const activeEntries = territoryTransitions.getActiveEntries();
+        const pendingPreviewStarts = syncRenderFamilyPendingPreviewStarts({
+            nowMs: transitionNowMs,
+            pendingConquests,
+            activeEntries,
+        });
         const lifecycle = buildRenderFamilyTransitionLifecycle({
             nowMs: transitionNowMs,
             effectiveTickMs,
-            activeEntries: territoryTransitions.getActiveEntries(),
+            activeEntries,
             pendingConquests,
+            pendingConquestStartedAtMsByKey: pendingPreviewStarts,
         });
         logGridGradientTransition("transition_lifecycle.after_build", {
             nowMs: transitionNowMs,
             effectiveTickMs,
-            activeEntryCount: territoryTransitions.getActiveEntries().length,
+            activeEntryCount: activeEntries.length,
             pendingConquestCount: pendingConquests.length,
             activeSessionCount: lifecycle.activeSessions.length,
             terminalFrameStarIds: lifecycle.terminalFrameStarIds,
@@ -2023,6 +2057,23 @@
             activeSessions: lifecycle.activeSessions,
             transitionPresentationSignature,
         };
+    }
+
+    function buildStarOwnerTransitionMap(
+        sessions: readonly RenderFamilyTransitionSession[],
+    ): ReadonlyMap<string, StarOwnerTransition> | undefined {
+        if (sessions.length === 0) return undefined;
+        const transitions = new Map<string, StarOwnerTransition>();
+        for (const session of sessions) {
+            for (const entry of session.events) {
+                transitions.set(entry.event.starId, {
+                    previousOwner: entry.event.previousOwner,
+                    newOwner: entry.event.newOwner,
+                    progress: entry.progress,
+                });
+            }
+        }
+        return transitions.size > 0 ? transitions : undefined;
     }
 
     function buildEdgeForwardRenderFamilyConfigSource(): Record<string, unknown> {
@@ -5465,13 +5516,14 @@
             (globalThis as any).__lastTerritoryConfigFp = territoryConfigFp;
         if (configChanged) resetTerritoryRenderCaches();
 
+        const renderFamilyTransitionState =
+            buildRenderFamilyTransitionState(
+                fxOrchestrator.gameTime,
+                activeGameStore.effectiveTickMs,
+                pendingTickEvents?.conquests ?? [],
+            );
+
         if (voronoiContainer) {
-            const renderFamilyTransitionState =
-                buildRenderFamilyTransitionState(
-                    fxOrchestrator.gameTime,
-                    activeGameStore.effectiveTickMs,
-                    pendingTickEvents?.conquests ?? [],
-                );
             const territoryPresentationSignature =
                 buildTerritoryPresentationRequestSignature({
                     activeMode: activeTerritoryMode,
@@ -6961,6 +7013,9 @@
                         dragSourceId,
                         pendingConquests,
                         conquestFlashes,
+                        ownerTransitions: buildStarOwnerTransitionMap(
+                            renderFamilyTransitionState.activeSessions,
+                        ),
                         gameNowMs: fxOrchestrator.gameTime,
                         stageScale: app?.stage.scale.x ?? 1,
                     },

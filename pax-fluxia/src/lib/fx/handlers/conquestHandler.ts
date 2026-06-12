@@ -48,6 +48,9 @@ export const coreConquestHandler: FXHandler<ConquestEvent> = {
             const conquestNow = ctx.gameTime;
             ctx.vsm.addPendingConquest(event.starId, {
                 previousOwner: event.previousOwner,
+                newOwner: event.newOwner,
+                startedAtMs: conquestNow,
+                durationMs: colorDelay,
                 transitionTime: conquestNow + colorDelay,
             });
         }

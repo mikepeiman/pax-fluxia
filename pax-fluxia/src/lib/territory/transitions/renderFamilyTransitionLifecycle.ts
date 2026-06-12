@@ -81,17 +81,22 @@ export function buildRenderFamilyTransitionLifecycle(params: {
     effectiveTickMs: number;
     activeEntries: ReadonlyArray<TerritoryTransitionEntry>;
     pendingConquests?: ReadonlyArray<ConquestEvent>;
+    pendingConquestStartedAtMsByKey?: ReadonlyMap<string, number>;
 }): RenderFamilyTransitionLifecycleResult {
     const eventsByKey = new Map<string, LifecycleEvent>();
 
     for (const entry of params.activeEntries) {
+        const key = transitionIdentityKey(entry.event);
         const durationMs = Math.max(1, entry.durationMs);
-        const rawProgress = (params.nowMs - entry.startTimeMs) / durationMs;
+        const startedAtMs =
+            params.pendingConquestStartedAtMsByKey?.get(key) ??
+            entry.startTimeMs;
+        const rawProgress = (params.nowMs - startedAtMs) / durationMs;
         if (rawProgress > 1 && entry.terminalFrameRendered) continue;
 
-        eventsByKey.set(transitionIdentityKey(entry.event), {
+        eventsByKey.set(key, {
             event: entry.event,
-            startedAtMs: entry.startTimeMs,
+            startedAtMs,
             durationMs,
             rawProgress,
             progress: clamp01(rawProgress),
@@ -109,12 +114,17 @@ export function buildRenderFamilyTransitionLifecycle(params: {
         for (const conquest of params.pendingConquests ?? []) {
             const key = transitionIdentityKey(conquest);
             if (eventsByKey.has(key)) continue;
+            const startedAtMs =
+                params.pendingConquestStartedAtMsByKey?.get(key) ??
+                params.nowMs;
             eventsByKey.set(key, {
                 event: conquest,
-                startedAtMs: params.nowMs,
+                startedAtMs,
                 durationMs: previewDurationMs,
-                rawProgress: 0,
-                progress: 0,
+                rawProgress: (params.nowMs - startedAtMs) / previewDurationMs,
+                progress: clamp01(
+                    (params.nowMs - startedAtMs) / previewDurationMs,
+                ),
             });
         }
     }

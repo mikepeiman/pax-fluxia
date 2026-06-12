@@ -39,6 +39,109 @@ const TYPE_SIDES: Record<string, number> = {
 };
 
 const STAR_VISUAL_BUCKET_MS = 96;
+const STAR_OWNER_BLEND_BUCKETS = 48;
+
+export interface StarOwnerTransition {
+    previousOwner: string;
+    newOwner: string;
+    progress: number;
+}
+
+export interface StarPendingConquestVisualState {
+    previousOwner: string;
+    newOwner?: string;
+    startedAtMs?: number;
+    durationMs?: number;
+    transitionTime: number;
+}
+
+interface StarOwnerBlendVisual {
+    effectiveOwner: string | null;
+    previousOwner: string | null;
+    newOwner: string | null;
+    progress: number;
+    active: boolean;
+    expired: boolean;
+}
+
+function clamp01(value: number): number {
+    if (value <= 0) return 0;
+    if (value >= 1) return 1;
+    return value;
+}
+
+function smoothstep01(value: number): number {
+    const t = clamp01(value);
+    return t * t * (3 - 2 * t);
+}
+
+export function resolveStarOwnerBlendVisual(params: {
+    currentOwner: string | null;
+    pending?: StarPendingConquestVisualState | null;
+    transition?: StarOwnerTransition | null;
+    nowMs: number;
+}): StarOwnerBlendVisual {
+    const transition = params.transition;
+    if (
+        transition &&
+        transition.previousOwner !== transition.newOwner
+    ) {
+        const progress = smoothstep01(transition.progress);
+        return {
+            effectiveOwner:
+                progress < 0.5 ? transition.previousOwner : transition.newOwner,
+            previousOwner: transition.previousOwner,
+            newOwner: transition.newOwner,
+            progress,
+            active: progress > 0 && progress < 1,
+            expired: false,
+        };
+    }
+
+    const pending = params.pending;
+    if (
+        pending &&
+        pending.previousOwner !== (pending.newOwner ?? params.currentOwner)
+    ) {
+        const durationMs = Math.max(
+            1,
+            pending.durationMs ??
+                pending.transitionTime -
+                    (pending.startedAtMs ?? pending.transitionTime),
+        );
+        const startedAtMs = pending.startedAtMs ?? pending.transitionTime - durationMs;
+        const rawProgress = (params.nowMs - startedAtMs) / durationMs;
+        if (rawProgress >= 1) {
+            return {
+                effectiveOwner: pending.newOwner ?? params.currentOwner,
+                previousOwner: pending.previousOwner,
+                newOwner: pending.newOwner ?? params.currentOwner,
+                progress: 1,
+                active: false,
+                expired: true,
+            };
+        }
+        const progress = smoothstep01(rawProgress);
+        const newOwner = pending.newOwner ?? params.currentOwner;
+        return {
+            effectiveOwner: progress < 0.5 ? pending.previousOwner : newOwner,
+            previousOwner: pending.previousOwner,
+            newOwner,
+            progress,
+            active: progress > 0 && progress < 1,
+            expired: false,
+        };
+    }
+
+    return {
+        effectiveOwner: params.currentOwner,
+        previousOwner: null,
+        newOwner: null,
+        progress: 1,
+        active: false,
+        expired: false,
+    };
+}
 
 function resolveStarVisualConfigKey(): string {
     return [
@@ -60,6 +163,7 @@ function buildStarVisualKey(params: {
     isActive: boolean;
     radius: number;
     flashBucket: number;
+    ownerBlendBucket: number;
     animationBucket: number;
     visualConfigKey: string;
 }): string {
@@ -69,6 +173,7 @@ function buildStarVisualKey(params: {
         isActive,
         radius,
         flashBucket,
+        ownerBlendBucket,
         animationBucket,
         visualConfigKey,
     } = params;
@@ -81,6 +186,7 @@ function buildStarVisualKey(params: {
         star.portalGroup ?? '',
         isActive ? 1 : 0,
         flashBucket,
+        ownerBlendBucket,
         animationBucket,
         visualConfigKey,
     ].join('|');
@@ -89,8 +195,9 @@ function buildStarVisualKey(params: {
 function shouldAnimateStarVisual(params: {
     isActive: boolean;
     isPortalStar: boolean;
+    hasOwnerTransition: boolean;
 }): boolean {
-    return params.isActive || params.isPortalStar;
+    return params.isActive || params.isPortalStar || params.hasOwnerTransition;
 }
 
 // ── Polygon Geometry Helpers ────────────────────────────────────────────────
@@ -282,7 +389,9 @@ export interface StarRenderState {
     /** Currently being dragged from */
     dragSourceId: string | null;
     /** Pending conquest color transitions */
-    pendingConquests: Map<string, { previousOwner: string; transitionTime: number }>;
+    pendingConquests: Map<string, StarPendingConquestVisualState>;
+    /** Active owner blend transitions from the territory transition lifecycle. */
+    ownerTransitions?: ReadonlyMap<string, StarOwnerTransition>;
     /** Conquest flash effects */
     conquestFlashes: Map<string, { startTime: number; duration: number }>;
     /** Game clock in ms — pause-aware, from FXClock. Use instead of performance.now(). */
@@ -394,6 +503,24 @@ export function renderStars(
     let labelDirtyCount = 0;
     let labelCacheRefreshCount = 0;
     let labelCacheRefreshDurationMs = 0;
+    const getCachedOwnerColor = (ownerId: string | null): number => {
+        let cached = ownerColorCache.get(ownerId);
+        if (cached == null) {
+            cached = colorUtils.getPlayerColor(ownerId ?? '');
+            ownerColorCache.set(ownerId, cached);
+        }
+        return cached;
+    };
+    const resolveRingColor = (ownerColor: number): number => {
+        const hsl = colorUtils.hexToHSL(ownerColor);
+        const satMult = GAME_CONFIG.STAR_RING_SATURATION ?? 1.0;
+        const litMult = GAME_CONFIG.STAR_RING_LIGHTNESS ?? 1.0;
+        return colorUtils.hslToHex(
+            hsl.h,
+            Math.min(1, hsl.s * satMult),
+            Math.min(1, hsl.l * litMult),
+        );
+    };
     stars.forEach((star) => {
         let graphics = caches.starGraphics.get(star.id);
 
@@ -403,28 +530,33 @@ export function renderStars(
             caches.starGraphics.set(star.id, graphics);
         }
 
-        // Delayed star color change: use previous owner until ships arrive
-        let effectiveOwner = star.ownerId;
+        const ownerBlend = resolveStarOwnerBlendVisual({
+            currentOwner: star.ownerId ?? null,
+            pending: state.pendingConquests.get(star.id) ?? null,
+            transition: state.ownerTransitions?.get(star.id) ?? null,
+            nowMs: state.gameNowMs,
+        });
+        if (ownerBlend.expired) {
+            state.pendingConquests.delete(star.id);
+        }
+        let effectiveOwner = ownerBlend.effectiveOwner;
         const pending = state.pendingConquests.get(star.id);
-        if (pending) {
-            const conquestCheckNow = state.gameNowMs;
-            if (conquestCheckNow < pending.transitionTime) {
-                effectiveOwner = pending.previousOwner;
-            } else {
-                state.pendingConquests.delete(star.id);
-            }
-        }
-        let color = ownerColorCache.get(effectiveOwner);
-        if (color == null) {
-            color = colorUtils.getPlayerColor(effectiveOwner ?? '');
-            ownerColorCache.set(effectiveOwner, color);
-        }
+        const color = getCachedOwnerColor(effectiveOwner);
+        const previousOwnerColor =
+            ownerBlend.previousOwner == null
+                ? color
+                : getCachedOwnerColor(ownerBlend.previousOwner);
+        const nextOwnerColor =
+            ownerBlend.newOwner == null
+                ? color
+                : getCachedOwnerColor(ownerBlend.newOwner);
         const radius = GAME_CONFIG.STAR_RENDER_RADIUS ?? star.radius;
         const isActive = star.id === state.activeStarId || star.id === state.dragSourceId;
         const isPortalStar = star.starType === 'portal';
         const portalColor = isPortalStar ? getPortalGroupHexColor(star.portalGroup) : 0;
         const flash = state.conquestFlashes.get(star.id);
-        const isLabelImportant = isActive || Boolean(pending) || Boolean(flash);
+        const isLabelImportant =
+            isActive || Boolean(pending) || ownerBlend.active || Boolean(flash);
         const labelMode = resolveStarLabelMode(state.stageScale, isLabelImportant);
         let labelView = caches.starLabels.get(star.id);
         if (labelMode !== 'hidden' && !labelView) {
@@ -438,13 +570,18 @@ export function renderStars(
         const shouldAnimateVisuals = shouldAnimateStarVisual({
             isActive,
             isPortalStar,
+            hasOwnerTransition: ownerBlend.active,
         });
+        const ownerBlendBucket = ownerBlend.active
+            ? Math.round(ownerBlend.progress * STAR_OWNER_BLEND_BUCKETS)
+            : -1;
         const visualKey = buildStarVisualKey({
             star,
             effectiveOwner,
             isActive,
             radius,
             flashBucket,
+            ownerBlendBucket,
             animationBucket: shouldAnimateVisuals ? globalAnimationBucket : -1,
             visualConfigKey,
         });
@@ -464,21 +601,33 @@ export function renderStars(
         const ringRadius = GAME_CONFIG.STAR_RING_RADIUS;
         const ringWidth = GAME_CONFIG.STAR_RING_WIDTH ?? 2;
         const ringAlpha = GAME_CONFIG.STAR_RING_ALPHA ?? 0.8;
-        // Apply SLA transforms to player color for ownership-ring
-        let ringColor = isActive ? 0xffffff : color;
-        if (!isActive) {
-            const hsl = colorUtils.hexToHSL(color);
-            const satMult = GAME_CONFIG.STAR_RING_SATURATION ?? 1.0;
-            const litMult = GAME_CONFIG.STAR_RING_LIGHTNESS ?? 1.0;
-            ringColor = colorUtils.hslToHex(
-                hsl.h,
-                Math.min(1, hsl.s * satMult),
-                Math.min(1, hsl.l * litMult),
-            );
+        if (ownerBlend.active && !isActive) {
+            const prevAlpha = ringAlpha * (1 - ownerBlend.progress);
+            const nextAlpha = ringAlpha * ownerBlend.progress;
+            if (prevAlpha > 0.001) {
+                graphics.beginPath();
+                graphics.circle(star.x, star.y, ringRadius);
+                graphics.stroke({
+                    color: resolveRingColor(previousOwnerColor),
+                    width: ringWidth,
+                    alpha: prevAlpha,
+                });
+            }
+            if (nextAlpha > 0.001) {
+                graphics.beginPath();
+                graphics.circle(star.x, star.y, ringRadius);
+                graphics.stroke({
+                    color: resolveRingColor(nextOwnerColor),
+                    width: ringWidth,
+                    alpha: nextAlpha,
+                });
+            }
+        } else {
+            const ringColor = isActive ? 0xffffff : resolveRingColor(color);
+            graphics.beginPath();
+            graphics.circle(star.x, star.y, ringRadius);
+            graphics.stroke({ color: ringColor, width: isActive ? ringWidth + 2 : ringWidth, alpha: isActive ? Math.min(1, ringAlpha + 0.1) : ringAlpha });
         }
-        graphics.beginPath();
-        graphics.circle(star.x, star.y, ringRadius);
-        graphics.stroke({ color: ringColor, width: isActive ? ringWidth + 2 : ringWidth, alpha: isActive ? Math.min(1, ringAlpha + 0.1) : ringAlpha });
 
         // Outer glow ring (pulses slightly, stronger when active)
         const starFxTime = shouldAnimateVisuals ? state.gameNowMs / 1000 : 0;
@@ -487,9 +636,24 @@ export function renderStars(
             : 1;
         const glowAlpha = isActive ? 0.35 : 0.15;
         const glowRadius = ringRadius * glowPulse;
-        graphics.beginPath();
-        graphics.circle(star.x, star.y, glowRadius);
-        graphics.fill({ color: isPortalStar ? portalColor : color, alpha: glowAlpha });
+        if (ownerBlend.active && !isPortalStar) {
+            const prevAlpha = glowAlpha * (1 - ownerBlend.progress);
+            const nextAlpha = glowAlpha * ownerBlend.progress;
+            if (prevAlpha > 0.001) {
+                graphics.beginPath();
+                graphics.circle(star.x, star.y, glowRadius);
+                graphics.fill({ color: previousOwnerColor, alpha: prevAlpha });
+            }
+            if (nextAlpha > 0.001) {
+                graphics.beginPath();
+                graphics.circle(star.x, star.y, glowRadius);
+                graphics.fill({ color: nextOwnerColor, alpha: nextAlpha });
+            }
+        } else {
+            graphics.beginPath();
+            graphics.circle(star.x, star.y, glowRadius);
+            graphics.fill({ color: isPortalStar ? portalColor : color, alpha: glowAlpha });
+        }
 
         // Main star body — 3D Shaded 
         const typeStats = STAR_TYPE_STATS[star.starType as StarType];

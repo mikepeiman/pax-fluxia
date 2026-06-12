@@ -17,6 +17,9 @@ export interface ConquestFlashState {
 
 export interface PendingConquestState {
     previousOwner: string;
+    newOwner?: string;
+    startedAtMs?: number;
+    durationMs?: number;
     transitionTime: number;   // Game time when color should change
 }
 
