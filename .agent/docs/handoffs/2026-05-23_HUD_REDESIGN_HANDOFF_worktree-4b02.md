@@ -1084,3 +1084,29 @@ Merge guidance:
 
 - Preserve the shared primitive rendering path and local option arrays.
 - If master changes add new style controls, add them through `PaxHudSelect`, `PaxSettingsRangeRow`, or `PaxSettingsToggleRow`.
+
+## 2026-06-12 Theme Select Dropdown Primitive Migration
+
+Scope implemented in this step:
+
+- Replaced theme dropdown internals:
+  - `pax-fluxia/src/lib/components/ui/settings/ThemeSelectDropdown.svelte`
+
+Why this matters for merge:
+
+- This was the last small Settings-folder file using local raw buttons/listbox styling.
+- Existing integration is preserved:
+  - `GameThemeManager.svelte` still imports and passes the same public props
+  - selected theme still resolves through `selectedThemeName`
+  - theme application still calls `onSelectTheme(name)`
+  - visible group labels remain hidden for current usage; group labels are only passed as option metadata if requested
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- Targeted audit found no raw controls in `ThemeSelectDropdown.svelte`.
+
+Merge guidance:
+
+- Preserve the wrapper around `PaxSettingsPickerRow`.
+- If future theme-library work needs richer keyboard behavior or groups, add it to the shared picker primitive rather than restoring a local dropdown implementation.

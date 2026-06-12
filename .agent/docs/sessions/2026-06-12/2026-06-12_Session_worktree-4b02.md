@@ -646,3 +646,25 @@ Validation:
 Next correct step:
 
 - Decide whether to wrap/replace `ThemeSelectDropdown.svelte` or begin splitting one of the large remaining files: `MetaballGridTuning.svelte`, `ControlsSection-Territory.svelte`, or `ControlsSection-Ships.svelte`.
+
+## Theme Select Dropdown Primitive Migration
+
+Implemented:
+
+- Replaced `pax-fluxia/src/lib/components/ui/settings/ThemeSelectDropdown.svelte` custom raw-button listbox with `PaxSettingsPickerRow`.
+- Preserved the component's public props for `GameThemeManager.svelte`.
+- Flattened theme family groups for current usage; `showGroupLabels` now only emits group metadata when requested, matching the current product direction to hide category organization for now.
+
+Intent:
+
+- Remove the last small raw-control island in the Settings folder before tackling the three large files.
+- Keep theme selection on the shared primitive/token base instead of maintaining a local dropdown skin.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- Targeted audit found no raw `<button>`, `<select>`, `<input>`, inline `style=`, active class toggles, or old row/select classes in `ThemeSelectDropdown.svelte`.
+
+Next correct step:
+
+- Split the remaining large files into safe primitive-migration slices: `ControlsSection-Ships.svelte`, `ControlsSection-Territory.svelte`, and `MetaballGridTuning.svelte`.
