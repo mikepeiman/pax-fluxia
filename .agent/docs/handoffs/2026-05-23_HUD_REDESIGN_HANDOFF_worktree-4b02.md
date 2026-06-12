@@ -1305,3 +1305,37 @@ Merge guidance:
 - Preserve `STAR_SHAPE_MODE_OPTIONS` and the segmented control for Star Shape mode.
 - Keep Ownership Ring ranges on `PaxSettingsRangeRow`.
 - If master has added new star-shape or ownership-ring controls, wire them through Pax primitives and keep config writes explicit through `writePanelConfig(...)`.
+
+## 2026-06-12 Ships Star Labels Primitive Migration
+
+Scope implemented in this step:
+
+- Continued migrating:
+  - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Ships.svelte`
+
+Why this matters for merge:
+
+- Star Labels was the largest remaining local raw-control block in Ships.
+- It now uses:
+  - `PaxHudSegmentedControl`
+  - `PaxSettingsRangeRow`
+  - `PaxSettingsToggleRow`
+- Existing behavior is preserved:
+  - label layout still writes `STAR_LABEL_LAYOUT`
+  - label color mode still writes `STAR_LABEL_COLOR_MODE`
+  - universal color mode still writes `STAR_LABEL_UNIVERSAL_H/S/L/A`
+  - label geometry and typography still write `STAR_LABEL_*` keys
+  - leash still writes `STAR_LABEL_LEASH`
+  - `setStarLabelScale(newScale)` preserves the previous scale cascade into ID font, active font, damaged font, and vertical line-height config values
+
+Validation:
+
+- Ships raw-control audit count reduced from `70` to `35`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Merge guidance:
+
+- Preserve `setStarLabelScale(...)`; do not re-inline the cascade into markup.
+- Preserve `STAR_LABEL_LAYOUT_OPTIONS` and `STAR_LABEL_COLOR_MODE_OPTIONS`.
+- If master has changed star-label settings, keep the shared Pax primitive rendering and keep all existing `STAR_LABEL_*` config keys explicit.

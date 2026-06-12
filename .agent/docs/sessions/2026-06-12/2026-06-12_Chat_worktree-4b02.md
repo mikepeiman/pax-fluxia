@@ -142,3 +142,6 @@ Prompt:
 - Continued `ControlsSection-Ships.svelte` by migrating Star Shape and Ownership Ring controls to Pax segmented/range primitives.
 - Preserved `STAR_SHAPE_MODE`, `STAR_ICON_SCALE`, `STAR_CORNER_RADIUS`, and `STAR_RING_*` config writes through `writePanelConfig(...)`.
 - Validated the Star Shape/Ownership Ring slice with raw-control count reduction from `83` to `70`, `git diff --check`, and production build.
+- Continued `ControlsSection-Ships.svelte` by migrating Star Labels controls to Pax segmented/range/toggle primitives.
+- Extracted `setStarLabelScale(newScale)` to preserve the existing multi-key font metric cascade.
+- Validated the Star Labels slice with raw-control count reduction from `70` to `35`, `git diff --check`, and production build.

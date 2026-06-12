@@ -892,3 +892,36 @@ Runtime note:
 Next correct step:
 
 - Continue `ControlsSection-Ships.svelte` with Star Labels, including the label layout segmented control and the label-scale cascade.
+
+## Ships Star Labels Primitive Migration
+
+Implemented:
+
+- Continued migrating `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Ships.svelte`.
+- Added Star Labels option registries:
+  - `STAR_LABEL_LAYOUT_OPTIONS`
+  - `STAR_LABEL_COLOR_MODE_OPTIONS`
+- Extracted the existing label-size cascade into `setStarLabelScale(newScale)`.
+- Migrated Star Labels controls to Pax primitives:
+  - label layout
+  - label font scale
+  - angle and distance
+  - ID, active, damaged, and line-height font metrics
+  - padding, gap, background opacity, border opacity, border width
+  - tag color mode and universal HSLA controls
+  - leash line toggle
+
+Intent:
+
+- Remove the largest remaining raw-control block in Ships while preserving the exact label tuning config keys and the multi-key scale cascade.
+- Replace inline styles and local two-button modes with shared segmented controls.
+
+Validation:
+
+- Ships raw-control audit count reduced from `70` to `35`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Next correct step:
+
+- Continue `ControlsSection-Ships.svelte` with Order Arrows, Damaged Ships, Interaction, Density Coloring, and Star Glow.

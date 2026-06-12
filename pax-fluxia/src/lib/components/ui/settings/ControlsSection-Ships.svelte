@@ -48,6 +48,16 @@
         { value: "circle", label: "Circle" },
     ];
 
+    const STAR_LABEL_LAYOUT_OPTIONS: PaxHudSegmentedOption[] = [
+        { value: "horizontal", label: "Pill" },
+        { value: "vertical", label: "Stacked" },
+    ];
+
+    const STAR_LABEL_COLOR_MODE_OPTIONS: PaxHudSegmentedOption[] = [
+        { value: "player", label: "Player" },
+        { value: "universal", label: "Universal" },
+    ];
+
     function applyGlowDominantOwnershipPreset() {
         const config = GAME_CONFIG as Record<string, any>;
         const updates: Array<[string, string, boolean | number]> = [
@@ -150,6 +160,42 @@
             updatePanel(panelKey, val);
         }
         updatePanel("starSystemScale", newScale);
+    }
+
+    function setStarLabelScale(newScale: number) {
+        const oldScale = GAME_CONFIG.STAR_LABEL_SCALE ?? 1;
+        if (oldScale === 0) return;
+        const ratio = newScale / oldScale;
+        const updates: [string, string, number][] = [
+            [
+                "starLabelIdFontSize",
+                "STAR_LABEL_ID_FONT_SIZE",
+                (GAME_CONFIG.STAR_LABEL_ID_FONT_SIZE ?? 13) * ratio,
+            ],
+            [
+                "starLabelFontSize",
+                "STAR_LABEL_FONT_SIZE",
+                (GAME_CONFIG.STAR_LABEL_FONT_SIZE ?? 14) * ratio,
+            ],
+            [
+                "starLabelDamagedFontSize",
+                "STAR_LABEL_DAMAGED_FONT_SIZE",
+                (GAME_CONFIG.STAR_LABEL_DAMAGED_FONT_SIZE ?? 12) * ratio,
+            ],
+            [
+                "starLabelLineHeight",
+                "STAR_LABEL_LINE_HEIGHT",
+                (GAME_CONFIG.STAR_LABEL_LINE_HEIGHT ?? 18) * ratio,
+            ],
+        ];
+        for (const [, configKey, val] of updates) {
+            (GAME_CONFIG as Record<string, any>)[configKey] = val;
+        }
+        GAME_CONFIG.STAR_LABEL_SCALE = newScale;
+        for (const [panelKey, , val] of updates) {
+            updatePanel(panelKey, val);
+        }
+        updatePanel("starLabelScale", newScale);
     }
 </script>
 
@@ -743,316 +789,179 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Layout</span>
-        <div style="display: flex; gap: 6px;">
-            <button
-                class="mode-btn"
-                class:active={GAME_CONFIG.STAR_LABEL_LAYOUT === "horizontal"}
-                style="padding: 6px 16px; font-size: 13px; font-weight: 600;"
-                onclick={() => {
-                    GAME_CONFIG.STAR_LABEL_LAYOUT = "horizontal";
-                    updatePanel("starLabelLayout", "horizontal");
-                }}>Pill</button
-            >
-            <button
-                class="mode-btn"
-                class:active={GAME_CONFIG.STAR_LABEL_LAYOUT === "vertical"}
-                style="padding: 6px 16px; font-size: 13px; font-weight: 600;"
-                onclick={() => {
-                    GAME_CONFIG.STAR_LABEL_LAYOUT = "vertical";
-                    updatePanel("starLabelLayout", "vertical");
-                }}>Stacked</button
-            >
-        </div>
     </div>
+    <PaxHudSegmentedControl
+        value={panel.starLabelLayout ?? GAME_CONFIG.STAR_LABEL_LAYOUT ?? "horizontal"}
+        options={STAR_LABEL_LAYOUT_OPTIONS}
+        ariaLabel="Star label layout"
+        density="compact"
+        onValueChange={(value) => writePanelConfig("starLabelLayout", "STAR_LABEL_LAYOUT", value)}
+    />
 </div>
 
 <!-- Master Font Scale -->
-<div class="var-row" style="border-left: 3px solid #668; padding-left: 6px;">
-    <div class="row-top">
-        <span class="var-name" style="font-weight: bold;"
-            >Label Font Scale</span
-        ><span class="val"
-            >{((panel.starLabelScale ?? 1.0) as number).toFixed(2)}×</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0.3"
-        max="3.0"
-        step="0.05"
-        value={panel.starLabelScale ?? 1.0}
-        oninput={(e) => {
-            const newScale = +(e.target as HTMLInputElement).value;
-            const oldScale = GAME_CONFIG.STAR_LABEL_SCALE ?? 1;
-            if (oldScale === 0) return;
-            const ratio = newScale / oldScale;
-            const updates: [string, string, number][] = [
-                [
-                    "starLabelIdFontSize",
-                    "STAR_LABEL_ID_FONT_SIZE",
-                    (GAME_CONFIG.STAR_LABEL_ID_FONT_SIZE ?? 13) * ratio,
-                ],
-                [
-                    "starLabelFontSize",
-                    "STAR_LABEL_FONT_SIZE",
-                    (GAME_CONFIG.STAR_LABEL_FONT_SIZE ?? 14) * ratio,
-                ],
-                [
-                    "starLabelDamagedFontSize",
-                    "STAR_LABEL_DAMAGED_FONT_SIZE",
-                    (GAME_CONFIG.STAR_LABEL_DAMAGED_FONT_SIZE ?? 12) * ratio,
-                ],
-                [
-                    "starLabelLineHeight",
-                    "STAR_LABEL_LINE_HEIGHT",
-                    (GAME_CONFIG.STAR_LABEL_LINE_HEIGHT ?? 18) * ratio,
-                ],
-            ];
-            for (const [, configKey, val] of updates) {
-                (GAME_CONFIG as any)[configKey] = val;
-            }
-            GAME_CONFIG.STAR_LABEL_SCALE = newScale;
-            for (const [panelKey, , val] of updates) {
-                updatePanel(panelKey, val);
-            }
-            updatePanel("starLabelScale", newScale);
-        }}
+<div class="var-row">
+    <PaxSettingsRangeRow
+        label="Label Font Scale"
+        value={panel.starLabelScale ?? GAME_CONFIG.STAR_LABEL_SCALE ?? 1.0}
+        min={0.3}
+        max={3.0}
+        step={0.05}
+        format="multiplier"
+        settingConfigKey="STAR_LABEL_SCALE"
+        onInput={setStarLabelScale}
     />
 </div>
 
 <!-- Angle -->
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Angle</span><span class="val"
-            >{((panel.starLabelAngle ?? 35) as number).toFixed(0)}°</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="360"
-        step="5"
-        value={panel.starLabelAngle ?? 35}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.STAR_LABEL_ANGLE = v;
-            updatePanel("starLabelAngle", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Angle"
+        value={panel.starLabelAngle ?? GAME_CONFIG.STAR_LABEL_ANGLE ?? 35}
+        min={0}
+        max={360}
+        step={5}
+        suffix="deg"
+        settingConfigKey="STAR_LABEL_ANGLE"
+        onInput={(value) => writePanelConfig("starLabelAngle", "STAR_LABEL_ANGLE", value)}
     />
 </div>
 
 <!-- Distance -->
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Distance</span><span class="val"
-            >{((panel.starLabelDistance ?? 55) as number).toFixed(0)}px</span
-        >
-    </div>
-    <input
-        type="range"
-        min="10"
-        max="150"
-        step="5"
-        value={panel.starLabelDistance ?? 55}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.STAR_LABEL_DISTANCE = v;
-            updatePanel("starLabelDistance", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Distance"
+        value={panel.starLabelDistance ?? GAME_CONFIG.STAR_LABEL_DISTANCE ?? 55}
+        min={10}
+        max={150}
+        step={5}
+        suffix="px"
+        settingConfigKey="STAR_LABEL_DISTANCE"
+        onInput={(value) => writePanelConfig("starLabelDistance", "STAR_LABEL_DISTANCE", value)}
     />
 </div>
 
 <!-- Star ID Font -->
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">ID Font</span><span class="val"
-            >{((panel.starLabelIdFontSize ?? 13) as number).toFixed(0)}</span
-        >
-    </div>
-    <input
-        type="range"
-        min="6"
-        max="30"
-        step="1"
-        value={panel.starLabelIdFontSize ?? 13}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.STAR_LABEL_ID_FONT_SIZE = v;
-            updatePanel("starLabelIdFontSize", v);
-        }}
+    <PaxSettingsRangeRow
+        label="ID Font"
+        value={panel.starLabelIdFontSize ?? GAME_CONFIG.STAR_LABEL_ID_FONT_SIZE ?? 13}
+        min={6}
+        max={30}
+        step={1}
+        settingConfigKey="STAR_LABEL_ID_FONT_SIZE"
+        onInput={(value) => writePanelConfig("starLabelIdFontSize", "STAR_LABEL_ID_FONT_SIZE", value)}
     />
 </div>
 
 <!-- Active Ships Font -->
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Active Font</span><span class="val"
-            >{((panel.starLabelFontSize ?? 14) as number).toFixed(0)}</span
-        >
-    </div>
-    <input
-        type="range"
-        min="8"
-        max="40"
-        step="1"
-        value={panel.starLabelFontSize ?? 14}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.STAR_LABEL_FONT_SIZE = v;
-            updatePanel("starLabelFontSize", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Active Font"
+        value={panel.starLabelFontSize ?? GAME_CONFIG.STAR_LABEL_FONT_SIZE ?? 14}
+        min={8}
+        max={40}
+        step={1}
+        settingConfigKey="STAR_LABEL_FONT_SIZE"
+        onInput={(value) => writePanelConfig("starLabelFontSize", "STAR_LABEL_FONT_SIZE", value)}
     />
 </div>
 
 <!-- Damaged Ships Font -->
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Damaged Font</span><span class="val"
-            >{((panel.starLabelDamagedFontSize ?? 12) as number).toFixed(
-                0,
-            )}</span
-        >
-    </div>
-    <input
-        type="range"
-        min="6"
-        max="30"
-        step="1"
-        value={panel.starLabelDamagedFontSize ?? 12}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.STAR_LABEL_DAMAGED_FONT_SIZE = v;
-            updatePanel("starLabelDamagedFontSize", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Damaged Font"
+        value={panel.starLabelDamagedFontSize ?? GAME_CONFIG.STAR_LABEL_DAMAGED_FONT_SIZE ?? 12}
+        min={6}
+        max={30}
+        step={1}
+        settingConfigKey="STAR_LABEL_DAMAGED_FONT_SIZE"
+        onInput={(value) => writePanelConfig("starLabelDamagedFontSize", "STAR_LABEL_DAMAGED_FONT_SIZE", value)}
     />
 </div>
 
 <!-- Pad X -->
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Pad X</span><span class="val"
-            >{((panel.starLabelPadX ?? 4) as number).toFixed(0)}px</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="20"
-        step="1"
-        value={panel.starLabelPadX ?? 4}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.STAR_LABEL_PAD_X = v;
-            updatePanel("starLabelPadX", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Pad X"
+        value={panel.starLabelPadX ?? GAME_CONFIG.STAR_LABEL_PAD_X ?? 4}
+        min={0}
+        max={20}
+        step={1}
+        suffix="px"
+        settingConfigKey="STAR_LABEL_PAD_X"
+        onInput={(value) => writePanelConfig("starLabelPadX", "STAR_LABEL_PAD_X", value)}
     />
 </div>
 
 <!-- Pad Y -->
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Pad Y</span><span class="val"
-            >{((panel.starLabelPadY ?? 2) as number).toFixed(0)}px</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="20"
-        step="1"
-        value={panel.starLabelPadY ?? 2}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.STAR_LABEL_PAD_Y = v;
-            updatePanel("starLabelPadY", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Pad Y"
+        value={panel.starLabelPadY ?? GAME_CONFIG.STAR_LABEL_PAD_Y ?? 2}
+        min={0}
+        max={20}
+        step={1}
+        suffix="px"
+        settingConfigKey="STAR_LABEL_PAD_Y"
+        onInput={(value) => writePanelConfig("starLabelPadY", "STAR_LABEL_PAD_Y", value)}
     />
 </div>
 
 <!-- Gap -->
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Gap</span><span class="val"
-            >{((panel.starLabelGap ?? 2) as number).toFixed(0)}px</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="12"
-        step="1"
-        value={panel.starLabelGap ?? 2}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.STAR_LABEL_GAP = v;
-            updatePanel("starLabelGap", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Gap"
+        value={panel.starLabelGap ?? GAME_CONFIG.STAR_LABEL_GAP ?? 2}
+        min={0}
+        max={12}
+        step={1}
+        suffix="px"
+        settingConfigKey="STAR_LABEL_GAP"
+        onInput={(value) => writePanelConfig("starLabelGap", "STAR_LABEL_GAP", value)}
     />
 </div>
 
 <!-- BG Alpha -->
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">BG Opacity</span><span class="val"
-            >{((panel.starLabelBgAlpha ?? 0.75) as number).toFixed(2)}</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.05"
-        value={panel.starLabelBgAlpha ?? 0.75}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.STAR_LABEL_BG_ALPHA = v;
-            updatePanel("starLabelBgAlpha", v);
-        }}
+    <PaxSettingsRangeRow
+        label="BG Opacity"
+        value={panel.starLabelBgAlpha ?? GAME_CONFIG.STAR_LABEL_BG_ALPHA ?? 0.75}
+        min={0}
+        max={1}
+        step={0.05}
+        format="fixed2"
+        settingConfigKey="STAR_LABEL_BG_ALPHA"
+        onInput={(value) => writePanelConfig("starLabelBgAlpha", "STAR_LABEL_BG_ALPHA", value)}
     />
 </div>
 
 <!-- Border Alpha -->
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Border Opacity</span><span class="val"
-            >{((panel.starLabelBorderAlpha ?? 0.5) as number).toFixed(2)}</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.05"
-        value={panel.starLabelBorderAlpha ?? 0.5}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.STAR_LABEL_BORDER_ALPHA = v;
-            updatePanel("starLabelBorderAlpha", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Border Opacity"
+        value={panel.starLabelBorderAlpha ?? GAME_CONFIG.STAR_LABEL_BORDER_ALPHA ?? 0.5}
+        min={0}
+        max={1}
+        step={0.05}
+        format="fixed2"
+        settingConfigKey="STAR_LABEL_BORDER_ALPHA"
+        onInput={(value) => writePanelConfig("starLabelBorderAlpha", "STAR_LABEL_BORDER_ALPHA", value)}
     />
 </div>
 
 <!-- Line Height (vertical mode) -->
 {#if GAME_CONFIG.STAR_LABEL_LAYOUT === "vertical"}
     <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Line Height</span><span class="val"
-                >{((panel.starLabelLineHeight ?? 18) as number).toFixed(
-                    0,
-                )}px</span
-            >
-        </div>
-        <input
-            type="range"
-            min="8"
-            max="40"
-            step="1"
-            value={panel.starLabelLineHeight ?? 18}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.STAR_LABEL_LINE_HEIGHT = v;
-                updatePanel("starLabelLineHeight", v);
-            }}
+        <PaxSettingsRangeRow
+            label="Line Height"
+            value={panel.starLabelLineHeight ?? GAME_CONFIG.STAR_LABEL_LINE_HEIGHT ?? 18}
+            min={8}
+            max={40}
+            step={1}
+            suffix="px"
+            settingConfigKey="STAR_LABEL_LINE_HEIGHT"
+            onInput={(value) => writePanelConfig("starLabelLineHeight", "STAR_LABEL_LINE_HEIGHT", value)}
         />
     </div>
 {/if}
@@ -1061,151 +970,90 @@
 <div class="var-row">
     <div class="row-top">
         <span class="var-name">Tag Color</span>
-        <div style="display: flex; gap: 6px;">
-            <button
-                class="mode-btn"
-                class:active={GAME_CONFIG.STAR_LABEL_COLOR_MODE === "player"}
-                style="padding: 6px 16px; font-size: 13px; font-weight: 600;"
-                onclick={() => {
-                    GAME_CONFIG.STAR_LABEL_COLOR_MODE = "player";
-                    updatePanel("starLabelColorMode", "player");
-                }}>Player</button
-            >
-            <button
-                class="mode-btn"
-                class:active={GAME_CONFIG.STAR_LABEL_COLOR_MODE === "universal"}
-                style="padding: 6px 16px; font-size: 13px; font-weight: 600;"
-                onclick={() => {
-                    GAME_CONFIG.STAR_LABEL_COLOR_MODE = "universal";
-                    updatePanel("starLabelColorMode", "universal");
-                }}>Universal</button
-            >
-        </div>
     </div>
+    <PaxHudSegmentedControl
+        value={panel.starLabelColorMode ?? GAME_CONFIG.STAR_LABEL_COLOR_MODE ?? "player"}
+        options={STAR_LABEL_COLOR_MODE_OPTIONS}
+        ariaLabel="Star label color mode"
+        density="compact"
+        onValueChange={(value) => writePanelConfig("starLabelColorMode", "STAR_LABEL_COLOR_MODE", value)}
+    />
 </div>
 
 <!-- Universal HSLA sliders (only shown in universal mode) -->
 {#if GAME_CONFIG.STAR_LABEL_COLOR_MODE === "universal"}
     <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Hue</span><span class="val"
-                >{GAME_CONFIG.STAR_LABEL_UNIVERSAL_H ?? 220}°</span
-            >
-        </div>
-        <input
-            type="range"
-            min="0"
-            max="360"
-            step="1"
-            value={GAME_CONFIG.STAR_LABEL_UNIVERSAL_H ?? 220}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.STAR_LABEL_UNIVERSAL_H = v;
-                updatePanel("starLabelUniversalH", v);
-            }}
+        <PaxSettingsRangeRow
+            label="Hue"
+            value={panel.starLabelUniversalH ?? GAME_CONFIG.STAR_LABEL_UNIVERSAL_H ?? 220}
+            min={0}
+            max={360}
+            step={1}
+            suffix="deg"
+            settingConfigKey="STAR_LABEL_UNIVERSAL_H"
+            onInput={(value) => writePanelConfig("starLabelUniversalH", "STAR_LABEL_UNIVERSAL_H", value)}
         />
     </div>
     <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Saturation</span><span class="val"
-                >{GAME_CONFIG.STAR_LABEL_UNIVERSAL_S ?? 30}%</span
-            >
-        </div>
-        <input
-            type="range"
-            min="0"
-            max="100"
-            step="1"
-            value={GAME_CONFIG.STAR_LABEL_UNIVERSAL_S ?? 30}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.STAR_LABEL_UNIVERSAL_S = v;
-                updatePanel("starLabelUniversalS", v);
-            }}
+        <PaxSettingsRangeRow
+            label="Saturation"
+            value={panel.starLabelUniversalS ?? GAME_CONFIG.STAR_LABEL_UNIVERSAL_S ?? 30}
+            min={0}
+            max={100}
+            step={1}
+            suffix="%"
+            settingConfigKey="STAR_LABEL_UNIVERSAL_S"
+            onInput={(value) => writePanelConfig("starLabelUniversalS", "STAR_LABEL_UNIVERSAL_S", value)}
         />
     </div>
     <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Lightness</span><span class="val"
-                >{GAME_CONFIG.STAR_LABEL_UNIVERSAL_L ?? 25}%</span
-            >
-        </div>
-        <input
-            type="range"
-            min="0"
-            max="100"
-            step="1"
-            value={GAME_CONFIG.STAR_LABEL_UNIVERSAL_L ?? 25}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.STAR_LABEL_UNIVERSAL_L = v;
-                updatePanel("starLabelUniversalL", v);
-            }}
+        <PaxSettingsRangeRow
+            label="Lightness"
+            value={panel.starLabelUniversalL ?? GAME_CONFIG.STAR_LABEL_UNIVERSAL_L ?? 25}
+            min={0}
+            max={100}
+            step={1}
+            suffix="%"
+            settingConfigKey="STAR_LABEL_UNIVERSAL_L"
+            onInput={(value) => writePanelConfig("starLabelUniversalL", "STAR_LABEL_UNIVERSAL_L", value)}
         />
     </div>
     <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Alpha</span><span class="val"
-                >{(
-                    (GAME_CONFIG.STAR_LABEL_UNIVERSAL_A ?? 0.75) as number
-                ).toFixed(2)}</span
-            >
-        </div>
-        <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            value={GAME_CONFIG.STAR_LABEL_UNIVERSAL_A ?? 0.75}
-            oninput={(e) => {
-                const v = +(e.target as HTMLInputElement).value;
-                GAME_CONFIG.STAR_LABEL_UNIVERSAL_A = v;
-                updatePanel("starLabelUniversalA", v);
-            }}
+        <PaxSettingsRangeRow
+            label="Alpha"
+            value={panel.starLabelUniversalA ?? GAME_CONFIG.STAR_LABEL_UNIVERSAL_A ?? 0.75}
+            min={0}
+            max={1}
+            step={0.05}
+            format="fixed2"
+            settingConfigKey="STAR_LABEL_UNIVERSAL_A"
+            onInput={(value) => writePanelConfig("starLabelUniversalA", "STAR_LABEL_UNIVERSAL_A", value)}
         />
     </div>
 {/if}
 
 <!-- Border Width -->
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Border Width</span><span class="val"
-            >{((panel.starLabelBorderWidth ?? 1) as number).toFixed(1)}px</span
-        >
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="5"
-        step="0.5"
-        value={panel.starLabelBorderWidth ?? 1}
-        oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            GAME_CONFIG.STAR_LABEL_BORDER_WIDTH = v;
-            updatePanel("starLabelBorderWidth", v);
-        }}
+    <PaxSettingsRangeRow
+        label="Border Width"
+        value={panel.starLabelBorderWidth ?? GAME_CONFIG.STAR_LABEL_BORDER_WIDTH ?? 1}
+        min={0}
+        max={5}
+        step={0.5}
+        output={`${(panel.starLabelBorderWidth ?? GAME_CONFIG.STAR_LABEL_BORDER_WIDTH ?? 1).toFixed(1)}px`}
+        settingConfigKey="STAR_LABEL_BORDER_WIDTH"
+        onInput={(value) => writePanelConfig("starLabelBorderWidth", "STAR_LABEL_BORDER_WIDTH", value)}
     />
 </div>
 
 <!-- Leash toggle -->
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Leash Line</span>
-        <label style="display:flex;align-items:center;gap:4px;">
-            <input
-                type="checkbox"
-                checked={GAME_CONFIG.STAR_LABEL_LEASH}
-                onchange={(e) => {
-                    const v = (e.target as HTMLInputElement).checked;
-                    GAME_CONFIG.STAR_LABEL_LEASH = v;
-                    updatePanel("starLabelLeash", v);
-                }}
-            />
-            <span class="val"
-                >{GAME_CONFIG.STAR_LABEL_LEASH ? "On" : "Off"}</span
-            >
-        </label>
-    </div>
+    <PaxSettingsToggleRow
+        label="Leash Line"
+        checked={panel.starLabelLeash ?? GAME_CONFIG.STAR_LABEL_LEASH ?? false}
+        settingConfigKey="STAR_LABEL_LEASH"
+        onToggle={(value) => writePanelConfig("starLabelLeash", "STAR_LABEL_LEASH", value)}
+    />
 </div>
 
 <!-- ── Order Arrows ── -->
