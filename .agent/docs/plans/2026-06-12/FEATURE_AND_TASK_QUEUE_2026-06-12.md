@@ -84,3 +84,16 @@ Investigation summary:
 Plan document:
 
 - `.agent/docs/plans/2026-06-12/GRID_GRADIENT_PERFORMANCE_MAJOR_FIX_PLAN_2026-06-12.md`
+
+Latest four-record follow-up:
+
+- Additional Chrome Performance screenshots show two performance classes after the first worker/raster optimization:
+  - selected red-frame geometry/frontier spikes
+  - whole-record steady-state ship/particle/instrumentation/diagnostics pressure
+- The current deeper plan is `.agent/docs/plans/2026-06-12/GRID_GRADIENT_PERFORMANCE_GEOMETRY_TOP10_PLAN_2026-06-12.md`.
+- Highest-impact next targets:
+  - reduce `measurePerf` overhead in long captures while preserving useful frame labels
+  - memoize `getRenderFamilyModeConfigSource()`
+  - reduce Grid Gradient Worker response cloning and diagnostic full-grid scans
+  - precompute ship orbit slots and skip unchanged Pixi particle tint writes
+  - move `power_voronoi_0319` geometry compile off the animation frame

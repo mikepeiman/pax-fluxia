@@ -51,6 +51,171 @@ Frame-level plan:
 4. Split `measurePerf` labels inside `renderFrame` so the diagnostics show `geometry`, `territory presentation`, `Grid Gradient shader texture`, `Pixi render`, and `interaction overlay` separately instead of one giant `measurePerf` parent.
 5. Keep `measurePerf` itself; its self time is about `1.2 ms`, so it is not the target unless later traces show instrumentation overhead dominating after child work is moved off-frame.
 
+## Four-Record Follow-Up - 2026-06-12 16:20
+
+The later four screenshots include both total-time and self-time views for the whole `~20s` capture, plus total-time and self-time views for one selected red-frame section. They show two different performance problems:
+
+1. Red-frame spikes are still geometry/frontier dominated.
+2. Whole-record steady-state cost is now dominated by ship rendering, particle writes, Pixi rendering, instrumentation overhead, worker payload handling, diagnostics, layout/paint, and repeated config object construction.
+
+### Selected Red-Frame Section
+
+Top rows from `grid gradient perf Snipaste_2026-06-12_16-20-19.png` and `grid gradient perf Snipaste_2026-06-12_16-20-30.png`:
+
+| Consumer | Approx total | Approx self | File/function | Interpretation |
+|---|---:|---:|---|---|
+| `Animation frame fired` | `130.8 ms` | `0.1 ms` | browser frame envelope | Parent row; the frame is blocked by child work. |
+| `Function call` | `130.6 ms` | `0.8 ms` | `Ticker.ts:273` | Pixi ticker envelope; not an independent algorithm. |
+| `measurePerf` | `127.9 ms` | `1.1 ms` | `pax-fluxia/src/lib/perf/perfProbe.ts:323` | Instrumented section envelope for the child work. |
+| `computeGeometry0319` | `82.9 ms` | `1.1 ms` | `pax-fluxia/src/lib/territory/compiler/Geometry_0319.ts:226` | Main synchronous geometry compiler. |
+| `applyIntervalRepairs` | `60.5 ms` | `0.6 ms` | `pax-fluxia/src/lib/territory/geometry/minStarMargin.ts:1321` | Min-star-margin repair loop. |
+| Geometry closure | `54.6 ms` | `7.5 ms` | `Geometry_0319.ts:155` | Repair validation and related per-compile work. |
+| `constructFillsFromFrontierChain` | `43.8 ms` | `37.8 ms` | `powerVoronoiTerritoryGeometryGenerator.ts` | Reconstructs owner fills from frontier chains. |
+| `ringContainsPolyline` | `26.3 ms` | `4.8 ms` | `resolveConstraintAlignedTerritoryGeometry.ts` | Repeated region/polyline containment scan. |
+| `buildDirectedSegmentKeys` | `21.6 ms` | `21.1 ms` | `resolveConstraintAlignedTerritoryGeometry.ts` | String-heavy segment key construction. |
+| `executeChainWalk` | `5.0 ms` | `5.0 ms` | `chainWalkCore.ts` | Chain walking repeated by several geometry consumers. |
+
+The red-frame work is still a synchronous compile/presentation problem. The correct major fix is not a visual-quality reduction; it is moving the compile off the animation-critical frame and removing repeated frontier-chain/segment work.
+
+### Whole-Record Steady-State View
+
+Top rows from `grid gradient perf Snipaste_2026-06-12_16-19-42.png` and `grid gradient perf Snipaste_2026-06-12_16-19-58.png`:
+
+| Consumer | Approx total | Approx self | File/function | Interpretation |
+|---|---:|---:|---|---|
+| `Function call` | `16814 ms` | `1329 ms` | `task.js:19` | Whole-record parent wrapper. |
+| `Animation frame fired` | `15849 ms` | `71 ms` | browser frame envelope | Parent frame cost across the capture. |
+| `loop` | `12186 ms` | `12 ms` | `pax-fluxia/src/lib/components/game/GameCanvas.svelte:4003` | Game loop envelope. |
+| `renderFrame` | `12087 ms` | `58 ms` | `GameCanvas.svelte:5323` | Main orchestration envelope. |
+| `measurePerf` | `11930 ms` | `2997 ms` | `pax-fluxia/src/lib/perf/perfProbe.ts:323` | Instrumentation overhead is now meaningful over long captures. |
+| `presentShipsFrame` | `8588 ms` | `10 ms` | `GameCanvas.svelte:1068` | Ship presentation envelope. |
+| `renderShips` | `8567 ms` | `1 ms` | `pax-fluxia/src/lib/renderers/ShipRenderer.ts:701` | Ship renderer envelope. |
+| ship orbitals closure | `4813 ms` | `1182 ms` | `ShipRenderer.ts:1198` | Per-star/per-ship orbital loop. |
+| `drawShip` | `1906 ms` | `539 ms` | `ShipRenderer.ts:274` | Multi-particle writes for each visible ship. |
+| `getOrbitSlot` | `1703 ms` | `1668 ms` | `pax-fluxia/src/lib/utils/render.utils.ts:197` | Per-ship orbit slot math and layer search. |
+| `set tint` | `1260 ms` | `976 ms` | `Particle.ts:392` | Repeated Pixi particle tint mutation. |
+| `ParticleBuffer.update` | `1320 ms` | `3 ms` | `ParticleBuffer.ts:173` | GPU buffer update after particle writes. |
+| `GridGradientFamily.worker.onmessage` | `713 ms` | `681 ms` | `pax-fluxia/src/lib/territory/families/gridGradient/GridGradientFamily.ts:307` | Main-thread handling of large Worker responses. |
+| `getRenderFamilyModeConfigSource` | `622 ms` | `602 ms` | `GameCanvas.svelte:2104` | Rebuilds spread config objects on a hot path. |
+| `countRoles` | `284 ms` | `277 ms` | `GridGradientFamily.ts:1081` | Full-grid diagnostic scan every update. |
+| Layout / Paint / Commit / Layerize | `~1700 ms combined` | `~1700 ms combined` | browser rendering pipeline | Likely fed by frequent UI/diagnostic/store updates plus normal canvas compositing. |
+
+This means the next major improvements must not be limited to territory geometry. The mode now exposes wider frame pressure: ship rendering can consume more steady-state frame budget than territory rendering, and Grid Gradient still has avoidable main-thread payload and diagnostic costs.
+
+## Deeper Improvement Tracks From The Four Records
+
+### Track A - Frame Envelope And Instrumentation Hygiene
+
+Problem:
+
+- `Animation frame fired`, `Function call`, `renderFrame`, and `measurePerf` are mostly parent rows, but whole-record `measurePerf` has about `2997 ms` self time.
+- `measurePerf()` currently creates a random id string and may mark/measure/clear for every wrapped hot section when capture is enabled.
+
+Action:
+
+- Keep high-level frame instrumentation, but add a low-overhead aggregation path for per-frame hot sections.
+- Replace random-id per-call user timing in hot loops with stable counters or sampled timing when detailed user-timing capture is not explicitly enabled.
+- Split `renderFrame` timing into named children that match the actual budgets: `ships`, `shipParticleUpdate`, `territoryQueue`, `territoryPresent`, `geometryCompile`, `gridGradientWorkerCommit`, `pixiRender`, and `diagnosticsUi`.
+
+Expected effect:
+
+- Reduces profiling overhead during long captures and makes later traces show actual child work instead of one large wrapper row.
+
+### Track B - Ship Renderer Steady-State Cost
+
+Problem:
+
+- `presentShipsFrame`/`renderShips` accounts for about `8.6s` total over the whole record.
+- `getOrbitSlot()` is about `1.67s` self; it repeats layer search, modulo, angle math, bias math, and trig for each visible orbital ship.
+- `drawShip()` writes multiple Pixi particles per visible ship: glow, outline, fill, and damage. Each path assigns tint, alpha, scale, and position.
+- `set tint`, `ParticleBuffer.update`, `bufferSubData`, and `Color._normalize` show the cost of writing and uploading particle state every ship frame.
+
+Action:
+
+- Build per-star orbit slot tables once per frame or per stable star-count/time bucket, then consume them in the per-ship loop.
+- Replace per-ship layer search in `getOrbitSlot()` with precomputed layer metadata and direct lookup by effective index.
+- Cache owner/ring/damage tint values and skip setting `particle.tint` when the value is unchanged.
+- Track previous active particle count and only hide the delta when the active pool shrinks, instead of alpha-zeroing every unused pooled particle every ship frame.
+- Investigate Pixi particle dirty-range support or split static orbiting ships from fast-changing traveling ships so `ParticleBuffer.update()` uploads fewer changed attributes.
+- Preserve glow/outline/fill/damage visuals; the target is fewer writes and less repeated math, not fewer visual layers.
+
+Expected effect:
+
+- Attacks the largest whole-record steady-state cost without reducing visual quality.
+
+### Track C - Grid Gradient Worker Payload And Diagnostics
+
+Problem:
+
+- `GridGradientFamily.worker.onmessage` is about `681 ms` self over the whole record.
+- The current worker path sends rich plan/classification objects back to the main thread. Browser structured-clone/deserialization can dominate even when the worker did the CPU work off-thread.
+- `countRoles()` scans the full typed grid every update for diagnostic counts.
+
+Action:
+
+- Change Grid Gradient worker responses to transferable typed arrays and minimal metadata.
+- Keep object-shaped classification data out of the hot shader path; materialize it lazily only for CPU fallback or debug inspection.
+- Transfer `ArrayBuffer`s for owner, role, flip-time, and packed shader data instead of cloning nested plan objects.
+- Precompute stable role counts in the plan worker and update transition mixing counts from transition-cell indexes, not a full-grid scan.
+- Throttle diagnostics-store updates to a low rate when the diagnostics panel is open and avoid per-frame large-object replacement when values did not materially change.
+
+Expected effect:
+
+- Reduces main-thread commit cost after worker plans complete and reduces layout/paint pressure from diagnostic churn.
+
+### Track D - Render-Family Config Source Caching
+
+Problem:
+
+- `getRenderFamilyModeConfigSource()` is about `602 ms` self over the whole record.
+- `buildGridGradientRenderFamilyConfigSource()` spreads `GAME_CONFIG`, geometry defaults, and mode defaults on the hot path.
+
+Action:
+
+- Memoize render-family config source objects by mode plus a settings/config epoch.
+- Invalidate only when relevant tunables or geometry defaults change.
+- Return a stable object reference during normal frames.
+
+Expected effect:
+
+- Removes a hot allocation/spread path and reduces cache-key churn and GC pressure.
+
+### Track E - Geometry Spike Removal
+
+Problem:
+
+- The selected red frame still spends about `83 ms` in `computeGeometry0319`, with `applyIntervalRepairs`, fill reconstruction, chain walking, and segment-key generation underneath it.
+
+Action:
+
+- Move `power_voronoi_0319` render-family geometry compilation to a worker-backed pending/commit path.
+- Keep the current committed geometry visible while the next geometry key compiles.
+- Share `constructFillsFromFrontierChain()` / `executeChainWalk()` outputs inside `computeGeometry0319()`.
+- Replace repeated string segment keys with numeric point/segment ids inside `ringContainsPolyline()` and `buildDirectedSegmentKeys()`.
+- Cache min-star-margin repair refs and polyline metrics per ref version.
+
+Expected effect:
+
+- Removes the selected red-frame geometry spike from the animation frame while preserving the current PV geometry and frontier quality checks.
+
+### Track F - Browser Layout/Paint/Commit Pressure
+
+Problem:
+
+- Whole-record self-time includes about `909 ms` layout, `381 ms` paint, `252 ms` pre-paint, `216 ms` commit, and `160 ms` layerize.
+- Some of this is normal browser/DevTools overhead, but per-frame Svelte diagnostic objects and log panels can force DOM work unrelated to the canvas visuals.
+
+Action:
+
+- Audit frame-updated stores feeding diagnostics panels and logging controls.
+- Throttle or coalesce diagnostic-panel updates separately from gameplay rendering.
+- Keep Pixi canvas rendering independent from diagnostic UI refresh cadence.
+- Treat anonymous `VM2511`/`VM2512` rows as unowned until a raw trace identifies whether they are DevTools, snippets, or injected scripts.
+
+Expected effect:
+
+- Reduces non-gameplay UI work that competes with the render frame.
+
 ## Diagnosis
 
 The first Grid Gradient performance fix moved the mode-local plan/classifier off the main thread. This trace now shows the remaining jank is caused by geometry work still running synchronously in the render frame:
@@ -194,18 +359,31 @@ Expected effect:
 
 ## Execution Order
 
-1. Add diagnostics for render-family geometry cache misses and geometry worker pending/commit state.
-2. Move `power_voronoi_0319` render-family geometry compile off the animation frame.
-3. Share `constructFillsFromFrontierChain()` / `executeChainWalk()` outputs inside `computeGeometry0319()`.
-4. Optimize `ringContainsPolyline()` and `buildDirectedSegmentKeys()` with precomputed numeric segment indexes.
-5. Optimize `applyIntervalRepairs()` ref lookup/metrics/materialization.
-6. Cache/workerize Grid Gradient distance-band texture plan data.
-7. Add site-signature power diagram caching.
+1. Add frame-budget instrumentation that separates ship render, ship particle upload, territory queue, territory present, geometry compile, Grid Gradient worker commit, Pixi render, and diagnostics UI.
+2. Memoize `getRenderFamilyModeConfigSource()` by mode plus settings/config epoch. This is a high-confidence, low-risk fix for a `~602 ms` self-time hot path over the whole record.
+3. Reduce Grid Gradient diagnostics and worker commit cost:
+   - transfer typed arrays from the plan worker
+   - stop cloning rich plan objects on `worker.onmessage`
+   - precompute stable role counts
+   - avoid full-grid `countRoles()` scans on every update
+4. Optimize ship steady-state rendering:
+   - precompute per-star orbit slot tables
+   - skip unchanged particle tint writes
+   - hide only the particle-pool delta when active particle count shrinks
+   - reduce `ParticleBuffer.update()` dirty work without dropping glow/outline/fill/damage visuals
+5. Move `power_voronoi_0319` render-family geometry compile off the animation frame.
+6. Share `constructFillsFromFrontierChain()` / `executeChainWalk()` outputs inside `computeGeometry0319()`.
+7. Optimize `ringContainsPolyline()` and `buildDirectedSegmentKeys()` with precomputed numeric segment indexes.
+8. Optimize `applyIntervalRepairs()` ref lookup/metrics/materialization.
+9. Cache/workerize Grid Gradient distance-band texture plan data if it remains visible after worker payload slimming.
+10. Add site-signature power diagram caching if `computePowerDiagramIntegrated()` remains material after geometry-worker commit.
 
 ## Acceptance Criteria
 
 - Chrome Performance bottom-up for Grid Gradient conquest should not show `computeGeometry0319`, `applyIntervalRepairs`, `constructFillsFromFrontierChain`, or `buildDirectedSegmentKeys` blocking an animation frame.
+- Whole-record Chrome bottom-up should show materially lower self time for `measurePerf`, `getOrbitSlot`, `set tint`, `GridGradientFamily.worker.onmessage`, `getRenderFamilyModeConfigSource`, and `countRoles`.
 - Geometry worker build time may remain visible in diagnostics, but it must not block the main thread.
 - Grid Gradient visual output remains unchanged at the accepted settings.
+- Ship visuals remain visually equivalent: same orbit behavior, glow, outline, fill, damage indicator, and traveling-ship presentation.
 - Borders still use the same geometry source and remain comparable to Phase Edges.
 - Existing geometry/min-star-margin tests and Grid Gradient transition tests remain green.

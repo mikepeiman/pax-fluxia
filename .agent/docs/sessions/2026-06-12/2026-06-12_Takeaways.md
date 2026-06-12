@@ -10,3 +10,10 @@
 - Transition worker commits must keep the original conquest start time and duration; starting at commit time would desynchronize conquest visuals.
 - Existing diagnostics should show worker scheduling, classifier path, cache hits, and build splits so performance claims can be checked from the UI.
 - After Grid Gradient plan workerization, remaining conquest jank is mostly synchronous `power_voronoi_0319` geometry/frontier work; the next major pass should move render-family geometry compilation off the animation frame and share frontier-chain outputs.
+
+## Grid Gradient Four-Record Performance Takeaway
+
+- After Grid Gradient plan worker/raster improvements, performance work has split into two tracks: selected-frame geometry spikes and whole-record steady-state frame pressure.
+- The red-frame spike still points at synchronous `power_voronoi_0319` geometry/frontier work.
+- The whole-record view shows major non-territory costs too: ship orbit math, particle tint writes, Pixi buffer updates, `measurePerf` overhead, Worker response cloning, config-source object spreading, full-grid diagnostic scans, and browser layout/paint work.
+- Future optimization should measure both selected red sections and whole-record self-time. A fix that improves geometry spikes can still leave gameplay janky if ship/particle/diagnostic work dominates every frame.
