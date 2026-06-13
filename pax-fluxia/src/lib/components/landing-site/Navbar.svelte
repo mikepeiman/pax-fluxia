@@ -7,8 +7,12 @@
     <div class="logo font-display">PAX FLUXIA</div>
     <div class="links">
       <a href="#features" class="link">FEATURES</a>
-      <a href="#factions" class="link">FACTIONS</a>
-      <a href="#community" class="link">COMMUNITY</a>
+      <a href="#world" class="link">WORLD</a>
+      <a
+        href="https://discord.gg/yQu7X3UXv"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="link">COMMUNITY</a>
     </div>
     <button class="btn btn--secondary btn--glow" onclick={onPlay}>
       PLAY NOW

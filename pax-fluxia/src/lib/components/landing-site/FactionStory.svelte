@@ -2,7 +2,7 @@
   let { onPlay } = $props<{ onPlay: () => void }>();
 </script>
 
-<section class="faction-story">
+<section id="world" class="faction-story">
   <div class="bg-layer">
     <!-- Delaunay Graph Simulation -->
     <svg class="delaunay-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
