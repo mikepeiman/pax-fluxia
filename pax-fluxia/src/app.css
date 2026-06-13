@@ -111,6 +111,118 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: "Agency FB";
+  src: url("/fonts/windows-hud/AGENCYR.TTF") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Agency FB";
+  src: url("/fonts/windows-hud/AGENCYB.TTF") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Bahnschrift";
+  src: url("/fonts/windows-hud/bahnschrift.ttf") format("truetype");
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Cascadia Code";
+  src: url("/fonts/windows-hud/CascadiaCode.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Cascadia Mono";
+  src: url("/fonts/windows-hud/CascadiaMono.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "OCR A Extended";
+  src: url("/fonts/windows-hud/OCRAEXT.TTF") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Eras Medium ITC";
+  src: url("/fonts/windows-hud/ERASMD.TTF") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Eras Demi ITC";
+  src: url("/fonts/windows-hud/ERASDEMI.TTF") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Haettenschweiler";
+  src: url("/fonts/windows-hud/HATTEN.TTF") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Copperplate Gothic Light";
+  src: url("/fonts/windows-hud/COPRGTL.TTF") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Copperplate Gothic Bold";
+  src: url("/fonts/windows-hud/COPRGTB.TTF") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Franklin Gothic Book";
+  src: url("/fonts/windows-hud/FRABK.TTF") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Franklin Gothic Demi";
+  src: url("/fonts/windows-hud/FRADM.TTF") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Franklin Gothic Heavy";
+  src: url("/fonts/windows-hud/FRAHV.TTF") format("truetype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* ==========================================================================
    PAX FLUXIA - Cyber-Flux Design System
    ========================================================================== */
