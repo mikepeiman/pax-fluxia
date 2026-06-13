@@ -120,6 +120,8 @@
   --pax-border-panel-warm: rgba(246, 196, 105, 0.58);
   --pax-border-panel-cool: rgba(85, 231, 239, 0.34);
   --pax-border-divider: rgba(246, 196, 105, 0.18);
+  --pax-border-width: 1px;
+  --pax-border-width-strong: 1.5px;
   --pax-border-panel-gradient:
     linear-gradient(135deg,
       rgba(255, 232, 170, 0.88) 0%,
@@ -166,6 +168,16 @@
   --pax-motion-fast: 150ms ease;
   --pax-motion-base: 250ms ease;
   --pax-motion-slow: 400ms ease;
+
+  /* Z-index / stacking order. Structural; reskins rarely change these. */
+  --pax-z-base: 1;
+  --pax-z-raised: 5;
+  --pax-z-rail: 20;
+  --pax-z-panel: 40;
+  --pax-z-overlay: 100;
+  --pax-z-dropdown: 120;
+  --pax-z-modal: 200;
+  --pax-z-toast: 300;
 }
 
 [data-pax-theme="cyber-flux"] {

@@ -231,6 +231,15 @@
    CSS Custom Properties (Design Tokens)
    -------------------------------------------------------------------------- */
 :root {
+  /* ----------------------------------------------------------------------
+     DEPRECATED third-namespace tokens (--color-*, --font-display/data/body,
+     --text-*, --space-*, --radius-sm/md/lg, --glass-*, --glow-*, --border-*,
+     --transition-*). Do NOT use in new code. Migrate consumers to the --hud-*
+     semantic roles per .agent/docs/engineering/DESIGN_SYSTEM_TOKENS.md, then
+     delete. Several hold values that DIVERGE from the design system
+     (e.g. --color-accent-cyan #00ffff vs the Aurelia teal #55e7ef), so
+     migrating them is an intended congruence change needing visual review.
+     ---------------------------------------------------------------------- */
   /* Colors - Void */
   --color-void-deep: #0a0a12;
   --color-void-mid: #12121f;
@@ -317,6 +326,19 @@
   --hud-gap-lg: var(--pax-gap-lg);
   --hud-icon-size: var(--pax-icon-size);
   --hud-icon-stroke: var(--pax-icon-stroke);
+  --hud-border-width: var(--pax-border-width);
+  --hud-border-width-strong: var(--pax-border-width-strong);
+  --hud-motion-fast: var(--pax-motion-fast);
+  --hud-motion-base: var(--pax-motion-base);
+  --hud-motion-slow: var(--pax-motion-slow);
+  --hud-z-base: var(--pax-z-base);
+  --hud-z-raised: var(--pax-z-raised);
+  --hud-z-rail: var(--pax-z-rail);
+  --hud-z-panel: var(--pax-z-panel);
+  --hud-z-overlay: var(--pax-z-overlay);
+  --hud-z-dropdown: var(--pax-z-dropdown);
+  --hud-z-modal: var(--pax-z-modal);
+  --hud-z-toast: var(--pax-z-toast);
   --hud-type-scale: var(--pax-type-scale);
   --hud-title-scale: var(--pax-type-title-scale);
   --hud-label-scale: var(--pax-type-label-scale);
