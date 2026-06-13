@@ -216,9 +216,26 @@ This is the crux of the whole system — Stage 1 designs this taxonomy first.
   third-namespace deprecation banner. Additive, zero visual change, build PASS.
   *Remaining Stage-1 migration work (eliminating the deprecated third namespace +
   ~170 hardcoded values) folds into Stages 2/3, per-surface with verification.*
-- **Next — Stage 2 (hud.css collapse):** the first big *visual* change; needs the
-  user's eye on the target look (roundness, gold-gradient restraint, dark
-  falloff) before the 2043-line rewrite. Awaiting go + any look direction.
+- **Namespace unification — DONE** (commits `8469c97c0`, `bf881e475`, `ea242ce27`):
+  per user directive ("one coherent token namespace, nothing competing"). The
+  whole live app now reads one `--pax-*` family: raw `--pax-<axis>-*` (theme) +
+  semantic `--pax-ui-*` (roles). Eliminated the `--hud-*`/`--pax-*` split (768
+  refs renamed) AND the entire third namespace (`--color-*`, `--space-*`,
+  `--radius-*`, `--font-*`, `--transition-*` — deleted from app.css). Landing
+  page (148 refs) + RangeDual migrated; divergent values resolved onto the
+  system (#00ffff→teal, 4px→scale). Added status roles (success/warning),
+  accent-dim, space-5. check 0 errors, build PASS.
+  - Out of scope (demoted): `aurelia-hud-theme.css` keeps its own `--color-*`
+    tokens (still @imported globally) — candidate to retire/relocate later.
+  - Dead `_archived/*` retains harmless dangling refs (never rendered).
+- **Visual reference updated:** user supplied 4 polished HUD mockups (2026-06-13)
+  as the target aesthetic; `aurelia-hud` package demoted to a loose echo.
+- **Next — Stage 2 (hud.css collapse + visual rebuild toward the mockups):** the
+  first big *visual* change. Collapse the 4 cascade passes into one `@layer`,
+  bake the final rounded gold look once, kill dead clip-paths + the cut-corner
+  misnomer, and start matching the supplied mockups surface-by-surface. Remaining
+  hardcoded inline values (hud.css gradients/hex; landing decorative hex; keep
+  external-brand hex like Svelte/Discord) get tokenized during this rebuild.
 
 ## Notes
 - The **game-render theme system** (`config/themes.ts` + ~70 territory-render
