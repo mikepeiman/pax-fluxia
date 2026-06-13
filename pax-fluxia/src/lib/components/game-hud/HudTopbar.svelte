@@ -92,7 +92,7 @@
   </div>
 
   <div class="pf-hud-topbar__modes" role="group" aria-label="Territory render mode shortcuts">
-    {#each modeOptions.slice(0, 6) as option}
+    {#each modeOptions as option}
       <PaxHudButton
         class="pf-hud-topbar__mode"
         active={activeModeId === option.id}
