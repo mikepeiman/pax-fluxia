@@ -153,3 +153,6 @@ Prompt:
 - Began `ControlsSection-Territory.svelte` migration with the visible module/render navigation slice.
 - Migrated system module, renderer module, render-mode, deprecated-mode action, and transition-select controls to Pax primitives.
 - Validated the Territory navigation slice with raw-control/style count reduction from `79` to `56`, `git diff --check`, and production build.
+- Continued `ControlsSection-Territory.svelte` by migrating Metaball CPU-grid core controls to Pax primitives.
+- Restored the missing `TerritorySurfaceStyleTuning` component tag in the Metaball section.
+- Preserved existing Metaball config write paths and validated with raw-control/style count reduction from `56` to `47`, `git diff --check`, and production build.

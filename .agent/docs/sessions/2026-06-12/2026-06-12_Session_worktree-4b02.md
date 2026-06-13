@@ -1021,3 +1021,38 @@ Validation:
 Next correct step:
 
 - Continue `ControlsSection-Territory.svelte` with the Metaball CPU grid and topology-rule tuning clusters.
+
+## Territory Metaball CPU Grid Primitive Migration
+
+Implemented:
+
+- Continued `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Territory.svelte`.
+- Added Pax primitive coverage for the Metaball CPU-grid core controls:
+  - cell size
+  - influence radius
+  - influence falloff
+  - dominance threshold
+  - fill follows geometry
+  - strength multiplier
+  - coverage padding
+  - faction blend sharpness
+- Added `metaballFalloffSelectOptions()` to adapt existing `METABALL_FALLOFF_OPTIONS` to `PaxHudSelect`.
+- Replaced the helper-copy inline style with a local class hook.
+- Restored the missing `<TerritorySurfaceStyleTuning>` tag in the Metaball section so the shared surface-style controls render there again.
+- Converted the touched dominance tooltip/output to ASCII while preserving the existing behavior.
+
+Intent:
+
+- Continue moving Territory settings out of local ad hoc controls and into the Pax primitive/token layer.
+- Preserve every existing `debouncedConfigUpdate(...)` config key and panel key.
+- Correct a pre-existing rendered-markup defect in the Metaball section while the surrounding cluster is in scope.
+
+Validation:
+
+- Territory raw-control/style audit count reduced from `56` to `47`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Next correct step:
+
+- Continue `ControlsSection-Territory.svelte` with the remaining Combat/Fleet Pressure, topology-rule, style-family, and legacy button clusters until the file has a zero-match raw-control/style audit.

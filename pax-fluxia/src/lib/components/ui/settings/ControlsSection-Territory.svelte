@@ -30,6 +30,8 @@
     PaxHudButton,
     PaxHudSegmentedControl,
     PaxHudSelect,
+    PaxSettingsRangeRow,
+    PaxSettingsToggleRow,
     type PaxHudSegmentedOption,
   } from "$lib/design-system";
 
@@ -289,6 +291,13 @@
       panel.metaballFalloff ?? GAME_CONFIG.METABALL_FALLOFF ?? "gaussian";
     const hit = METABALL_FALLOFF_OPTIONS.find((o) => o.id === raw);
     return hit ? hit.id : "gaussian";
+  }
+
+  function metaballFalloffSelectOptions(): { value: string; label: string }[] {
+    return METABALL_FALLOFF_OPTIONS.map((option) => ({
+      value: option.id,
+      label: option.label,
+    }));
   }
 
   // Bridge compatibility: writes to both GAME_CONFIG (for runtime reads) and panel state (for UI reactivity).
@@ -884,96 +893,49 @@
         metaball renderer.
       </p>
     </div>
-    <div
-      class="row-bottom"
-      style="font-size:11px;opacity:0.75;margin-bottom:10px;">
+    <div class="row-bottom territory-helper-copy">
       Larger <strong>Cell size</strong> means fewer grid cells and better FPS.
       Frontier rules live in <strong>Frontier Topology</strong>. Transition
       timing lives in <strong>Territory System</strong>.
     </div>
-    <div class="var-row">
-      <div class="row-top">
-        <span class="var-name">Cell size (px)</span><span class="val"
-          >{Math.round(
-            panel.metaballCellSize ?? GAME_CONFIG.METABALL_CELL_SIZE ?? 10,
-          )}</span>
-      </div>
-      <input
-        type="range"
-        min="4"
-        max="32"
-        step="1"
-        value={panel.metaballCellSize ?? GAME_CONFIG.METABALL_CELL_SIZE ?? 10}
-        oninput={(e) => {
-          const v = +(e.target as HTMLInputElement).value;
-          debouncedConfigUpdate("METABALL_CELL_SIZE", "metaballCellSize", v);
-        }} />
-    </div>
-    <div class="var-row">
-      <div class="row-top">
-        <span class="var-name">Influence radius</span><span class="val"
-          >{Math.round(
-            panel.metaballInfluenceRadius ??
-              GAME_CONFIG.METABALL_INFLUENCE_RADIUS ??
-              90,
-          )}px</span>
-      </div>
-      <input
-        type="range"
-        min="0"
-        max="220"
-        step="5"
-        value={panel.metaballInfluenceRadius ??
-          GAME_CONFIG.METABALL_INFLUENCE_RADIUS ??
-          90}
-        oninput={(e) => {
-          const v = +(e.target as HTMLInputElement).value;
-          debouncedConfigUpdate(
-            "METABALL_INFLUENCE_RADIUS",
-            "metaballInfluenceRadius",
-            v,
-          );
-        }} />
-    </div>
+    <PaxSettingsRangeRow
+      label="Cell size"
+      value={panel.metaballCellSize ?? GAME_CONFIG.METABALL_CELL_SIZE ?? 10}
+      min={4}
+      max={32}
+      step={1}
+      suffix="px"
+      settingConfigKey="METABALL_CELL_SIZE"
+      onInput={(value) =>
+        debouncedConfigUpdate("METABALL_CELL_SIZE", "metaballCellSize", value)} />
+    <PaxSettingsRangeRow
+      label="Influence radius"
+      value={panel.metaballInfluenceRadius ??
+        GAME_CONFIG.METABALL_INFLUENCE_RADIUS ??
+        90}
+      min={0}
+      max={220}
+      step={5}
+      suffix="px"
+      settingConfigKey="METABALL_INFLUENCE_RADIUS"
+      onInput={(value) =>
+        debouncedConfigUpdate(
+          "METABALL_INFLUENCE_RADIUS",
+          "metaballInfluenceRadius",
+          value,
+        )} />
+    <PaxHudSelect
+      label="Influence falloff"
+      value={resolveMetaballFalloffId()}
+      options={metaballFalloffSelectOptions()}
+      ariaLabel="Metaball influence falloff"
+      onValueChange={(value) =>
+        debouncedConfigUpdate("METABALL_FALLOFF", "metaballFalloff", value)} />
     <div
-      class="var-row"
-      title="How star influence decays with distance in the CPU grid. Gaussian uses Math.exp per sample (slower); inverse-square is cheaper and often looks fine for gameplay.">
-      <div class="row-top">
-        <span class="var-name">Influence falloff</span>
-      </div>
-      <select
-        class="mode-select"
-        value={resolveMetaballFalloffId()}
-        onchange={(e) => {
-          const v = (e.target as HTMLSelectElement).value as
-            | "inverse-square"
-            | "gaussian"
-            | "smoothstep";
-          debouncedConfigUpdate("METABALL_FALLOFF", "metaballFalloff", v);
-        }}>
-        {#each METABALL_FALLOFF_OPTIONS as opt}
-          <option value={opt.id}>{opt.label}</option>
-        {/each}
-      </select>
-    </div>
-    <div
-      class="var-row"
-      title="Per cell: dominance = winner’s influence / (winner + runner-up). 0.0 = tied; 1.0 = no runner-up. The slider is 0→1 like any other. Values from 0.00 through 0.50 leave the contested-cell filter OFF (every cell the field favors can fill). Above 0.50, cells with dominance below your setting stay empty—hides mushy 50/50 bands between empires.">
-      <div class="row-top">
-        <span class="var-name">Min dominance (winner / top-2)</span><span
-          class="val"
-          >{(() => {
-            const v =
-              panel.metaballThreshold ?? GAME_CONFIG.METABALL_THRESHOLD ?? 0.5;
-            const clamped = Math.max(0, Math.min(1, v));
-            return `${clamped.toFixed(2)}${clamped <= 0.5 ? " · off" : ""}`;
-          })()}</span>
-      </div>
-      <input
-        type="range"
-        min="0.5"
-        max="1"
-        step="0.01"
+      class="var-row territory-range-note"
+      title="Per cell: dominance = winner influence / (winner + runner-up). Values up to 0.50 disable contested-cell filtering; higher values hide soft bands between empires.">
+      <PaxSettingsRangeRow
+        label="Min dominance"
         value={Math.max(
           0,
           Math.min(
@@ -981,113 +943,84 @@
             panel.metaballThreshold ?? GAME_CONFIG.METABALL_THRESHOLD ?? 0.5,
           ),
         )}
-        oninput={(e) => {
-          const v = Math.max(
-            0,
-            Math.min(1, +(e.target as HTMLInputElement).value),
-          );
-          debouncedConfigUpdate("METABALL_THRESHOLD", "metaballThreshold", v);
-        }} />
-    </div>
-    <label
-      class="toggle-row"
-      title="When on, metaball fill uses the geometry ownership field so the fill footprint stays aligned with the actual claimed region and border shape.">
-      <input
-        type="checkbox"
-        checked={panel.metaballFillFollowsGeom ??
-          GAME_CONFIG.METABALL_FILL_FOLLOWS_GEOM ??
-          false}
-        onchange={(e) => {
-          const v = (e.target as HTMLInputElement).checked;
+        min={0.5}
+        max={1}
+        step={0.01}
+        output={(() => {
+          const v =
+            panel.metaballThreshold ?? GAME_CONFIG.METABALL_THRESHOLD ?? 0.5;
+          const clamped = Math.max(0, Math.min(1, v));
+          return `${clamped.toFixed(2)}${clamped <= 0.5 ? " off" : ""}`;
+        })()}
+        settingConfigKey="METABALL_THRESHOLD"
+        onInput={(value) =>
           debouncedConfigUpdate(
-            "METABALL_FILL_FOLLOWS_GEOM",
-            "metaballFillFollowsGeom",
-            v,
-          );
-        }} />
-      <span class="var-name">Fill follows geometry ownership</span><span
-        class="val"
-        >{(panel.metaballFillFollowsGeom ??
-          GAME_CONFIG.METABALL_FILL_FOLLOWS_GEOM ??
-          false)
-          ? "On"
-          : "Off"}</span>
-    </label>
-    <div class="var-row">
-      <div class="row-top">
-        <span class="var-name">Strength multiplier</span><span class="val"
-          >{(
-            panel.metaballStrengthMult ??
-            GAME_CONFIG.METABALL_STRENGTH_MULT ??
-            1
-          ).toFixed(2)}</span>
-      </div>
-      <input
-        type="range"
-        min="0.5"
-        max="8"
-        step="0.1"
-        value={panel.metaballStrengthMult ??
-          GAME_CONFIG.METABALL_STRENGTH_MULT ??
-          1}
-        oninput={(e) => {
-          const v = +(e.target as HTMLInputElement).value;
-          debouncedConfigUpdate(
-            "METABALL_STRENGTH_MULT",
-            "metaballStrengthMult",
-            v,
-          );
-        }} />
+            "METABALL_THRESHOLD",
+            "metaballThreshold",
+            Math.max(0, Math.min(1, value)),
+          )} />
     </div>
-    <div
-      class="var-row"
-      title="Extra grid extent beyond the map (0 = tight). Higher helps when zoomed out.">
-      <div class="row-top">
-        <span class="var-name">Coverage padding</span><span class="val"
-          >{(
-            panel.metaballCoverage ??
-            GAME_CONFIG.METABALL_COVERAGE ??
-            0
-          ).toFixed(2)}</span>
-      </div>
-      <input
-        type="range"
-        min="0"
-        max="0.45"
-        step="0.05"
-        value={panel.metaballCoverage ?? GAME_CONFIG.METABALL_COVERAGE ?? 0}
-        oninput={(e) => {
-          const v = +(e.target as HTMLInputElement).value;
-          debouncedConfigUpdate("METABALL_COVERAGE", "metaballCoverage", v);
-        }} />
-    </div>
-    <div class="var-row">
-      <div class="row-top">
-        <span class="var-name">Faction blend sharpness</span><span class="val"
-          >{(
-            panel.metaballSharpness ??
-            GAME_CONFIG.METABALL_BLEND_SHARPNESS ??
-            3
-          ).toFixed(1)}</span>
-      </div>
-      <input
-        type="range"
-        min="1"
-        max="40"
-        step="0.5"
-        value={panel.metaballSharpness ??
-          GAME_CONFIG.METABALL_BLEND_SHARPNESS ??
-          3}
-        oninput={(e) => {
-          const v = +(e.target as HTMLInputElement).value;
-          debouncedConfigUpdate(
-            "METABALL_BLEND_SHARPNESS",
-            "metaballSharpness",
-            v,
-          );
-        }} />
-    </div>
+    <PaxSettingsToggleRow
+      label="Fill follows geometry"
+      checked={panel.metaballFillFollowsGeom ??
+        GAME_CONFIG.METABALL_FILL_FOLLOWS_GEOM ??
+        false}
+      meta={(panel.metaballFillFollowsGeom ??
+        GAME_CONFIG.METABALL_FILL_FOLLOWS_GEOM ??
+        false)
+        ? "On"
+        : "Off"}
+      settingConfigKey="METABALL_FILL_FOLLOWS_GEOM"
+      onChange={(value) =>
+        debouncedConfigUpdate(
+          "METABALL_FILL_FOLLOWS_GEOM",
+          "metaballFillFollowsGeom",
+          value,
+        )} />
+    <PaxSettingsRangeRow
+      label="Strength multiplier"
+      value={panel.metaballStrengthMult ??
+        GAME_CONFIG.METABALL_STRENGTH_MULT ??
+        1}
+      min={0.5}
+      max={8}
+      step={0.1}
+      format="fixed2"
+      settingConfigKey="METABALL_STRENGTH_MULT"
+      onInput={(value) =>
+        debouncedConfigUpdate(
+          "METABALL_STRENGTH_MULT",
+          "metaballStrengthMult",
+          value,
+        )} />
+    <PaxSettingsRangeRow
+      label="Coverage padding"
+      value={panel.metaballCoverage ?? GAME_CONFIG.METABALL_COVERAGE ?? 0}
+      min={0}
+      max={0.45}
+      step={0.05}
+      format="fixed2"
+      settingConfigKey="METABALL_COVERAGE"
+      onInput={(value) =>
+        debouncedConfigUpdate("METABALL_COVERAGE", "metaballCoverage", value)} />
+    <PaxSettingsRangeRow
+      label="Faction blend sharpness"
+      value={panel.metaballSharpness ??
+        GAME_CONFIG.METABALL_BLEND_SHARPNESS ??
+        3}
+      min={1}
+      max={40}
+      step={0.5}
+      format="fixed1"
+      settingConfigKey="METABALL_BLEND_SHARPNESS"
+      onInput={(value) =>
+        debouncedConfigUpdate(
+          "METABALL_BLEND_SHARPNESS",
+          "metaballSharpness",
+          value,
+        )} />
 
+    <TerritorySurfaceStyleTuning
       {panel}
       onUpdate={debouncedConfigUpdate}
       sectionHeading="Style"
@@ -2480,6 +2413,12 @@
     flex: 1;
     flex-direction: column;
     gap: 6px;
+  }
+  .territory-helper-copy {
+    margin-bottom: 10px;
+    opacity: 0.75;
+    font-size: calc(0.68rem * var(--hud-type-scale, 1));
+    line-height: 1.35;
   }
   .axis-note--warning {
     margin: 4px 0 8px;

@@ -1426,3 +1426,36 @@ Merge guidance:
 
 - Preserve the option-builder functions added near the top of `ControlsSection-Territory.svelte`.
 - Continue deeper Territory tuning migration through Pax primitives rather than restoring local `axis-btn`, `mode-select`, or inline style controls.
+
+## 2026-06-12 Territory Metaball CPU Grid Primitive Migration
+
+Scope implemented in this step:
+
+- Continued migrating:
+  - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Territory.svelte`
+
+Why this matters for merge:
+
+- The Metaball CPU-grid core controls now use Pax primitives instead of local raw range/select/toggle markup.
+- Migrated controls preserve existing config writes for:
+  - `METABALL_CELL_SIZE`
+  - `METABALL_INFLUENCE_RADIUS`
+  - `METABALL_FALLOFF`
+  - `METABALL_THRESHOLD`
+  - `METABALL_FILL_FOLLOWS_GEOM`
+  - `METABALL_STRENGTH_MULT`
+  - `METABALL_COVERAGE`
+  - `METABALL_BLEND_SHARPNESS`
+- A missing `<TerritorySurfaceStyleTuning>` tag in the Metaball section was restored; before this slice, that section contained orphaned props and the shared surface-style controls were not rendered at that location.
+
+Validation:
+
+- Territory raw-control/style audit count reduced from `56` to `47`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Merge guidance:
+
+- Keep the Metaball core controls on `PaxSettingsRangeRow`, `PaxHudSelect`, and `PaxSettingsToggleRow`.
+- Preserve `metaballFalloffSelectOptions()` unless a broader select-option adapter replaces it.
+- Preserve the restored `TerritorySurfaceStyleTuning` tag; do not leave shorthand props as inert markup.
