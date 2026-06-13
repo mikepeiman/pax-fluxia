@@ -109,7 +109,7 @@
       <li
         class="pf-standings__row"
         class:pf-standings__row--local={player.isLocal}
-        style={`--player-color:${player.color};`}
+        style:--player-color={player.color}
       >
         <span class="pf-standings__player">
           <span class="pf-standings__rank font-hud-data">{index + 1}</span>

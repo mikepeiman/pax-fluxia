@@ -1159,3 +1159,48 @@ Validation:
 Next correct step:
 
 - Continue live HUD style/layout work through the existing Pax primitives and tokens, prioritizing the Settings Ribbon, Theme Library, Topbar, Player Standings, Star View, and Quick Access surfaces.
+
+## Live HUD Primitive Cleanup
+
+Implemented:
+
+- Updated `pax-fluxia/src/lib/components/game/GameContainer.svelte` to use Pax primitives for the remaining audited raw controls:
+  - room ID copy badge
+  - surrender modal actions
+  - exit confirmation actions
+  - mobile FAB menu actions
+  - mobile drawer close button
+- Removed corrupted visible glyph text from surrender/exit modal action labels.
+- Converted live layout width/style values to Svelte style directives:
+  - master grid rail widths
+  - settings rail width
+  - tactical rail width
+  - tactical overview player mark colors
+- Converted resize handle active state away from `class:active`.
+- Updated live HUD components to use style directives or color-scope wrappers for dynamic player/star/theme colors:
+  - `HudTopbar.svelte`
+  - `PlayerStandingsPanel.svelte`
+  - `SelectedStarPanel.svelte`
+  - `SelectedStarTray.svelte`
+  - `HudThemePanel.svelte`
+  - `TypographyTokenPanel.svelte`
+  - `SettingsRibbon.svelte`
+- Added `.pf-hud-topbar__player-badge-scope { display: contents; }` in `pax-fluxia/src/lib/styles/hud.css` so player color inheritance does not change topbar layout.
+- Converted selector bridges for component-owned classes in `GameContainer.svelte` to `:global(...)` where needed, because classes passed into Pax child components render inside the child component boundary.
+
+Intent:
+
+- Continue enforcing a consistent component base for live HUD controls instead of retaining ad hoc raw HTML controls.
+- Preserve dynamic game-signal colors while removing string-built inline style attributes from the audited live HUD surface.
+- Remove visible corrupted glyph treatment from player-facing modal labels.
+
+Validation:
+
+- Targeted audit across `pax-fluxia/src/lib/components/game-hud` and `pax-fluxia/src/lib/components/game/GameContainer.svelte` returned zero matches for `<button>`, `<select>`, `<input>`, `style=`, `class:active`, `class:is-active`, corrupted glyph markers, `Quick Tools`, and `Low-frequency`.
+- `git diff --check`: passed with line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- Remaining build warnings are existing bundle-size and dynamic/static import warnings plus the unused `Room` import; this phase introduced no new Svelte selector warnings.
+
+Next correct step:
+
+- Continue visual fidelity work on the Settings Ribbon and Theme Library first, because those remain the most user-visible mismatch against the Aurelia Drift reference and user instructions.

@@ -166,3 +166,8 @@ Prompt:
 - Preserved existing HUD typography token names while moving the font source to packaged local files.
 - Removed stale raw-control-era CSS selector families from `ControlsSection-Territory.svelte` and rewrapped the remaining indentation case so Svelte scoping recognizes it.
 - Validated with zero-match hosted-font audit, zero-match Territory stale-selector audit, and production build.
+- Continued systemic live HUD cleanup by replacing remaining audited raw GameContainer controls with Pax HUD primitives: room badge, surrender/exit modal actions, mobile FAB actions, and mobile drawer close.
+- Removed corrupted visible modal glyph labels.
+- Converted audited live HUD/GameContainer string-built `style=` attributes and active class directives to Svelte style/class directives or layout-neutral color scopes.
+- Added a topbar player-badge color scope and global selector bridges for Pax child-component button classes where Svelte scoping requires them.
+- Validated with zero-match live HUD raw-control/style/glyph/label audit, `git diff --check`, and production build.

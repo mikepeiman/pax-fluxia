@@ -1560,3 +1560,39 @@ Merge guidance:
 - Keep font loading centralized in `pax-fluxia/src/app.css` unless a later theme loader intentionally changes font ownership.
 - Preserve the local font files under `static/fonts/hud`; they are part of packaging readiness, not disposable generated artifacts.
 - If adding new font tokens, package the font files locally first and wire them through the token layer rather than loading from a CDN.
+
+## 2026-06-12 Live HUD Primitive Cleanup
+
+Scope implemented in this step:
+
+- Updated:
+  - `pax-fluxia/src/lib/components/game/GameContainer.svelte`
+  - `pax-fluxia/src/lib/components/game-hud/HudTopbar.svelte`
+  - `pax-fluxia/src/lib/components/game-hud/PlayerStandingsPanel.svelte`
+  - `pax-fluxia/src/lib/components/game-hud/SelectedStarPanel.svelte`
+  - `pax-fluxia/src/lib/components/game-hud/SelectedStarTray.svelte`
+  - `pax-fluxia/src/lib/components/game-hud/HudThemePanel.svelte`
+  - `pax-fluxia/src/lib/components/game-hud/TypographyTokenPanel.svelte`
+  - `pax-fluxia/src/lib/components/game-hud/SettingsRibbon.svelte`
+  - `pax-fluxia/src/lib/styles/hud.css`
+
+Why this matters for merge:
+
+- The audited live HUD/GameContainer path no longer contains raw visible `button`, `select`, or `input` elements.
+- Room badge, surrender/exit modal actions, mobile FAB actions, and drawer close now use Pax HUD primitives.
+- Visible corrupted door glyph labels in modal buttons were removed.
+- Live HUD dynamic widths and game-signal colors now use Svelte style directives or wrapper scopes instead of string-built `style=` attributes.
+- `GameContainer.svelte` uses `:global(...)` bridge selectors for class names rendered inside Pax child button components; this is required for styles like `.btn`, `.fab-item`, `.drawer-close`, and `.room-id-badge` to apply across Svelte component boundaries.
+
+Validation:
+
+- Targeted live HUD audit returned no matches for raw controls, raw `style=`, active class directives, corrupted glyph markers, `Quick Tools`, or `Low-frequency`.
+- `git diff --check`: passed with line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- This phase introduced no new Svelte selector warnings.
+
+Merge guidance:
+
+- Do not replace the Pax button primitives in `GameContainer.svelte` with raw buttons.
+- If moving the modal/FAB styles into shared HUD CSS later, keep the component-boundary issue in mind: classes passed into child components need either shared global CSS or styles owned by the child primitive.
+- Dynamic player/star/theme colors are still intentional game-signal values; keep them as scoped CSS custom properties or style directives rather than hardcoded theme colors.

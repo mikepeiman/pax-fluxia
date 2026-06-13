@@ -76,9 +76,9 @@
         onclick={() => selectTheme(themeId)}
       >
         <span class="pf-hud-theme-card__swatches" aria-hidden="true">
-          <span style={`background: ${theme.accent.system}`}></span>
-          <span style={`background: ${theme.accent.selection}`}></span>
-          <span style={`background: ${theme.accent.danger}`}></span>
+          <span style:background={theme.accent.system}></span>
+          <span style:background={theme.accent.selection}></span>
+          <span style:background={theme.accent.danger}></span>
         </span>
         <span class="pf-hud-theme-card__copy">
           <strong>{theme.name}</strong>

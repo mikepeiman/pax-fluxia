@@ -97,6 +97,10 @@
   min-width: 0;
 }
 
+.pf-hud-topbar__player-badge-scope {
+  display: contents;
+}
+
 .pf-hud-icon-button,
 .pf-game-speed__button,
 .pf-standings__focus-button,

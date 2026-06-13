@@ -41,11 +41,10 @@
 <aside
   class={`pf-settings-ribbon ${className}`}
   class:pf-settings-ribbon--dock-left={dockSide === "left"}
-  style={`width:${width}px;`}
+  style:width={`${width}px`}
 >
   <div
-    class="pf-settings-ribbon__resize"
-    class:active={resizeActive}
+    class={`pf-settings-ribbon__resize ${resizeActive ? "active" : ""}`}
     role="separator"
     aria-orientation="vertical"
     title="Drag to resize settings"

@@ -338,7 +338,7 @@
           options={fontSelectOptions}
           onValueChange={(value) => setToken(role.id, value as FontOptionId)}
         />
-        <span class="pf-typography-row__sample" style={`font-family: var(${role.cssVar});`}>
+        <span class="pf-typography-row__sample" style:font-family={`var(${role.cssVar})`}>
           {role.sample}
         </span>
         <span class="pf-typography-row__note">{selected.note}</span>
