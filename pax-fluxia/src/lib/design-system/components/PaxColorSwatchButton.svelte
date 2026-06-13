@@ -48,14 +48,14 @@
     gap: 5px;
     padding: 8px 6px;
     border: 1px solid transparent;
-    border-radius: var(--hud-radius-sm);
-    clip-path: var(--hud-rounded-corner-sm);
+    border-radius: var(--pax-ui-radius-sm);
+    clip-path: var(--pax-ui-rounded-corner-sm);
     background:
       linear-gradient(180deg, rgba(0, 18, 21, 0.78), rgba(0, 10, 13, 0.92)) padding-box,
-      var(--hud-control-border-gradient) border-box;
-    color: var(--hud-text);
+      var(--pax-ui-control-border-gradient) border-box;
+    color: var(--pax-ui-text);
     cursor: pointer;
-    font-family: var(--hud-font-ui);
+    font-family: var(--pax-ui-font-ui);
     transition:
       background var(--pax-motion-fast, 150ms ease),
       box-shadow var(--pax-motion-fast, 150ms ease),
@@ -65,13 +65,13 @@
   .pax-color-swatch-button:hover {
     background:
       linear-gradient(180deg, rgba(28, 26, 16, 0.88), rgba(3, 26, 30, 0.94)) padding-box,
-      var(--hud-border-gradient) border-box;
+      var(--pax-ui-border-gradient) border-box;
     transform: translateY(-1px);
   }
 
   .pax-color-swatch-button--selected {
     box-shadow:
-      inset 0 0 0 1px color-mix(in srgb, var(--hud-accent-warm) 18%, transparent),
+      inset 0 0 0 1px color-mix(in srgb, var(--pax-ui-accent-warm) 18%, transparent),
       0 0 16px color-mix(in srgb, var(--pax-swatch-color) 30%, transparent);
   }
 
@@ -84,7 +84,7 @@
   .pax-color-swatch-button__swatch {
     width: 24px;
     height: 24px;
-    border: 1px solid color-mix(in srgb, var(--hud-text) 28%, transparent);
+    border: 1px solid color-mix(in srgb, var(--pax-ui-text) 28%, transparent);
     border-radius: 999px;
     background: var(--pax-swatch-color);
     box-shadow:
@@ -102,17 +102,17 @@
   }
 
   .pax-color-swatch-button__label {
-    color: var(--hud-text);
-    font-size: calc(0.68rem * var(--hud-type-scale, 1));
+    color: var(--pax-ui-text);
+    font-size: calc(0.68rem * var(--pax-ui-type-scale, 1));
     font-weight: 800;
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
 
   .pax-color-swatch-button__meta {
-    color: var(--hud-text-muted);
-    font-family: var(--hud-font-data);
-    font-size: calc(0.62rem * var(--hud-data-scale, 1));
+    color: var(--pax-ui-text-muted);
+    font-family: var(--pax-ui-font-data);
+    font-size: calc(0.62rem * var(--pax-ui-data-scale, 1));
     font-weight: 700;
   }
 </style>

@@ -1577,8 +1577,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         display: flex;
         flex-direction: column;
         gap: 10px;
-        color: var(--hud-text);
-        font-family: var(--hud-font-ui);
+        color: var(--pax-ui-text);
+        font-family: var(--pax-ui-font-ui);
         height: 100%;
         min-height: 0;
     }
@@ -1632,11 +1632,11 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     :global(.icon-toolbar-control) {
         width: 100%;
         min-height: 38px;
-        border: 1px solid var(--hud-border);
+        border: 1px solid var(--pax-ui-border);
         border-radius: 12px;
-        background: var(--hud-button-bg);
-        color: var(--hud-text-soft);
-        font-family: var(--hud-font-ui);
+        background: var(--pax-ui-button-bg);
+        color: var(--pax-ui-text-soft);
+        font-family: var(--pax-ui-font-ui);
         font-size: 0.64rem;
         font-weight: 700;
         letter-spacing: 0.12em;
@@ -1650,9 +1650,9 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     :global(.icon-toolbar-control:hover) {
-        background: var(--hud-button-bg-hover);
-        border-color: var(--hud-border-strong);
-        color: var(--hud-text-strong);
+        background: var(--pax-ui-button-bg-hover);
+        border-color: var(--pax-ui-border-strong);
+        color: var(--pax-ui-text-strong);
         transform: translateY(-1px);
     }
 
@@ -1668,10 +1668,10 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         min-height: 46px;
         padding: 10px 0;
         background: rgba(7, 13, 26, 0.78);
-        border: 1px solid var(--hud-border);
+        border: 1px solid var(--pax-ui-border);
         border-radius: 14px;
         cursor: pointer;
-        color: var(--hud-text-soft);
+        color: var(--pax-ui-text-soft);
         transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         text-align: left;
     }
@@ -1686,8 +1686,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
     :global(.icon-btn:hover) {
         background: rgba(14, 24, 43, 0.92);
-        border-color: color-mix(in srgb, var(--accent) 55%, var(--hud-border));
-        color: var(--hud-text-strong);
+        border-color: color-mix(in srgb, var(--accent) 55%, var(--pax-ui-border));
+        color: var(--pax-ui-text-strong);
         transform: translateY(-1px);
         box-shadow: 0 10px 24px
             color-mix(in srgb, var(--accent) 20%, transparent);
@@ -1695,7 +1695,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     :global(.icon-btn.active) {
         background: color-mix(in srgb, var(--accent) 13%, rgba(8, 12, 24, 0.9));
         border-color: color-mix(in srgb, var(--accent) 75%, rgba(255, 255, 255, 0.12));
-        color: var(--hud-text-strong);
+        color: var(--pax-ui-text-strong);
         box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
     }
     .icon-symbol {
@@ -1719,7 +1719,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        font-family: var(--hud-font-ui);
+        font-family: var(--pax-ui-font-ui);
         font-size: 0.62rem;
         font-weight: 700;
         text-transform: uppercase;
@@ -1733,10 +1733,10 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
     /* ── Section Panel ── */
     .section-panel {
-        background: var(--hud-panel-bg);
-        border: 1px solid var(--hud-border);
-        border-radius: var(--hud-radius-md);
-        box-shadow: var(--hud-shadow-soft);
+        background: var(--pax-ui-panel-bg);
+        border: 1px solid var(--pax-ui-border);
+        border-radius: var(--pax-ui-radius-md);
+        box-shadow: var(--pax-ui-shadow-soft);
         overflow: hidden;
         animation: slideIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         flex: 1;
@@ -1750,7 +1750,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .section-head-wrap {
         display: flex;
         flex-direction: column;
-        border-bottom: 1px solid var(--hud-divider);
+        border-bottom: 1px solid var(--pax-ui-divider);
         background: color-mix(in srgb, var(--accent) 8%, rgba(5, 9, 20, 0.45));
     }
     @keyframes slideIn {
@@ -1788,7 +1788,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         border: none;
         cursor: pointer;
         color: var(--accent);
-        font-family: var(--hud-font-ui);
+        font-family: var(--pax-ui-font-ui);
         transition: background 0.15s;
     }
     :global(.section-head:hover) {
@@ -1842,10 +1842,10 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         min-height: 30px;
         padding: 0 12px;
         border-radius: 999px;
-        border: 1px solid var(--hud-border);
+        border: 1px solid var(--pax-ui-border);
         background: rgba(7, 12, 24, 0.62);
-        color: var(--hud-text);
-        font-family: var(--hud-font-ui);
+        color: var(--pax-ui-text);
+        font-family: var(--pax-ui-font-ui);
         font-size: 0.6rem;
         font-weight: 700;
         letter-spacing: 0.1em;
@@ -1988,10 +1988,10 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         background:
             linear-gradient(180deg, rgba(2, 24, 27, 0.92), rgba(1, 8, 13, 0.96)),
             radial-gradient(circle at 50% 0%, rgba(246, 196, 105, 0.12), transparent 38%);
-        clip-path: var(--hud-cut-corner-sm);
+        clip-path: var(--pax-ui-cut-corner-sm);
         box-shadow: inset 0 0 0 1px rgba(255, 231, 178, 0.05);
         overflow-x: hidden;
-        max-height: min(52vh, calc(100vh - var(--hud-topbar-height) - 330px));
+        max-height: min(52vh, calc(100vh - var(--pax-ui-topbar-height) - 330px));
     }
 
     .icon-toolbar__controls {
@@ -2007,7 +2007,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         border-color: rgba(246, 196, 105, 0.22);
         background: rgba(0, 17, 21, 0.72);
         color: rgba(255, 221, 160, 0.82);
-        clip-path: var(--hud-cut-corner-xs);
+        clip-path: var(--pax-ui-cut-corner-xs);
         box-shadow: inset 0 0 0 1px rgba(120, 255, 244, 0.03);
     }
 
@@ -2031,7 +2031,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         background:
             linear-gradient(180deg, rgba(21, 44, 39, 0.92), rgba(4, 23, 25, 0.94)),
             rgba(246, 196, 105, 0.04);
-        color: var(--hud-accent-warm-strong);
+        color: var(--pax-ui-accent-warm-strong);
         border-color: rgba(246, 196, 105, 0.62);
         transform: none;
     }
@@ -2061,7 +2061,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .settings-content {
         gap: 10px;
         padding: 0 2px 0 0;
-        max-height: calc(100vh - var(--hud-topbar-height) - 24px);
+        max-height: calc(100vh - var(--pax-ui-topbar-height) - 24px);
     }
 
     .section-panel {
@@ -2071,19 +2071,19 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             linear-gradient(180deg, rgba(3, 23, 26, 0.97), rgba(1, 8, 13, 0.99)),
             radial-gradient(circle at 0% 0%, rgba(90, 245, 235, 0.08), transparent 42%),
             radial-gradient(circle at 100% 0%, rgba(246, 196, 105, 0.12), transparent 44%);
-        clip-path: var(--hud-cut-corner-md);
+        clip-path: var(--pax-ui-cut-corner-md);
     }
 
     :global(.section-head) {
         min-height: 42px;
         padding: 0 12px;
-        color: var(--hud-accent-warm-strong);
+        color: var(--pax-ui-accent-warm-strong);
         border-bottom-color: rgba(246, 196, 105, 0.2);
         background: rgba(0, 15, 18, 0.72);
     }
 
     .head-icon {
-        color: var(--hud-accent-warm);
+        color: var(--pax-ui-accent-warm);
     }
 
     .head-label,
@@ -2105,7 +2105,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         background:
             linear-gradient(180deg, rgba(3, 21, 24, 0.9), rgba(0, 9, 12, 0.94)),
             radial-gradient(circle at 0% 0%, rgba(90, 245, 235, 0.08), transparent 42%);
-        clip-path: var(--hud-cut-corner-sm);
+        clip-path: var(--pax-ui-cut-corner-sm);
     }
 
     .section-body :global(.theme-select),
@@ -2118,8 +2118,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         border-color: rgba(246, 196, 105, 0.28);
         background: rgba(0, 17, 21, 0.78);
         color: rgba(255, 229, 174, 0.9);
-        clip-path: var(--hud-cut-corner-xs);
-        font-family: var(--hud-font-ui);
+        clip-path: var(--pax-ui-cut-corner-xs);
+        font-family: var(--pax-ui-font-ui);
         font-weight: 800;
         letter-spacing: 0.06em;
     }
@@ -2138,8 +2138,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         margin: 10px 0 8px;
         padding-top: 0;
         border-top: none;
-        color: var(--hud-accent-warm);
-        font-family: var(--hud-font-ui);
+        color: var(--pax-ui-accent-warm);
+        font-family: var(--pax-ui-font-ui);
         font-size: 0.62rem;
         font-weight: 900;
         letter-spacing: 0.16em;
@@ -2150,35 +2150,35 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         border: 1px solid rgba(246, 196, 105, 0.16);
         background: rgba(0, 15, 19, 0.62);
         border-radius: 0;
-        clip-path: var(--hud-cut-corner-xs);
+        clip-path: var(--pax-ui-cut-corner-xs);
     }
 
     .section-body :global(.var-name) {
         color: rgba(255, 232, 181, 0.9);
-        font-family: var(--hud-font-ui);
+        font-family: var(--pax-ui-font-ui);
         font-weight: 800;
         letter-spacing: 0.04em;
     }
 
     .section-body :global(.val) {
-        color: var(--hud-accent);
-        font-family: var(--hud-font-data);
+        color: var(--pax-ui-accent);
+        font-family: var(--pax-ui-font-data);
         font-variant-numeric: tabular-nums;
     }
 
     .section-body :global(input[type="range"]) {
-        accent-color: var(--hud-accent);
+        accent-color: var(--pax-ui-accent);
     }
 
     .icon-toolbar,
     .section-panel,
     .section-body :global(.category-theme-bar) {
         border-color: transparent;
-        border-radius: var(--hud-radius-md);
-        clip-path: var(--hud-rounded-corner-md);
+        border-radius: var(--pax-ui-radius-md);
+        clip-path: var(--pax-ui-rounded-corner-md);
         background:
             linear-gradient(180deg, rgba(3, 23, 26, 0.97), rgba(1, 8, 13, 0.99)) padding-box,
-            var(--hud-border-gradient) border-box;
+            var(--pax-ui-border-gradient) border-box;
     }
 
     :global(.icon-toolbar-control),
@@ -2192,11 +2192,11 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .section-body :global(.var-row),
     .section-body :global(.toggle-row) {
         border-color: transparent;
-        border-radius: var(--hud-radius-xs);
-        clip-path: var(--hud-rounded-corner-xs);
+        border-radius: var(--pax-ui-radius-xs);
+        clip-path: var(--pax-ui-rounded-corner-xs);
         background:
             linear-gradient(180deg, rgba(0, 18, 21, 0.86), rgba(0, 10, 13, 0.94)) padding-box,
-            var(--hud-control-border-gradient) border-box;
+            var(--pax-ui-control-border-gradient) border-box;
     }
 
     :global(.icon-btn:hover),
@@ -2209,14 +2209,14 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         border-color: transparent;
         background:
             linear-gradient(180deg, rgba(58, 48, 22, 0.9), rgba(3, 31, 32, 0.94)) padding-box,
-            var(--hud-border-gradient) border-box;
+            var(--pax-ui-border-gradient) border-box;
     }
 
     :global(.icon-btn.active) {
         border-color: transparent;
         background:
             linear-gradient(180deg, rgba(97, 72, 25, 0.92), rgba(4, 29, 29, 0.96)) padding-box,
-            var(--hud-border-gradient) border-box;
+            var(--pax-ui-border-gradient) border-box;
     }
 
     /* Settings ownership correction: the rail is the master component. */
@@ -2291,7 +2291,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     :global(.settings-tool-danger) {
-        --accent: var(--hud-danger);
+        --accent: var(--pax-ui-danger);
     }
 
     :global(.icon-btn[data-accent-id="theme_library"]),
@@ -2412,7 +2412,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         grid-area: content;
         min-width: 0;
         height: 100%;
-        max-height: calc(100vh - var(--hud-topbar-height) - 24px);
+        max-height: calc(100vh - var(--pax-ui-topbar-height) - 24px);
         opacity: 1;
         transform: translateX(0);
         transition:
@@ -2457,12 +2457,12 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     .icon-symbol :global(svg) {
-        width: calc(19px * var(--hud-icon-scale, 1));
-        height: calc(19px * var(--hud-icon-scale, 1));
+        width: calc(19px * var(--pax-ui-icon-scale, 1));
+        height: calc(19px * var(--pax-ui-icon-scale, 1));
     }
 
     .icon-label {
-        font-size: calc(0.64rem * var(--hud-label-scale, 1));
+        font-size: calc(0.64rem * var(--pax-ui-label-scale, 1));
         letter-spacing: 0.1em;
         line-height: 1.1;
     }
@@ -2477,7 +2477,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     .head-label {
-        font-size: calc(0.86rem * var(--hud-title-scale, 1));
+        font-size: calc(0.86rem * var(--pax-ui-title-scale, 1));
         line-height: 1.1;
     }
 

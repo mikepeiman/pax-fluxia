@@ -398,11 +398,11 @@
         gap: 10px;
         padding: 12px;
         border: 1px solid transparent;
-        border-radius: var(--hud-radius-sm);
-        clip-path: var(--hud-rounded-corner-sm);
+        border-radius: var(--pax-ui-radius-sm);
+        clip-path: var(--pax-ui-rounded-corner-sm);
         background:
             linear-gradient(180deg, rgba(0, 18, 21, 0.74), rgba(0, 10, 13, 0.9)) padding-box,
-            var(--hud-control-border-gradient) border-box;
+            var(--pax-ui-control-border-gradient) border-box;
     }
 
     .frontier-fx-card__header {
@@ -415,29 +415,29 @@
     .axis-note,
     .var-desc {
         margin: 0;
-        color: var(--hud-text-dim);
-        font-family: var(--hud-font-copy);
-        font-size: calc(0.7rem * var(--hud-type-scale, 1));
+        color: var(--pax-ui-text-dim);
+        font-family: var(--pax-ui-font-copy);
+        font-size: calc(0.7rem * var(--pax-ui-type-scale, 1));
         line-height: 1.42;
     }
 
     .axis-note {
         padding: 12px;
         border: 1px solid transparent;
-        border-radius: var(--hud-radius-sm);
-        clip-path: var(--hud-rounded-corner-sm);
+        border-radius: var(--pax-ui-radius-sm);
+        clip-path: var(--pax-ui-rounded-corner-sm);
         background:
             linear-gradient(180deg, rgba(0, 18, 21, 0.76), rgba(0, 10, 13, 0.9)) padding-box,
-            var(--hud-control-border-gradient) border-box;
+            var(--pax-ui-control-border-gradient) border-box;
     }
 
     .axis-card-title {
         margin: 0;
         padding-bottom: 6px;
-        border-bottom: 1px solid color-mix(in srgb, var(--hud-accent-warm) 22%, transparent);
-        color: var(--hud-text);
-        font-family: var(--hud-font-ui);
-        font-size: calc(0.8rem * var(--hud-type-scale, 1));
+        border-bottom: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 22%, transparent);
+        color: var(--pax-ui-text);
+        font-family: var(--pax-ui-font-ui);
+        font-size: calc(0.8rem * var(--pax-ui-type-scale, 1));
         font-weight: 800;
         letter-spacing: 0.12em;
         text-transform: uppercase;

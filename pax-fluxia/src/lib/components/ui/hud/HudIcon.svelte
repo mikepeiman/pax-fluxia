@@ -360,7 +360,7 @@
   viewBox={icon.viewBox ?? "0 0 24 24"}
   aria-hidden={title ? undefined : "true"}
   aria-label={title}
-  style={`--hud-icon-size-local:${pixelSize}; --hud-icon-stroke-local:${strokeWidth};`}>
+  style={`--pax-ui-icon-size-local:${pixelSize}; --pax-ui-icon-stroke-local:${strokeWidth};`}>
   {#if icon.image}
     <image href={icon.image} x="0" y="0" width="24" height="24" preserveAspectRatio="xMidYMid meet" />
   {:else}
@@ -372,15 +372,15 @@
   .hud-icon {
     display: block;
     flex: 0 0 auto;
-    width: calc(var(--hud-icon-size-local, var(--hud-icon-size)) * var(--hud-icon-scale, 1));
-    height: calc(var(--hud-icon-size-local, var(--hud-icon-size)) * var(--hud-icon-scale, 1));
+    width: calc(var(--pax-ui-icon-size-local, var(--pax-ui-icon-size)) * var(--pax-ui-icon-scale, 1));
+    height: calc(var(--pax-ui-icon-size-local, var(--pax-ui-icon-size)) * var(--pax-ui-icon-scale, 1));
     color: currentColor;
   }
 
   .hud-icon :global(path),
   .hud-icon :global(circle),
   .hud-icon :global(rect) {
-    stroke-width: var(--hud-icon-stroke-local, var(--hud-icon-stroke));
+    stroke-width: var(--pax-ui-icon-stroke-local, var(--pax-ui-icon-stroke));
     vector-effect: non-scaling-stroke;
   }
 </style>

@@ -332,11 +332,11 @@
     gap: 10px;
     width: 100%;
     min-width: 0;
-    padding: var(--hud-pad-sm);
-    border: 1px solid var(--hud-border);
-    border-radius: var(--hud-radius-md);
-    background: var(--hud-panel-bg);
-    box-shadow: var(--hud-shadow-soft);
+    padding: var(--pax-ui-pad-sm);
+    border: 1px solid var(--pax-ui-border);
+    border-radius: var(--pax-ui-radius-md);
+    background: var(--pax-ui-panel-bg);
+    box-shadow: var(--pax-ui-shadow-soft);
   }
 
   .game-theme-manager--menu {
@@ -373,8 +373,8 @@
   }
 
   .game-theme-manager__eyebrow {
-    color: var(--hud-accent);
-    font-family: var(--hud-font-ui);
+    color: var(--pax-ui-accent);
+    font-family: var(--pax-ui-font-ui);
     font-size: 0.56rem;
     font-weight: 700;
     letter-spacing: 0.18em;
@@ -382,8 +382,8 @@
   }
 
   .game-theme-manager__title {
-    color: var(--hud-accent-warm);
-    font-family: var(--hud-font-ui);
+    color: var(--pax-ui-accent-warm);
+    font-family: var(--pax-ui-font-ui);
     font-size: 0.88rem;
     font-weight: 700;
     letter-spacing: 0.1em;
@@ -414,10 +414,10 @@
   .theme-manager-mini-btn {
     min-height: 34px;
     border-radius: 12px;
-    border: 1px solid var(--hud-border);
-    background: var(--hud-button-bg);
-    color: var(--hud-text);
-    font-family: var(--hud-font-ui);
+    border: 1px solid var(--pax-ui-border);
+    background: var(--pax-ui-button-bg);
+    color: var(--pax-ui-text);
+    font-family: var(--pax-ui-font-ui);
     font-size: 0.68rem;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -447,20 +447,20 @@
   .theme-manager-toggle:hover,
   .theme-manager-btn:hover,
   .theme-manager-mini-btn:hover {
-    border-color: var(--hud-border-strong);
-    background: var(--hud-button-bg-hover);
-    color: var(--hud-text-strong);
+    border-color: var(--pax-ui-border-strong);
+    background: var(--pax-ui-button-bg-hover);
+    color: var(--pax-ui-text-strong);
     transform: translateY(-1px);
   }
 
   .theme-manager-btn--accent,
   .theme-manager-btn.flash {
-    border-color: var(--hud-border-warm);
-    color: var(--hud-accent-warm);
+    border-color: var(--pax-ui-border-warm);
+    color: var(--pax-ui-accent-warm);
   }
 
   .theme-manager-btn--ghost {
-    color: var(--hud-text-soft);
+    color: var(--pax-ui-text-soft);
   }
 
   .theme-manager-btn:disabled {
@@ -481,17 +481,17 @@
     min-width: 0;
     min-height: 38px;
     border-radius: 12px;
-    border: 1px solid var(--hud-border);
+    border: 1px solid var(--pax-ui-border);
     background: rgba(7, 13, 26, 0.96);
-    color: var(--hud-text-strong);
+    color: var(--pax-ui-text-strong);
     padding: 0 12px;
-    font-family: var(--hud-font-ui);
+    font-family: var(--pax-ui-font-ui);
     font-size: 0.82rem;
   }
 
   .game-theme-manager__save-input:focus {
     outline: none;
-    border-color: var(--hud-border-strong);
+    border-color: var(--pax-ui-border-strong);
     box-shadow: 0 0 0 1px rgba(94, 230, 255, 0.18);
   }
 
@@ -508,7 +508,7 @@
     padding: 7px 10px;
     border-radius: 12px;
     background: rgba(8, 14, 29, 0.9);
-    font-family: var(--hud-font-ui);
+    font-family: var(--pax-ui-font-ui);
     font-size: 0.7rem;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -523,7 +523,7 @@
   }
 
   .game-theme-manager__status--muted {
-    color: var(--hud-text-soft);
+    color: var(--pax-ui-text-soft);
   }
 
   .theme-library-list {
@@ -541,9 +541,9 @@
     min-width: 0;
     padding: 10px 12px;
     border-radius: 14px;
-    border: 1px solid var(--hud-border);
+    border: 1px solid var(--pax-ui-border);
     background: rgba(8, 14, 28, 0.86);
-    color: var(--hud-text);
+    color: var(--pax-ui-text);
     text-align: left;
     cursor: pointer;
     transition:
@@ -554,14 +554,14 @@
   }
 
   .theme-chip:hover {
-    border-color: var(--hud-border-strong);
+    border-color: var(--pax-ui-border-strong);
     background: rgba(12, 23, 43, 0.94);
-    color: var(--hud-text-strong);
+    color: var(--pax-ui-text-strong);
     transform: translateY(-1px);
   }
 
   .theme-chip.active {
-    border-color: var(--hud-border-warm);
+    border-color: var(--pax-ui-border-warm);
     box-shadow: inset 0 0 0 1px rgba(255, 200, 107, 0.16);
   }
 
@@ -582,7 +582,7 @@
     padding: 2px 8px;
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.05);
-    font-family: var(--hud-font-ui);
+    font-family: var(--pax-ui-font-ui);
     font-size: 0.58rem;
     font-weight: 700;
     letter-spacing: 0.12em;
@@ -603,7 +603,7 @@
   }
 
   .status-agnostic {
-    color: var(--hud-text-soft);
+    color: var(--pax-ui-text-soft);
   }
 
   .theme-chip-name {
@@ -612,7 +612,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-family: var(--hud-font-ui);
+    font-family: var(--pax-ui-font-ui);
     font-size: 0.82rem;
     font-weight: 700;
     letter-spacing: 0.03em;
@@ -626,11 +626,11 @@
     width: 20px;
     height: 20px;
     border-radius: 999px;
-    color: var(--hud-text-soft);
+    color: var(--pax-ui-text-soft);
   }
 
   .theme-chip-delete:hover {
-    color: var(--hud-danger);
+    color: var(--pax-ui-danger);
   }
 
   @media (max-width: 980px) {

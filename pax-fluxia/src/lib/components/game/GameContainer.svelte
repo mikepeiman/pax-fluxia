@@ -1129,7 +1129,7 @@
     --game-hud-topbar-clearance: 0px;
     display: grid;
     grid-template-columns: 1fr auto;
-    grid-template-rows: var(--hud-topbar-height) minmax(0, 1fr);
+    grid-template-rows: var(--pax-ui-topbar-height) minmax(0, 1fr);
     grid-template-areas:
       "topbar topbar"
       "playfield tactical";
@@ -1643,7 +1643,7 @@
     background:
       linear-gradient(180deg, rgba(6, 11, 23, 0.98), rgba(5, 9, 19, 0.94)),
       radial-gradient(circle at top, rgba(255, 200, 107, 0.07), transparent 50%);
-    border-left: 1px solid var(--hud-divider);
+    border-left: 1px solid var(--pax-ui-divider);
     display: flex;
     flex-direction: column;
     padding: 12px 12px 10px;
@@ -1656,7 +1656,7 @@
 
   .area-right--dock-left {
     border-left: none;
-    border-right: 1px solid var(--hud-divider);
+    border-right: 1px solid var(--pax-ui-divider);
     box-shadow: 12px 0 32px rgba(2, 6, 23, 0.42);
   }
 
@@ -1686,7 +1686,7 @@
     flex-shrink: 0;
     padding-bottom: 8px;
     margin-bottom: 10px;
-    border-bottom: 1px solid var(--hud-divider);
+    border-bottom: 1px solid var(--pax-ui-divider);
   }
 
   .area-right :global(.leaderboard) {
@@ -1783,10 +1783,10 @@
   .tactical-overview-card {
     flex-shrink: 0;
     margin-bottom: 12px;
-    border: 1px solid var(--hud-border);
-    border-radius: var(--hud-radius-md);
+    border: 1px solid var(--pax-ui-border);
+    border-radius: var(--pax-ui-radius-md);
     background: rgba(6, 11, 23, 0.9);
-    box-shadow: var(--hud-shadow-soft);
+    box-shadow: var(--pax-ui-shadow-soft);
   }
 
   .tactical-overview-card {
@@ -1806,8 +1806,8 @@
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    color: var(--hud-text-soft);
-    font-family: var(--hud-font-ui);
+    color: var(--pax-ui-text-soft);
+    font-family: var(--pax-ui-font-ui);
     font-size: 0.62rem;
     font-weight: 800;
     letter-spacing: 0.14em;
@@ -1838,12 +1838,12 @@
   }
 
   .tactical-overview-player__ships {
-    color: var(--hud-text-strong);
+    color: var(--pax-ui-text-strong);
     font-size: 0.72rem;
   }
 
   .tactical-overview-player__stars {
-    color: var(--hud-text-soft);
+    color: var(--pax-ui-text-soft);
     font-size: 0.62rem;
   }
 
@@ -1890,9 +1890,9 @@
     text-transform: uppercase;
   }
   .room-id-code {
-    font-family: var(--hud-font-data);
+    font-family: var(--pax-ui-font-data);
     font-size: 0.8rem;
-    color: var(--hud-accent);
+    color: var(--pax-ui-accent);
     letter-spacing: 0.05em;
   }
   .room-id-icon {
@@ -1930,20 +1930,20 @@
   .speed-card {
     margin: 0;
     padding: 12px;
-    border: 1px solid var(--hud-border);
-    border-radius: var(--hud-radius-md);
-    background: var(--hud-panel-bg-muted);
+    border: 1px solid var(--pax-ui-border);
+    border-radius: var(--pax-ui-radius-md);
+    background: var(--pax-ui-panel-bg-muted);
     display: flex;
     gap: 8px;
     align-items: center;
   }
   .speed-card__label {
-    font-family: var(--hud-font-ui);
+    font-family: var(--pax-ui-font-ui);
     font-size: 0.56rem;
     font-weight: 700;
     letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: var(--hud-accent);
+    color: var(--pax-ui-accent);
     padding: 0 2px;
   }
 

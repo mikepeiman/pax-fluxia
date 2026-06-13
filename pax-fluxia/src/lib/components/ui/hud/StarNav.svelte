@@ -310,11 +310,11 @@
     .star-nav-card {
         display: grid;
         gap: 14px;
-        padding: var(--hud-pad-md);
-        border: 1px solid var(--hud-border);
-        border-radius: var(--hud-radius-md);
-        background: var(--hud-panel-bg);
-        box-shadow: var(--hud-shadow-soft);
+        padding: var(--pax-ui-pad-md);
+        border: 1px solid var(--pax-ui-border);
+        border-radius: var(--pax-ui-radius-md);
+        background: var(--pax-ui-panel-bg);
+        box-shadow: var(--pax-ui-shadow-soft);
     }
 
     .star-nav-card__header,
@@ -333,7 +333,7 @@
         justify-content: space-between;
         gap: 12px;
         padding-bottom: 10px;
-        border-bottom: 1px solid var(--hud-divider);
+        border-bottom: 1px solid var(--pax-ui-divider);
     }
 
     .star-nav-card__identity {
@@ -343,8 +343,8 @@
     }
 
     .star-nav-card__eyebrow {
-        color: var(--hud-accent);
-        font-family: var(--hud-font-ui);
+        color: var(--pax-ui-accent);
+        font-family: var(--pax-ui-font-ui);
         font-size: 0.56rem;
         font-weight: 800;
         letter-spacing: 0.18em;
@@ -363,9 +363,9 @@
         align-items: center;
         justify-content: center;
         border-radius: 12px;
-        border: 1px solid color-mix(in srgb, var(--star-type-color, var(--hud-accent)) 48%, transparent);
+        border: 1px solid color-mix(in srgb, var(--star-type-color, var(--pax-ui-accent)) 48%, transparent);
         background:
-            radial-gradient(circle, color-mix(in srgb, var(--star-type-color, var(--hud-accent)) 18%, transparent), transparent 62%),
+            radial-gradient(circle, color-mix(in srgb, var(--star-type-color, var(--pax-ui-accent)) 18%, transparent), transparent 62%),
             rgba(255, 255, 255, 0.03);
     }
 
@@ -376,8 +376,8 @@
     }
 
     .star-nav-card__title {
-        color: var(--hud-text-strong);
-        font-family: var(--hud-font-ui);
+        color: var(--pax-ui-text-strong);
+        font-family: var(--pax-ui-font-ui);
         font-size: 1rem;
         font-weight: 800;
         letter-spacing: 0.04em;
@@ -387,8 +387,8 @@
     }
 
     .star-nav-card__subtitle {
-        color: var(--hud-text-soft);
-        font-family: var(--hud-font-ui);
+        color: var(--pax-ui-text-soft);
+        font-family: var(--pax-ui-font-ui);
         font-size: 0.62rem;
         font-weight: 800;
         letter-spacing: 0.14em;
@@ -405,9 +405,9 @@
         height: 38px;
         justify-content: center;
         border-radius: 12px;
-        border: 1px solid var(--hud-border);
-        background: var(--hud-button-bg);
-        color: var(--hud-text);
+        border: 1px solid var(--pax-ui-border);
+        background: var(--pax-ui-button-bg);
+        color: var(--pax-ui-text);
         cursor: pointer;
         transition:
             border-color 0.16s ease,
@@ -418,9 +418,9 @@
 
     .sn-btn:hover:not(:disabled),
     .star-route-fit:hover {
-        border-color: var(--hud-border-strong);
-        background: var(--hud-button-bg-hover);
-        color: var(--hud-text-strong);
+        border-color: var(--pax-ui-border-strong);
+        background: var(--pax-ui-button-bg-hover);
+        color: var(--pax-ui-text-strong);
         transform: translateY(-1px);
     }
 
@@ -431,7 +431,7 @@
 
     .sn-btn--center,
     .star-route-fit {
-        color: var(--hud-accent);
+        color: var(--pax-ui-accent);
     }
 
     .star-nav-body {
@@ -445,9 +445,9 @@
         position: relative;
         min-height: 86px;
         border-radius: 18px;
-        border: 1px solid color-mix(in srgb, var(--star-type-color, var(--hud-accent)) 28%, transparent);
+        border: 1px solid color-mix(in srgb, var(--star-type-color, var(--pax-ui-accent)) 28%, transparent);
         background:
-            radial-gradient(circle at center, color-mix(in srgb, var(--star-type-color, var(--hud-accent)) 28%, transparent), transparent 44%),
+            radial-gradient(circle at center, color-mix(in srgb, var(--star-type-color, var(--pax-ui-accent)) 28%, transparent), transparent 44%),
             radial-gradient(circle at center, rgba(255, 255, 255, 0.08), transparent 62%),
             rgba(4, 9, 20, 0.78);
         overflow: hidden;
@@ -465,27 +465,27 @@
     .star-orb__ring {
         width: 64px;
         height: 64px;
-        border: 1px solid color-mix(in srgb, var(--star-type-color, var(--hud-accent)) 64%, transparent);
+        border: 1px solid color-mix(in srgb, var(--star-type-color, var(--pax-ui-accent)) 64%, transparent);
         border-radius: 50%;
         box-shadow:
-            inset 0 0 18px color-mix(in srgb, var(--star-type-color, var(--hud-accent)) 24%, transparent),
-            0 0 22px color-mix(in srgb, var(--star-type-color, var(--hud-accent)) 22%, transparent);
+            inset 0 0 18px color-mix(in srgb, var(--star-type-color, var(--pax-ui-accent)) 24%, transparent),
+            0 0 22px color-mix(in srgb, var(--star-type-color, var(--pax-ui-accent)) 22%, transparent);
     }
 
     .star-orb__core {
         width: 28px;
         height: 28px;
         border-radius: 50%;
-        background: var(--star-type-color, var(--hud-accent));
+        background: var(--star-type-color, var(--pax-ui-accent));
         box-shadow:
-            0 0 14px var(--star-type-color, var(--hud-accent)),
-            0 0 34px var(--star-type-color, var(--hud-accent));
+            0 0 14px var(--star-type-color, var(--pax-ui-accent)),
+            0 0 34px var(--star-type-color, var(--pax-ui-accent));
     }
 
     .star-orb__axis {
         width: 88px;
         height: 1px;
-        background: linear-gradient(90deg, transparent, var(--star-type-color, var(--hud-accent)), transparent);
+        background: linear-gradient(90deg, transparent, var(--star-type-color, var(--pax-ui-accent)), transparent);
     }
 
     .star-identity-grid {
@@ -508,8 +508,8 @@
     .star-field__label,
     .star-rate__label {
         gap: 6px;
-        color: var(--hud-text-soft);
-        font-family: var(--hud-font-ui);
+        color: var(--pax-ui-text-soft);
+        font-family: var(--pax-ui-font-ui);
         font-size: 0.55rem;
         font-weight: 800;
         letter-spacing: 0.13em;
@@ -523,8 +523,8 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        color: var(--hud-text-strong);
-        font-family: var(--hud-font-ui);
+        color: var(--pax-ui-text-strong);
+        font-family: var(--pax-ui-font-ui);
         font-size: 0.78rem;
         font-weight: 700;
     }
@@ -544,7 +544,7 @@
     }
 
     .star-rate__value {
-        color: var(--hud-accent-strong);
+        color: var(--pax-ui-accent-strong);
         font-size: 0.9rem;
     }
 
@@ -561,8 +561,8 @@
         padding: 0 10px;
         border-radius: 999px;
         background: rgba(14, 24, 43, 0.88);
-        color: var(--hud-text-soft);
-        font-family: var(--hud-font-ui);
+        color: var(--pax-ui-text-soft);
+        font-family: var(--pax-ui-font-ui);
         font-size: 0.66rem;
         font-weight: 700;
         white-space: nowrap;
@@ -579,10 +579,10 @@
         display: grid;
         place-items: center;
         padding: 18px;
-        border-radius: var(--hud-radius-sm);
+        border-radius: var(--pax-ui-radius-sm);
         border: 1px dashed rgba(112, 142, 186, 0.24);
-        color: var(--hud-text-soft);
-        font-family: var(--hud-font-ui);
+        color: var(--pax-ui-text-soft);
+        font-family: var(--pax-ui-font-ui);
         font-size: 0.84rem;
         text-align: center;
     }
@@ -590,7 +590,7 @@
     @media (max-width: 1024px) {
         .star-nav-card {
             gap: 10px;
-            padding: var(--hud-pad-sm);
+            padding: var(--pax-ui-pad-sm);
         }
 
         .star-nav-body {

@@ -32,20 +32,20 @@
     gap: 12px;
     padding: 0 12px;
     border: 1px solid transparent;
-    border-radius: var(--hud-radius-xs);
-    clip-path: var(--hud-rounded-corner-xs);
+    border-radius: var(--pax-ui-radius-xs);
+    clip-path: var(--pax-ui-rounded-corner-xs);
     background:
       linear-gradient(180deg, rgba(0, 18, 21, 0.86), rgba(0, 10, 13, 0.94)) padding-box,
-      var(--hud-control-border-gradient) border-box;
-    color: var(--hud-text-soft);
-    font-family: var(--hud-font-ui);
+      var(--pax-ui-control-border-gradient) border-box;
+    color: var(--pax-ui-text-soft);
+    font-family: var(--pax-ui-font-ui);
   }
 
   .pax-settings-info-row__label {
     min-width: 0;
     overflow: hidden;
-    color: var(--hud-text-soft);
-    font-size: calc(0.74rem * var(--hud-type-scale, 1));
+    color: var(--pax-ui-text-soft);
+    font-size: calc(0.74rem * var(--pax-ui-type-scale, 1));
     font-weight: 700;
     letter-spacing: 0.04em;
     text-overflow: ellipsis;
@@ -55,9 +55,9 @@
   .pax-settings-info-row__value {
     min-width: 0;
     overflow: hidden;
-    color: var(--hud-accent-warm-strong);
-    font-family: var(--hud-font-data);
-    font-size: calc(0.72rem * var(--hud-data-scale, 1));
+    color: var(--pax-ui-accent-warm-strong);
+    font-family: var(--pax-ui-font-data);
+    font-size: calc(0.72rem * var(--pax-ui-data-scale, 1));
     font-weight: 800;
     font-variant-numeric: tabular-nums;
     text-align: right;

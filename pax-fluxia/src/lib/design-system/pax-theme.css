@@ -1,6 +1,7 @@
-/* Pax Fluxia design system tokens.
-   This file owns theme identity. Legacy --hud-* variables in app.css should
-   map to these semantic tokens instead of defining independent values. */
+/* Pax Fluxia design-system tokens — Tier 1 (primitive / theme).
+   This file owns theme identity: each [data-pax-theme] block sets the raw
+   --pax-* palette and scales. The Tier-2 semantic --pax-ui-* roles in app.css
+   reference these. Contract: .agent/docs/engineering/DESIGN_SYSTEM_TOKENS.md. */
 
 @theme {
   --color-pax-void: var(--pax-color-void);

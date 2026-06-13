@@ -229,11 +229,11 @@
         gap: 8px;
         padding: 10px;
         border: 1px solid transparent;
-        border-radius: var(--hud-radius-sm);
-        clip-path: var(--hud-rounded-corner-sm);
+        border-radius: var(--pax-ui-radius-sm);
+        clip-path: var(--pax-ui-rounded-corner-sm);
         background:
             linear-gradient(180deg, rgba(0, 18, 21, 0.76), rgba(0, 10, 13, 0.9)) padding-box,
-            var(--hud-control-border-gradient) border-box;
+            var(--pax-ui-control-border-gradient) border-box;
     }
 
     .scrub-card__header,
@@ -254,9 +254,9 @@
 
     .scrub-card__label {
         overflow: hidden;
-        color: var(--hud-text-soft);
-        font-family: var(--hud-font-ui);
-        font-size: calc(0.72rem * var(--hud-type-scale, 1));
+        color: var(--pax-ui-text-soft);
+        font-family: var(--pax-ui-font-ui);
+        font-size: calc(0.72rem * var(--pax-ui-type-scale, 1));
         font-weight: 800;
         letter-spacing: 0.06em;
         text-overflow: ellipsis;
@@ -265,26 +265,26 @@
     }
 
     .scrub-card__value {
-        color: var(--hud-accent-warm-strong);
-        font-family: var(--hud-font-data);
-        font-size: calc(0.72rem * var(--hud-data-scale, 1));
+        color: var(--pax-ui-accent-warm-strong);
+        font-family: var(--pax-ui-font-data);
+        font-size: calc(0.72rem * var(--pax-ui-data-scale, 1));
         font-weight: 800;
         white-space: nowrap;
     }
 
     .var-desc {
         margin: 0 0 2px;
-        color: var(--hud-text-dim);
-        font-family: var(--hud-font-copy);
-        font-size: calc(0.68rem * var(--hud-type-scale, 1));
+        color: var(--pax-ui-text-dim);
+        font-family: var(--pax-ui-font-copy);
+        font-size: calc(0.68rem * var(--pax-ui-type-scale, 1));
         line-height: 1.35;
     }
 
     .sub-heading {
         margin: 12px 0 6px;
-        color: var(--hud-accent-cyan);
-        font-family: var(--hud-font-ui);
-        font-size: calc(0.68rem * var(--hud-type-scale, 1));
+        color: var(--pax-ui-accent-cyan);
+        font-family: var(--pax-ui-font-ui);
+        font-size: calc(0.68rem * var(--pax-ui-type-scale, 1));
         font-weight: 800;
         letter-spacing: 0.12em;
         text-transform: uppercase;

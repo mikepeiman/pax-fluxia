@@ -96,9 +96,9 @@
     display: grid;
     gap: 12px;
     padding: 14px;
-    border: 1px solid var(--hud-border);
-    border-radius: var(--hud-radius-md);
-    background: var(--hud-panel-bg-muted);
+    border: 1px solid var(--pax-ui-border);
+    border-radius: var(--pax-ui-radius-md);
+    background: var(--pax-ui-panel-bg-muted);
     box-shadow: inset 0 0 0 1px rgba(246, 196, 105, 0.045);
   }
 
@@ -115,9 +115,9 @@
 
   .pf-hud-theme-panel__eyebrow,
   .pf-hud-theme-panel__status {
-    color: var(--hud-accent);
-    font-family: var(--hud-font-label);
-    font-size: calc(0.62rem * var(--hud-label-scale, 1));
+    color: var(--pax-ui-accent);
+    font-family: var(--pax-ui-font-label);
+    font-size: calc(0.62rem * var(--pax-ui-label-scale, 1));
     font-weight: 800;
     letter-spacing: 0.14em;
     text-transform: uppercase;
@@ -125,9 +125,9 @@
 
   .pf-hud-theme-panel h3 {
     margin: 2px 0 0;
-    color: var(--hud-accent-warm-strong);
-    font-family: var(--hud-font-ui);
-    font-size: calc(0.94rem * var(--hud-title-scale, 1));
+    color: var(--pax-ui-accent-warm-strong);
+    font-family: var(--pax-ui-font-ui);
+    font-size: calc(0.94rem * var(--pax-ui-title-scale, 1));
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
@@ -137,10 +137,10 @@
   :global(.pf-hud-theme-card) {
     border: 1px solid transparent;
     background:
-      linear-gradient(var(--hud-button-bg), var(--hud-button-bg)) padding-box,
-      var(--hud-control-border-gradient) border-box;
-    color: var(--hud-text);
-    font-family: var(--hud-font-ui);
+      linear-gradient(var(--pax-ui-button-bg), var(--pax-ui-button-bg)) padding-box,
+      var(--pax-ui-control-border-gradient) border-box;
+    color: var(--pax-ui-text);
+    font-family: var(--pax-ui-font-ui);
   }
 
   :global(.pf-hud-theme-panel__export) {
@@ -149,7 +149,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: var(--hud-radius-xs);
+    border-radius: var(--pax-ui-radius-xs);
     cursor: pointer;
   }
 
@@ -161,9 +161,9 @@
 
   :global(.pf-hud-theme-panel__select span) {
     flex: 0 0 92px;
-    color: var(--hud-text-dim);
-    font-family: var(--hud-font-label);
-    font-size: calc(0.62rem * var(--hud-label-scale, 1));
+    color: var(--pax-ui-text-dim);
+    font-family: var(--pax-ui-font-label);
+    font-size: calc(0.62rem * var(--pax-ui-label-scale, 1));
     font-weight: 800;
     letter-spacing: 0.14em;
     text-transform: uppercase;
@@ -173,9 +173,9 @@
     min-width: 0;
     flex: 1 1 auto;
     height: 36px;
-    border-radius: var(--hud-radius-xs);
+    border-radius: var(--pax-ui-radius-xs);
     padding: 0 10px;
-    font-size: calc(0.78rem * var(--hud-type-scale, 1));
+    font-size: calc(0.78rem * var(--pax-ui-type-scale, 1));
     font-weight: 700;
   }
 
@@ -191,24 +191,24 @@
     gap: 10px;
     min-height: 58px;
     padding: 9px;
-    border-radius: var(--hud-radius-sm);
+    border-radius: var(--pax-ui-radius-sm);
     cursor: pointer;
     text-align: left;
   }
 
   :global(.pf-hud-theme-card:hover),
   :global(.pf-hud-theme-card.active) {
-    color: var(--hud-text-strong);
+    color: var(--pax-ui-text-strong);
     box-shadow:
       inset 0 0 0 1px rgba(246, 196, 105, 0.14),
       0 0 18px rgba(246, 196, 105, 0.12);
   }
 
   :global(.pf-hud-theme-card.active) {
-    border-color: var(--hud-border-strong);
+    border-color: var(--pax-ui-border-strong);
     background:
-      linear-gradient(var(--hud-button-bg-active), var(--hud-button-bg-active)) padding-box,
-      var(--hud-control-border-gradient) border-box;
+      linear-gradient(var(--pax-ui-button-bg-active), var(--pax-ui-button-bg-active)) padding-box,
+      var(--pax-ui-control-border-gradient) border-box;
   }
 
   .pf-hud-theme-card__swatches {
@@ -230,23 +230,23 @@
   }
 
   .pf-hud-theme-card__copy strong {
-    color: var(--hud-accent-warm-strong);
-    font-size: calc(0.82rem * var(--hud-title-scale, 1));
+    color: var(--pax-ui-accent-warm-strong);
+    font-size: calc(0.82rem * var(--pax-ui-title-scale, 1));
     letter-spacing: 0.07em;
     text-transform: uppercase;
   }
 
   .pf-hud-theme-card__copy small {
-    color: var(--hud-text-soft);
-    font-family: var(--hud-font-copy);
-    font-size: calc(0.68rem * var(--hud-type-scale, 1));
+    color: var(--pax-ui-text-soft);
+    font-family: var(--pax-ui-font-copy);
+    font-size: calc(0.68rem * var(--pax-ui-type-scale, 1));
     line-height: 1.25;
   }
 
   .pf-hud-theme-panel__status {
     min-width: 0;
     overflow: hidden;
-    color: var(--hud-text-dim);
+    color: var(--pax-ui-text-dim);
     text-overflow: ellipsis;
     white-space: nowrap;
   }

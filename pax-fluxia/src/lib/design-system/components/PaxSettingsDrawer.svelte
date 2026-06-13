@@ -19,7 +19,7 @@
   let {
     title,
     icon,
-    accent = "var(--hud-accent-warm)",
+    accent = "var(--pax-ui-accent-warm)",
     closeTitle,
     bodyClass = "",
     class: className = "",
@@ -70,21 +70,21 @@
     flex-direction: column;
     overflow: hidden;
     border: 1px solid transparent;
-    border-radius: var(--hud-radius-md);
-    clip-path: var(--hud-rounded-corner-md);
+    border-radius: var(--pax-ui-radius-md);
+    clip-path: var(--pax-ui-rounded-corner-md);
     background:
       linear-gradient(180deg, rgba(3, 23, 26, 0.97), rgba(1, 8, 13, 0.99)) padding-box,
-      var(--hud-border-gradient) border-box;
-    box-shadow: var(--hud-shadow-soft);
-    color: var(--hud-text);
-    font-family: var(--hud-font-ui);
+      var(--pax-ui-border-gradient) border-box;
+    box-shadow: var(--pax-ui-shadow-soft);
+    color: var(--pax-ui-text);
+    font-family: var(--pax-ui-font-ui);
     animation: pax-settings-drawer-enter 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .pax-settings-drawer__header {
     display: flex;
     flex-direction: column;
-    border-bottom: 1px solid var(--hud-divider);
+    border-bottom: 1px solid var(--pax-ui-divider);
     background:
       linear-gradient(90deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent),
       rgba(0, 15, 18, 0.72);
@@ -98,7 +98,7 @@
     border: 0;
     border-radius: 0;
     background: transparent;
-    color: var(--hud-accent-warm-strong);
+    color: var(--pax-ui-accent-warm-strong);
     box-shadow: none;
   }
 
@@ -117,16 +117,16 @@
   .pax-settings-drawer__head-icon {
     width: 20px;
     height: 20px;
-    color: var(--hud-accent-warm);
+    color: var(--pax-ui-accent-warm);
   }
 
   .pax-settings-drawer__head-label {
     min-width: 0;
     flex: 1 1 auto;
     overflow: hidden;
-    color: var(--hud-accent-warm-strong);
-    font-family: var(--hud-font-ui);
-    font-size: calc(0.86rem * var(--hud-title-scale, 1));
+    color: var(--pax-ui-accent-warm-strong);
+    font-family: var(--pax-ui-font-ui);
+    font-size: calc(0.86rem * var(--pax-ui-title-scale, 1));
     font-weight: 800;
     letter-spacing: 0.09em;
     line-height: 1.1;
@@ -164,9 +164,9 @@
 
   .pax-settings-drawer__body :global(p) {
     margin: 0;
-    color: var(--hud-text-soft);
-    font-family: var(--hud-font-copy);
-    font-size: calc(0.76rem * var(--hud-type-scale, 1));
+    color: var(--pax-ui-text-soft);
+    font-family: var(--pax-ui-font-copy);
+    font-size: calc(0.76rem * var(--pax-ui-type-scale, 1));
     line-height: 1.45;
   }
 

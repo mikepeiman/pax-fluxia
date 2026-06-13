@@ -114,13 +114,13 @@
     gap: 7px;
     padding: 10px;
     border: 1px solid transparent;
-    border-radius: var(--hud-radius-sm);
-    clip-path: var(--hud-rounded-corner-sm);
+    border-radius: var(--pax-ui-radius-sm);
+    clip-path: var(--pax-ui-rounded-corner-sm);
     background:
       linear-gradient(180deg, rgba(0, 18, 21, 0.78), rgba(0, 10, 13, 0.9)) padding-box,
-      var(--hud-control-border-gradient) border-box;
-    color: var(--hud-text);
-    font-family: var(--hud-font-ui);
+      var(--pax-ui-control-border-gradient) border-box;
+    color: var(--pax-ui-text);
+    font-family: var(--pax-ui-font-ui);
   }
 
   .pax-settings-picker-row--disabled {
@@ -129,8 +129,8 @@
 
   .pax-settings-picker-row__label {
     overflow: hidden;
-    color: var(--hud-text-soft);
-    font-size: calc(0.7rem * var(--hud-type-scale, 1));
+    color: var(--pax-ui-text-soft);
+    font-size: calc(0.7rem * var(--pax-ui-type-scale, 1));
     font-weight: 800;
     letter-spacing: 0.08em;
     text-overflow: ellipsis;
@@ -148,11 +148,11 @@
     gap: 10px;
     padding: 6px 9px;
     border: 1px solid transparent;
-    border-radius: var(--hud-radius-xs);
+    border-radius: var(--pax-ui-radius-xs);
     background:
       linear-gradient(180deg, rgba(0, 21, 25, 0.9), rgba(0, 11, 14, 0.96)) padding-box,
-      var(--hud-control-border-gradient) border-box;
-    color: var(--hud-text);
+      var(--pax-ui-control-border-gradient) border-box;
+    color: var(--pax-ui-text);
     cursor: pointer;
     font: inherit;
   }
@@ -164,16 +164,16 @@
   .pax-settings-picker-row__value {
     min-width: 0;
     overflow: hidden;
-    color: var(--hud-text);
-    font-family: var(--hud-font-data);
-    font-size: calc(0.72rem * var(--hud-data-scale, 1));
+    color: var(--pax-ui-text);
+    font-family: var(--pax-ui-font-data);
+    font-size: calc(0.72rem * var(--pax-ui-data-scale, 1));
     text-align: left;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .pax-settings-picker-row__chevron {
-    color: var(--hud-accent-warm-strong);
+    color: var(--pax-ui-accent-warm-strong);
     font-size: 0.6rem;
     line-height: 1;
   }
@@ -188,11 +188,11 @@
     overflow-y: auto;
     padding: 5px;
     border: 1px solid transparent;
-    border-radius: var(--hud-radius-sm);
+    border-radius: var(--pax-ui-radius-sm);
     background:
       linear-gradient(180deg, rgba(0, 17, 20, 0.98), rgba(0, 8, 10, 0.98)) padding-box,
-      var(--hud-border-gradient) border-box;
-    box-shadow: var(--hud-shadow-panel);
+      var(--pax-ui-border-gradient) border-box;
+    box-shadow: var(--pax-ui-shadow-panel);
   }
 
   .pax-settings-picker-row__option {
@@ -209,10 +209,10 @@
 
   .pax-settings-picker-row__option-main,
   .pax-settings-picker-row__preview {
-    border: 1px solid color-mix(in srgb, var(--hud-accent-warm) 22%, transparent);
-    border-radius: var(--hud-radius-xs);
+    border: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 22%, transparent);
+    border-radius: var(--pax-ui-radius-xs);
     background: rgba(0, 18, 21, 0.74);
-    color: var(--hud-text-dim);
+    color: var(--pax-ui-text-dim);
     cursor: pointer;
     font: inherit;
   }
@@ -230,14 +230,14 @@
 
   .pax-settings-picker-row__option-main:hover,
   .pax-settings-picker-row__preview:hover {
-    border-color: color-mix(in srgb, var(--hud-accent-cyan) 48%, transparent);
-    color: var(--hud-text);
+    border-color: color-mix(in srgb, var(--pax-ui-accent-cyan) 48%, transparent);
+    color: var(--pax-ui-text);
   }
 
   .pax-settings-picker-row__option--selected .pax-settings-picker-row__option-main {
-    border-color: color-mix(in srgb, var(--hud-accent-warm) 65%, transparent);
-    color: var(--hud-accent-warm-strong);
-    box-shadow: 0 0 14px color-mix(in srgb, var(--hud-accent-warm) 16%, transparent);
+    border-color: color-mix(in srgb, var(--pax-ui-accent-warm) 65%, transparent);
+    color: var(--pax-ui-accent-warm-strong);
+    box-shadow: 0 0 14px color-mix(in srgb, var(--pax-ui-accent-warm) 16%, transparent);
   }
 
   .pax-settings-picker-row__option-label {
@@ -248,8 +248,8 @@
   }
 
   .pax-settings-picker-row__option-meta {
-    color: var(--hud-text-muted);
-    font-size: calc(0.62rem * var(--hud-type-scale, 1));
+    color: var(--pax-ui-text-muted);
+    font-size: calc(0.62rem * var(--pax-ui-type-scale, 1));
     text-transform: uppercase;
     white-space: nowrap;
   }
@@ -257,6 +257,6 @@
   .pax-settings-picker-row__preview {
     width: 30px;
     min-height: 30px;
-    color: var(--hud-accent-cyan);
+    color: var(--pax-ui-accent-cyan);
   }
 </style>

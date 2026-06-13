@@ -2352,7 +2352,7 @@
   .territory-helper-copy {
     margin-bottom: 10px;
     opacity: 0.75;
-    font-size: calc(0.68rem * var(--hud-type-scale, 1));
+    font-size: calc(0.68rem * var(--pax-ui-type-scale, 1));
     line-height: 1.35;
   }
   .territory-helper-copy--compact {
@@ -2362,7 +2362,7 @@
   .territory-helper-copy--inline {
     padding: 2px 4px;
     opacity: 0.7;
-    font-size: calc(0.62rem * var(--hud-type-scale, 1));
+    font-size: calc(0.62rem * var(--pax-ui-type-scale, 1));
   }
   .territory-helper-copy--spaced {
     margin: 10px 0 2px;

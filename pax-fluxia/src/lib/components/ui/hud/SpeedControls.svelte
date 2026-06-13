@@ -98,7 +98,7 @@
     .speed-controls-container {
         flex-direction: column;
         align-items: stretch;
-        gap: var(--hud-gap-xs);
+        gap: var(--pax-ui-gap-xs);
     }
 
     .speed-controls-container :global(.start-btn),

@@ -86,10 +86,10 @@
         gap: 8px;
         margin: 16px 0 8px;
         padding-top: 12px;
-        border-top: 1px solid color-mix(in srgb, var(--hud-accent-warm) 18%, transparent);
-        color: var(--hud-text-soft);
-        font-family: var(--hud-font-ui);
-        font-size: calc(0.68rem * var(--hud-type-scale, 1));
+        border-top: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 18%, transparent);
+        color: var(--pax-ui-text-soft);
+        font-family: var(--pax-ui-font-ui);
+        font-size: calc(0.68rem * var(--pax-ui-type-scale, 1));
         font-weight: 800;
         letter-spacing: 0.14em;
         text-transform: uppercase;
@@ -99,8 +99,8 @@
         display: grid;
         gap: 6px;
         margin-top: 4px;
-        font-family: var(--hud-font-data);
-        font-size: calc(0.7rem * var(--hud-data-scale, 1));
+        font-family: var(--pax-ui-font-data);
+        font-size: calc(0.7rem * var(--pax-ui-data-scale, 1));
     }
 
     .status-grid > div {
@@ -111,9 +111,9 @@
     }
 
     .status-grid > div > span:first-child {
-        color: var(--hud-accent-warm);
-        font-family: var(--hud-font-ui);
-        font-size: calc(0.62rem * var(--hud-type-scale, 1));
+        color: var(--pax-ui-accent-warm);
+        font-family: var(--pax-ui-font-ui);
+        font-size: calc(0.62rem * var(--pax-ui-type-scale, 1));
         font-weight: 800;
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -124,7 +124,7 @@
     }
 
     .status-grid--compact code {
-        font-size: calc(0.68rem * var(--hud-data-scale, 1));
+        font-size: calc(0.68rem * var(--pax-ui-data-scale, 1));
         word-break: break-word;
     }
 
@@ -137,9 +137,9 @@
 
     .readout {
         margin-top: 10px;
-        color: var(--hud-text-dim);
-        font-family: var(--hud-font-copy);
-        font-size: calc(0.68rem * var(--hud-type-scale, 1));
+        color: var(--pax-ui-text-dim);
+        font-family: var(--pax-ui-font-copy);
+        font-size: calc(0.68rem * var(--pax-ui-type-scale, 1));
         line-height: 1.45;
     }
 </style>

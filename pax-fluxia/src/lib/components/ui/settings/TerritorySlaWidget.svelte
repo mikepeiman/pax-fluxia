@@ -177,9 +177,9 @@
     }
 
     .territory-sla-widget__help {
-        color: var(--hud-text-dim);
-        font-family: var(--hud-font-copy);
-        font-size: calc(0.68rem * var(--hud-type-scale, 1));
+        color: var(--pax-ui-text-dim);
+        font-family: var(--pax-ui-font-copy);
+        font-size: calc(0.68rem * var(--pax-ui-type-scale, 1));
         line-height: 1.35;
     }
 </style>

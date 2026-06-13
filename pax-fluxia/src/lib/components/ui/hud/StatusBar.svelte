@@ -117,12 +117,12 @@
         padding: 6px 10px;
         background: rgba(5, 10, 25, 0.94);
         backdrop-filter: blur(12px);
-        border-bottom: 1px solid var(--hud-divider);
+        border-bottom: 1px solid var(--pax-ui-divider);
         min-height: 36px;
         z-index: 100;
-        font-family: var(--hud-font-ui);
+        font-family: var(--pax-ui-font-ui);
         font-size: 0.62rem;
-        color: var(--hud-text);
+        color: var(--pax-ui-text);
         overflow: hidden;
     }
 
@@ -139,9 +139,9 @@
 
     .sb-swatch-btn,
     .sb-mute-btn {
-        border: 1px solid var(--hud-border);
+        border: 1px solid var(--pax-ui-border);
         background: rgba(9, 16, 31, 0.86);
-        color: var(--hud-text-soft);
+        color: var(--pax-ui-text-soft);
         cursor: pointer;
     }
 
@@ -209,7 +209,7 @@
 
     .sb-player.is-self {
         opacity: 1;
-        color: var(--hud-accent-warm);
+        color: var(--pax-ui-accent-warm);
     }
 
     .sb-dot {
@@ -240,7 +240,7 @@
     }
 
     .sb-tick {
-        color: var(--hud-accent);
+        color: var(--pax-ui-accent);
     }
 
     @media (max-width: 1024px) and (orientation: landscape) {
@@ -249,7 +249,7 @@
             grid-template-rows: auto 1fr auto;
             padding: 6px 4px;
             border-bottom: none;
-            border-right: 1px solid var(--hud-divider);
+            border-right: 1px solid var(--pax-ui-divider);
             width: 56px;
             min-height: 0;
             height: 100%;

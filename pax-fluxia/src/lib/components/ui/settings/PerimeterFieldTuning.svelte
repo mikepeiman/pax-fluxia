@@ -282,18 +282,18 @@
         gap: 8px;
         padding: 10px;
         border: 1px solid transparent;
-        border-radius: var(--hud-radius-sm);
-        clip-path: var(--hud-rounded-corner-sm);
+        border-radius: var(--pax-ui-radius-sm);
+        clip-path: var(--pax-ui-rounded-corner-sm);
         background:
             linear-gradient(180deg, rgba(0, 18, 21, 0.78), rgba(0, 10, 13, 0.9)) padding-box,
-            var(--hud-control-border-gradient) border-box;
+            var(--pax-ui-control-border-gradient) border-box;
     }
 
     .perimeter-field-select p {
         margin: 0;
-        color: var(--hud-text-dim);
-        font-family: var(--hud-font-copy);
-        font-size: calc(0.66rem * var(--hud-type-scale, 1));
+        color: var(--pax-ui-text-dim);
+        font-family: var(--pax-ui-font-copy);
+        font-size: calc(0.66rem * var(--pax-ui-type-scale, 1));
         line-height: 1.35;
     }
 </style>

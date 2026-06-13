@@ -254,11 +254,11 @@
         gap: 9px;
         padding: 10px;
         border: 1px solid transparent;
-        border-radius: var(--hud-radius-sm);
-        clip-path: var(--hud-rounded-corner-sm);
+        border-radius: var(--pax-ui-radius-sm);
+        clip-path: var(--pax-ui-rounded-corner-sm);
         background:
             linear-gradient(180deg, rgba(0, 18, 21, 0.78), rgba(0, 10, 13, 0.9)) padding-box,
-            var(--hud-control-border-gradient) border-box;
+            var(--pax-ui-control-border-gradient) border-box;
     }
 
     .timing-lock-card--locked {
@@ -283,9 +283,9 @@
 
     .timing-lock-card__label {
         overflow: hidden;
-        color: var(--hud-text-soft);
-        font-family: var(--hud-font-ui);
-        font-size: calc(0.72rem * var(--hud-type-scale, 1));
+        color: var(--pax-ui-text-soft);
+        font-family: var(--pax-ui-font-ui);
+        font-size: calc(0.72rem * var(--pax-ui-type-scale, 1));
         font-weight: 800;
         letter-spacing: 0.06em;
         text-overflow: ellipsis;
@@ -294,9 +294,9 @@
     }
 
     .timing-lock-card__value {
-        color: var(--hud-accent-warm-strong);
-        font-family: var(--hud-font-data);
-        font-size: calc(0.72rem * var(--hud-data-scale, 1));
+        color: var(--pax-ui-accent-warm-strong);
+        font-family: var(--pax-ui-font-data);
+        font-size: calc(0.72rem * var(--pax-ui-data-scale, 1));
         font-weight: 800;
         white-space: nowrap;
     }

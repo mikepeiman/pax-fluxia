@@ -158,10 +158,10 @@
     }
 
     .warning {
-        color: var(--hud-accent-warm-strong);
+        color: var(--pax-ui-accent-warm-strong);
     }
 
     .error {
-        color: var(--hud-danger);
+        color: var(--pax-ui-danger);
     }
 </style>

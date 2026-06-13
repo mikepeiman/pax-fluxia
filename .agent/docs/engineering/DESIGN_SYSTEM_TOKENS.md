@@ -19,10 +19,10 @@ which is out of scope here.
 | Tier | Prefix | Lives in | Who sets it | Who reads it |
 |------|--------|----------|-------------|--------------|
 | 1 — Primitive / theme | `--pax-*` | `design-system/pax-theme.css` (inside `[data-pax-theme]` blocks) | The active theme | Tier 2 only |
-| 2 — Semantic / role | `--hud-*` | `app.css :root` | Maps Tier 1 → roles | Components |
+| 2 — Semantic / role | `--pax-ui-*` | `app.css :root` | Maps Tier 1 → roles | Components |
 | 3 — Component | `--<component>-*` | the component's own `<style>` | The component | That component |
 
-**The rule:** components consume **Tier 2 (`--hud-*`) only**. Never a raw value,
+**The rule:** components consume **Tier 2 (`--pax-ui-*`) only**. Never a raw value,
 never `--pax-*` directly, never a deprecated third-namespace token. A component
 that needs a knob no role provides defines a Tier-3 token that references Tier 2.
 
@@ -58,7 +58,7 @@ System axes a theme may also touch but usually leaves alone:
 ## Naming rules
 
 - Primitive: `--pax-<axis>-<role>[-variant]` (e.g. `--pax-color-accent-gold-strong`).
-- Semantic: `--hud-<role>` (e.g. `--hud-accent-warm`, `--hud-panel-bg`).
+- Semantic: `--pax-ui-<role>` (e.g. `--pax-ui-accent-warm`, `--pax-ui-panel-bg`).
 - Component: `--<component>-<role>` scoped in the component (e.g. `--toggle-knob-bg`).
 - Units in the value, not the name. Sizes that scale use `calc(base * --pax-*-scale)`.
 
@@ -70,15 +70,15 @@ the deprecated token is deleted once it has zero consumers.
 
 | Deprecated (app.css third namespace) | Canonical replacement |
 |--------------------------------------|-----------------------|
-| `--color-void-*`, `--color-accent-*`, `--color-text-*` | `--hud-*` color roles |
-| `--font-display` / `--font-data` / `--font-body` / `--font-pasti` | `--hud-font-*` |
-| `--text-xs..3xl`, `--title-size`, `--label-size` | `--hud-*` type roles (Tier-1 `--pax-type-*`) |
-| `--space-1..12`, `--panel-padding`, `--panel-gap` | `--hud-pad-*` / `--hud-gap-*` |
-| `--radius-sm/md/lg` (4/8/12px — diverge from scale) | `--hud-radius-*` |
-| `--glass-*`, `--glow-cyan`, `--glow-soft` | `--hud-glow` / `--hud-shadow*` |
-| `--border-subtle`, `--border-accent` | `--hud-border*` |
-| `--transition-fast/base/slow` | `--hud-motion-*` (add) or `--pax-motion-*` |
-| `--hud-cut-corner-*` (misnomer — resolves to rounded) | `--hud-rounded-corner-*` / `--hud-radius-*` |
+| `--color-void-*`, `--color-accent-*`, `--color-text-*` | `--pax-ui-*` color roles |
+| `--font-display` / `--font-data` / `--font-body` / `--font-pasti` | `--pax-ui-font-*` |
+| `--text-xs..3xl`, `--title-size`, `--label-size` | `--pax-ui-*` type roles (Tier-1 `--pax-type-*`) |
+| `--space-1..12`, `--panel-padding`, `--panel-gap` | `--pax-ui-pad-*` / `--pax-ui-gap-*` |
+| `--radius-sm/md/lg` (4/8/12px — diverge from scale) | `--pax-ui-radius-*` |
+| `--glass-*`, `--glow-cyan`, `--glow-soft` | `--pax-ui-glow` / `--pax-ui-shadow*` |
+| `--border-subtle`, `--border-accent` | `--pax-ui-border*` |
+| `--transition-fast/base/slow` | `--pax-ui-motion-*` (add) or `--pax-motion-*` |
+| `--pax-ui-cut-corner-*` (misnomer — resolves to rounded) | `--pax-ui-rounded-corner-*` / `--pax-ui-radius-*` |
 
 Note: several third-namespace color/radius tokens hold values that **diverge**
 from the design system (e.g. `--color-accent-cyan: #00ffff` vs the Aurelia teal
@@ -87,11 +87,18 @@ will shift those surfaces onto the system palette/scale — an intended congruen
 change that needs per-surface visual verification.
 
 ## Status (2026-06-13)
-- Tiers 1 and 2 exist and are mostly wired. Stage 1 added the missing z-index and
-  border-width axes and this contract.
+- **Namespace unified to one `--pax-*` family.** The semantic tier was renamed
+  `--hud-*` → `--pax-ui-*` across all definitions and 768 references (build PASS).
+  The in-game HUD now reads a single coherent namespace.
+- Tiers 1 and 2 are wired; z-index and border-width axes added.
 - The Tailwind `@theme` block at the top of `pax-theme.css` generates utility
   classes for the HUD-tier primitives. It is vestigial under the chosen
   pure-token-CSS direction and is slated for removal once the HUD-tier primitives
   stop using Tailwind utility classes (Stage 3).
-- The deprecated third namespace is still present and still has consumers;
-  removal happens during the Stage 2 (cascade) and Stage 3 (primitive) migrations.
+- **Remaining deprecated third namespace** (`--color-*`, `--space-*`, `--text-*`,
+  `--radius-sm/md/lg`, `--transition-*`, `--font-display/data/body`, `--glass-*`,
+  `--glow-*`, `--border-subtle/accent`) is now confined to: the **landing/marketing
+  site** (`lib/components/landing-site/*`, ~148 refs), **archived dead code**
+  (`lib/components/ui/_archived/*`, ~40 refs), one live control (`RangeDual.svelte`),
+  and the demoted `aurelia-hud` package. Disposition of the landing site is a
+  scope decision (its values intentionally diverge from the in-game HUD).
