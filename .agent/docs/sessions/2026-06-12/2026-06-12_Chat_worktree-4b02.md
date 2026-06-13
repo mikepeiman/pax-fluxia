@@ -161,3 +161,8 @@ Prompt:
 - Validated the completed Territory migration with `git diff --check` and production build.
 - Added `accentId` to `PaxHudButton` and moved `GameSettingsPanel.svelte` tool/section accents from inline `--accent` styles to data-driven CSS selectors.
 - Validated `GameSettingsPanel.svelte` with zero raw-control/inline-style audit hits and production build.
+- Continued the systemic token/theme implementation by self-hosting the HUD font families in `pax-fluxia/static/fonts/hud/`.
+- Removed Google-hosted font imports from `app.css`, landing, play, map editor, and UI-test route heads.
+- Preserved existing HUD typography token names while moving the font source to packaged local files.
+- Removed stale raw-control-era CSS selector families from `ControlsSection-Territory.svelte` and rewrapped the remaining indentation case so Svelte scoping recognizes it.
+- Validated with zero-match hosted-font audit, zero-match Territory stale-selector audit, and production build.

@@ -1518,3 +1518,45 @@ Merge guidance:
 
 - Preserve the `accentId` prop on `PaxHudButton`; it is now part of the design-system primitive API.
 - If section/tool colors are later centralized into theme tokens, update the selector map rather than restoring inline styles.
+
+## 2026-06-12 Local HUD Font Packaging
+
+Scope implemented in this step:
+
+- Added local packaged font files in:
+  - `pax-fluxia/static/fonts/hud/`
+- Updated:
+  - `pax-fluxia/src/app.css`
+  - `pax-fluxia/src/routes/+page.svelte`
+  - `pax-fluxia/src/routes/play/+page.svelte`
+  - `pax-fluxia/src/routes/map-editor/+page.svelte`
+  - `pax-fluxia/src/routes/dev/ui-test/+page.svelte`
+  - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Territory.svelte`
+
+Why this matters for merge:
+
+- The HUD typography system now packages its active font families locally instead of depending on Google-hosted CSS/font downloads.
+- The existing token contracts remain intact:
+  - `--font-display`
+  - `--font-data`
+  - `--font-body`
+  - `--font-pasti`
+  - `--hud-font-*`
+  - `--pax-font-*`
+- Route entry points no longer add their own hosted font links, so typography ownership stays in `app.css` and the design-system/theme files.
+- `ControlsSection-Territory.svelte` no longer carries raw-control-era unused selector families after the primitive migration.
+
+Validation:
+
+- Static hosted-font audit returned no matches for `@import url`, `fonts.googleapis`, `fonts.gstatic`, or `preconnect` in `pax-fluxia/src` and `pax-fluxia/static`.
+- Static Territory cleanup audit returned no matches for the removed raw-control selector families.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- Previous Territory unused-selector warnings are gone.
+- Existing non-blocking build warnings remain: large chunks, dynamic/static import duplication for `gameStore.svelte.ts`, and unused `Room` import in `multiplayerStore.svelte.ts`.
+
+Merge guidance:
+
+- Do not restore Google Fonts `<link>` tags or `@import` rules in route heads.
+- Keep font loading centralized in `pax-fluxia/src/app.css` unless a later theme loader intentionally changes font ownership.
+- Preserve the local font files under `static/fonts/hud`; they are part of packaging readiness, not disposable generated artifacts.
+- If adding new font tokens, package the font files locally first and wire them through the token layer rather than loading from a CDN.

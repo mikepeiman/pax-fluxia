@@ -1341,25 +1341,26 @@
         value,
         "Corridor Virtual Sites (CX)",
       )} />
-  <PaxSettingsToggleRow
-    class="territory-indent"
-    label="Lane Midpoint Pairs"
-    checked={panel.cxContestMidpointVstars ??
-      GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ??
-      true}
-    meta={(panel.cxContestMidpointVstars ??
-      GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ??
-      true)
-      ? "On"
-      : "Off"}
-    settingConfigKey="TERRITORY_CX_CONTEST_MIDPOINT_VSTARS"
-    onChange={(value) =>
-      queueTopologyToggleUpdate(
-        "TERRITORY_CX_CONTEST_MIDPOINT_VSTARS",
-        "cxContestMidpointVstars",
-        value,
-        "Lane Midpoint Pairs",
-      )} />
+  <div class="territory-indent">
+    <PaxSettingsToggleRow
+      label="Lane Midpoint Pairs"
+      checked={panel.cxContestMidpointVstars ??
+        GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ??
+        true}
+      meta={(panel.cxContestMidpointVstars ??
+        GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ??
+        true)
+        ? "On"
+        : "Off"}
+      settingConfigKey="TERRITORY_CX_CONTEST_MIDPOINT_VSTARS"
+      onChange={(value) =>
+        queueTopologyToggleUpdate(
+          "TERRITORY_CX_CONTEST_MIDPOINT_VSTARS",
+          "cxContestMidpointVstars",
+          value,
+          "Lane Midpoint Pairs",
+        )} />
+  </div>
   <div
     class="var-row indent territory-range-note"
     class:disabled={!cxOn}
@@ -2193,92 +2194,9 @@
     align-items: center;
     gap: 10px;
   }
-  .territory-scope-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-  }
   .territory-section-title {
     flex: 1;
     margin: 0;
-  }
-  .territory-all-toggle {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 44px;
-    min-height: 28px;
-    padding: 0 10px;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(7, 12, 24, 0.5);
-    color: rgba(240, 244, 248, 0.9);
-    cursor: pointer;
-    transition:
-      border-color 0.15s ease,
-      background 0.15s ease,
-      color 0.15s ease,
-      transform 0.15s ease;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-  }
-  .territory-all-toggle:hover {
-    transform: translateY(-1px);
-    border-color: rgba(255, 255, 255, 0.22);
-    background: rgba(16, 24, 40, 0.72);
-  }
-  .territory-all-toggle.active {
-    border-color: rgba(95, 211, 255, 0.42);
-    background: rgba(49, 105, 164, 0.26);
-    box-shadow: 0 0 0 1px rgba(95, 211, 255, 0.16);
-  }
-  .territory-module-nav {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-  }
-  .territory-module-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    width: 100%;
-    min-height: 30px;
-    padding: 0 12px;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(7, 12, 24, 0.45);
-    color: rgba(226, 232, 240, 0.84);
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition:
-      border-color 0.15s ease,
-      background 0.15s ease,
-      color 0.15s ease,
-      transform 0.15s ease;
-  }
-  .territory-module-chip:hover {
-    transform: translateY(-1px);
-    border-color: rgba(255, 255, 255, 0.22);
-    background: rgba(16, 24, 40, 0.72);
-    color: rgba(241, 245, 249, 0.98);
-  }
-  .territory-module-chip.active {
-    border-color: rgba(95, 211, 255, 0.42);
-    background: rgba(49, 105, 164, 0.26);
-    box-shadow: 0 0 0 1px rgba(95, 211, 255, 0.16);
-    color: rgba(248, 250, 252, 0.98);
-  }
-  .territory-module-chip__icon {
-    display: inline-grid;
-    place-items: center;
-    width: 18px;
-    font-size: 13px;
-    line-height: 1;
   }
   .territory-module-grid {
     display: flex;
@@ -2328,17 +2246,6 @@
     font-size: 11px;
     line-height: 1.45;
     color: rgba(197, 214, 229, 0.68);
-  }
-  .lock-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 11px;
-    font-weight: 600;
-    color: rgba(149, 211, 177, 0.9);
-  }
-  .lock-toggle input {
-    margin: 0;
   }
   @media (max-width: 900px) {
     .territory-module-grid {
@@ -2440,75 +2347,5 @@
   }
   .axis-note__danger {
     color: #fca5a5;
-  }
-  .axis-buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 3px;
-    flex: 1;
-    min-width: 0;
-  }
-  .axis-btn {
-    padding: 3px 8px;
-    background: transparent;
-    border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
-    border-radius: 10px;
-    color: var(--accent, #888);
-    font-size: 9px;
-    cursor: pointer;
-    transition: all 0.15s;
-    white-space: nowrap;
-    line-height: 1.3;
-  }
-  .axis-btn:hover {
-    background: var(--accent-bg, rgba(255, 255, 255, 0.06));
-    border-color: var(--accent, #888);
-  }
-  .axis-btn.active {
-    background: var(--accent, #888);
-    border-color: var(--accent, #888);
-    color: #111;
-    font-weight: 600;
-  }
-  .axis-btn:disabled {
-    opacity: 0.38;
-    cursor: not-allowed;
-  }
-  .axis-buttons-wrap {
-    max-height: 120px;
-    overflow-y: auto;
-  }
-  .mini-btn {
-    padding: 3px 10px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 4px;
-    background: rgba(255, 255, 255, 0.06);
-    color: rgba(255, 255, 255, 0.5);
-    font-size: 11px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    letter-spacing: 0.5px;
-  }
-  .mini-btn:hover {
-    background: rgba(255, 255, 255, 0.12);
-    color: rgba(255, 255, 255, 0.8);
-    border-color: rgba(255, 255, 255, 0.25);
-  }
-  .mini-btn.active {
-    background: rgba(74, 222, 128, 0.2);
-    border-color: #4ade80;
-    color: #4ade80;
-    box-shadow: 0 0 6px rgba(74, 222, 128, 0.25);
-  }
-  .mini-btn:disabled {
-    cursor: not-allowed;
-    opacity: 0.42;
-    box-shadow: none;
-  }
-  .mini-btn:disabled:hover {
-    background: rgba(255, 255, 255, 0.06);
-    color: rgba(255, 255, 255, 0.5);
-    border-color: rgba(255, 255, 255, 0.15);
   }
 </style>

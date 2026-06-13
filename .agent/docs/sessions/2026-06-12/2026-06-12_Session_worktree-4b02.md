@@ -1121,3 +1121,41 @@ Validation:
 Next correct step:
 
 - Continue live HUD polish in `src/lib/components/game-hud/`, prioritizing Settings Ribbon, Topbar, Player Standings, Star View, and Quick Access fidelity to Aurelia Drift.
+
+## Local HUD Font Packaging
+
+Implemented:
+
+- Added packaged HUD font assets under `pax-fluxia/static/fonts/hud/`:
+  - `Cinzel-500.ttf`, `Cinzel-600.ttf`, `Cinzel-700.ttf`
+  - `Rajdhani-400.ttf`, `Rajdhani-500.ttf`, `Rajdhani-600.ttf`, `Rajdhani-700.ttf`
+  - `Inter-400.ttf`, `Inter-500.ttf`, `Inter-600.ttf`
+  - `JetBrainsMono-400.ttf`, `JetBrainsMono-700.ttf`
+- Removed the Google Fonts `@import` from `pax-fluxia/src/app.css`.
+- Added local `@font-face` rules for `Cinzel`, `Rajdhani`, `Inter`, and `JetBrains Mono` in `pax-fluxia/src/app.css`.
+- Preserved the existing `Pasti` local font and all existing HUD typography token variables.
+- Removed duplicated external font/preconnect links from:
+  - `pax-fluxia/src/routes/+page.svelte`
+  - `pax-fluxia/src/routes/play/+page.svelte`
+  - `pax-fluxia/src/routes/map-editor/+page.svelte`
+  - `pax-fluxia/src/routes/dev/ui-test/+page.svelte`
+- Removed obsolete raw-control-era CSS selector families from `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Territory.svelte`.
+- Rewrapped the remaining Territory indentation use so `.territory-indent` is applied to a real wrapper element instead of a component tag.
+
+Intent:
+
+- Make the HUD typography token layer self-contained for offline/Tauri/Steam packaging.
+- Keep route entry points from bypassing the theme/token system with ad hoc hosted font imports.
+- Remove stale settings CSS after the Territory primitive migration so build output does not carry avoidable Svelte selector warnings.
+
+Validation:
+
+- Static hosted-font audit returned zero matches for `@import url`, `fonts.googleapis`, `fonts.gstatic`, and `preconnect` in `pax-fluxia/src` and `pax-fluxia/static`.
+- Static Territory cleanup audit returned zero matches for the removed selector families in `ControlsSection-Territory.svelte`.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- The previous `ControlsSection-Territory.svelte` unused-selector warnings no longer appear.
+- Remaining build warnings are existing bundle-size and dynamic/static import warnings plus an unused `Room` import in `multiplayerStore.svelte.ts`; none were introduced by this font packaging phase.
+
+Next correct step:
+
+- Continue live HUD style/layout work through the existing Pax primitives and tokens, prioritizing the Settings Ribbon, Theme Library, Topbar, Player Standings, Star View, and Quick Access surfaces.
