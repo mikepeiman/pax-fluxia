@@ -171,3 +171,7 @@ Prompt:
 - Converted audited live HUD/GameContainer string-built `style=` attributes and active class directives to Svelte style/class directives or layout-neutral color scopes.
 - Added a topbar player-badge color scope and global selector bridges for Pax child-component button classes where Svelte scoping requires them.
 - Validated with zero-match live HUD raw-control/style/glyph/label audit, `git diff --check`, and production build.
+- Refined the live Settings rail to compact `68px` and expanded `108px`, with expanded labels truncating instead of wrapping.
+- Reordered the Settings rail tools to match the user’s requested set/order while retaining Diagnostics.
+- Improved Theme Library list composition: larger scroll range, stable scrollbar gutter, grid-aligned rows, single-line names/dates, and ellipsis truncation.
+- Validated Settings/Theme surfaces with targeted audit, `git diff --check`, and production build.

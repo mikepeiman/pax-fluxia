@@ -828,8 +828,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             color: "#f59e0b",
             sectionId: "diagnostics",
         },
-        { id: "hotkeys", icon: "keyboard", label: "Hotkeys", color: "#8ab4ff" },
-        { id: "help", icon: "help", label: "Help", color: "#a8b6cf" },
         {
             id: "restart",
             icon: "restart",
@@ -838,6 +836,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             action: "restart",
         },
         { id: "quit", icon: "quit", label: "Quit", color: "#ff6a7a", action: "quit" },
+        { id: "hotkeys", icon: "keyboard", label: "Hotkeys", color: "#8ab4ff" },
+        { id: "help", icon: "help", label: "Help", color: "#a8b6cf" },
     ] as const;
 
     const SECTION_TOOL_BY_ID: Partial<Record<SectionId, SettingsToolId>> = {
@@ -1599,7 +1599,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     .controls-panel--ribbon-expanded {
-        --settings-ribbon-width: 176px;
+        --settings-ribbon-width: 108px;
     }
 
     .settings-shell {
@@ -1730,6 +1730,10 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .icon-label {
         display: none;
         flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
         font-family: var(--hud-font-ui);
         font-size: 0.62rem;
         font-weight: 700;
@@ -2232,14 +2236,14 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
 
     /* Settings ownership correction: the rail is the master component. */
     .controls-panel {
-        --settings-ribbon-width: 64px;
+        --settings-ribbon-width: 68px;
         height: 100%;
         max-height: 100%;
         gap: 0;
     }
 
     .controls-panel--ribbon-expanded {
-        --settings-ribbon-width: 168px;
+        --settings-ribbon-width: 108px;
     }
 
     .settings-shell,

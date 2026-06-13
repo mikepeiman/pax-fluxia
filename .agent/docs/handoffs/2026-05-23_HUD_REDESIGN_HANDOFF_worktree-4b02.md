@@ -1596,3 +1596,39 @@ Merge guidance:
 - Do not replace the Pax button primitives in `GameContainer.svelte` with raw buttons.
 - If moving the modal/FAB styles into shared HUD CSS later, keep the component-boundary issue in mind: classes passed into child components need either shared global CSS or styles owned by the child primitive.
 - Dynamic player/star/theme colors are still intentional game-signal values; keep them as scoped CSS custom properties or style directives rather than hardcoded theme colors.
+
+## 2026-06-12 Settings Rail And Theme Library Refinement
+
+Scope implemented in this step:
+
+- Updated:
+  - `pax-fluxia/src/lib/components/game/GameContainer.svelte`
+  - `pax-fluxia/src/lib/components/ui/GameSettingsPanel.svelte`
+  - `pax-fluxia/src/lib/styles/hud.css`
+
+Why this matters for merge:
+
+- The live Settings rail now follows the requested compact/expanded drawer proportions more closely:
+  - compact rail: `68px`
+  - expanded rail: `108px`
+- Expanded Settings labels are single-line and ellipsis-truncated.
+- Settings rail order now reflects the user-requested tool set while keeping Diagnostics as the allowed extra shortcut.
+- Theme Library list behavior is now explicitly tuned for:
+  - scroll
+  - newest-first data order already provided by `ThemeLibraryPanel.svelte`
+  - single-line row names and dates
+  - ellipsis truncation
+  - no category display
+  - no live-game Load Map control
+
+Validation:
+
+- Targeted Settings/Theme audit returned no matches for live-game Save/Load Map labels, banned placeholder copy, raw controls, raw `style=`, or active-class directives in `GameSettingsPanel.svelte` and `ThemeLibraryPanel.svelte`.
+- `git diff --check`: passed with line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+
+Merge guidance:
+
+- Preserve the 68px/108px rail model unless a later visual pass explicitly changes the rail proportions.
+- Keep `ThemeLibraryPanel.svelte` newest-first sort and avoid reintroducing category grouping or Load Map into the Theme Library.
+- If adding new Settings rail labels, keep them short because expanded rail width is intentionally constrained.

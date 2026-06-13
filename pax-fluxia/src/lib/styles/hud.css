@@ -1533,12 +1533,14 @@
 .pf-theme-library__actions {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
 }
 
 .pf-theme-library__actions button span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pf-theme-library__actions button:disabled {
@@ -1568,18 +1570,22 @@
 }
 
 .pf-theme-library__list {
-  max-height: min(145px, 22vh);
+  max-height: clamp(180px, 34vh, 360px);
   display: grid;
   gap: 5px;
   overflow-y: auto;
   padding-right: 2px;
+  scrollbar-gutter: stable;
 }
 
 .pf-theme-library__row {
   width: 100%;
   min-width: 0;
   min-height: 30px;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
   padding: 0 7px;
   border: 1px solid rgba(246, 196, 105, 0.18);
   background: rgba(0, 14, 18, 0.66);
@@ -1589,7 +1595,8 @@
 }
 
 .pf-theme-library__row-group {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 5px;
   min-width: 0;
@@ -1630,8 +1637,10 @@
 .pf-theme-library__row-date {
   flex: 0 0 auto;
   max-width: 54px;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--hud-text-dim);
   font-size: 0.5rem;
   font-weight: 900;

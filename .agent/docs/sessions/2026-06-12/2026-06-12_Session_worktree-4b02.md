@@ -1204,3 +1204,50 @@ Validation:
 Next correct step:
 
 - Continue visual fidelity work on the Settings Ribbon and Theme Library first, because those remain the most user-visible mismatch against the Aurelia Drift reference and user instructions.
+
+## Settings Rail And Theme Library Refinement
+
+Implemented:
+
+- Updated `pax-fluxia/src/lib/components/game/GameContainer.svelte` settings chrome constants:
+  - compact rail width: `68px`
+  - expanded rail width: `108px`
+- Updated matching CSS variables in `pax-fluxia/src/lib/components/ui/GameSettingsPanel.svelte`.
+- Added ellipsis truncation to expanded Settings rail labels so label text cannot wrap inside the rail.
+- Reordered the Settings rail tools to follow the user’s requested set/order:
+  - Themes
+  - Appearance
+  - Combat Tuning
+  - Audio
+  - Video / Graphics
+  - Stats
+  - Diagnostics
+  - Restart
+  - Quit
+  - Hotkeys
+  - Help
+- Retained Diagnostics because the user explicitly allowed it to remain for now.
+- Updated `pax-fluxia/src/lib/styles/hud.css` Theme Library rules:
+  - list scroll area now uses `max-height: clamp(180px, 34vh, 360px)`
+  - stable scrollbar gutter
+  - row groups use grid layout
+  - theme rows use grid columns for mark/name/date
+  - row names and dates stay single-line with ellipsis
+  - action button labels now truncate cleanly
+
+Intent:
+
+- Bring the live Settings rail closer to the requested icon-width vertical rail plus modest horizontal label expansion.
+- Keep Theme Library compact, scrollable, newest-first, and single-level without wrapping long names.
+- Continue working through system-owned CSS/tokens rather than one-off patches in the component template.
+
+Validation:
+
+- Targeted Settings/Theme audit returned zero matches for live-game `Load Map`, `Save Map`, `Settings Ribbon`, `Choose a system`, `Quick Tools`, `Low-frequency`, raw controls, `style=`, and active-class directives in `GameSettingsPanel.svelte` and `ThemeLibraryPanel.svelte`.
+- `git diff --check`: passed with line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- Remaining warnings are existing bundle-size/dynamic import warnings and unused `Room` import.
+
+Next correct step:
+
+- Continue visual-system polishing through shared HUD CSS, prioritizing Star View/Player Standings/Topbar alignment and button rhythm against the Aurelia Drift reference.
