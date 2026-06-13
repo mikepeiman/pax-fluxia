@@ -28,7 +28,8 @@
   <section
     class="pf-selected-star-tray"
     class:pf-selected-star-tray--collapsed={collapsed}
-    style={`--star-type-color:${star.starType.color}; --player-color:${star.owner?.color ?? star.starType.color};`}
+    style:--star-type-color={star.starType.color}
+    style:--player-color={star.owner?.color ?? star.starType.color}
     aria-label="Selected star tray"
   >
     <div class="pf-selected-star-tray__identity">

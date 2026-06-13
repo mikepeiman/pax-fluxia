@@ -56,7 +56,10 @@
   </div>
 
   {#if localPlayer}
-    <div class="pf-hud-topbar__player-summary" style={`--player-color:${localPlayer.color};`}>
+    <div
+      class="pf-hud-topbar__player-summary"
+      style:--player-color={localPlayer.color}
+    >
       <div class="pf-hud-topbar__summary-cell">
         <span>You</span>
         <strong>{localPlayer.isLocal ? "Command" : localPlayer.name}</strong>
@@ -106,18 +109,22 @@
 
   <div class="pf-hud-topbar__actions">
     {#if localPlayer}
-      <PaxHudButton
-        class={`pf-hud-topbar__player-badge ${standingsCollapsed ? "pf-hud-topbar__player-badge--collapsed" : ""}`}
-        active={standingsCollapsed}
-        onclick={onToggleStandings}
-        title={standingsCollapsed ? "Expand player standings" : "Collapse player standings"}
-        style={`--player-color:${localPlayer.color};`}
+      <span
+        class="pf-hud-topbar__player-badge-scope"
+        style:--player-color={localPlayer.color}
       >
-        <span class="pf-hud-topbar__player-dot"></span>
-        <span>{localPlayer.isLocal ? "You" : localPlayer.name}</span>
-        <strong class="font-hud-data">{formatHudNumber(localPlayer.totalShips)}</strong>
-        <HudIcon name={standingsCollapsed ? "chevron-down" : "chevron-up"} size={14} />
-      </PaxHudButton>
+        <PaxHudButton
+          class={`pf-hud-topbar__player-badge ${standingsCollapsed ? "pf-hud-topbar__player-badge--collapsed" : ""}`}
+          active={standingsCollapsed}
+          onclick={onToggleStandings}
+          title={standingsCollapsed ? "Expand player standings" : "Collapse player standings"}
+        >
+          <span class="pf-hud-topbar__player-dot"></span>
+          <span>{localPlayer.isLocal ? "You" : localPlayer.name}</span>
+          <strong class="font-hud-data">{formatHudNumber(localPlayer.totalShips)}</strong>
+          <HudIcon name={standingsCollapsed ? "chevron-down" : "chevron-up"} size={14} />
+        </PaxHudButton>
+      </span>
     {/if}
   </div>
 </header>

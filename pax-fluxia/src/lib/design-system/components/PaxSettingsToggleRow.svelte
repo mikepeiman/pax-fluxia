@@ -7,7 +7,8 @@
     disabled?: boolean;
     settingConfigKey?: string;
     class?: string;
-    onChange: (checked: boolean) => void;
+    onChange?: (checked: boolean) => void;
+    onToggle?: (checked: boolean) => void;
   }
 
   let {
@@ -19,7 +20,13 @@
     settingConfigKey,
     class: className = "",
     onChange,
+    onToggle,
   }: Props = $props();
+
+  function handleChange(checked: boolean) {
+    onChange?.(checked);
+    onToggle?.(checked);
+  }
 </script>
 
 <label
@@ -32,7 +39,7 @@
     type="checkbox"
     {checked}
     {disabled}
-    onchange={(event) => onChange(event.currentTarget.checked)}
+    onchange={(event) => handleChange(event.currentTarget.checked)}
   />
   <span class="pax-settings-toggle-row__switch" aria-hidden="true">
     <span class="pax-settings-toggle-row__knob"></span>

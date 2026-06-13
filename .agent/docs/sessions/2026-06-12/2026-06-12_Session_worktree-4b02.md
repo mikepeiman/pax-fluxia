@@ -623,3 +623,631 @@ Validation:
 Next correct step:
 
 - Continue with `TerritorySurfaceStyleTuning.svelte` and `ThemeSelectDropdown.svelte`, then split the large `MetaballGridTuning.svelte`, `ControlsSection-Territory.svelte`, and `ControlsSection-Ships.svelte`.
+
+## Territory Surface Style Primitive Migration
+
+Implemented:
+
+- Migrated `pax-fluxia/src/lib/components/ui/settings/TerritorySurfaceStyleTuning.svelte` to `PaxHudSelect`, `PaxSettingsRangeRow`, and `PaxSettingsToggleRow`.
+- Converted Cell Paint, Perimeter Placement, Border Paint, Ember Lattice Border Geometry, and Finish controls away from raw selects/ranges/toggles.
+- Added local option arrays for select-driven surface controls.
+- Removed obsolete legacy row-disabled CSS selectors.
+
+Intent:
+
+- Move a visual-polish-critical territory style surface onto the shared primitive/token base.
+- Preserve all existing `onUpdate(configKey, panelKey, value)` write paths.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- Targeted audit found no raw `<button>`, `<select>`, `<input>`, inline `style=`, active class toggles, old row/toggle classes, `.var-row`, `.row-top`, or `.mode-select` usage in `TerritorySurfaceStyleTuning.svelte`.
+
+Next correct step:
+
+- Decide whether to wrap/replace `ThemeSelectDropdown.svelte` or begin splitting one of the large remaining files: `MetaballGridTuning.svelte`, `ControlsSection-Territory.svelte`, or `ControlsSection-Ships.svelte`.
+
+## Theme Select Dropdown Primitive Migration
+
+Implemented:
+
+- Replaced `pax-fluxia/src/lib/components/ui/settings/ThemeSelectDropdown.svelte` custom raw-button listbox with `PaxSettingsPickerRow`.
+- Preserved the component's public props for `GameThemeManager.svelte`.
+- Flattened theme family groups for current usage; `showGroupLabels` now only emits group metadata when requested, matching the current product direction to hide category organization for now.
+
+Intent:
+
+- Remove the last small raw-control island in the Settings folder before tackling the three large files.
+- Keep theme selection on the shared primitive/token base instead of maintaining a local dropdown skin.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- Targeted audit found no raw `<button>`, `<select>`, `<input>`, inline `style=`, active class toggles, or old row/select classes in `ThemeSelectDropdown.svelte`.
+
+Next correct step:
+
+- Split the remaining large files into safe primitive-migration slices: `ControlsSection-Ships.svelte`, `ControlsSection-Territory.svelte`, and `MetaballGridTuning.svelte`.
+
+## Metaball Grid Button Primitive Slice
+
+Implemented:
+
+- Migrated `pax-fluxia/src/lib/components/ui/settings/MetaballGridTuning.svelte` module visibility controls to `PaxHudSegmentedControl`.
+- Migrated frontier benchmark preset chips to `PaxHudButton`.
+- Removed obsolete `.module-all-toggle`, `.module-chip`, and `.preset-chip` CSS.
+
+Intent:
+
+- Establish a safe primitive-owned foothold inside the largest remaining tuning component before converting its many range/select/toggle controls.
+- Preserve `METABALL_GRID_MODULE_PANEL_KEY`, `setActiveModule(...)`, `activeModule`, and `applyFrontierPreset(...)` behavior.
+
+Validation:
+
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- Targeted audit found no raw `<button>`, `class:active`, `.module-chip`, `.module-all-toggle`, or `.preset-chip` usage in `MetaballGridTuning.svelte`.
+
+Next correct step:
+
+- Continue `MetaballGridTuning.svelte` in subsections: Grid controls, Border controls, Frontier controls, Wave controls, Flip controls, then Perf controls.
+
+## Metaball Grid Full Control Primitive Migration
+
+Implemented:
+
+- Finished the remaining control migration inside `pax-fluxia/src/lib/components/ui/settings/MetaballGridTuning.svelte`.
+- Added local option arrays for Grid, Frontier, Wave, and Flip select-driven controls.
+- Migrated Grid controls to Pax primitives:
+  - enable toggle
+  - cell/base spacing
+  - Phase Field pattern spacing
+  - density alias
+  - origin mode
+  - distribution
+  - position jitter
+  - max cells
+- Migrated Phase Field grid controls to Pax primitives:
+  - cell shape
+  - cell inset
+  - inward offset
+  - square corner
+  - border mode
+  - border blend
+  - frontier highlight
+  - border/edge shaping controls
+- Migrated Frontier controls to Pax primitives:
+  - frontier technique
+  - phase sampling
+  - blur passes
+  - triangle diagonal
+  - frontier Chaikin
+  - shader softness
+  - band width
+- Migrated Wave controls to Pax primitives:
+  - adjacency
+  - wave geometry
+  - wave seeding
+- Migrated Flip controls to Pax primitives:
+  - flip transition
+  - flip window
+  - wave easing
+  - flip-time jitter
+- Migrated Phase Field finish-tail controls to `PaxSettingsRangeRow`:
+  - finish fade start/end
+  - size collapse start/end
+  - final cell size
+  - frontier fade start/end
+- Replaced the remaining inline style attributes in this component with local classes.
+
+Intent:
+
+- Remove the largest remaining mixed raw-control island from Settings and put the Metaball Grid tuning surface under the shared Pax primitive/token grammar.
+- Preserve renderer/tuning behavior by keeping all existing `writeConfig(configKey, panelKey, value)` calls and current helper functions.
+
+Validation:
+
+- `rg -n "<button|<select|<input|style=|class:active|class:is-active" pax-fluxia/src/lib/components/ui/settings/MetaballGridTuning.svelte`: no matches.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; only existing large-chunk warnings remain.
+
+Runtime note:
+
+- The reported Pixi dev-shell error `Extension type environment already has a handler` is still treated as a Vite/dev optimization cache issue if it appears in an already-running server. The code fix from the earlier slice keeps `pixi.js` in `optimizeDeps.include` and `resolve.dedupe`; if it persists locally, restart the dev server and force Vite optimization before retesting.
+
+Next correct step:
+
+- Recount raw-control density across Settings.
+- Continue systemic migration in `ControlsSection-Ships.svelte` and `ControlsSection-Territory.svelte`.
+- After those two large files are converted, shift effort from migration to visual polish against the Aurelia Drift reference.
+
+## Ships Size/Shape Primitive Migration
+
+Implemented:
+
+- Began the `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Ships.svelte` migration in the highest-density remaining Settings file.
+- Added shared local helpers:
+  - `writePanelConfig(panelKey, configKey, value)`
+  - `setStarSystemScale(newScale)`
+- Moved Star System Scale from a raw range input to `PaxSettingsRangeRow`.
+- Moved Ship Size/Shape controls to Pax primitives:
+  - Visual Radius
+  - Scale Multiplier
+  - Ship Outline
+  - Outline px
+  - Glow Intensity
+  - Glow Radius
+  - Min Contrast
+
+Intent:
+
+- Start the Ships migration with the top visible subsection and reduce duplicated inline event code before touching deeper clusters.
+- Preserve the existing star-system scale cascade that updates radius, orbit, label, and hit-radius values together.
+
+Validation:
+
+- Ships raw-control audit count reduced from `115` to `107`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Next correct step:
+
+- Continue `ControlsSection-Ships.svelte` with the Star Halos cluster, then Orbit Layout, Star Shape, Label, Arrow/Orders, Damaged Ships, Interaction, Density Coloring, and Star Glow.
+
+## Ships Star Halos Primitive Migration
+
+Implemented:
+
+- Added `PaxHudButton`, `PaxHudSegmentedControl`, and `PaxHudSegmentedOption` usage to `ControlsSection-Ships.svelte`.
+- Added `HALO_FLEET_MODE_OPTIONS` for the two-option fleet glow mode control.
+- Migrated Star Halos controls to Pax primitives:
+  - Show Halos
+  - Halo Alpha
+  - Halo Radius
+  - Halo Layers
+  - Halo Blur
+  - Layer Curve
+  - Edge Band
+  - Edge Width
+  - Glow-Dominant Ownership preset button
+  - Fleet Glow
+  - Fleet Intensity
+  - Fleet Mode
+  - Step Size
+  - Max Ships
+
+Intent:
+
+- Remove the next visible legacy control cluster in Ships while preserving all halo/fleet config writes.
+- Replace the raw two-button fleet mode group and inline style hook with a shared segmented control.
+
+Validation:
+
+- Ships raw-control audit count reduced from `107` to `89`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Next correct step:
+
+- Continue `ControlsSection-Ships.svelte` with Orbit Layout, then Star Shape and label/color controls.
+
+## Ships Orbit Layout Primitive Migration
+
+Implemented:
+
+- Migrated Orbit Layout controls in `ControlsSection-Ships.svelte` to `PaxSettingsRangeRow`:
+  - Inner Orbit Padding
+  - Orbit Spacing Size
+  - Ring Spacing
+  - Ships Per Ring
+  - Max Ships/Star
+  - Star Radius
+
+Intent:
+
+- Remove another simple raw range cluster while preserving direct config writes for orbit spacing and star radius.
+
+Validation:
+
+- Ships raw-control audit count reduced from `89` to `83`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Next correct step:
+
+- Continue `ControlsSection-Ships.svelte` with Star Shape and Ownership Ring controls.
+
+## Ships Star Shape And Ownership Ring Primitive Migration
+
+Implemented:
+
+- Continued migrating `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Ships.svelte`.
+- Added `STAR_SHAPE_MODE_OPTIONS` for the shared segmented shape-mode control.
+- Migrated Star Shape controls to Pax primitives:
+  - Shape Mode
+  - Icon Scale
+  - Corner Radius
+- Migrated Ownership Ring controls to `PaxSettingsRangeRow`:
+  - Ring Radius
+  - Ring Offset
+  - Ring Width
+  - Ring Alpha
+  - Ring Saturation
+  - Ring Lightness
+
+Intent:
+
+- Remove another contiguous raw-control island from Ships while keeping live tuning behavior intact.
+- Preserve existing `GAME_CONFIG` keys and `panel` keys through `writePanelConfig(...)`.
+
+Validation:
+
+- Ships raw-control audit count reduced from `83` to `70`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Runtime note:
+
+- The Pixi dev-shell error report remains covered by the existing Vite mitigation: `pixi.js` is prebundled and deduped in `pax-fluxia/vite.config.js`. If the error appears from an already-running dev server, restart the dev server and force Vite optimization before retesting.
+
+Next correct step:
+
+- Continue `ControlsSection-Ships.svelte` with Star Labels, including the label layout segmented control and the label-scale cascade.
+
+## Ships Star Labels Primitive Migration
+
+Implemented:
+
+- Continued migrating `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Ships.svelte`.
+- Added Star Labels option registries:
+  - `STAR_LABEL_LAYOUT_OPTIONS`
+  - `STAR_LABEL_COLOR_MODE_OPTIONS`
+- Extracted the existing label-size cascade into `setStarLabelScale(newScale)`.
+- Migrated Star Labels controls to Pax primitives:
+  - label layout
+  - label font scale
+  - angle and distance
+  - ID, active, damaged, and line-height font metrics
+  - padding, gap, background opacity, border opacity, border width
+  - tag color mode and universal HSLA controls
+  - leash line toggle
+
+Intent:
+
+- Remove the largest remaining raw-control block in Ships while preserving the exact label tuning config keys and the multi-key scale cascade.
+- Replace inline styles and local two-button modes with shared segmented controls.
+
+Validation:
+
+- Ships raw-control audit count reduced from `70` to `35`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Next correct step:
+
+- Continue `ControlsSection-Ships.svelte` with Order Arrows, Damaged Ships, Interaction, Density Coloring, and Star Glow.
+
+## Ships Remaining Controls Primitive Migration
+
+Implemented:
+
+- Completed the remaining `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Ships.svelte` migration.
+- Added arrow option/helper support:
+  - `ARROW_HEAD_STYLE_OPTIONS`
+  - `ARROW_OUTLINE_TONE_OPTIONS`
+  - `getArrowOutlineTone()`
+  - `setArrowOutlineTone(tone)`
+- Migrated Order Arrows controls to Pax primitives:
+  - arrowhead size/style/spread/notch
+  - shaft width, opacity, length, gradient steps, flow speed
+  - dash length/gap, head VFX/opacity
+  - force reactivity/ceiling
+  - outline width/opacity/tone
+- Migrated the remaining non-arrow controls:
+  - Damaged Ships orbit radius, evade toggle, and damaged scale
+  - Interaction hit zone radius
+  - Density Coloring variable loop and alternate darkening toggle
+  - Star Glow enabled/radius/intensity
+
+Intent:
+
+- Finish the Ships settings migration so the entire file is owned by the shared Pax primitive/token system.
+- Preserve all existing `GAME_CONFIG` writes and `panel` update keys.
+
+Validation:
+
+- `ControlsSection-Ships.svelte` raw visible-control audit is now `0` for `<button>`, `<select>`, `<input>`, inline `style=`, `class:active`, and `class:is-active`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Next correct step:
+
+- Continue the systemic settings migration in `ControlsSection-Territory.svelte`, then shift remaining effort from primitive migration to Aurelia Drift visual polish and live HUD layout fidelity.
+
+## Toggle Row Callback Alias Fix
+
+Implemented:
+
+- Updated `pax-fluxia/src/lib/design-system/components/PaxSettingsToggleRow.svelte`.
+- Added optional `onToggle` support alongside the existing `onChange` callback.
+- Added `.agent/docs/project/post-mortems/2026-06-12_pax-settings-toggle-row-callback-alias.md`.
+
+Intent:
+
+- Correct a runtime callback mismatch introduced during Ships migration where several new toggles used `onToggle` but the primitive only invoked `onChange`.
+- Keep existing `onChange` call sites working while making the new Ships call sites functional.
+
+Validation:
+
+- Pending build after this note; commit this fix separately from Territory migration work.
+
+Next correct step:
+
+- Build and commit the toggle-row callback fix, then resume `ControlsSection-Territory.svelte`.
+
+## Territory Navigation Primitive Migration
+
+Implemented:
+
+- Began migrating `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Territory.svelte`.
+- Added Pax primitive imports:
+  - `PaxHudButton`
+  - `PaxHudSegmentedControl`
+  - `PaxHudSelect`
+  - `PaxHudSegmentedOption`
+- Added option builders for:
+  - system module visibility
+  - renderer module visibility
+  - render mode
+  - transition select
+- Migrated visible navigation/control surfaces:
+  - Territory system module selector
+  - Territory renderer module selector
+  - render-mode selector
+  - deprecated-mode action buttons
+  - render-failure text styling hook
+  - reference transition select
+
+Intent:
+
+- Remove the most visible local button/select styling from Territory before migrating deeper tuning internals.
+- Preserve existing render-mode and transition state ownership through `selectTerritoryStyle(...)` and `debouncedConfigUpdate(...)`.
+
+Validation:
+
+- Territory raw-control/style audit count reduced from `79` to `56`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Next correct step:
+
+- Continue `ControlsSection-Territory.svelte` with the Metaball CPU grid and topology-rule tuning clusters.
+
+## Territory Metaball CPU Grid Primitive Migration
+
+Implemented:
+
+- Continued `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Territory.svelte`.
+- Added Pax primitive coverage for the Metaball CPU-grid core controls:
+  - cell size
+  - influence radius
+  - influence falloff
+  - dominance threshold
+  - fill follows geometry
+  - strength multiplier
+  - coverage padding
+  - faction blend sharpness
+- Added `metaballFalloffSelectOptions()` to adapt existing `METABALL_FALLOFF_OPTIONS` to `PaxHudSelect`.
+- Replaced the helper-copy inline style with a local class hook.
+- Restored the missing `<TerritorySurfaceStyleTuning>` tag in the Metaball section so the shared surface-style controls render there again.
+- Converted the touched dominance tooltip/output to ASCII while preserving the existing behavior.
+
+Intent:
+
+- Continue moving Territory settings out of local ad hoc controls and into the Pax primitive/token layer.
+- Preserve every existing `debouncedConfigUpdate(...)` config key and panel key.
+- Correct a pre-existing rendered-markup defect in the Metaball section while the surrounding cluster is in scope.
+
+Validation:
+
+- Territory raw-control/style audit count reduced from `56` to `47`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Next correct step:
+
+- Continue `ControlsSection-Territory.svelte` with the remaining Combat/Fleet Pressure, topology-rule, style-family, and legacy button clusters until the file has a zero-match raw-control/style audit.
+
+## Territory Remaining Controls Primitive Migration
+
+Implemented:
+
+- Completed the remaining migration in `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Territory.svelte`.
+- Migrated Metaball Combat/Fleet Pressure controls to Pax range rows:
+  - combat border proximity
+  - combat recency
+  - combat width boost
+  - combat alpha boost
+  - fleet pressure on borders
+- Migrated Frontier Topology controls to Pax range/toggle rows:
+  - minimum star margin
+  - star bias
+  - frontier resolution
+  - corridor virtual sites
+  - lane midpoint pairs and pair tuning
+  - corridor sample count, weight, and spacing
+  - disconnect gaps, weight, and distance
+- Migrated Engine Surface shape/motion controls to Pax range and segmented controls.
+- Converted remaining runtime fill/border controls to Pax range/toggle rows.
+- Replaced remaining inline helper-copy styles with token-aware class hooks.
+- Converted the disabled legacy Fill/Borders block away from raw controls so the file-level static audit is clean.
+
+Intent:
+
+- Finish the high-density Territory settings conversion to the shared Pax primitive/token layer.
+- Preserve all existing config writes through `debouncedConfigUpdate(...)`, `queueTopologySliderUpdate(...)`, `queueTopologyToggleUpdate(...)`, and `updatePanel(...)`.
+- Remove final local button/select/input/styling escapes from the Territory settings surface.
+
+Validation:
+
+- `ControlsSection-Territory.svelte` raw-control/style audit is now `0` for `<button>`, `<select>`, `<input>`, inline `style=`, `class:active`, and `class:is-active`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Next correct step:
+
+- Audit remaining settings/HUD files for raw visible controls and direct one-off styling escapes, then move from primitive coverage into Aurelia Drift layout/style fidelity work.
+
+## Settings Accent Ownership Cleanup
+
+Implemented:
+
+- Added `accentId?: string` to `pax-fluxia/src/lib/design-system/components/PaxHudButton.svelte`.
+- `PaxHudButton` now renders `data-accent-id={accentId}` on its owned native button.
+- Replaced inline tool accent styles in `pax-fluxia/src/lib/components/ui/GameSettingsPanel.svelte` with `accentId={tool.id}`.
+- Replaced inline section panel accent styles with `data-accent-id={sec.id}`.
+- Added a CSS accent map for settings tools and section panels.
+
+Intent:
+
+- Keep settings accent styling in the component/style system instead of ad hoc inline style attributes.
+- Preserve existing tool and section colors while making the rail/drawer shell easier to theme.
+
+Validation:
+
+- `GameSettingsPanel.svelte` audit now has no matches for `style=`, raw controls, or active-class toggles.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Next correct step:
+
+- Continue live HUD polish in `src/lib/components/game-hud/`, prioritizing Settings Ribbon, Topbar, Player Standings, Star View, and Quick Access fidelity to Aurelia Drift.
+
+## Local HUD Font Packaging
+
+Implemented:
+
+- Added packaged HUD font assets under `pax-fluxia/static/fonts/hud/`:
+  - `Cinzel-500.ttf`, `Cinzel-600.ttf`, `Cinzel-700.ttf`
+  - `Rajdhani-400.ttf`, `Rajdhani-500.ttf`, `Rajdhani-600.ttf`, `Rajdhani-700.ttf`
+  - `Inter-400.ttf`, `Inter-500.ttf`, `Inter-600.ttf`
+  - `JetBrainsMono-400.ttf`, `JetBrainsMono-700.ttf`
+- Removed the Google Fonts `@import` from `pax-fluxia/src/app.css`.
+- Added local `@font-face` rules for `Cinzel`, `Rajdhani`, `Inter`, and `JetBrains Mono` in `pax-fluxia/src/app.css`.
+- Preserved the existing `Pasti` local font and all existing HUD typography token variables.
+- Removed duplicated external font/preconnect links from:
+  - `pax-fluxia/src/routes/+page.svelte`
+  - `pax-fluxia/src/routes/play/+page.svelte`
+  - `pax-fluxia/src/routes/map-editor/+page.svelte`
+  - `pax-fluxia/src/routes/dev/ui-test/+page.svelte`
+- Removed obsolete raw-control-era CSS selector families from `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Territory.svelte`.
+- Rewrapped the remaining Territory indentation use so `.territory-indent` is applied to a real wrapper element instead of a component tag.
+
+Intent:
+
+- Make the HUD typography token layer self-contained for offline/Tauri/Steam packaging.
+- Keep route entry points from bypassing the theme/token system with ad hoc hosted font imports.
+- Remove stale settings CSS after the Territory primitive migration so build output does not carry avoidable Svelte selector warnings.
+
+Validation:
+
+- Static hosted-font audit returned zero matches for `@import url`, `fonts.googleapis`, `fonts.gstatic`, and `preconnect` in `pax-fluxia/src` and `pax-fluxia/static`.
+- Static Territory cleanup audit returned zero matches for the removed selector families in `ControlsSection-Territory.svelte`.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- The previous `ControlsSection-Territory.svelte` unused-selector warnings no longer appear.
+- Remaining build warnings are existing bundle-size and dynamic/static import warnings plus an unused `Room` import in `multiplayerStore.svelte.ts`; none were introduced by this font packaging phase.
+
+Next correct step:
+
+- Continue live HUD style/layout work through the existing Pax primitives and tokens, prioritizing the Settings Ribbon, Theme Library, Topbar, Player Standings, Star View, and Quick Access surfaces.
+
+## Live HUD Primitive Cleanup
+
+Implemented:
+
+- Updated `pax-fluxia/src/lib/components/game/GameContainer.svelte` to use Pax primitives for the remaining audited raw controls:
+  - room ID copy badge
+  - surrender modal actions
+  - exit confirmation actions
+  - mobile FAB menu actions
+  - mobile drawer close button
+- Removed corrupted visible glyph text from surrender/exit modal action labels.
+- Converted live layout width/style values to Svelte style directives:
+  - master grid rail widths
+  - settings rail width
+  - tactical rail width
+  - tactical overview player mark colors
+- Converted resize handle active state away from `class:active`.
+- Updated live HUD components to use style directives or color-scope wrappers for dynamic player/star/theme colors:
+  - `HudTopbar.svelte`
+  - `PlayerStandingsPanel.svelte`
+  - `SelectedStarPanel.svelte`
+  - `SelectedStarTray.svelte`
+  - `HudThemePanel.svelte`
+  - `TypographyTokenPanel.svelte`
+  - `SettingsRibbon.svelte`
+- Added `.pf-hud-topbar__player-badge-scope { display: contents; }` in `pax-fluxia/src/lib/styles/hud.css` so player color inheritance does not change topbar layout.
+- Converted selector bridges for component-owned classes in `GameContainer.svelte` to `:global(...)` where needed, because classes passed into Pax child components render inside the child component boundary.
+
+Intent:
+
+- Continue enforcing a consistent component base for live HUD controls instead of retaining ad hoc raw HTML controls.
+- Preserve dynamic game-signal colors while removing string-built inline style attributes from the audited live HUD surface.
+- Remove visible corrupted glyph treatment from player-facing modal labels.
+
+Validation:
+
+- Targeted audit across `pax-fluxia/src/lib/components/game-hud` and `pax-fluxia/src/lib/components/game/GameContainer.svelte` returned zero matches for `<button>`, `<select>`, `<input>`, `style=`, `class:active`, `class:is-active`, corrupted glyph markers, `Quick Tools`, and `Low-frequency`.
+- `git diff --check`: passed with line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- Remaining build warnings are existing bundle-size and dynamic/static import warnings plus the unused `Room` import; this phase introduced no new Svelte selector warnings.
+
+Next correct step:
+
+- Continue visual fidelity work on the Settings Ribbon and Theme Library first, because those remain the most user-visible mismatch against the Aurelia Drift reference and user instructions.
+
+## Settings Rail And Theme Library Refinement
+
+Implemented:
+
+- Updated `pax-fluxia/src/lib/components/game/GameContainer.svelte` settings chrome constants:
+  - compact rail width: `68px`
+  - expanded rail width: `108px`
+- Updated matching CSS variables in `pax-fluxia/src/lib/components/ui/GameSettingsPanel.svelte`.
+- Added ellipsis truncation to expanded Settings rail labels so label text cannot wrap inside the rail.
+- Reordered the Settings rail tools to follow the user’s requested set/order:
+  - Themes
+  - Appearance
+  - Combat Tuning
+  - Audio
+  - Video / Graphics
+  - Stats
+  - Diagnostics
+  - Restart
+  - Quit
+  - Hotkeys
+  - Help
+- Retained Diagnostics because the user explicitly allowed it to remain for now.
+- Updated `pax-fluxia/src/lib/styles/hud.css` Theme Library rules:
+  - list scroll area now uses `max-height: clamp(180px, 34vh, 360px)`
+  - stable scrollbar gutter
+  - row groups use grid layout
+  - theme rows use grid columns for mark/name/date
+  - row names and dates stay single-line with ellipsis
+  - action button labels now truncate cleanly
+
+Intent:
+
+- Bring the live Settings rail closer to the requested icon-width vertical rail plus modest horizontal label expansion.
+- Keep Theme Library compact, scrollable, newest-first, and single-level without wrapping long names.
+- Continue working through system-owned CSS/tokens rather than one-off patches in the component template.
+
+Validation:
+
+- Targeted Settings/Theme audit returned zero matches for live-game `Load Map`, `Save Map`, `Settings Ribbon`, `Choose a system`, `Quick Tools`, `Low-frequency`, raw controls, `style=`, and active-class directives in `GameSettingsPanel.svelte` and `ThemeLibraryPanel.svelte`.
+- `git diff --check`: passed with line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`.
+- Remaining warnings are existing bundle-size/dynamic import warnings and unused `Room` import.
+
+Next correct step:
+
+- Continue visual-system polishing through shared HUD CSS, prioritizing Star View/Player Standings/Topbar alignment and button rhythm against the Aurelia Drift reference.

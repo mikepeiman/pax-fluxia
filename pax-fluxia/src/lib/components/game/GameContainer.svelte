@@ -36,7 +36,11 @@
   import GameCanvas from "$lib/components/game/GameCanvas.svelte";
   import AudioSettings from "$lib/components/ui/AudioSettings.svelte";
   import TopBar from "$lib/components/ui/TopBar.svelte";
-  import { paxThemeState } from "$lib/design-system";
+  import {
+    PaxHudButton,
+    PaxHudIconButton,
+    paxThemeState,
+  } from "$lib/design-system";
   import type { SettingsSectionId } from "$lib/components/ui/settings/settingsRegistry";
   import type { PlayerState, StarState } from "$lib/types/game.types";
   import { audioManager } from "$lib/services/audioManager.svelte";
@@ -256,8 +260,8 @@
   const SETTINGS_PANEL_MIN = 420;
   const SETTINGS_PANEL_MAX = 720;
   const SETTINGS_PANEL_DEFAULT = 520;
-  const SETTINGS_CHROME_COMPACT_WIDTH = 72;
-  const SETTINGS_CHROME_EXPANDED_WIDTH = 168;
+  const SETTINGS_CHROME_COMPACT_WIDTH = 68;
+  const SETTINGS_CHROME_EXPANDED_WIDTH = 108;
   const SETTINGS_PANEL_SECTION_DEFAULT = 520;
 
   function loadSidebarWidth(): number {
@@ -723,7 +727,9 @@
       class:settings-open={showSettingsPanel}
       class:layout-sidebar-left={sidebarSide === "left"}
       class:layout-controls-left={controlsSide === "left"}
-      style={`--left-rail-width:${leftRailWidth}px; --right-rail-width:${rightRailWidth}px; --quick-access-width:${quickAccessWidth}px;`}>
+      style:--left-rail-width={`${leftRailWidth}px`}
+      style:--right-rail-width={`${rightRailWidth}px`}
+      style:--quick-access-width={`${quickAccessWidth}px`}>
       <div class="area-topbar">
         <HudTopbar
           settingsOpen={showSettingsPanel}
@@ -756,7 +762,7 @@
         <!-- TOP CENTER: Room ID Badge (MP only) -->
         {#if multiplayerStore.isConnected && multiplayerStore.roomId}
           <div class="overlay-top-center">
-            <button
+            <PaxHudButton
               class="room-id-badge glass-panel w-full h-full"
               onclick={copyRoomId}
               title="Click to copy Room ID"
@@ -766,7 +772,7 @@
               <span class="room-id-icon">
                 <HudIcon name={roomIdCopied ? "focus" : "logging"} size={12} />
               </span>
-            </button>
+            </PaxHudButton>
           </div>
         {/if}
 
@@ -824,7 +830,7 @@
         <div
           class="area-controls"
           class:area-controls--dock-left={controlsSide === "left"}
-          style={`width:${settingsEffectiveWidth}px;`}
+          style:width={`${settingsEffectiveWidth}px`}
         >
           <SettingsRibbon
             width={settingsEffectiveWidth}
@@ -854,11 +860,10 @@
       <div
         class="area-right"
         class:area-right--dock-left={sidebarSide === "left"}
-        style="width: {sidebarWidth}px;">
+        style:width={`${sidebarWidth}px`}>
         <!-- Resize handle -->
         <div
-          class="resize-handle"
-          class:active={isResizing}
+          class={`resize-handle ${isResizing ? "active" : ""}`}
           onpointerdown={startResize}
           role="separator"
           aria-orientation="vertical"
@@ -912,7 +917,7 @@
               <div class="tactical-overview-player" title={player.name}>
                 <span
                   class="tactical-overview-player__mark"
-                  style={`background:${player.color};`}
+                  style:background={player.color}
                 ></span>
                 <span class="tactical-overview-player__ships font-hud-data">
                   {player.activeShips ?? player.totalShips ?? 0}
@@ -945,33 +950,33 @@
           <h3 class="surrender-modal__title">Surrender?</h3>
           <p class="surrender-modal__desc">Choose how to end your campaign.</p>
           <div class="surrender-modal__actions">
-            <button
+            <PaxHudButton
               class="btn btn--primary btn--md"
               onclick={() => {
                 showSurrenderModal = false;
                 activeGameStore.surrender();
               }}
             >
-               End Game
+              End Game
               <span class="btn-sub">View results & graphs</span>
-            </button>
-            <button
+            </PaxHudButton>
+            <PaxHudButton
               class="btn btn--ghost btn--md"
               onclick={() => {
                 showSurrenderModal = false;
                 activeGameStore.returnToMenu();
               }}
             >
-              ðŸšª Abandon
+              Abandon
               <span class="btn-sub">Return to main menu</span>
-            </button>
+            </PaxHudButton>
           </div>
-          <button
+          <PaxHudButton
             class="btn btn--ghost btn--sm surrender-modal__cancel"
             onclick={() => (showSurrenderModal = false)}
           >
             Cancel
-          </button>
+          </PaxHudButton>
         </div>
       </div>
     {/if}
@@ -989,17 +994,17 @@
             You'll lose your current game progress.
           </p>
           <div class="surrender-modal__actions">
-            <button class="btn btn--ghost btn--md" onclick={confirmExit}>
-              ðŸšª Leave
+            <PaxHudButton class="btn btn--ghost btn--md" onclick={confirmExit}>
+              Leave
               <span class="btn-sub">Return to main menu</span>
-            </button>
+            </PaxHudButton>
           </div>
-          <button
+          <PaxHudButton
             class="btn btn--ghost btn--sm surrender-modal__cancel"
             onclick={cancelExit}
           >
             Continue Playing
-          </button>
+          </PaxHudButton>
         </div>
       </div>
     {/if}
@@ -1013,7 +1018,7 @@
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div class="fab-scrim" onclick={() => (showSettingsFab = false)}></div>
       <div class="fab-popup glass-panel">
-        <button
+        <PaxHudButton
           class="fab-item"
           onclick={() => {
             audioManager.play("click");
@@ -1023,8 +1028,8 @@
         >
           <span class="fab-icon"><HudIcon name="audio" size={14} /></span>
           <span>Audio Settings</span>
-        </button>
-        <button
+        </PaxHudButton>
+        <PaxHudButton
           class="fab-item"
           onclick={() => {
             audioManager.play("click");
@@ -1034,8 +1039,8 @@
         >
           <span class="fab-icon"><HudIcon name="settings" size={14} /></span>
           <span>{showSettingsPanel ? "Hide" : "Show"} Settings</span>
-        </button>
-        <button
+        </PaxHudButton>
+        <PaxHudButton
           class="fab-item"
           onclick={() => {
             audioManager.play("click");
@@ -1045,8 +1050,8 @@
         >
           <span class="fab-icon"><HudIcon name="diagnostics" size={14} /></span>
           <span>Diagnostics</span>
-        </button>
-        <button
+        </PaxHudButton>
+        <PaxHudButton
           class="fab-item"
           onclick={() => {
             audioManager.play("click");
@@ -1056,8 +1061,8 @@
         >
           <span class="fab-icon"><HudIcon name="leaderboard" size={14} /></span>
           <span>Leaderboard</span>
-        </button>
-        <button
+        </PaxHudButton>
+        <PaxHudButton
           class="fab-item"
           onclick={() => {
             audioManager.play("click");
@@ -1067,8 +1072,8 @@
         >
           <span class="fab-icon"><HudIcon name="restart" size={14} /></span>
           <span>Restart</span>
-        </button>
-        <button
+        </PaxHudButton>
+        <PaxHudButton
           class="fab-item"
           onclick={() => {
             audioManager.play("click");
@@ -1078,7 +1083,7 @@
         >
           <span class="fab-icon"><HudIcon name="quit" size={14} /></span>
           <span>Quit Game</span>
-        </button>
+        </PaxHudButton>
       </div>
     {/if}
 
@@ -1091,11 +1096,13 @@
         onclick={() => (mobileDrawerOpen = false)}
       ></div>
       <div class="mobile-drawer open">
-        <button
+        <PaxHudIconButton
           class="drawer-close"
+          icon="close"
+          title="Close"
+          size={14}
           onclick={() => (mobileDrawerOpen = false)}
-          title="Close"><HudIcon name="close" size={14} /></button
-        >
+        />
         <div class="mobile-drawer-content">
           <div class="drawer-leaderboard">
             <Leaderboard players={leaderboardPlayers} />
@@ -1428,7 +1435,7 @@
     }
 
     /* ✕ close button */
-    .drawer-close {
+    :global(.drawer-close) {
       position: absolute;
       top: 12px;
       right: 16px;
@@ -1446,7 +1453,7 @@
       z-index: 610;
       transition: all 0.15s ease;
     }
-    .drawer-close:active {
+    :global(.drawer-close:active) {
       background: rgba(0, 255, 255, 0.15);
       color: #0ff;
       border-color: rgba(0, 255, 255, 0.4);
@@ -1857,7 +1864,7 @@
     pointer-events: auto;
   }
 
-  .room-id-badge {
+  :global(.room-id-badge) {
     display: flex;
     z-index: 10;
     align-items: center;
@@ -1871,7 +1878,7 @@
     width: 100%;
     height: 100%;
   }
-  .room-id-badge:hover {
+  :global(.room-id-badge:hover) {
     border-color: rgba(0, 255, 255, 0.5);
     box-shadow: 0 0 12px rgba(0, 255, 255, 0.15);
   }
@@ -1949,7 +1956,7 @@
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
   }
 
-  .btn {
+  :global(.btn) {
     flex: 1;
     padding: 8px;
     border: none;
@@ -1962,27 +1969,27 @@
     transition: all 0.2s;
   }
 
-  .btn--ghost {
+  :global(.btn--ghost) {
     background: transparent;
     border: 1px solid #556;
     color: #889;
   }
-  .btn--ghost:hover {
+  :global(.btn--ghost:hover) {
     border-color: #fff;
     color: #fff;
   }
 
-  .btn--primary {
+  :global(.btn--primary) {
     background: rgba(59, 130, 246, 0.3);
     border: 1px solid rgba(59, 130, 246, 0.6);
     color: #93c5fd;
   }
-  .btn--primary:hover {
+  :global(.btn--primary:hover) {
     background: rgba(59, 130, 246, 0.5);
     color: #fff;
   }
 
-  .btn--md {
+  :global(.btn--md) {
     padding: 12px 16px;
     font-size: 13px;
   }
@@ -2012,7 +2019,7 @@
     gap: 12px;
     width: 100%;
   }
-  .surrender-modal__actions .btn {
+  .surrender-modal__actions :global(.btn) {
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -2025,7 +2032,7 @@
     font-weight: 400;
     text-transform: none;
   }
-  .surrender-modal__cancel {
+  :global(.surrender-modal__cancel) {
     opacity: 0.5;
     font-size: 0.75rem;
   }
@@ -2062,7 +2069,7 @@
     }
   }
 
-  .fab-item {
+  :global(.fab-item) {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -2078,7 +2085,7 @@
     transition: background 0.15s;
     text-align: left;
   }
-  .fab-item:hover {
+  :global(.fab-item:hover) {
     background: rgba(0, 255, 255, 0.08);
   }
   .fab-icon {

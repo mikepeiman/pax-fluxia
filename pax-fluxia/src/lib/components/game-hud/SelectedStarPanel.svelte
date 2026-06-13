@@ -57,7 +57,8 @@
     <div class="pf-star-card">
       <div
         class="pf-star-card__type"
-        style={`--star-type-color:${star.starType.color}; --player-color:${star.owner?.color ?? star.starType.color};`}
+        style:--star-type-color={star.starType.color}
+        style:--player-color={star.owner?.color ?? star.starType.color}
       >
         <span class="pf-star-card__orb">
           <HudIcon name={star.starType.icon} size={30} />
@@ -66,7 +67,7 @@
 
       <div class="pf-star-card__identity">
         <h3>{star.label}</h3>
-        <span style={`color:${star.starType.color};`}>{star.starType.label}</span>
+        <span style:color={star.starType.color}>{star.starType.label}</span>
         <small>{star.owner ? (star.owner.isLocal ? "You" : star.owner.name) : star.source.ownerId}</small>
       </div>
 

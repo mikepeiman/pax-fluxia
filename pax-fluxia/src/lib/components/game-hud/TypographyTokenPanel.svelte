@@ -7,7 +7,26 @@
   } from "$lib/design-system";
 
   type FontTokenId = "brand" | "ui" | "label" | "copy" | "data";
-  type FontOptionId = "rajdhani" | "pasti" | "inter" | "jetbrains" | "system" | "serif";
+  type FontOptionId =
+    | "rajdhani"
+    | "pasti"
+    | "agency"
+    | "bahnschrift"
+    | "eras-medium"
+    | "eras-demi"
+    | "haettenschweiler"
+    | "copperplate-light"
+    | "copperplate-bold"
+    | "franklin-book"
+    | "franklin-demi"
+    | "franklin-heavy"
+    | "inter"
+    | "jetbrains"
+    | "cascadia-code"
+    | "cascadia-mono"
+    | "ocr-a"
+    | "system"
+    | "serif";
   type ScaleTokenId = "ui" | "title" | "label" | "data" | "icon";
 
   type FontOption = {
@@ -59,6 +78,66 @@
       note: "Imported display trial",
     },
     {
+      id: "agency",
+      label: "Agency FB",
+      stack: '"Agency FB", "Rajdhani", sans-serif',
+      note: "condensed military UI",
+    },
+    {
+      id: "bahnschrift",
+      label: "Bahnschrift",
+      stack: '"Bahnschrift", "Rajdhani", sans-serif',
+      note: "technical compact sans",
+    },
+    {
+      id: "eras-medium",
+      label: "Eras Medium",
+      stack: '"Eras Medium ITC", "Rajdhani", sans-serif',
+      note: "soft sci-fi interface",
+    },
+    {
+      id: "eras-demi",
+      label: "Eras Demi",
+      stack: '"Eras Demi ITC", "Rajdhani", sans-serif',
+      note: "heavier sci-fi headings",
+    },
+    {
+      id: "haettenschweiler",
+      label: "Haettenschweiler",
+      stack: '"Haettenschweiler", "Agency FB", sans-serif',
+      note: "narrow display stress test",
+    },
+    {
+      id: "copperplate-light",
+      label: "Copperplate Light",
+      stack: '"Copperplate Gothic Light", "Cinzel", serif',
+      note: "premium heraldic display",
+    },
+    {
+      id: "copperplate-bold",
+      label: "Copperplate Bold",
+      stack: '"Copperplate Gothic Bold", "Cinzel", serif',
+      note: "heavy emblem display",
+    },
+    {
+      id: "franklin-book",
+      label: "Franklin Book",
+      stack: '"Franklin Gothic Book", "Inter", sans-serif',
+      note: "readable compact copy",
+    },
+    {
+      id: "franklin-demi",
+      label: "Franklin Demi",
+      stack: '"Franklin Gothic Demi", "Inter", sans-serif',
+      note: "strong UI labels",
+    },
+    {
+      id: "franklin-heavy",
+      label: "Franklin Heavy",
+      stack: '"Franklin Gothic Heavy", "Franklin Gothic Demi", sans-serif',
+      note: "dense command headings",
+    },
+    {
       id: "inter",
       label: "Inter",
       stack: '"Inter", sans-serif',
@@ -69,6 +148,24 @@
       label: "JetBrains Mono",
       stack: '"JetBrains Mono", monospace',
       note: "Tabular data",
+    },
+    {
+      id: "cascadia-code",
+      label: "Cascadia Code",
+      stack: '"Cascadia Code", "JetBrains Mono", monospace',
+      note: "developer-style data",
+    },
+    {
+      id: "cascadia-mono",
+      label: "Cascadia Mono",
+      stack: '"Cascadia Mono", "JetBrains Mono", monospace',
+      note: "clean monospaced data",
+    },
+    {
+      id: "ocr-a",
+      label: "OCR A Extended",
+      stack: '"OCR A Extended", "JetBrains Mono", monospace',
+      note: "retro instrument data",
     },
     {
       id: "system",
@@ -338,7 +435,7 @@
           options={fontSelectOptions}
           onValueChange={(value) => setToken(role.id, value as FontOptionId)}
         />
-        <span class="pf-typography-row__sample" style={`font-family: var(${role.cssVar});`}>
+        <span class="pf-typography-row__sample" style:font-family={`var(${role.cssVar})`}>
           {role.sample}
         </span>
         <span class="pf-typography-row__note">{selected.note}</span>

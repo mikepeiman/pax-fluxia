@@ -14,6 +14,7 @@
     disabled?: boolean;
     pressed?: boolean;
     iconSize?: number;
+    accentId?: string;
     style?: string;
     class?: string;
     onclick?: () => void;
@@ -31,6 +32,7 @@
     disabled = false,
     pressed,
     iconSize = 17,
+    accentId,
     style,
     class: className = "",
     onclick,
@@ -52,6 +54,7 @@
   class:active={active}
   {style}
   {disabled}
+  data-accent-id={accentId}
   title={title ?? label}
   aria-label={title ?? label}
   aria-pressed={pressed ?? (active ? "true" : undefined)}

@@ -106,3 +106,72 @@ Prompt:
 - Continued UI-system work by adding disabled select support and migrating small utility/diagnostic settings components to Pax primitives.
 - Continued UI-system work by adding a reusable color swatch primitive and migrating Players palette, Territory Transition tuning, and Territory Topology tuning to Pax primitives while preserving existing data/config flows.
 - Continued UI-system work by migrating Diagnostics and Territory Engine Trace diagnostics controls to Pax primitives while preserving overlay, ruler, recorder/export, underlying-geometry, and trace-step behavior.
+- Continued UI-system work by migrating Territory Surface Style controls to Pax select/range/toggle primitives while preserving fill, border, Ember Lattice, and finish config writes.
+- Continued UI-system work by replacing Theme Select Dropdown internals with the shared settings picker primitive while preserving `GameThemeManager` integration.
+- Continued UI-system work by migrating Metaball Grid module visibility and frontier preset buttons to Pax segmented/button primitives.
+
+## User Request
+
+Prompt:
+
+> Maybe irrelevant as you are in-progress, but
+> ```
+> logger.ts:119 ERROR [LandingRoute] Game shell import failed (1/2) Error: Extension type environment already has a handler
+>     at Object.handle (Extensions.ts:328:19)
+>     at Object.handleByNamedList (Extensions.ts:385:21)
+>     at autoDetectEnvironment.ts:5:12
+> ```
+
+## Agent Response Summary
+
+- Confirmed the Pixi mitigation is already present in `pax-fluxia/vite.config.js`: `pixi.js` is in `optimizeDeps.include` and `resolve.dedupe`.
+- Treated any recurrence in an already-running dev server as likely stale Vite optimization state requiring dev-server restart/forced optimize before retest.
+- Continued the systemic Settings primitive migration rather than stopping for a screenshot/browser pass.
+- Finished migrating `MetaballGridTuning.svelte` grid, border, frontier, wave, flip, and Phase Field finish-tail controls to Pax primitives while preserving `writeConfig(...)` paths.
+- Validated with raw-control audit, `git diff --check`, and production build.
+- Continued into `ControlsSection-Ships.svelte` because it became the highest-density remaining raw-control file.
+- Extracted helper functions for Ships config writes and star-system scale cascade behavior.
+- Migrated Star System Scale and Ship Size/Shape controls to Pax range/toggle primitives.
+- Validated the Ships slice with raw-control count reduction, `git diff --check`, and production build.
+- Continued `ControlsSection-Ships.svelte` by migrating Star Halos controls to Pax range/toggle/button/segmented primitives.
+- Preserved halo preset behavior and `SHOW_STAR_POWER`, `STAR_POWER_*`, and `HALO_FLEET_*` config writes.
+- Validated the halo slice with raw-control count reduction, `git diff --check`, and production build.
+- Continued `ControlsSection-Ships.svelte` by migrating Orbit Layout range controls to Pax range primitives.
+- Preserved orbit/star radius config writes through `writePanelConfig(...)`.
+- Validated the Orbit Layout slice with raw-control count reduction, `git diff --check`, and production build.
+- Continued `ControlsSection-Ships.svelte` by migrating Star Shape and Ownership Ring controls to Pax segmented/range primitives.
+- Preserved `STAR_SHAPE_MODE`, `STAR_ICON_SCALE`, `STAR_CORNER_RADIUS`, and `STAR_RING_*` config writes through `writePanelConfig(...)`.
+- Validated the Star Shape/Ownership Ring slice with raw-control count reduction from `83` to `70`, `git diff --check`, and production build.
+- Continued `ControlsSection-Ships.svelte` by migrating Star Labels controls to Pax segmented/range/toggle primitives.
+- Extracted `setStarLabelScale(newScale)` to preserve the existing multi-key font metric cascade.
+- Validated the Star Labels slice with raw-control count reduction from `70` to `35`, `git diff --check`, and production build.
+- Completed `ControlsSection-Ships.svelte` by migrating Order Arrows, Damaged Ships, Interaction, Density Coloring, and Star Glow to Pax primitives.
+- Preserved `ARROW_*`, `DAMAGED_*`, `STAR_HIT_RADIUS`, `DENSITY_*`, and `STAR_GLOW_*` config write paths.
+- Validated the completed Ships migration with a zero-match raw-control audit, `git diff --check`, and production build.
+- Found that `PaxSettingsToggleRow.svelte` only invoked `onChange` while new Ships call sites used `onToggle`.
+- Fixed the primitive to support both optional callbacks and added a regression post-mortem.
+- Began `ControlsSection-Territory.svelte` migration with the visible module/render navigation slice.
+- Migrated system module, renderer module, render-mode, deprecated-mode action, and transition-select controls to Pax primitives.
+- Validated the Territory navigation slice with raw-control/style count reduction from `79` to `56`, `git diff --check`, and production build.
+- Continued `ControlsSection-Territory.svelte` by migrating Metaball CPU-grid core controls to Pax primitives.
+- Restored the missing `TerritorySurfaceStyleTuning` component tag in the Metaball section.
+- Preserved existing Metaball config write paths and validated with raw-control/style count reduction from `56` to `47`, `git diff --check`, and production build.
+- Completed `ControlsSection-Territory.svelte` by migrating the remaining Combat/Fleet Pressure, Frontier Topology, Engine Surface shape/motion, runtime fill/border, and helper-copy style escapes to Pax primitives/classes.
+- Removed the final static raw-control/style hits from Territory; the targeted audit is now zero for raw buttons/selects/inputs, inline styles, and active-class toggles.
+- Validated the completed Territory migration with `git diff --check` and production build.
+- Added `accentId` to `PaxHudButton` and moved `GameSettingsPanel.svelte` tool/section accents from inline `--accent` styles to data-driven CSS selectors.
+- Validated `GameSettingsPanel.svelte` with zero raw-control/inline-style audit hits and production build.
+- Continued the systemic token/theme implementation by self-hosting the HUD font families in `pax-fluxia/static/fonts/hud/`.
+- Removed Google-hosted font imports from `app.css`, landing, play, map editor, and UI-test route heads.
+- Preserved existing HUD typography token names while moving the font source to packaged local files.
+- Removed stale raw-control-era CSS selector families from `ControlsSection-Territory.svelte` and rewrapped the remaining indentation case so Svelte scoping recognizes it.
+- Validated with zero-match hosted-font audit, zero-match Territory stale-selector audit, and production build.
+- Continued systemic live HUD cleanup by replacing remaining audited raw GameContainer controls with Pax HUD primitives: room badge, surrender/exit modal actions, mobile FAB actions, and mobile drawer close.
+- Removed corrupted visible modal glyph labels.
+- Converted audited live HUD/GameContainer string-built `style=` attributes and active class directives to Svelte style/class directives or layout-neutral color scopes.
+- Added a topbar player-badge color scope and global selector bridges for Pax child-component button classes where Svelte scoping requires them.
+- Validated with zero-match live HUD raw-control/style/glyph/label audit, `git diff --check`, and production build.
+- Refined the live Settings rail to compact `68px` and expanded `108px`, with expanded labels truncating instead of wrapping.
+- Reordered the Settings rail tools to match the user’s requested set/order while retaining Diagnostics.
+- Improved Theme Library list composition: larger scroll range, stable scrollbar gutter, grid-aligned rows, single-line names/dates, and ellipsis truncation.
+- Validated Settings/Theme surfaces with targeted audit, `git diff --check`, and production build.
