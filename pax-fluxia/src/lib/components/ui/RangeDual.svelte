@@ -67,7 +67,7 @@
         position: absolute;
         width: 100%;
         height: 4px;
-        background: rgba(0, 255, 255, 0.1);
+        background: color-mix(in srgb, var(--pax-ui-accent) 12%, transparent);
         border-radius: 2px;
         z-index: 1;
         pointer-events: none;
@@ -76,7 +76,7 @@
     .track-fill {
         position: absolute;
         height: 100%;
-        background: var(--color-accent-cyan, #00ffff);
+        background: var(--pax-ui-accent);
         opacity: 0.6;
         border-radius: 2px;
     }
@@ -100,11 +100,11 @@
         width: 16px;
         height: 16px;
         border-radius: 50%;
-        background: var(--color-accent-cyan, #00ffff);
+        background: var(--pax-ui-accent);
         cursor: pointer;
         pointer-events: auto;
         box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
-        border: 2px solid var(--color-void-deep, #0a0a12);
+        border: 2px solid var(--pax-color-void);
     }
 
     input[type="range"]::-moz-range-thumb {
@@ -112,9 +112,9 @@
         width: 16px;
         height: 16px;
         border-radius: 50%;
-        background: var(--color-accent-cyan, #00ffff);
+        background: var(--pax-ui-accent);
         cursor: pointer;
         pointer-events: auto;
-        border: 2px solid var(--color-void-deep, #0a0a12);
+        border: 2px solid var(--pax-color-void);
     }
 </style>
