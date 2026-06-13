@@ -43,7 +43,7 @@
     align-items: center;
     justify-content: center; /* Center horizontally? Or left align? Inspiration says "floating over void" */
     justify-content: flex-start;
-    padding: var(--space-12);
+    padding: var(--pax-space-12);
     overflow: hidden;
   }
 
@@ -62,7 +62,7 @@
 
   .content {
     max-width: 600px;
-    padding: var(--space-8);
+    padding: var(--pax-space-8);
     position: relative;
     z-index: 1;
     margin-left: 10%; /* Offset to left */
@@ -70,21 +70,21 @@
 
   .title {
     font-size: 2.5rem;
-    color: var(--color-text-primary);
-    margin-bottom: var(--space-4);
+    color: var(--pax-ui-text-strong);
+    margin-bottom: var(--pax-space-4);
     line-height: 1.2;
   }
 
   .desc {
     font-size: 1.1rem;
-    color: var(--color-text-muted);
+    color: var(--pax-ui-text-soft);
     line-height: 1.6;
-    margin-bottom: var(--space-8);
+    margin-bottom: var(--pax-space-8);
   }
 
   .btn--gold {
-    border-color: var(--color-accent-yellow);
-    color: var(--color-accent-yellow);
+    border-color: var(--pax-ui-warning);
+    color: var(--pax-ui-warning);
   }
 
   .btn--gold:hover {
@@ -95,7 +95,7 @@
   @media (max-width: 768px) {
     .faction-story {
       justify-content: center;
-      padding: var(--space-6);
+      padding: var(--pax-space-6);
     }
     .content {
       margin-left: 0;

@@ -55,6 +55,8 @@
   --pax-color-accent-gold: #f6c469;
   --pax-color-accent-gold-strong: #ffe3a3;
   --pax-color-danger: #ff6a7a;
+  --pax-color-success: #46d98a;
+  --pax-color-warning: #f5c542;
 
   /* Player signals remain separate from generic chrome. */
   --pax-color-player-blue: #4488ff;
@@ -90,6 +92,7 @@
   --pax-space-2: 0.5rem;
   --pax-space-3: 0.75rem;
   --pax-space-4: 1rem;
+  --pax-space-5: 1.25rem;
   --pax-space-6: 1.5rem;
   --pax-space-8: 2rem;
   --pax-space-12: 3rem;

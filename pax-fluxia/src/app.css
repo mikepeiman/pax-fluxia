@@ -231,46 +231,6 @@
    CSS Custom Properties (Design Tokens)
    -------------------------------------------------------------------------- */
 :root {
-  /* ----------------------------------------------------------------------
-     DEPRECATED third-namespace tokens (--color-*, --font-display/data/body,
-     --text-*, --space-*, --radius-sm/md/lg, --glass-*, --glow-*, --border-*,
-     --transition-*). Do NOT use in new code. Migrate consumers to the --pax-ui-*
-     semantic roles per .agent/docs/engineering/DESIGN_SYSTEM_TOKENS.md, then
-     delete. Several hold values that DIVERGE from the design system
-     (e.g. --color-accent-cyan #00ffff vs the Aurelia teal #55e7ef), so
-     migrating them is an intended congruence change needing visual review.
-     ---------------------------------------------------------------------- */
-  /* Colors - Void */
-  --color-void-deep: #0a0a12;
-  --color-void-mid: #12121f;
-  --color-void-light: #1a1a2e;
-
-  /* Colors - UI */
-  --color-accent-cyan: #00ffff;
-  --color-accent-cyan-dim: #00999980;
-  --color-accent-green: #00ff88;
-  --color-accent-red: #ff3366;
-  --color-accent-yellow: #ffcc00;
-
-  /* Colors - Text */
-  --color-text-primary: #ffffff;
-  --color-text-muted: #8888aa;
-  --color-text-dim: #555577;
-
-  /* Colors - Player Palette */
-  --color-player-blue: #4488ff;
-  --color-player-red: #ff4466;
-  --color-player-green: #44ff88;
-  --color-player-yellow: #ffcc44;
-  --color-player-purple: #aa66ff;
-  --color-player-orange: #ff8844;
-
-  /* Typography */
-  --font-display: 'Rajdhani', sans-serif;
-  --font-data: 'JetBrains Mono', monospace;
-  --font-body: 'Inter', sans-serif;
-  --font-pasti: 'Pasti', 'Rajdhani', sans-serif;
-
   /* HUD Surface System */
   --pax-ui-topbar-height: var(--pax-topbar-height);
   --pax-ui-font-brand: var(--pax-font-brand);
@@ -284,6 +244,9 @@
   --pax-ui-accent-warm: var(--pax-color-accent-gold);
   --pax-ui-accent-warm-strong: var(--pax-color-accent-gold-strong);
   --pax-ui-danger: var(--pax-color-danger);
+  --pax-ui-success: var(--pax-color-success);
+  --pax-ui-warning: var(--pax-color-warning);
+  --pax-ui-accent-dim: color-mix(in srgb, var(--pax-ui-accent) 55%, transparent);
   --pax-ui-text-strong: var(--pax-color-text-strong);
   --pax-ui-text: var(--pax-color-text);
   --pax-ui-text-soft: var(--pax-color-text-muted);
@@ -344,48 +307,6 @@
   --pax-ui-label-scale: var(--pax-type-label-scale);
   --pax-ui-data-scale: var(--pax-type-data-scale);
   --pax-ui-icon-scale: var(--pax-icon-scale);
-
-  /* Font Sizes — Desktop defaults (overridden by media queries below) */
-  --text-xs: var(--pax-type-xs);
-  --text-sm: var(--pax-type-sm);
-  --text-base: var(--pax-type-base);
-  --text-lg: var(--pax-type-lg);
-  --text-xl: var(--pax-type-xl);
-  --text-2xl: var(--pax-type-2xl);
-  --text-3xl: var(--pax-type-3xl);
-
-  /* Responsive title/label scales */
-  --title-size: var(--pax-type-title);
-  --label-size: var(--pax-type-label);
-  --panel-padding: var(--pax-panel-padding);
-  --panel-gap: var(--pax-panel-gap);
-
-  /* Spacing */
-  --space-1: var(--pax-space-1);
-  --space-2: var(--pax-space-2);
-  --space-3: var(--pax-space-3);
-  --space-4: var(--pax-space-4);
-  --space-6: var(--pax-space-6);
-  --space-8: var(--pax-space-8);
-  --space-12: var(--pax-space-12);
-
-  /* Effects */
-  --glass-blur: var(--pax-glass-blur);
-  --glass-opacity: var(--pax-glass-opacity);
-  --glow-cyan: var(--pax-shadow-cyan);
-  --glow-soft: var(--pax-shadow-soft);
-
-  /* Borders */
-  --border-subtle: 1px solid rgba(255, 255, 255, 0.1);
-  --border-accent: 1px solid var(--color-accent-cyan);
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-
-  /* Transitions */
-  --transition-fast: var(--pax-motion-fast);
-  --transition-base: var(--pax-motion-base);
-  --transition-slow: var(--pax-motion-slow);
 }
 
 /* --------------------------------------------------------------------------

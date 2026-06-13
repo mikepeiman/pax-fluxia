@@ -52,7 +52,7 @@
 
 <style>
   .dev-vision {
-    padding: var(--space-12) var(--space-8);
+    padding: var(--pax-space-12) var(--pax-space-8);
     background-color: #0a0a12;
     display: flex;
     justify-content: center;
@@ -60,7 +60,7 @@
 
   .content {
     display: flex;
-    gap: var(--space-12);
+    gap: var(--pax-space-12);
     align-items: center;
     max-width: 1000px;
   }
@@ -69,7 +69,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--space-4);
+    gap: var(--pax-space-4);
   }
 
   .dev-img {
@@ -77,7 +77,7 @@
     height: 200px;
     border-radius: 50%;
     background: #1e293b;
-    border: 2px solid var(--color-text-muted);
+    border: 2px solid var(--pax-ui-text-soft);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -92,7 +92,7 @@
 
   .studio-name {
     font-size: 1.2rem;
-    color: var(--color-text-primary);
+    color: var(--pax-ui-text-strong);
     font-weight: 700;
   }
 
@@ -102,28 +102,28 @@
 
   .title {
     font-size: 2rem;
-    color: var(--color-text-primary);
-    margin-bottom: var(--space-4);
+    color: var(--pax-ui-text-strong);
+    margin-bottom: var(--pax-space-4);
     line-height: 1.2;
   }
 
   .desc {
     font-size: 1rem;
-    color: var(--color-text-muted);
+    color: var(--pax-ui-text-soft);
     line-height: 1.6;
-    margin-bottom: var(--space-6);
+    margin-bottom: var(--pax-space-6);
   }
 
   .tech-stack {
     display: flex;
     align-items: center;
-    gap: var(--space-4);
+    gap: var(--pax-space-4);
     opacity: 0.7;
   }
 
   .tech-item {
     font-size: 0.9rem;
-    color: var(--color-text-muted);
+    color: var(--pax-ui-text-soft);
   }
 
   .tech-icon svg {
@@ -142,7 +142,7 @@
     .content {
       flex-direction: column;
       text-align: center;
-      gap: var(--space-8);
+      gap: var(--pax-space-8);
     }
   }
 </style>

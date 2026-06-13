@@ -37,16 +37,16 @@
 
 <style>
   .usp-triptych {
-    padding: var(--space-12) var(--space-8);
+    padding: var(--pax-space-12) var(--pax-space-8);
     display: flex;
     justify-content: center;
-    background: linear-gradient(to bottom, var(--color-void-deep), #000);
+    background: linear-gradient(to bottom, var(--pax-color-void), #000);
   }
 
   .cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: var(--space-8);
+    gap: var(--pax-space-8);
     max-width: 1200px;
     width: 100%;
   }
@@ -54,14 +54,14 @@
   .card {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: var(--radius-lg);
-    padding: var(--space-8);
+    border-radius: var(--pax-ui-radius-lg);
+    padding: var(--pax-space-8);
     backdrop-filter: blur(10px);
-    transition: transform var(--transition-base), box-shadow var(--transition-base);
+    transition: transform var(--pax-ui-motion-base), box-shadow var(--pax-ui-motion-base);
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: var(--space-4);
+    gap: var(--pax-space-4);
   }
 
   .card:hover {
@@ -76,7 +76,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: var(--space-4);
+    margin-bottom: var(--pax-space-4);
     background: rgba(255, 255, 255, 0.05);
   }
 
@@ -88,19 +88,19 @@
   .card-title {
     font-size: 1.5rem;
     font-weight: 700;
-    margin-bottom: var(--space-2);
-    color: var(--color-text-primary);
+    margin-bottom: var(--pax-space-2);
+    color: var(--pax-ui-text-strong);
   }
 
   .card-text {
     font-size: 1rem;
-    color: var(--color-text-muted);
+    color: var(--pax-ui-text-soft);
     line-height: 1.6;
   }
 
   /* Theme specific styling */
   .card--cyan { border-color: rgba(0, 255, 255, 0.3); }
-  .card--cyan .icon-wrap { color: var(--color-accent-cyan); box-shadow: 0 0 15px rgba(0, 255, 255, 0.2); }
+  .card--cyan .icon-wrap { color: var(--pax-ui-accent); box-shadow: 0 0 15px rgba(0, 255, 255, 0.2); }
   .card--cyan:hover { box-shadow: 0 0 20px rgba(0, 255, 255, 0.1); }
 
   .card--gold { border-color: rgba(251, 191, 36, 0.3); }

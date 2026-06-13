@@ -8,14 +8,14 @@
     {
       id: "visible",
       label: "VISIBLE STRATEGY",
-      color: "var(--color-accent-cyan)",
+      color: "var(--pax-ui-accent)",
     },
-    { id: "attrition", label: "ATTRITION", color: "var(--color-accent-red)" },
-    { id: "pinning", label: "PINNING", color: "var(--color-accent-yellow)" },
+    { id: "attrition", label: "ATTRITION", color: "var(--pax-ui-danger)" },
+    { id: "pinning", label: "PINNING", color: "var(--pax-ui-warning)" },
     {
       id: "overwhelm",
       label: "OVERWHELM",
-      color: "var(--color-player-purple)",
+      color: "var(--pax-color-player-purple)",
     },
   ];
 
@@ -23,22 +23,22 @@
     visible: {
       title: "Visible Strategy, Critical Decisions",
       desc: "Every ship is a visible dot. Every flow is a river of force. You don't need a spreadsheet to understand the battle—just look at the screen. The thickness of the flow tells you everything.",
-      color: "var(--color-accent-cyan)",
+      color: "var(--pax-ui-accent)",
     },
     attrition: {
       title: "Symmetric Attrition",
       desc: "Both attacker and defender take simultaneous damage each tick. Every assault has a cost. There are no free wins; you spend your fleet to destroy theirs.",
-      color: "var(--color-accent-red)",
+      color: "var(--pax-ui-danger)",
     },
     pinning: {
       title: "Pinning Mechanic",
       desc: "Suppress a defender's repair rate by 90% with even a single attacking ship. This enables complex multi-front sieges where a small force can pin a star while the main fleet strikes elsewhere.",
-      color: "var(--color-accent-yellow)",
+      color: "var(--pax-ui-warning)",
     },
     overwhelm: {
       title: "Overwhelm Surrender",
       desc: "Achieve massive force advantage to trigger immediate conquest without combat rolls. If you outnumber them 10 to 1, they surrender instantly. Speed matters.",
-      color: "var(--color-player-purple)",
+      color: "var(--pax-color-player-purple)",
     },
   };
 </script>
@@ -94,8 +94,8 @@
 
 <style>
   .feature-deep-dive {
-    padding: var(--space-12) var(--space-8);
-    background-color: var(--color-void-deep);
+    padding: var(--pax-space-12) var(--pax-space-8);
+    background-color: var(--pax-color-void);
   }
 
   .container {
@@ -105,17 +105,17 @@
 
   .tabs {
     display: flex;
-    gap: var(--space-4);
-    margin-bottom: var(--space-8);
+    gap: var(--pax-space-4);
+    margin-bottom: var(--pax-space-8);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
 
   .tab-btn {
     background: transparent;
     border: none;
-    padding: var(--space-4) var(--space-6);
-    color: var(--color-text-muted);
-    font-family: var(--font-display);
+    padding: var(--pax-space-4) var(--pax-space-6);
+    color: var(--pax-ui-text-soft);
+    font-family: var(--pax-ui-font-ui);
     font-weight: 700;
     cursor: pointer;
     position: relative;
@@ -123,11 +123,11 @@
   }
 
   .tab-btn:hover {
-    color: var(--color-text-primary);
+    color: var(--pax-ui-text-strong);
   }
 
   .tab-btn.active {
-    color: var(--accent-color, var(--color-accent-cyan));
+    color: var(--accent-color, var(--pax-ui-accent));
   }
 
   .tab-btn.active::after {
@@ -137,15 +137,15 @@
     left: 0;
     width: 100%;
     height: 3px;
-    background: var(--accent-color, var(--color-accent-cyan));
-    box-shadow: 0 -5px 15px var(--accent-color, var(--color-accent-cyan));
+    background: var(--accent-color, var(--pax-ui-accent));
+    box-shadow: 0 -5px 15px var(--accent-color, var(--pax-ui-accent));
   }
 
   .content-panel {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: var(--space-8);
-    padding: var(--space-8);
+    gap: var(--pax-space-8);
+    padding: var(--pax-space-8);
     align-items: center;
   }
 
@@ -153,7 +153,7 @@
     width: 100%;
     aspect-ratio: 16/9;
     background: #000;
-    border-radius: var(--radius-md);
+    border-radius: var(--pax-ui-radius-md);
     overflow: hidden;
     position: relative;
   }
@@ -190,13 +190,13 @@
 
   .section-title {
     font-size: 2.5rem;
-    margin-bottom: var(--space-4);
+    margin-bottom: var(--pax-space-4);
   }
 
   .section-desc {
     font-size: 1.1rem;
     line-height: 1.6;
-    color: var(--color-text-muted);
+    color: var(--pax-ui-text-soft);
   }
 
   @keyframes scan {
@@ -214,7 +214,7 @@
     }
     .tabs {
       overflow-x: auto;
-      padding-bottom: var(--space-2);
+      padding-bottom: var(--pax-space-2);
     }
   }
 </style>

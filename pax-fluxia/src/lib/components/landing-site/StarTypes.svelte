@@ -1,10 +1,10 @@
 <script lang="ts">
   const stars = [
-    { type: "Offense", shape: "triangle", color: "var(--color-player-green)", desc: "Maximizes offensive fleet strength (2x)." },
-    { type: "Defense", shape: "square", color: "var(--color-player-red)", desc: "Increases combat defense multiplier (2x)." },
-    { type: "Production", shape: "pentagon", color: "var(--color-player-yellow)", desc: "Boosts new ship creation rate (2x)." },
-    { type: "Repair", shape: "hexagon", color: "var(--color-player-purple)", desc: "Accelerates self-repair rate (2x)." },
-    { type: "Speed", shape: "heptagon", color: "var(--color-player-blue)", desc: "Increases movement/transfer speed (2x)." },
+    { type: "Offense", shape: "triangle", color: "var(--pax-color-player-green)", desc: "Maximizes offensive fleet strength (2x)." },
+    { type: "Defense", shape: "square", color: "var(--pax-color-player-red)", desc: "Increases combat defense multiplier (2x)." },
+    { type: "Production", shape: "pentagon", color: "var(--pax-color-player-yellow)", desc: "Boosts new ship creation rate (2x)." },
+    { type: "Repair", shape: "hexagon", color: "var(--pax-color-player-purple)", desc: "Accelerates self-repair rate (2x)." },
+    { type: "Speed", shape: "heptagon", color: "var(--pax-color-player-blue)", desc: "Increases movement/transfer speed (2x)." },
     { type: "Standard", shape: "circle", color: "#ccc", desc: "Balanced node with no specialization." }
   ];
 </script>
@@ -46,24 +46,24 @@
 
 <style>
   .star-types {
-    padding: var(--space-12) var(--space-8);
+    padding: var(--pax-space-12) var(--pax-space-8);
     background: radial-gradient(circle at center, #1a1a2e 0%, #000 100%);
     text-align: center;
   }
 
   .header {
-    margin-bottom: var(--space-12);
+    margin-bottom: var(--pax-space-12);
   }
 
   .title {
     font-size: 2.5rem;
-    color: var(--color-text-primary);
-    margin-bottom: var(--space-4);
+    color: var(--pax-ui-text-strong);
+    margin-bottom: var(--pax-space-4);
   }
 
   .subtitle {
     font-size: 1.1rem;
-    color: var(--color-text-muted);
+    color: var(--pax-ui-text-soft);
     max-width: 600px;
     margin: 0 auto;
   }
@@ -71,7 +71,7 @@
   .grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: var(--space-6);
+    gap: var(--pax-space-6);
     max-width: 1400px;
     margin: 0 auto;
   }
@@ -95,11 +95,11 @@
   }
 
   .star-card {
-    padding: var(--space-6);
+    padding: var(--pax-space-6);
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--space-4);
+    gap: var(--pax-space-4);
     transition: transform 0.3s;
     border-color: rgba(255, 255, 255, 0.05);
   }
@@ -124,6 +124,6 @@
 
   .star-desc {
     font-size: 0.9rem;
-    color: var(--color-text-muted);
+    color: var(--pax-ui-text-soft);
   }
 </style>

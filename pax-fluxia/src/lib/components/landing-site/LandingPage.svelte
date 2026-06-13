@@ -26,8 +26,8 @@
   .landing-page {
     width: 100%;
     min-height: 100vh;
-    background-color: var(--color-void-deep);
-    color: var(--color-text-primary);
+    background-color: var(--pax-color-void);
+    color: var(--pax-ui-text-strong);
     overflow-x: hidden;
   }
 </style>

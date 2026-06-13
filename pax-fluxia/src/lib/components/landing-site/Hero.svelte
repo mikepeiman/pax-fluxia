@@ -122,7 +122,7 @@
     justify-content: center;
     text-align: center;
     overflow: hidden;
-    padding: 80px var(--space-6) var(--space-8);
+    padding: 80px var(--pax-space-6) var(--pax-space-8);
   }
 
   /* Background Layers */
@@ -130,7 +130,7 @@
     position: absolute;
     inset: 0;
     z-index: -1;
-    background: var(--color-void-deep);
+    background: var(--pax-color-void);
   }
 
   .layer {
@@ -178,10 +178,10 @@
     max-width: 900px;
     width: 100%;
     box-sizing: border-box;
-    padding: var(--space-8);
+    padding: var(--pax-space-8);
     display: flex;
     flex-direction: column;
-    gap: var(--space-6);
+    gap: var(--pax-space-6);
     align-items: center;
     z-index: 1;
   }
@@ -191,12 +191,12 @@
     font-size: clamp(2.5rem, 5vw + 1rem, 5rem);
     line-height: 1.1;
     font-weight: 900;
-    color: var(--color-text-primary);
+    color: var(--pax-ui-text-strong);
     text-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
   }
 
   .highlight {
-    background: linear-gradient(90deg, #fff, var(--color-accent-cyan));
+    background: linear-gradient(90deg, #fff, var(--pax-ui-accent));
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -204,9 +204,9 @@
   }
 
   .subhead {
-    font-family: var(--font-body);
+    font-family: var(--pax-ui-font-copy);
     font-size: 1.25rem;
-    color: var(--color-text-muted);
+    color: var(--pax-ui-text-soft);
     max-width: 700px;
     line-height: 1.6;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
@@ -215,8 +215,8 @@
   .actions {
     display: flex;
     flex-direction: column;
-    gap: var(--space-6);
-    margin-top: var(--space-4);
+    gap: var(--pax-space-6);
+    margin-top: var(--pax-space-4);
     align-items: center;
     width: 100%;
     max-width: 480px;
@@ -224,7 +224,7 @@
 
   .primary-actions {
     display: flex;
-    gap: var(--space-4);
+    gap: var(--pax-space-4);
     align-items: center;
     width: 100%;
     justify-content: center;
@@ -262,16 +262,16 @@
   .subscribe-form {
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
+    gap: var(--pax-space-3);
     width: 100%;
-    padding: var(--space-4);
+    padding: var(--pax-space-4);
     border-radius: 12px;
     min-height: 8ch;
   }
 
   .input-group {
     display: flex;
-    gap: var(--space-3);
+    gap: var(--pax-space-3);
     width: 100%;
     height: 100%;
   }
@@ -281,16 +281,16 @@
     background: rgba(0, 0, 0, 0.5);
     border: 1px solid rgba(0, 255, 255, 0.2);
     border-radius: 8px;
-    padding: 0 var(--space-4);
-    color: var(--color-text-primary);
-    font-family: var(--font-body);
+    padding: 0 var(--pax-space-4);
+    color: var(--pax-ui-text-strong);
+    font-family: var(--pax-ui-font-copy);
     font-size: 1rem;
     transition: all 0.2s ease;
   }
 
   .subscribe-form input:focus {
     outline: none;
-    border-color: var(--color-accent-cyan);
+    border-color: var(--pax-ui-accent);
     box-shadow: 0 0 0 2px rgba(0, 255, 255, 0.1);
   }
 
@@ -302,13 +302,13 @@
   .btn--outline {
     white-space: nowrap;
     min-width: 120px;
-    padding: var(--space-3) var(--space-5);
+    padding: var(--pax-space-3) var(--pax-space-5);
     background: transparent;
-    border: 1px solid var(--color-accent-cyan);
-    color: var(--color-accent-cyan);
+    border: 1px solid var(--pax-ui-accent);
+    color: var(--pax-ui-accent);
     cursor: pointer;
     border-radius: 8px;
-    font-family: var(--font-display);
+    font-family: var(--pax-ui-font-ui);
     font-weight: 700;
     transition: all 0.2s ease;
   }
@@ -327,15 +327,15 @@
     font-size: 0.875rem;
     margin: 0;
     text-align: left;
-    padding-left: var(--space-2);
+    padding-left: var(--pax-space-2);
   }
 
   .status-msg.error {
-    color: var(--color-status-danger, #ff4d4d);
+    color: var(--pax-ui-danger, #ff4d4d);
   }
 
   .status-msg.success {
-    color: var(--color-status-success, #00ffaa);
+    color: var(--pax-ui-success, #00ffaa);
   }
 
   @keyframes pulse-slow {
@@ -360,7 +360,7 @@
 
   @media (max-width: 600px) {
     .hero {
-      padding: 88px var(--space-4) var(--space-6);
+      padding: 88px var(--pax-space-4) var(--pax-space-6);
     }
 
     .primary-actions {
@@ -381,7 +381,7 @@
       width: 100%;
     }
     .subscribe-form {
-      padding: var(--space-3);
+      padding: var(--pax-space-3);
     }
   }
 </style>

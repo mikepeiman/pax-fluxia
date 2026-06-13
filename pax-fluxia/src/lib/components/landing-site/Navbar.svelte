@@ -33,7 +33,7 @@
   .navbar-content {
     max-width: 1440px;
     margin: 0 auto;
-    padding: var(--space-4) var(--space-8);
+    padding: var(--pax-space-4) var(--pax-space-8);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -43,39 +43,39 @@
     font-size: 1.5rem;
     font-weight: 900;
     letter-spacing: 0.1em;
-    color: var(--color-text-primary);
+    color: var(--pax-ui-text-strong);
     text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
   }
 
   .links {
     display: flex;
-    gap: var(--space-8);
+    gap: var(--pax-space-8);
   }
 
   .link {
-    font-family: var(--font-body); /* Montserrat */
+    font-family: var(--pax-ui-font-copy); /* Montserrat */
     font-size: 0.9rem;
     font-weight: 600;
-    color: var(--color-text-muted);
+    color: var(--pax-ui-text-soft);
     text-decoration: none;
-    transition: color var(--transition-fast);
+    transition: color var(--pax-ui-motion-fast);
     letter-spacing: 0.05em;
   }
 
   .link:hover {
-    color: var(--color-accent-cyan);
-    text-shadow: 0 0 8px var(--color-accent-cyan-dim);
+    color: var(--pax-ui-accent);
+    text-shadow: 0 0 8px var(--pax-ui-accent-dim);
   }
 
   .btn--glow {
-    border-color: var(--color-accent-cyan);
-    color: var(--color-accent-cyan);
+    border-color: var(--pax-ui-accent);
+    color: var(--pax-ui-accent);
     background: rgba(0, 255, 255, 0.05);
   }
 
   .btn--glow:hover {
     background: rgba(0, 255, 255, 0.15);
-    box-shadow: 0 0 15px var(--color-accent-cyan-dim);
+    box-shadow: 0 0 15px var(--pax-ui-accent-dim);
   }
 
   @media (max-width: 768px) {
