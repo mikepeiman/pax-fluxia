@@ -1284,7 +1284,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 class={`icon-btn ${tool.action ? "settings-tool-action" : ""} ${tool.id === "quit" ? "settings-tool-danger" : ""}`}
                 active={activeToolId === tool.id}
                 danger={tool.id === "quit"}
-                style="--accent: {tool.color}"
+                accentId={tool.id}
                 onclick={() => handleToolClick(tool)}
                 title={tool.label}
             >
@@ -1358,7 +1358,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     {:else}
     <!-- Stacked Section Panels -->
     {#each orderedOpenSections as sec (sec.id)}
-        <div class="section-panel" style="--accent: {sec.color}">
+        <div class="section-panel" data-accent-id={sec.id}>
             <div class="section-head-wrap">
                 <PaxHudButton class="section-head" onclick={() => toggleSection(sec.id)} title={`Close ${sec.label}`}>
                     <span class="head-icon"><HudIcon name={sec.icon} /></span>
@@ -2303,6 +2303,120 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
 
     :global(.settings-tool-danger) {
         --accent: var(--hud-danger);
+    }
+
+    :global(.icon-btn[data-accent-id="theme_library"]),
+    :global(.icon-btn[data-accent-id="stats"]),
+    :global(.icon-btn[data-accent-id="restart"]) {
+        --accent: #f6c469;
+    }
+
+    :global(.icon-btn[data-accent-id="appearance"]) {
+        --accent: #5ee6ff;
+    }
+
+    :global(.icon-btn[data-accent-id="combat_tuning"]) {
+        --accent: #ff8a94;
+    }
+
+    :global(.icon-btn[data-accent-id="audio"]) {
+        --accent: #44ddbb;
+    }
+
+    :global(.icon-btn[data-accent-id="video_graphics"]) {
+        --accent: #93c5fd;
+    }
+
+    :global(.icon-btn[data-accent-id="diagnostics"]) {
+        --accent: #f59e0b;
+    }
+
+    :global(.icon-btn[data-accent-id="hotkeys"]) {
+        --accent: #8ab4ff;
+    }
+
+    :global(.icon-btn[data-accent-id="help"]) {
+        --accent: #a8b6cf;
+    }
+
+    :global(.icon-btn[data-accent-id="quit"]) {
+        --accent: #ff6a7a;
+    }
+
+    .section-panel[data-accent-id="players"] {
+        --accent: #7dd3fc;
+    }
+
+    .section-panel[data-accent-id="match_flow"] {
+        --accent: #ffcc00;
+    }
+
+    .section-panel[data-accent-id="combat_tuning"] {
+        --accent: #ff4466;
+    }
+
+    .section-panel[data-accent-id="economy"] {
+        --accent: #44ff88;
+    }
+
+    .section-panel[data-accent-id="travel_orders"] {
+        --accent: #44aaff;
+    }
+
+    .section-panel[data-accent-id="conquest"] {
+        --accent: #ff66aa;
+    }
+
+    .section-panel[data-accent-id="effects"] {
+        --accent: #f472b6;
+    }
+
+    .section-panel[data-accent-id="map_options"] {
+        --accent: #cc66ff;
+    }
+
+    .section-panel[data-accent-id="territory_phase_field"] {
+        --accent: #8ab4ff;
+    }
+
+    .section-panel[data-accent-id="territory_phase_edges"] {
+        --accent: #fda4af;
+    }
+
+    .section-panel[data-accent-id="territory_ember_lattice"] {
+        --accent: #fb923c;
+    }
+
+    .section-panel[data-accent-id="frontier_fx"] {
+        --accent: #f97316;
+    }
+
+    .section-panel[data-accent-id="territory_tuning"] {
+        --accent: #6ee7b7;
+    }
+
+    .section-panel[data-accent-id="territory_styles"] {
+        --accent: #93c5fd;
+    }
+
+    .section-panel[data-accent-id="fleet_star_visuals"] {
+        --accent: #88ccff;
+    }
+
+    .section-panel[data-accent-id="audio"] {
+        --accent: #44ddbb;
+    }
+
+    .section-panel[data-accent-id="diagnostics"] {
+        --accent: #f59e0b;
+    }
+
+    .section-panel[data-accent-id="logging"] {
+        --accent: #88aacc;
+    }
+
+    .section-panel[data-accent-id="ai"] {
+        --accent: #ff8844;
     }
 
     .settings-content {

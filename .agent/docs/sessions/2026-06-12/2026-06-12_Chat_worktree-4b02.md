@@ -159,3 +159,5 @@ Prompt:
 - Completed `ControlsSection-Territory.svelte` by migrating the remaining Combat/Fleet Pressure, Frontier Topology, Engine Surface shape/motion, runtime fill/border, and helper-copy style escapes to Pax primitives/classes.
 - Removed the final static raw-control/style hits from Territory; the targeted audit is now zero for raw buttons/selects/inputs, inline styles, and active-class toggles.
 - Validated the completed Territory migration with `git diff --check` and production build.
+- Added `accentId` to `PaxHudButton` and moved `GameSettingsPanel.svelte` tool/section accents from inline `--accent` styles to data-driven CSS selectors.
+- Validated `GameSettingsPanel.svelte` with zero raw-control/inline-style audit hits and production build.

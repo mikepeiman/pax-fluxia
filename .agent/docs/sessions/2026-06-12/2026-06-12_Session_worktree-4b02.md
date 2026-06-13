@@ -1096,3 +1096,28 @@ Validation:
 Next correct step:
 
 - Audit remaining settings/HUD files for raw visible controls and direct one-off styling escapes, then move from primitive coverage into Aurelia Drift layout/style fidelity work.
+
+## Settings Accent Ownership Cleanup
+
+Implemented:
+
+- Added `accentId?: string` to `pax-fluxia/src/lib/design-system/components/PaxHudButton.svelte`.
+- `PaxHudButton` now renders `data-accent-id={accentId}` on its owned native button.
+- Replaced inline tool accent styles in `pax-fluxia/src/lib/components/ui/GameSettingsPanel.svelte` with `accentId={tool.id}`.
+- Replaced inline section panel accent styles with `data-accent-id={sec.id}`.
+- Added a CSS accent map for settings tools and section panels.
+
+Intent:
+
+- Keep settings accent styling in the component/style system instead of ad hoc inline style attributes.
+- Preserve existing tool and section colors while making the rail/drawer shell easier to theme.
+
+Validation:
+
+- `GameSettingsPanel.svelte` audit now has no matches for `style=`, raw controls, or active-class toggles.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Next correct step:
+
+- Continue live HUD polish in `src/lib/components/game-hud/`, prioritizing Settings Ribbon, Topbar, Player Standings, Star View, and Quick Access fidelity to Aurelia Drift.

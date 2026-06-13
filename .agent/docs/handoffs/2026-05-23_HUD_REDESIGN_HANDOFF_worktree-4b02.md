@@ -1493,3 +1493,28 @@ Merge guidance:
 - Do not reintroduce local raw controls in Territory; add new controls through Pax primitives.
 - Preserve the new helper option builders for morph easing and boundary mode.
 - The disabled legacy Fill/Borders block is still disabled, but its raw controls were converted so file-level audits stay clean; if that block is removed later, verify no config surface is being restored through it.
+
+## 2026-06-12 Settings Accent Ownership Cleanup
+
+Scope implemented in this step:
+
+- Updated:
+  - `pax-fluxia/src/lib/design-system/components/PaxHudButton.svelte`
+  - `pax-fluxia/src/lib/components/ui/GameSettingsPanel.svelte`
+
+Why this matters for merge:
+
+- `GameSettingsPanel.svelte` no longer uses inline `--accent` styles for tool buttons or section panels.
+- `PaxHudButton` now accepts `accentId` and forwards it as `data-accent-id`, giving settings/HUD callers a typed way to bind fixed accent variants without inline styles.
+- Existing colors are preserved through the local settings accent selector map.
+
+Validation:
+
+- Targeted audit for `GameSettingsPanel.svelte`: no matches for `style=`, `<button>`, `<select>`, `<input>`, `class:active`, or `class:is-active`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Merge guidance:
+
+- Preserve the `accentId` prop on `PaxHudButton`; it is now part of the design-system primitive API.
+- If section/tool colors are later centralized into theme tokens, update the selector map rather than restoring inline styles.
