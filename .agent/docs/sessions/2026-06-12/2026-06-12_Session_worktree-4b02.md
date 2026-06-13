@@ -1056,3 +1056,43 @@ Validation:
 Next correct step:
 
 - Continue `ControlsSection-Territory.svelte` with the remaining Combat/Fleet Pressure, topology-rule, style-family, and legacy button clusters until the file has a zero-match raw-control/style audit.
+
+## Territory Remaining Controls Primitive Migration
+
+Implemented:
+
+- Completed the remaining migration in `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Territory.svelte`.
+- Migrated Metaball Combat/Fleet Pressure controls to Pax range rows:
+  - combat border proximity
+  - combat recency
+  - combat width boost
+  - combat alpha boost
+  - fleet pressure on borders
+- Migrated Frontier Topology controls to Pax range/toggle rows:
+  - minimum star margin
+  - star bias
+  - frontier resolution
+  - corridor virtual sites
+  - lane midpoint pairs and pair tuning
+  - corridor sample count, weight, and spacing
+  - disconnect gaps, weight, and distance
+- Migrated Engine Surface shape/motion controls to Pax range and segmented controls.
+- Converted remaining runtime fill/border controls to Pax range/toggle rows.
+- Replaced remaining inline helper-copy styles with token-aware class hooks.
+- Converted the disabled legacy Fill/Borders block away from raw controls so the file-level static audit is clean.
+
+Intent:
+
+- Finish the high-density Territory settings conversion to the shared Pax primitive/token layer.
+- Preserve all existing config writes through `debouncedConfigUpdate(...)`, `queueTopologySliderUpdate(...)`, `queueTopologyToggleUpdate(...)`, and `updatePanel(...)`.
+- Remove final local button/select/input/styling escapes from the Territory settings surface.
+
+Validation:
+
+- `ControlsSection-Territory.svelte` raw-control/style audit is now `0` for `<button>`, `<select>`, `<input>`, inline `style=`, `class:active`, and `class:is-active`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Next correct step:
+
+- Audit remaining settings/HUD files for raw visible controls and direct one-off styling escapes, then move from primitive coverage into Aurelia Drift layout/style fidelity work.

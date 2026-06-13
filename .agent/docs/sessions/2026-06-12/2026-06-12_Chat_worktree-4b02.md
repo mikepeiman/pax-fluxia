@@ -156,3 +156,6 @@ Prompt:
 - Continued `ControlsSection-Territory.svelte` by migrating Metaball CPU-grid core controls to Pax primitives.
 - Restored the missing `TerritorySurfaceStyleTuning` component tag in the Metaball section.
 - Preserved existing Metaball config write paths and validated with raw-control/style count reduction from `56` to `47`, `git diff --check`, and production build.
+- Completed `ControlsSection-Territory.svelte` by migrating the remaining Combat/Fleet Pressure, Frontier Topology, Engine Surface shape/motion, runtime fill/border, and helper-copy style escapes to Pax primitives/classes.
+- Removed the final static raw-control/style hits from Territory; the targeted audit is now zero for raw buttons/selects/inputs, inline styles, and active-class toggles.
+- Validated the completed Territory migration with `git diff --check` and production build.

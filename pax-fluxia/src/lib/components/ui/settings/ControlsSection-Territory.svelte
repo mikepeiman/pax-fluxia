@@ -197,6 +197,20 @@
     );
   }
 
+  function morphEasingOptions(): PaxHudSegmentedOption[] {
+    return MORPH_EASING_OPTIONS.map((easing) => ({
+      value: easing.id,
+      label: easing.label,
+    }));
+  }
+
+  function boundaryModeOptions(): PaxHudSegmentedOption[] {
+    return [
+      { value: "segment", label: "Segment" },
+      { value: "smooth", label: "Smooth" },
+    ];
+  }
+
   function supportsRuntimeSurfaceStyleCard(): boolean {
     const activeStyle = resolveActiveStyleId();
     return (
@@ -1029,15 +1043,13 @@
       borderHelp="Adjust shared border width, saturation, lightness, alpha, or disable borders entirely." />
 
     <h5 class="territory-inline-heading">Combat &amp; Fleet Pressure</h5>
-    <div
-      class="row-bottom"
-      style="font-size:11px;opacity:0.72;margin-bottom:8px;">
+    <div class="row-bottom territory-helper-copy territory-helper-copy--compact">
       Width/alpha boosts apply only along border segments that pass near a star
       that recently fought (same tick window). Fleet imbalance still nudges both
       along an edge. Set recency to 0 to disable combat highlighting.
     </div>
     <div
-      class="var-row"
+      class="var-row territory-range-note"
       title="Max distance in pixels from a border line to a hot star for combat boost. 0 = use Metaball influence radius (same tuning as the field). Raise this if boosts never trigger along fronts that sit far from star centers.">
       <div class="row-top">
         <span class="var-name">Combat border proximity (px)</span><span
@@ -1052,25 +1064,33 @@
               : `${Math.round(v)}`;
           })()}</span>
       </div>
-      <input
-        type="range"
-        min="0"
-        max="600"
-        step="10"
+      <PaxSettingsRangeRow
+        label="Combat border proximity"
         value={panel.metaballCombatBorderProximityPx ??
           GAME_CONFIG.METABALL_COMBAT_BORDER_PROXIMITY_PX ??
           0}
-        oninput={(e) => {
-          const v = +(e.target as HTMLInputElement).value;
+        min={0}
+        max={600}
+        step={10}
+        output={(() => {
+          const value =
+            panel.metaballCombatBorderProximityPx ??
+            GAME_CONFIG.METABALL_COMBAT_BORDER_PROXIMITY_PX ??
+            0;
+          return value <= 0
+            ? `0 (uses ${GAME_CONFIG.METABALL_INFLUENCE_RADIUS ?? 0}px)`
+            : `${Math.round(value)}px`;
+        })()}
+        settingConfigKey="METABALL_COMBAT_BORDER_PROXIMITY_PX"
+        onInput={(value) =>
           debouncedConfigUpdate(
             "METABALL_COMBAT_BORDER_PROXIMITY_PX",
             "metaballCombatBorderProximityPx",
-            v,
-          );
-        }} />
+            value,
+          )} />
     </div>
     <div
-      class="var-row"
+      class="var-row territory-range-note"
       title="If currentTick − lastCombatTick (or lastAttackTick) is under this window for a star on one side of a border segment, that segment gets the combat width/alpha boost—only near that star, not for the whole faction.">
       <div class="row-top">
         <span class="var-name">Combat recency (ticks)</span><span class="val"
@@ -1080,24 +1100,24 @@
               0,
           )}</span>
       </div>
-      <input
-        type="range"
-        min="0"
-        max="30"
-        step="1"
+      <PaxSettingsRangeRow
+        label="Combat recency"
         value={panel.metaballCombatBorderTicks ??
           GAME_CONFIG.METABALL_COMBAT_BORDER_TICKS ??
           0}
-        oninput={(e) => {
-          const v = +(e.target as HTMLInputElement).value;
+        min={0}
+        max={30}
+        step={1}
+        suffix=" ticks"
+        settingConfigKey="METABALL_COMBAT_BORDER_TICKS"
+        onInput={(value) =>
           debouncedConfigUpdate(
             "METABALL_COMBAT_BORDER_TICKS",
             "metaballCombatBorderTicks",
-            v,
-          );
-        }} />
+            value,
+          )} />
     </div>
-    <div class="var-row">
+    <div class="var-row territory-range-note">
       <div class="row-top">
         <span class="var-name">Combat width boost</span><span class="val"
           >{(
@@ -1106,24 +1126,24 @@
             0
           ).toFixed(2)}</span>
       </div>
-      <input
-        type="range"
-        min="0"
-        max="6"
-        step="0.25"
+      <PaxSettingsRangeRow
+        label="Combat width boost"
         value={panel.metaballCombatBorderWidthBoost ??
           GAME_CONFIG.METABALL_COMBAT_BORDER_WIDTH_BOOST ??
           0}
-        oninput={(e) => {
-          const v = +(e.target as HTMLInputElement).value;
+        min={0}
+        max={6}
+        step={0.25}
+        format="fixed2"
+        settingConfigKey="METABALL_COMBAT_BORDER_WIDTH_BOOST"
+        onInput={(value) =>
           debouncedConfigUpdate(
             "METABALL_COMBAT_BORDER_WIDTH_BOOST",
             "metaballCombatBorderWidthBoost",
-            v,
-          );
-        }} />
+            value,
+          )} />
     </div>
-    <div class="var-row">
+    <div class="var-row territory-range-note">
       <div class="row-top">
         <span class="var-name">Combat alpha boost</span><span class="val"
           >{(
@@ -1132,25 +1152,25 @@
             0
           ).toFixed(2)}</span>
       </div>
-      <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.05"
+      <PaxSettingsRangeRow
+        label="Combat alpha boost"
         value={panel.metaballCombatBorderAlphaBoost ??
           GAME_CONFIG.METABALL_COMBAT_BORDER_ALPHA_BOOST ??
           0}
-        oninput={(e) => {
-          const v = +(e.target as HTMLInputElement).value;
+        min={0}
+        max={1}
+        step={0.05}
+        format="fixed2"
+        settingConfigKey="METABALL_COMBAT_BORDER_ALPHA_BOOST"
+        onInput={(value) =>
           debouncedConfigUpdate(
             "METABALL_COMBAT_BORDER_ALPHA_BOOST",
             "metaballCombatBorderAlphaBoost",
-            v,
-          );
-        }} />
+            value,
+          )} />
     </div>
     <div
-      class="var-row"
+      class="var-row territory-range-note"
       title="Scales border emphasis by fleet imbalance across the edge (proxy until conquest metrics exist).">
       <div class="row-top">
         <span class="var-name">Fleet pressure on borders</span><span class="val"
@@ -1160,22 +1180,22 @@
             0
           ).toFixed(2)}</span>
       </div>
-      <input
-        type="range"
-        min="0"
-        max="2"
-        step="0.05"
+      <PaxSettingsRangeRow
+        label="Fleet pressure on borders"
         value={panel.metaballBorderForceRatio ??
           GAME_CONFIG.METABALL_BORDER_FORCE_RATIO ??
           0}
-        oninput={(e) => {
-          const v = +(e.target as HTMLInputElement).value;
+        min={0}
+        max={2}
+        step={0.05}
+        format="fixed2"
+        settingConfigKey="METABALL_BORDER_FORCE_RATIO"
+        onInput={(value) =>
           debouncedConfigUpdate(
             "METABALL_BORDER_FORCE_RATIO",
             "metaballBorderForceRatio",
-            v,
-          );
-        }} />
+            value,
+          )} />
     </div>
   </div>
 {/if}
@@ -1210,7 +1230,7 @@
 
   <!-- MSR — Minimum Star Region -->
   <div
-    class="var-row"
+    class="var-row territory-range-note"
     title="Sets the target minimum frontier distance around owned stars. This value shapes territory geometry upstream and also acts as the fallback lane margin when dedicated lane margin is disabled.">
     <div class="row-top">
       <span class="var-name">Minimum Star Margin</span><span class="val"
@@ -1218,27 +1238,27 @@
           GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ??
           45}px</span>
     </div>
-    <input
-      type="range"
+    <PaxSettingsRangeRow
+      label="Minimum Star Margin"
+      value={panel.starMargin ?? GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45}
       min={topologyLimits.starMargin.min}
       max={topologyLimits.starMargin.max}
-      step="5"
-      value={panel.starMargin ?? GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45}
-      oninput={(e) => {
-        const v = +(e.target as HTMLInputElement).value;
+      step={5}
+      suffix="px"
+      settingConfigKey="MODIFIED_VORONOI_STAR_MARGIN"
+      onInput={(value) =>
         queueTopologySliderUpdate(
           "MODIFIED_VORONOI_STAR_MARGIN",
           "starMargin",
-          v,
+          value,
           "Minimum Star Margin",
-        );
-      }} />
+        )} />
   </div>
 
   <h5 class="territory-inline-heading">MSR as star power</h5>
 
   <div
-    class="var-row"
+    class="var-row territory-range-note"
     title="Optional advanced solve-time star resistance against corridor, lane-pair, and disconnect shaping. 0 keeps MSR as pure local frontier clearance.">
     <div class="row-top">
       <span class="var-name">Star Bias</span><span class="val"
@@ -1251,26 +1271,28 @@
     <div class="row-hint">
       Relative star resistance against corridor, lane-pair, and disconnect shaping during the Power Voronoi solve. <strong>0</strong> leaves baseline MSR as pure post-solve local clearance.
     </div>
-    <input
-      type="range"
+    <PaxSettingsRangeRow
+      label="Star Bias"
+      value={panel.msrStarBias ??
+        (GAME_CONFIG as any).TERRITORY_MSR_STAR_BIAS ??
+        0}
       min={topologyLimits.msrStarBias.min}
       max={topologyLimits.msrStarBias.max}
-      step="0.05"
-      value={panel.msrStarBias ?? (GAME_CONFIG as any).TERRITORY_MSR_STAR_BIAS ?? 0}
-      oninput={(e) => {
-        const v = +(e.target as HTMLInputElement).value;
+      step={0.05}
+      format="fixed2"
+      settingConfigKey="TERRITORY_MSR_STAR_BIAS"
+      onInput={(value) =>
         queueTopologySliderUpdate(
           "TERRITORY_MSR_STAR_BIAS",
           "msrStarBias",
-          v,
+          value,
           "Star Bias",
-        );
-      }} />
+        )} />
   </div>
 
   <h5 class="territory-inline-heading">Frontier Sampling</h5>
 
-  <div class="var-row">
+  <div class="var-row territory-range-note">
     <div class="row-top">
       <span class="var-name">Frontier Resolution</span><span class="val"
         >{panel.frontierResolution ??
@@ -1281,80 +1303,65 @@
       Vertex spacing for real frontier geometry that still feeds maintained
       compiler paths. Lower values produce denser frontiers.
     </div>
-    <input
-      type="range"
+    <PaxSettingsRangeRow
+      label="Frontier Resolution"
+      value={panel.frontierResolution ?? GAME_CONFIG.FRONTIER_RESOLUTION ?? 5}
       min={topologyLimits.frontierResolution.min}
       max={topologyLimits.frontierResolution.max}
-      step="1"
-      value={panel.frontierResolution ?? GAME_CONFIG.FRONTIER_RESOLUTION ?? 5}
-      oninput={(e) => {
-        const v = +(e.target as HTMLInputElement).value;
+      step={1}
+      suffix="px"
+      settingConfigKey="FRONTIER_RESOLUTION"
+      onInput={(value) =>
         queueTopologySliderUpdate(
           "FRONTIER_RESOLUTION",
           "frontierResolution",
-          v,
+          value,
           "Frontier Resolution",
-        );
-      }} />
+        )} />
   </div>
 
   <h5 class="territory-inline-heading">Corridors</h5>
 
   <!-- CX — Corridor Connection -->
-  <div class="var-row">
-    <div class="row-top">
-      <span class="var-name">Corridor Virtual Sites (CX)</span>
-      <label class="lock-toggle">
-        <input
-          type="checkbox"
-          checked={panel.corridorEnabled ??
-            GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED ??
-            true}
-          onchange={(e) => {
-            const v = (e.target as HTMLInputElement).checked;
-            queueTopologyToggleUpdate(
-              "MODIFIED_VORONOI_CORRIDOR_ENABLED",
-              "corridorEnabled",
-              v,
-              "Corridor Virtual Sites (CX)",
-            );
-          }} />
-        {(panel.corridorEnabled ??
-        GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED ??
-        true)
-          ? "On"
-          : "Off"}
-      </label>
-    </div>
-  </div>
-  <div class="var-row indent">
-    <div class="row-top">
-      <span class="var-name">Lane Midpoint Pairs</span>
-      <label class="lock-toggle">
-        <input
-          type="checkbox"
-          checked={panel.cxContestMidpointVstars ??
-            GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ??
-            true}
-          onchange={(e) => {
-            const v = (e.target as HTMLInputElement).checked;
-            queueTopologyToggleUpdate(
-              "TERRITORY_CX_CONTEST_MIDPOINT_VSTARS",
-              "cxContestMidpointVstars",
-              v,
-              "Lane Midpoint Pairs",
-            );
-          }} />
-        {(panel.cxContestMidpointVstars ??
-          GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ??
-          true)
-          ? "On"
-          : "Off"}
-      </label>
-    </div>
-  </div>
+  <PaxSettingsToggleRow
+    label="Corridor Virtual Sites (CX)"
+    checked={panel.corridorEnabled ??
+      GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED ??
+      true}
+    meta={(panel.corridorEnabled ??
+      GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_ENABLED ??
+      true)
+      ? "On"
+      : "Off"}
+    settingConfigKey="MODIFIED_VORONOI_CORRIDOR_ENABLED"
+    onChange={(value) =>
+      queueTopologyToggleUpdate(
+        "MODIFIED_VORONOI_CORRIDOR_ENABLED",
+        "corridorEnabled",
+        value,
+        "Corridor Virtual Sites (CX)",
+      )} />
+  <PaxSettingsToggleRow
+    class="territory-indent"
+    label="Lane Midpoint Pairs"
+    checked={panel.cxContestMidpointVstars ??
+      GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ??
+      true}
+    meta={(panel.cxContestMidpointVstars ??
+      GAME_CONFIG.TERRITORY_CX_CONTEST_MIDPOINT_VSTARS ??
+      true)
+      ? "On"
+      : "Off"}
+    settingConfigKey="TERRITORY_CX_CONTEST_MIDPOINT_VSTARS"
+    onChange={(value) =>
+      queueTopologyToggleUpdate(
+        "TERRITORY_CX_CONTEST_MIDPOINT_VSTARS",
+        "cxContestMidpointVstars",
+        value,
+        "Lane Midpoint Pairs",
+      )} />
   <div
-    class="var-row indent"
+    class="var-row indent territory-range-note"
     class:disabled={!cxOn}
     title={!cxOn ? "Turn Corridor Virtual Sites on to edit these values." : ""}>
     <div class="row-top">
@@ -1363,27 +1370,26 @@
           GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT ??
           1}</span>
     </div>
-    <input
-      type="range"
-      min={topologyLimits.cxContestPairCount.min}
-      max={topologyLimits.cxContestPairCount.max}
-      step="1"
-      disabled={!cxOn}
+    <PaxSettingsRangeRow
+      label="Lane Midpoint Pair Count"
       value={panel.cxContestPairCount ??
         GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT ??
         1}
-      oninput={(e) => {
-        const v = +(e.target as HTMLInputElement).value;
+      min={topologyLimits.cxContestPairCount.min}
+      max={topologyLimits.cxContestPairCount.max}
+      step={1}
+      disabled={!cxOn}
+      settingConfigKey="TERRITORY_CX_CONTEST_PAIR_COUNT"
+      onInput={(value) =>
         queueTopologySliderUpdate(
           "TERRITORY_CX_CONTEST_PAIR_COUNT",
           "cxContestPairCount",
-          v,
+          value,
           "Lane Midpoint Pair Count",
-        );
-      }} />
+        )} />
   </div>
   <div
-    class="var-row indent"
+    class="var-row indent territory-range-note"
     class:disabled={!cxOn}
     title={!cxOn ? "Turn Corridor Virtual Sites on to edit these values." : ""}>
     <div class="row-top">
@@ -1392,27 +1398,26 @@
           GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_SPACING ??
           75}</span>
     </div>
-    <input
-      type="range"
-      min={topologyLimits.cxContestPairSpacing.min}
-      max={topologyLimits.cxContestPairSpacing.max}
-      step="5"
-      disabled={!cxOn}
+    <PaxSettingsRangeRow
+      label="Lane Midpoint Pair Spacing"
       value={panel.cxContestPairSpacing ??
         GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_SPACING ??
         75}
-      oninput={(e) => {
-        const v = +(e.target as HTMLInputElement).value;
+      min={topologyLimits.cxContestPairSpacing.min}
+      max={topologyLimits.cxContestPairSpacing.max}
+      step={5}
+      disabled={!cxOn}
+      settingConfigKey="TERRITORY_CX_CONTEST_PAIR_SPACING"
+      onInput={(value) =>
         queueTopologySliderUpdate(
           "TERRITORY_CX_CONTEST_PAIR_SPACING",
           "cxContestPairSpacing",
-          v,
+          value,
           "Lane Midpoint Pair Spacing",
-        );
-      }} />
+        )} />
   </div>
   <div
-    class="var-row indent"
+    class="var-row indent territory-range-note"
     class:disabled={!cxOn}
     title={!cxOn ? "Turn Corridor Virtual Sites on to edit these values." : ""}>
     <div class="row-top">
@@ -1423,27 +1428,27 @@
           0.5
         ).toFixed(2)}</span>
     </div>
-    <input
-      type="range"
-      min={topologyLimits.cxContestPairWeight.min}
-      max={topologyLimits.cxContestPairWeight.max}
-      step="0.05"
-      disabled={!cxOn}
+    <PaxSettingsRangeRow
+      label="Lane Midpoint Pair Weight"
       value={panel.cxContestPairWeight ??
         GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT ??
         0.5}
-      oninput={(e) => {
-        const v = +(e.target as HTMLInputElement).value;
+      min={topologyLimits.cxContestPairWeight.min}
+      max={topologyLimits.cxContestPairWeight.max}
+      step={0.05}
+      disabled={!cxOn}
+      format="fixed2"
+      settingConfigKey="TERRITORY_CX_CONTEST_PAIR_WEIGHT"
+      onInput={(value) =>
         queueTopologySliderUpdate(
           "TERRITORY_CX_CONTEST_PAIR_WEIGHT",
           "cxContestPairWeight",
-          v,
+          value,
           "Lane Midpoint Pair Weight",
-        );
-      }} />
+        )} />
   </div>
   <div
-    class="var-row indent"
+    class="var-row indent territory-range-note"
     class:disabled={!cxOn}
     title={!cxOn ? "Turn Corridor Virtual Sites on to edit these values." : ""}>
     <div class="row-top">
@@ -1452,25 +1457,27 @@
           ? "Auto"
           : (panel.cxCount ?? GAME_CONFIG.TERRITORY_CX_COUNT)}</span>
     </div>
-    <input
-      type="range"
+    <PaxSettingsRangeRow
+      label="Corridor Sample Count"
+      value={panel.cxCount ?? GAME_CONFIG.TERRITORY_CX_COUNT ?? 0}
       min={topologyLimits.corridorCount.min}
       max={topologyLimits.corridorCount.max}
-      step="1"
+      step={1}
       disabled={!cxOn}
-      value={panel.cxCount ?? GAME_CONFIG.TERRITORY_CX_COUNT ?? 0}
-      oninput={(e) => {
-        const v = +(e.target as HTMLInputElement).value;
+      output={(panel.cxCount ?? GAME_CONFIG.TERRITORY_CX_COUNT ?? 0) === 0
+        ? "Auto"
+        : `${panel.cxCount ?? GAME_CONFIG.TERRITORY_CX_COUNT}`}
+      settingConfigKey="TERRITORY_CX_COUNT"
+      onInput={(value) =>
         queueTopologySliderUpdate(
           "TERRITORY_CX_COUNT",
           "cxCount",
-          v,
+          value,
           "Corridor Sample Count",
-        );
-      }} />
+        )} />
   </div>
   <div
-    class="var-row indent"
+    class="var-row indent territory-range-note"
     class:disabled={!cxOn}
     title={!cxOn ? "Turn Corridor Virtual Sites on to edit these values." : ""}>
     <div class="row-top">
@@ -1479,25 +1486,25 @@
           2,
         )}</span>
     </div>
-    <input
-      type="range"
+    <PaxSettingsRangeRow
+      label="Corridor Weight"
+      value={panel.cxWeight ?? GAME_CONFIG.TERRITORY_CX_WEIGHT ?? 0.5}
       min={topologyLimits.corridorWeight.min}
       max={topologyLimits.corridorWeight.max}
-      step="0.05"
+      step={0.05}
       disabled={!cxOn}
-      value={panel.cxWeight ?? GAME_CONFIG.TERRITORY_CX_WEIGHT ?? 0.5}
-      oninput={(e) => {
-        const v = +(e.target as HTMLInputElement).value;
+      format="fixed2"
+      settingConfigKey="TERRITORY_CX_WEIGHT"
+      onInput={(value) =>
         queueTopologySliderUpdate(
           "TERRITORY_CX_WEIGHT",
           "cxWeight",
-          v,
+          value,
           "Corridor Weight",
-        );
-      }} />
+        )} />
   </div>
   <div
-    class="var-row indent"
+    class="var-row indent territory-range-note"
     class:disabled={!cxOn}
     title={!cxOn ? "Turn Corridor Virtual Sites on to edit these values." : ""}>
     <div class="row-top">
@@ -1506,57 +1513,49 @@
           GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ??
           60}px</span>
     </div>
-    <input
-      type="range"
-      min={topologyLimits.corridorSpacing.min}
-      max={topologyLimits.corridorSpacing.max}
-      step="5"
-      disabled={!cxOn}
+    <PaxSettingsRangeRow
+      label="Corridor Spacing"
       value={panel.corridorSpacing ??
         GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ??
         60}
-      oninput={(e) => {
-        const v = +(e.target as HTMLInputElement).value;
+      min={topologyLimits.corridorSpacing.min}
+      max={topologyLimits.corridorSpacing.max}
+      step={5}
+      disabled={!cxOn}
+      suffix="px"
+      settingConfigKey="MODIFIED_VORONOI_CORRIDOR_SPACING"
+      onInput={(value) =>
         queueTopologySliderUpdate(
           "MODIFIED_VORONOI_CORRIDOR_SPACING",
           "corridorSpacing",
-          v,
+          value,
           "Corridor Spacing",
-        );
-      }} />
+        )} />
   </div>
 
   <h5 class="territory-inline-heading">Disconnects</h5>
 
   <!-- DX — Disconnection Zones -->
-  <div class="var-row">
-    <div class="row-top">
-      <span class="var-name">Disconnect Gaps (DX)</span>
-      <label class="lock-toggle">
-        <input
-          type="checkbox"
-          checked={panel.disconnectEnabled ??
-            GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED ??
-            false}
-          onchange={(e) => {
-            const v = (e.target as HTMLInputElement).checked;
-            queueTopologyToggleUpdate(
-              "MODIFIED_VORONOI_DISCONNECT_ENABLED",
-              "disconnectEnabled",
-              v,
-              "Disconnect Gaps (DX)",
-            );
-          }} />
-        {(panel.disconnectEnabled ??
-        GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED ??
-        false)
-          ? "On"
-          : "Off"}
-      </label>
-    </div>
-  </div>
+  <PaxSettingsToggleRow
+    label="Disconnect Gaps (DX)"
+    checked={panel.disconnectEnabled ??
+      GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED ??
+      false}
+    meta={(panel.disconnectEnabled ??
+      GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED ??
+      false)
+      ? "On"
+      : "Off"}
+    settingConfigKey="MODIFIED_VORONOI_DISCONNECT_ENABLED"
+    onChange={(value) =>
+      queueTopologyToggleUpdate(
+        "MODIFIED_VORONOI_DISCONNECT_ENABLED",
+        "disconnectEnabled",
+        value,
+        "Disconnect Gaps (DX)",
+      )} />
   <div
-    class="var-row indent"
+    class="var-row indent territory-range-note"
     class:disabled={!dxOn}
     title={!dxOn ? "Turn Disconnect Gaps on to edit these values." : ""}>
     <div class="row-top">
@@ -1565,25 +1564,25 @@
           2,
         )}</span>
     </div>
-    <input
-      type="range"
+    <PaxSettingsRangeRow
+      label="Disconnect Weight"
+      value={panel.dxWeight ?? GAME_CONFIG.TERRITORY_DX_WEIGHT ?? 0.3}
       min={topologyLimits.disconnectWeight.min}
       max={topologyLimits.disconnectWeight.max}
-      step="0.05"
+      step={0.05}
       disabled={!dxOn}
-      value={panel.dxWeight ?? GAME_CONFIG.TERRITORY_DX_WEIGHT ?? 0.3}
-      oninput={(e) => {
-        const v = +(e.target as HTMLInputElement).value;
+      format="fixed2"
+      settingConfigKey="TERRITORY_DX_WEIGHT"
+      onInput={(value) =>
         queueTopologySliderUpdate(
           "TERRITORY_DX_WEIGHT",
           "dxWeight",
-          v,
+          value,
           "Disconnect Weight",
-        );
-      }} />
+        )} />
   </div>
   <div
-    class="var-row indent"
+    class="var-row indent territory-range-note"
     class:disabled={!dxOn}
     title={!dxOn ? "Turn Disconnect Gaps on to edit these values." : ""}>
     <div class="row-top">
@@ -1592,24 +1591,24 @@
           GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ??
           400}px</span>
     </div>
-    <input
-      type="range"
-      min={topologyLimits.disconnectDistance.min}
-      max={topologyLimits.disconnectDistance.max}
-      step="25"
-      disabled={!dxOn}
+    <PaxSettingsRangeRow
+      label="Disconnect Distance"
       value={panel.disconnectDistance ??
         GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ??
         400}
-      oninput={(e) => {
-        const v = +(e.target as HTMLInputElement).value;
+      min={topologyLimits.disconnectDistance.min}
+      max={topologyLimits.disconnectDistance.max}
+      step={25}
+      disabled={!dxOn}
+      suffix="px"
+      settingConfigKey="MODIFIED_VORONOI_DISCONNECT_DISTANCE"
+      onInput={(value) =>
         queueTopologySliderUpdate(
           "MODIFIED_VORONOI_DISCONNECT_DISTANCE",
           "disconnectDistance",
-          v,
+          value,
           "Disconnect Distance",
-        );
-      }} />
+        )} />
   </div>
 </div>
 </div>
@@ -1639,8 +1638,7 @@
 
     {#if isPowerVoronoi0427Mode()}
       <div
-        class="row-bottom"
-        style="font-size: 10px; opacity: 0.7; padding: 2px 4px;">
+        class="row-bottom territory-helper-copy territory-helper-copy--inline">
         This mode always runs exact Power Voronoi geometry with its fixed
         frontline transition path.
       </div>
@@ -1649,39 +1647,31 @@
     {#if resolveActiveStyleId() === "territory_engine"}
       <h5 class="territory-inline-heading">Shape &amp; Motion</h5>
 
-      <div class="var-row">
+      <div class="var-row territory-range-note">
         <div class="row-top">
           <span class="var-name">Morph Control Points</span><span class="val"
             >{panel.territoryMorphControlPoints ??
               GAME_CONFIG.TERRITORY_MORPH_CONTROL_POINTS}</span>
         </div>
-        <input
-          type="range"
-          min="5"
-          max="300"
-          step="1"
+        <PaxSettingsRangeRow
+          label="Morph Control Points"
           value={panel.territoryMorphControlPoints ??
             GAME_CONFIG.TERRITORY_MORPH_CONTROL_POINTS}
-          oninput={(e) => {
-            const v = +(e.target as HTMLInputElement).value;
-            updatePanel("territoryMorphControlPoints", v);
-          }} />
+          min={5}
+          max={300}
+          step={1}
+          settingConfigKey="TERRITORY_MORPH_CONTROL_POINTS"
+          onInput={(value) => updatePanel("territoryMorphControlPoints", value)} />
       </div>
       <div class="var-row">
         <div class="row-top">
           <span class="var-name">Morph Easing</span>
         </div>
-        <div style="display:flex;gap:4px;padding:2px 0;flex-wrap:wrap">
-          {#each MORPH_EASING_OPTIONS as easing}
-            <button
-              class="mini-btn"
-              class:active={(panel.dfMorphEasing ??
-                GAME_CONFIG.DF_MORPH_EASING ??
-                "linear") === easing.id}
-              onclick={() => updatePanel("dfMorphEasing", easing.id)}
-              >{easing.label}</button>
-          {/each}
-        </div>
+        <PaxHudSegmentedControl
+          value={panel.dfMorphEasing ?? GAME_CONFIG.DF_MORPH_EASING ?? "linear"}
+          options={morphEasingOptions()}
+          ariaLabel="Morph easing"
+          onValueChange={(value) => updatePanel("dfMorphEasing", value)} />
       </div>
       <div class="var-row">
         <div class="row-top">
@@ -1690,28 +1680,18 @@
               GAME_CONFIG.TERRITORY_BOUNDARY_MODE ??
               "smooth"}</span>
         </div>
-        <div style="display:flex; gap:4px;">
-          <button
-            class="mini-btn"
-            class:active={(panel.territoryBoundaryMode ??
-              GAME_CONFIG.TERRITORY_BOUNDARY_MODE) === "segment"}
-            onclick={() =>
-              debouncedConfigUpdate(
-                "TERRITORY_BOUNDARY_MODE",
-                "territoryBoundaryMode",
-                "segment",
-              )}>Segment</button>
-          <button
-            class="mini-btn"
-            class:active={(panel.territoryBoundaryMode ??
-              GAME_CONFIG.TERRITORY_BOUNDARY_MODE) === "smooth"}
-            onclick={() =>
-              debouncedConfigUpdate(
-                "TERRITORY_BOUNDARY_MODE",
-                "territoryBoundaryMode",
-                "smooth",
-              )}>Smooth</button>
-        </div>
+        <PaxHudSegmentedControl
+          value={panel.territoryBoundaryMode ??
+            GAME_CONFIG.TERRITORY_BOUNDARY_MODE ??
+            "smooth"}
+          options={boundaryModeOptions()}
+          ariaLabel="Territory boundary mode"
+          onValueChange={(value) =>
+            debouncedConfigUpdate(
+              "TERRITORY_BOUNDARY_MODE",
+              "territoryBoundaryMode",
+              value,
+            )} />
       </div>
     {/if}
 
@@ -1723,35 +1703,30 @@
         <span class="var-name">Fill Alpha</span><span class="val"
           >{(panel.voronoiAlpha ?? GAME_CONFIG.VORONOI_ALPHA).toFixed(2)}</span>
     </div>
-    <input
-      type="range"
-      min="0"
-      max="1"
-      step="0.01"
+    <PaxSettingsRangeRow
+      label="Fill Alpha"
       value={panel.voronoiAlpha ?? GAME_CONFIG.VORONOI_ALPHA}
-      oninput={(e) => {
-        const v = +(e.target as HTMLInputElement).value;
-        debouncedConfigUpdate("VORONOI_ALPHA", "voronoiAlpha", v);
-      }} />
+      min={0}
+      max={1}
+      step={0.01}
+      format="fixed2"
+      settingConfigKey="VORONOI_ALPHA"
+      onInput={(value) =>
+        debouncedConfigUpdate("VORONOI_ALPHA", "voronoiAlpha", value)} />
   </div>
   <div class="var-row">
     <div class="row-top">
-      <span class="var-name">Neutral Transparent</span>
-      <label class="toggle-switch">
-        <input
-          type="checkbox"
-          checked={panel.neutralTerritoryTransparent ??
-            GAME_CONFIG.NEUTRAL_TERRITORY_TRANSPARENT}
-          onchange={(e) => {
-            const v = (e.target as HTMLInputElement).checked;
-            debouncedConfigUpdate(
-              "NEUTRAL_TERRITORY_TRANSPARENT",
-              "neutralTerritoryTransparent",
-              v,
-            );
-          }} />
-        <span class="toggle-slider"></span>
-      </label>
+      <PaxSettingsToggleRow
+        label="Neutral Transparent"
+        checked={panel.neutralTerritoryTransparent ??
+          GAME_CONFIG.NEUTRAL_TERRITORY_TRANSPARENT}
+        settingConfigKey="NEUTRAL_TERRITORY_TRANSPARENT"
+        onChange={(value) =>
+          debouncedConfigUpdate(
+            "NEUTRAL_TERRITORY_TRANSPARENT",
+            "neutralTerritoryTransparent",
+            value,
+          )} />
     </div>
   </div>
   <div class="var-row">
@@ -1761,16 +1736,21 @@
           panel.voronoiBorderWidth ?? GAME_CONFIG.VORONOI_BORDER_WIDTH
         ).toFixed(1)}px</span>
     </div>
-    <input
-      type="range"
-      min="0"
-      max="30"
-      step="0.5"
+    <PaxSettingsRangeRow
+      label="Border Width"
       value={panel.voronoiBorderWidth ?? GAME_CONFIG.VORONOI_BORDER_WIDTH}
-      oninput={(e) => {
-        const v = +(e.target as HTMLInputElement).value;
-        debouncedConfigUpdate("VORONOI_BORDER_WIDTH", "voronoiBorderWidth", v);
-      }} />
+      min={0}
+      max={30}
+      step={0.5}
+      format="fixed1"
+      suffix="px"
+      settingConfigKey="VORONOI_BORDER_WIDTH"
+      onInput={(value) =>
+        debouncedConfigUpdate(
+          "VORONOI_BORDER_WIDTH",
+          "voronoiBorderWidth",
+          value,
+        )} />
   </div>
   <div class="var-row">
     <div class="row-top">
@@ -1779,16 +1759,20 @@
           panel.voronoiBorderAlpha ?? GAME_CONFIG.VORONOI_BORDER_ALPHA
         ).toFixed(2)}</span>
     </div>
-    <input
-      type="range"
-      min="0"
-      max="1"
-      step="0.05"
+    <PaxSettingsRangeRow
+      label="Border Alpha"
       value={panel.voronoiBorderAlpha ?? GAME_CONFIG.VORONOI_BORDER_ALPHA}
-      oninput={(e) => {
-        const v = +(e.target as HTMLInputElement).value;
-        debouncedConfigUpdate("VORONOI_BORDER_ALPHA", "voronoiBorderAlpha", v);
-      }} />
+      min={0}
+      max={1}
+      step={0.05}
+      format="fixed2"
+      settingConfigKey="VORONOI_BORDER_ALPHA"
+      onInput={(value) =>
+        debouncedConfigUpdate(
+          "VORONOI_BORDER_ALPHA",
+          "voronoiBorderAlpha",
+          value,
+        )} />
   </div>
 
   <div class="var-row">
@@ -1802,20 +1786,19 @@
       Chaikin passes — modifies actual border/fill geometry coordinates.
       0=angular, 2=smooth, 5=very round
     </div>
-    <input
-      type="range"
-      min="0"
-      max="5"
-      step="1"
+    <PaxSettingsRangeRow
+      label="Geometry Smooth Passes"
       value={panel.voronoiBorderSmooth ?? GAME_CONFIG.VORONOI_BORDER_SMOOTH}
-      oninput={(e) => {
-        const v = +(e.target as HTMLInputElement).value;
+      min={0}
+      max={5}
+      step={1}
+      settingConfigKey="VORONOI_BORDER_SMOOTH"
+      onInput={(value) =>
         debouncedConfigUpdate(
           "VORONOI_BORDER_SMOOTH",
           "voronoiBorderSmooth",
-          v,
-        );
-      }} />
+          value,
+        )} />
   </div>
 
   <div class="var-row">
@@ -1825,16 +1808,16 @@
           2,
         )}</span>
     </div>
-    <input
-      type="range"
-      min="0"
-      max="2"
-      step="0.05"
+    <PaxSettingsRangeRow
+      label="Saturation"
       value={panel.voronoiSaturation ?? GAME_CONFIG.VORONOI_SATURATION}
-      oninput={(e) => {
-        const v = +(e.target as HTMLInputElement).value;
-        debouncedConfigUpdate("VORONOI_SATURATION", "voronoiSaturation", v);
-      }} />
+      min={0}
+      max={2}
+      step={0.05}
+      format="fixed2"
+      settingConfigKey="VORONOI_SATURATION"
+      onInput={(value) =>
+        debouncedConfigUpdate("VORONOI_SATURATION", "voronoiSaturation", value)} />
   </div>
   <div class="var-row">
     <div class="row-top">
@@ -1843,16 +1826,16 @@
           2,
         )}</span>
     </div>
-    <input
-      type="range"
-      min="0"
-      max="2"
-      step="0.05"
+    <PaxSettingsRangeRow
+      label="Lightness"
       value={panel.voronoiLightness ?? GAME_CONFIG.VORONOI_LIGHTNESS}
-      oninput={(e) => {
-        const v = +(e.target as HTMLInputElement).value;
-        debouncedConfigUpdate("VORONOI_LIGHTNESS", "voronoiLightness", v);
-      }} />
+      min={0}
+      max={2}
+      step={0.05}
+      format="fixed2"
+      settingConfigKey="VORONOI_LIGHTNESS"
+      onInput={(value) =>
+        debouncedConfigUpdate("VORONOI_LIGHTNESS", "voronoiLightness", value)} />
   </div>
     {/if}
   </div>
@@ -1868,9 +1851,7 @@
         moving interior star influence.
       </p>
     </div>
-    <div
-      class="row-bottom"
-      style="font-size:11px;opacity:0.75;margin-bottom:10px;">
+    <div class="row-bottom territory-helper-copy">
       Real star ownership still generates the base geometry. The displayed field
       is then driven only by derived perimeter samples.
     </div>
@@ -1910,9 +1891,7 @@
         {/if}
       </p>
     </div>
-    <div
-      class="row-bottom"
-      style="font-size:11px;opacity:0.75;margin-bottom:10px;">
+    <div class="row-bottom territory-helper-copy">
       {#if isEmberLatticeStyle()}
         Ember Lattice keeps crisp square territory mass while deriving a softer
         centered-blended frontier seam from the contour/frontier layer. This is
@@ -1927,9 +1906,7 @@
       {/if}
     </div>
     <MetaballGridTuning {panel} {updatePanel} />
-    <div
-      class="row-bottom"
-      style="font-size:11px;opacity:0.75;margin:10px 0 2px;">
+    <div class="row-bottom territory-helper-copy territory-helper-copy--spaced">
       <strong>Geometry input lives above.</strong> Corridor virtual sites along
       lanes, contested midpoint pairs, disconnect virtual sites, and minimum
       star margin belong to Territory Tuning &amp; Constraints, not Territory
@@ -1992,36 +1969,31 @@
             <span class="var-name">Fill Alpha</span><span class="val"
               >{(panel.voronoiAlpha ?? GAME_CONFIG.VORONOI_ALPHA).toFixed(2)}</span>
           </div>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
+          <PaxSettingsRangeRow
+            label="Fill Alpha"
             value={panel.voronoiAlpha ?? GAME_CONFIG.VORONOI_ALPHA}
-            oninput={(e) => {
-              const v = +(e.target as HTMLInputElement).value;
-              debouncedConfigUpdate("VORONOI_ALPHA", "voronoiAlpha", v);
-            }} />
+            min={0}
+            max={1}
+            step={0.01}
+            format="fixed2"
+            settingConfigKey="VORONOI_ALPHA"
+            onInput={(value) =>
+              debouncedConfigUpdate("VORONOI_ALPHA", "voronoiAlpha", value)} />
         </div>
 
         <div class="var-row">
           <div class="row-top">
-            <span class="var-name">Neutral Transparent</span>
-            <label class="toggle-switch">
-              <input
-                type="checkbox"
-                checked={panel.neutralTerritoryTransparent ??
-                  GAME_CONFIG.NEUTRAL_TERRITORY_TRANSPARENT}
-                onchange={(e) => {
-                  const v = (e.target as HTMLInputElement).checked;
-                  debouncedConfigUpdate(
-                    "NEUTRAL_TERRITORY_TRANSPARENT",
-                    "neutralTerritoryTransparent",
-                    v,
-                  );
-                }} />
-              <span class="toggle-slider"></span>
-            </label>
+            <PaxSettingsToggleRow
+              label="Neutral Transparent"
+              checked={panel.neutralTerritoryTransparent ??
+                GAME_CONFIG.NEUTRAL_TERRITORY_TRANSPARENT}
+              settingConfigKey="NEUTRAL_TERRITORY_TRANSPARENT"
+              onChange={(value) =>
+                debouncedConfigUpdate(
+                  "NEUTRAL_TERRITORY_TRANSPARENT",
+                  "neutralTerritoryTransparent",
+                  value,
+                )} />
           </div>
         </div>
 
@@ -2032,16 +2004,20 @@
                 2,
               )}</span>
           </div>
-          <input
-            type="range"
-            min="0"
-            max="2"
-            step="0.05"
+          <PaxSettingsRangeRow
+            label="Saturation"
             value={panel.voronoiSaturation ?? GAME_CONFIG.VORONOI_SATURATION}
-            oninput={(e) => {
-              const v = +(e.target as HTMLInputElement).value;
-              debouncedConfigUpdate("VORONOI_SATURATION", "voronoiSaturation", v);
-            }} />
+            min={0}
+            max={2}
+            step={0.05}
+            format="fixed2"
+            settingConfigKey="VORONOI_SATURATION"
+            onInput={(value) =>
+              debouncedConfigUpdate(
+                "VORONOI_SATURATION",
+                "voronoiSaturation",
+                value,
+              )} />
         </div>
 
         <div class="var-row">
@@ -2051,16 +2027,20 @@
                 2,
               )}</span>
           </div>
-          <input
-            type="range"
-            min="0"
-            max="2"
-            step="0.05"
+          <PaxSettingsRangeRow
+            label="Lightness"
             value={panel.voronoiLightness ?? GAME_CONFIG.VORONOI_LIGHTNESS}
-            oninput={(e) => {
-              const v = +(e.target as HTMLInputElement).value;
-              debouncedConfigUpdate("VORONOI_LIGHTNESS", "voronoiLightness", v);
-            }} />
+            min={0}
+            max={2}
+            step={0.05}
+            format="fixed2"
+            settingConfigKey="VORONOI_LIGHTNESS"
+            onInput={(value) =>
+              debouncedConfigUpdate(
+                "VORONOI_LIGHTNESS",
+                "voronoiLightness",
+                value,
+              )} />
         </div>
       </div>
     {/if}
@@ -2090,16 +2070,21 @@
                 panel.voronoiBorderWidth ?? GAME_CONFIG.VORONOI_BORDER_WIDTH
               ).toFixed(1)}px</span>
           </div>
-          <input
-            type="range"
-            min="0"
-            max="30"
-            step="0.5"
+          <PaxSettingsRangeRow
+            label="Border Width"
             value={panel.voronoiBorderWidth ?? GAME_CONFIG.VORONOI_BORDER_WIDTH}
-            oninput={(e) => {
-              const v = +(e.target as HTMLInputElement).value;
-              debouncedConfigUpdate("VORONOI_BORDER_WIDTH", "voronoiBorderWidth", v);
-            }} />
+            min={0}
+            max={30}
+            step={0.5}
+            format="fixed1"
+            suffix="px"
+            settingConfigKey="VORONOI_BORDER_WIDTH"
+            onInput={(value) =>
+              debouncedConfigUpdate(
+                "VORONOI_BORDER_WIDTH",
+                "voronoiBorderWidth",
+                value,
+              )} />
         </div>
 
         <div class="var-row">
@@ -2109,16 +2094,20 @@
                 panel.voronoiBorderAlpha ?? GAME_CONFIG.VORONOI_BORDER_ALPHA
               ).toFixed(2)}</span>
           </div>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
+          <PaxSettingsRangeRow
+            label="Border Alpha"
             value={panel.voronoiBorderAlpha ?? GAME_CONFIG.VORONOI_BORDER_ALPHA}
-            oninput={(e) => {
-              const v = +(e.target as HTMLInputElement).value;
-              debouncedConfigUpdate("VORONOI_BORDER_ALPHA", "voronoiBorderAlpha", v);
-            }} />
+            min={0}
+            max={1}
+            step={0.05}
+            format="fixed2"
+            settingConfigKey="VORONOI_BORDER_ALPHA"
+            onInput={(value) =>
+              debouncedConfigUpdate(
+                "VORONOI_BORDER_ALPHA",
+                "voronoiBorderAlpha",
+                value,
+              )} />
         </div>
 
         <div class="var-row">
@@ -2133,20 +2122,19 @@
             Chaikin passes - modifies actual border and fill geometry coordinates.
             0 = angular, 2 = smooth, 5 = very round.
           </div>
-          <input
-            type="range"
-            min="0"
-            max="5"
-            step="1"
+          <PaxSettingsRangeRow
+            label="Geometry Smooth Passes"
             value={panel.voronoiBorderSmooth ?? GAME_CONFIG.VORONOI_BORDER_SMOOTH}
-            oninput={(e) => {
-              const v = +(e.target as HTMLInputElement).value;
+            min={0}
+            max={5}
+            step={1}
+            settingConfigKey="VORONOI_BORDER_SMOOTH"
+            onInput={(value) =>
               debouncedConfigUpdate(
                 "VORONOI_BORDER_SMOOTH",
                 "voronoiBorderSmooth",
-                v,
-              );
-            }} />
+                value,
+              )} />
         </div>
       </div>
     {/if}
@@ -2419,6 +2407,24 @@
     opacity: 0.75;
     font-size: calc(0.68rem * var(--hud-type-scale, 1));
     line-height: 1.35;
+  }
+  .territory-helper-copy--compact {
+    margin-bottom: 8px;
+    opacity: 0.72;
+  }
+  .territory-helper-copy--inline {
+    padding: 2px 4px;
+    opacity: 0.7;
+    font-size: calc(0.62rem * var(--hud-type-scale, 1));
+  }
+  .territory-helper-copy--spaced {
+    margin: 10px 0 2px;
+  }
+  .territory-range-note > .row-top {
+    display: none;
+  }
+  .territory-indent {
+    margin-left: 14px;
   }
   .axis-note--warning {
     margin: 4px 0 8px;

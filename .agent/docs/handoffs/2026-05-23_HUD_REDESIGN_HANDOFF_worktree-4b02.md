@@ -1459,3 +1459,37 @@ Merge guidance:
 - Keep the Metaball core controls on `PaxSettingsRangeRow`, `PaxHudSelect`, and `PaxSettingsToggleRow`.
 - Preserve `metaballFalloffSelectOptions()` unless a broader select-option adapter replaces it.
 - Preserve the restored `TerritorySurfaceStyleTuning` tag; do not leave shorthand props as inert markup.
+
+## 2026-06-12 Territory Remaining Controls Primitive Migration
+
+Scope implemented in this step:
+
+- Completed the raw-control migration in:
+  - `pax-fluxia/src/lib/components/ui/settings/ControlsSection-Territory.svelte`
+
+Why this matters for merge:
+
+- `ControlsSection-Territory.svelte` now has no raw visible controls, inline style attributes, or local active-class toggles by the targeted audit.
+- The completed migration covers:
+  - Metaball Combat/Fleet Pressure
+  - Frontier Topology
+  - Engine Surface shape/motion
+  - runtime fill/border controls
+  - remaining helper-copy inline style hooks
+- Existing behavior is preserved:
+  - Metaball combat keys still write through `debouncedConfigUpdate(...)`
+  - topology keys still write through `queueTopologySliderUpdate(...)` / `queueTopologyToggleUpdate(...)`
+  - Engine Surface shape/motion controls still write through `updatePanel(...)` or `debouncedConfigUpdate(...)`
+  - runtime fill/border controls still write the existing `VORONOI_*` and `NEUTRAL_TERRITORY_TRANSPARENT` keys
+
+Validation:
+
+- Targeted audit for `ControlsSection-Territory.svelte`: no matches for `<button>`, `<select>`, `<input>`, `style=`, `class:active`, or `class:is-active`.
+- `git diff --check`: passed with Git line-ending warnings only.
+- `bun run --cwd pax-fluxia build`: passed with exit code `0`; existing large-chunk warnings remain.
+
+Merge guidance:
+
+- Do not reintroduce local raw controls in Territory; add new controls through Pax primitives.
+- Preserve the new helper option builders for morph easing and boundary mode.
+- The disabled legacy Fill/Borders block is still disabled, but its raw controls were converted so file-level audits stay clean; if that block is removed later, verify no config surface is being restored through it.
