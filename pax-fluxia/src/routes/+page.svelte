@@ -91,9 +91,6 @@
             : "landing",
   );
 
-  const GAME_SHELL_MAX_IMPORT_ATTEMPTS = import.meta.env.DEV ? 2 : 1;
-  const GAME_SHELL_RETRY_DELAY_MS = 300;
-
   function getBrowserWindow(): HomeRouteWindow | null {
     return typeof window === "undefined" ? null : (window as HomeRouteWindow);
   }
@@ -115,10 +112,6 @@
 
   function refreshHomeRouteDiagnostics() {
     homeRouteDiagnostics = getHomeRouteDiagSnapshot();
-  }
-
-  function waitMs(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   function describeGameShellLoadError(error: unknown): string {
@@ -164,44 +157,30 @@
   }
 
   async function loadGameContainerModule(): Promise<GameContainerModule> {
-    let lastError: unknown = null;
-    for (
-      let attempt = 1;
-      attempt <= GAME_SHELL_MAX_IMPORT_ATTEMPTS;
-      attempt += 1
-    ) {
-      recordHomeRouteEvent("game_shell_import_attempt", {
-        attempt,
-        maxAttempts: GAME_SHELL_MAX_IMPORT_ATTEMPTS,
+    // Single import attempt only — no retry. Importing the game shell pulls in
+    // PixiJS, which registers global extension handlers as an import side
+    // effect. If the import fails *after* those handlers register, retrying
+    // re-runs the registration and throws "Extension type environment already
+    // has a handler" — a worse, misleading failure that masks the real cause.
+    // A retry can never safely recover this module, so we surface the first
+    // error directly. (Previously DEV retried twice and could trigger exactly
+    // this double-registration crash.)
+    recordHomeRouteEvent("game_shell_import_attempt", {
+      attempt: 1,
+      maxAttempts: 1,
+    });
+    try {
+      const module = await import("$lib/components/game/GameContainer.svelte");
+      recordHomeRouteEvent("game_shell_import_succeeded", { attempt: 1 });
+      return module;
+    } catch (error) {
+      recordHomeRouteError("game_shell_import_failed", error, {
+        attempt: 1,
+        maxAttempts: 1,
       });
-      try {
-        const module = await import(
-          "$lib/components/game/GameContainer.svelte"
-        );
-        recordHomeRouteEvent("game_shell_import_succeeded", {
-          attempt,
-        });
-        if (attempt > 1) {
-          log.sys("LandingRoute", "Game shell loaded after retry", { attempt });
-        }
-        return module;
-      } catch (error) {
-        lastError = error;
-        recordHomeRouteError("game_shell_import_failed", error, {
-          attempt,
-          maxAttempts: GAME_SHELL_MAX_IMPORT_ATTEMPTS,
-        });
-        log.error(
-          "LandingRoute",
-          `Game shell import failed (${attempt}/${GAME_SHELL_MAX_IMPORT_ATTEMPTS})`,
-          error,
-        );
-        if (attempt < GAME_SHELL_MAX_IMPORT_ATTEMPTS) {
-          await waitMs(GAME_SHELL_RETRY_DELAY_MS);
-        }
-      }
+      log.error("LandingRoute", "Game shell import failed", error);
+      throw error;
     }
-    throw lastError;
   }
 
   async function ensureGameShellLoaded(): Promise<void> {
