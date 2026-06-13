@@ -182,12 +182,21 @@ requires picking one.
   `variants/hud.ts`. More concise for variant matrices, but couples the system to
   Tailwind v4 + tailwind-variants and keeps utility indirection.
 
-### Decision B — Theme scope
-- **Option B1 — Color/accent only** (recommended, simplest): themes override
-  color tokens; spacing/radius/motion are fixed system constants. Matches "only
-  what is needed."
-- **Option B2 — Color + density**: also allow a density/spacing axis (compact/
-  comfortable) per theme. More power, more surface to keep congruent.
+### Decision B — Theme scope  → RESOLVED: FULL THEMING
+User chose maximal scope (broader than the two options offered). A theme may
+override **all** of these axes:
+- **Color** (surfaces, text, accents, player signals, danger)
+- **Typography** (font roles + size/scale)
+- **Borders & flourishes** (border gradients, widths, corner radius, decorative
+  edges)
+- **Glow / FX** (shadows, glows, blur/glass)
+- **Spacing / density** (padding, gap, panel rhythm, control heights)
+- **Icons** (icon family/set, size, stroke)
+
+Implication: the semantic (`--hud-*`) tier must expose every one of these axes as
+theme-overridable token groups, and the theme contract enumerates the full
+overridable manifest. Non-themeable raw constants stay in the primitive tier.
+This is the crux of the whole system — Stage 1 designs this taxonomy first.
 
 ### Decision C — Starting point / sequencing
 - **Option C1 — Foundation-first** (recommended): Stages 0→1→2→3 then polish.
@@ -195,6 +204,21 @@ requires picking one.
 - **Option C2 — Surface-first**: polish the visible HUD now (Stage 4) on the
   current cascade, refactor tokens/cascade under it later. Faster visible
   payoff, higher rework risk.
+
+## Progress log
+
+- **Decisions (2026-06-13):** A = pure token-CSS; B = full theming (all 6 axes);
+  C = foundation-first.
+- **Stage 0 — DONE** (`230fd3f1c`): single-attempt game-shell import, no retry
+  (Pixi double-registration fix). Build PASS.
+- **Stage 1 — architecture DONE** (`c21300b66`): token contract doc
+  (`DESIGN_SYSTEM_TOKENS.md`), z-index + border-width axes, `--hud-motion-*`,
+  third-namespace deprecation banner. Additive, zero visual change, build PASS.
+  *Remaining Stage-1 migration work (eliminating the deprecated third namespace +
+  ~170 hardcoded values) folds into Stages 2/3, per-surface with verification.*
+- **Next — Stage 2 (hud.css collapse):** the first big *visual* change; needs the
+  user's eye on the target look (roundness, gold-gradient restraint, dark
+  falloff) before the 2043-line rewrite. Awaiting go + any look direction.
 
 ## Notes
 - The **game-render theme system** (`config/themes.ts` + ~70 territory-render
