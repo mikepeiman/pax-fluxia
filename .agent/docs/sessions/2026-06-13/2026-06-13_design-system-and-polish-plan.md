@@ -237,6 +237,29 @@ This is the crux of the whole system — Stage 1 designs this taxonomy first.
   hardcoded inline values (hud.css gradients/hex; landing decorative hex; keep
   external-brand hex like Svelte/Discord) get tokenized during this rebuild.
 
+## Expanded mandate (2026-06-13): redesign, don't just retokenize
+
+User direction: "Do more than update tokens... redesign it, including content and
+copy. You can do better than what exists there." Every surface now gets a
+content + copy + structure redesign pass, not just tokenization — landing page
+first, then the same mindset into the HUD (labels, microcopy, information design).
+
+- **Namespace cleanup fully closed** (`c455b7d72`): caught + fixed a regression —
+  deleting the third-namespace defs left ~70 dangling refs in app.css's own
+  utility classes (`.btn`, `.glass-panel`, `.font-display`, `body`). CSS
+  undefined-vars are silent, so the build hid it. Migrated them; post-mortem
+  filed. Lesson: grep for dangling `var()` after any custom-property deletion.
+- **Landing facts (user):** playable now, free, in browser → Play is primary CTA;
+  waitlist = secondary updates. World section reframed as premise (no invented
+  faction canon).
+- **Landing redesign phase 1 DONE** (`61ee9cfe4`): Hero rewritten (plain-language
+  pitch, kicker, benefit-led copy, Play-first CTA, redundant email form removed);
+  every nav anchor was broken (no section had an `id`) — added `#features`/`#world`
+  ids + fixed `#community`→Discord; DeveloperVision typo + copy. check 0, build PASS.
+- **Landing redesign — remaining:** How-it-plays section (new), FAQ (new), USP /
+  feature / star-type reframes (benefit-first, de-jargoned), world-premise rewrite,
+  footer CTA freshening + real social links, gameplay screenshots (need assets).
+
 ## Notes
 - The **game-render theme system** (`config/themes.ts` + ~70 territory-render
   JSONs) is a **separate, mature** subsystem and is out of scope here. Only the
