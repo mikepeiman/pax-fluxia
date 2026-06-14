@@ -46,6 +46,7 @@ import {
     buildTerritoryGeometryFingerprint,
 } from './powerVoronoiTerritoryGeometryGenerator';
 import { buildFrontierMap } from './buildFrontierMap';
+import { executeChainWalk } from './chainWalkCore';
 import {
     applyExplicitMinStarMargin,
     resolvePerStarMinStarMarginPx,
@@ -519,10 +520,17 @@ export function computeGeometry0319(
         });
         sharedPolylines = adjustedGeometry.sharedPolylines;
         worldBorderPolylines = adjustedGeometry.worldBorderPolylines;
+        // Compute the chain walk once and share it across fill reconstruction
+        // and the frontier map below (each previously re-walked the same data).
+        const sharedWalkResult = executeChainWalk(
+            sharedPolylines,
+            worldBorderPolylines,
+        );
         const mergedTerritories = constructFillsFromFrontierChain(
             sharedPolylines,
             worldBorderPolylines,
             cells,
+            sharedWalkResult,
         );
         if (
             adjustedGeometry.minAppliedMarginPx > 0 &&
@@ -542,7 +550,7 @@ export function computeGeometry0319(
         // Stage 10b: Build vector frontier map (identity annotation — Phase 1)
         // Junction vertices are needed to classify decisive vertices in the TMAP.
         const junctionPts = extractJunctionVertices(cells);
-        const frontierMap = buildFrontierMap(sharedPolylines, worldBorderPolylines, junctionPts, fingerprint);
+        const frontierMap = buildFrontierMap(sharedPolylines, worldBorderPolylines, junctionPts, fingerprint, sharedWalkResult);
 
         // Now detect enclaves on the actual fill output
         const enclaveMap = detectEnclaves(mergedTerritories);

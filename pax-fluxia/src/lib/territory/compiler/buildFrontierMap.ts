@@ -105,13 +105,17 @@ export function buildFrontierMap(
     worldBorderPolylines: SharedPolyline[],
     junctionVertexKeys: Set<string>,
     fingerprint: string,
+    precomputedWalkResult?: ChainWalkResult,
 ): TerritoryFrontierMap {
     const vertices = new Map<string, FrontierMapVertex>();
     const edges = new Map<string, FrontierMapEdge>();
     const loops: FrontierMapLoop[] = [];
 
-    // Execute the shared chain walk (same walk as constructFillsFromFrontierChain)
-    const walkResult = executeChainWalk(sharedPolylines, worldBorderPolylines);
+    // Reuse the shared chain walk when provided (Geometry_0319 shares it with
+    // constructFillsFromFrontierChain); otherwise compute it here. Same walk.
+    const walkResult =
+        precomputedWalkResult ??
+        executeChainWalk(sharedPolylines, worldBorderPolylines);
 
     if (walkResult.loops.length === 0) {
         return { vertices, edges, loops, fingerprint };

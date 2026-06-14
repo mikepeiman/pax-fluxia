@@ -30,7 +30,7 @@ import { computeCorridorVirtuals, computeDisconnectVirtuals, DISCONNECT_OWNER_ID
 import { findConnectedClustersOptimized } from '../../renderers/territoryUtils';
 import { log } from '../../utils/logger';
 import type { CompileError } from './types';
-import { executeChainWalk, flattenLoopPoints } from './chainWalkCore';
+import { executeChainWalk, flattenLoopPoints, type ChainWalkResult } from './chainWalkCore';
 import {
     buildRealSiteWeight,
     buildVirtualSiteWeight,
@@ -764,8 +764,14 @@ export function constructFillsFromFrontierChain(
     sharedPolylines: SharedPolyline[],
     worldBorderPolylines: SharedPolyline[],
     cells: TerritoryCell[] = [],
+    precomputedWalkResult?: ChainWalkResult,
 ): MergedTerritory[] {
-    const walkResult = executeChainWalk(sharedPolylines, worldBorderPolylines);
+    // Reuse a shared chain walk when the caller already computed one for the
+    // same polylines (Geometry_0319 shares it with buildFrontierMap); otherwise
+    // compute it here. Same inputs -> same walk, so output is unchanged.
+    const walkResult =
+        precomputedWalkResult ??
+        executeChainWalk(sharedPolylines, worldBorderPolylines);
 
     // Flatten each walk loop into a MergedTerritory
     const result: MergedTerritory[] = [];
