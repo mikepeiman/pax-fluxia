@@ -1979,7 +1979,7 @@
         };
     }
 
-    function getRenderFamilyModeConfigSource(
+    function buildRenderFamilyModeConfigSourceUncached(
         mode: string,
     ): Record<string, unknown> | undefined {
         if (mode === "metaball_grid_phase_edges") {
@@ -1995,6 +1995,36 @@
             return buildGridGradientRenderFamilyConfigSource();
         }
         return undefined;
+    }
+
+    // Perf (Grid Gradient): the render-family config source spreads the whole GAME_CONFIG
+    // plus geometry/mode defaults into a new object, and is requested several times per
+    // frame. The spread result only changes when a territory visual setting changes, which
+    // already bumps __TERRITORY_VISUAL_EPOCH -- the same signal the render-family geometry
+    // cache keys on. Memoize by (mode, epoch) so steady frames reuse one stable object
+    // instead of rebuilding it. Invalidation is by epoch, so slider/theme/import changes
+    // still apply immediately (no live-tuning regression).
+    let renderFamilyModeConfigSourceCacheValue:
+        | Record<string, unknown>
+        | undefined;
+    let renderFamilyModeConfigSourceCacheMode: string | null = null;
+    let renderFamilyModeConfigSourceCacheEpoch = -1;
+
+    function getRenderFamilyModeConfigSource(
+        mode: string,
+    ): Record<string, unknown> | undefined {
+        const epoch = getTerritoryVisualEpoch();
+        if (
+            renderFamilyModeConfigSourceCacheMode === mode &&
+            renderFamilyModeConfigSourceCacheEpoch === epoch
+        ) {
+            return renderFamilyModeConfigSourceCacheValue;
+        }
+        const built = buildRenderFamilyModeConfigSourceUncached(mode);
+        renderFamilyModeConfigSourceCacheValue = built;
+        renderFamilyModeConfigSourceCacheMode = mode;
+        renderFamilyModeConfigSourceCacheEpoch = epoch;
+        return built;
     }
 
     function modeUsesSharedRenderFamilyGeometry(mode: string): boolean {
