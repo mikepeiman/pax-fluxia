@@ -378,8 +378,12 @@
       await openGameShell(benchmarkEnabled ? "benchmark" : "query");
     };
 
-    if (url?.searchParams.get("showGame") === "1") {
-      recordHomeRouteEvent("show_game_query_detected", {
+    const autoEnterGame =
+      isGameHost(getHostname()) ||
+      url?.searchParams.get("showGame") === "1";
+    if (autoEnterGame) {
+      recordHomeRouteEvent("auto_enter_game", {
+        reason: isGameHost(getHostname()) ? "game_host" : "show_game_query",
         benchmarkEnabled,
       });
       void openShell();
@@ -420,17 +424,35 @@
     };
   });
 
+  /** The game app lives on its own subdomain; the landing site lives at the root. */
+  const GAME_APP_URL = "https://play.paxfluxia.com";
+
+  function getHostname(): string {
+    return typeof window !== "undefined" ? window.location.hostname : "";
+  }
+
+  /** Public marketing site (paxfluxia.com). Play actions here hand off to the game app. */
+  function isMarketingHost(host: string): boolean {
+    return host === "paxfluxia.com" || host === "www.paxfluxia.com";
+  }
+
+  /** Game app subdomain (play.paxfluxia.com). The shell auto-loads here, not the landing. */
+  function isGameHost(host: string): boolean {
+    return host === "play.paxfluxia.com" || host.startsWith("play.");
+  }
+
   function handlePlay() {
     audioManager.play("play");
-    const isProd =
-      typeof window !== "undefined" &&
-      window.location.hostname === "paxfluxia.com";
+    const host = getHostname();
     recordHomeRouteEvent("play_clicked", {
-      isProd,
+      host,
       href: typeof window !== "undefined" ? window.location.href : null,
     });
-    if (isProd) {
-      window.location.href = "https://play.paxfluxia.com";
+    // On the marketing site, send players to the game app. In local dev/preview
+    // (and when already on the game host) there is no separate subdomain, so
+    // load the shell inline instead.
+    if (isMarketingHost(host)) {
+      window.location.href = GAME_APP_URL;
     } else {
       void openGameShell("play");
     }
