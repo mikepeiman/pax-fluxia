@@ -210,11 +210,19 @@ export function measurePerf<T>(
     if (!isPerfCaptureEnabled()) {
         return fn();
     }
-    const id = `${name}:${Math.random().toString(36).slice(2)}`;
-    const startLabel = `${id}:start`;
-    const endLabel = `${id}:end`;
-    const startedAt = perfNow();
     const captureUserTiming = isPerfUserTimingEnabled();
+    // Only build the user-timing id/label strings when user timing is enabled.
+    // When capture is on but user timing is off (the common profiling case) this
+    // avoids a Math.random() id plus two label strings on every measured call,
+    // so the probe perturbs the captured trace less.
+    let startLabel = "";
+    let endLabel = "";
+    if (captureUserTiming) {
+        const id = `${name}:${Math.random().toString(36).slice(2)}`;
+        startLabel = `${id}:start`;
+        endLabel = `${id}:end`;
+    }
+    const startedAt = perfNow();
     if (captureUserTiming) {
         mark(startLabel);
     }
@@ -244,11 +252,19 @@ export async function measurePerfAsync<T>(
     if (!isPerfCaptureEnabled()) {
         return await fn();
     }
-    const id = `${name}:${Math.random().toString(36).slice(2)}`;
-    const startLabel = `${id}:start`;
-    const endLabel = `${id}:end`;
-    const startedAt = perfNow();
     const captureUserTiming = isPerfUserTimingEnabled();
+    // Only build the user-timing id/label strings when user timing is enabled.
+    // When capture is on but user timing is off (the common profiling case) this
+    // avoids a Math.random() id plus two label strings on every measured call,
+    // so the probe perturbs the captured trace less.
+    let startLabel = "";
+    let endLabel = "";
+    if (captureUserTiming) {
+        const id = `${name}:${Math.random().toString(36).slice(2)}`;
+        startLabel = `${id}:start`;
+        endLabel = `${id}:end`;
+    }
+    const startedAt = perfNow();
     if (captureUserTiming) {
         mark(startLabel);
     }
