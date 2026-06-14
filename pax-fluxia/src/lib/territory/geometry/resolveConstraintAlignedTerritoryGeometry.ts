@@ -336,48 +336,93 @@ function cloneTerritoryRegions(
     }));
 }
 
-function buildDirectedSegmentKeys(
+// Perf: directed frontier/ring segments were previously represented as strings
+// (`${pointKey(a)}>${pointKey(b)}`), allocating a string per segment, and the
+// ring keys were rebuilt for every (region, polyline) pair. Represent each
+// segment as a packed numeric id instead: intern points by their quantized
+// pointKey (so equality semantics are byte-identical to the old string keys),
+// then pack the two interned ids into one number. SEGMENT_ID_STRIDE bounds the
+// max unique points per matcher (far above any real ring/polyline vertex count)
+// and keeps idA*STRIDE+idB well inside Number.MAX_SAFE_INTEGER.
+const SEGMENT_ID_STRIDE = 1 << 21;
+
+function createPointInterner(): (x: number, y: number) => number {
+    const ids = new Map<string, number>();
+    return (x, y) => {
+        const key = pointKey(x, y);
+        let id = ids.get(key);
+        if (id === undefined) {
+            id = ids.size;
+            ids.set(key, id);
+        }
+        return id;
+    };
+}
+
+function buildDirectedSegmentIds(
     points: ReadonlyArray<[number, number]>,
     closed: boolean,
-): readonly string[] {
+    internPoint: (x: number, y: number) => number,
+): number[] {
     if (points.length < 2) return [];
-    const keys: string[] = [];
+    const ids: number[] = [];
     const limit = closed ? points.length : points.length - 1;
     for (let index = 0; index < limit; index++) {
         const [ax, ay] = points[index]!;
         const [bx, by] = points[(index + 1) % points.length]!;
-        keys.push(`${pointKey(ax, ay)}>${pointKey(bx, by)}`);
+        ids.push(internPoint(ax, ay) * SEGMENT_ID_STRIDE + internPoint(bx, by));
     }
-    return keys;
+    return ids;
 }
 
-function ringContainsPolyline(
+// Build one region ring's directed-segment sequence once, then test many
+// polylines against it without rebuilding the ring. The interner is shared with
+// each tested polyline so coincident points map to the same id (a polyline
+// point not on the ring simply gets an id that can never match a ring segment).
+function createRingContainmentMatcher(
     ringPoints: ReadonlyArray<[number, number]>,
-    polylinePoints: ReadonlyArray<[number, number]>,
-): boolean {
+): (polylinePoints: ReadonlyArray<[number, number]>) => boolean {
+    const internPoint = createPointInterner();
     const normalizedRing = normalizeClosedRing(ringPoints);
-    const ringSegments = buildDirectedSegmentKeys(normalizedRing, true);
-    const polylineSegments = buildDirectedSegmentKeys(polylinePoints, false);
-    if (ringSegments.length === 0 || polylineSegments.length === 0) return false;
-    if (ringSegments.length < polylineSegments.length) return false;
+    const ringSegments = buildDirectedSegmentIds(normalizedRing, true, internPoint);
+    const doubledRing =
+        ringSegments.length > 0 ? [...ringSegments, ...ringSegments] : [];
 
-    const doubledRing = [...ringSegments, ...ringSegments];
-    const reversedSegments = buildDirectedSegmentKeys(
-        [...polylinePoints].reverse(),
-        false,
-    );
-    const matchesAt = (candidate: readonly string[], start: number): boolean => {
+    const matchesAt = (candidate: readonly number[], start: number): boolean => {
         for (let index = 0; index < candidate.length; index++) {
             if (doubledRing[start + index] !== candidate[index]) return false;
         }
         return true;
     };
 
-    for (let start = 0; start < ringSegments.length; start++) {
-        if (matchesAt(polylineSegments, start)) return true;
-        if (matchesAt(reversedSegments, start)) return true;
-    }
-    return false;
+    return (polylinePoints) => {
+        if (ringSegments.length === 0) return false;
+        const polylineSegments = buildDirectedSegmentIds(
+            polylinePoints,
+            false,
+            internPoint,
+        );
+        if (polylineSegments.length === 0) return false;
+        if (ringSegments.length < polylineSegments.length) return false;
+        const reversedSegments = buildDirectedSegmentIds(
+            [...polylinePoints].reverse(),
+            false,
+            internPoint,
+        );
+        for (let start = 0; start < ringSegments.length; start++) {
+            if (matchesAt(polylineSegments, start)) return true;
+            if (matchesAt(reversedSegments, start)) return true;
+        }
+        return false;
+    };
+}
+
+// Exported for parity testing against the prior string-key implementation.
+export function ringContainsPolyline(
+    ringPoints: ReadonlyArray<[number, number]>,
+    polylinePoints: ReadonlyArray<[number, number]>,
+): boolean {
+    return createRingContainmentMatcher(ringPoints)(polylinePoints);
 }
 
 function filterPolylinesByResolvedRegions(params: {
@@ -388,12 +433,14 @@ function filterPolylinesByResolvedRegions(params: {
     readonly frontierPolylines: readonly ConstraintAlignedFrontierPolyline[];
     readonly worldBorderPolylines: readonly ConstraintAlignedFrontierPolyline[];
 } {
+    // Precompute each region ring's matcher once, then reuse across all polylines
+    // (previously every polyline rebuilt every region ring's segment keys).
+    const matchers = params.territoryRegions.map((region) =>
+        createRingContainmentMatcher(region.points),
+    );
     const keepPolyline = (
         polyline: ConstraintAlignedFrontierPolyline,
-    ): boolean =>
-        params.territoryRegions.some((region) =>
-            ringContainsPolyline(region.points, polyline.points),
-        );
+    ): boolean => matchers.some((match) => match(polyline.points));
 
     return {
         frontierPolylines: params.frontierPolylines.filter(keepPolyline),
