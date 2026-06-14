@@ -43,7 +43,7 @@
   };
 </script>
 
-<section id="features" class="feature-deep-dive">
+<section class="feature-deep-dive">
   <div class="container">
     <div class="tabs">
       {#each tabs as tab}

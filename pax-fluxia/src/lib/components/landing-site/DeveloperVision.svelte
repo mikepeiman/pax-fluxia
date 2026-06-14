@@ -12,13 +12,13 @@
         Visible Strategy: A Solo Developer’s Labor of Love
       </h2>
       <p class="desc font-body">
-        Pax Fluxia is my love letter to <em>Pax Galaxia</em>, a little-known
-        2007 indie gem whose elegant flow combat never left me. I rebuilt that
-        feeling from the ground up — the same strategy you can read at a glance,
-        now with modern graphics, live tuning, and online play. Classic mode is
-        just the foundation: a deep roster of new modes and mechanics is on the
-        way, all built to be shared. I hope you enjoy commanding the flow as
-        much as I've enjoyed building it.
+        Pax Fluxia is the result of my passion to make an homage to the indie
+        gem from 2007, Pax Galaxia. I am proud to say that I have recreate
+        something very close to the original, but with modern features and
+        graphics. And after the classic mode is polished - a huge number of
+        features and mechanics are planned that will provide endless variety of
+        game modes to create and share! I hope you enjoy playing Pax Fluxia as
+        much as I enjoyed making it.
       </p>
 
       <div class="tech-stack">
@@ -53,7 +53,7 @@
 <style>
   .dev-vision {
     padding: var(--pax-space-12) var(--pax-space-8);
-    background-color: var(--pax-color-void);
+    background-color: #0a0a12;
     display: flex;
     justify-content: center;
   }

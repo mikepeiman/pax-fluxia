@@ -1,5 +1,38 @@
 <script lang="ts">
+  import { fade } from "svelte/transition";
+
   let { onPlay } = $props<{ onPlay: () => void }>();
+
+  let email = $state("");
+  let status = $state<"idle" | "loading" | "success" | "error">("idle");
+  let statusMessage = $state("");
+
+  async function handleSubscribe(event: Event) {
+    event.preventDefault();
+    if (!email) return;
+
+    status = "loading";
+    try {
+      const response = await fetch("/api/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        status = "success";
+        statusMessage = "You're on the list. Stand by for orders.";
+        email = "";
+      } else {
+        status = "error";
+        statusMessage = data.message || "Comm link failed. Try again.";
+      }
+    } catch (e) {
+      status = "error";
+      statusMessage = "Offline. Please try again.";
+    }
+  }
 </script>
 
 <header class="hero">
@@ -11,32 +44,33 @@
   </div>
 
   <div class="hero-content">
-    <p class="kicker">Real-time galactic strategy</p>
-
     <h1 class="headline font-display">
-      Pour your fleets between the stars.<br />
-      <span class="highlight">Take the galaxy one system at a time.</span>
+      COMMAND THE FLOW.<br />
+      <span class="highlight">CONQUER THE GALAXY.</span>
     </h1>
 
     <p class="subhead font-body">
-      Pax Fluxia is strategy you read at a glance — no menus, no spreadsheets.
-      Just stars, the lanes between them, and the ships you stream down those
-      lanes. Set a flow and it keeps pumping. Pin a rival with a single ship.
-      Surround them, and their whole fleet falls into your hands.
+      Pax Fluxia is a tick-based real-time strategy game with deceptively simple
+      mechanics, but deep strategic gameplay. You command forces of ships
+      stationed at stars. Each tick you can transfer ships or attack and conquer
+      other stars. You must balance attrition with repair and production, and
+      watch out lest you be surrounded - and have your entire force captured!
+      Mesmerizing, relaxing, engaging gameplay with rhythmic, steady movement.
+      Come into our galaxy - and conquer!
     </p>
 
     <div class="actions">
       <div class="primary-actions">
         <button class="btn btn--primary btn--lg btn--pulse" onclick={onPlay}>
-          Play free in your browser
+          PLAY NOW
         </button>
         <a
           href="https://discord.gg/yQu7X3UXv"
           target="_blank"
           rel="noopener noreferrer"
           class="discord-btn"
-          aria-label="Join the Pax Fluxia Discord"
-          title="Join the Discord"
+          aria-label="Join our Discord Command"
+          title="Join the Discord Command"
         >
           <svg viewBox="0 0 127.14 96.36" class="discord-icon">
             <path
@@ -46,7 +80,32 @@
           </svg>
         </a>
       </div>
-      <p class="hero-meta">Free · Runs in any modern browser · No download</p>
+
+      <form class="subscribe-form" onsubmit={handleSubscribe}>
+        <div class="input-group">
+          <input
+            type="email"
+            class="h-full"
+            bind:value={email}
+            placeholder="Enter comm-link email"
+            required
+            disabled={status === "loading"}
+            aria-label="Email address for updates"
+          />
+          <button
+            type="submit"
+            class="btn btn--outline"
+            disabled={status === "loading"}
+          >
+            {status === "loading" ? "LINKING..." : "ENLIST"}
+          </button>
+        </div>
+        {#if status !== "idle"}
+          <p class="status-msg {status}" transition:fade={{ duration: 200 }}>
+            {statusMessage}
+          </p>
+        {/if}
+      </form>
     </div>
   </div>
 </header>
@@ -82,7 +141,7 @@
   .nebula-1 {
     background: radial-gradient(
       circle at 20% 30%,
-      color-mix(in srgb, var(--pax-ui-accent) 18%, transparent),
+      rgba(0, 255, 255, 0.15),
       transparent 40%
     );
     filter: blur(60px);
@@ -92,9 +151,9 @@
   .nebula-2 {
     background: radial-gradient(
       circle at 80% 70%,
-      color-mix(in srgb, var(--pax-ui-accent-warm) 16%, transparent),
+      rgba(168, 85, 247, 0.15),
       transparent 40%
-    );
+    ); /* Magenta-ish */
     filter: blur(80px);
     animation: pulse-slow 12s ease-in-out infinite alternate-reverse;
   }
@@ -116,36 +175,24 @@
 
   /* Content */
   .hero-content {
-    max-width: 920px;
+    max-width: 900px;
     width: 100%;
     box-sizing: border-box;
     padding: var(--pax-space-8);
     display: flex;
     flex-direction: column;
-    gap: var(--pax-space-5);
+    gap: var(--pax-space-6);
     align-items: center;
     z-index: 1;
-  }
-
-  .kicker {
-    margin: 0;
-    font-family: var(--pax-ui-font-ui);
-    font-size: 0.95rem;
-    font-weight: 600;
-    letter-spacing: 0.32em;
-    text-transform: uppercase;
-    color: var(--pax-ui-accent);
-    text-shadow: 0 0 18px color-mix(in srgb, var(--pax-ui-accent) 45%, transparent);
   }
 
   .headline {
     font-size: 4rem; /* Fallback */
     font-size: clamp(2.5rem, 5vw + 1rem, 5rem);
-    line-height: 1.08;
+    line-height: 1.1;
     font-weight: 900;
     color: var(--pax-ui-text-strong);
     text-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
-    margin: 0;
   }
 
   .highlight {
@@ -153,42 +200,34 @@
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
-    text-shadow: 0 0 20px color-mix(in srgb, var(--pax-ui-accent) 40%, transparent);
+    text-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
   }
 
   .subhead {
     font-family: var(--pax-ui-font-copy);
-    font-size: 1.2rem;
+    font-size: 1.25rem;
     color: var(--pax-ui-text-soft);
-    max-width: 680px;
+    max-width: 700px;
     line-height: 1.6;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
-    margin: 0;
   }
 
   .actions {
     display: flex;
     flex-direction: column;
-    gap: var(--pax-space-3);
+    gap: var(--pax-space-6);
     margin-top: var(--pax-space-4);
     align-items: center;
     width: 100%;
-    max-width: 520px;
+    max-width: 480px;
   }
 
   .primary-actions {
     display: flex;
     gap: var(--pax-space-4);
     align-items: center;
+    width: 100%;
     justify-content: center;
-  }
-
-  .hero-meta {
-    margin: 0;
-    font-family: var(--pax-ui-font-ui);
-    font-size: 0.85rem;
-    letter-spacing: 0.04em;
-    color: var(--pax-ui-text-dim);
   }
 
   /* Discord Button */
@@ -198,11 +237,11 @@
     justify-content: center;
     width: 56px;
     height: 56px;
-    border-radius: var(--pax-ui-radius-md);
-    background: rgba(88, 101, 242, 0.12);
-    color: #5865f2; /* Discord brand */
-    border: 1px solid rgba(88, 101, 242, 0.32);
-    transition: all var(--pax-ui-motion-fast);
+    border-radius: 12px;
+    background: rgba(88, 101, 242, 0.1);
+    color: #5865f2; /* Discord Blurple */
+    border: 1px solid rgba(88, 101, 242, 0.3);
+    transition: all 0.2s ease;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   }
 
@@ -211,12 +250,92 @@
     border-color: rgba(88, 101, 242, 0.6);
     transform: translateY(-2px);
     box-shadow: 0 6px 16px rgba(88, 101, 242, 0.2);
-    color: #fff;
+    color: #fff; /* Highlights on hover */
   }
 
   .discord-icon {
     width: 32px;
     height: 32px;
+  }
+
+  /* Subscribe Form */
+  .subscribe-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--pax-space-3);
+    width: 100%;
+    padding: var(--pax-space-4);
+    border-radius: 12px;
+    min-height: 8ch;
+  }
+
+  .input-group {
+    display: flex;
+    gap: var(--pax-space-3);
+    width: 100%;
+    height: 100%;
+  }
+
+  .subscribe-form input {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(0, 255, 255, 0.2);
+    border-radius: 8px;
+    padding: 0 var(--pax-space-4);
+    color: var(--pax-ui-text-strong);
+    font-family: var(--pax-ui-font-copy);
+    font-size: 1rem;
+    transition: all 0.2s ease;
+  }
+
+  .subscribe-form input:focus {
+    outline: none;
+    border-color: var(--pax-ui-accent);
+    box-shadow: 0 0 0 2px rgba(0, 255, 255, 0.1);
+  }
+
+  .subscribe-form input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .btn--outline {
+    white-space: nowrap;
+    min-width: 120px;
+    padding: var(--pax-space-3) var(--pax-space-5);
+    background: transparent;
+    border: 1px solid var(--pax-ui-accent);
+    color: var(--pax-ui-accent);
+    cursor: pointer;
+    border-radius: 8px;
+    font-family: var(--pax-ui-font-ui);
+    font-weight: 700;
+    transition: all 0.2s ease;
+  }
+
+  .btn--outline:hover:not(:disabled) {
+    background: rgba(0, 255, 255, 0.1);
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+  }
+
+  .btn--outline:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .status-msg {
+    font-size: 0.875rem;
+    margin: 0;
+    text-align: left;
+    padding-left: var(--pax-space-2);
+  }
+
+  .status-msg.error {
+    color: var(--pax-ui-danger, #ff4d4d);
+  }
+
+  .status-msg.success {
+    color: var(--pax-ui-success, #00ffaa);
   }
 
   @keyframes pulse-slow {
@@ -246,15 +365,23 @@
 
     .primary-actions {
       flex-direction: column;
-      width: 100%;
+    }
+    .input-group {
+      flex-direction: column;
     }
     .btn,
     .discord-btn {
       width: 100%;
     }
     .discord-btn {
-      border-radius: var(--pax-ui-radius-xs);
+      border-radius: 8px;
       height: 48px;
+    }
+    .btn--outline {
+      width: 100%;
+    }
+    .subscribe-form {
+      padding: var(--pax-space-3);
     }
   }
 </style>
