@@ -1325,11 +1325,33 @@ function applyIntervalRepairs<TShared extends MarginPolyline>(params: {
     validateRepair?: MinStarMarginValidator<TShared>;
 }): MinStarMarginIntervalDiagnostic[] {
     const diagnostics: MinStarMarginIntervalDiagnostic[] = [];
+    // Perf: index refs once by (group:index) rather than a linear find per
+    // interval, and memoize per-ref polyline metrics by points-array identity.
+    // An accepted repair REPLACES ref.currentPoints with a new array (it is not
+    // mutated in place), so a changed ref naturally produces a new memo key while
+    // intervals sharing an unchanged ref reuse a single metrics computation.
+    const refsByKey = new Map<string, PolylineRef<TShared>>();
+    for (const candidate of params.refs) {
+        const key = `${candidate.group}:${candidate.index}`;
+        if (!refsByKey.has(key)) refsByKey.set(key, candidate);
+    }
+    const metricsByPoints = new WeakMap<
+        ReadonlyArray<GeometryPoint>,
+        PolylineMetrics
+    >();
+    const getMetrics = (
+        points: ReadonlyArray<GeometryPoint>,
+    ): PolylineMetrics => {
+        let metrics = metricsByPoints.get(points);
+        if (!metrics) {
+            metrics = buildPolylineMetrics(points);
+            metricsByPoints.set(points, metrics);
+        }
+        return metrics;
+    };
     for (const interval of params.intervals) {
-        const ref = params.refs.find(
-            (candidate) =>
-                candidate.group === interval.polylineGroup &&
-                candidate.index === interval.polylineIndex,
+        const ref = refsByKey.get(
+            `${interval.polylineGroup}:${interval.polylineIndex}`,
         );
         const star = params.starsById.get(interval.starId);
         if (!ref || !star) {
@@ -1370,7 +1392,7 @@ function applyIntervalRepairs<TShared extends MarginPolyline>(params: {
             startProjection.arcLengthPx,
             endProjection.arcLengthPx,
         );
-        const metrics = buildPolylineMetrics(ref.currentPoints);
+        const metrics = getMetrics(ref.currentPoints);
         const intervalPoints = slicePolylineByArc(
             ref.currentPoints,
             metrics,
