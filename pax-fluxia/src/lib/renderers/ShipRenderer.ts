@@ -271,6 +271,21 @@ function getCachedAttackHeading(
  * Draw a single ship via particle pool.
  * Creates outline particle (backing circle) + fill particle + optional damage indicator.
  */
+// Perf: Pixi's particle.tint setter normalizes the color (Color._normalize),
+// which dominated ship steady-state self-time. Ship pool particles keep the same
+// color across most frames (stable orbits), so skip the write when our last-set
+// tint is unchanged. We compare against the value WE last set (not Pixi's
+// getter), so this is independent of any internal tint representation. Visual
+// output is identical -- a changed color still writes.
+type TintTrackedParticle = PIXI.Particle & { __lastTint?: number };
+function setParticleTint(p: PIXI.Particle, color: number): void {
+    const tracked = p as TintTrackedParticle;
+    if (tracked.__lastTint !== color) {
+        p.tint = color;
+        tracked.__lastTint = color;
+    }
+}
+
 export function drawShip(
     res: ShipRenderResources,
     colorUtils: ColorUtils,
@@ -327,7 +342,7 @@ export function drawShip(
         glowP.y = y;
         glowP.scaleX = glowScale;
         glowP.scaleY = glowScale;
-        glowP.tint = glowColor;
+        setParticleTint(glowP, glowColor);
         glowP.alpha = alpha * glowIntensity;
         res.shipParticleIndex++;
     }
@@ -356,7 +371,7 @@ export function drawShip(
         outlineP.y = y;
         outlineP.scaleX = outlineScale;
         outlineP.scaleY = outlineScale;
-        outlineP.tint = outlineColor;
+        setParticleTint(outlineP, outlineColor);
         outlineP.alpha = alpha;
         res.shipParticleIndex++;
     }
@@ -378,7 +393,7 @@ export function drawShip(
     particle.y = y;
     particle.scaleX = spriteScale;
     particle.scaleY = spriteScale;
-    particle.tint = fillColor;
+    setParticleTint(particle, fillColor);
     particle.alpha = alpha;
     res.shipParticleIndex++;
 
@@ -401,7 +416,7 @@ export function drawShip(
         dmgP.y = y;
         dmgP.scaleX = dmgScale;
         dmgP.scaleY = dmgScale;
-        dmgP.tint = 0x222222;
+        setParticleTint(dmgP, 0x222222);
         dmgP.alpha = 0.5;
         res.shipParticleIndex++;
     }
