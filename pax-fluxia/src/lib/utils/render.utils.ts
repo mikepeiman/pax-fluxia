@@ -185,9 +185,31 @@ function calculateTotalCapacity(starRadius: number): OrbitCapacityMetrics {
     return metrics;
 }
 
+// Perf: ship orbit positions need cos/sin of (baseAngle + ringRotation) per ship
+// per frame. baseAngle = indexInRing * angleStep is fixed until a ring's ship
+// count changes, and ringRotation is shared by every ship in a layer at a given
+// time. Cache cos/sin of the base angle (across frames) and of each layer's ring
+// rotation (per frame), then combine via the angle-addition identity -- replacing
+// the per-ship Math.cos/Math.sin with cached lookups + a few multiplies. Used only
+// when no directional bias is active (bias compresses the angle non-linearly).
+const ORBIT_BASE_KEY_STRIDE = 1_000_000;
+const orbitBaseTrigCache = new Map<number, { cos: number; sin: number }>();
+const orbitRotCosByLayer = new Float64Array(MAX_ORBIT_LAYERS);
+const orbitRotSinByLayer = new Float64Array(MAX_ORBIT_LAYERS);
+let orbitRotCacheTime = Number.NaN;
+function ensureOrbitRotCache(time: number): void {
+    if (time === orbitRotCacheTime) return;
+    orbitRotCacheTime = time;
+    for (let layer = 0; layer < MAX_ORBIT_LAYERS; layer += 1) {
+        const ringRotation = time * (0.2 / (layer + 1)) * (layer % 2 === 0 ? 1 : -1);
+        orbitRotCosByLayer[layer] = Math.cos(ringRotation);
+        orbitRotSinByLayer[layer] = Math.sin(ringRotation);
+    }
+}
+
 /**
  * Calculate stable target slot for a ship in orbit
- * 
+ *
  * Now with stacking: after 10 layers, ships wrap to layer 0 with 2x multiplier.
  * Returns { x, y, multiplier } where multiplier is 1, 2, 4, 8, etc.
  * 
@@ -265,8 +287,29 @@ export function getOrbitSlot(
                 angle = biasAngle + compressed;
             }
 
-            const ndx = Math.cos(angle);
-            const ndy = Math.sin(angle);
+            let ndx: number;
+            let ndy: number;
+            if (biasAngle !== undefined && biasStrength > 0) {
+                // Bias compressed the angle non-linearly above; compute directly.
+                ndx = Math.cos(angle);
+                ndy = Math.sin(angle);
+            } else {
+                // No bias: angle === indexInRing * angleStep + ringRotation, so
+                // reuse cached base-angle trig + per-layer ring-rotation trig via
+                // the angle-addition identity (exact; no per-ship Math.cos/sin).
+                ensureOrbitRotCache(time);
+                const baseKey = actualInRing * ORBIT_BASE_KEY_STRIDE + indexInRing;
+                let base = orbitBaseTrigCache.get(baseKey);
+                if (base === undefined) {
+                    const baseAngle = indexInRing * angleStep;
+                    base = { cos: Math.cos(baseAngle), sin: Math.sin(baseAngle) };
+                    orbitBaseTrigCache.set(baseKey, base);
+                }
+                const cosRot = orbitRotCosByLayer[layer]!;
+                const sinRot = orbitRotSinByLayer[layer]!;
+                ndx = base.cos * cosRot - base.sin * sinRot;
+                ndy = base.sin * cosRot + base.cos * sinRot;
+            }
             return {
                 x: cx + ndx * currentRadius,
                 y: cy + ndy * currentRadius,
