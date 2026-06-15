@@ -1083,34 +1083,62 @@ export class GridGradientFamily implements RenderFamily {
         readonly settings: GridGradientSettings;
         readonly progress: number;
     }): RoleCounts {
-        let activeTransitionCells = 0;
-        let activeDrawableTransitionCells = 0;
-        let activeMixingTransitionCells = 0;
-        let outsideCells = 0;
-        for (let cellIndex = 0; cellIndex < params.plan.typed.roleCodeByCell.length; cellIndex += 1) {
-            const roleCode = params.plan.typed.roleCodeByCell[cellIndex] ?? 0;
-            if (roleCode === 0) {
-                outsideCells += 1;
-            } else if (roleCode !== 1) {
-                activeTransitionCells += 1;
-                activeDrawableTransitionCells += 1;
-                const blendT = resolveGridGradientTransitionBlendT({
-                    progress: params.progress,
-                    flipTime:
-                        (params.plan.flipTimeByteByCell[cellIndex] ?? 128) / 255,
-                    flipWindow: params.settings.flipWindow,
-                });
-                if (blendT > 0.02 && blendT < 0.98) {
-                    activeMixingTransitionCells += 1;
+        // Perf: the stable counts and the set of active transition cells depend
+        // only on the plan's roleCodeByCell, so derive them once per plan instead
+        // of scanning all ~30k cells every frame. Only activeMixingTransitionCells
+        // depends on progress, and it only needs the (often empty in steady state)
+        // active transition cells -- not the full grid. Counts are unchanged.
+        const plan = params.plan as CachedGridGradientPlan & {
+            __roleScan?: {
+                readonly activeTransitionCells: number;
+                readonly activeDrawableTransitionCells: number;
+                readonly outsideCells: number;
+                readonly activeIndices: Int32Array;
+            };
+        };
+        let scan = plan.__roleScan;
+        if (!scan) {
+            const roleByCell = params.plan.typed.roleCodeByCell;
+            let activeTransitionCells = 0;
+            let outsideCells = 0;
+            const activeIndices: number[] = [];
+            for (let cellIndex = 0; cellIndex < roleByCell.length; cellIndex += 1) {
+                const roleCode = roleByCell[cellIndex] ?? 0;
+                if (roleCode === 0) {
+                    outsideCells += 1;
+                } else if (roleCode !== 1) {
+                    activeTransitionCells += 1;
+                    activeIndices.push(cellIndex);
                 }
+            }
+            scan = {
+                activeTransitionCells,
+                activeDrawableTransitionCells: activeTransitionCells,
+                outsideCells,
+                activeIndices: Int32Array.from(activeIndices),
+            };
+            plan.__roleScan = scan;
+        }
+
+        let activeMixingTransitionCells = 0;
+        for (let i = 0; i < scan.activeIndices.length; i += 1) {
+            const cellIndex = scan.activeIndices[i]!;
+            const blendT = resolveGridGradientTransitionBlendT({
+                progress: params.progress,
+                flipTime:
+                    (params.plan.flipTimeByteByCell[cellIndex] ?? 128) / 255,
+                flipWindow: params.settings.flipWindow,
+            });
+            if (blendT > 0.02 && blendT < 0.98) {
+                activeMixingTransitionCells += 1;
             }
         }
         return {
-            activeTransitionCells,
-            activeDrawableTransitionCells,
+            activeTransitionCells: scan.activeTransitionCells,
+            activeDrawableTransitionCells: scan.activeDrawableTransitionCells,
             activeMixingTransitionCells,
             activeOffsetZoneTransitionCells: 0,
-            outsideCells,
+            outsideCells: scan.outsideCells,
         };
     }
 
