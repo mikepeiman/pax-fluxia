@@ -9,7 +9,11 @@ import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 const config = {
   preprocess: vitePreprocess(),
   vitePlugin: {
-    inspector: true,
+    inspector: {
+      toggleKeyCombo: 'alt-x',
+      showToggleButton: 'always',
+      toggleButtonPos: 'bottom-right'
+    },
   },
   kit: {
     adapter: adapter({
