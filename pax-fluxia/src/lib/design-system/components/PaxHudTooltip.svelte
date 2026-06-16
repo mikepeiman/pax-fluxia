@@ -14,7 +14,7 @@
   let { label, placement = "top", class: className = "", children }: Props = $props();
 </script>
 
-<Tooltip.Root openDelay={250} closeDelay={50} positioning={{ placement, gutter: 10 }}>
+<Tooltip.Root openDelay={100} closeDelay={50} positioning={{ placement, gutter: 10 }}>
   <Tooltip.Trigger class={className} aria-label={label}>
     {#if children}
       {@render children()}

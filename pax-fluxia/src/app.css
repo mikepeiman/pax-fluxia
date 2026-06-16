@@ -762,3 +762,34 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--pax-ui-text-soft);
 }
+
+/* Ark-ui tooltip: quick, styled fade-in. Content is portaled to <body>, so
+   this lives globally rather than in a component scope. (Styling itself comes
+   from the hudTooltip variant on Tooltip.Content.) */
+[data-scope="tooltip"][data-part="content"] {
+  transform-origin: var(--transform-origin);
+}
+[data-scope="tooltip"][data-part="content"][data-state="open"] {
+  animation: pax-tooltip-in 100ms ease-out;
+}
+[data-scope="tooltip"][data-part="content"][data-state="closed"] {
+  animation: pax-tooltip-out 80ms ease-in forwards;
+}
+@keyframes pax-tooltip-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes pax-tooltip-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
