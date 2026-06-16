@@ -5,6 +5,14 @@
     PaxHudRange,
     PaxHudSelect,
   } from "$lib/design-system";
+  import {
+    iconSetState,
+    setIconSet,
+    ICON_SETS,
+    type IconSet,
+  } from "$lib/icons/iconSetStore.svelte";
+
+  const iconSetOptions = ICON_SETS.map((s) => ({ value: s.id, label: s.label }));
 
   type FontTokenId = "brand" | "ui" | "label" | "copy" | "data";
   type FontOptionId =
@@ -420,6 +428,19 @@
       onclick={resetTokens}
     />
   </header>
+
+  <div class="pf-typography-row pf-typography-panel__iconset">
+    <span class="pf-typography-row__meta">
+      <strong>Icon Collection</strong>
+      <small>app-wide icon set</small>
+    </span>
+    <PaxHudSelect
+      value={iconSetState.current}
+      ariaLabel="Icon collection"
+      options={iconSetOptions}
+      onValueChange={(value) => setIconSet(value as IconSet)}
+    />
+  </div>
 
   <div class="pf-typography-panel__roles">
     {#each TOKEN_ROLES as role}
