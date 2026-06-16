@@ -128,7 +128,7 @@
   }
 
   let showSettingsPanel = $state(
-    isMobileAtLoad ? false : loadBooleanPreference("pax-settings-open", false),
+    isMobileAtLoad ? false : loadBooleanPreference("pax-settings-open", true),
   );
   let sidebarSide = $state<DockSide>(
     loadDockSidePreference("pax-sidebar-side", "right"),
@@ -140,7 +140,7 @@
     loadBooleanPreference("pax-leaderboard-collapsed", false),
   );
   let settingsRibbonExpanded = $state(
-    loadBooleanPreference("pax-settings-ribbon-expanded", false),
+    loadBooleanPreference("pax-settings-ribbon-expanded", true),
   );
   let commandTrayCollapsed = $state(
     loadBooleanPreference("pax-command-tray-collapsed", false),
@@ -261,7 +261,7 @@
   const SETTINGS_PANEL_MAX = 720;
   const SETTINGS_PANEL_DEFAULT = 520;
   const SETTINGS_CHROME_COMPACT_WIDTH = 68;
-  const SETTINGS_CHROME_EXPANDED_WIDTH = 108;
+  const SETTINGS_CHROME_EXPANDED_WIDTH = 216;
   const SETTINGS_PANEL_SECTION_DEFAULT = 520;
 
   function loadSidebarWidth(): number {

@@ -1236,15 +1236,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     <!-- Icon Toolbar -->
     <div class="icon-toolbar" class:has-active={activeToolHasPanel}>
         <div class="icon-toolbar__controls">
-            {#if onCloseSettings}
-                <PaxHudIconButton
-                    icon="chevron-left"
-                    size={15}
-                    class="icon-toolbar-control"
-                    onclick={onCloseSettings}
-                    title="Collapse settings to topbar"
-                />
-            {/if}
             {#if onToggleRibbonExpanded}
                 <PaxHudIconButton
                     icon={ribbonExpanded ? "chevron-left" : "chevron-right"}
@@ -1584,7 +1575,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     .controls-panel--ribbon-expanded {
-        --settings-ribbon-width: 108px;
+        --settings-ribbon-width: 216px;
     }
 
     .settings-shell {
@@ -2228,7 +2219,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     .controls-panel--ribbon-expanded {
-        --settings-ribbon-width: 108px;
+        --settings-ribbon-width: 216px;
     }
 
     .settings-shell,
