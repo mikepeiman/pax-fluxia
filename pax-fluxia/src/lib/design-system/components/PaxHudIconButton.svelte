@@ -35,7 +35,7 @@
   );
 </script>
 
-<Tooltip.Root openDelay={250} closeDelay={50} positioning={{ placement: "top", gutter: 10 }}>
+<Tooltip.Root openDelay={100} closeDelay={50} positioning={{ placement: "top", gutter: 10 }}>
   <Tooltip.Trigger
     class={buttonClass}
     {disabled}

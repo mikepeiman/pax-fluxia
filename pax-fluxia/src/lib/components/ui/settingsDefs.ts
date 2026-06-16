@@ -271,6 +271,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'mapgenLaneMarginPx', configKey: 'MAPGEN_LANE_MARGIN_PX' },
     { panelKey: 'mapgenLaneCurveVsPruneBias', configKey: 'MAPGEN_LANE_CURVE_VS_PRUNE_BIAS' },
     { panelKey: 'mapgenLaneMode', configKey: 'MAPGEN_LANE_MODE' },
+    { configKey: 'MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS' },
     { configKey: 'STATIC_ORBITS' },
     { configKey: 'SHOW_SELECTION_HEX' },
     { configKey: 'LANE_OFFSET_PX' },
@@ -331,6 +332,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'DEBUG_DY4_DISABLE_BORDER_TRANSITION' },
     { configKey: 'DEBUG_DY4_FORCE_TRANSITION_START' },
     // Territory invariants (MSR / CX / DX)
+    { configKey: 'FRONTIER_RESOLUTION' },
     { panelKey: 'starMargin', configKey: 'MODIFIED_VORONOI_STAR_MARGIN' },
     {
         panelKey: 'msrStarBias',
@@ -722,6 +724,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'CONNECTION_COLOR' },
     { configKey: 'CONNECTION_MAX_DISTANCE' },
     { configKey: 'BG_IMAGE_URL' },
+    { configKey: 'BG_IMAGE_ALPHA' },
     { configKey: 'CLASSIC_MAP_SPACING' },
     { configKey: 'LABEL_ANIM_MODE' },
     // ── Audio ──

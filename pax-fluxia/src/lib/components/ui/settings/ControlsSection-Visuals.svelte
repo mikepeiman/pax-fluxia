@@ -291,7 +291,7 @@
     <div class="visuals-control-card">
         <PaxHudSelect
             label="Label Anim Mode"
-            value={GAME_CONFIG.LABEL_ANIM_MODE ?? "rolling"}
+            value={panel.labelAnimMode ?? GAME_CONFIG.LABEL_ANIM_MODE ?? "rolling"}
             options={LABEL_ANIM_OPTIONS}
             onValueChange={updateLabelAnimMode}
         />
