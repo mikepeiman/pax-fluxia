@@ -3,10 +3,13 @@
   "localMemoization": true,
   "providerCaching": true,
   "providerCache": {
-    "stablePrefixLabel": "pax-fluxia-agentic-stable-v1",
+    "stablePrefixLabel": "pax-fluxia-agentic-stable-v2",
     "minimumCacheableTokens": 1024,
+    "prefixMode": "artifact-index",
+    "maxPrefixEstimatedTokens": 4096,
+    "includeFullArtifactIds": [],
     "openai": {
-      "promptCacheKey": "pax-fluxia-agentic-stable-v1",
+      "promptCacheKey": "pax-fluxia-agentic-stable-v2",
       "retentionPolicy": "prefer-24h-when-supported-otherwise-omit"
     },
     "anthropic": {
