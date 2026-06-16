@@ -17,6 +17,12 @@ import {
     type ConstraintAlignedFrontierPolyline,
 } from './resolveConstraintAlignedTerritoryGeometry';
 import { pointInPolygon, polygonCentroid } from './geometryUtils';
+import {
+    deriveStableRegionId,
+    deriveRegionFallbackId,
+    isVirtualSiteId,
+    hashString32,
+} from './regionIdentity';
 
 interface BuildPowerVoronoi0319AuthoritySnapshotParams {
     readonly geometry: TerritoryGeometryData;
@@ -38,32 +44,6 @@ function computePolygonArea(points: ReadonlyArray<[number, number]>): number {
         area += ax * by - bx * ay;
     }
     return area * 0.5;
-}
-
-function hashString32(value: string): string {
-    let hash = 0x811c9dc5;
-    for (let i = 0; i < value.length; i++) {
-        hash ^= value.charCodeAt(i);
-        hash = Math.imul(hash, 0x01000193);
-    }
-    return (hash >>> 0).toString(16).padStart(8, '0');
-}
-
-function isVirtualSiteId(id: string): boolean {
-    return (
-        id.startsWith('corridor_') ||
-        id.startsWith('disconnect_') ||
-        id.startsWith('msr_support_')
-    );
-}
-
-function deriveStableRegionId(ownerId: string, starIds: ReadonlyArray<string>): string {
-    const anchors = starIds.filter((id) => !isVirtualSiteId(id));
-    const identity = anchors.length > 0 ? anchors : [...starIds];
-    if (identity.length === 0) {
-        return `region:${ownerId}:empty`;
-    }
-    return `region:${ownerId}:${[...identity].sort().join('+')}`;
 }
 
 function buildSharedFrontierMapFromPolylines(
@@ -235,11 +215,10 @@ function hydrateResolvedRegions(params: {
             rawMatch?.starIds.length
                 ? [...rawMatch.starIds].sort()
                 : [...anchorStarIds];
-        const regionFallbackId = `region:${region.ownerId}:poly:${hashString32(
-            region.points
-                .map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`)
-                .join('|'),
-        )}`;
+        const regionFallbackId = deriveRegionFallbackId(
+            region.ownerId,
+            region.points,
+        );
         return {
             ...region,
             regionId:

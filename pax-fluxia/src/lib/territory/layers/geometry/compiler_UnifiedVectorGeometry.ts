@@ -39,6 +39,10 @@ import type {
 import type { FrontierTopology } from '../../contracts/FrontierTopologyContracts';
 import { buildGeometryVersion } from './planners/GeometryFingerprint';
 import {
+    deriveStableRegionId,
+    deriveRegionFallbackId,
+} from '../../geometry/regionIdentity';
+import {
     buildGeneratorSettings,
     createEmptyTerritoryGeometryData,
     isCompileError,
@@ -241,28 +245,26 @@ function buildWorldBorderPolylines(
 function buildTerritoryRegions(
     geometry: TerritoryGeometryData,
 ): TerritoryRegionShape[] {
-    // Track used IDs to handle (rare) centroid collisions within same owner
-    const usedIds = new Set<string>();
-
+    // Region identity is anchored to the real star set via the shared
+    // regionIdentity module — the SAME derivation the render-family assembler
+    // (buildPowerVoronoi0319AuthoritySnapshot) uses, so a given region gets the
+    // same id from either assembler. Star-set ids are stable under conquest
+    // morphing, unlike the centroid-hash anti-pattern this replaces (which
+    // drifted as geometry shifted and needed iteration-order collision
+    // suffixes). Disconnected regions of one owner have disjoint star sets, so
+    // ids stay unique without a counter. (hybrid-converge Phase 1)
     return geometry.mergedTerritories.map((territory: MergedTerritory) => {
-        // Spatially stable regionId: quantized centroid hash.
-        // Same geographic region → same centroid → same ID across recomputation.
         const pts = territory.points;
-        let cx = 0, cy = 0;
-        for (const [x, y] of pts) { cx += x; cy += y; }
-        if (pts.length > 0) { cx /= pts.length; cy /= pts.length; }
-        // Quantize to integer pixels — avoids float jitter
-        let baseId = `region:${territory.ownerId}:${Math.round(cx)},${Math.round(cy)}`;
-        // Handle centroid collisions (very rare — two regions with same centroid)
-        let id = baseId;
-        let suffix = 0;
-        while (usedIds.has(id)) { suffix++; id = `${baseId}:${suffix}`; }
-        usedIds.add(id);
+        const starIds = [...territory.starIds];
+        const regionId =
+            starIds.length > 0
+                ? deriveStableRegionId(territory.ownerId, starIds)
+                : deriveRegionFallbackId(territory.ownerId, pts);
 
         return {
-            regionId: id,
+            regionId,
             ownerId: territory.ownerId,
-            starIds: [...territory.starIds],
+            starIds,
             points: pts,
             confidence: 1.0,
         };
