@@ -128,7 +128,8 @@
   }
 
   let showSettingsPanel = $state(
-    isMobileAtLoad ? false : loadBooleanPreference("pax-settings-open", true),
+    // Settings ribbon is a permanent fixture on desktop (no hide toggle).
+    !isMobileAtLoad,
   );
   let sidebarSide = $state<DockSide>(
     loadDockSidePreference("pax-sidebar-side", "right"),
@@ -262,7 +263,7 @@
   const SETTINGS_PANEL_DEFAULT = 520;
   const SETTINGS_CHROME_COMPACT_WIDTH = 68;
   const SETTINGS_CHROME_EXPANDED_WIDTH = 216;
-  const SETTINGS_PANEL_SECTION_DEFAULT = 520;
+  const SETTINGS_PANEL_SECTION_DEFAULT = 640;
 
   function loadSidebarWidth(): number {
     if (typeof localStorage === "undefined") return SIDEBAR_DEFAULT;
