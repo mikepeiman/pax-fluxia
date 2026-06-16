@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./panel-shared.css";
   import { GAME_CONFIG } from "$lib/config/game.config";
   import {
     isTerritoryRenderModeUiHidden,
@@ -2222,7 +2223,6 @@
 <!-- Per-renderer settings removed — V3.1 uses three-concern architecture (Style + Fill Transition + Border Transition) -->
 
 <style>
-  @import "./panel-shared.css";
   .territory-section-shell {
     display: flex;
     flex-direction: column;

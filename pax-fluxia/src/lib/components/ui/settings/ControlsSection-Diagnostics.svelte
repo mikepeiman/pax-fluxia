@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./panel-shared.css";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
@@ -721,7 +722,6 @@
 </section>
 
 <style>
-    @import "./panel-shared.css";
 
     .row {
         display: flex;

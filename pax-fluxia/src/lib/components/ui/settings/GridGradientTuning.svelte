@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./panel-shared.css";
     import { GAME_CONFIG } from '$lib/config/game.config';
     import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
     import { gridGradientStats } from '$lib/territory/families/gridGradient/gridGradientStats';
@@ -550,7 +551,6 @@
 </div>
 
 <style>
-    @import "./panel-shared.css";
 
     .sub-heading {
         margin: 12px 0 6px;

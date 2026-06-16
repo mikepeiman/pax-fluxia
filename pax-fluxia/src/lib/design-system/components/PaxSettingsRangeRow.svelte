@@ -88,19 +88,17 @@
 </div>
 
 <style>
+  /* Flat row — no border-box. (See panel-shared.css rationale.) Often nested
+     in a .var-row that already provides padding, so keep this tight. */
   .pax-settings-range-row {
     min-width: 0;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     align-items: center;
     gap: 8px;
-    padding: 10px;
-    border: 1px solid transparent;
+    padding: 0;
     border-radius: var(--pax-ui-radius-sm);
-    clip-path: var(--pax-ui-rounded-corner-sm);
-    background:
-      linear-gradient(180deg, rgba(0, 18, 21, 0.78), rgba(0, 10, 13, 0.9)) padding-box,
-      var(--pax-ui-control-border-gradient) border-box;
+    background: transparent;
   }
 
   .pax-settings-range-row--disabled {

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./panel-shared.css";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import {
         TERRITORY_PIPELINE_STAGE_ORDER,
@@ -315,7 +316,6 @@
 </div>
 
 <style>
-    @import "./panel-shared.css";
 
     .trace-diagnostics {
         display: flex;

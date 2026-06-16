@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./panel-shared.css";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import {
         IN_APP_CONQUEST_BENCHMARK_MODES,
@@ -149,7 +150,6 @@
 {/if}
 
 <style>
-    @import "./panel-shared.css";
 
     .snapshot-actions {
         display: flex;

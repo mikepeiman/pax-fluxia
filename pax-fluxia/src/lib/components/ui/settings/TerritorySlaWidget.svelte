@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./panel-shared.css";
     /**
      * Modular Saturation / Lightness / Alpha (hue = player palette).
      * Optional border-width row first means "width + SLA" for borders.
@@ -164,7 +165,6 @@
 </div>
 
 <style>
-    @import "./panel-shared.css";
 
     .territory-sla-widget {
         display: grid;

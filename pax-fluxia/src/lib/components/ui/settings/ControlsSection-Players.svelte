@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./panel-shared.css";
     import { onMount } from "svelte";
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
     import {
@@ -209,7 +210,6 @@
 </details>
 
 <style>
-    @import "./panel-shared.css";
 
     .players-copy {
         margin: 0 0 8px;

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./panel-shared.css";
     import {
         audioManager,
         SOUND_LABELS,
@@ -283,7 +284,6 @@
 </section>
 
 <style>
-    @import "./panel-shared.css";
 
     .audio-sound-card,
     .audio-conquest-group {

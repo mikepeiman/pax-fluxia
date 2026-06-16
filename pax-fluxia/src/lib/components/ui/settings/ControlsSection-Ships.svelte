@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./panel-shared.css";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import {
         PaxHudButton,
@@ -1402,7 +1403,3 @@
         onInput={(value) => writePanelConfig("starGlowIntensity", "STAR_GLOW_INTENSITY", value)}
     />
 </div>
-
-<style>
-    @import "./panel-shared.css";
-</style>

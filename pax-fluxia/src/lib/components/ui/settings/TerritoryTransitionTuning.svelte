@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./panel-shared.css";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { ANIM_SLIDERS } from "../settingsDefs";
     import {
@@ -343,7 +344,6 @@
 {/if}
 
 <style>
-    @import "./panel-shared.css";
 
     .row-hint {
         margin: 8px 0 10px;

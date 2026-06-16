@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./panel-shared.css";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import {
         PaxHudSelect,
@@ -334,7 +335,3 @@
         }}
     />
 {/if}
-
-<style>
-    @import "./panel-shared.css";
-</style>

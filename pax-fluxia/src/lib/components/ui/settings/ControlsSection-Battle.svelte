@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./panel-shared.css";
     import { COMBAT_VARIABLES, CONFIG_TO_PANEL_KEY } from "../settingsDefs";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { PaxSettingsRangeRow } from "$lib/design-system";
@@ -80,7 +81,3 @@
         />
     {/each}
 {/each}
-
-<style>
-    @import "./panel-shared.css";
-</style>

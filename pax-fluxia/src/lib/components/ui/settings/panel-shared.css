@@ -1,8 +1,11 @@
 /* Shared settings-panel grammar for ControlsSection-* components.
    This is the legacy settings bridge: keep these classes tokenized until
-   every settings subsection is migrated to PaxHud* primitives. */
+   every settings subsection is migrated to PaxHud* primitives.
 
-:global {
+   Loaded via a JS `import "./panel-shared.css"` in each ControlsSection-*
+   <script> (NOT an @import inside <style>) so Vite hot-reloads edits here.
+   That means these selectors are already global — no :global {} wrapper. */
+
 .sub-heading {
     display: flex;
     align-items: center;
@@ -25,34 +28,29 @@
     border-top: none;
 }
 
+/* Control rows are FLAT — no per-row border/box. A border around every control
+   reads as boxes-in-boxes and is visually exhausting. Grouping comes from
+   .sub-heading dividers + vertical rhythm; hover gives only a faint tint. */
 .var-row,
 .toggle-row {
-    border: 1px solid transparent;
+    border: 0;
     border-radius: var(--pax-ui-radius-xs, var(--pax-radius-xs, 8px));
-    clip-path: var(--pax-ui-rounded-corner-xs, inset(0 round 8px));
-    background:
-        linear-gradient(180deg, rgba(0, 18, 21, 0.88), rgba(1, 10, 14, 0.96)) padding-box,
-        var(--pax-ui-control-border-gradient, var(--pax-border-control-gradient)) border-box;
+    background: transparent;
     transition:
-        border-color var(--pax-motion-fast, 150ms ease),
         background var(--pax-motion-fast, 150ms ease),
-        box-shadow var(--pax-motion-fast, 150ms ease),
         opacity var(--pax-motion-fast, 150ms ease);
 }
 
 .var-row {
     display: flex;
     flex-direction: column;
-    gap: 7px;
-    padding: 10px 12px;
+    gap: 5px;
+    padding: 4px 6px;
 }
 
 .var-row:hover,
 .toggle-row:hover {
-    background:
-        linear-gradient(180deg, rgba(33, 30, 18, 0.88), rgba(3, 28, 31, 0.94)) padding-box,
-        var(--pax-ui-control-border-gradient, var(--pax-border-control-gradient)) border-box;
-    box-shadow: inset 0 0 0 1px rgba(246, 196, 105, 0.08);
+    background: rgba(246, 196, 105, 0.05);
 }
 
 .var-row.disabled {
@@ -373,5 +371,4 @@ select.mode-select {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
-}
 }

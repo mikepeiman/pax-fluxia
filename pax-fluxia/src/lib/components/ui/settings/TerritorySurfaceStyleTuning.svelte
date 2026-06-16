@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./panel-shared.css";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import {
         metaballGridFamilyConfigDefaults,
@@ -704,7 +705,6 @@
 </div>
 
 <style>
-    @import "./panel-shared.css";
 
     .territory-style-stack {
         display: flex;

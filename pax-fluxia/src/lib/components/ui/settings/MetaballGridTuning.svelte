@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./panel-shared.css";
     import { GAME_CONFIG } from '$lib/config/game.config';
     import {
         TERRITORY_FRONTIER_BENCHMARK_PRESETS,
@@ -1664,7 +1665,6 @@
 {/if}
 
 <style>
-    @import "./panel-shared.css";
 
     .module-head {
         display: flex;

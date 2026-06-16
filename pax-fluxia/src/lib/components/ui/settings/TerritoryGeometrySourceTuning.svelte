@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./panel-shared.css";
     import { GAME_CONFIG } from '$lib/config/game.config';
     import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
     import { normalizePerimeterFieldGeometrySource } from '$lib/territory/geometry/geometrySource';
@@ -63,7 +64,6 @@
 </div>
 
 <style>
-    @import "./panel-shared.css";
 
     .var-desc {
         margin: 4px 0 10px;

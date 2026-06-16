@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./panel-shared.css";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { animationStore } from "$lib/stores/animationStore.svelte";
     import { ANIM_SLIDERS } from "../settingsDefs";
@@ -246,7 +247,6 @@
 {/if}
 
 <style>
-    @import "./panel-shared.css";
 
     .timing-lock-card {
         min-width: 0;

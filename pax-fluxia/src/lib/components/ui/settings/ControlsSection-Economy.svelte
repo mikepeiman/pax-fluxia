@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./panel-shared.css";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { PaxSettingsRangeRow } from "$lib/design-system";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
@@ -149,7 +150,3 @@
         updatePanel("defense", value);
     }}
 />
-
-<style>
-    @import "./panel-shared.css";
-</style>

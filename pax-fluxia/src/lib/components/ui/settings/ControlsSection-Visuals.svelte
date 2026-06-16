@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./panel-shared.css";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { BG_IMAGES } from "$lib/config/bgManifest";
     import { resolveEffectiveLaneMarginPx } from "$lib/lanes/laneMargin";
@@ -405,7 +406,6 @@
 </section>
 
 <style>
-    @import "./panel-shared.css";
 
     .visuals-section {
         display: flex;

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./panel-shared.css";
   import { GAME_CONFIG } from "$lib/config/game.config";
   import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
   import {
@@ -365,7 +366,6 @@
 </div>
 
 <style>
-  @import "./panel-shared.css";
 
   .territory-section-shell {
     display: flex;

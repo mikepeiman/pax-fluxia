@@ -62,23 +62,25 @@
 </label>
 
 <style>
+  /* Flat row — no border-box. (See panel-shared.css rationale.) */
   .pax-settings-toggle-row {
     min-width: 0;
-    min-height: 42px;
+    min-height: 34px;
     display: grid;
     grid-template-columns: 38px minmax(0, 1fr) auto;
     align-items: center;
     gap: 10px;
-    padding: 9px 10px;
-    border: 1px solid transparent;
+    padding: 5px 6px;
     border-radius: var(--pax-ui-radius-sm);
-    clip-path: var(--pax-ui-rounded-corner-sm);
-    background:
-      linear-gradient(180deg, rgba(0, 18, 21, 0.76), rgba(0, 10, 13, 0.9)) padding-box,
-      var(--pax-ui-control-border-gradient) border-box;
+    background: transparent;
     color: var(--pax-ui-text);
     cursor: pointer;
     font-family: var(--pax-ui-font-ui);
+    transition: background var(--pax-motion-fast, 150ms ease);
+  }
+
+  .pax-settings-toggle-row:hover {
+    background: rgba(246, 196, 105, 0.05);
   }
 
   .pax-settings-toggle-row--disabled {

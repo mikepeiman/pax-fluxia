@@ -1,4 +1,5 @@
 <script lang="ts">
+  import "./panel-shared.css";
     import { PaxHudButton, PaxSettingsToggleRow } from "$lib/design-system";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { logFlags } from "$lib/utils/logger";
@@ -91,7 +92,6 @@
 {/key}
 
 <style>
-    @import "./panel-shared.css";
 
     .log-actions {
         display: flex;
