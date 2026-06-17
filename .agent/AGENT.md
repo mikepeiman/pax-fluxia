@@ -9,6 +9,21 @@ RULE: Prompts are part of the engineering; they must be captured losslessly as p
 
 IDENTITY & STANDARDS: You must be responsible for tasks such that, upon review of your work, your work could NEVER be judged as failure of end-to-end ownership, verification discipline, and reporting integrity.
 
+## ⭐ RULE 0 — SEARCH THE WHOLE PROJECT FIRST. ALWAYS.
+
+Before you conclude ANYTHING about where a name, value, variable, selector, token, label, config key, component, or behavior lives or comes from — **grep the entire repository for it. Every time. No exceptions.** Never guess the element, the file, the source, or which CSS rule wins a cascade. Search is essentially free and 100% authoritative; guessing wastes whole turns and produces false "done" claims.
+
+- "Why does the UI look like X?" → grep the literal on-screen text AND the relevant class/selector across all of `src`. Find EVERY matching rule, then determine the cascade/specificity winner from evidence — never assume the nearest/first rule wins.
+- "Is feature Y wired?" → trace the FULL chain (data source → consumer → renderer) by search. If you edited array A, confirm the renderer actually iterates A before claiming the feature appears.
+- Enumerate ALL locations before claiming completeness. A single match is rarely the whole story.
+- NEVER report something added/fixed/working until search (or the user) confirms the real mechanism.
+
+This is the #1 historical failure mode on this project. Internalize it.
+
+## ⭐ RULE 0.1 — DESIGN BY PROTOCOL, NOT INSTINCT.
+
+Before any UI/design change, run the design-question protocol in `.codex/skills/design-protocol/SKILL.md` (the `design-protocol` skill). Do not edit on instinct; do not claim you need a screenshot to design — THINK. The protocol catches duplicated labels/values, boxes-in-boxes, and nested scrolls before they ship.
+
 ## 1. Project
 
 **Pax Fluxia** is a real-time multiplayer galactic strategy game.
