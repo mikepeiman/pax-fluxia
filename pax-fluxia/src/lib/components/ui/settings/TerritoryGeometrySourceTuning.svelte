@@ -43,9 +43,6 @@
         </span>
         <span class="val">{geometrySourceLabel()}</span>
     </div>
-    <div class="var-desc">
-        Final authority source for derived renderers. Saved Resolved Vector configs are normalized here so CX, DX, MSR, and lane-pair tuning all use the same geometry contract.
-    </div>
     <select
         class="mode-select"
         value={normalizePerimeterFieldGeometrySource(currentGeometrySource())}
@@ -58,20 +55,7 @@
     </select>
 </div>
 
-<div class="var-desc">
-    Topology ownership rules are no longer duplicated here. MSR, CX,
-    lane-pair, and DX controls live only in <strong>Topology Rules</strong>.
-</div>
-
 <style>
-
-    .var-desc {
-        margin: 4px 0 10px;
-        color: var(--pax-ui-text-dim);
-        font-family: var(--pax-ui-font-copy);
-        font-size: calc(0.68rem * var(--pax-ui-type-scale, 1));
-        line-height: 1.35;
-    }
 
     .sub-heading {
         margin: 12px 0 6px;

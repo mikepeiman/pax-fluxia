@@ -127,10 +127,6 @@
       <div class="engine-control-group">
         <div class="territory-card__header">
           <h4 class="axis-card-title">Topology Rules</h4>
-          <p class="territory-card__intro">
-            Set the minimum owned footprint and the connection rules that
-            determine how fronts stay linked or deliberately split apart.
-          </p>
         </div>
         <div class="axis-note">
           {#if $territoryTuningStatus.pending}
@@ -405,13 +401,6 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-  }
-
-  .territory-card__intro {
-    margin: 0;
-    font-size: 11px;
-    line-height: 1.45;
-    color: rgba(188, 207, 224, 0.72);
   }
 
   .territory-inline-heading {

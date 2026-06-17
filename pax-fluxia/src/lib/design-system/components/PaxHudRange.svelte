@@ -33,7 +33,7 @@
 </script>
 
 <label class={styles.root({ class: className })}>
-  <span class={`pax-hud-range__meta ${styles.meta()}`}>
+  <span class={styles.meta()}>
     <strong class={styles.label()}>{label}</strong>
     {#if note}
       <small class={styles.note()}>{note}</small>
@@ -51,6 +51,6 @@
       aria-label={ariaLabel ?? `${label} size`}
       oninput={(event) => onInput(event.currentTarget.valueAsNumber)}
     />
-    <output class={`pax-hud-range__output ${styles.output()}`}>{output}</output>
+    <output class={styles.output()}>{output}</output>
   </span>
 </label>

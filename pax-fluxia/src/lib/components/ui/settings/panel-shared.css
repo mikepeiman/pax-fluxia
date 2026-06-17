@@ -53,14 +53,6 @@
     background: rgba(246, 196, 105, 0.05);
 }
 
-/* De-duplicate the label/value: when a .row-top already shows the title and
-   value, the inner PaxHudRange must NOT repeat them — render slider only.
-   One label, one value per control. */
-.var-row:has(> .row-top) .pax-hud-range__meta,
-.var-row:has(> .row-top) .pax-hud-range__output {
-    display: none;
-}
-
 .var-row.disabled {
     opacity: 0.38;
     pointer-events: none;

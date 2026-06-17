@@ -3,7 +3,6 @@
   import { GAME_CONFIG } from "$lib/config/game.config";
   import {
     isTerritoryRenderModeUiHidden,
-    getTerritoryRenderModeLabel,
     resolveTerritoryRenderModeOptions,
   } from "$lib/territory/ui/territoryRenderModeCatalog";
   import {
@@ -777,24 +776,14 @@
       <div class="axis-card territory-module-card">
         <div class="territory-card__header">
       <h4 class="axis-card-title">{hideRenderModeSelector ? "Transition" : "Mode"}</h4>
-          <p class="territory-card__intro">
-            {#if hideRenderModeSelector}
-              Runtime transition controls for the render mode currently selected
-              from the topbar.
-            {:else}
-              Choose the active renderer family and expose deprecated modes only
-              when you intentionally need to compare against them.
-            {/if}
-          </p>
         </div>
         {#if !hideRenderModeSelector}
           <div class="axis-row territory-axis territory-axis--render-mode">
             <span class="axis-label">Render mode</span>
-            <PaxHudSegmentedControl
+            <PaxHudSelect
               value={resolveActiveStyleId()}
               options={renderModeOptions()}
               ariaLabel="Territory render mode"
-              density="compact"
               onValueChange={selectTerritoryStyle}
             />
           </div>
@@ -821,23 +810,10 @@
           </div>
         {/if}
 
-        {#if $territoryRenderStatus.updatedAtMs > 0}
-          <div class="axis-note">
-            <strong>Live render:</strong>
-            <code>{getTerritoryRenderModeLabel(
-              $territoryRenderStatus.territoryMode,
-            )}</code>
-            {#if $territoryRenderStatus.geometryReady !== null}
-              · geometry {$territoryRenderStatus.geometryReady
-                ? "ready"
-                : "missing"}
-            {/if}
-            · arrows <code>{$territoryRenderStatus.arrowRenderer}</code>
-            {#if $territoryRenderStatus.lastRenderFailure}
-              <br />
-              <span class="axis-note__danger"
-                >Failure: {$territoryRenderStatus.lastRenderFailure}</span>
-            {/if}
+        {#if $territoryRenderStatus.lastRenderFailure}
+          <div class="axis-note axis-note--warning">
+            <strong>Render failure:</strong>
+            <span class="axis-note__danger">{$territoryRenderStatus.lastRenderFailure}</span>
           </div>
         {/if}
 
@@ -1074,19 +1050,6 @@
     <div
       class="var-row territory-range-note"
       title="Max distance in pixels from a border line to a hot star for combat boost. 0 = use Metaball influence radius (same tuning as the field). Raise this if boosts never trigger along fronts that sit far from star centers.">
-      <div class="row-top">
-        <span class="var-name">Combat border proximity (px)</span><span
-          class="val"
-          >{(() => {
-            const v =
-              panel.metaballCombatBorderProximityPx ??
-              GAME_CONFIG.METABALL_COMBAT_BORDER_PROXIMITY_PX ??
-              0;
-            return v <= 0
-              ? `0 (→ ${GAME_CONFIG.METABALL_INFLUENCE_RADIUS ?? 0}px)`
-              : `${Math.round(v)}`;
-          })()}</span>
-      </div>
       <PaxSettingsRangeRow
         label="Combat border proximity"
         value={panel.metaballCombatBorderProximityPx ??
@@ -1115,14 +1078,6 @@
     <div
       class="var-row territory-range-note"
       title="If currentTick − lastCombatTick (or lastAttackTick) is under this window for a star on one side of a border segment, that segment gets the combat width/alpha boost—only near that star, not for the whole faction.">
-      <div class="row-top">
-        <span class="var-name">Combat recency (ticks)</span><span class="val"
-          >{Math.round(
-            panel.metaballCombatBorderTicks ??
-              GAME_CONFIG.METABALL_COMBAT_BORDER_TICKS ??
-              0,
-          )}</span>
-      </div>
       <PaxSettingsRangeRow
         label="Combat recency"
         value={panel.metaballCombatBorderTicks ??
@@ -1141,14 +1096,6 @@
           )} />
     </div>
     <div class="var-row territory-range-note">
-      <div class="row-top">
-        <span class="var-name">Combat width boost</span><span class="val"
-          >{(
-            panel.metaballCombatBorderWidthBoost ??
-            GAME_CONFIG.METABALL_COMBAT_BORDER_WIDTH_BOOST ??
-            0
-          ).toFixed(2)}</span>
-      </div>
       <PaxSettingsRangeRow
         label="Combat width boost"
         value={panel.metaballCombatBorderWidthBoost ??
@@ -1167,14 +1114,6 @@
           )} />
     </div>
     <div class="var-row territory-range-note">
-      <div class="row-top">
-        <span class="var-name">Combat alpha boost</span><span class="val"
-          >{(
-            panel.metaballCombatBorderAlphaBoost ??
-            GAME_CONFIG.METABALL_COMBAT_BORDER_ALPHA_BOOST ??
-            0
-          ).toFixed(2)}</span>
-      </div>
       <PaxSettingsRangeRow
         label="Combat alpha boost"
         value={panel.metaballCombatBorderAlphaBoost ??
@@ -1195,14 +1134,6 @@
     <div
       class="var-row territory-range-note"
       title="Scales border emphasis by fleet imbalance across the edge (proxy until conquest metrics exist).">
-      <div class="row-top">
-        <span class="var-name">Fleet pressure on borders</span><span class="val"
-          >{(
-            panel.metaballBorderForceRatio ??
-            GAME_CONFIG.METABALL_BORDER_FORCE_RATIO ??
-            0
-          ).toFixed(2)}</span>
-      </div>
       <PaxSettingsRangeRow
         label="Fleet pressure on borders"
         value={panel.metaballBorderForceRatio ??
@@ -1255,12 +1186,6 @@
   <div
     class="var-row territory-range-note"
     title="Sets the target minimum frontier distance around owned stars. This value shapes territory geometry only; lane margin is a separate map-layout/editor control.">
-    <div class="row-top">
-      <span class="var-name">Minimum Star Margin</span><span class="val"
-        >{panel.starMargin ??
-          GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ??
-          0}px</span>
-    </div>
     <PaxSettingsRangeRow
       label="Minimum Star Margin"
       value={panel.starMargin ?? GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN ?? 45}
@@ -1388,12 +1313,6 @@
     class="var-row indent territory-range-note"
     class:disabled={!cxOn}
     title={!cxOn ? "Turn Corridor Virtual Sites on to edit these values." : ""}>
-    <div class="row-top">
-      <span class="var-name">Lane Midpoint Pair Count</span><span class="val"
-        >{panel.cxContestPairCount ??
-          GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_COUNT ??
-          1}</span>
-    </div>
     <PaxSettingsRangeRow
       label="Lane Midpoint Pair Count"
       value={panel.cxContestPairCount ??
@@ -1416,12 +1335,6 @@
     class="var-row indent territory-range-note"
     class:disabled={!cxOn}
     title={!cxOn ? "Turn Corridor Virtual Sites on to edit these values." : ""}>
-    <div class="row-top">
-      <span class="var-name">Lane Midpoint Pair Spacing</span><span class="val"
-        >{panel.cxContestPairSpacing ??
-          GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_SPACING ??
-          75}</span>
-    </div>
     <PaxSettingsRangeRow
       label="Lane Midpoint Pair Spacing"
       value={panel.cxContestPairSpacing ??
@@ -1444,14 +1357,6 @@
     class="var-row indent territory-range-note"
     class:disabled={!cxOn}
     title={!cxOn ? "Turn Corridor Virtual Sites on to edit these values." : ""}>
-    <div class="row-top">
-      <span class="var-name">Lane Midpoint Pair Weight</span><span class="val"
-        >{(
-          panel.cxContestPairWeight ??
-          GAME_CONFIG.TERRITORY_CX_CONTEST_PAIR_WEIGHT ??
-          0.5
-        ).toFixed(2)}</span>
-    </div>
     <PaxSettingsRangeRow
       label="Lane Midpoint Pair Weight"
       value={panel.cxContestPairWeight ??
@@ -1475,12 +1380,6 @@
     class="var-row indent territory-range-note"
     class:disabled={!cxOn}
     title={!cxOn ? "Turn Corridor Virtual Sites on to edit these values." : ""}>
-    <div class="row-top">
-      <span class="var-name">Corridor Sample Count</span><span class="val"
-        >{(panel.cxCount ?? GAME_CONFIG.TERRITORY_CX_COUNT ?? 0) === 0
-          ? "Auto"
-          : (panel.cxCount ?? GAME_CONFIG.TERRITORY_CX_COUNT)}</span>
-    </div>
     <PaxSettingsRangeRow
       label="Corridor Sample Count"
       value={panel.cxCount ?? GAME_CONFIG.TERRITORY_CX_COUNT ?? 0}
@@ -1504,12 +1403,6 @@
     class="var-row indent territory-range-note"
     class:disabled={!cxOn}
     title={!cxOn ? "Turn Corridor Virtual Sites on to edit these values." : ""}>
-    <div class="row-top">
-      <span class="var-name">Corridor Weight</span><span class="val"
-        >{(panel.cxWeight ?? GAME_CONFIG.TERRITORY_CX_WEIGHT ?? 0.5).toFixed(
-          2,
-        )}</span>
-    </div>
     <PaxSettingsRangeRow
       label="Corridor Weight"
       value={panel.cxWeight ?? GAME_CONFIG.TERRITORY_CX_WEIGHT ?? 0.5}
@@ -1531,12 +1424,6 @@
     class="var-row indent territory-range-note"
     class:disabled={!cxOn}
     title={!cxOn ? "Turn Corridor Virtual Sites on to edit these values." : ""}>
-    <div class="row-top">
-      <span class="var-name">Corridor Spacing</span><span class="val"
-        >{panel.corridorSpacing ??
-          GAME_CONFIG.MODIFIED_VORONOI_CORRIDOR_SPACING ??
-          60}px</span>
-    </div>
     <PaxSettingsRangeRow
       label="Corridor Spacing"
       value={panel.corridorSpacing ??
@@ -1582,12 +1469,6 @@
     class="var-row indent territory-range-note"
     class:disabled={!dxOn}
     title={!dxOn ? "Turn Disconnect Gaps on to edit these values." : ""}>
-    <div class="row-top">
-      <span class="var-name">Disconnect Weight</span><span class="val"
-        >{(panel.dxWeight ?? GAME_CONFIG.TERRITORY_DX_WEIGHT ?? 0.3).toFixed(
-          2,
-        )}</span>
-    </div>
     <PaxSettingsRangeRow
       label="Disconnect Weight"
       value={panel.dxWeight ?? GAME_CONFIG.TERRITORY_DX_WEIGHT ?? 0.3}
@@ -1609,12 +1490,6 @@
     class="var-row indent territory-range-note"
     class:disabled={!dxOn}
     title={!dxOn ? "Turn Disconnect Gaps on to edit these values." : ""}>
-    <div class="row-top">
-      <span class="var-name">Disconnect Distance</span><span class="val"
-        >{panel.disconnectDistance ??
-          GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE ??
-          400}px</span>
-    </div>
     <PaxSettingsRangeRow
       label="Disconnect Distance"
       value={panel.disconnectDistance ??
@@ -1672,11 +1547,6 @@
       <h5 class="territory-inline-heading">Shape &amp; Motion</h5>
 
       <div class="var-row territory-range-note">
-        <div class="row-top">
-          <span class="var-name">Morph Control Points</span><span class="val"
-            >{panel.territoryMorphControlPoints ??
-              GAME_CONFIG.TERRITORY_MORPH_CONTROL_POINTS}</span>
-        </div>
         <PaxSettingsRangeRow
           label="Morph Control Points"
           value={panel.territoryMorphControlPoints ??
@@ -1723,10 +1593,6 @@
     <h5 class="territory-inline-heading">Fill &amp; Borders</h5>
 
     <div class="var-row">
-      <div class="row-top">
-        <span class="var-name">Fill Alpha</span><span class="val"
-          >{(panel.voronoiAlpha ?? GAME_CONFIG.VORONOI_ALPHA).toFixed(2)}</span>
-    </div>
     <PaxSettingsRangeRow
       label="Fill Alpha"
       value={panel.voronoiAlpha ?? GAME_CONFIG.VORONOI_ALPHA}
@@ -1754,12 +1620,6 @@
     </div>
   </div>
   <div class="var-row">
-    <div class="row-top">
-      <span class="var-name">Border Width</span><span class="val"
-        >{(
-          panel.voronoiBorderWidth ?? GAME_CONFIG.VORONOI_BORDER_WIDTH
-        ).toFixed(1)}px</span>
-    </div>
     <PaxSettingsRangeRow
       label="Border Width"
       value={panel.voronoiBorderWidth ?? GAME_CONFIG.VORONOI_BORDER_WIDTH}
@@ -1777,12 +1637,6 @@
         )} />
   </div>
   <div class="var-row">
-    <div class="row-top">
-      <span class="var-name">Border Alpha</span><span class="val"
-        >{(
-          panel.voronoiBorderAlpha ?? GAME_CONFIG.VORONOI_BORDER_ALPHA
-        ).toFixed(2)}</span>
-    </div>
     <PaxSettingsRangeRow
       label="Border Alpha"
       value={panel.voronoiBorderAlpha ?? GAME_CONFIG.VORONOI_BORDER_ALPHA}
@@ -1826,12 +1680,6 @@
   </div>
 
   <div class="var-row">
-    <div class="row-top">
-      <span class="var-name">Saturation</span><span class="val"
-        >{(panel.voronoiSaturation ?? GAME_CONFIG.VORONOI_SATURATION).toFixed(
-          2,
-        )}</span>
-    </div>
     <PaxSettingsRangeRow
       label="Saturation"
       value={panel.voronoiSaturation ?? GAME_CONFIG.VORONOI_SATURATION}
@@ -1844,12 +1692,6 @@
         debouncedConfigUpdate("VORONOI_SATURATION", "voronoiSaturation", value)} />
   </div>
   <div class="var-row">
-    <div class="row-top">
-      <span class="var-name">Lightness</span><span class="val"
-        >{(panel.voronoiLightness ?? GAME_CONFIG.VORONOI_LIGHTNESS).toFixed(
-          2,
-        )}</span>
-    </div>
     <PaxSettingsRangeRow
       label="Lightness"
       value={panel.voronoiLightness ?? GAME_CONFIG.VORONOI_LIGHTNESS}
@@ -1998,10 +1840,6 @@
         <h5 class="territory-inline-heading">Territory Fill</h5>
 
         <div class="var-row">
-          <div class="row-top">
-            <span class="var-name">Fill Alpha</span><span class="val"
-              >{(panel.voronoiAlpha ?? GAME_CONFIG.VORONOI_ALPHA).toFixed(2)}</span>
-          </div>
           <PaxSettingsRangeRow
             label="Fill Alpha"
             value={panel.voronoiAlpha ?? GAME_CONFIG.VORONOI_ALPHA}
@@ -2031,12 +1869,6 @@
         </div>
 
         <div class="var-row">
-          <div class="row-top">
-            <span class="var-name">Saturation</span><span class="val"
-              >{(panel.voronoiSaturation ?? GAME_CONFIG.VORONOI_SATURATION).toFixed(
-                2,
-              )}</span>
-          </div>
           <PaxSettingsRangeRow
             label="Saturation"
             value={panel.voronoiSaturation ?? GAME_CONFIG.VORONOI_SATURATION}
@@ -2054,12 +1886,6 @@
         </div>
 
         <div class="var-row">
-          <div class="row-top">
-            <span class="var-name">Lightness</span><span class="val"
-              >{(panel.voronoiLightness ?? GAME_CONFIG.VORONOI_LIGHTNESS).toFixed(
-                2,
-              )}</span>
-          </div>
           <PaxSettingsRangeRow
             label="Lightness"
             value={panel.voronoiLightness ?? GAME_CONFIG.VORONOI_LIGHTNESS}
@@ -2097,12 +1923,6 @@
         <h5 class="territory-inline-heading">Territory Border</h5>
 
         <div class="var-row">
-          <div class="row-top">
-            <span class="var-name">Border Width</span><span class="val"
-              >{(
-                panel.voronoiBorderWidth ?? GAME_CONFIG.VORONOI_BORDER_WIDTH
-              ).toFixed(1)}px</span>
-          </div>
           <PaxSettingsRangeRow
             label="Border Width"
             value={panel.voronoiBorderWidth ?? GAME_CONFIG.VORONOI_BORDER_WIDTH}
@@ -2121,12 +1941,6 @@
         </div>
 
         <div class="var-row">
-          <div class="row-top">
-            <span class="var-name">Border Alpha</span><span class="val"
-              >{(
-                panel.voronoiBorderAlpha ?? GAME_CONFIG.VORONOI_BORDER_ALPHA
-              ).toFixed(2)}</span>
-          </div>
           <PaxSettingsRangeRow
             label="Border Alpha"
             value={panel.voronoiBorderAlpha ?? GAME_CONFIG.VORONOI_BORDER_ALPHA}

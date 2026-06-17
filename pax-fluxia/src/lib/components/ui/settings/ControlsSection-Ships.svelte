@@ -223,11 +223,6 @@
 <!-- ── Master Star System Scale ── -->
 <h4 class="sub-heading">Star System Scale</h4>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">System Scale</span><span class="val"
-            >{((panel.starSystemScale ?? 1) as number).toFixed(2)}×</span
-        >
-    </div>
     <PaxSettingsRangeRow
         label="System Scale"
         value={panel.starSystemScale ?? 1}
@@ -243,11 +238,6 @@
 <!-- ── Ship Size & Shape ── -->
 <h4 class="sub-heading">Ship Size & Shape</h4>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Visual Radius</span><span class="val"
-            >{((panel.shipVisualRadius ?? 3) as number).toFixed(1)}</span
-        >
-    </div>
     <PaxSettingsRangeRow
         label="Visual Radius"
         value={panel.shipVisualRadius ?? 3}
@@ -260,11 +250,6 @@
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Scale Multiplier</span><span class="val"
-            >{((panel.shipScaleMult ?? 0) as number).toFixed(1)}×</span
-        >
-    </div>
     <PaxSettingsRangeRow
         label="Scale Multiplier"
         value={panel.shipScaleMult ?? GAME_CONFIG.SHIP_SCALE_MULT ?? 1}
@@ -284,11 +269,6 @@
     onChange={(value) => writePanelConfig("shipOutlineOn", "SHIP_OUTLINE_ON", value)}
 />
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Outline px</span><span class="val"
-            >{((panel.shipOutlinePx ?? 0) as number).toFixed(1)}</span
-        >
-    </div>
     <PaxSettingsRangeRow
         label="Outline px"
         value={panel.shipOutlinePx ?? GAME_CONFIG.SHIP_OUTLINE_PX ?? 0}
@@ -301,11 +281,6 @@
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Glow Intensity</span><span class="val"
-            >{((panel.shipGlowIntensity ?? 0) as number).toFixed(2)}</span
-        >
-    </div>
     <PaxSettingsRangeRow
         label="Glow Intensity"
         value={panel.shipGlowIntensity ?? GAME_CONFIG.SHIP_GLOW_INTENSITY ?? 0}
@@ -318,11 +293,6 @@
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Glow Radius</span><span class="val"
-            >{((panel.shipGlowRadius ?? 0) as number).toFixed(1)}</span
-        >
-    </div>
     <PaxSettingsRangeRow
         label="Glow Radius"
         value={panel.shipGlowRadius ?? GAME_CONFIG.SHIP_GLOW_RADIUS ?? 0}
@@ -335,11 +305,6 @@
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Min Contrast</span><span class="val"
-            >{((panel.minColorLightness ?? 0) as number).toFixed(2)}</span
-        >
-    </div>
     <PaxSettingsRangeRow
         label="Min Contrast"
         value={panel.minColorLightness ?? GAME_CONFIG.MIN_COLOR_LIGHTNESS ?? 0}
@@ -363,11 +328,6 @@
 />
 {#if panel.showStarPower}
     <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Halo Alpha</span><span class="val"
-                >{((panel.starPowerAlpha ?? 0) as number).toFixed(2)}</span
-            >
-        </div>
         <PaxSettingsRangeRow
             label="Halo Alpha"
             value={panel.starPowerAlpha ?? GAME_CONFIG.STAR_POWER_ALPHA ?? 0}
@@ -380,11 +340,6 @@
         />
     </div>
     <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Halo Radius</span><span class="val"
-                >{((panel.starPowerRadiusMult ?? 0) as number).toFixed(1)}</span
-            >
-        </div>
         <PaxSettingsRangeRow
             label="Halo Radius"
             value={panel.starPowerRadiusMult ?? GAME_CONFIG.STAR_POWER_RADIUS_MULT ?? 1}
@@ -397,11 +352,6 @@
         />
     </div>
     <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Halo Layers</span><span class="val"
-                >{panel.starPowerLayers}</span
-            >
-        </div>
         <PaxSettingsRangeRow
             label="Halo Layers"
             value={panel.starPowerLayers ?? GAME_CONFIG.STAR_POWER_LAYERS ?? 1}
@@ -414,11 +364,6 @@
         />
     </div>
     <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Halo Blur</span><span class="val"
-                >{((panel.starPowerBlur ?? 0) as number).toFixed(0)}px</span
-            >
-        </div>
         <PaxSettingsRangeRow
             label="Halo Blur"
             value={panel.starPowerBlur ?? GAME_CONFIG.STAR_POWER_BLUR ?? 0}
@@ -431,13 +376,6 @@
         />
     </div>
     <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Layer Curve</span><span class="val"
-                >{((panel.starPowerLayerCurve ??
-                    GAME_CONFIG.STAR_POWER_LAYER_CURVE ??
-                    1) as number).toFixed(2)}</span
-            >
-        </div>
         <PaxSettingsRangeRow
             label="Layer Curve"
             value={panel.starPowerLayerCurve ?? GAME_CONFIG.STAR_POWER_LAYER_CURVE ?? 1}
@@ -450,13 +388,6 @@
         />
     </div>
     <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Edge Band</span><span class="val"
-                >{((panel.starPowerEdgeBandStrength ??
-                    GAME_CONFIG.STAR_POWER_EDGE_BAND_STRENGTH ??
-                    0) as number).toFixed(2)}</span
-            >
-        </div>
         <PaxSettingsRangeRow
             label="Edge Band"
             value={panel.starPowerEdgeBandStrength ?? GAME_CONFIG.STAR_POWER_EDGE_BAND_STRENGTH ?? 0}
@@ -469,13 +400,6 @@
         />
     </div>
     <div class="var-row">
-        <div class="row-top">
-            <span class="var-name">Edge Width</span><span class="val"
-                >{((panel.starPowerEdgeBandWidth ??
-                    GAME_CONFIG.STAR_POWER_EDGE_BAND_WIDTH ??
-                    0.2) as number).toFixed(2)}</span
-            >
-        </div>
         <PaxSettingsRangeRow
             label="Edge Width"
             value={panel.starPowerEdgeBandWidth ?? GAME_CONFIG.STAR_POWER_EDGE_BAND_WIDTH ?? 0.2}
@@ -509,13 +433,6 @@
     />
     {#if panel.haloFleetScale}
         <div class="var-row">
-            <div class="row-top">
-                <span class="var-name">Fleet Intensity</span><span class="val"
-                    >{((panel.haloFleetIntensity ?? 0) as number).toFixed(
-                        1,
-                    )}×</span
-                >
-            </div>
             <PaxSettingsRangeRow
                 label="Fleet Intensity"
                 value={panel.haloFleetIntensity ?? GAME_CONFIG.HALO_FLEET_INTENSITY ?? 0}
@@ -541,11 +458,6 @@
         </div>
         {#if panel.haloFleetMode === "stepped"}
             <div class="var-row">
-                <div class="row-top">
-                    <span class="var-name">Step Size</span><span class="val"
-                        >{panel.haloFleetStepSize} ships</span
-                    >
-                </div>
                 <PaxSettingsRangeRow
                     label="Step Size"
                     value={panel.haloFleetStepSize ?? GAME_CONFIG.HALO_FLEET_STEP_SIZE ?? 100}
@@ -560,11 +472,6 @@
         {/if}
         {#if panel.haloFleetMode === "linear"}
             <div class="var-row">
-                <div class="row-top">
-                    <span class="var-name">Max Ships</span><span class="val"
-                        >{panel.haloFleetMaxShips}</span
-                    >
-                </div>
                 <PaxSettingsRangeRow
                     label="Max Ships"
                     value={panel.haloFleetMaxShips ?? GAME_CONFIG.HALO_FLEET_MAX_SHIPS ?? 50}
@@ -583,11 +490,6 @@
 <!-- ── Orbit Layout ── -->
 <h4 class="sub-heading">Orbit Layout</h4>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Inner Orbit Padding</span><span class="val"
-            >{((panel.orbitBaseRadius ?? 0) as number).toFixed(1)}</span
-        >
-    </div>
     <PaxSettingsRangeRow
         label="Inner Orbit Padding"
         value={panel.orbitBaseRadius ?? GAME_CONFIG.ORBIT_BASE_RADIUS ?? 0}
@@ -600,11 +502,6 @@
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Orbit Spacing Size</span><span class="val"
-            >{((panel.shipBaseSize ?? 0) as number).toFixed(1)}</span
-        >
-    </div>
     <PaxSettingsRangeRow
         label="Orbit Spacing Size"
         value={panel.shipBaseSize ?? GAME_CONFIG.SHIP_BASE_SIZE ?? 1}
@@ -617,11 +514,6 @@
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Ring Spacing</span><span class="val"
-            >{((panel.orbitRingMult ?? 0) as number).toFixed(1)}×</span
-        >
-    </div>
     <PaxSettingsRangeRow
         label="Ring Spacing"
         value={panel.orbitRingMult ?? GAME_CONFIG.ORBIT_RING_MULT ?? 0.5}
@@ -634,11 +526,6 @@
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Ships Per Ring</span><span class="val"
-            >{((panel.orbitDensity ?? 0) as number).toFixed(1)}</span
-        >
-    </div>
     <PaxSettingsRangeRow
         label="Ships Per Ring"
         value={panel.orbitDensity ?? GAME_CONFIG.ORBIT_DENSITY ?? 0.5}
@@ -651,11 +538,6 @@
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Max Ships/Star</span><span class="val"
-            >{panel.maxVisualShips}</span
-        >
-    </div>
     <PaxSettingsRangeRow
         label="Max Ships/Star"
         value={panel.maxVisualShips ?? GAME_CONFIG.MAX_VISUAL_SHIPS ?? 10}
@@ -668,11 +550,6 @@
     />
 </div>
 <div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Star Radius</span><span class="val"
-            >{((panel.starRenderRadius ?? 0) as number).toFixed(0)}</span
-        >
-    </div>
     <PaxSettingsRangeRow
         label="Star Radius"
         value={panel.starRenderRadius ?? GAME_CONFIG.STAR_RENDER_RADIUS ?? 5}
