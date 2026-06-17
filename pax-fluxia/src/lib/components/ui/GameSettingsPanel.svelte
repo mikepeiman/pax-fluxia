@@ -765,6 +765,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         | "combat_tuning"
         | "audio"
         | "video_graphics"
+        | "render"
         | "stats"
         | "diagnostics"
         | "restart"
@@ -805,6 +806,13 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             color: "#93c5fd",
             sectionId: "fleet_star_visuals",
         },
+        {
+            id: "render",
+            icon: "render",
+            label: "Render Mode",
+            color: "#a78bfa",
+            sectionId: "render",
+        },
         { id: "stats", icon: "ranking-star", label: "Stats", color: "#f6c469" },
         {
             id: "diagnostics",
@@ -831,6 +839,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         combat_tuning: "combat_tuning",
         audio: "audio",
         fleet_star_visuals: "video_graphics",
+        render: "render",
         diagnostics: "diagnostics",
     };
 
@@ -1615,7 +1624,10 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         flex-direction: column;
         gap: 12px;
         min-height: 0;
-        overflow-y: auto;
+        /* Single scroll surface per panel: the open .section-panel is flex:1
+           and its .section-body owns the scroll (header + subnav stay fixed).
+           This wrapper must NOT add a second, nesting scrollbar. */
+        overflow-y: hidden;
         padding-right: 2px;
     }
 
