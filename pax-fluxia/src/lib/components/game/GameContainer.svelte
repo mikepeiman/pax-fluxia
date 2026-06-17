@@ -90,6 +90,7 @@
   let menuTheme = $state<MenuTheme>(loadMenuTheme());
   let showAudioSettings = $state(false);
   let showSurrenderModal = $state(false);
+  let showRestartConfirm = $state(false);
   let showStarInfoPanel = $state(
     typeof localStorage !== "undefined" &&
       localStorage.getItem("pax-show-star-info") === "true",
@@ -824,7 +825,7 @@
             onSectionActivityChange={setSettingsSectionActivity}
             onRestartGame={() => {
               audioManager.play("click");
-              activeGameStore.playAgain();
+              showRestartConfirm = true;
             }}
             onQuitGame={() => {
               audioManager.play("click");
@@ -953,6 +954,41 @@
           <PaxHudButton
             class="btn btn--ghost btn--sm surrender-modal__cancel"
             onclick={() => (showSurrenderModal = false)}
+          >
+            Cancel
+          </PaxHudButton>
+        </div>
+      </div>
+    {/if}
+
+    <!-- Restart Confirmation Modal -->
+    {#if showRestartConfirm}
+      <div
+        class="modal-overlay modal-overlay--fixed"
+        role="dialog"
+        aria-modal="true"
+      >
+        <div class="surrender-modal glass-panel">
+          <h3 class="surrender-modal__title">Restart match?</h3>
+          <p class="surrender-modal__desc">
+            Your current in-progress game will be discarded and a new match
+            started. This can't be undone.
+          </p>
+          <div class="surrender-modal__actions">
+            <PaxHudButton
+              class="btn btn--primary btn--md"
+              onclick={() => {
+                showRestartConfirm = false;
+                activeGameStore.playAgain();
+              }}
+            >
+              Restart
+              <span class="btn-sub">Discard & start a new match</span>
+            </PaxHudButton>
+          </div>
+          <PaxHudButton
+            class="btn btn--ghost btn--sm surrender-modal__cancel"
+            onclick={() => (showRestartConfirm = false)}
           >
             Cancel
           </PaxHudButton>
