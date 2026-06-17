@@ -2,7 +2,6 @@
 
 .pf-hud-panel,
 .pf-hud-topbar,
-.pf-selected-star-tray,
 .pf-quick-access-dock,
 .pf-bottom-command-bar,
 .pf-settings-ribbon,
@@ -13,7 +12,6 @@
 
 .pf-hud-panel,
 .pf-hud-topbar,
-.pf-selected-star-tray,
 .pf-quick-access-dock,
 .pf-bottom-command-bar {
   position: relative;
@@ -63,15 +61,13 @@
 .pf-hud-panel__title,
 .pf-hud-topbar__status-item span,
 .pf-standings__columns,
-.pf-star-metric span,
-.pf-selected-star-tray__label {
+.pf-star-metric span {
   text-transform: uppercase;
 }
 
 .pf-hud-panel__eyebrow,
 .pf-hud-topbar__status-item span,
-.pf-star-metric span,
-.pf-selected-star-tray__label {
+.pf-star-metric span {
   color: color-mix(in srgb, var(--pax-ui-accent-warm) 62%, var(--pax-ui-text-dim));
   font-family: var(--pax-ui-font-label);
   font-size: 0.58rem;
@@ -600,84 +596,14 @@
   font-size: 0.78rem;
 }
 
-.pf-selected-star-tray {
-  position: absolute;
-  left: 50%;
-  bottom: 102px;
-  transform: translateX(-50%);
-  z-index: 34;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  min-width: min(760px, calc(100% - 48px));
-  max-width: min(920px, calc(100% - 48px));
-  min-height: 76px;
-  padding: 10px 12px;
-  border-color: var(--pax-ui-border-warm);
-  background: var(--pax-ui-panel-bg-strong);
-  clip-path: polygon(24px 0, calc(100% - 24px) 0, 100% 26px, 100% calc(100% - 8px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 8px), 0 26px);
-}
 
-.pf-selected-star-tray--collapsed {
-  min-width: 280px;
-  width: auto;
-}
 
-.pf-selected-star-tray__identity {
-  min-width: 220px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
 
-.pf-selected-star-tray__orb {
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
-  border-radius: 12px;
-  color: var(--star-type-color);
-  border: 1px solid color-mix(in srgb, var(--star-type-color) 40%, transparent);
-  background: color-mix(in srgb, var(--star-type-color) 12%, rgba(8, 14, 28, 0.82));
-}
 
-.pf-selected-star-tray__identity strong {
-  display: block;
-  color: var(--pax-ui-text-strong);
-}
 
-.pf-selected-star-tray__ships {
-  margin-left: auto;
-  color: var(--pax-ui-accent-warm);
-  font-size: 1.2rem;
-  font-weight: 800;
-}
 
-.pf-selected-star-tray__hint {
-  flex: 1 1 auto;
-  min-width: 140px;
-  color: var(--pax-ui-text-soft);
-  font-family: var(--pax-ui-font-copy);
-  font-size: 0.78rem;
-}
 
-.pf-selected-star-tray__actions {
-  display: flex;
-  gap: 7px;
-}
 
-.pf-selected-star-tray__collapse {
-  width: 32px;
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--pax-ui-border);
-  border-radius: 11px;
-  background: rgba(8, 14, 28, 0.82);
-  color: var(--pax-ui-text-soft);
-  cursor: pointer;
-}
 
 .pf-quick-access-dock {
   display: grid;
@@ -915,7 +841,6 @@
    earlier generic HUD cards with the angular gold/teal command-shell grammar. */
 .pf-hud-panel,
 .pf-hud-topbar,
-.pf-selected-star-tray,
 .pf-quick-access-dock,
 .pf-bottom-command-bar {
   border-radius: 0;
@@ -1195,9 +1120,6 @@
   clip-path: var(--pax-ui-cut-corner-xs);
 }
 
-.pf-selected-star-tray {
-  clip-path: var(--pax-ui-cut-corner-lg);
-}
 
 .pf-quick-access-dock {
   gap: 7px;
@@ -1665,7 +1587,6 @@
 /* Rounded gold-gradient chrome correction. Existing selectors still reference
    the historical corner tokens; those tokens now resolve to rounded clipping. */
 .pf-hud-panel,
-.pf-selected-star-tray,
 .pf-quick-access-dock,
 .pf-bottom-command-bar,
 .pf-theme-library,
@@ -1675,10 +1596,6 @@
   clip-path: var(--pax-ui-rounded-corner-md);
 }
 
-.pf-selected-star-tray {
-  border-radius: var(--pax-ui-radius-lg);
-  clip-path: var(--pax-ui-rounded-corner-lg);
-}
 
 .pf-hud-topbar {
   border-bottom-color: transparent;
@@ -1688,7 +1605,6 @@
 
 .pf-hud-panel::after,
 .pf-hud-topbar::after,
-.pf-selected-star-tray::after,
 .pf-quick-access-dock::after,
 .pf-bottom-command-bar::after,
 .pf-theme-library::after,
@@ -1799,7 +1715,6 @@
 
 .pf-hud-panel,
 .pf-hud-topbar,
-.pf-selected-star-tray,
 .pf-quick-access-dock,
 .pf-bottom-command-bar,
 .pf-settings-ribbon,
@@ -1814,7 +1729,6 @@
 .pf-standings__toolbar,
 .pf-standings__columns,
 .pf-star-metric span,
-.pf-selected-star-tray__label,
 .pf-theme-library__eyebrow,
 .pf-typography-panel__eyebrow,
 .pf-theme-library__select-label span {
@@ -1841,7 +1755,6 @@
 .pf-star-card__identity span,
 .pf-star-card__identity small,
 .pf-star-card__route,
-.pf-selected-star-tray__hint,
 .pf-theme-library select,
 .pf-theme-library input,
 .pf-theme-library__row-name,
@@ -1863,9 +1776,6 @@
   font-size: calc(0.9rem * var(--pax-ui-data-scale, 1));
 }
 
-.pf-selected-star-tray__ships {
-  font-size: calc(1.2rem * var(--pax-ui-data-scale, 1));
-}
 
 .pf-hud-icon-button {
   width: calc(34px * var(--pax-ui-icon-scale, 1));
@@ -1877,19 +1787,7 @@
   height: calc(26px * var(--pax-ui-icon-scale, 1));
 }
 
-.pf-selected-star-tray {
-  transition:
-    min-width 0.22s ease,
-    max-width 0.22s ease,
-    min-height 0.22s ease,
-    padding 0.22s ease,
-    opacity 0.18s ease,
-    transform 0.22s ease;
-}
 
-.pf-selected-star-tray--collapsed {
-  transform: translateX(-50%) translateY(4px);
-}
 
 /* Refinement pass: increase working padding and normalize button rhythm after
    the earlier Aurelia Drift conversion compressed several live HUD surfaces. */
@@ -1909,7 +1807,6 @@
 .pf-standings__toolbar,
 .pf-standings__columns,
 .pf-star-metric span,
-.pf-selected-star-tray__label,
 .pf-theme-library__eyebrow,
 .pf-typography-panel__eyebrow,
 .pf-theme-library__select-label span {
@@ -2025,13 +1922,9 @@
   padding: 8px 14px;
 }
 
-.pf-selected-star-tray {
-  padding: 12px 14px;
-}
 
 @media (max-width: 1024px) {
   .pf-hud-topbar,
-  .pf-selected-star-tray,
   .pf-bottom-command-bar {
     display: none;
   }
