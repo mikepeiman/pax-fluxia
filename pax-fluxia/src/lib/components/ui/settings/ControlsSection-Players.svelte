@@ -115,10 +115,6 @@
 <CategoryThemeBar category="players" onApply={() => syncFromConfig?.()} />
 
 <h4 class="sub-heading">Live Player Palette</h4>
-<p class="players-copy">
-    One anchored 6-player palette for the whole match. Shift the anchor hue and
-    we keep the full roster perceptually spread.
-</p>
 
 <PaxSettingsRangeRow
     label="Anchor Hue"
@@ -210,13 +206,6 @@
 </details>
 
 <style>
-
-    .players-copy {
-        margin: 0 0 8px;
-        font-size: 11px;
-        line-height: 1.45;
-        color: rgba(210, 225, 255, 0.72);
-    }
 
     .players-preview-grid {
         display: grid;

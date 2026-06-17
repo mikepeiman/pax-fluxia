@@ -161,16 +161,11 @@
     <div class="frontier-fx-card">
         <div class="frontier-fx-card__header">
             <h4 class="axis-card-title">Frontier FX</h4>
-            <p class="territory-card__intro">
-                Border-inward surface VFX driven by the same frontier-distance
-                field as the stable fill/border contract. These are fill-side
-                presentation effects only; they do not own topology or border
-                geometry.
-            </p>
         </div>
 
         <PaxHudSelect
             label="Mode"
+            hint={modeDescription()}
             value={currentMode()}
             options={FRONTIER_FX_MODE_OPTIONS}
             onValueChange={(value) => {
@@ -181,8 +176,6 @@
                 );
             }}
         />
-
-        <p class="var-desc">{modeDescription()}</p>
 
         <PaxSettingsRangeRow
             label="Width"
@@ -411,9 +404,7 @@
         gap: 6px;
     }
 
-    .territory-card__intro,
-    .axis-note,
-    .var-desc {
+    .axis-note {
         margin: 0;
         color: var(--pax-ui-text-dim);
         font-family: var(--pax-ui-font-copy);

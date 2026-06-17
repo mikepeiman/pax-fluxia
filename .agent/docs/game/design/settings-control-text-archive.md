@@ -59,8 +59,18 @@ All `territory-card__intro`, `row-hint`, and `territory-helper-copy` prose was r
 - "This mode always runs exact Power Voronoi geometry with its fixed frontline transition path."
 - intro props: shared surface controls for metaball / perimeter-field / metaball-grid output.
 
-## TODO — remaining sections to sweep
-The full settings surface still carries descriptive prose in other sections
-(Combat, Economy, Travel, Conquest, Effects, Map Options, Fleet & Star Visuals,
-Frontier FX, Territory Styles, Diagnostics, Audio, AI, Logging). Prune + archive
-each here as that section is cleaned.
+## Other sections (sweep completed)
+Most non-territory sections carried no inline prose (just control labels +
+tooltips). The few that did, removed and archived here:
+
+### Frontier FX (ControlsSection-FrontierFx.svelte)
+- **Card intro:** "Border-inward surface VFX driven by the same frontier-distance field as the stable fill/border contract. These are fill-side presentation effects only; they do not own topology or border geometry."
+- **Mode var-desc (dynamic `modeDescription()`):** per-mode explanatory blurb under the Mode dropdown.
+
+### Players (ControlsSection-Players.svelte)
+- **Live Player Palette copy:** "One anchored 6-player palette for the whole match. Shift the anchor hue and we keep the full roster perceptually spread."
+
+### Map Options → Map Layout (ControlsSection-Visuals.svelte)
+- **Layout note:** "Lane margin is the minimum distance from a non-endpoint star center to the nearest point on a lane. Reshape bias controls how hard the solver reshapes a violating connection before removing it during connectivity recompute."
+
+(Logging keeps a short functional `[GG_TRANSITION]` filter label — not prose. `COMPAT_SECTION_ID_ALIASES` was NOT retired: `normalizeSettingsSectionId` is still used for forceOpenSection + persistence.)

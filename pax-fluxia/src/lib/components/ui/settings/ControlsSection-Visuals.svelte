@@ -217,12 +217,6 @@
 
 <section data-subsection-id="map-layout" class="visuals-section">
     <h4 class="sub-heading">Map Layout</h4>
-    <p class="visuals-note">
-        <strong>Lane margin</strong> is the minimum distance from a non-endpoint
-        star center to the nearest point on a lane. <strong>Reshape bias</strong>
-        controls how hard the solver reshapes a violating connection before
-        removing it during connectivity recompute.
-    </p>
 
     <PaxSettingsToggleRow
         label="Use dedicated lane margin"
@@ -413,13 +407,6 @@
         gap: 10px;
     }
 
-    .visuals-note {
-        margin: 0;
-        color: var(--pax-ui-text-dim);
-        font-family: var(--pax-ui-font-copy);
-        font-size: calc(0.7rem * var(--pax-ui-type-scale, 1));
-        line-height: 1.4;
-    }
 
     .visuals-summary,
     .visuals-control-card {
