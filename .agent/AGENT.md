@@ -24,6 +24,10 @@ This is the #1 historical failure mode on this project. Internalize it.
 
 Before any UI/design change, run the design-question protocol in `.codex/skills/design-protocol/SKILL.md` (the `design-protocol` skill). Do not edit on instinct; do not claim you need a screenshot to design — THINK. The protocol catches duplicated labels/values, boxes-in-boxes, and nested scrolls before they ship.
 
+## ⭐ RULE 0.2 — BIAS TO LESS CODE.
+
+When a defect can be fixed by REMOVING the redundant root (duplicate markup, parallel data structure, dead branch) or by ADDING a compensating layer (override, flag, wrapper) — default to REMOVING. Collapse parallel structures to a single source of truth; don't keep two in sync. Edit-count efficiency ≠ code-size efficiency: prefer the fix that leaves less code even if it's more edits. (Never delete an actual user-facing control without instruction.)
+
 ## 1. Project
 
 **Pax Fluxia** is a real-time multiplayer galactic strategy game.
