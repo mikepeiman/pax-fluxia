@@ -1203,7 +1203,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 />
             {/if}
         </div>
-        {#each visibleCategories as cat}
+        {#each visibleCategories as cat, i (cat.id)}
             <PaxHudButton
                 class="icon-btn"
                 active={activeCategoryId === cat.id}
@@ -1211,7 +1211,10 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 onclick={() => selectCategory(cat.id)}
                 title={cat.label}
             >
-                <span class="icon-symbol"><HudIcon name={cat.icon} /></span>
+                <span
+                    class="icon-symbol icon-symbol--spectrum"
+                    style:--rail-hue={Math.round((visibleCategories.length > 1 ? i / (visibleCategories.length - 1) : 0) * 290)}
+                ><HudIcon name={cat.icon} /></span>
                 <span class="icon-label">{cat.label}</span>
             </PaxHudButton>
         {/each}
@@ -1231,6 +1234,42 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     </div>
 
     <div class="settings-content">
+    <div class="settings-search">
+        <span class="settings-search__icon"><HudIcon name="search" size={13} /></span>
+        <input
+            class="settings-search__input"
+            type="text"
+            placeholder="Search settings…"
+            bind:value={settingsSearchQuery}
+            onkeydown={(event) => {
+                if (event.key === "Enter") handleSearchSubmit();
+                else if (event.key === "Escape") clearSettingsSearch();
+            }}
+        />
+        {#if settingsSearchQuery}
+            <button class="settings-search__clear" type="button" title="Clear search" onclick={clearSettingsSearch}>
+                <HudIcon name="close" size={11} />
+            </button>
+        {/if}
+        {#if settingsSearchQuery.trim()}
+            <div class="settings-search__dropdown">
+                {#if settingsSearchResults.length === 0}
+                    <p class="settings-search__empty">No matching settings.</p>
+                {:else}
+                    {#each settingsSearchResults as result (result.id)}
+                        <button
+                            class="settings-search__result"
+                            type="button"
+                            onclick={() => { void navigateToSearchResult(result); clearSettingsSearch(); }}
+                        >
+                            <span class="settings-search__result-title">{result.title}</span>
+                            <span class="settings-search__result-section">{result.sectionLabel}</span>
+                        </button>
+                    {/each}
+                {/if}
+            </div>
+        {/if}
+    </div>
     {#if activePanel}
         {@const sec = activePanel}
         <div class="section-panel" data-accent-id={activeCategoryId}>
@@ -1559,6 +1598,111 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
            This wrapper must NOT add a second, nesting scrollbar. */
         overflow-y: hidden;
         padding-right: 2px;
+    }
+
+    .settings-search {
+        position: relative;
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 34px;
+        padding: 0 10px;
+        border: 1px solid var(--pax-ui-border);
+        border-radius: var(--pax-ui-radius-sm);
+        background: var(--pax-ui-button-bg);
+    }
+    .settings-search:focus-within {
+        border-color: var(--pax-ui-accent);
+    }
+    .settings-search__icon {
+        display: inline-flex;
+        color: var(--pax-ui-text-dim);
+    }
+    .settings-search__input {
+        flex: 1;
+        min-width: 0;
+        border: 0;
+        background: transparent;
+        color: var(--pax-ui-text);
+        font-family: var(--pax-ui-font-ui);
+        font-size: 0.78rem;
+    }
+    .settings-search__input:focus {
+        outline: none;
+    }
+    .settings-search__clear {
+        display: inline-flex;
+        padding: 3px;
+        border: 0;
+        border-radius: 999px;
+        background: transparent;
+        color: var(--pax-ui-text-dim);
+        cursor: pointer;
+    }
+    .settings-search__clear:hover {
+        color: var(--pax-ui-text);
+    }
+    .settings-search__dropdown {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        z-index: 40;
+        max-height: 320px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        padding: 4px;
+        border: 1px solid var(--pax-ui-border);
+        border-radius: var(--pax-ui-radius-sm);
+        background: var(--pax-ui-panel-bg-strong, #0a1418);
+        box-shadow: var(--pax-ui-shadow-soft, 0 12px 32px rgba(0, 0, 0, 0.5));
+    }
+    .settings-search__empty {
+        margin: 0;
+        padding: 8px;
+        color: var(--pax-ui-text-dim);
+        font-size: 0.74rem;
+    }
+    .settings-search__result {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 7px 9px;
+        border: 0;
+        border-radius: var(--pax-ui-radius-xs);
+        background: transparent;
+        color: var(--pax-ui-text);
+        font-family: var(--pax-ui-font-ui);
+        text-align: left;
+        cursor: pointer;
+    }
+    .settings-search__result:hover {
+        background: rgba(246, 196, 105, 0.1);
+    }
+    .settings-search__result-title {
+        min-width: 0;
+        overflow: hidden;
+        font-size: 0.76rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .settings-search__result-section {
+        flex: 0 0 auto;
+        color: var(--pax-ui-text-dim);
+        font-size: 0.62rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+
+    /* Category rail icons read as a full-spectrum gradient top → bottom. */
+    :global(.icon-toolbar .icon-btn .icon-symbol--spectrum) {
+        color: hsl(var(--rail-hue, 200) 80% 66%);
+    }
+    :global(.icon-toolbar .icon-btn.active .icon-symbol--spectrum) {
+        color: hsl(var(--rail-hue, 200) 92% 74%);
     }
 
     /* ── Icon Toolbar ── */
