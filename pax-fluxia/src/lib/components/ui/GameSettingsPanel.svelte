@@ -64,6 +64,7 @@
     import ControlsSectionLogging from "./settings/ControlsSection-Logging.svelte";
     import ControlsSectionAudio from "./settings/ControlsSection-Audio.svelte";
     import ControlsSectionDiagnostics from "./settings/ControlsSection-Diagnostics.svelte";
+    import SaveLoadGamePanel from "./settings/SaveLoadGamePanel.svelte";
     import {
         ANIM_SLIDERS,
         CONFIG_TO_PANEL_KEY,
@@ -771,6 +772,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     const INTERFACE_PANELS = [
         { id: "ui_appearance", icon: "gem", label: "Appearance" },
         { id: "ui_themes", icon: "library", label: "Themes" },
+        { id: "ui_savegame", icon: "save-game", label: "Save / Load" },
         { id: "ui_stats", icon: "ranking-star", label: "Stats" },
         { id: "ui_hotkeys", icon: "keyboard", label: "Hotkeys" },
         { id: "ui_help", icon: "help", label: "Help" },
@@ -1301,6 +1303,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                     />
                 {:else if sec.id === "ui_themes"}
                     <ThemeLibraryPanel />
+                {:else if sec.id === "ui_savegame"}
+                    <SaveLoadGamePanel />
                 {:else if sec.id === "ui_stats"}
                     <PaxSettingsInfoRow label="Tick" value={activeGameStore.currentTick ?? 0} />
                     <PaxSettingsInfoRow label="Players" value={activeGameStore.players.length} />
