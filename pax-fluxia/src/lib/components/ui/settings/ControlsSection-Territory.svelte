@@ -1120,18 +1120,6 @@
   <div class="territory-card__header">
     <h4 class="axis-card-title">Topology Rules</h4>
   </div>
-  <div class="axis-note">
-    {#if $territoryTuningStatus.pending}
-      <strong>Compiling…</strong>
-      {$territoryTuningStatus.label}
-    {:else if $territoryTuningStatus.lastDurationMs !== null}
-      <strong>Last compile:</strong>
-      {$territoryTuningStatus.lastDurationMs} ms
-      {#if $territoryTuningStatus.lastCompletedLabel}
-        · {$territoryTuningStatus.lastCompletedLabel}
-      {/if}
-    {/if}
-  </div>
 
   <h5 class="territory-inline-heading">Minimum Footprint</h5>
 
@@ -1161,14 +1149,6 @@
   <div
     class="var-row territory-range-note"
     title="Optional advanced solve-time star resistance against corridor, lane-pair, and disconnect shaping. 0 keeps MSR as pure local frontier clearance.">
-    <div class="row-top">
-      <span class="var-name">Star Bias</span><span class="val"
-        >{(
-          panel.msrStarBias ??
-          (GAME_CONFIG as any).TERRITORY_MSR_STAR_BIAS ??
-          0
-        ).toFixed(2)}</span>
-    </div>
     <PaxSettingsRangeRow
       label="Star Bias"
       value={panel.msrStarBias ??
@@ -1191,12 +1171,6 @@
   <h5 class="territory-inline-heading">Frontier Sampling</h5>
 
   <div class="var-row territory-range-note">
-    <div class="row-top">
-      <span class="var-name">Frontier Resolution</span><span class="val"
-        >{panel.frontierResolution ??
-          GAME_CONFIG.FRONTIER_RESOLUTION ??
-          5}px</span>
-    </div>
     <PaxSettingsRangeRow
       label="Frontier Resolution"
       value={panel.frontierResolution ?? GAME_CONFIG.FRONTIER_RESOLUTION ?? 5}
@@ -1587,12 +1561,6 @@
   </div>
 
   <div class="var-row">
-    <div class="row-top">
-      <span class="var-name">Geometry Smooth Passes</span><span class="val"
-        >{Math.round(
-          panel.voronoiBorderSmooth ?? GAME_CONFIG.VORONOI_BORDER_SMOOTH,
-        )}</span>
-    </div>
     <PaxSettingsRangeRow
       label="Geometry Smooth Passes"
       value={panel.voronoiBorderSmooth ?? GAME_CONFIG.VORONOI_BORDER_SMOOTH}
@@ -1835,13 +1803,6 @@
         </div>
 
         <div class="var-row">
-          <div class="row-top">
-            <span class="var-name">Geometry Smooth Passes</span><span
-              class="val"
-              >{Math.round(
-                panel.voronoiBorderSmooth ?? GAME_CONFIG.VORONOI_BORDER_SMOOTH,
-              )}</span>
-          </div>
           <PaxSettingsRangeRow
             label="Geometry Smooth Passes"
             value={panel.voronoiBorderSmooth ?? GAME_CONFIG.VORONOI_BORDER_SMOOTH}
@@ -2022,9 +1983,6 @@
     flex: 1;
     flex-direction: column;
     gap: 6px;
-  }
-  .territory-range-note > .row-top {
-    display: none;
   }
   .territory-indent {
     margin-left: 14px;
