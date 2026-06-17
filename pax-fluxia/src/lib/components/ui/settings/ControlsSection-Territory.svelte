@@ -727,12 +727,14 @@
     }
   });
 
-  function showSystemModule(id: TerritorySystemViewId) {
-    return activeSystemModule === "all" || activeSystemModule === id;
+  // Module-visibility toggles were removed (they controlled nothing the user
+  // wanted); the active render-style checks below do the real gating.
+  function showSystemModule(_id: TerritorySystemViewId) {
+    return true;
   }
 
-  function showRendererModule(id: TerritoryRendererViewId) {
-    return activeRendererModule === "all" || activeRendererModule === id;
+  function showRendererModule(_id: TerritoryRendererViewId) {
+    return true;
   }
 
   function setActiveSystemModule(value: TerritorySystemModuleId) {
@@ -763,13 +765,6 @@
 <div class="territory-section-shell territory-section-shell--system">
   <div class="territory-section-head">
     <h4 class="sub-heading territory-section-title">{systemTitle}</h4>
-    <PaxHudSegmentedControl
-      value={activeSystemModule}
-      options={systemModuleOptions()}
-      ariaLabel="Territory system subsection visibility"
-      density="compact"
-      onValueChange={(value) => setActiveSystemModule(value as TerritorySystemModuleId)}
-    />
   </div>
   <div class="territory-module-grid">
     {#if showSystemModule("render-mode")}
@@ -866,30 +861,12 @@
     <h4 class="sub-heading territory-section-title">
       {showStylesView ? "Render Families" : "Frontier Topology"}
     </h4>
-    {#if showStylesView}
-      <PaxHudSegmentedControl
-        value={activeRendererModule}
-        options={rendererModuleOptions()}
-        ariaLabel="Territory rendering subsection visibility"
-        density="compact"
-        onValueChange={(value) => setActiveRendererModule(value as TerritoryRendererModuleId)}
-      />
-    {/if}
   </div>
   <div class="territory-module-grid">
 
 {#if showStylesView && rendererModules().length === 0}
   <div class="axis-note">
     This territory mode does not expose dedicated render-family controls.
-  </div>
-{/if}
-
-{#if activeRendererModule !== "none" && showsDerivedGeometryInput()}
-  <div class="engine-control-group territory-module-card">
-    <div class="territory-card__header">
-      <h4 class="axis-card-title">Geometry Source</h4>
-    </div>
-    <TerritoryGeometrySourceTuning {panel} {updatePanel} />
   </div>
 {/if}
 
