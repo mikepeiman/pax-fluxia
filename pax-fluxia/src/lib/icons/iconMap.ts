@@ -28,6 +28,7 @@ import {
   MoreHorizontal as LuMore, Play as LuPlay, Pause as LuPause,
   FastForward as LuFast, MapPin as LuPin, CircleDashed as LuDashed,
   Hexagon as LuHexagon, Shield as LuShield, Circle as LuCircle,
+  Aperture as LuAperture,
 } from "@lucide/svelte";
 
 // Phosphor (aliased Ph*)
@@ -54,6 +55,7 @@ import {
   Question as PhQuestion, DotsThree as PhDots, Play as PhPlay, Pause as PhPause,
   FastForward as PhFast, MapPin as PhPin, CircleDashed as PhDashed,
   Hexagon as PhHexagon, Shield as PhShield, Circle as PhCircle,
+  Aperture as PhAperture,
 } from "phosphor-svelte";
 
 // Tabler (Icon-prefixed; no collisions)
@@ -72,7 +74,7 @@ import {
   IconCamera, IconKeyboard, IconMessage, IconDeviceFloppy, IconFolderOpen,
   IconLogout, IconRuler, IconRuler2, IconHelp, IconDots, IconPlayerPlay,
   IconPlayerPause, IconPlayerTrackNext, IconMapPin, IconCircleDashed,
-  IconHexagon, IconShield, IconCircle,
+  IconHexagon, IconShield, IconCircle, IconAperture,
 } from "@tabler/icons-svelte";
 
 export interface IconTriple {
@@ -148,6 +150,7 @@ export const ICON_MAP: Record<string, IconTriple> = {
   "atlas-star": t(LuStar, PhStar, IconStar),
   "fleet-star": t(LuStar, PhStar, IconStar),
   "atlas-compass": t(LuCompass, PhCompass, IconCompass),
+  render: t(LuAperture, PhAperture, IconAperture),
   topology: t(LuNetwork, PhNetwork, IconHierarchy),
   "phase-field": t(LuDashed, PhDashed, IconCircleDashed),
   "phase-edges": t(LuHexagon, PhHexagon, IconHexagon),

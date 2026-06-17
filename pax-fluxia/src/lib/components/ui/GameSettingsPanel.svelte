@@ -1432,6 +1432,22 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         {updatePanel}
                         syncFromConfig={syncAllFromConfig}
                     />
+                {:else if sec.id === "render"}
+                    <ControlsSectionTerritory
+                        {panel}
+                        {updatePanel}
+                        {animLockModes}
+                        {animLockRatios}
+                        {getAnimValue}
+                        {setAnimValue}
+                        {formatAnimValue}
+                        {pinValueToTickDuration}
+                        {lockRatioToTick}
+                        {lockRatioToAnimSpeed}
+                        syncFromConfig={syncAllFromConfig}
+                        view="all"
+                        systemTitle="Render Mode"
+                    />
                 {:else if sec.id === "territory_tuning"}
                     <TerritoryTopologyTuning
                         {panel}

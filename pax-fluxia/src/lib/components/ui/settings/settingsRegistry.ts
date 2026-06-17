@@ -11,6 +11,7 @@ export type SettingsSectionId =
     | "conquest"
     | "effects"
     | "map_options"
+    | "render"
     | "territory_phase_field"
     | "territory_phase_edges"
     | "territory_ember_lattice"
@@ -118,6 +119,15 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
             { id: "labels-inspector", label: "Labels & Inspector", icon: "font" },
             { id: "connections", label: "Connections", icon: "link" },
         ],
+    },
+    {
+        id: "render",
+        icon: "render",
+        label: "Render Mode",
+        color: "#a78bfa",
+        tier: "advanced",
+        audience: "advanced",
+        scope: "territory",
     },
     {
         id: "territory_phase_field",

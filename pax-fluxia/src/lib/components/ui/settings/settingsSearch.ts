@@ -156,7 +156,7 @@ function resolveSectionTarget(
                 return { sectionId: "territory_tuning" };
             }
             if (isTerritoryRenderModeRecord(record)) {
-                return null;
+                return { sectionId: "render" };
             }
             if (isTerritoryFrontierFxRecord(record)) {
                 return { sectionId: "frontier_fx" };
@@ -173,7 +173,7 @@ function resolveSectionTarget(
                 return { sectionId: "territory_phase_field" };
             }
             if (record.key.startsWith("GRID_GRADIENT_")) {
-                return { sectionId: "territory_styles" };
+                return { sectionId: "render" };
             }
             if (
                 activeTerritoryRenderMode === "metaball_grid_ember_lattice" &&
