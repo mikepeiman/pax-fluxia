@@ -1568,10 +1568,12 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         overflow-y: auto;
     }
 
+    /* Panel chrome (collapse / dock) — sits in a row, visually distinct from
+       the stacked category buttons below. */
     .icon-toolbar__controls {
         display: flex;
-        flex-direction: column;
-        gap: 8px;
+        flex-direction: row;
+        gap: 6px;
     }
 
     /* Pushes Restart/Quit actions to the bottom of the rail, away from categories. */
@@ -1966,6 +1968,30 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         font-size: 0;
     }
 
+    /* Chrome controls (collapse/dock) read as compact, rounded utility buttons —
+       NOT the tall, angular cut-corner category cards. Selector is intentionally
+       specific (0,3,0) to win over the theme blocks below that group them with
+       .icon-btn / left-align them when the ribbon is expanded. */
+    .icon-toolbar .icon-toolbar__controls :global(.icon-toolbar-control) {
+        min-width: 0;
+        min-height: 30px;
+        padding: 0;
+        justify-content: center;
+        border-radius: 999px;
+        clip-path: none;
+        border-color: rgba(120, 200, 255, 0.3);
+        background: rgba(120, 200, 255, 0.06);
+        box-shadow: none;
+    }
+
+    .icon-toolbar .icon-toolbar__controls :global(.icon-toolbar-control:hover) {
+        clip-path: none;
+        border-radius: 999px;
+        border-color: rgba(120, 200, 255, 0.6);
+        background: rgba(120, 200, 255, 0.12);
+        transform: none;
+    }
+
     :global(.icon-btn) {
         padding: 0;
     }
@@ -2214,7 +2240,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
 
     .icon-toolbar__controls {
         display: grid;
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
     }
 
     :global(.icon-toolbar-control),
