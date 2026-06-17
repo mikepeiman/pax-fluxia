@@ -774,8 +774,9 @@
         </div>
         {#if !hideRenderModeSelector}
           <div class="axis-row territory-axis territory-axis--render-mode">
-            <span class="axis-label">Render mode</span>
             <PaxHudSelect
+              label="Render mode"
+              hint="The active renderer family for territory fills/borders. Switch to compare render styles; each family exposes its own tuning below."
               value={resolveActiveStyleId()}
               options={renderModeOptions()}
               ariaLabel="Territory render mode"
