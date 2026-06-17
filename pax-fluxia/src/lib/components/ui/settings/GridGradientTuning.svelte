@@ -1,6 +1,7 @@
 <script lang="ts">
   import "./panel-shared.css";
     import { GAME_CONFIG } from '$lib/config/game.config';
+    import PaxSettingsRangeRow from '$lib/design-system/components/PaxSettingsRangeRow.svelte';
     import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
     import { gridGradientStats } from '$lib/territory/families/gridGradient/gridGradientStats';
 
@@ -96,39 +97,27 @@
     </select>
 </div>
 
-<div class="var-row" class:disabled={!gridSamplingActive}>
-    <div class="row-top">
-        <span class="var-name">Grid Spacing</span>
-        <span class="val">{gridSamplingActive ? `${spacingPx.toFixed(1)}px` : 'inactive'}</span>
-    </div>
-    <input
-        type="range"
-        min="2"
-        max="32"
-        step="0.5"
-        disabled={!gridSamplingActive}
-        value={spacingPx}
-        oninput={(event) => {
-            writeConfig('GRID_GRADIENT_SPACING_PX', 'gridGradientSpacingPx', parseFloat((event.target as HTMLInputElement).value));
-        }} />
-</div>
+<PaxSettingsRangeRow
+    label="Grid Spacing"
+    value={spacingPx}
+    min={2}
+    max={32}
+    step={0.5}
+    disabled={!gridSamplingActive}
+    output={gridSamplingActive ? `${spacingPx.toFixed(1)}px` : 'inactive'}
+    settingConfigKey="GRID_GRADIENT_SPACING_PX"
+    onInput={(value) => writeConfig('GRID_GRADIENT_SPACING_PX', 'gridGradientSpacingPx', value)} />
 
-<div class="var-row" class:disabled={!gridSamplingActive}>
-    <div class="row-top">
-        <span class="var-name">Max Cells</span>
-        <span class="val">{gridSamplingActive ? Math.round(maxCells).toLocaleString() : 'inactive'}</span>
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="320000"
-        step="5000"
-        disabled={!gridSamplingActive}
-        value={maxCells}
-        oninput={(event) => {
-            writeConfig('GRID_GRADIENT_MAX_CELLS', 'gridGradientMaxCells', parseInt((event.target as HTMLInputElement).value, 10));
-        }} />
-</div>
+<PaxSettingsRangeRow
+    label="Max Cells"
+    value={maxCells}
+    min={0}
+    max={320000}
+    step={5000}
+    disabled={!gridSamplingActive}
+    output={gridSamplingActive ? Math.round(maxCells).toLocaleString() : 'inactive'}
+    settingConfigKey="GRID_GRADIENT_MAX_CELLS"
+    onInput={(value) => writeConfig('GRID_GRADIENT_MAX_CELLS', 'gridGradientMaxCells', value)} />
 
 <div class="var-row" class:disabled={!pointillistFillActive}>
     <div class="row-top">
@@ -150,329 +139,217 @@
 
 <div class="sub-heading">Fill HSLA</div>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Hue Shift</span>
-        <span class="val">{fillHueShiftDeg.toFixed(0)}deg</span>
-    </div>
-    <input
-        type="range"
-        min="-180"
-        max="180"
-        step="1"
-        value={fillHueShiftDeg}
-        oninput={(event) => {
-            writeConfig('GRID_GRADIENT_FILL_HUE_SHIFT_DEG', 'gridGradientFillHueShiftDeg', parseFloat((event.target as HTMLInputElement).value));
-        }} />
-</div>
+<PaxSettingsRangeRow
+    label="Hue Shift"
+    value={fillHueShiftDeg}
+    min={-180}
+    max={180}
+    step={1}
+    output={`${fillHueShiftDeg.toFixed(0)}deg`}
+    settingConfigKey="GRID_GRADIENT_FILL_HUE_SHIFT_DEG"
+    onInput={(value) => writeConfig('GRID_GRADIENT_FILL_HUE_SHIFT_DEG', 'gridGradientFillHueShiftDeg', value)} />
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Saturation</span>
-        <span class="val">{fillSaturation.toFixed(2)}</span>
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="3"
-        step="0.01"
-        value={fillSaturation}
-        oninput={(event) => {
-            writeConfig('METABALL_SATURATION', 'metaballSaturation', parseFloat((event.target as HTMLInputElement).value));
-        }} />
-</div>
+<PaxSettingsRangeRow
+    label="Saturation"
+    value={fillSaturation}
+    min={0}
+    max={3}
+    step={0.01}
+    output={fillSaturation.toFixed(2)}
+    settingConfigKey="METABALL_SATURATION"
+    onInput={(value) => writeConfig('METABALL_SATURATION', 'metaballSaturation', value)} />
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Lightness</span>
-        <span class="val">{fillLightness.toFixed(2)}</span>
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="3"
-        step="0.01"
-        value={fillLightness}
-        oninput={(event) => {
-            writeConfig('METABALL_LIGHTNESS', 'metaballLightness', parseFloat((event.target as HTMLInputElement).value));
-        }} />
-</div>
+<PaxSettingsRangeRow
+    label="Lightness"
+    value={fillLightness}
+    min={0}
+    max={3}
+    step={0.01}
+    output={fillLightness.toFixed(2)}
+    settingConfigKey="METABALL_LIGHTNESS"
+    onInput={(value) => writeConfig('METABALL_LIGHTNESS', 'metaballLightness', value)} />
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Alpha</span>
-        <span class="val">{fillAlpha.toFixed(2)}</span>
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.01"
-        value={fillAlpha}
-        oninput={(event) => {
-            writeConfig('METABALL_ALPHA', 'metaballAlpha', parseFloat((event.target as HTMLInputElement).value));
-        }} />
-</div>
+<PaxSettingsRangeRow
+    label="Alpha"
+    value={fillAlpha}
+    min={0}
+    max={1}
+    step={0.01}
+    output={fillAlpha.toFixed(2)}
+    settingConfigKey="METABALL_ALPHA"
+    onInput={(value) => writeConfig('METABALL_ALPHA', 'metaballAlpha', value)} />
 
 <div class="sub-heading">Gradient Shape</div>
 
-<div class="var-row" class:disabled={!pointillistFillActive}>
-    <div class="row-top">
-        <span class="var-name">Center Size</span>
-        <span class="val">{pointillistFillActive ? `${centerSizePx.toFixed(1)}px` : 'inactive'}</span>
-    </div>
-    <input
-        type="range"
-        min="1"
-        max="48"
-        step="0.5"
-        disabled={!pointillistFillActive}
-        value={centerSizePx}
-        oninput={(event) => {
-            writeConfig('GRID_GRADIENT_CENTER_SIZE_PX', 'gridGradientCenterSizePx', parseFloat((event.target as HTMLInputElement).value));
-        }} />
-</div>
+<PaxSettingsRangeRow
+    label="Center Size"
+    value={centerSizePx}
+    min={1}
+    max={48}
+    step={0.5}
+    disabled={!pointillistFillActive}
+    output={pointillistFillActive ? `${centerSizePx.toFixed(1)}px` : 'inactive'}
+    settingConfigKey="GRID_GRADIENT_CENTER_SIZE_PX"
+    onInput={(value) => writeConfig('GRID_GRADIENT_CENTER_SIZE_PX', 'gridGradientCenterSizePx', value)} />
 
-<div class="var-row" class:disabled={!pointillistFillActive}>
-    <div class="row-top">
-        <span class="var-name">Edge Size</span>
-        <span class="val">{pointillistFillActive ? `${edgeSizePx.toFixed(1)}px` : 'inactive'}</span>
-    </div>
-    <input
-        type="range"
-        min="0.5"
-        max="16"
-        step="0.5"
-        disabled={!pointillistFillActive}
-        value={edgeSizePx}
-        oninput={(event) => {
-            writeConfig('GRID_GRADIENT_EDGE_SIZE_PX', 'gridGradientEdgeSizePx', parseFloat((event.target as HTMLInputElement).value));
-        }} />
-</div>
+<PaxSettingsRangeRow
+    label="Edge Size"
+    value={edgeSizePx}
+    min={0.5}
+    max={16}
+    step={0.5}
+    disabled={!pointillistFillActive}
+    output={pointillistFillActive ? `${edgeSizePx.toFixed(1)}px` : 'inactive'}
+    settingConfigKey="GRID_GRADIENT_EDGE_SIZE_PX"
+    onInput={(value) => writeConfig('GRID_GRADIENT_EDGE_SIZE_PX', 'gridGradientEdgeSizePx', value)} />
 
-<div class="var-row" class:disabled={!pointillistFillActive}>
-    <div class="row-top">
-        <span class="var-name">Gradient Curve</span>
-        <span class="val">{pointillistFillActive ? curvePower.toFixed(2) : 'inactive'}</span>
-    </div>
-    <input
-        type="range"
-        min="0.1"
-        max="6"
-        step="0.05"
-        disabled={!pointillistFillActive}
-        value={curvePower}
-        oninput={(event) => {
-            writeConfig('GRID_GRADIENT_CURVE_POWER', 'gridGradientCurvePower', parseFloat((event.target as HTMLInputElement).value));
-        }} />
-</div>
+<PaxSettingsRangeRow
+    label="Gradient Curve"
+    value={curvePower}
+    min={0.1}
+    max={6}
+    step={0.05}
+    disabled={!pointillistFillActive}
+    output={pointillistFillActive ? curvePower.toFixed(2) : 'inactive'}
+    settingConfigKey="GRID_GRADIENT_CURVE_POWER"
+    onInput={(value) => writeConfig('GRID_GRADIENT_CURVE_POWER', 'gridGradientCurvePower', value)} />
 
-<div class="var-row" class:disabled={!pointillistFillActive}>
-    <div class="row-top">
-        <span class="var-name">Border Offset</span>
-        <span class="val">{pointillistFillActive ? `${borderOffsetPx.toFixed(1)}px` : 'inactive'}</span>
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="80"
-        step="1"
-        disabled={!pointillistFillActive}
-        value={borderOffsetPx}
-        oninput={(event) => {
-            writeConfig('GRID_GRADIENT_BORDER_OFFSET_PX', 'gridGradientBorderOffsetPx', parseFloat((event.target as HTMLInputElement).value));
-        }} />
-</div>
+<PaxSettingsRangeRow
+    label="Border Offset"
+    value={borderOffsetPx}
+    min={0}
+    max={80}
+    step={1}
+    disabled={!pointillistFillActive}
+    output={pointillistFillActive ? `${borderOffsetPx.toFixed(1)}px` : 'inactive'}
+    settingConfigKey="GRID_GRADIENT_BORDER_OFFSET_PX"
+    onInput={(value) => writeConfig('GRID_GRADIENT_BORDER_OFFSET_PX', 'gridGradientBorderOffsetPx', value)} />
 
-<div class="var-row" class:disabled={!gridSamplingActive}>
-    <div class="row-top">
-        <span class="var-name">Position Jitter</span>
-        <span class="val">{gridSamplingActive ? positionJitter.toFixed(2) : 'inactive'}</span>
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="0.5"
-        step="0.01"
-        disabled={!gridSamplingActive}
-        value={positionJitter}
-        oninput={(event) => {
-            writeConfig('GRID_GRADIENT_DISTRIBUTION', 'gridGradientDistribution', parseFloat((event.target as HTMLInputElement).value) > 0 ? 'jittered' : 'square');
-            writeConfig('GRID_GRADIENT_POSITION_JITTER', 'gridGradientPositionJitter', parseFloat((event.target as HTMLInputElement).value));
-        }} />
-</div>
+<PaxSettingsRangeRow
+    label="Position Jitter"
+    value={positionJitter}
+    min={0}
+    max={0.5}
+    step={0.01}
+    disabled={!gridSamplingActive}
+    output={gridSamplingActive ? positionJitter.toFixed(2) : 'inactive'}
+    settingConfigKey="GRID_GRADIENT_POSITION_JITTER"
+    onInput={(value) => {
+        writeConfig('GRID_GRADIENT_DISTRIBUTION', 'gridGradientDistribution', value > 0 ? 'jittered' : 'square');
+        writeConfig('GRID_GRADIENT_POSITION_JITTER', 'gridGradientPositionJitter', value);
+    }} />
 
 <div class="sub-heading">Shader Field FX</div>
 
-<div class="var-row" class:disabled={!shaderFieldFxActive}>
-    <div class="row-top">
-        <span class="var-name">Shader Mark Softness</span>
-        <span class="val">{shaderFieldFxActive ? shaderMarkSoftness.toFixed(2) : 'inactive'}</span>
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="1.5"
-        step="0.01"
-        disabled={!shaderFieldFxActive}
-        value={shaderMarkSoftness}
-        oninput={(event) => {
-            writeConfig('GRID_GRADIENT_SHADER_MARK_SOFTNESS', 'gridGradientShaderMarkSoftness', parseFloat((event.target as HTMLInputElement).value));
-        }} />
-</div>
+<PaxSettingsRangeRow
+    label="Shader Mark Softness"
+    value={shaderMarkSoftness}
+    min={0}
+    max={1.5}
+    step={0.01}
+    disabled={!shaderFieldFxActive}
+    output={shaderFieldFxActive ? shaderMarkSoftness.toFixed(2) : 'inactive'}
+    settingConfigKey="GRID_GRADIENT_SHADER_MARK_SOFTNESS"
+    onInput={(value) => writeConfig('GRID_GRADIENT_SHADER_MARK_SOFTNESS', 'gridGradientShaderMarkSoftness', value)} />
 
-<div class="var-row" class:disabled={!shaderFieldFxActive}>
-    <div class="row-top">
-        <span class="var-name">Edge Feather</span>
-        <span class="val">{shaderFieldFxActive ? `${shaderEdgeSoftnessPx.toFixed(2)}px` : 'inactive'}</span>
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="8"
-        step="0.05"
-        disabled={!shaderFieldFxActive}
-        value={shaderEdgeSoftnessPx}
-        oninput={(event) => {
-            writeConfig('GRID_GRADIENT_SHADER_EDGE_SOFTNESS_PX', 'gridGradientShaderEdgeSoftnessPx', parseFloat((event.target as HTMLInputElement).value));
-        }} />
-</div>
+<PaxSettingsRangeRow
+    label="Edge Feather"
+    value={shaderEdgeSoftnessPx}
+    min={0}
+    max={8}
+    step={0.05}
+    disabled={!shaderFieldFxActive}
+    output={shaderFieldFxActive ? `${shaderEdgeSoftnessPx.toFixed(2)}px` : 'inactive'}
+    settingConfigKey="GRID_GRADIENT_SHADER_EDGE_SOFTNESS_PX"
+    onInput={(value) => writeConfig('GRID_GRADIENT_SHADER_EDGE_SOFTNESS_PX', 'gridGradientShaderEdgeSoftnessPx', value)} />
 
-<div class="var-row" class:disabled={!shaderNoiseActive}>
-    <div class="row-top">
-        <span class="var-name">Shader Noise Roughness (Noise)</span>
-        <span class="val">{shaderNoiseActive ? shaderNoiseStrength.toFixed(2) : cellShape === 'noise' ? 'inactive' : 'noise only'}</span>
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="2"
-        step="0.01"
-        disabled={!shaderNoiseActive}
-        value={shaderNoiseStrength}
-        oninput={(event) => {
-            writeConfig('GRID_GRADIENT_SHADER_NOISE_STRENGTH', 'gridGradientShaderNoiseStrength', parseFloat((event.target as HTMLInputElement).value));
-        }} />
-</div>
+<PaxSettingsRangeRow
+    label="Shader Noise Roughness (Noise)"
+    value={shaderNoiseStrength}
+    min={0}
+    max={2}
+    step={0.01}
+    disabled={!shaderNoiseActive}
+    output={shaderNoiseActive ? shaderNoiseStrength.toFixed(2) : cellShape === 'noise' ? 'inactive' : 'noise only'}
+    settingConfigKey="GRID_GRADIENT_SHADER_NOISE_STRENGTH"
+    onInput={(value) => writeConfig('GRID_GRADIENT_SHADER_NOISE_STRENGTH', 'gridGradientShaderNoiseStrength', value)} />
 
-<div class="var-row" class:disabled={!shaderFieldFxActive}>
-    <div class="row-top">
-        <span class="var-name">Shader Pulse</span>
-        <span class="val">{shaderFieldFxActive ? shaderPulseStrength.toFixed(2) : 'inactive'}</span>
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.01"
-        disabled={!shaderFieldFxActive}
-        value={shaderPulseStrength}
-        oninput={(event) => {
-            writeConfig('GRID_GRADIENT_SHADER_PULSE_STRENGTH', 'gridGradientShaderPulseStrength', parseFloat((event.target as HTMLInputElement).value));
-        }} />
-</div>
+<PaxSettingsRangeRow
+    label="Shader Pulse"
+    value={shaderPulseStrength}
+    min={0}
+    max={1}
+    step={0.01}
+    disabled={!shaderFieldFxActive}
+    output={shaderFieldFxActive ? shaderPulseStrength.toFixed(2) : 'inactive'}
+    settingConfigKey="GRID_GRADIENT_SHADER_PULSE_STRENGTH"
+    onInput={(value) => writeConfig('GRID_GRADIENT_SHADER_PULSE_STRENGTH', 'gridGradientShaderPulseStrength', value)} />
 
-<div class="var-row" class:disabled={!shaderFieldFxActive}>
-    <div class="row-top">
-        <span class="var-name">Shader Pulse Speed</span>
-        <span class="val">{shaderFieldFxActive ? `${shaderPulseSpeed.toFixed(2)} rad/s` : 'inactive'}</span>
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="20"
-        step="0.1"
-        disabled={!shaderFieldFxActive}
-        value={shaderPulseSpeed}
-        oninput={(event) => {
-            writeConfig('GRID_GRADIENT_SHADER_PULSE_SPEED', 'gridGradientShaderPulseSpeed', parseFloat((event.target as HTMLInputElement).value));
-        }} />
-</div>
+<PaxSettingsRangeRow
+    label="Shader Pulse Speed"
+    value={shaderPulseSpeed}
+    min={0}
+    max={20}
+    step={0.1}
+    disabled={!shaderFieldFxActive}
+    output={shaderFieldFxActive ? `${shaderPulseSpeed.toFixed(2)} rad/s` : 'inactive'}
+    settingConfigKey="GRID_GRADIENT_SHADER_PULSE_SPEED"
+    onInput={(value) => writeConfig('GRID_GRADIENT_SHADER_PULSE_SPEED', 'gridGradientShaderPulseSpeed', value)} />
 
-<div class="var-row" class:disabled={!shaderFieldFxActive}>
-    <div class="row-top">
-        <span class="var-name">Shader Drift</span>
-        <span class="val">{shaderFieldFxActive ? `${shaderFieldDriftPx.toFixed(1)}px` : 'inactive'}</span>
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="12"
-        step="0.1"
-        disabled={!shaderFieldFxActive}
-        value={shaderFieldDriftPx}
-        oninput={(event) => {
-            writeConfig('GRID_GRADIENT_SHADER_FIELD_DRIFT_PX', 'gridGradientShaderFieldDriftPx', parseFloat((event.target as HTMLInputElement).value));
-        }} />
-</div>
+<PaxSettingsRangeRow
+    label="Shader Drift"
+    value={shaderFieldDriftPx}
+    min={0}
+    max={12}
+    step={0.1}
+    disabled={!shaderFieldFxActive}
+    output={shaderFieldFxActive ? `${shaderFieldDriftPx.toFixed(1)}px` : 'inactive'}
+    settingConfigKey="GRID_GRADIENT_SHADER_FIELD_DRIFT_PX"
+    onInput={(value) => writeConfig('GRID_GRADIENT_SHADER_FIELD_DRIFT_PX', 'gridGradientShaderFieldDriftPx', value)} />
 
-<div class="var-row" class:disabled={!shaderFieldFxActive}>
-    <div class="row-top">
-        <span class="var-name">Shader Drift Speed</span>
-        <span class="val">{shaderFieldFxActive ? shaderFieldDriftSpeed.toFixed(2) : 'inactive'}</span>
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="8"
-        step="0.05"
-        disabled={!shaderFieldFxActive}
-        value={shaderFieldDriftSpeed}
-        oninput={(event) => {
-            writeConfig('GRID_GRADIENT_SHADER_FIELD_DRIFT_SPEED', 'gridGradientShaderFieldDriftSpeed', parseFloat((event.target as HTMLInputElement).value));
-        }} />
-</div>
+<PaxSettingsRangeRow
+    label="Shader Drift Speed"
+    value={shaderFieldDriftSpeed}
+    min={0}
+    max={8}
+    step={0.05}
+    disabled={!shaderFieldFxActive}
+    output={shaderFieldFxActive ? shaderFieldDriftSpeed.toFixed(2) : 'inactive'}
+    settingConfigKey="GRID_GRADIENT_SHADER_FIELD_DRIFT_SPEED"
+    onInput={(value) => writeConfig('GRID_GRADIENT_SHADER_FIELD_DRIFT_SPEED', 'gridGradientShaderFieldDriftSpeed', value)} />
 
-<div class="var-row" class:disabled={!shaderFieldFxActive}>
-    <div class="row-top">
-        <span class="var-name">Shader Glow</span>
-        <span class="val">{shaderFieldFxActive ? shaderGlowStrength.toFixed(2) : 'inactive'}</span>
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="2"
-        step="0.01"
-        disabled={!shaderFieldFxActive}
-        value={shaderGlowStrength}
-        oninput={(event) => {
-            writeConfig('GRID_GRADIENT_SHADER_GLOW_STRENGTH', 'gridGradientShaderGlowStrength', parseFloat((event.target as HTMLInputElement).value));
-        }} />
-</div>
+<PaxSettingsRangeRow
+    label="Shader Glow"
+    value={shaderGlowStrength}
+    min={0}
+    max={2}
+    step={0.01}
+    disabled={!shaderFieldFxActive}
+    output={shaderFieldFxActive ? shaderGlowStrength.toFixed(2) : 'inactive'}
+    settingConfigKey="GRID_GRADIENT_SHADER_GLOW_STRENGTH"
+    onInput={(value) => writeConfig('GRID_GRADIENT_SHADER_GLOW_STRENGTH', 'gridGradientShaderGlowStrength', value)} />
 
-<div class="var-row" class:disabled={!shaderFieldFxActive}>
-    <div class="row-top">
-        <span class="var-name">Shader Interior Alpha</span>
-        <span class="val">{shaderFieldFxActive ? shaderInteriorAlphaBoost.toFixed(2) : 'inactive'}</span>
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="3"
-        step="0.01"
-        disabled={!shaderFieldFxActive}
-        value={shaderInteriorAlphaBoost}
-        oninput={(event) => {
-            writeConfig('GRID_GRADIENT_SHADER_INTERIOR_ALPHA_BOOST', 'gridGradientShaderInteriorAlphaBoost', parseFloat((event.target as HTMLInputElement).value));
-        }} />
-</div>
+<PaxSettingsRangeRow
+    label="Shader Interior Alpha"
+    value={shaderInteriorAlphaBoost}
+    min={0}
+    max={3}
+    step={0.01}
+    disabled={!shaderFieldFxActive}
+    output={shaderFieldFxActive ? shaderInteriorAlphaBoost.toFixed(2) : 'inactive'}
+    settingConfigKey="GRID_GRADIENT_SHADER_INTERIOR_ALPHA_BOOST"
+    onInput={(value) => writeConfig('GRID_GRADIENT_SHADER_INTERIOR_ALPHA_BOOST', 'gridGradientShaderInteriorAlphaBoost', value)} />
 
-<div class="var-row" class:disabled={!shaderFieldFxActive}>
-    <div class="row-top">
-        <span class="var-name">Shader Edge Alpha</span>
-        <span class="val">{shaderFieldFxActive ? shaderEdgeAlphaBoost.toFixed(2) : 'inactive'}</span>
-    </div>
-    <input
-        type="range"
-        min="0"
-        max="3"
-        step="0.01"
-        disabled={!shaderFieldFxActive}
-        value={shaderEdgeAlphaBoost}
-        oninput={(event) => {
-            writeConfig('GRID_GRADIENT_SHADER_EDGE_ALPHA_BOOST', 'gridGradientShaderEdgeAlphaBoost', parseFloat((event.target as HTMLInputElement).value));
-        }} />
-</div>
+<PaxSettingsRangeRow
+    label="Shader Edge Alpha"
+    value={shaderEdgeAlphaBoost}
+    min={0}
+    max={3}
+    step={0.01}
+    disabled={!shaderFieldFxActive}
+    output={shaderFieldFxActive ? shaderEdgeAlphaBoost.toFixed(2) : 'inactive'}
+    settingConfigKey="GRID_GRADIENT_SHADER_EDGE_ALPHA_BOOST"
+    onInput={(value) => writeConfig('GRID_GRADIENT_SHADER_EDGE_ALPHA_BOOST', 'gridGradientShaderEdgeAlphaBoost', value)} />
 
 <div class="sub-heading">Borders</div>
 
@@ -496,22 +373,16 @@
     <span>Border dots</span>
 </label>
 
-<div class="var-row" class:disabled={!borderDotsEnabled}>
-    <div class="row-top">
-        <span class="var-name">Dot Size</span>
-        <span class="val">{borderDotSizePx.toFixed(1)}px</span>
-    </div>
-    <input
-        type="range"
-        min="0.5"
-        max="20"
-        step="0.5"
-        disabled={!borderDotsEnabled}
-        value={borderDotSizePx}
-        oninput={(event) => {
-            writeConfig('GRID_GRADIENT_BORDER_DOT_SIZE_PX', 'gridGradientBorderDotSizePx', parseFloat((event.target as HTMLInputElement).value));
-        }} />
-</div>
+<PaxSettingsRangeRow
+    label="Dot Size"
+    value={borderDotSizePx}
+    min={0.5}
+    max={20}
+    step={0.5}
+    disabled={!borderDotsEnabled}
+    output={`${borderDotSizePx.toFixed(1)}px`}
+    settingConfigKey="GRID_GRADIENT_BORDER_DOT_SIZE_PX"
+    onInput={(value) => writeConfig('GRID_GRADIENT_BORDER_DOT_SIZE_PX', 'gridGradientBorderDotSizePx', value)} />
 
 <div class="var-row" class:disabled={!borderDotsEnabled}>
     <div class="row-top">
