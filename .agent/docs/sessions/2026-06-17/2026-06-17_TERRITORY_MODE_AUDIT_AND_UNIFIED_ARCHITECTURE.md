@@ -95,3 +95,28 @@ wiring AND topology reliability; introduces no new geometry engine or transition
 3. **Static-first gate:** do we validate the provenance-native static geometry (§1) before the transition
    experiment, or run the experiment on the *existing* frontier topology first to learn if a geometry
    rebuild is even required? (Recommend the latter — it's cheaper and tells us if §1 is needed yet.)
+
+## 7. CORRECTIONS + MULTI-ENGINE FRAMING (user, 2026-06-17) — supersedes conflicting claims above
+- **DistanceField transition correction:** the named UI mode **never had an implemented transition** —
+  proposed only. The `uMorphFactor` / temporal-Dijkstra-blend code is NOT a shipped working transition,
+  and DF perf recollection is **POOR, not best**. §2's "strongest track record" for DistanceField is
+  **WITHDRAWN** — DF is at most a *future, unproven* candidate engine. (I over-trusted the agent's read of
+  dormant shader code.)
+- **No "one true" transition.** Overarching intent = a **ROBUST transition SYSTEM** accommodating several
+  "visual special-effects" transition **styles**, which genuinely requires multiple distinct underlying
+  computational **engines**. The shared truth is the provenance-carrying geometry; engines are pluggable.
+- **Engines vs styles (key clarification):** **Grid Gradient, "Edges", and "Field" are ONE engine (the
+  flip-time grid wavefront) presented as three styles** — not three engines. **DY4** (optimal-transport
+  morph) and **Metaball Perimeter** (topology-driven plan/mover) are **distinct engines**. So the system =
+  ONE shared provenance geometry truth + a small set of engines {grid-wavefront, optimal-transport (DY4),
+  perimeter-plan, field-influence/metaball, (future) distance-field}, each consuming {prev geom, next geom,
+  frontier sections w/ provenance, progress, conquest events}, each exposing style/effect params.
+- **Authoritative candidate inventory (user):** DY4 (revive as ONE mode; still needs perf/tuning/geometry;
+  its matching is centroid → upgrade to star-ID/frontier identity); Metaball Perimeter; **Metaball Grid =
+  DEFUNCT** (Grid Gradient supersedes — drop); Grid Gradient (first provenance prototype); **"Edges" +
+  "Field" are CURRENTLY BROKEN — no rendering — a RECENT REGRESSION** to diagnose/fix ("Field" is a
+  distinct effect from Grid Gradient). Topology-first active-front = the (unbuilt) identity/classification
+  layer feeding engines; Metaball Perimeter is its closest built embodiment.
+- **The provenance-wiring pattern generalizes:** making Grid Gradient consume frontier sections
+  (owner-pair-tagged flip-times) is the FIRST engine to get provenance and establishes the PATTERN every
+  engine uses to consume the shared provenance truth.
