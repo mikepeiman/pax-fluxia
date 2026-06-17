@@ -82,6 +82,11 @@
         type SettingsSectionDefinition,
     } from "./settings/settingsRegistry";
     import {
+        SETTINGS_CATEGORIES,
+        CATEGORY_BY_SECTION,
+        type SettingsCategoryId,
+    } from "./settings/settingsTaxonomy";
+    import {
         searchSettings,
         type SettingsSearchResult,
     } from "./settings/settingsSearch";
@@ -759,194 +764,55 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         onQuitGame,
     }: Props = $props();
 
-    type SettingsToolId =
-        | "theme_library"
-        | "appearance"
-        | "combat_tuning"
-        | "audio"
-        | "video_graphics"
-        | "render"
-        | "stats"
-        | "diagnostics"
-        | "restart"
-        | "quit"
-        | "hotkeys"
-        | "help";
+    // ── Settings navigation — single source of truth: SETTINGS_CATEGORIES ──
+    // The rail = the 7 categories + Restart/Quit actions. Selecting a category
+    // shows its sections as top chips; one section is open at a time. The
+    // Interface category surfaces UI utility panels (not config sections).
+    const INTERFACE_PANELS = [
+        { id: "ui_appearance", icon: "gem", label: "Appearance" },
+        { id: "ui_themes", icon: "library", label: "Themes" },
+        { id: "ui_stats", icon: "ranking-star", label: "Stats" },
+        { id: "ui_hotkeys", icon: "keyboard", label: "Hotkeys" },
+        { id: "ui_help", icon: "help", label: "Help" },
+    ] as const;
+    type InterfacePanelId = (typeof INTERFACE_PANELS)[number]["id"];
+    type ActiveSectionId = SectionId | InterfacePanelId;
 
-    interface SettingsToolDefinition {
-        id: SettingsToolId;
-        icon: string;
-        label: string;
-        color: string;
-        sectionId?: SectionId;
-        action?: "restart" | "quit";
-    }
-
-    const SETTINGS_TOOLS: readonly SettingsToolDefinition[] = [
-        { id: "theme_library", icon: "library", label: "Themes", color: "#f6c469" },
-        {
-            id: "appearance",
-            icon: "gem",
-            label: "Appearance",
-            color: "#5ee6ff",
-            sectionId: "map_options",
-        },
-        {
-            id: "combat_tuning",
-            icon: "combat",
-            label: "Combat Tuning",
-            color: "#ff8a94",
-            sectionId: "combat_tuning",
-        },
-        { id: "audio", icon: "audio", label: "Audio", color: "#44ddbb", sectionId: "audio" },
-        {
-            id: "video_graphics",
-            icon: "draw-polygon",
-            label: "Video / Graphics",
-            color: "#93c5fd",
-            sectionId: "fleet_star_visuals",
-        },
-        {
-            id: "render",
-            icon: "render",
-            label: "Render Mode",
-            color: "#a78bfa",
-            sectionId: "render",
-        },
-        { id: "stats", icon: "ranking-star", label: "Stats", color: "#f6c469" },
-        {
-            id: "diagnostics",
-            icon: "diagnostics",
-            label: "Diagnostics",
-            color: "#f59e0b",
-            sectionId: "diagnostics",
-        },
-        {
-            id: "restart",
-            icon: "restart",
-            label: "Restart",
-            color: "#f6c469",
-            action: "restart",
-        },
-        { id: "quit", icon: "quit", label: "Quit", color: "#ff6a7a", action: "quit" },
-        { id: "hotkeys", icon: "keyboard", label: "Hotkeys", color: "#8ab4ff" },
-        { id: "help", icon: "help", label: "Help", color: "#a8b6cf" },
+    const ACTION_TOOLS = [
+        { id: "restart", icon: "restart", label: "Restart", run: () => onRestartGame?.() },
+        { id: "quit", icon: "quit", label: "Quit", run: () => onQuitGame?.() },
     ] as const;
 
-    const SECTION_TOOL_BY_ID: Partial<Record<SectionId, SettingsToolId>> = {
-        map_options: "appearance",
-        territory_styles: "appearance",
-        combat_tuning: "combat_tuning",
-        audio: "audio",
-        fleet_star_visuals: "video_graphics",
-        render: "render",
-        diagnostics: "diagnostics",
-    };
+    const ACTIVE_SECTION_KEY = "pax-fluxia-active-section";
 
-    const ACTIVE_SECTION_KEY = "pax-fluxia-open-sections";
-    const ACTIVE_TOOL_KEY = "pax-fluxia-active-settings-tool";
-
-    function isSettingsToolId(value: string | null): value is SettingsToolId {
-        return SETTINGS_TOOLS.some((tool) => tool.id === value);
+    function isInterfacePanelId(value: string | null): value is InterfacePanelId {
+        return INTERFACE_PANELS.some((panel) => panel.id === value);
     }
 
-    function loadActiveTool(): SettingsToolId | null {
+    function loadActiveSection(): ActiveSectionId | null {
         if (typeof window === "undefined") return null;
-        const value = localStorage.getItem(ACTIVE_TOOL_KEY);
-        return isSettingsToolId(value) ? value : null;
+        const value = localStorage.getItem(ACTIVE_SECTION_KEY);
+        if (!value) return null;
+        return isInterfacePanelId(value)
+            ? value
+            : normalizeSettingsSectionId(value);
     }
 
-    const initialActiveToolId = loadActiveTool();
-    let activeToolId = $state<SettingsToolId | null>(initialActiveToolId);
-    let activeTool = $derived(
-        activeToolId
-            ? SETTINGS_TOOLS.find((tool) => tool.id === activeToolId) ?? null
-            : null,
-    );
-    let activeToolHasPanel = $derived(Boolean(activeTool && !activeTool.action));
+    let activeSectionId = $state<ActiveSectionId | null>(loadActiveSection());
+    let activeToolHasPanel = $derived(activeSectionId !== null);
 
-    function persistActiveTool() {
+    function persistActiveSection() {
         if (typeof window === "undefined") return;
-        if (activeToolId) {
-            localStorage.setItem(ACTIVE_TOOL_KEY, activeToolId);
+        if (activeSectionId) {
+            localStorage.setItem(ACTIVE_SECTION_KEY, activeSectionId);
         } else {
-            localStorage.removeItem(ACTIVE_TOOL_KEY);
+            localStorage.removeItem(ACTIVE_SECTION_KEY);
         }
     }
 
-    function setActiveTool(id: SettingsToolId | null) {
-        activeToolId = id;
-        const tool = id
-            ? SETTINGS_TOOLS.find((candidate) => candidate.id === id) ?? null
-            : null;
-        sectionOrder = tool?.sectionId ? [tool.sectionId] : [];
-        persistActiveTool();
-        persistSectionOrder();
-    }
-
-    function handleToolClick(tool: SettingsToolDefinition) {
-        if (tool.action === "restart") {
-            onRestartGame?.();
-            return;
-        }
-        if (tool.action === "quit") {
-            onQuitGame?.();
-            return;
-        }
-        setActiveTool(activeToolId === tool.id ? null : tool.id);
-    }
-
-    function loadOpenSections(): SectionId[] {
-        if (typeof window === "undefined") return [];
-        try {
-            const s = localStorage.getItem(ACTIVE_SECTION_KEY);
-            if (s) {
-                return (JSON.parse(s) as string[])
-                    .map((value) => normalizeSettingsSectionId(value))
-                    .filter(Boolean) as SectionId[];
-            }
-        } catch {
-            /* ignore */
-        }
-        return [];
-    }
-
-    // Ordered array: last element = most recently opened (shown first in render)
-    let sectionOrder = $state<SectionId[]>((() => {
-        const loadedSections = loadOpenSections();
-        const startupTool = initialActiveToolId
-            ? SETTINGS_TOOLS.find((tool) => tool.id === initialActiveToolId)
-            : null;
-        if (startupTool?.sectionId && loadedSections.length === 0) {
-            return [startupTool.sectionId];
-        }
-        return loadedSections;
-    })());
-    // Set for O(1) membership checks
-    let openSections = $derived(new Set(sectionOrder));
-
-    function persistSectionOrder() {
-        if (typeof window !== "undefined") {
-            localStorage.setItem(
-                ACTIVE_SECTION_KEY,
-                JSON.stringify(sectionOrder),
-            );
-        }
-    }
-
-    function openSection(id: SectionId) {
-        sectionOrder = [id];
-        activeToolId = SECTION_TOOL_BY_ID[id] ?? activeToolId;
-        persistActiveTool();
-        persistSectionOrder();
-    }
-
-    function toggleSection(id: SectionId) {
-        if (sectionOrder.includes(id)) {
-            setActiveTool(null);
-            return;
-        }
-        openSection(id);
+    function selectSection(id: ActiveSectionId | null) {
+        activeSectionId = activeSectionId === id ? null : id;
+        persistActiveSection();
     }
 
     const sections = SETTINGS_SECTIONS;
@@ -1001,14 +867,83 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         sections.filter((section) => isSectionVisible(section)),
     );
 
-    // Most recently opened visible sections first.
-    let orderedOpenSections = $derived(
-        [...sectionOrder]
-            .reverse()
-            .map((id) => visibleSections.find((section) => section.id === id))
-            .filter(Boolean) as typeof sections,
+    interface NavChip {
+        id: ActiveSectionId;
+        label: string;
+        icon: string;
+    }
+
+    function chipsForCategory(catId: SettingsCategoryId): NavChip[] {
+        if (catId === "interface") {
+            return INTERFACE_PANELS.map((panel) => ({
+                id: panel.id,
+                label: panel.label,
+                icon: panel.icon,
+            }));
+        }
+        const category = SETTINGS_CATEGORIES.find((c) => c.id === catId);
+        return (category?.sections ?? [])
+            .map((sid) => visibleSections.find((s) => s.id === sid))
+            .filter(Boolean)
+            .map((s) => ({ id: s!.id, label: s!.label, icon: s!.icon }));
+    }
+
+    // A category appears in the rail only if it has something to show.
+    let visibleCategories = $derived(
+        SETTINGS_CATEGORIES.filter((cat) => chipsForCategory(cat.id).length > 0),
     );
-    let hasVisibleOpenSections = $derived(orderedOpenSections.length > 0);
+
+    let activeCategoryId = $derived<SettingsCategoryId | null>(
+        activeSectionId === null
+            ? null
+            : isInterfacePanelId(activeSectionId)
+              ? "interface"
+              : (CATEGORY_BY_SECTION[activeSectionId] ?? null),
+    );
+    let activeCategory = $derived(
+        SETTINGS_CATEGORIES.find((c) => c.id === activeCategoryId) ?? null,
+    );
+    let activeCategoryChips = $derived(
+        activeCategoryId ? chipsForCategory(activeCategoryId) : [],
+    );
+
+    // The single open panel (a config section definition, or an interface panel).
+    let activePanel = $derived.by<NavChip | null>(() => {
+        if (activeSectionId === null) return null;
+        if (isInterfacePanelId(activeSectionId)) {
+            const panel = INTERFACE_PANELS.find((p) => p.id === activeSectionId)!;
+            return { id: panel.id, label: panel.label, icon: panel.icon };
+        }
+        const section = sections.find((s) => s.id === activeSectionId);
+        return section
+            ? { id: section.id, label: section.label, icon: section.icon }
+            : null;
+    });
+
+    function selectCategory(catId: SettingsCategoryId) {
+        if (activeCategoryId === catId) {
+            selectSection(null);
+            return;
+        }
+        selectSection(chipsForCategory(catId)[0]?.id ?? null);
+    }
+
+    // Selecting a render mode (or any reactive change) can hide the open
+    // section; if so, fall back to the first chip of its category so the panel
+    // never blanks out.
+    $effect(() => {
+        if (
+            activeSectionId !== null &&
+            !isInterfacePanelId(activeSectionId) &&
+            !visibleSections.some((s) => s.id === activeSectionId)
+        ) {
+            const fallback = activeCategoryId
+                ? chipsForCategory(activeCategoryId)[0]?.id ?? null
+                : null;
+            activeSectionId = fallback;
+            persistActiveSection();
+        }
+    });
 
     $effect(() => {
         onSectionActivityChange?.(activeToolHasPanel);
@@ -1022,7 +957,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         if (activeTier !== "developer") {
             setTier("developer");
         }
-        openSection(forceOpenSection);
+        activeSectionId = normalizeSettingsSectionId(forceOpenSection) ?? forceOpenSection;
+        persistActiveSection();
     });
 
     interface SubsectionChip {
@@ -1032,7 +968,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     interface SectionBodyParams {
-        sectionId: SectionId;
+        sectionId: ActiveSectionId;
         activeSubsection: string;
     }
 
@@ -1063,7 +999,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     );
     let activeSubsections = $state<Record<string, string>>({});
     let settingsSearchQuery = $state("");
-    const sectionBodyNodes = new Map<SectionId, HTMLElement>();
+    const sectionBodyNodes = new Map<ActiveSectionId, HTMLElement>();
     let settingsSearchResults = $derived.by(() =>
         searchSettings(settingsSearchQuery, 24, activeTerritoryRenderMode),
     );
@@ -1107,7 +1043,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         if (TIER_RANK[section.tier] > TIER_RANK[activeTier]) {
             setTier(section.tier);
         }
-        openSection(sectionId);
+        activeSectionId = sectionId;
+        persistActiveSection();
     }
 
     function resolveSearchTargetElement(
@@ -1181,7 +1118,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
 
     function applySubsectionFilter(
         node: HTMLElement,
-        sectionId: SectionId,
+        sectionId: ActiveSectionId,
         activeSubsection: string,
     ) {
         const active = activeSubsections[sectionId] ?? activeSubsection ?? "all";
@@ -1226,7 +1163,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         };
     }
 
-    function toggleSubsection(sectionId: SectionId, subsectionId: string) {
+    function toggleSubsection(sectionId: ActiveSectionId, subsectionId: string) {
         const current = activeSubsections[sectionId] ?? "all";
         activeSubsections = {
             ...activeSubsections,
@@ -1264,94 +1201,60 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 />
             {/if}
         </div>
-        {#each SETTINGS_TOOLS as tool}
+        {#each visibleCategories as cat}
             <PaxHudButton
-                class={`icon-btn ${tool.action ? "settings-tool-action" : ""} ${tool.id === "quit" ? "settings-tool-danger" : ""}`}
-                active={activeToolId === tool.id}
-                danger={tool.id === "quit"}
-                accentId={tool.id}
-                onclick={() => handleToolClick(tool)}
-                title={tool.label}
+                class="icon-btn"
+                active={activeCategoryId === cat.id}
+                accentId={cat.id}
+                onclick={() => selectCategory(cat.id)}
+                title={cat.label}
             >
-                <span class="icon-symbol"><HudIcon name={tool.icon} /></span>
-                <span class="icon-label">{tool.label}</span>
+                <span class="icon-symbol"><HudIcon name={cat.icon} /></span>
+                <span class="icon-label">{cat.label}</span>
+            </PaxHudButton>
+        {/each}
+        <div class="icon-toolbar__spacer"></div>
+        {#each ACTION_TOOLS as action}
+            <PaxHudButton
+                class={`icon-btn settings-tool-action ${action.id === "quit" ? "settings-tool-danger" : ""}`}
+                danger={action.id === "quit"}
+                accentId={action.id}
+                onclick={action.run}
+                title={action.label}
+            >
+                <span class="icon-symbol"><HudIcon name={action.icon} /></span>
+                <span class="icon-label">{action.label}</span>
             </PaxHudButton>
         {/each}
     </div>
 
     <div class="settings-content">
-    {#if activeToolId === "theme_library"}
-        <PaxSettingsDrawer
-            title="Theme Select / Library"
-            icon="library"
-            accent="#f6c469"
-            onClose={() => setActiveTool(null)}
-        >
-            <ThemeLibraryPanel />
-        </PaxSettingsDrawer>
-    {:else if activeToolId === "appearance"}
-        <PaxSettingsDrawer
-            title="Theme Tuning / Appearance"
-            icon="gem"
-            accent="#5ee6ff"
-            onClose={() => setActiveTool(null)}
-        >
-            <HudThemePanel />
-            <TypographyTokenPanel />
-            <ControlsSectionVisuals
-                {panel}
-                {updatePanel}
-                {vis}
-                {updateVisual}
-                syncFromConfig={syncAllFromConfig}
-            />
-        </PaxSettingsDrawer>
-    {:else if activeToolId === "stats"}
-        <PaxSettingsDrawer
-            title="Stats"
-            icon="ranking-star"
-            accent="#f6c469"
-            onClose={() => setActiveTool(null)}
-        >
-            <PaxSettingsInfoRow label="Tick" value={activeGameStore.currentTick ?? 0} />
-            <PaxSettingsInfoRow label="Players" value={activeGameStore.players.length} />
-            <PaxSettingsInfoRow label="Stars" value={activeGameStore.stars.length} />
-            <PaxSettingsInfoRow label="Selected" value={selectedStarStore.id ?? "None"} />
-        </PaxSettingsDrawer>
-    {:else if activeToolId === "hotkeys"}
-        <PaxSettingsDrawer
-            title="Hotkeys"
-            icon="keyboard"
-            accent="#8ab4ff"
-            onClose={() => setActiveTool(null)}
-        >
-            <PaxSettingsInfoRow label="F" value="Fit the map to the viewport." valueAlign="left" />
-            <PaxSettingsInfoRow label="Esc" value="Close active overlays or clear search focus." valueAlign="left" />
-            <PaxSettingsInfoRow label="Click star" value="Select and inspect a star." valueAlign="left" />
-            <PaxSettingsInfoRow label="Drag lane" value="Issue a route from an owned star." valueAlign="left" />
-        </PaxSettingsDrawer>
-    {:else if activeToolId === "help"}
-        <PaxSettingsDrawer
-            title="Help"
-            icon="help"
-            accent="#a8b6cf"
-            onClose={() => setActiveTool(null)}
-        >
-            <p>Select owned stars, assign routes across connected lanes, and watch active ships transfer control through the network.</p>
-            <p>Use the Settings rail for theme, appearance, combat, audio, graphics, diagnostics, hotkeys, restart, and quit.</p>
-        </PaxSettingsDrawer>
-    {:else}
-    <!-- Stacked Section Panels -->
-    {#each orderedOpenSections as sec (sec.id)}
-        <div class="section-panel" data-accent-id={sec.id}>
+    {#if activePanel}
+        {@const sec = activePanel}
+        <div class="section-panel" data-accent-id={activeCategoryId}>
             <div class="section-head-wrap">
-                <PaxHudButton class="section-head" onclick={() => toggleSection(sec.id)} title={`Close ${sec.label}`}>
-                    <span class="head-icon"><HudIcon name={sec.icon} /></span>
-                    <span class="head-label">{sec.label}</span>
+                <PaxHudButton class="section-head" onclick={() => selectSection(null)} title={`Close ${activeCategory?.label ?? sec.label}`}>
+                    <span class="head-icon"><HudIcon name={activeCategory?.icon ?? sec.icon} /></span>
+                    <span class="head-label">{activeCategory?.label ?? sec.label}</span>
                     <span class="head-close"><HudIcon name="close" size={14} /></span>
                 </PaxHudButton>
-                {#if (sectionSubsections[sec.id]?.length ?? 0) > 0}
+                {#if activeCategoryChips.length > 1}
                     <div class="section-subnav">
+                        {#each activeCategoryChips as chip}
+                            <PaxHudButton
+                                class="subsection-chip"
+                                active={activeSectionId === chip.id}
+                                onclick={() => selectSection(chip.id)}
+                                title={chip.label}
+                            >
+                                <span class="subsection-chip__icon"><HudIcon name={chip.icon} size={14} /></span>
+                                <span>{chip.label}</span>
+                            </PaxHudButton>
+                        {/each}
+                    </div>
+                {/if}
+                {#if !isInterfacePanelId(sec.id) && (sectionSubsections[sec.id]?.length ?? 0) > 0}
+                    <div class="section-subnav section-subnav--secondary">
                         <PaxHudButton
                             class="subsection-chip"
                             active={(activeSubsections[sec.id] ?? "all") === "all"}
@@ -1383,10 +1286,34 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                     activeSubsection: activeSubsections[sec.id] ?? "all",
                 }}
                 use:enhanceSettingMetadata={{
-                    scope: getSectionDefinition(sec.id).scope,
+                    scope: isInterfacePanelId(sec.id) ? null : getSectionDefinition(sec.id).scope,
                 }}
             >
-                {#if sec.id === "match_flow"}
+                {#if sec.id === "ui_appearance"}
+                    <HudThemePanel />
+                    <TypographyTokenPanel />
+                    <ControlsSectionVisuals
+                        {panel}
+                        {updatePanel}
+                        {vis}
+                        {updateVisual}
+                        syncFromConfig={syncAllFromConfig}
+                    />
+                {:else if sec.id === "ui_themes"}
+                    <ThemeLibraryPanel />
+                {:else if sec.id === "ui_stats"}
+                    <PaxSettingsInfoRow label="Tick" value={activeGameStore.currentTick ?? 0} />
+                    <PaxSettingsInfoRow label="Players" value={activeGameStore.players.length} />
+                    <PaxSettingsInfoRow label="Stars" value={activeGameStore.stars.length} />
+                    <PaxSettingsInfoRow label="Selected" value={selectedStarStore.id ?? "None"} />
+                {:else if sec.id === "ui_hotkeys"}
+                    <PaxSettingsInfoRow label="F" value="Fit the map to the viewport." valueAlign="left" />
+                    <PaxSettingsInfoRow label="Esc" value="Close active overlays or clear search focus." valueAlign="left" />
+                    <PaxSettingsInfoRow label="Click star" value="Select and inspect a star." valueAlign="left" />
+                    <PaxSettingsInfoRow label="Drag lane" value="Issue a route from an owned star." valueAlign="left" />
+                {:else if sec.id === "ui_help"}
+                    <p>Select owned stars, assign routes across connected lanes, and watch active ships transfer control through the network.</p>
+                {:else if sec.id === "match_flow"}
                     <ControlsSectionTiming
                         {panel}
                         {updatePanel}
@@ -1581,7 +1508,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 {/if}
             </div>
         </div>
-    {/each}
     {/if}
     </div>
     </div>
@@ -1646,6 +1572,12 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         display: flex;
         flex-direction: column;
         gap: 8px;
+    }
+
+    /* Pushes Restart/Quit actions to the bottom of the rail, away from categories. */
+    .icon-toolbar__spacer {
+        margin-top: auto;
+        min-height: 8px;
     }
 
     :global(.icon-toolbar-control) {

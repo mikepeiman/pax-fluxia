@@ -43,6 +43,22 @@ Conventions:
 
 ---
 
+## Render Mode panel — ControlsSection-Territory.svelte (bulk removed)
+All `territory-card__intro`, `row-hint`, and `territory-helper-copy` prose was removed from the territory/render rendering. Captured text:
+- "Select which compiled upstream territory geometry feeds the active derived renderer. Topology ownership rules are defined separately."
+- "Tune field cost, influence shape, and border behavior for the active metaball renderer."
+- "Set the resolved owned footprint, frontier sampling density, and the connection rules that determine how fronts stay linked or deliberately split apart."
+- "Runtime diagnostics and geometry-shape controls for the active territory renderer. Visible fill and border styling now lives in Territory Styles."
+- "Build displayed territory from ownership-derived perimeter samples, then animate conquest with a conquest-local radial override…"
+- Ember Lattice / Phase Edges / metaball-grid mode descriptions (dynamic).
+- "Visible fill and border styling for the active territory surface. Runtime shape, diagnostics, and topology live elsewhere."
+- "Relative star resistance against corridor, lane-pair, and disconnect shaping during the Power Voronoi solve. 0 leaves baseline MSR as pure post-solve local clearance."
+- "Vertex spacing for real frontier geometry that still feeds maintained compiler paths. Lower values produce denser frontiers."
+- "Larger Cell size means fewer grid cells and better FPS. Frontier rules live in Frontier Topology…"
+- "Width/alpha boosts apply only along border segments that pass near a star that recently fought…"
+- "This mode always runs exact Power Voronoi geometry with its fixed frontline transition path."
+- intro props: shared surface controls for metaball / perimeter-field / metaball-grid output.
+
 ## TODO — remaining sections to sweep
 The full settings surface still carries descriptive prose in other sections
 (Combat, Economy, Travel, Conquest, Effects, Map Options, Fleet & Star Visuals,

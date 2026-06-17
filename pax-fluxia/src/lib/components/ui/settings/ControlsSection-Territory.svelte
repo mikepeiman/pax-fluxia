@@ -888,10 +888,6 @@
   <div class="engine-control-group territory-module-card">
     <div class="territory-card__header">
       <h4 class="axis-card-title">Geometry Source</h4>
-      <p class="territory-card__intro">
-        Select which compiled upstream territory geometry feeds the active
-        derived renderer. Topology ownership rules are defined separately.
-      </p>
     </div>
     <TerritoryGeometrySourceTuning {panel} {updatePanel} />
   </div>
@@ -901,15 +897,6 @@
   <div class="engine-control-group territory-module-card">
     <div class="territory-card__header">
       <h4 class="axis-card-title">Metaball (CPU grid)</h4>
-      <p class="territory-card__intro">
-        Tune field cost, influence shape, and border behavior for the active
-        metaball renderer.
-      </p>
-    </div>
-    <div class="row-bottom territory-helper-copy">
-      Larger <strong>Cell size</strong> means fewer grid cells and better FPS.
-      Frontier rules live in <strong>Frontier Topology</strong>. Transition
-      timing lives in <strong>Territory System</strong>.
     </div>
     <PaxSettingsRangeRow
       label="Cell size"
@@ -1037,16 +1024,10 @@
       {panel}
       onUpdate={debouncedConfigUpdate}
       sectionHeading="Style"
-      intro="Shared surface controls for metaball territory output. Fill and border visibility are explicit toggles now; alpha is just opacity."
       fillHelp="Hue is fixed per player from the palette; adjust saturation, lightness, alpha, or disable fill entirely."
       borderHelp="Adjust shared border width, saturation, lightness, alpha, or disable borders entirely." />
 
     <h5 class="territory-inline-heading">Combat &amp; Fleet Pressure</h5>
-    <div class="row-bottom territory-helper-copy territory-helper-copy--compact">
-      Width/alpha boosts apply only along border segments that pass near a star
-      that recently fought (same tick window). Fleet imbalance still nudges both
-      along an edge. Set recency to 0 to disable combat highlighting.
-    </div>
     <div
       class="var-row territory-range-note"
       title="Max distance in pixels from a border line to a hot star for combat boost. 0 = use Metaball influence radius (same tuning as the field). Raise this if boosts never trigger along fronts that sit far from star centers.">
@@ -1161,11 +1142,6 @@
 <div class="engine-control-group">
   <div class="territory-card__header">
     <h4 class="axis-card-title">Topology Rules</h4>
-    <p class="territory-card__intro">
-      Set the resolved owned footprint, frontier sampling density, and the
-      connection rules that determine how fronts stay linked or deliberately
-      split apart.
-    </p>
   </div>
   <div class="axis-note">
     {#if $territoryTuningStatus.pending}
@@ -1216,9 +1192,6 @@
           0
         ).toFixed(2)}</span>
     </div>
-    <div class="row-hint">
-      Relative star resistance against corridor, lane-pair, and disconnect shaping during the Power Voronoi solve. <strong>0</strong> leaves baseline MSR as pure post-solve local clearance.
-    </div>
     <PaxSettingsRangeRow
       label="Star Bias"
       value={panel.msrStarBias ??
@@ -1246,10 +1219,6 @@
         >{panel.frontierResolution ??
           GAME_CONFIG.FRONTIER_RESOLUTION ??
           5}px</span>
-    </div>
-    <div class="row-hint">
-      Vertex spacing for real frontier geometry that still feeds maintained
-      compiler paths. Lower values produce denser frontiers.
     </div>
     <PaxSettingsRangeRow
       label="Frontier Resolution"
@@ -1528,20 +1497,7 @@
             ? "Power Voronoi 0427 Surface"
             : "Layered Runtime Surface"}
       </h4>
-      <p class="territory-card__intro">
-        Runtime diagnostics and geometry-shape controls for the active
-        territory renderer. Visible fill and border styling now lives in
-        Territory Styles.
-      </p>
     </div>
-
-    {#if isPowerVoronoi0427Mode()}
-      <div
-        class="row-bottom territory-helper-copy territory-helper-copy--inline">
-        This mode always runs exact Power Voronoi geometry with its fixed
-        frontline transition path.
-      </div>
-    {/if}
 
     {#if resolveActiveStyleId() === "territory_engine"}
       <h5 class="territory-inline-heading">Shape &amp; Motion</h5>
@@ -1660,10 +1616,6 @@
           panel.voronoiBorderSmooth ?? GAME_CONFIG.VORONOI_BORDER_SMOOTH,
         )}</span>
     </div>
-    <div class="row-hint">
-      Chaikin passes — modifies actual border/fill geometry coordinates.
-      0=angular, 2=smooth, 5=very round
-    </div>
     <PaxSettingsRangeRow
       label="Geometry Smooth Passes"
       value={panel.voronoiBorderSmooth ?? GAME_CONFIG.VORONOI_BORDER_SMOOTH}
@@ -1711,22 +1663,12 @@
   <div class="engine-control-group territory-module-card">
     <div class="territory-card__header">
       <h4 class="axis-card-title">Perimeter Field (Experimental)</h4>
-      <p class="territory-card__intro">
-        Build displayed territory from ownership-derived perimeter samples, then
-        animate conquest with a conquest-local radial override instead of
-        moving interior star influence.
-      </p>
-    </div>
-    <div class="row-bottom territory-helper-copy">
-      Real star ownership still generates the base geometry. The displayed field
-      is then driven only by derived perimeter samples.
     </div>
     <PerimeterFieldTuning {panel} {updatePanel} />
     <TerritorySurfaceStyleTuning
       {panel}
       onUpdate={debouncedConfigUpdate}
       sectionHeading="Style"
-      intro="Shared surface styling for perimeter-field output. These controls affect the displayed fill and border only; they do not change the ownership geometry source."
       fillHelp="Perimeter Field uses the shared territory surface controls for fill color energy. Hue stays player-owned; adjust saturation, lightness, alpha, or disable fill entirely."
       borderHelp="Perimeter Field borders are rendered through the shared territory border surface. Use this for width, saturation, lightness, alpha, or disable borders entirely."
       activeSection={resolveActiveStyleSubsection()} />
@@ -1743,46 +1685,12 @@
             ? "Phase Edges"
           : "Metaball Grid (Experimental)"}
       </h4>
-      <p class="territory-card__intro">
-        {#if isEmberLatticeStyle()}
-          Dense square-lattice territory renderer with contour-derived,
-          faction-blended frontiers and inward heat grading.
-        {:else if isMetaballGridPhaseEdgesStyle()}
-          Simpler edge-forward metaball-grid mode. It keeps the tactical grid
-          read without Ember Lattice's contour-derived seam pipeline.
-        {:else}
-          Ownership-geometry underlayer plus a world-anchored grid of
-          metaball cells. Conquest transitions flip cells cell-by-cell in a
-          wave seeded from the winner's footprint.
-        {/if}
-      </p>
-    </div>
-    <div class="row-bottom territory-helper-copy">
-      {#if isEmberLatticeStyle()}
-        Ember Lattice keeps crisp square territory mass while deriving a softer
-        centered-blended frontier seam from the contour/frontier layer. This is
-        the branch renderer split out as its own public mode.
-      {:else if isMetaballGridPhaseEdgesStyle()}
-        Phase Edges keeps the simpler edge-forward conquest family separate
-        from Ember Lattice so both modes can now evolve independently.
-      {:else}
-        Two-layer family: ownership geometry stays truth; the visible grid
-        layer is re-composited per frame as the wave crosses each cell's
-        flipTime.
-      {/if}
     </div>
     <MetaballGridTuning {panel} {updatePanel} />
-    <div class="row-bottom territory-helper-copy territory-helper-copy--spaced">
-      <strong>Geometry input lives above.</strong> Corridor virtual sites along
-      lanes, contested midpoint pairs, disconnect virtual sites, and minimum
-      star margin belong to Territory Tuning &amp; Constraints, not Territory
-      Styles.
-    </div>
     <TerritorySurfaceStyleTuning
       {panel}
       onUpdate={debouncedConfigUpdate}
       sectionHeading="Style"
-      intro="Shared surface styling for metaball-grid output. These controls affect the visible fill and border layer while the underlying ownership geometry remains authoritative."
       fillHelp="Metaball Grid uses the shared territory surface controls for fill color energy. Hue stays player-owned; adjust saturation, lightness, alpha, or disable fill entirely."
       borderHelp="Metaball Grid borders are rendered through the shared territory border surface. Use this for width, saturation, lightness, alpha, or disable borders entirely."
       activeSection={resolveActiveStyleSubsection()}
@@ -1831,10 +1739,6 @@
                 ? "Power Voronoi 0427 Surface"
                 : "Layered Runtime Surface"}
           </h4>
-          <p class="territory-card__intro">
-            Visible fill and border styling for the active territory surface.
-            Runtime shape, diagnostics, and topology live elsewhere.
-          </p>
         </div>
 
         <h5 class="territory-inline-heading">Territory Fill</h5>
@@ -1914,10 +1818,6 @@
                 ? "Power Voronoi 0427 Surface"
                 : "Layered Runtime Surface"}
           </h4>
-          <p class="territory-card__intro">
-            Visible fill and border styling for the active territory surface.
-            Runtime shape, diagnostics, and topology live elsewhere.
-          </p>
         </div>
 
         <h5 class="territory-inline-heading">Territory Border</h5>
@@ -1965,10 +1865,6 @@
                 panel.voronoiBorderSmooth ?? GAME_CONFIG.VORONOI_BORDER_SMOOTH,
               )}</span>
           </div>
-          <div class="row-hint">
-            Chaikin passes - modifies actual border and fill geometry coordinates.
-            0 = angular, 2 = smooth, 5 = very round.
-          </div>
           <PaxSettingsRangeRow
             label="Geometry Smooth Passes"
             value={panel.voronoiBorderSmooth ?? GAME_CONFIG.VORONOI_BORDER_SMOOTH}
@@ -1999,13 +1895,11 @@
       <div class="engine-control-group territory-module-card">
         <div class="territory-card__header">
           <h4 class="axis-card-title">{sharedSurfaceStyleHeading()}</h4>
-          <p class="territory-card__intro">{sharedSurfaceStyleIntro()}</p>
         </div>
         <TerritorySurfaceStyleTuning
           {panel}
           onUpdate={debouncedConfigUpdate}
           sectionHeading={null}
-          intro=""
           activeSection={resolvedStyleSubsection()}
           showFinishSection={resolveActiveStyleId() === "perimeter_field"}
           styleFamily={isEmberLatticeStyle()
@@ -2070,12 +1964,6 @@
     flex-direction: column;
     gap: 6px;
   }
-  .territory-card__intro {
-    margin: 0;
-    font-size: 11px;
-    line-height: 1.45;
-    color: rgba(188, 207, 224, 0.72);
-  }
   .territory-inline-heading {
     margin: 2px 0 0;
     font-size: 10px;
@@ -2095,11 +1983,6 @@
       linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.025)),
       rgba(16, 22, 34, 0.7);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  }
-  .row-bottom {
-    font-size: 11px;
-    line-height: 1.45;
-    color: rgba(197, 214, 229, 0.68);
   }
   @media (max-width: 900px) {
     .territory-module-grid {
@@ -2162,24 +2045,6 @@
     flex: 1;
     flex-direction: column;
     gap: 6px;
-  }
-  .territory-helper-copy {
-    margin-bottom: 10px;
-    opacity: 0.75;
-    font-size: calc(0.68rem * var(--pax-ui-type-scale, 1));
-    line-height: 1.35;
-  }
-  .territory-helper-copy--compact {
-    margin-bottom: 8px;
-    opacity: 0.72;
-  }
-  .territory-helper-copy--inline {
-    padding: 2px 4px;
-    opacity: 0.7;
-    font-size: calc(0.62rem * var(--pax-ui-type-scale, 1));
-  }
-  .territory-helper-copy--spaced {
-    margin: 10px 0 2px;
   }
   .territory-range-note > .row-top {
     display: none;

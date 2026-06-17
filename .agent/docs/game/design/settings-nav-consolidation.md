@@ -1,6 +1,6 @@
 ---
 date created: 2026-06-17
-status: foundation committed (model + mapping); consumer migration pending
+status: DONE — rail/state-machine migrated to the category model; SETTINGS_TOOLS / SECTION_TOOL_BY_ID removed
 owner: settings UI
 ---
 
@@ -38,7 +38,15 @@ not plain sections; Actions (Restart/Quit) are not settings. Both render as a
 compact cluster after the category icons (or, step 2, fold the utility drawers
 into Interface as section-like panels).
 
-## Staged migration (each stage ships green + user-verifiable)
+## Implemented (this pass)
+- Rail now renders `SETTINGS_CATEGORIES` (7 category icons) + Restart/Quit actions.
+- One section open at a time (`activeSectionId`); a category's sections are the top chips.
+- Interface category surfaces the former drawers (Appearance, Themes, Stats, Hotkeys, Help) as panels.
+- Deleted: `SETTINGS_TOOLS`, `SettingsToolId`, `SettingsToolDefinition`, `SECTION_TOOL_BY_ID`, `sectionOrder`/`openSections`/`toggleSection`/`setActiveTool`/`handleToolClick`, and the per-tool drawer block. Persistence collapsed to a single `pax-fluxia-active-section` key.
+- Render-mode change can no longer blank the panel: a guard falls back to the category's first chip if the open section becomes hidden.
+- `forceOpenSection` (topbar/SettingsRibbon) and search navigation both set `activeSectionId` directly.
+
+## Original staged plan (for reference)
 1. **Model (DONE).** `settingsTaxonomy.ts` with `SETTINGS_CATEGORIES` + `CATEGORY_BY_SECTION`.
 2. **Unify utility drawers as panels.** Give Themes/Appearance/Stats/Hotkeys section-like ids so they live inside the taxonomy instead of bespoke `activeToolId` branches.
 3. **Rail → categories.** Replace the `SETTINGS_TOOLS` render with `SETTINGS_CATEGORIES`; category click selects category; its sections render as the existing sub-nav chips; chip click drives the existing section dispatch. Actions (Restart/Quit) become a small action cluster.

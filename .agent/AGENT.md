@@ -28,6 +28,10 @@ Before any UI/design change, run the design-question protocol in `.codex/skills/
 
 When a defect can be fixed by REMOVING the redundant root (duplicate markup, parallel data structure, dead branch) or by ADDING a compensating layer (override, flag, wrapper) — default to REMOVING. Collapse parallel structures to a single source of truth; don't keep two in sync. Edit-count efficiency ≠ code-size efficiency: prefer the fix that leaves less code even if it's more edits. (Never delete an actual user-facing control without instruction.)
 
+## ⭐ RULE 0.3 — QUESTION WHETHER IT SHOULD EXIST. EXISTING ≠ CORRECT.
+
+Never assume that something already in the code/design/architecture SHOULD be there. Look with fresh eyes and ask "should this exist at all?" first — for every element, card, section, control, abstraction, and description. AI agents reify the existing (treat what's there as intentional and load-bearing) and preserve/route-around cruft instead of deleting it; that bias is wrong by default. A card wrapping a single control, a toggle that controls nothing, prose under a heading, a whole section the user didn't ask for — all suspect, all removable. "A previous agent added it" is not a reason to keep it. (This licenses removing cruft/wrappers/noise/dead options — NOT deleting real user-facing controls without instruction; when unsure which, search and ask.)
+
 ## 1. Project
 
 **Pax Fluxia** is a real-time multiplayer galactic strategy game.
