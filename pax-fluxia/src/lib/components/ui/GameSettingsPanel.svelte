@@ -2136,13 +2136,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         letter-spacing: 0.16em;
     }
 
-    .section-body :global(.var-row),
-    .section-body :global(.toggle-row) {
-        border: 1px solid rgba(246, 196, 105, 0.16);
-        background: rgba(0, 15, 19, 0.62);
-        border-radius: 0;
-        clip-path: var(--pax-ui-cut-corner-xs);
-    }
+    /* .var-row / .toggle-row are intentionally FLAT (see panel-shared.css).
+       No per-row border/box here — grouping comes from .sub-heading dividers. */
 
     .section-body :global(.var-name) {
         color: rgba(255, 232, 181, 0.9);
@@ -2179,9 +2174,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .section-body :global(.drawer-btn),
     .section-body :global(.chip),
     .section-body :global(.modal-chip),
-    .section-body :global(.modal-chip button),
-    .section-body :global(.var-row),
-    .section-body :global(.toggle-row) {
+    .section-body :global(.modal-chip button) {
         border-color: transparent;
         border-radius: var(--pax-ui-radius-xs);
         clip-path: var(--pax-ui-rounded-corner-xs);
