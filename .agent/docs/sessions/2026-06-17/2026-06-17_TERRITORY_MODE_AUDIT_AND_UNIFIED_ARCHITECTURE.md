@@ -105,12 +105,26 @@ wiring AND topology reliability; introduces no new geometry engine or transition
 - **No "one true" transition.** Overarching intent = a **ROBUST transition SYSTEM** accommodating several
   "visual special-effects" transition **styles**, which genuinely requires multiple distinct underlying
   computational **engines**. The shared truth is the provenance-carrying geometry; engines are pluggable.
-- **Engines vs styles (key clarification):** **Grid Gradient, "Edges", and "Field" are ONE engine (the
-  flip-time grid wavefront) presented as three styles** — not three engines. **DY4** (optimal-transport
-  morph) and **Metaball Perimeter** (topology-driven plan/mover) are **distinct engines**. So the system =
-  ONE shared provenance geometry truth + a small set of engines {grid-wavefront, optimal-transport (DY4),
-  perimeter-plan, field-influence/metaball, (future) distance-field}, each consuming {prev geom, next geom,
-  frontier sections w/ provenance, progress, conquest events}, each exposing style/effect params.
+- **CORRECTED TAXONOMY (verified against design docs — supersedes my earlier "one engine, three styles /
+  metaball family" claim, which was WRONG).** Source: `plans/2026-04-30/METABALL_GRID_REPLACEMENT_
+  ARCHITECTURE_SPEC_2026-04-30.md` + `sessions/2026-04-29/...metaball-grid-phase-field-transition-plan.md`.
+  - **Shared *conquest scheduler* (metaball-FREE):** PREV/NEXT ownership classification + phase/flip-time
+    planning (`planGridWave`). The replacement spec is explicit: the scheduler was always the value; the
+    *metaball presentation* was the discarded cost. My error was labeling this scheduler "the metaball
+    engine." Phase modes already shipped: `bfs`, `conquered_star_radial`, `pre_to_post_frontier` (default).
+  - **Distinct presentation methods (all metaball-FREE), each its own engine:** **Phase Field** (phase-field
+    composite: PRE/POST + phase texture, reveal=smoothstep(phase,progress) + frontier band) · **Phase Edges**
+    (frontier-band presentation) · **Grid Gradient** (distance-field gradient sizing/scale/offset + shader
+    field; *separate family* `families/gridGradient/`, distinct from the two above).
+  - **Actual metaballs (DO use influence fields):** `families/metaball/` + the **old metaball-grid
+    presentation = DEFUNCT** (this is what the spec replaced).
+  - **Perimeter Field** (topology plan/movers, provenance-preserving) · **DY4** (optimal-transport morph) ·
+    **DistanceField** (GPU Dijkstra, static only — no transition ever built). These are distinct engines.
+  - **Provenance integration is a NEW PHASE-GENERATION METHOD, not a rewrite:** add `power_voronoi_frontier`
+    to the scheduler slot — seed phase/flip-times from the provenance-carrying `FrontierSection`s (radical
+    axes) and tag each cell `{ownerA, ownerB}`. Grid Gradient (first target) + Phase Field/Edges consume it
+    unchanged, keeping their distinct presentations. (Verify whether Grid Gradient shares the exact
+    `planGridWave` scheduler or a variant before relying on it.)
 - **Authoritative candidate inventory (user):** DY4 (revive as ONE mode; still needs perf/tuning/geometry;
   its matching is centroid → upgrade to star-ID/frontier identity); Metaball Perimeter; **Metaball Grid =
   DEFUNCT** (Grid Gradient supersedes — drop); Grid Gradient (first provenance prototype); **"Edges" +
