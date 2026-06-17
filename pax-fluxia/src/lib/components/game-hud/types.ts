@@ -8,7 +8,6 @@ export interface HudLayoutState {
   settingsOpen: boolean;
   settingsRibbonExpanded: boolean;
   standingsCollapsed: boolean;
-  commandTrayCollapsed: boolean;
   quickAccessOpen: boolean;
   settingsWidth: number;
   tacticalWidth: number;
@@ -18,7 +17,6 @@ export interface HudLayoutState {
   closeSettings: () => void;
   toggleSettingsRibbonExpanded: () => void;
   toggleStandingsCollapsed: () => void;
-  toggleCommandTrayCollapsed: () => void;
   toggleQuickAccessOpen: () => void;
 }
 

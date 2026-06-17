@@ -26,7 +26,6 @@
     PlayerStandingsPanel,
     QuickAccessDock,
     SelectedStarPanel,
-    SelectedStarTray,
     SettingsRibbon,
     buildPlayerStandings,
     buildSelectedStarViewModel,
@@ -143,9 +142,6 @@
   let settingsRibbonExpanded = $state(
     loadBooleanPreference("pax-settings-ribbon-expanded", true),
   );
-  let commandTrayCollapsed = $state(
-    loadBooleanPreference("pax-command-tray-collapsed", false),
-  );
   // Auto-pause: pause game when settings open, restore on close
   let pauseOnSettings = $state(
     typeof localStorage === "undefined" ||
@@ -205,16 +201,6 @@
       localStorage.setItem(
         "pax-leaderboard-collapsed",
         String(leaderboardCollapsed),
-      );
-    }
-  }
-
-  function toggleCommandTrayCollapsed() {
-    commandTrayCollapsed = !commandTrayCollapsed;
-    if (typeof localStorage !== "undefined") {
-      localStorage.setItem(
-        "pax-command-tray-collapsed",
-        String(commandTrayCollapsed),
       );
     }
   }
@@ -791,15 +777,6 @@
           </div>
         {/if}
 
-        <SelectedStarTray
-          star={selectedStarView}
-          collapsed={commandTrayCollapsed}
-          onToggleCollapsed={toggleCommandTrayCollapsed}
-          onCenterStar={(starId) => gameCanvasRef?.navigateToStar?.(starId)}
-          onFitMap={() => gameCanvasRef?.centerAndFit?.()}
-          onCancelOrder={(starId) => activeGameStore.cancelOrder(starId)}
-        />
-
         <BottomCommandBar items={bottomCommandBarActions} />
       </div>
 
@@ -903,6 +880,7 @@
               onFitMap={() => gameCanvasRef?.centerAndFit?.()}
               onPreviousOwnedStar={() => focusOwnedStar(-1)}
               onNextOwnedStar={() => focusOwnedStar(1)}
+              onCancelOrder={(starId) => activeGameStore.cancelOrder(starId)}
               canCycleOwnedStars={ownedStarIds.length > 0}
             />
           </div>

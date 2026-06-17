@@ -11,6 +11,7 @@
     onFitMap: () => void;
     onPreviousOwnedStar: () => void;
     onNextOwnedStar: () => void;
+    onCancelOrder: (starId: string) => void;
     canCycleOwnedStars?: boolean;
   }
 
@@ -20,6 +21,7 @@
     onFitMap,
     onPreviousOwnedStar,
     onNextOwnedStar,
+    onCancelOrder,
     canCycleOwnedStars = false,
   }: Props = $props();
 </script>
@@ -44,6 +46,15 @@
       icon="fit-view"
       title="Fit map"
       onclick={onFitMap}
+    />
+    <HudIconButton
+      icon="ban"
+      title={star?.targetId ? "Cancel current route" : "No active route"}
+      danger
+      disabled={!star?.targetId}
+      onclick={() => {
+        if (star?.targetId) onCancelOrder(star.id);
+      }}
     />
     <HudIconButton
       icon="chevron-right"
@@ -105,6 +116,8 @@
           <span>Queued target</span>
           <strong>{star.queuedOrderTargetId ? formatStarLabel(star.queuedOrderTargetId) : "None"}</strong>
         </div>
+      {:else}
+        <p class="pf-star-card__hint">Click a connected star to assign a route.</p>
       {/if}
     </div>
   {:else}
@@ -115,3 +128,12 @@
     </div>
   {/if}
 </HudPanel>
+
+<style>
+  .pf-star-card__hint {
+    margin: 0;
+    font-size: 0.72rem;
+    line-height: 1.35;
+    color: var(--pax-ui-text-dim, rgba(180, 188, 188, 0.7));
+  }
+</style>
