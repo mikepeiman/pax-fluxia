@@ -87,6 +87,15 @@
   --pax-type-label-scale: 1.12;
   --pax-type-data-scale: 1.08;
 
+  /* Weight tokens — the one typography axis that had NO tokens (7 raw weights
+     were in use). Migrate raw font-weight numbers to these. */
+  --pax-weight-regular: 400;
+  --pax-weight-medium: 500;
+  --pax-weight-semibold: 600;
+  --pax-weight-bold: 700;
+  --pax-weight-extrabold: 800;
+  --pax-weight-black: 900;
+
   /* Spacing and layout */
   --pax-space-1: 0.25rem;
   --pax-space-2: 0.5rem;
