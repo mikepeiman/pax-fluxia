@@ -1983,7 +1983,10 @@
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
   }
 
-  :global(.btn) {
+  /* Scoped to .surrender-modal — these used to be global :global(.btn*) and
+     leaked onto the landing-page CTAs (stretched/pale/wrong font), overriding
+     app.css's real .btn styles. Keep them confined to the game modals. */
+  .surrender-modal :global(.btn) {
     flex: 1;
     padding: 8px;
     border: none;
@@ -1996,27 +1999,27 @@
     transition: all 0.2s;
   }
 
-  :global(.btn--ghost) {
+  .surrender-modal :global(.btn--ghost) {
     background: transparent;
     border: 1px solid #556;
     color: #889;
   }
-  :global(.btn--ghost:hover) {
+  .surrender-modal :global(.btn--ghost:hover) {
     border-color: #fff;
     color: #fff;
   }
 
-  :global(.btn--primary) {
+  .surrender-modal :global(.btn--primary) {
     background: rgba(59, 130, 246, 0.3);
     border: 1px solid rgba(59, 130, 246, 0.6);
     color: #93c5fd;
   }
-  :global(.btn--primary:hover) {
+  .surrender-modal :global(.btn--primary:hover) {
     background: rgba(59, 130, 246, 0.5);
     color: #fff;
   }
 
-  :global(.btn--md) {
+  .surrender-modal :global(.btn--md) {
     padding: 12px 16px;
     font-size: 13px;
   }
