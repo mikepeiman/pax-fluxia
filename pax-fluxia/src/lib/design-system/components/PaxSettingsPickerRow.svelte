@@ -1,5 +1,7 @@
 <script lang="ts">
+  import { Portal } from "@ark-ui/svelte/portal";
   import HudIcon from "$lib/components/ui/hud/HudIcon.svelte";
+  import { floatingMenu } from "$lib/actions/floatingMenu";
 
   export interface PaxSettingsPickerOption {
     value: string;
@@ -39,6 +41,8 @@
     onSelect,
     onPreview,
   }: Props = $props();
+
+  let triggerEl = $state<HTMLButtonElement>();
 </script>
 
 <div
@@ -53,6 +57,7 @@
   <button
     type="button"
     class="pax-settings-picker-row__trigger"
+    bind:this={triggerEl}
     disabled={disabled}
     aria-expanded={open}
     aria-label={settingLabel ?? label}
@@ -65,7 +70,12 @@
   </button>
 
   {#if open}
-    <div class="pax-settings-picker-row__menu" role="listbox">
+    <Portal>
+      <div
+        class="pax-settings-picker-row__menu"
+        role="listbox"
+        use:floatingMenu={{ anchor: triggerEl, onDismiss: () => onToggle() }}
+      >
       {#each options as option}
         <div
           class="pax-settings-picker-row__option"
@@ -102,7 +112,8 @@
           {/if}
         </div>
       {/each}
-    </div>
+      </div>
+    </Portal>
   {/if}
 </div>
 
@@ -179,12 +190,11 @@
   }
 
   .pax-settings-picker-row__menu {
-    position: absolute;
-    top: calc(100% - 2px);
-    left: 10px;
-    right: 10px;
-    z-index: 120;
-    max-height: 184px;
+    /* Positioned by the floatingMenu action (position: fixed, portaled to
+       <body>) so it escapes the row/card clip-path + the panel scroll
+       container. Do NOT add position/top/left here. */
+    z-index: 1000;
+    max-height: 260px;
     overflow-y: auto;
     padding: 5px;
     border: 1px solid transparent;
