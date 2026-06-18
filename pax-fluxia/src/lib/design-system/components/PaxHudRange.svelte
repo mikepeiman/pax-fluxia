@@ -11,6 +11,8 @@
     output: string;
     ariaLabel?: string;
     disabled?: boolean;
+    /** Show the −/+ step buttons (default on). */
+    nudge?: boolean;
     class?: string;
     onInput: (value: number) => void;
   }
@@ -25,14 +27,20 @@
     output,
     ariaLabel,
     disabled = false,
+    nudge = true,
     class: className = "",
     onInput,
   }: Props = $props();
 
   const styles = hudRange();
 
-  // The value display doubles as a click-to-type input: it reads as clean
-  // formatted text, and on focus exposes the raw number so it can be typed.
+  function stepBy(direction: -1 | 1) {
+    if (disabled) return;
+    onInput(Math.min(max, Math.max(min, value + step * direction)));
+  }
+
+  // The value display doubles as a click-to-type input: clean formatted text
+  // that exposes the raw number on focus.
   let editing = $state(false);
   let draft = $state("");
 
@@ -62,62 +70,75 @@
   }
 </script>
 
-<label class={styles.root({ class: className })}>
-  <span class={styles.meta()}>
-    <strong class={styles.label()}>{label}</strong>
-    {#if note}
-      <small class={styles.note()}>{note}</small>
-    {/if}
-  </span>
-  <span class={styles.control()}>
-    <input
-      class={styles.input()}
-      type="range"
-      {min}
-      {max}
-      {step}
-      {value}
+<div class={styles.root({ class: className })}>
+  <span class={styles.label()} title={note ?? undefined}>{label}</span>
+
+  {#if nudge}
+    <button
+      type="button"
+      class={styles.nudge()}
       {disabled}
-      aria-label={ariaLabel ?? `${label} size`}
-      oninput={(event) => onInput(event.currentTarget.valueAsNumber)}
-    />
-    <input
-      class={`pax-hud-range__value ${styles.output()}`}
-      type="text"
-      inputmode="decimal"
-      value={editing ? draft : output}
+      aria-label={`Decrease ${label}`}
+      onclick={() => stepBy(-1)}
+    >−</button>
+  {/if}
+
+  <input
+    class={styles.input()}
+    type="range"
+    {min}
+    {max}
+    {step}
+    {value}
+    {disabled}
+    aria-label={ariaLabel ?? label}
+    oninput={(event) => onInput(event.currentTarget.valueAsNumber)}
+  />
+
+  {#if nudge}
+    <button
+      type="button"
+      class={styles.nudge()}
       {disabled}
-      aria-label={`${label} value`}
-      title="Click to type a value"
-      onfocus={beginEdit}
-      oninput={(event) => (draft = event.currentTarget.value)}
-      onblur={commit}
-      onkeydown={onKey}
-    />
-  </span>
-</label>
+      aria-label={`Increase ${label}`}
+      onclick={() => stepBy(1)}
+    >+</button>
+  {/if}
+
+  <input
+    class={`pax-hud-range__value ${styles.output()}`}
+    type="text"
+    inputmode="decimal"
+    value={editing ? draft : output}
+    {disabled}
+    aria-label={`${label} value`}
+    title="Click to type a value"
+    onfocus={beginEdit}
+    oninput={(event) => (draft = event.currentTarget.value)}
+    onblur={commit}
+    onkeydown={onKey}
+  />
+</div>
 
 <style>
   /* Value reads as plain text; only on hover/focus does it look editable. */
   .pax-hud-range__value {
-    width: 100%;
-    min-width: 0;
     box-sizing: border-box;
-    text-align: right;
     background: transparent;
     border: 0;
     border-radius: 5px;
     padding: 2px 4px;
     appearance: none;
     cursor: text;
-    transition: background 120ms ease, box-shadow 120ms ease;
+    transition:
+      background 120ms ease,
+      box-shadow 120ms ease;
   }
   .pax-hud-range__value:hover:not(:disabled) {
     background: rgba(246, 196, 105, 0.07);
   }
   .pax-hud-range__value:focus {
     outline: none;
-    text-align: right;
     background: rgba(246, 196, 105, 0.12);
     box-shadow: inset 0 0 0 1px rgba(246, 196, 105, 0.5);
   }

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import PaxHudButton from "./PaxHudButton.svelte";
   import PaxHudRange from "./PaxHudRange.svelte";
 
   type RangeFormat = "raw" | "percent" | "fixed2" | "fixed1" | "multiplier";
@@ -52,14 +51,10 @@
         return `${v}${suffix}`;
     }
   }
-
-  function nudge(direction: -1 | 1) {
-    if (disabled) return;
-    const nextValue = Math.min(max, Math.max(min, value + step * direction));
-    onInput(nextValue);
-  }
 </script>
 
+<!-- Thin wrapper for settings: carries the search/persistence data attributes;
+     the single-row layout + nudges live in PaxHudRange (the design-system source). -->
 <div
   class={`pax-settings-range-row ${className}`}
   class:pax-settings-range-row--disabled={disabled}
@@ -67,9 +62,6 @@
   data-setting-label={label}
   data-setting-description={settingDescription}
 >
-  <div class="pax-settings-range-row__nudge">
-    <PaxHudButton label="-" size="sm" disabled={disabled} onclick={() => nudge(-1)} />
-  </div>
   <PaxHudRange
     {label}
     {note}
@@ -82,40 +74,13 @@
     ariaLabel={label}
     onInput={onInput}
   />
-  <div class="pax-settings-range-row__nudge">
-    <PaxHudButton label="+" size="sm" disabled={disabled} onclick={() => nudge(1)} />
-  </div>
 </div>
 
 <style>
-  /* Flat row — no border-box. (See panel-shared.css rationale.) Often nested
-     in a .var-row that already provides padding, so keep this tight. */
   .pax-settings-range-row {
     min-width: 0;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    align-items: center;
-    gap: 8px;
-    padding: 0;
-    border-radius: var(--pax-ui-radius-sm);
-    background: transparent;
   }
-
   .pax-settings-range-row--disabled {
     opacity: 0.42;
-  }
-
-  .pax-settings-range-row__nudge {
-    display: none;
-  }
-
-  @media (max-width: 1024px) {
-    .pax-settings-range-row {
-      grid-template-columns: 34px minmax(0, 1fr) 34px;
-    }
-
-    .pax-settings-range-row__nudge {
-      display: block;
-    }
   }
 </style>

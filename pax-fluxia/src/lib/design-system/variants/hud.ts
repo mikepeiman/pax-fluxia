@@ -208,21 +208,26 @@ export const hudField = tv({
 
 export type HudFieldVariants = VariantProps<typeof hudField>;
 
+// Sliders are a single horizontal row: LABEL [−][====][+] value.
 export const hudRange = tv({
   slots: {
-    root: "grid min-w-0 gap-2",
-    meta: "grid min-w-0 gap-0.5",
+    root: "flex min-w-0 items-center gap-2",
     label: [
-      "font-pax-ui text-[0.72rem] font-extrabold uppercase tracking-[0.08em] text-pax-text",
+      "shrink-0 basis-[5.5rem] min-w-0 truncate",
+      "font-pax-ui text-[0.66rem] font-extrabold uppercase tracking-[0.08em] text-pax-text-soft",
     ],
-    note: "font-pax-copy text-[0.64rem] leading-snug text-pax-text-dim",
-    control: "grid min-w-0 grid-cols-[minmax(0,1fr)_3.5rem] items-center gap-2",
+    nudge: [
+      "shrink-0 grid h-6 w-6 place-items-center rounded-pax-sm border border-pax-gold/20 bg-pax-panel-muted",
+      "text-[0.9rem] leading-none text-pax-text-soft",
+      "hover:border-pax-gold/50 hover:bg-pax-gold/10 hover:text-pax-gold-strong",
+      "disabled:pointer-events-none disabled:opacity-40",
+    ],
     input: [
-      "h-2 w-full cursor-pointer appearance-none rounded-full border border-pax-gold/20",
+      "h-2 min-w-0 flex-1 cursor-pointer appearance-none rounded-full border border-pax-gold/20",
       "bg-pax-panel-muted accent-pax-gold",
     ],
     output: [
-      "font-pax-data text-[0.68rem] font-bold tabular-nums text-pax-gold-strong",
+      "shrink-0 w-12 text-right font-pax-data text-[0.68rem] font-bold tabular-nums text-pax-gold-strong",
     ],
   },
 });

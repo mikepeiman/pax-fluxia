@@ -499,6 +499,16 @@ body {
   animation: pulse 2s ease-in-out infinite;
 }
 
+/* Native <select> dropdowns: the OS-rendered option list defaults to a light
+   background, so the app's light text was unreadable (no contrast). Force a
+   dark surface + light text on every option, app-wide. Fixes ALL PaxHudSelect
+   dropdowns and any raw <select>. */
+select option,
+select optgroup {
+  background-color: var(--pax-ui-panel-bg-strong);
+  color: var(--pax-ui-text);
+}
+
 @keyframes pulse {
 
   0%,
