@@ -293,7 +293,8 @@
         padding: 10px;
         border: 1px solid transparent;
         border-radius: var(--pax-ui-radius-sm);
-        clip-path: var(--pax-ui-rounded-corner-sm);
+        /* No clip-path: it would clip the File dropdown (absolute) inside the
+           card. border-radius already gives the rounded corners. */
         background:
             linear-gradient(180deg, rgba(0, 18, 21, 0.74), rgba(0, 10, 13, 0.9)) padding-box,
             var(--pax-ui-control-border-gradient) border-box;

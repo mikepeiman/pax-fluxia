@@ -99,6 +99,37 @@ Everything else is backlog.
 - Esc (always) + backdrop-click close, via `use:modalDismiss` ($lib/actions/modalDismiss.ts),
   on all in-game + map-editor modals.
 
+### MODAL-1 — buttons: subtext was crammed INSIDE the button — DONE
+- Surrender / Restart / Exit modals had `Label + <span class=btn-sub>subtext</span>`
+  inside each button; the subtext also made the Surrender "Abandon" button
+  **overflow the modal edge** (flex item with no `min-width:0`).
+- Fixed: button shows a single centered label; subtext is now a caption BELOW the
+  button (`.modal-action__sub`); `min-width:0` on the action column kills the overflow.
+
+## D. Audio section (settings → Audio = `ControlsSection-Audio.svelte`)
+> Note: this is the settings-panel Audio section (has the search field), NOT the
+> standalone `AudioSettings.svelte` modal. It already uses design-system
+> components (`PaxHudButton`, `PaxSettingsPickerRow`, `PaxSettingsRangeRow`).
+
+### AUD-1 — File dropdown "hidden inside its widget" — DONE
+- The open `PaxSettingsPickerRow` menu (absolute, z-index 120) was clipped by the
+  parent `.audio-sound-card`'s **`clip-path`** (clip-path clips ALL descendants).
+- Fixed: removed the redundant `clip-path` (border-radius already rounds the card).
+- **Systemic risk (backlog):** ANY card using `clip-path: var(--pax-ui-rounded-corner-*)`
+  will clip a dropdown rendered inside it. The robust fix is to portal the
+  `PaxSettingsPickerRow` / `PaxHudSelect` menu to `<body>`. Audit other cards
+  (territory tuning, etc.) that contain a select + a clip-path.
+
+### AUD-2 — "Test" button design — backlog
+- It IS a design-system `PaxHudButton size="sm"` (so consistency exists). The
+  open question is the PATTERN: a text "Test" pill vs an icon button (play/speaker)
+  with tooltip — the universal pattern for "preview this sound". Decide + apply
+  consistently to all sound rows.
+
+### AUD-3 — overall card busyness — backlog
+- Each sound = a bordered card with header + 3 stacked rows (Volume / File / Offset).
+  Folds into SET-2 (single-row sliders) + a lighter card treatment.
+
 ---
 
 ## Images received vs. not (honesty check)

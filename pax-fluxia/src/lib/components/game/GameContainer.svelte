@@ -932,26 +932,30 @@
           <h3 class="surrender-modal__title">Surrender?</h3>
           <p class="surrender-modal__desc">Choose how to end your campaign.</p>
           <div class="surrender-modal__actions">
-            <PaxHudButton
-              class="btn btn--primary btn--md"
-              onclick={() => {
-                showSurrenderModal = false;
-                activeGameStore.surrender();
-              }}
-            >
-              End Game
-              <span class="btn-sub">View results & graphs</span>
-            </PaxHudButton>
-            <PaxHudButton
-              class="btn btn--ghost btn--md"
-              onclick={() => {
-                showSurrenderModal = false;
-                activeGameStore.returnToMenu();
-              }}
-            >
-              Abandon
-              <span class="btn-sub">Return to main menu</span>
-            </PaxHudButton>
+            <div class="modal-action">
+              <PaxHudButton
+                class="btn btn--primary btn--md"
+                onclick={() => {
+                  showSurrenderModal = false;
+                  activeGameStore.surrender();
+                }}
+              >
+                End Game
+              </PaxHudButton>
+              <span class="modal-action__sub">View results & graphs</span>
+            </div>
+            <div class="modal-action">
+              <PaxHudButton
+                class="btn btn--ghost btn--md"
+                onclick={() => {
+                  showSurrenderModal = false;
+                  activeGameStore.returnToMenu();
+                }}
+              >
+                Abandon
+              </PaxHudButton>
+              <span class="modal-action__sub">Return to main menu</span>
+            </div>
           </div>
           <PaxHudButton
             class="btn btn--ghost btn--sm surrender-modal__cancel"
@@ -978,16 +982,18 @@
             started. This can't be undone.
           </p>
           <div class="surrender-modal__actions">
-            <PaxHudButton
-              class="btn btn--primary btn--md"
-              onclick={() => {
-                showRestartConfirm = false;
-                activeGameStore.playAgain();
-              }}
-            >
-              Restart
-              <span class="btn-sub">Discard & start a new match</span>
-            </PaxHudButton>
+            <div class="modal-action">
+              <PaxHudButton
+                class="btn btn--primary btn--md"
+                onclick={() => {
+                  showRestartConfirm = false;
+                  activeGameStore.playAgain();
+                }}
+              >
+                Restart
+              </PaxHudButton>
+              <span class="modal-action__sub">Discard & start a new match</span>
+            </div>
           </div>
           <PaxHudButton
             class="btn btn--ghost btn--sm surrender-modal__cancel"
@@ -1013,10 +1019,12 @@
             You'll lose your current game progress.
           </p>
           <div class="surrender-modal__actions">
-            <PaxHudButton class="btn btn--ghost btn--md" onclick={confirmExit}>
-              Leave
-              <span class="btn-sub">Return to main menu</span>
-            </PaxHudButton>
+            <div class="modal-action">
+              <PaxHudButton class="btn btn--ghost btn--md" onclick={confirmExit}>
+                Leave
+              </PaxHudButton>
+              <span class="modal-action__sub">Return to main menu</span>
+            </div>
           </div>
           <PaxHudButton
             class="btn btn--ghost btn--sm surrender-modal__cancel"
@@ -2038,17 +2046,23 @@
     gap: 12px;
     width: 100%;
   }
-  .surrender-modal__actions :global(.btn) {
+  .modal-action {
     flex: 1;
+    min-width: 0; /* allow shrink — was overflowing the modal */
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 4px;
+    gap: 6px;
   }
-  .btn-sub {
-    font-size: 0.65rem;
-    opacity: 0.6;
-    font-weight: 400;
+  .surrender-modal__actions :global(.btn) {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+  .modal-action__sub {
+    font-size: 0.62rem;
+    line-height: 1.25;
+    color: #8891a6;
+    text-align: center;
     text-transform: none;
   }
   :global(.surrender-modal__cancel) {
