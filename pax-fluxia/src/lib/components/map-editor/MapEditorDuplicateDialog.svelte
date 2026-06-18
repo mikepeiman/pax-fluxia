@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { modalDismiss } from "$lib/actions/modalDismiss";
   import type { AuthoredMapCategory } from "@pax/common/maps";
   import {
     MAP_EDITOR_DEFAULT_HEX_RADIUS,
@@ -110,7 +111,7 @@
   }
 </script>
 
-<div class="dialog" role="dialog" aria-modal="true" aria-label={title} tabindex="-1" onkeydown={handleKeydown}>
+<div class="dialog" role="dialog" aria-modal="true" aria-label={title} tabindex="-1" onkeydown={handleKeydown} use:modalDismiss={onClose}>
   <header class="dialog__header">
     <strong>{title}</strong>
     <button type="button" class="dialog__close" aria-label="Close duplicate dialog" onclick={onClose}>

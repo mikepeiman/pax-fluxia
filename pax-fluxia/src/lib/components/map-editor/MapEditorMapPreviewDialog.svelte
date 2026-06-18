@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { modalDismiss } from "$lib/actions/modalDismiss";
+
   interface Props {
     title: string;
     description?: string;
@@ -51,7 +53,7 @@
   }
 </script>
 
-<div class="preview-shell" role="presentation">
+<div class="preview-shell" role="presentation" use:modalDismiss={onClose}>
   <button type="button" class="preview-backdrop" aria-label="Close map preview" onclick={onClose}></button>
 
   <div class="preview-dialog" role="dialog" aria-modal="true" aria-label={`Preview ${title}`}>

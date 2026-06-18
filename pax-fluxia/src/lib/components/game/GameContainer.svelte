@@ -5,6 +5,7 @@
     replaceStateCompat as replaceState,
   } from "$lib/utils/navigationCompat";
   import { gameStore } from "$lib/stores/gameStore.svelte";
+  import { modalDismiss } from "$lib/actions/modalDismiss";
   import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
   import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
   import { multiplayerStore } from "$lib/stores/multiplayerStore.svelte";
@@ -773,7 +774,7 @@
 
         <!-- F-62: Results overlay -->
         {#if showResults}
-          <div class="modal-overlay">
+          <div class="modal-overlay" use:modalDismiss={() => (resultsDismissed = true)}>
             <ResultsModal onClose={() => (resultsDismissed = true)} />
           </div>
         {/if}
@@ -925,6 +926,7 @@
         class="modal-overlay modal-overlay--fixed"
         role="dialog"
         aria-modal="true"
+        use:modalDismiss={() => (showSurrenderModal = false)}
       >
         <div class="surrender-modal glass-panel">
           <h3 class="surrender-modal__title">Surrender?</h3>
@@ -967,6 +969,7 @@
         class="modal-overlay modal-overlay--fixed"
         role="dialog"
         aria-modal="true"
+        use:modalDismiss={() => (showRestartConfirm = false)}
       >
         <div class="surrender-modal glass-panel">
           <h3 class="surrender-modal__title">Restart match?</h3>
@@ -1002,6 +1005,7 @@
         class="modal-overlay modal-overlay--fixed"
         role="dialog"
         aria-modal="true"
+        use:modalDismiss={() => (showExitConfirm = false)}
       >
         <div class="surrender-modal glass-panel">
           <h3 class="surrender-modal__title">Leave Game?</h3>

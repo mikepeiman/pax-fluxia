@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { modalDismiss } from "$lib/actions/modalDismiss";
+
   interface Props {
     title: string;
     message: string;
@@ -23,7 +25,7 @@
   }
 </script>
 
-<div class="dialog" role="dialog" aria-modal="true" aria-label={title} tabindex="-1" onkeydown={handleKeydown}>
+<div class="dialog" role="dialog" aria-modal="true" aria-label={title} tabindex="-1" onkeydown={handleKeydown} use:modalDismiss={onClose}>
   <header class="dialog__header">
     <strong>{title}</strong>
     <button type="button" class="dialog__close" aria-label="Close dialog" onclick={onClose}>
