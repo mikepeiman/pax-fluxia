@@ -56,10 +56,10 @@ export const TERRITORY_RENDER_MODE_CATALOG: readonly TerritoryRenderModeDefiniti
     },
     {
         id: 'pvv2_dy4',
-        label: 'PVV2 DY4 ref',
-        shortDescription: 'Restored reference (8dce88c)',
+        label: 'DY4 (Optimal Transport)',
+        shortDescription:
+            'Optimal-transport border morph conquest transitions (8dce88c reference) — distinct mode alongside PVV4',
         legacyDispatch: true,
-        uiHidden: true,
     },
     { id: 'voronoi', label: 'Voronoi', shortDescription: 'Basic Voronoi', legacyDispatch: true },
     {
