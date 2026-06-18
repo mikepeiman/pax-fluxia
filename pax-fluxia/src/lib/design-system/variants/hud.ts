@@ -66,14 +66,14 @@ export const hudButton = tv({
   ],
   variants: {
     intent: {
-      neutral: "border-pax-gold/25 bg-pax-panel-muted text-pax-text hover:border-pax-gold/60 hover:text-pax-text-strong",
-      primary: "border-pax-cyan/45 bg-pax-panel text-pax-cyan-strong hover:border-pax-cyan hover:shadow-pax-panel-soft",
+      neutral: "border-pax-gold/20 bg-pax-panel-muted text-pax-text-soft hover:border-pax-gold/50 hover:bg-pax-gold/10 hover:text-pax-gold-strong active:bg-pax-gold/15",
+      primary: "border-pax-cyan/45 bg-pax-panel text-pax-cyan-strong hover:border-pax-cyan hover:bg-pax-cyan/10 hover:shadow-pax-panel-soft",
       selected: "border-pax-gold/65 bg-pax-panel-strong text-pax-gold-strong shadow-pax-panel-soft",
-      danger: "border-pax-danger/45 bg-pax-panel-muted text-pax-danger hover:border-pax-danger",
+      danger: "border-pax-danger/40 bg-pax-panel-muted text-pax-danger hover:border-pax-danger hover:bg-pax-danger/10",
     },
     size: {
-      icon: "h-9 w-9 rounded-pax-sm p-0",
-      sm: "h-8 rounded-pax-sm px-3 text-[0.68rem]",
+      icon: "h-9 w-9 rounded-pax-md p-0",
+      sm: "h-8 rounded-pax-md px-3.5 text-[0.7rem]",
       md: "h-10 rounded-pax-md px-4 text-[0.74rem]",
       lg: "h-12 rounded-pax-md px-5 text-[0.82rem]",
     },

@@ -8,6 +8,7 @@
     } from "$lib/services/audioManager.svelte";
     import {
         PaxHudButton,
+        PaxHudIconButton,
         PaxSettingsPickerRow,
         PaxSettingsRangeRow,
         PaxSettingsToggleRow,
@@ -145,9 +146,9 @@
             >
                 {SOUND_LABELS[soundType]}
             </span>
-            <PaxHudButton
-                label="Test"
-                size="sm"
+            <PaxHudIconButton
+                icon="play-1"
+                title="Test this sound"
                 disabled={audioManager.muted}
                 onclick={() => audioManager.preview(soundType)}
             />
@@ -232,9 +233,9 @@
                 >
                     {SOUND_LABELS[soundType]}
                 </span>
-                <PaxHudButton
-                    label="Test"
-                    size="sm"
+                <PaxHudIconButton
+                    icon="play-1"
+                    title="Test this sound"
                     disabled={isDisabled}
                     onclick={() => audioManager.preview(soundType)}
                 />
