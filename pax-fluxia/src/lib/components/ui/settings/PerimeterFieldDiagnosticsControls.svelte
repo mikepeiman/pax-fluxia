@@ -197,6 +197,7 @@
             />
             <PaxHudRange
                 label="Transition Scrub"
+                nudge={false}
                 value={currentScrubFrameIndex()}
                 min={0}
                 max={Math.max(0, availableScrubFrameCount - 1)}

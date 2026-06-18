@@ -209,25 +209,26 @@ export const hudField = tv({
 export type HudFieldVariants = VariantProps<typeof hudField>;
 
 // Sliders are a single horizontal row: LABEL [−][====][+] value.
+// Tone: muted + elegant — halfway to utilitarian, not bold/busy.
 export const hudRange = tv({
   slots: {
-    root: "flex min-w-0 items-center gap-2",
+    root: "flex min-w-0 items-center gap-1.5",
     label: [
-      "shrink-0 basis-[5.5rem] min-w-0 truncate",
-      "font-pax-ui text-[0.66rem] font-extrabold uppercase tracking-[0.08em] text-pax-text-soft",
+      "shrink-0 basis-[4.75rem] min-w-0 truncate",
+      "font-pax-ui text-[0.64rem] font-bold uppercase tracking-[0.05em] text-pax-text-dim",
     ],
     nudge: [
-      "shrink-0 grid h-6 w-6 place-items-center rounded-pax-sm border border-pax-gold/20 bg-pax-panel-muted",
-      "text-[0.9rem] leading-none text-pax-text-soft",
-      "hover:border-pax-gold/50 hover:bg-pax-gold/10 hover:text-pax-gold-strong",
-      "disabled:pointer-events-none disabled:opacity-40",
+      "shrink-0 grid h-5 w-5 place-items-center rounded border border-pax-gold/12 bg-transparent",
+      "text-[0.82rem] leading-none text-pax-text-dim",
+      "hover:border-pax-gold/30 hover:text-pax-text",
+      "disabled:pointer-events-none disabled:opacity-30",
     ],
     input: [
-      "h-2 min-w-0 flex-1 cursor-pointer appearance-none rounded-full border border-pax-gold/20",
-      "bg-pax-panel-muted accent-pax-gold",
+      "h-1.5 min-w-0 flex-1 cursor-pointer appearance-none rounded-full border border-pax-gold/12",
+      "bg-pax-panel-muted accent-pax-gold/80",
     ],
     output: [
-      "shrink-0 w-12 text-right font-pax-data text-[0.68rem] font-bold tabular-nums text-pax-gold-strong",
+      "shrink-0 w-11 text-right font-pax-data text-[0.66rem] font-semibold tabular-nums text-pax-text-soft",
     ],
   },
 });

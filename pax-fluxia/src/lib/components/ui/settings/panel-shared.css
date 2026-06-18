@@ -367,8 +367,9 @@ select.mode-select {
     font-size: calc(0.66rem * var(--pax-ui-data-scale, 1));
 }
 
+/* Single-row sliders need the full width — never two per row. */
 .orb-pair {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
 }
