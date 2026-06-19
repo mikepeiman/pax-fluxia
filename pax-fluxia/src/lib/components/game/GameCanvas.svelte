@@ -2130,6 +2130,84 @@
         return snapshot;
     }
 
+    // [PHASE-DIAG] One-shot live scene-graph probe (territory blank investigation).
+    // Logs once per mode: does the family emit fills in the LIVE path, and does its
+    // displayRoot actually reach the rendered output? Stashed on globalThis.__PHASE_DIAG.
+    function logPhaseDiag(mode: string, displayRoot: any, container: any): void {
+        const g = globalThis as any;
+        const store = g.__PHASE_DIAG ?? (g.__PHASE_DIAG = {});
+        if (store[mode]) return;
+        try {
+            let fillInstructions = 0;
+            let graphicsNodes = 0;
+            const walk = (node: any, depth: number): void => {
+                if (!node || depth > 6) return;
+                const instr = node?.context?.instructions;
+                if (Array.isArray(instr)) {
+                    fillInstructions += instr.length;
+                    graphicsNodes += 1;
+                }
+                const kids = node?.children;
+                if (Array.isArray(kids)) for (const k of kids) walk(k, depth + 1);
+            };
+            walk(displayRoot, 0);
+            const rect = (x: any) =>
+                x
+                    ? {
+                          x: x.x ?? x.minX ?? null,
+                          y: x.y ?? x.minY ?? null,
+                          w:
+                              x.width ??
+                              (x.maxX != null && x.minX != null
+                                  ? x.maxX - x.minX
+                                  : null),
+                          h:
+                              x.height ??
+                              (x.maxY != null && x.minY != null
+                                  ? x.maxY - x.minY
+                                  : null),
+                      }
+                    : null;
+            let anc: any = displayRoot?.parent;
+            let ancestorDepth = 0;
+            let allAncestorsVisible = true;
+            while (anc && ancestorDepth < 24) {
+                if (anc.visible === false) allAncestorsVisible = false;
+                anc = anc.parent;
+                ancestorDepth += 1;
+            }
+            const snap = {
+                mode,
+                fillInstructions,
+                graphicsNodes,
+                drVisible: displayRoot?.visible,
+                drRenderable: displayRoot?.renderable,
+                drAlpha: displayRoot?.alpha,
+                drChildCount: displayRoot?.children?.length ?? null,
+                drInContainer: displayRoot?.parent === container,
+                drBounds: rect(displayRoot?.getBounds?.()),
+                containerVisible: container?.visible,
+                containerRenderable: container?.renderable,
+                containerAlpha: container?.alpha,
+                containerXY: { x: container?.x, y: container?.y },
+                containerBounds: rect(container?.getBounds?.()),
+                ancestorDepthToStage: ancestorDepth,
+                allAncestorsVisible,
+            };
+            store[mode] = snap;
+            // Ungated on purpose: this is a one-shot diagnostic the user must see
+            // without enabling logFlags.state. Fires once per mode, then silent.
+            // eslint-disable-next-line no-console
+            console.log("[PHASE-DIAG]", JSON.stringify(snap));
+        } catch (e) {
+            // eslint-disable-next-line no-console
+            console.log(
+                `[PHASE-DIAG] ${mode} probe error:`,
+                String((e as any)?.message ?? e),
+            );
+        }
+    }
+
     type PerimeterFieldCapturedFrame = {
         geometry: ResolvedGeometrySnapshot;
         ownership: OwnershipSnapshot;
@@ -5894,6 +5972,7 @@
                             activeVoronoiContainer.addChild(mg.displayRoot);
                         }
                         mg.displayRoot.visible = true;
+                        logPhaseDiag(activeMode, mg.displayRoot, activeVoronoiContainer);
                         syncLiveRenderFamilyStableFrame({
                             activeTransition,
                             stars,
@@ -5980,6 +6059,7 @@
                             activeVoronoiContainer.addChild(mg.displayRoot);
                         }
                         mg.displayRoot.visible = true;
+                        logPhaseDiag(activeMode, mg.displayRoot, activeVoronoiContainer);
                         syncLiveRenderFamilyStableFrame({
                             activeTransition,
                             stars,
@@ -6060,6 +6140,7 @@
                             activeVoronoiContainer.addChild(mg.displayRoot);
                         }
                         mg.displayRoot.visible = true;
+                        logPhaseDiag(activeMode, mg.displayRoot, activeVoronoiContainer);
                         syncLiveRenderFamilyStableFrame({
                             activeTransition,
                             stars,
@@ -6214,6 +6295,7 @@
                             activeVoronoiContainer.addChild(gg.displayRoot);
                         }
                         gg.displayRoot.visible = true;
+                        logPhaseDiag(activeMode, gg.displayRoot, activeVoronoiContainer);
                         syncLiveRenderFamilyStableFrame({
                             activeTransition,
                             stars,
