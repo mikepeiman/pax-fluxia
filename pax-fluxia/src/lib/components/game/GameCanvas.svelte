@@ -2133,7 +2133,14 @@
     // [PHASE-DIAG] One-shot live scene-graph probe (territory blank investigation).
     // Logs once per mode: does the family emit fills in the LIVE path, and does its
     // displayRoot actually reach the rendered output? Stashed on globalThis.__PHASE_DIAG.
-    function logPhaseDiag(mode: string, displayRoot: any, container: any): void {
+    function logPhaseDiag(
+        mode: string,
+        displayRoot: any,
+        container: any,
+        family?: any,
+        geometry?: any,
+        activeTransition?: any,
+    ): void {
         const g = globalThis as any;
         const store = g.__PHASE_DIAG ?? (g.__PHASE_DIAG = {});
         if (store[mode]) return;
@@ -2176,8 +2183,26 @@
                 anc = anc.parent;
                 ancestorDepth += 1;
             }
+            const plan = family?.cachedPlan;
+            const vstars = plan?.classification?.vstars;
+            let planNative: number | null = null;
+            if (Array.isArray(vstars)) {
+                planNative = 0;
+                for (const v of vstars) if (v?.role === "native") planNative += 1;
+            }
             const snap = {
                 mode,
+                geomRegions: geometry?.territoryRegions?.length ?? null,
+                geomFrontiers: geometry?.frontierPolylines?.length ?? null,
+                geomLadderRegions:
+                    geometry?.diagnostics?.stageLadder?.resolvedRegions?.length ??
+                    null,
+                planPresent: !!plan,
+                planVstars: Array.isArray(vstars) ? vstars.length : null,
+                planNative,
+                planEmittable: plan?.classification?.emittable?.length ?? null,
+                hasTransition: !!activeTransition,
+                transitionEvents: activeTransition?.events?.length ?? 0,
                 fillInstructions,
                 graphicsNodes,
                 drVisible: displayRoot?.visible,
@@ -5969,7 +5994,7 @@
                             activeVoronoiContainer.addChild(mg.displayRoot);
                         }
                         mg.displayRoot.visible = true;
-                        logPhaseDiag(activeMode, mg.displayRoot, activeVoronoiContainer);
+                        logPhaseDiag(activeMode, mg.displayRoot, activeVoronoiContainer, mg, geometry, activeTransition);
                         syncLiveRenderFamilyStableFrame({
                             activeTransition,
                             stars,
@@ -6056,7 +6081,7 @@
                             activeVoronoiContainer.addChild(mg.displayRoot);
                         }
                         mg.displayRoot.visible = true;
-                        logPhaseDiag(activeMode, mg.displayRoot, activeVoronoiContainer);
+                        logPhaseDiag(activeMode, mg.displayRoot, activeVoronoiContainer, mg, geometry, activeTransition);
                         syncLiveRenderFamilyStableFrame({
                             activeTransition,
                             stars,
@@ -6137,7 +6162,7 @@
                             activeVoronoiContainer.addChild(mg.displayRoot);
                         }
                         mg.displayRoot.visible = true;
-                        logPhaseDiag(activeMode, mg.displayRoot, activeVoronoiContainer);
+                        logPhaseDiag(activeMode, mg.displayRoot, activeVoronoiContainer, mg, geometry, activeTransition);
                         syncLiveRenderFamilyStableFrame({
                             activeTransition,
                             stars,
@@ -6292,7 +6317,7 @@
                             activeVoronoiContainer.addChild(gg.displayRoot);
                         }
                         gg.displayRoot.visible = true;
-                        logPhaseDiag(activeMode, gg.displayRoot, activeVoronoiContainer);
+                        logPhaseDiag(activeMode, gg.displayRoot, activeVoronoiContainer, gg, geometry, activeTransition);
                         syncLiveRenderFamilyStableFrame({
                             activeTransition,
                             stars,
