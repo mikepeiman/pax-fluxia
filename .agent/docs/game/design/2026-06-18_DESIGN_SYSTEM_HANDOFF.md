@@ -51,7 +51,8 @@ Companion docs:
 ## 4. OUTSTANDING — the work to a COMPLETE system
 
 ### 4.1 Sliders (finish)
-- [ ] **Double-nudge runtime check.** Code is verified single-nudge (`PaxSettingsRangeRow` has none; `PaxHudRange` exactly one −/+; `PerimeterField` set `nudge={false}`). User still reports doubles → reproduce on a CLEAN build (stop dev server, restart, hard-reload). If reproducible on a clean build, capture the DOM and trace the second source (it is NOT in the components above).
+- [x] **Double-nudge — FIXED (real root cause).** It was NOT in any component: `nudgeSliders.ts`, a legacy Svelte action on the settings-panel root, imperatively wrapped every `input[type=range]` with its own `.nudge-slider-wrap`/`.slider-nudge-btn` −/+ (the non-scope-hashed set seen in the DOM). Redundant once `PaxHudRange` got built-in nudges. Action + use: + CSS + file removed. Lesson: grep for *runtime/imperative* DOM injectors (actions, MutationObservers), not just template markup.
+- [ ] **Slider thumb still bold/glowing** — comes from `panel-shared.css` `input[type=range]::-webkit-slider-thumb` (gold + glow), which overrides hudRange's `accent-color`. To finish the tone-down, style the thumb in `PaxHudRange` `<style>` (scoped) or mute the panel-shared thumb.
 - [ ] **"Unuseably short" in narrow panels.** Audit the slider row at ~360px width; consider responsive label/value collapse or a min slider width.
 - [ ] **P/R/A lock buttons** (`TerritoryTransitionTuning`): "need completely different presentation." Redesign (e.g. a single segmented Pin/Ratio/Anim control or icon cluster), as a reusable pattern.
 - [ ] **Audit for other two-up rows** beyond `orb-pair`.
