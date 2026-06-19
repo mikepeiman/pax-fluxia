@@ -265,7 +265,7 @@
 
   .hud-pill span,
   .hud-readout span {
-    font-size: 0.78rem;
+    font-size: var(--pax-type-xs);
     text-transform: uppercase;
     color: rgba(191, 219, 254, 0.9);
   }
@@ -311,7 +311,7 @@
 
   .grid-flyout__header span,
   .grid-flyout__footer span:first-child {
-    font-size: 0.75rem;
+    font-size: var(--pax-type-xs);
     text-transform: uppercase;
     color: rgba(191, 219, 254, 0.82);
   }
@@ -341,7 +341,7 @@
   }
 
   .grid-flyout__number span {
-    font-size: 0.75rem;
+    font-size: var(--pax-type-xs);
     text-transform: uppercase;
     color: rgba(191, 219, 254, 0.82);
   }
@@ -355,7 +355,7 @@
     background: rgba(10, 17, 33, 0.88);
     color: #f8fafc;
     font-family: var(--pax-ui-font-ui);
-    font-size: 1rem;
+    font-size: var(--pax-type-base);
     font-weight: var(--pax-weight-bold);
   }
 

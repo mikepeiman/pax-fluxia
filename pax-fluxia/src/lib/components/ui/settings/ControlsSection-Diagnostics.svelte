@@ -736,7 +736,7 @@
 
     .debug-hint {
         margin-left: auto;
-        font-size: 9px;
+        font-size: var(--pax-type-3xs);
         color: #888;
     }
 
@@ -744,7 +744,7 @@
         margin-top: 8px;
         display: grid;
         gap: 4px;
-        font-size: 0.68rem;
+        font-size: var(--pax-type-2xs);
         color: rgba(220, 220, 240, 0.84);
     }
 
@@ -760,7 +760,7 @@
         font-weight: var(--pax-weight-bold);
         text-transform: uppercase;
         letter-spacing: 0.08em;
-        font-size: 0.62rem;
+        font-size: var(--pax-type-3xs);
     }
 
     .ruler-controls {
@@ -792,7 +792,7 @@
         flex-wrap: wrap;
         gap: 6px 10px;
         align-items: center;
-        font-size: 0.68rem;
+        font-size: var(--pax-type-2xs);
         color: rgba(220, 232, 245, 0.82);
     }
 
@@ -812,7 +812,7 @@
 
     .readout {
         margin-top: 6px;
-        font-size: 0.68rem;
+        font-size: var(--pax-type-2xs);
         line-height: 1.45;
         color: rgba(160, 160, 180, 0.72);
     }
@@ -821,7 +821,7 @@
         display: grid;
         gap: 6px;
         margin-top: 4px;
-        font-size: 0.7rem;
+        font-size: var(--pax-type-2xs);
     }
 
     .status-grid > div {
@@ -836,7 +836,7 @@
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        font-size: 0.62rem;
+        font-size: var(--pax-type-3xs);
     }
 
     .status-grid__failure {

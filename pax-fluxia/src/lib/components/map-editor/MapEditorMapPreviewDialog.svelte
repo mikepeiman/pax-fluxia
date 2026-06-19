@@ -188,7 +188,7 @@
 
   .preview-dialog__title-block strong {
     font-family: var(--pax-ui-font-ui);
-    font-size: 1.2rem;
+    font-size: var(--pax-type-lg);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: #f8fafc;
@@ -198,7 +198,7 @@
   .preview-dialog__description span,
   .preview-dialog__tags > span,
   .meta-item dt {
-    font-size: 0.74rem;
+    font-size: var(--pax-type-xs);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: rgba(148, 163, 184, 0.88);
@@ -240,7 +240,7 @@
     background: rgba(17, 39, 63, 0.88);
     color: #f8fafc;
     font-family: var(--pax-ui-font-ui);
-    font-size: 0.98rem;
+    font-size: var(--pax-type-base);
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
@@ -357,7 +357,7 @@
     border: 1px solid rgba(125, 211, 252, 0.22);
     background: rgba(17, 39, 63, 0.56);
     color: #e2e8f0;
-    font-size: 0.82rem;
+    font-size: var(--pax-type-xs-plus);
   }
 
   @media (max-width: 980px) {

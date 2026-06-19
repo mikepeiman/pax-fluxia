@@ -283,7 +283,7 @@
     .brand-wordmark {
         color: var(--pax-ui-text-strong);
         font-family: var(--pax-ui-font-ui);
-        font-size: 1.18rem;
+        font-size: var(--pax-type-md);
         font-weight: var(--pax-weight-extrabold);
         letter-spacing: 0.16em;
         text-transform: uppercase;
@@ -315,7 +315,7 @@
     .topbar-kpi__label {
         color: var(--pax-ui-text-dim);
         font-family: var(--pax-ui-font-ui);
-        font-size: 0.56rem;
+        font-size: var(--pax-type-4xs);
         font-weight: var(--pax-weight-extrabold);
         letter-spacing: 0.14em;
         line-height: 1;
@@ -329,7 +329,7 @@
         white-space: nowrap;
         color: var(--pax-ui-text-strong);
         font-family: var(--pax-ui-font-ui);
-        font-size: 0.84rem;
+        font-size: var(--pax-type-xs-plus);
         font-weight: var(--pax-weight-semibold);
         letter-spacing: 0.02em;
     }
@@ -368,7 +368,7 @@
 
     .mode-shortcut__short {
         color: var(--pax-ui-text-strong);
-        font-size: 0.58rem;
+        font-size: var(--pax-type-3xs);
         font-weight: var(--pax-weight-extrabold);
         letter-spacing: 0.16em;
         text-transform: uppercase;
@@ -377,7 +377,7 @@
     .mode-shortcut__label {
         margin-top: 2px;
         color: rgba(226, 232, 240, 0.86);
-        font-size: 0.52rem;
+        font-size: var(--pax-type-4xs);
         white-space: nowrap;
     }
 
@@ -435,7 +435,7 @@
 
     .topbar-kpi__value {
         color: var(--pax-ui-text-strong);
-        font-size: 0.8rem;
+        font-size: var(--pax-type-xs-plus);
     }
 
     .topbar-actions {
@@ -450,7 +450,7 @@
         padding: 0 12px;
         border-radius: 14px;
         font-family: var(--pax-ui-font-ui);
-        font-size: 0.72rem;
+        font-size: var(--pax-type-xs);
         font-weight: var(--pax-weight-extrabold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -493,7 +493,7 @@
 
     .topbar-badge__value {
         color: var(--pax-ui-text-strong);
-        font-size: 0.75rem;
+        font-size: var(--pax-type-xs);
     }
 
     @media (max-width: 1540px) {

@@ -154,7 +154,7 @@
 
     .player-color-popover__title {
         font-family: var(--pf-font-display);
-        font-size: 0.82rem;
+        font-size: var(--pax-type-xs-plus);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.12em;
         text-transform: uppercase;
@@ -163,7 +163,7 @@
 
     .player-color-popover__subtitle {
         font-family: var(--pf-font-body);
-        font-size: 0.8rem;
+        font-size: var(--pax-type-xs-plus);
         color: var(--pf-muted);
     }
 
@@ -177,7 +177,7 @@
 
     .player-color-popover__label {
         font-family: var(--pf-font-body);
-        font-size: 0.84rem;
+        font-size: var(--pax-type-xs-plus);
         font-weight: var(--pax-weight-semibold);
         letter-spacing: 0.04em;
         color: var(--pf-muted-strong);
@@ -192,7 +192,7 @@
         min-width: 56px;
         text-align: right;
         font-family: var(--pf-font-body);
-        font-size: 0.9rem;
+        font-size: var(--pax-type-sm);
         font-weight: var(--pax-weight-bold);
         color: var(--pf-text);
     }
@@ -206,7 +206,7 @@
         background: var(--pf-surface-control);
         color: var(--pf-muted-strong);
         font-family: var(--pf-font-body);
-        font-size: 0.88rem;
+        font-size: var(--pax-type-sm);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;

@@ -1130,7 +1130,7 @@
     margin-bottom: 8px;
     color: rgba(226, 232, 240, 0.92);
     font-family: var(--pax-ui-font-data);
-    font-size: 11px;
+    font-size: var(--pax-type-2xs);
   }
 
   .context-menu__action {
@@ -1141,7 +1141,7 @@
     background: rgba(127, 29, 29, 0.52);
     color: rgba(254, 226, 226, 0.96);
     font: inherit;
-    font-size: 0.86rem;
+    font-size: var(--pax-type-sm);
     cursor: pointer;
   }
 
@@ -1228,7 +1228,7 @@
 
   .portal-group-label {
     font-family: var(--pax-ui-font-ui);
-    font-size: 9px;
+    font-size: var(--pax-type-3xs);
     font-weight: var(--pax-weight-bold);
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -1236,7 +1236,7 @@
 
   .owner-badge__text {
     font-family: var(--pax-ui-font-ui);
-    font-size: 11px;
+    font-size: var(--pax-type-2xs);
     font-weight: var(--pax-weight-bold);
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -1250,7 +1250,7 @@
   .star-node text {
     fill: rgba(226, 232, 240, 0.95);
     font-family: var(--pax-ui-font-data);
-    font-size: 11px;
+    font-size: var(--pax-type-2xs);
     text-anchor: middle;
     pointer-events: none;
   }
@@ -1276,7 +1276,7 @@
   .measurement text {
     fill: rgba(253, 224, 71, 0.94);
     font-family: var(--pax-ui-font-data);
-    font-size: 12px;
+    font-size: var(--pax-type-xs);
     text-anchor: middle;
     cursor: pointer;
     user-select: none;

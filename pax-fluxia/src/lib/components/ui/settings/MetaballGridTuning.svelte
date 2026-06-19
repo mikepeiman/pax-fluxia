@@ -1674,7 +1674,7 @@
 
     .mode-lock-note {
         margin: 0 0 10px;
-        font-size: 11px;
+        font-size: var(--pax-type-2xs);
         line-height: 1.4;
         color: rgba(255, 255, 255, 0.72);
     }
@@ -1695,7 +1695,7 @@
     .var-desc {
         margin: 4px 0 10px;
         color: rgba(220, 232, 245, 0.72);
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
         line-height: 1.35;
     }
 
@@ -1722,7 +1722,7 @@
         border-radius: 8px;
         border: 1px solid rgba(255, 255, 255, 0.08);
         background: rgba(7, 12, 24, 0.4);
-        font-size: 11px;
+        font-size: var(--pax-type-2xs);
     }
 
     .perf-label {
@@ -1744,6 +1744,6 @@
     .perf-coarsen {
         color: rgba(255, 196, 105, 0.9);
         margin-left: 4px;
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
     }
 </style>

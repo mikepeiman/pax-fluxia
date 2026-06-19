@@ -199,7 +199,7 @@
         gap: 8px;
         margin: 0;
         color: rgba(128, 222, 255, 0.92);
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.12em;
         text-transform: uppercase;
@@ -222,7 +222,7 @@
         border: 1px solid rgba(245, 158, 11, 0.35);
         background: rgba(245, 158, 11, 0.12);
         color: rgba(255, 214, 140, 0.96);
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.1em;
         text-transform: uppercase;
@@ -258,7 +258,7 @@
         border-radius: 10px;
         background: rgba(17, 24, 39, 0.6);
         color: rgba(226, 236, 248, 0.9);
-        font-size: 11px;
+        font-size: var(--pax-type-2xs);
         line-height: 1.35;
     }
 </style>

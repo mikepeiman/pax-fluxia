@@ -375,7 +375,7 @@
   .game-theme-manager__eyebrow {
     color: var(--pax-ui-accent);
     font-family: var(--pax-ui-font-ui);
-    font-size: 0.56rem;
+    font-size: var(--pax-type-4xs);
     font-weight: var(--pax-weight-bold);
     letter-spacing: 0.18em;
     text-transform: uppercase;
@@ -384,7 +384,7 @@
   .game-theme-manager__title {
     color: var(--pax-ui-accent-warm);
     font-family: var(--pax-ui-font-ui);
-    font-size: 0.88rem;
+    font-size: var(--pax-type-sm);
     font-weight: var(--pax-weight-bold);
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -418,7 +418,7 @@
     background: var(--pax-ui-button-bg);
     color: var(--pax-ui-text);
     font-family: var(--pax-ui-font-ui);
-    font-size: 0.68rem;
+    font-size: var(--pax-type-2xs);
     font-weight: var(--pax-weight-bold);
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -486,7 +486,7 @@
     color: var(--pax-ui-text-strong);
     padding: 0 12px;
     font-family: var(--pax-ui-font-ui);
-    font-size: 0.82rem;
+    font-size: var(--pax-type-xs-plus);
   }
 
   .game-theme-manager__save-input:focus {
@@ -509,7 +509,7 @@
     border-radius: 12px;
     background: rgba(8, 14, 29, 0.9);
     font-family: var(--pax-ui-font-ui);
-    font-size: 0.7rem;
+    font-size: var(--pax-type-2xs);
     letter-spacing: 0.06em;
     text-transform: uppercase;
   }
@@ -583,7 +583,7 @@
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.05);
     font-family: var(--pax-ui-font-ui);
-    font-size: 0.58rem;
+    font-size: var(--pax-type-3xs);
     font-weight: var(--pax-weight-bold);
     letter-spacing: 0.12em;
     text-transform: uppercase;
@@ -613,7 +613,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     font-family: var(--pax-ui-font-ui);
-    font-size: 0.82rem;
+    font-size: var(--pax-type-xs-plus);
     font-weight: var(--pax-weight-bold);
     letter-spacing: 0.03em;
   }

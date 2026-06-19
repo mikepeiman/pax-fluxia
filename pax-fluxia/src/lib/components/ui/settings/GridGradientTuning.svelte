@@ -419,7 +419,7 @@
     .sub-heading {
         margin: 12px 0 6px;
         color: rgba(128, 222, 255, 0.92);
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0;
         text-transform: uppercase;
@@ -438,7 +438,7 @@
         border-radius: 8px;
         border: 1px solid rgba(255, 255, 255, 0.08);
         background: rgba(7, 12, 24, 0.4);
-        font-size: 11px;
+        font-size: var(--pax-type-2xs);
     }
 
     .perf-label {

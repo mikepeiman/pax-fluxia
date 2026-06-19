@@ -695,7 +695,7 @@
     .range-field span,
     .preview-well__label {
         font-family: var(--pf-font-body);
-        font-size: 0.82rem;
+        font-size: var(--pax-type-xs-plus);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.1em;
         text-transform: uppercase;
@@ -713,7 +713,7 @@
     .range-field strong,
     .metric-field strong {
         font-family: var(--pf-font-body);
-        font-size: 0.96rem;
+        font-size: var(--pax-type-sm-plus);
         font-weight: var(--pax-weight-bold);
         color: var(--pf-text);
     }
@@ -744,7 +744,7 @@
         min-height: var(--pf-control-h);
         border-radius: var(--pf-button-radius);
         font-family: var(--pf-font-body);
-        font-size: 0.92rem;
+        font-size: var(--pax-type-sm-plus);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -788,7 +788,7 @@
     .control-cluster__title,
     .control-cluster__value {
         font-family: var(--pf-font-display);
-        font-size: 0.92rem;
+        font-size: var(--pax-type-sm-plus);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.12em;
         text-transform: uppercase;
@@ -875,7 +875,7 @@
         padding: 0 12px;
         border-radius: var(--pf-pill-radius);
         font-family: var(--pf-font-body);
-        font-size: 0.84rem;
+        font-size: var(--pax-type-xs-plus);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -911,7 +911,7 @@
         border-radius: var(--pf-card-radius);
         color: var(--pf-muted);
         font-family: var(--pf-font-body);
-        font-size: 1rem;
+        font-size: var(--pax-type-base);
         text-align: center;
         background: var(--pf-surface-field);
         border: 1px dashed var(--pf-border-strong);
@@ -945,14 +945,14 @@
 
     .saved-map-card__title {
         font-family: var(--pf-font-display);
-        font-size: 0.9rem;
+        font-size: var(--pax-type-sm);
         font-weight: var(--pax-weight-bold);
         color: var(--pf-text);
     }
 
     .saved-map-card__meta {
         font-family: var(--pf-font-body);
-        font-size: 0.85rem;
+        font-size: var(--pax-type-sm);
         color: var(--pf-muted);
     }
 

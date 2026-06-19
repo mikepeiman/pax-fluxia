@@ -72,7 +72,7 @@
     margin-left: 5px;
     border-radius: 999px;
     border: 1px solid var(--pax-ui-border, rgba(246, 196, 105, 0.35));
-    font-size: 9px;
+    font-size: var(--pax-type-3xs);
     font-weight: var(--pax-weight-bold);
     line-height: 1;
     color: var(--pax-ui-text-dim, rgba(180, 188, 188, 0.7));
@@ -101,7 +101,7 @@
     border: 1px solid var(--pax-ui-border, rgba(246, 196, 105, 0.35));
     border-radius: 6px;
     color: var(--pax-ui-text, rgba(224, 232, 232, 0.95));
-    font-size: 11px;
+    font-size: var(--pax-type-2xs);
     font-weight: var(--pax-weight-regular);
     line-height: 1.35;
     white-space: normal;

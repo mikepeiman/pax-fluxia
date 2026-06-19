@@ -347,7 +347,7 @@
 
     .row-hint {
         margin: 8px 0 10px;
-        font-size: 11px;
+        font-size: var(--pax-type-2xs);
         line-height: 1.45;
         color: rgba(187, 205, 223, 0.82);
     }

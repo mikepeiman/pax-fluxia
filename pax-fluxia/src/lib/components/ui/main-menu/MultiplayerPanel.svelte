@@ -315,7 +315,7 @@
     .manual-join__label,
     .browser-header__label {
         font-family: var(--pf-font-body);
-        font-size: 0.8rem;
+        font-size: var(--pax-type-xs-plus);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.12em;
         text-transform: uppercase;
@@ -331,7 +331,7 @@
         background: var(--pf-surface-pill);
         color: var(--pf-muted-strong);
         font-family: var(--pf-font-body);
-        font-size: 0.86rem;
+        font-size: var(--pax-type-sm);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -383,7 +383,7 @@
         width: 24px;
         text-align: center;
         font-family: var(--pf-font-display);
-        font-size: 0.82rem;
+        font-size: var(--pax-type-xs-plus);
         font-weight: var(--pax-weight-bold);
         color: var(--pf-heading);
     }
@@ -397,7 +397,7 @@
     .selected-room__host,
     .room-browser__top strong {
         font-family: var(--pf-font-display);
-        font-size: 0.9rem;
+        font-size: var(--pax-type-sm);
         font-weight: var(--pax-weight-bold);
         color: var(--pf-text);
     }
@@ -406,7 +406,7 @@
     .selected-room__meta,
     .room-browser__meta {
         font-family: var(--pf-font-body);
-        font-size: 0.84rem;
+        font-size: var(--pax-type-xs-plus);
         color: var(--pf-muted);
     }
 
@@ -425,7 +425,7 @@
         border-radius: var(--pf-pill-radius);
         background: var(--pf-surface-pill-active);
         font-family: var(--pf-font-body);
-        font-size: 0.78rem;
+        font-size: var(--pax-type-xs);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -459,7 +459,7 @@
         background: var(--pf-surface-control);
         color: var(--pf-text);
         font-family: var(--pf-font-body);
-        font-size: 1rem;
+        font-size: var(--pax-type-base);
         font-weight: var(--pax-weight-semibold);
         outline: none;
     }
@@ -486,7 +486,7 @@
         border-radius: var(--pf-pill-radius);
         background: var(--pf-surface-tag);
         font-family: var(--pf-font-body);
-        font-size: 0.8rem;
+        font-size: var(--pax-type-xs-plus);
         color: var(--pf-muted-strong);
     }
 
@@ -499,7 +499,7 @@
         background: none;
         color: var(--pf-text);
         font-family: var(--pf-font-display);
-        font-size: 0.86rem;
+        font-size: var(--pax-type-sm);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -515,7 +515,7 @@
         place-items: center;
         background: var(--pf-surface-tag-active);
         font-family: var(--pf-font-body);
-        font-size: 0.8rem;
+        font-size: var(--pax-type-xs-plus);
     }
 
     .chat-shell__messages {
@@ -532,7 +532,7 @@
         display: flex;
         gap: 8px;
         font-family: var(--pf-font-body);
-        font-size: 0.92rem;
+        font-size: var(--pax-type-sm-plus);
     }
 
     .chat-shell__sender {
@@ -546,7 +546,7 @@
     .signal-card {
         color: var(--pf-muted-strong);
         font-family: var(--pf-font-body);
-        font-size: 0.96rem;
+        font-size: var(--pax-type-sm-plus);
     }
 
     .signal-card--error {

@@ -1406,7 +1406,7 @@
     .subtitle {
         margin: 0;
         font-family: var(--pf-font-body);
-        font-size: 0.88rem;
+        font-size: var(--pax-type-sm);
         font-weight: var(--pax-weight-bold);
         letter-spacing: var(--pf-title-subtitle-spacing);
         text-transform: uppercase;
@@ -1479,7 +1479,7 @@
     :global(.menu-panel__eyebrow) {
         margin: 0;
         font-family: var(--pf-font-display);
-        font-size: 1.16rem;
+        font-size: var(--pax-type-md);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.12em;
         text-transform: uppercase;
@@ -1489,7 +1489,7 @@
     :global(.menu-panel__title) {
         margin: 6px 0 0;
         font-family: var(--pf-font-body);
-        font-size: 1.02rem;
+        font-size: var(--pax-type-base);
         font-weight: var(--pax-weight-semibold);
         color: var(--pf-muted-strong);
     }
@@ -1554,7 +1554,7 @@
     .confirm-dialog h3 {
         margin: 0 0 12px;
         font-family: var(--pf-font-display);
-        font-size: 1.15rem;
+        font-size: var(--pax-type-md);
         letter-spacing: 0.08em;
         text-transform: uppercase;
     }
@@ -1562,7 +1562,7 @@
     .confirm-dialog p {
         margin: 10px 0 0;
         font-family: var(--pf-font-body);
-        font-size: 1rem;
+        font-size: var(--pax-type-base);
         color: var(--pf-muted-strong);
     }
 
@@ -1575,7 +1575,7 @@
     .ai-label {
         margin: 0 0 10px;
         font-family: var(--pf-font-body);
-        font-size: 0.9rem;
+        font-size: var(--pax-type-sm);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -1598,7 +1598,7 @@
         border: 1px solid var(--pf-border-soft);
         background: var(--pf-frame-control), var(--pf-surface-pill);
         font-family: var(--pf-font-body);
-        font-size: 0.92rem;
+        font-size: var(--pax-type-sm-plus);
         font-weight: var(--pax-weight-bold);
         cursor: pointer;
         transition:
@@ -1633,7 +1633,7 @@
         border-radius: var(--pf-button-radius);
         border: 1px solid var(--pf-border-soft);
         font-family: var(--pf-font-body);
-        font-size: 0.98rem;
+        font-size: var(--pax-type-base);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -1705,7 +1705,7 @@
             background: var(--pf-frame-control), var(--pf-surface-pill);
             color: var(--pf-muted-strong);
             font-family: var(--pf-font-body);
-            font-size: 0.9rem;
+            font-size: var(--pax-type-sm);
             font-weight: var(--pax-weight-bold);
             letter-spacing: 0.08em;
             text-transform: uppercase;

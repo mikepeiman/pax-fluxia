@@ -326,7 +326,7 @@
 
     .trace-heading {
         margin: 0;
-        font-size: 0.68rem;
+        font-size: var(--pax-type-2xs);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -396,7 +396,7 @@
         background: rgba(74, 222, 128, 0.12);
         border: 1px solid rgba(74, 222, 128, 0.2);
         color: #9ae6b4;
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
         font-family: monospace;
     }
 
@@ -407,7 +407,7 @@
     }
 
     .trace-section-title {
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
         text-transform: uppercase;
         letter-spacing: 0.5px;
         color: #8fb7ff;
@@ -436,12 +436,12 @@
         border-radius: 4px;
         background: rgba(147, 197, 253, 0.12);
         color: #bfdbfe;
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
         font-family: monospace;
     }
 
     .trace-summary {
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
         line-height: 1.4;
         color: rgba(255, 255, 255, 0.72);
         font-family: monospace;
@@ -449,14 +449,14 @@
     }
 
     .trace-detail-line {
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
         line-height: 1.35;
         color: rgba(255, 255, 255, 0.68);
         font-family: monospace;
     }
 
     .trace-empty {
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
         line-height: 1.4;
         color: rgba(255, 255, 255, 0.58);
     }

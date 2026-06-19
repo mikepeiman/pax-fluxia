@@ -190,7 +190,7 @@
         border: 1px solid rgba(100, 120, 160, 0.3);
         border-radius: 8px;
         padding: 10px 12px;
-        font-size: 12px;
+        font-size: var(--pax-type-xs);
         color: #c8d0e0;
         min-width: 220px;
         max-width: 280px;
@@ -207,18 +207,18 @@
     }
 
     .type-icon {
-        font-size: 18px;
+        font-size: var(--pax-type-md);
     }
 
     .star-id {
         font-family: var(--pax-ui-font-data);
-        font-size: 11px;
+        font-size: var(--pax-type-2xs);
         opacity: 0.7;
         flex: 1;
     }
 
     .type-badge {
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
         padding: 1px 6px;
         border-radius: 4px;
         font-weight: var(--pax-weight-semibold);
@@ -231,7 +231,7 @@
         border: none;
         color: #667;
         cursor: pointer;
-        font-size: 14px;
+        font-size: var(--pax-type-sm);
         padding: 0 4px;
         line-height: 1;
     }
@@ -254,13 +254,13 @@
 
     .stat-label {
         color: #7888a0;
-        font-size: 11px;
+        font-size: var(--pax-type-2xs);
         min-width: 80px;
     }
 
     .stat-value {
         font-family: var(--pax-ui-font-data);
-        font-size: 11px;
+        font-size: var(--pax-type-2xs);
         text-align: right;
     }
 
@@ -270,11 +270,11 @@
     }
     .damaged {
         color: #f87171;
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
     }
     .total {
         color: #94a3b8;
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
     }
 
     .mult-list {
@@ -286,7 +286,7 @@
 
     .mult {
         font-weight: var(--pax-weight-semibold);
-        font-size: 11px;
+        font-size: var(--pax-type-2xs);
     }
     .mult.grey {
         color: #667;

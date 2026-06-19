@@ -81,6 +81,7 @@
      size maps to a token instead of a raw px/rem orphan. Below `base` the
      steps sit ~1px apart; near-duplicate orphans (9/10/11px, .8/.82/.84,
      .9/.92) snap to the nearest step. `label` stays a semantic alias. */
+  --pax-type-4xs: 0.5rem; /* 8px — micro badges/captions */
   --pax-type-3xs: 0.625rem; /* 10px — micro labels/data (most common tiny size) */
   --pax-type-2xs: 0.6875rem; /* 11px */
   --pax-type-label: 0.65rem; /* semantic: all-caps micro labels */
@@ -89,6 +90,7 @@
   --pax-type-sm: 0.875rem; /* 14px */
   --pax-type-sm-plus: 0.9375rem; /* 15px — between sm and base */
   --pax-type-base: 1rem; /* 16px */
+  --pax-type-md: 1.125rem; /* 18px — between base and lg */
   --pax-type-lg: 1.25rem;
   --pax-type-xl: 1.5rem;
   --pax-type-2xl: 2rem;

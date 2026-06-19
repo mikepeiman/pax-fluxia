@@ -266,7 +266,7 @@
     .leaderboard__eyebrow {
         color: var(--pax-ui-accent);
         font-family: var(--pax-ui-font-ui);
-        font-size: 0.56rem;
+        font-size: var(--pax-type-4xs);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.18em;
         text-transform: uppercase;
@@ -276,7 +276,7 @@
         margin: 0;
         color: var(--pax-ui-text-strong);
         font-family: var(--pax-ui-font-ui);
-        font-size: 0.96rem;
+        font-size: var(--pax-type-sm-plus);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.06em;
         text-transform: uppercase;
@@ -333,7 +333,7 @@
         gap: 7px;
         padding: 0 12px;
         font-family: var(--pax-ui-font-ui);
-        font-size: 0.64rem;
+        font-size: var(--pax-type-label);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -363,7 +363,7 @@
     .summary-chip__label,
     .summary-chip__meta {
         font-family: var(--pax-ui-font-ui);
-        font-size: 0.6rem;
+        font-size: var(--pax-type-3xs);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.14em;
         text-transform: uppercase;
@@ -375,7 +375,7 @@
 
     .summary-chip__value {
         color: var(--pax-ui-text-strong);
-        font-size: 1rem;
+        font-size: var(--pax-type-base);
     }
 
     .summary-chip__meta {
@@ -421,7 +421,7 @@
         gap: 10px;
         padding: 0 10px;
         color: var(--pax-ui-text-soft);
-        font-size: 0.62rem;
+        font-size: var(--pax-type-3xs);
         letter-spacing: 0.12em;
         text-transform: uppercase;
     }
@@ -508,7 +508,7 @@
         text-overflow: ellipsis;
         white-space: nowrap;
         font-family: var(--pax-ui-font-ui);
-        font-size: 0.84rem;
+        font-size: var(--pax-type-xs-plus);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.03em;
         color: var(--pax-ui-text-strong);
@@ -522,7 +522,7 @@
         display: inline-flex;
         justify-content: flex-end;
         color: var(--pax-ui-text-strong);
-        font-size: 0.76rem;
+        font-size: var(--pax-type-xs);
     }
 
     .stat-detail__active {
@@ -544,7 +544,7 @@
         color: var(--pax-ui-text-soft);
         text-align: center;
         font-family: var(--pax-ui-font-ui);
-        font-size: 0.84rem;
+        font-size: var(--pax-type-xs-plus);
     }
 
     @media (max-width: 1100px) {

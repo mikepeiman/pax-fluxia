@@ -258,7 +258,7 @@
     .players-panel__knob-label,
     .players-panel__count-label {
         font-family: var(--pf-font-body);
-        font-size: 0.82rem;
+        font-size: var(--pax-type-xs-plus);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.12em;
         text-transform: uppercase;
@@ -274,7 +274,7 @@
         background: var(--pf-surface-pill);
         color: var(--pf-muted-strong);
         font-family: var(--pf-font-body);
-        font-size: 0.85rem;
+        font-size: var(--pax-type-sm);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -298,14 +298,14 @@
     }
 
     .players-panel__toggle-label {
-        font-size: 0.76rem;
+        font-size: var(--pax-type-xs);
         letter-spacing: 0.14em;
         color: var(--pf-muted);
     }
 
     .players-panel__toggle strong {
         font-family: var(--pf-font-display);
-        font-size: 0.94rem;
+        font-size: var(--pax-type-sm-plus);
         letter-spacing: 0.08em;
         text-transform: uppercase;
         color: currentColor;
@@ -339,7 +339,7 @@
         min-height: var(--pf-control-h);
         padding-inline: 0;
         border-radius: var(--pf-button-radius);
-        font-size: 0.92rem;
+        font-size: var(--pax-type-sm-plus);
     }
 
     .players-panel__stack {
@@ -402,7 +402,7 @@
 
     .player-row__slot {
         font-family: var(--pf-font-display);
-        font-size: 0.86rem;
+        font-size: var(--pax-type-sm);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.1em;
         text-transform: uppercase;
@@ -411,7 +411,7 @@
 
     .player-row__role {
         font-family: var(--pf-font-body);
-        font-size: 0.8rem;
+        font-size: var(--pax-type-xs-plus);
         font-weight: var(--pax-weight-semibold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -428,7 +428,7 @@
         background: var(--pf-surface-control);
         color: var(--pf-text);
         font-family: var(--pf-font-body);
-        font-size: 1rem;
+        font-size: var(--pax-type-base);
         font-weight: var(--pax-weight-semibold);
         outline: none;
     }

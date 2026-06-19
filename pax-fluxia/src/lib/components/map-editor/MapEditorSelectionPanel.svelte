@@ -267,7 +267,7 @@
   .selection-panel header strong,
   .subheading {
     font-family: var(--pax-ui-font-ui);
-    font-size: 0.98rem;
+    font-size: var(--pax-type-base);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: #f8fafc;
@@ -276,7 +276,7 @@
   .selection-panel header span,
   .stack span,
   .readout-grid span {
-    font-size: 0.76rem;
+    font-size: var(--pax-type-xs);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: rgba(148, 163, 184, 0.88);

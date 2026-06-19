@@ -121,7 +121,7 @@
   /* Small-caps command label */
   font-family: var(--font-ui);
   font-weight: var(--pax-weight-semibold);
-  font-size: 11px;
+  font-size: var(--pax-type-2xs);
   letter-spacing: 0.16em;
   text-transform: uppercase;
 }

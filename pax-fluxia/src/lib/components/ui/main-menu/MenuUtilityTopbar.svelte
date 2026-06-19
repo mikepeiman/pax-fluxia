@@ -147,7 +147,7 @@ import type { MenuTheme } from "./menuTheme";
         background: var(--pf-frame-control), var(--pf-surface-pill);
         color: var(--pf-muted-strong);
         font-family: var(--pf-font-body);
-        font-size: 0.9rem;
+        font-size: var(--pax-type-sm);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;

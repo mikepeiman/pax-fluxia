@@ -799,7 +799,7 @@
         border: 1px solid rgba(255, 255, 255, 0.15);
         border-radius: 50%;
         color: rgba(255, 255, 255, 0.6);
-        font-size: 16px;
+        font-size: var(--pax-type-base);
         cursor: pointer;
         z-index: 10;
         display: flex;
@@ -942,13 +942,13 @@
     }
     .winner-text {
         color: #eee;
-        font-size: 20px;
+        font-size: var(--pax-type-lg);
         font-weight: var(--pax-weight-bold);
         font-family: var(--pax-ui-font-display);
     }
     .winner-subtitle {
         color: #667;
-        font-size: 16px;
+        font-size: var(--pax-type-base);
         font-style: italic;
     }
 
@@ -975,11 +975,11 @@
         transform: translateY(-2px);
     }
     .stat-icon {
-        font-size: 20px;
+        font-size: var(--pax-type-lg);
         margin-bottom: 2px;
     }
     .stat-value {
-        font-size: 2rem;
+        font-size: var(--pax-type-2xl);
         color: #00ffff;
         font-family: var(--pax-ui-font-display);
         font-weight: var(--pax-weight-bold);
@@ -987,7 +987,7 @@
         text-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
     }
     .stat-label {
-        font-size: 11px;
+        font-size: var(--pax-type-2xs);
         color: #556;
         text-transform: uppercase;
         letter-spacing: 0.15em;
@@ -1009,7 +1009,7 @@
         border: none;
         background: transparent;
         color: #556;
-        font-size: 13px;
+        font-size: var(--pax-type-xs-plus);
         font-weight: var(--pax-weight-semibold);
         text-transform: uppercase;
         letter-spacing: 0.06em;
@@ -1032,7 +1032,7 @@
         box-shadow: 0 0 20px rgba(0, 255, 255, 0.05);
     }
     .tab-icon {
-        font-size: 15px;
+        font-size: var(--pax-type-sm-plus);
     }
 
     /* ── Tab Content ────────────────────── */
@@ -1050,7 +1050,7 @@
         display: grid;
         grid-template-columns: 40px 1fr 80px 80px 80px;
         padding: 8px 16px;
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
         color: #445;
         text-transform: uppercase;
         letter-spacing: 0.12em;
@@ -1077,7 +1077,7 @@
         border-color: rgba(255, 255, 255, 0.08);
     }
     .sb-rank {
-        font-size: 16px;
+        font-size: var(--pax-type-base);
         font-weight: var(--pax-weight-extrabold);
         color: #445;
         font-family: var(--pax-ui-font-display);
@@ -1089,7 +1089,7 @@
         display: flex;
         align-items: center;
         gap: 10px;
-        font-size: 15px;
+        font-size: var(--pax-type-sm-plus);
         font-weight: var(--pax-weight-semibold);
         color: #ccd;
     }
@@ -1100,7 +1100,7 @@
         flex-shrink: 0;
     }
     .sb-stat {
-        font-size: 15px;
+        font-size: var(--pax-type-sm-plus);
         font-family: var(--pax-ui-font-display);
         color: #889;
         text-align: center;
@@ -1117,7 +1117,7 @@
         gap: 16px;
     }
     .chart-title {
-        font-size: 14px;
+        font-size: var(--pax-type-sm);
         color: #778;
         text-transform: uppercase;
         letter-spacing: 0.12em;
@@ -1130,7 +1130,7 @@
         height: auto;
     }
     .axis-label {
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
         fill: #556;
         font-family: var(--pax-ui-font-display);
     }
@@ -1151,7 +1151,7 @@
         border-radius: 50%;
     }
     .legend-label {
-        font-size: 12px;
+        font-size: var(--pax-type-xs);
         color: #889;
         font-weight: var(--pax-weight-semibold);
     }
@@ -1189,14 +1189,14 @@
         padding: 6px 10px;
         color: #b0c4de;
         font-family: var(--pax-ui-font-techno);
-        font-size: 0.7rem;
+        font-size: var(--pax-type-2xs);
     }
     .save-map-input::placeholder {
         color: rgba(255, 255, 255, 0.2);
     }
     .btn--small {
         padding: 6px 14px;
-        font-size: 0.65rem;
+        font-size: var(--pax-type-label);
         border-radius: 6px;
         background: rgba(0, 255, 255, 0.08);
         border: 1px solid rgba(0, 255, 255, 0.2);
@@ -1229,7 +1229,7 @@
     .btn--primary {
         background: linear-gradient(135deg, #00ddcc, #0088cc);
         color: #001a1a;
-        font-size: 16px;
+        font-size: var(--pax-type-base);
         box-shadow: 0 4px 24px rgba(0, 200, 200, 0.25);
     }
     .btn--primary:hover {
@@ -1260,7 +1260,7 @@
         background: transparent;
         border: 1px solid rgba(255, 255, 255, 0.1);
         color: #667;
-        font-size: 13px;
+        font-size: var(--pax-type-xs-plus);
     }
     .btn--secondary:hover {
         border-color: rgba(255, 255, 255, 0.2);

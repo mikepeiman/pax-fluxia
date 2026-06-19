@@ -121,7 +121,7 @@
         min-height: 36px;
         z-index: 100;
         font-family: var(--pax-ui-font-ui);
-        font-size: 0.62rem;
+        font-size: var(--pax-type-3xs);
         color: var(--pax-ui-text);
         overflow: hidden;
     }
@@ -220,7 +220,7 @@
     }
 
     .sb-ships {
-        font-size: 0.62rem;
+        font-size: var(--pax-type-3xs);
     }
 
     .sb-stats {
@@ -232,7 +232,7 @@
 
     .sb-stat {
         gap: 4px;
-        font-size: 0.62rem;
+        font-size: var(--pax-type-3xs);
     }
 
     .sb-dim {

@@ -124,7 +124,7 @@
 
     .command-bar__eyebrow {
         font-family: var(--pf-font-body);
-        font-size: 0.76rem;
+        font-size: var(--pax-type-xs);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.14em;
         text-transform: uppercase;
@@ -133,7 +133,7 @@
 
     .command-bar__summary {
         font-family: var(--pf-font-display);
-        font-size: 1rem;
+        font-size: var(--pax-type-base);
         font-weight: var(--pax-weight-bold);
         color: var(--pf-text);
         white-space: nowrap;
@@ -143,7 +143,7 @@
 
     .command-bar__room {
         font-family: var(--pf-font-body);
-        font-size: 0.92rem;
+        font-size: var(--pax-type-sm-plus);
         color: var(--pf-muted);
     }
 
@@ -163,7 +163,7 @@
         background: var(--pf-frame-control), var(--pf-surface-control);
         color: var(--pf-text);
         font-family: var(--pf-font-body);
-        font-size: 1rem;
+        font-size: var(--pax-type-base);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;

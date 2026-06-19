@@ -88,7 +88,7 @@
     background: var(--pax-ui-button-bg);
     color: var(--pax-ui-text);
     font-family: var(--pax-ui-font-ui);
-    font-size: 0.78rem;
+    font-size: var(--pax-type-xs);
   }
   .save-load__input:focus {
     outline: 1px solid var(--pax-ui-accent);
@@ -104,7 +104,7 @@
   .save-load__empty {
     margin: 0;
     color: var(--pax-ui-text-dim);
-    font-size: 0.74rem;
+    font-size: var(--pax-type-xs);
     line-height: 1.4;
   }
   .save-load__list {
@@ -132,12 +132,12 @@
   .save-load__meta strong {
     overflow: hidden;
     color: var(--pax-ui-text);
-    font-size: 0.78rem;
+    font-size: var(--pax-type-xs);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .save-load__meta small {
     color: var(--pax-ui-text-dim);
-    font-size: 0.66rem;
+    font-size: var(--pax-type-label);
   }
 </style>

@@ -1624,7 +1624,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         background: transparent;
         color: var(--pax-ui-text);
         font-family: var(--pax-ui-font-ui);
-        font-size: 0.78rem;
+        font-size: var(--pax-type-xs);
     }
     .settings-search__input:focus {
         outline: none;
@@ -1661,7 +1661,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         margin: 0;
         padding: 8px;
         color: var(--pax-ui-text-dim);
-        font-size: 0.74rem;
+        font-size: var(--pax-type-xs);
     }
     .settings-search__result {
         display: flex;
@@ -1683,14 +1683,14 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .settings-search__result-title {
         min-width: 0;
         overflow: hidden;
-        font-size: 0.76rem;
+        font-size: var(--pax-type-xs);
         text-overflow: ellipsis;
         white-space: nowrap;
     }
     .settings-search__result-section {
         flex: 0 0 auto;
         color: var(--pax-ui-text-dim);
-        font-size: 0.62rem;
+        font-size: var(--pax-type-3xs);
         text-transform: uppercase;
         letter-spacing: 0.06em;
     }
@@ -1736,7 +1736,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         background: var(--pax-ui-button-bg);
         color: var(--pax-ui-text-soft);
         font-family: var(--pax-ui-font-ui);
-        font-size: 0.64rem;
+        font-size: var(--pax-type-label);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.12em;
         text-transform: uppercase;
@@ -1819,7 +1819,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         text-overflow: ellipsis;
         white-space: nowrap;
         font-family: var(--pax-ui-font-ui);
-        font-size: 0.62rem;
+        font-size: var(--pax-type-3xs);
         font-weight: var(--pax-weight-bold);
         text-transform: uppercase;
         letter-spacing: 0.11em;
@@ -1902,7 +1902,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
     .head-label {
         flex: 1;
-        font-size: 0.84rem;
+        font-size: var(--pax-type-xs-plus);
         font-weight: var(--pax-weight-bold);
         text-transform: uppercase;
         letter-spacing: 0.09em;
@@ -1945,7 +1945,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         background: rgba(7, 12, 24, 0.62);
         color: var(--pax-ui-text);
         font-family: var(--pax-ui-font-ui);
-        font-size: 0.6rem;
+        font-size: var(--pax-type-3xs);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.1em;
         text-transform: uppercase;
@@ -1980,7 +1980,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         display: inline-grid;
         place-items: center;
         width: 14px;
-        font-size: 11px;
+        font-size: var(--pax-type-2xs);
         line-height: 1;
         opacity: 0.92;
     }
@@ -2136,7 +2136,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        font-size: 0.58rem;
+        font-size: var(--pax-type-3xs);
         line-height: 1;
     }
 
@@ -2222,7 +2222,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         border-top: none;
         color: var(--pax-ui-accent-warm);
         font-family: var(--pax-ui-font-ui);
-        font-size: 0.62rem;
+        font-size: var(--pax-type-3xs);
         font-weight: var(--pax-weight-black);
         letter-spacing: 0.16em;
     }

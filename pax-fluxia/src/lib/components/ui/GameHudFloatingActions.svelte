@@ -97,28 +97,28 @@
     .help-fab {
         right: 64px;
         font-family: var(--pax-ui-font-display);
-        font-size: 1rem;
+        font-size: var(--pax-type-base);
         font-weight: var(--pax-weight-bold);
     }
 
     .fit-fab {
         right: 108px;
-        font-size: 1rem;
+        font-size: var(--pax-type-base);
     }
 
     .diagnostics-fab {
         right: 20px;
-        font-size: 1rem;
+        font-size: var(--pax-type-base);
     }
 
     .measurements-fab {
         right: 152px;
-        font-size: 1rem;
+        font-size: var(--pax-type-base);
     }
 
     .ruler-fab {
         right: 196px;
-        font-size: 1rem;
+        font-size: var(--pax-type-base);
     }
 
     .hud-fab:hover {

@@ -193,7 +193,7 @@
         margin: 0 0 4px;
         color: var(--pf-accent-soft);
         font-family: var(--pf-font-body);
-        font-size: 0.76rem;
+        font-size: var(--pax-type-xs);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.18em;
         text-transform: uppercase;
@@ -212,7 +212,7 @@
         margin: 8px 0 0;
         color: var(--pf-muted);
         font-family: var(--pf-font-body);
-        font-size: 0.98rem;
+        font-size: var(--pax-type-base);
         max-width: 48ch;
     }
 
@@ -282,7 +282,7 @@
         place-items: center;
         color: var(--pf-muted);
         font-family: var(--pf-font-body);
-        font-size: 1rem;
+        font-size: var(--pax-type-base);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -291,7 +291,7 @@
     .background-modal__label {
         color: var(--pf-muted-strong);
         font-family: var(--pf-font-body);
-        font-size: 0.84rem;
+        font-size: var(--pax-type-xs-plus);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.04em;
         text-transform: capitalize;

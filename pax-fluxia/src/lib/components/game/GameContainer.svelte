@@ -1367,7 +1367,7 @@
     .area-controls-bar :global(.star-nav-card__eyebrow) {
       writing-mode: vertical-rl;
       transform: rotate(180deg);
-      font-size: 0.4rem;
+      font-size: var(--pax-type-4xs);
       padding: 1px 0;
       letter-spacing: 0.08em;
     }
@@ -1475,7 +1475,7 @@
       border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 50%;
       color: rgba(255, 255, 255, 0.8);
-      font-size: 1.1rem;
+      font-size: var(--pax-type-md);
       cursor: pointer;
       z-index: 610;
       transition: all 0.15s ease;
@@ -1513,24 +1513,24 @@
       margin-bottom: 4px;
     }
     .drawer-leaderboard :global(.leaderboard__title) {
-      font-size: 0.65rem;
+      font-size: var(--pax-type-label);
     }
     .drawer-leaderboard :global(.game-totals) {
       padding: 2px 4px;
       margin-bottom: 2px;
-      font-size: 0.65rem;
+      font-size: var(--pax-type-label);
     }
     .drawer-leaderboard :global(.totals-total) {
-      font-size: 0.7rem;
+      font-size: var(--pax-type-2xs);
     }
     .drawer-leaderboard :global(.tick-counter) {
       gap: 4px;
     }
     .drawer-leaderboard :global(.tick-label) {
-      font-size: 0.6rem;
+      font-size: var(--pax-type-3xs);
     }
     .drawer-leaderboard :global(.tick-value) {
-      font-size: 1.1rem;
+      font-size: var(--pax-type-md);
     }
     .drawer-leaderboard :global(.tick-progress-bar) {
       height: 3px;
@@ -1542,7 +1542,7 @@
     .drawer-leaderboard :global(.leaderboard__item) {
       padding: 3px 6px;
       gap: 6px;
-      font-size: 0.75rem;
+      font-size: var(--pax-type-xs);
     }
     .drawer-leaderboard :global(.player-dot) {
       width: 8px;
@@ -1553,17 +1553,17 @@
       height: 10px;
     }
     .drawer-leaderboard :global(.player-name) {
-      font-size: 0.75rem;
+      font-size: var(--pax-type-xs);
     }
     .drawer-leaderboard :global(.player-stats) {
-      font-size: 0.65rem;
+      font-size: var(--pax-type-label);
     }
     .drawer-leaderboard :global(.stat-total) {
-      font-size: 0.7rem;
+      font-size: var(--pax-type-2xs);
       min-width: 2em;
     }
     .drawer-leaderboard :global(.stat-breakdown) {
-      font-size: 0.55rem;
+      font-size: var(--pax-type-4xs);
       min-width: 2.5em;
     }
     .drawer-leaderboard :global(.stat-stars) {
@@ -1732,7 +1732,7 @@
   }
 
   .area-right :global(.leaderboard__title) {
-    font-size: 0.82rem;
+    font-size: var(--pax-type-xs-plus);
   }
 
   .area-right :global(.leaderboard__actions) {
@@ -1835,7 +1835,7 @@
     gap: 10px;
     color: var(--pax-ui-text-soft);
     font-family: var(--pax-ui-font-ui);
-    font-size: 0.62rem;
+    font-size: var(--pax-type-3xs);
     font-weight: var(--pax-weight-extrabold);
     letter-spacing: 0.14em;
     text-transform: uppercase;
@@ -1866,12 +1866,12 @@
 
   .tactical-overview-player__ships {
     color: var(--pax-ui-text-strong);
-    font-size: 0.72rem;
+    font-size: var(--pax-type-xs);
   }
 
   .tactical-overview-player__stars {
     color: var(--pax-ui-text-soft);
-    font-size: 0.62rem;
+    font-size: var(--pax-type-3xs);
   }
 
   .sidebar-quick-access {
@@ -1910,7 +1910,7 @@
     box-shadow: 0 0 12px rgba(0, 255, 255, 0.15);
   }
   .room-id-label {
-    font-size: 0.6rem;
+    font-size: var(--pax-type-3xs);
     font-weight: var(--pax-weight-bold);
     letter-spacing: 0.12em;
     color: rgba(255, 255, 255, 0.5);
@@ -1918,12 +1918,12 @@
   }
   .room-id-code {
     font-family: var(--pax-ui-font-data);
-    font-size: 0.8rem;
+    font-size: var(--pax-type-xs-plus);
     color: var(--pax-ui-accent);
     letter-spacing: 0.05em;
   }
   .room-id-icon {
-    font-size: 0.75rem;
+    font-size: var(--pax-type-xs);
     opacity: 0.6;
   }
 
@@ -1966,7 +1966,7 @@
   }
   .speed-card__label {
     font-family: var(--pax-ui-font-ui);
-    font-size: 0.56rem;
+    font-size: var(--pax-type-4xs);
     font-weight: var(--pax-weight-bold);
     letter-spacing: 0.16em;
     text-transform: uppercase;
@@ -1995,7 +1995,7 @@
     font-family: inherit;
     font-weight: var(--pax-weight-semibold);
     text-transform: uppercase;
-    font-size: 11px;
+    font-size: var(--pax-type-2xs);
     transition: all 0.2s;
   }
 
@@ -2021,7 +2021,7 @@
 
   .surrender-modal :global(.btn--md) {
     padding: 12px 16px;
-    font-size: 13px;
+    font-size: var(--pax-type-xs-plus);
   }
 
   .surrender-modal {
@@ -2034,13 +2034,13 @@
     text-align: center;
   }
   .surrender-modal__title {
-    font-size: 1.2rem;
+    font-size: var(--pax-type-lg);
     margin: 0;
     color: #fff;
     letter-spacing: 0.08em;
   }
   .surrender-modal__desc {
-    font-size: 0.875rem;
+    font-size: var(--pax-type-sm);
     color: #888;
     margin: 0;
   }
@@ -2062,7 +2062,7 @@
     text-align: center;
   }
   .modal-action__sub {
-    font-size: 0.62rem;
+    font-size: var(--pax-type-3xs);
     line-height: 1.25;
     color: #8891a6;
     text-align: center;
@@ -2070,7 +2070,7 @@
   }
   :global(.surrender-modal__cancel) {
     opacity: 0.5;
-    font-size: 0.75rem;
+    font-size: var(--pax-type-xs);
   }
 
   .fab-scrim {
@@ -2114,7 +2114,7 @@
     border: none;
     background: transparent;
     color: rgba(255, 255, 255, 0.85);
-    font-size: 0.82rem;
+    font-size: var(--pax-type-xs-plus);
     font-family: inherit;
     cursor: pointer;
     border-radius: 8px;
@@ -2125,7 +2125,7 @@
     background: rgba(0, 255, 255, 0.08);
   }
   .fab-icon {
-    font-size: 1.1rem;
+    font-size: var(--pax-type-md);
     width: 24px;
     text-align: center;
     flex-shrink: 0;

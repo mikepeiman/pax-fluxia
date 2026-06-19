@@ -693,7 +693,7 @@
   .game-shell-status__title {
     margin: 0;
     font-family: "Rajdhani", sans-serif;
-    font-size: 1.05rem;
+    font-size: var(--pax-type-base);
     font-weight: 700;
     letter-spacing: 0.04em;
     color: #f3f8ff;
@@ -701,7 +701,7 @@
 
   .game-shell-status__detail {
     margin: 8px 0 0;
-    font-size: 0.92rem;
+    font-size: var(--pax-type-sm-plus);
     line-height: 1.45;
     color: rgba(222, 234, 246, 0.86);
   }
@@ -760,7 +760,7 @@
     list-style: none;
     padding: 12px 14px;
     font-family: "Rajdhani", sans-serif;
-    font-size: 1rem;
+    font-size: var(--pax-type-base);
     font-weight: 700;
     letter-spacing: 0.04em;
     color: #ffe3bf;
@@ -781,7 +781,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px 12px;
-    font-size: 0.82rem;
+    font-size: var(--pax-type-xs-plus);
     color: rgba(255, 228, 191, 0.82);
   }
 
@@ -808,7 +808,7 @@
   }
 
   .startup-diagnostics__feedback {
-    font-size: 0.8rem;
+    font-size: var(--pax-type-xs-plus);
     color: rgba(255, 228, 191, 0.78);
   }
 
@@ -819,7 +819,7 @@
 
   .startup-diagnostics__section-title {
     margin: 0;
-    font-size: 0.8rem;
+    font-size: var(--pax-type-xs-plus);
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -828,7 +828,7 @@
 
   .startup-diagnostics__empty {
     margin: 0;
-    font-size: 0.88rem;
+    font-size: var(--pax-type-sm);
     color: rgba(255, 240, 215, 0.85);
   }
 
@@ -853,13 +853,13 @@
   }
 
   .startup-diagnostics__entry-title {
-    font-size: 0.88rem;
+    font-size: var(--pax-type-sm);
     color: #fff1dc;
   }
 
   .startup-diagnostics__entry-time,
   .startup-diagnostics__resource {
-    font-size: 0.76rem;
+    font-size: var(--pax-type-xs);
     color: rgba(255, 228, 191, 0.72);
     word-break: break-word;
   }
@@ -869,7 +869,7 @@
     padding: 8px;
     border-radius: 10px;
     background: rgba(0, 0, 0, 0.28);
-    font-size: 0.72rem;
+    font-size: var(--pax-type-xs);
     white-space: pre-wrap;
     word-break: break-word;
     color: rgba(245, 249, 255, 0.88);

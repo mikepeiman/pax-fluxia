@@ -109,7 +109,7 @@
     .speed-controls-container :global(.start-btn) {
         gap: 8px;
         padding: 0 14px;
-        font-size: 0.72rem;
+        font-size: var(--pax-type-xs);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.14em;
     }
@@ -137,7 +137,7 @@
 
         .speed-controls-container :global(.start-btn) {
             min-height: 34px;
-            font-size: 0.66rem;
+            font-size: var(--pax-type-label);
         }
 
         .speed-controls {

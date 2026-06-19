@@ -347,7 +347,7 @@
         max-height: calc(100vh - 100px);
         width: 280px;
         gap: 0;
-        font-size: 12px;
+        font-size: var(--pax-type-xs);
         color: #c8d0e0;
         background: rgba(10, 14, 20, 0.92);
         border: 1px solid rgba(100, 120, 160, 0.3);
@@ -358,7 +358,7 @@
 
     .section-title {
         font-family: var(--pax-ui-font-display);
-        font-size: 11px;
+        font-size: var(--pax-type-2xs);
         font-weight: var(--pax-weight-bold);
         text-transform: uppercase;
         letter-spacing: 1px;
@@ -390,16 +390,16 @@
     }
 
     .type-icon {
-        font-size: 16px;
+        font-size: var(--pax-type-base);
     }
     .star-name {
         font-family: var(--pax-ui-font-data);
-        font-size: 12px;
+        font-size: var(--pax-type-xs);
         font-weight: var(--pax-weight-semibold);
         flex: 1;
     }
     .type-chip {
-        font-size: 9px;
+        font-size: var(--pax-type-3xs);
         padding: 1px 5px;
         border-radius: 3px;
         font-weight: var(--pax-weight-bold);
@@ -416,7 +416,7 @@
         border: none;
         color: #556;
         cursor: pointer;
-        font-size: 13px;
+        font-size: var(--pax-type-xs-plus);
         padding: 0 2px;
         line-height: 1;
     }
@@ -439,17 +439,17 @@
 
     .detail-row .label {
         color: #6478a0;
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
         min-width: 55px;
     }
     .detail-row .value {
         font-family: var(--pax-ui-font-data);
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
         text-align: right;
     }
     .detail-row .overflow {
         color: #556;
-        font-size: 9px;
+        font-size: var(--pax-type-3xs);
     }
     .detail-row.combat-active {
         background: rgba(239, 68, 68, 0.08);
@@ -472,11 +472,11 @@
     }
     .damaged {
         color: #f87171;
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
     }
     .total {
         color: #667;
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
     }
 
     .empty-hint {
@@ -484,7 +484,7 @@
         font-style: italic;
         text-align: center;
         padding: 10px 0;
-        font-size: 11px;
+        font-size: var(--pax-type-2xs);
     }
 
     /* ── ALL STARS LIST ── */
@@ -541,19 +541,19 @@
         border-radius: 50%;
     }
     .row-type {
-        font-size: 12px;
+        font-size: var(--pax-type-xs);
         text-align: center;
     }
     .row-id {
         font-family: var(--pax-ui-font-data);
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
         color: #8899aa;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
     .row-chip {
-        font-size: 8px;
+        font-size: var(--pax-type-4xs);
         padding: 0 4px;
         border-radius: 2px;
         font-weight: var(--pax-weight-bold);
@@ -561,20 +561,20 @@
     }
     .row-active {
         font-family: var(--pax-ui-font-data);
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
         text-align: right;
         color: #4ade80;
         font-weight: var(--pax-weight-semibold);
     }
     .row-damaged {
         font-family: var(--pax-ui-font-data);
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
         text-align: right;
         color: #f87171;
     }
     .row-repaired {
         font-family: var(--pax-ui-font-data);
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
         text-align: right;
         color: #a855f7;
         font-weight: var(--pax-weight-semibold);
@@ -592,19 +592,19 @@
     }
     .force-sep {
         color: #445;
-        font-size: 9px;
+        font-size: var(--pax-type-3xs);
     }
     .force-atk {
         color: #22c55e;
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
     }
     .force-def {
         color: #ef4444;
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
     }
     .force-ratio {
         font-weight: var(--pax-weight-bold);
-        font-size: 11px;
+        font-size: var(--pax-type-2xs);
     }
     .force-ratio.favorable {
         color: #4ade80;
@@ -614,7 +614,7 @@
     }
     .force-vs {
         color: #556;
-        font-size: 9px;
+        font-size: var(--pax-type-3xs);
         margin-left: 3px;
     }
 </style>

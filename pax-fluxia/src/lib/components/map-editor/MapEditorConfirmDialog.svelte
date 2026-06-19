@@ -73,7 +73,7 @@
 
   .dialog__header strong {
     font-family: var(--pax-ui-font-ui);
-    font-size: 1rem;
+    font-size: var(--pax-type-base);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: #f8fafc;

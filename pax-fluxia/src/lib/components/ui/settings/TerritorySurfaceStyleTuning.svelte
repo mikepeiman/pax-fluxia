@@ -723,14 +723,14 @@
     .var-desc {
         margin: 4px 0 10px;
         color: rgba(220, 232, 245, 0.72);
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
         line-height: 1.35;
     }
 
     .sub-heading {
         margin: 12px 0 6px;
         color: rgba(128, 222, 255, 0.92);
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.12em;
         text-transform: uppercase;

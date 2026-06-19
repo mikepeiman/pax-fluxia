@@ -234,7 +234,7 @@
     }
 
     .players-focus-label {
-        font-size: 10px;
+        font-size: var(--pax-type-3xs);
         letter-spacing: 0.1em;
         text-transform: uppercase;
         color: rgba(185, 220, 255, 0.72);
@@ -244,7 +244,7 @@
         min-width: 0;
         overflow: hidden;
         color: #dbeafe;
-        font-size: 11px;
+        font-size: var(--pax-type-2xs);
         font-weight: var(--pax-weight-bold);
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -256,7 +256,7 @@
 
     .players-detail summary {
         cursor: pointer;
-        font-size: 11px;
+        font-size: var(--pax-type-2xs);
         font-weight: var(--pax-weight-semibold);
         color: rgba(190, 220, 255, 0.78);
         list-style: none;

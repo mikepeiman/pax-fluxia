@@ -132,7 +132,7 @@
 <style>
   .pf-star-card__hint {
     margin: 0;
-    font-size: 0.72rem;
+    font-size: var(--pax-type-xs);
     line-height: 1.35;
     color: var(--pax-ui-text-dim, rgba(180, 188, 188, 0.7));
   }

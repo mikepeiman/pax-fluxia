@@ -209,13 +209,13 @@
     }
 
     .hue-dial__value {
-        font-size: 1.2rem;
+        font-size: var(--pax-type-lg);
         font-weight: var(--pax-weight-bold);
         line-height: 1;
     }
 
     .hue-dial__unit {
-        font-size: 0.58rem;
+        font-size: var(--pax-type-3xs);
         letter-spacing: 0.14em;
         text-transform: uppercase;
         color: var(--pf-muted);

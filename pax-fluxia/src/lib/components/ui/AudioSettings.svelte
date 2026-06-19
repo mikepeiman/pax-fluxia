@@ -447,7 +447,7 @@
     .eyebrow {
         margin: 0 0 6px;
         font-family: var(--pf-font-display);
-        font-size: 0.74rem;
+        font-size: var(--pax-type-xs);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.14em;
         text-transform: uppercase;
@@ -465,7 +465,7 @@
     .subtitle {
         margin: 6px 0 0;
         color: var(--pf-muted);
-        font-size: 0.95rem;
+        font-size: var(--pax-type-sm-plus);
     }
 
     .header-actions,
@@ -515,7 +515,7 @@
     }
     .picker-item small {
         color: var(--pf-muted);
-        font-size: 0.82rem;
+        font-size: var(--pax-type-xs-plus);
     }
 
     .btn:hover,
@@ -565,7 +565,7 @@
         padding: 0 12px;
         border-radius: var(--pf-button-radius);
         font-family: var(--pf-font-body);
-        font-size: 0.84rem;
+        font-size: var(--pax-type-xs-plus);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -593,7 +593,7 @@
         padding: 0 12px;
         border-radius: var(--pf-button-radius);
         font-family: var(--pf-font-body);
-        font-size: 0.92rem;
+        font-size: var(--pax-type-sm-plus);
     }
 
     .picker-trigger {
@@ -612,7 +612,7 @@
     .picker-arrow {
         margin-left: 10px;
         color: var(--pf-muted);
-        font-size: 0.72rem;
+        font-size: var(--pax-type-xs);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;

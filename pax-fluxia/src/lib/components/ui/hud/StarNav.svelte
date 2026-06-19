@@ -345,7 +345,7 @@
     .star-nav-card__eyebrow {
         color: var(--pax-ui-accent);
         font-family: var(--pax-ui-font-ui);
-        font-size: 0.56rem;
+        font-size: var(--pax-type-4xs);
         font-weight: var(--pax-weight-extrabold);
         letter-spacing: 0.18em;
         text-transform: uppercase;
@@ -378,7 +378,7 @@
     .star-nav-card__title {
         color: var(--pax-ui-text-strong);
         font-family: var(--pax-ui-font-ui);
-        font-size: 1rem;
+        font-size: var(--pax-type-base);
         font-weight: var(--pax-weight-extrabold);
         letter-spacing: 0.04em;
         overflow: hidden;
@@ -389,7 +389,7 @@
     .star-nav-card__subtitle {
         color: var(--pax-ui-text-soft);
         font-family: var(--pax-ui-font-ui);
-        font-size: 0.62rem;
+        font-size: var(--pax-type-3xs);
         font-weight: var(--pax-weight-extrabold);
         letter-spacing: 0.14em;
         text-transform: uppercase;
@@ -510,7 +510,7 @@
         gap: 6px;
         color: var(--pax-ui-text-soft);
         font-family: var(--pax-ui-font-ui);
-        font-size: 0.55rem;
+        font-size: var(--pax-type-4xs);
         font-weight: var(--pax-weight-extrabold);
         letter-spacing: 0.13em;
         line-height: 1;
@@ -525,7 +525,7 @@
         white-space: nowrap;
         color: var(--pax-ui-text-strong);
         font-family: var(--pax-ui-font-ui);
-        font-size: 0.78rem;
+        font-size: var(--pax-type-xs);
         font-weight: var(--pax-weight-bold);
     }
 
@@ -545,7 +545,7 @@
 
     .star-rate__value {
         color: var(--pax-ui-accent-strong);
-        font-size: 0.9rem;
+        font-size: var(--pax-type-sm);
     }
 
     .star-route-strip {
@@ -563,7 +563,7 @@
         background: rgba(14, 24, 43, 0.88);
         color: var(--pax-ui-text-soft);
         font-family: var(--pax-ui-font-ui);
-        font-size: 0.66rem;
+        font-size: var(--pax-type-label);
         font-weight: var(--pax-weight-bold);
         white-space: nowrap;
     }
@@ -583,7 +583,7 @@
         border: 1px dashed rgba(112, 142, 186, 0.24);
         color: var(--pax-ui-text-soft);
         font-family: var(--pax-ui-font-ui);
-        font-size: 0.84rem;
+        font-size: var(--pax-type-xs-plus);
         text-align: center;
     }
 

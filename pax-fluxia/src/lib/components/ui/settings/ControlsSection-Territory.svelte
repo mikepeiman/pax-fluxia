@@ -1905,7 +1905,7 @@
   }
   .territory-inline-heading {
     margin: 2px 0 0;
-    font-size: 10px;
+    font-size: var(--pax-type-3xs);
     font-weight: var(--pax-weight-bold);
     letter-spacing: 0.12em;
     text-transform: uppercase;
@@ -1938,7 +1938,7 @@
     padding: 12px;
   }
   .axis-card-title {
-    font-size: 12px;
+    font-size: var(--pax-type-xs);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: rgba(236, 242, 249, 0.92);
@@ -1960,7 +1960,7 @@
   .axis-label {
     flex-shrink: 0;
     width: 80px;
-    font-size: 9px;
+    font-size: var(--pax-type-3xs);
     text-transform: uppercase;
     letter-spacing: 0.4px;
     color: var(--accent, #888);

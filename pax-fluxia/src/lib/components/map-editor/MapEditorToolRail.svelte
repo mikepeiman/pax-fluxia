@@ -820,7 +820,7 @@
     align-items: center;
     justify-content: center;
     font-family: var(--pax-ui-font-data);
-    font-size: 0.58rem;
+    font-size: var(--pax-type-3xs);
     font-weight: var(--pax-weight-bold);
     letter-spacing: 0.04em;
     line-height: 1;
@@ -846,7 +846,7 @@
   .rail-copy strong {
     display: block;
     font-family: var(--pax-ui-font-ui);
-    font-size: 1rem;
+    font-size: var(--pax-type-base);
     font-weight: var(--pax-weight-bold);
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -856,7 +856,7 @@
   .rail-copy small {
     display: block;
     min-width: 0;
-    font-size: 0.74rem;
+    font-size: var(--pax-type-xs);
     line-height: 1.3;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -919,7 +919,7 @@
     border: 1px solid rgba(148, 163, 184, 0.18);
     background: rgba(3, 10, 24, 0.96);
     color: rgba(226, 232, 240, 0.94);
-    font-size: 0.76rem;
+    font-size: var(--pax-type-xs);
     line-height: 1.35;
     text-transform: none;
     letter-spacing: 0;
@@ -1003,7 +1003,7 @@
   .subsection__header strong,
   .hint-card strong {
     font-family: var(--pax-ui-font-ui);
-    font-size: 0.98rem;
+    font-size: var(--pax-type-base);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: #f8fafc;
@@ -1011,7 +1011,7 @@
 
   .tool-panel header span,
   .stack span {
-    font-size: 0.76rem;
+    font-size: var(--pax-type-xs);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: rgba(148, 163, 184, 0.88);
@@ -1030,7 +1030,7 @@
     display: grid;
     gap: 6px;
     color: rgba(203, 213, 225, 0.92);
-    font-size: 0.82rem;
+    font-size: var(--pax-type-xs-plus);
   }
 
   .hint-card kbd {
@@ -1044,7 +1044,7 @@
     border: 1px solid rgba(148, 163, 184, 0.22);
     background: rgba(15, 23, 42, 0.9);
     font: inherit;
-    font-size: 0.74rem;
+    font-size: var(--pax-type-xs);
     font-weight: var(--pax-weight-bold);
     color: #f8fafc;
   }
@@ -1088,14 +1088,14 @@
 
   .portal-group-card__header strong {
     font-family: var(--pax-ui-font-ui);
-    font-size: 0.9rem;
+    font-size: var(--pax-type-sm);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: #eef2ff;
   }
 
   .portal-group-card__header span {
-    font-size: 0.74rem;
+    font-size: var(--pax-type-xs);
     color: rgba(165, 180, 252, 0.84);
   }
 
@@ -1155,7 +1155,7 @@
   .swatch strong,
   .owner-chip strong {
     font-family: var(--pax-ui-font-ui);
-    font-size: 0.92rem;
+    font-size: var(--pax-type-sm-plus);
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: #f8fafc;
@@ -1163,7 +1163,7 @@
 
   .swatch span,
   .owner-chip span {
-    font-size: 0.74rem;
+    font-size: var(--pax-type-xs);
     color: rgba(148, 163, 184, 0.88);
   }
 

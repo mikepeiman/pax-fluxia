@@ -185,7 +185,7 @@
 
   .pax-settings-picker-row__chevron {
     color: var(--pax-ui-accent-warm-strong);
-    font-size: 0.6rem;
+    font-size: var(--pax-type-3xs);
     line-height: 1;
   }
 

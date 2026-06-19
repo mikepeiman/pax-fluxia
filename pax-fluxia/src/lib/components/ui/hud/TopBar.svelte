@@ -153,7 +153,7 @@
 
   .game-title-mini {
     font-family: var(--pax-ui-font-display);
-    font-size: 0.65rem;
+    font-size: var(--pax-type-label);
     font-weight: var(--pax-weight-bold);
     letter-spacing: 0.2em;
     color: rgba(255, 255, 255, 0.25);
@@ -165,7 +165,7 @@
     border: 1px solid rgba(255, 255, 255, 0.12);
     color: rgba(255, 255, 255, 0.5);
     font-family: var(--pax-ui-font-display);
-    font-size: 0.7rem;
+    font-size: var(--pax-type-2xs);
     font-weight: var(--pax-weight-semibold);
     letter-spacing: 0.1em;
     padding: 4px 12px;
@@ -181,13 +181,13 @@
   }
 
   .icon-btn {
-    font-size: 1.1rem;
+    font-size: var(--pax-type-md);
     padding: 4px 8px;
     line-height: 1;
   }
 
   .back-btn {
-    font-size: 0.65rem;
+    font-size: var(--pax-type-label);
   }
 
   .help-fab,
@@ -215,28 +215,28 @@
   .help-fab {
     right: 64px;
     font-family: var(--pax-ui-font-display);
-    font-size: 1rem;
+    font-size: var(--pax-type-base);
     font-weight: var(--pax-weight-bold);
   }
 
   .fit-fab {
     right: 108px;
-    font-size: 1rem;
+    font-size: var(--pax-type-base);
   }
 
   .diagnostics-fab {
     right: 20px;
-    font-size: 1rem;
+    font-size: var(--pax-type-base);
   }
 
   .measurements-fab {
     right: 152px;
-    font-size: 1rem;
+    font-size: var(--pax-type-base);
   }
 
   .ruler-fab {
     right: 196px;
-    font-size: 1rem;
+    font-size: var(--pax-type-base);
   }
 
   .help-fab:hover,
