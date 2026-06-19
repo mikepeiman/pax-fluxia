@@ -1938,9 +1938,9 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        min-height: 30px;
-        padding: 0 12px;
-        border-radius: 999px;
+        min-height: 24px;
+        padding: 0 9px;
+        border-radius: 7px;
         border: 1px solid var(--pax-ui-border);
         background: rgba(7, 12, 24, 0.62);
         color: var(--pax-ui-text);

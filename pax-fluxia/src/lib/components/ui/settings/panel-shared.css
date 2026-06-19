@@ -253,8 +253,8 @@ select.mode-select {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 30px;
-    padding: 0 10px;
+    min-height: 32px;
+    padding: 7px 14px;
     border: 1px solid transparent;
     border-radius: var(--pax-ui-radius-xs, var(--pax-radius-xs, 8px));
     background:
