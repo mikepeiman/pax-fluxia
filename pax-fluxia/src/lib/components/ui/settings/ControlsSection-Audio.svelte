@@ -290,15 +290,12 @@
     .audio-conquest-group {
         min-width: 0;
         display: grid;
-        gap: 10px;
-        padding: 10px;
-        border: 1px solid transparent;
+        gap: 8px;
+        padding: 8px 10px;
         border-radius: var(--pax-ui-radius-sm);
-        /* No clip-path: it would clip the File dropdown (absolute) inside the
-           card. border-radius already gives the rounded corners. */
-        background:
-            linear-gradient(180deg, rgba(0, 18, 21, 0.74), rgba(0, 10, 13, 0.9)) padding-box,
-            var(--pax-ui-control-border-gradient) border-box;
+        /* Lighter treatment (AUD-3): subtle fill, no gradient border, to reduce
+           the boxes-in-boxes busyness. No clip-path (would clip the File dropdown). */
+        background: rgba(5, 22, 26, 0.5);
     }
 
     .audio-sound-card--disabled,
