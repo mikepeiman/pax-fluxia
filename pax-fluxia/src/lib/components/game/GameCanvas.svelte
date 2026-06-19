@@ -2220,11 +2220,11 @@
                 allAncestorsVisible,
             };
             store[mode] = snap;
-            // Routed through the telemetry logger (per AGENT.md §5.2 — no raw
-            // console.log). Uses the `canvas` channel, which defaults ON in
-            // logFlags, so it is visible without a console command and remains
-            // toggleable from the UI Logging panel. One-shot per mode (idle-quiet).
-            log.canvas("GameCanvas", `[PHASE-DIAG] ${mode}`, snap);
+            // Telemetry logger (AGENT.md §5.2 — no raw console.log), on the
+            // `renderer` channel: the correct category for territory-renderer
+            // diagnostics, and one the user keeps enabled. Toggleable from the UI
+            // Logging panel. One-shot per mode (idle-quiet). Filter on [PHASE-DIAG].
+            log.renderer("GameCanvas", `[PHASE-DIAG] ${mode}`, snap);
         } catch (e) {
             log.error("GameCanvas", `[PHASE-DIAG] ${mode} probe error`, e);
         }
