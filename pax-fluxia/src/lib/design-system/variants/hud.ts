@@ -9,7 +9,7 @@ export const hudPanel = tv({
     ],
     header: [
       "flex items-center justify-between gap-3",
-      "border-b border-pax-gold/20 pb-2",
+      "pb-2",
     ],
     titleBlock: "grid min-w-0 gap-0.5",
     eyebrow: [
@@ -142,7 +142,7 @@ export const hudSegmentedControl = tv({
     ],
     item: [
       "inline-flex min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-pax-xs border",
-      "border-pax-gold/18 bg-pax-panel-muted text-pax-text-muted",
+      "border-transparent bg-pax-panel-muted text-pax-text-muted",
       "font-pax-ui font-bold uppercase tracking-[0.08em]",
       "transition-[background,border-color,box-shadow,color,transform] duration-150",
       "hover:border-pax-gold/45 hover:text-pax-text-strong",
