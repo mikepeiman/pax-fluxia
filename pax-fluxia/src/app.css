@@ -238,6 +238,8 @@
   --pax-ui-font-label: var(--pax-font-label);
   --pax-ui-font-copy: var(--pax-font-copy);
   --pax-ui-font-data: var(--pax-font-data);
+  --pax-ui-font-display: var(--pax-font-display);
+  --pax-ui-font-techno: var(--pax-font-techno);
   --pax-ui-font-body: var(--pax-font-copy);
   --pax-ui-accent: var(--pax-color-accent-cyan);
   --pax-ui-accent-strong: var(--pax-color-accent-cyan-strong);

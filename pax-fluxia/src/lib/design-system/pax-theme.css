@@ -21,6 +21,8 @@
   --font-pax-ui: var(--pax-font-ui);
   --font-pax-copy: var(--pax-font-copy);
   --font-pax-data: var(--pax-font-data);
+  --font-pax-display: var(--pax-font-display);
+  --font-pax-techno: var(--pax-font-techno);
   --radius-pax-xs: var(--pax-radius-xs);
   --radius-pax-sm: var(--pax-radius-sm);
   --radius-pax-md: var(--pax-radius-md);
@@ -72,6 +74,8 @@
   --pax-font-label: "Rajdhani", "Segoe UI", system-ui, sans-serif;
   --pax-font-copy: "Inter", "Segoe UI", system-ui, sans-serif;
   --pax-font-data: "JetBrains Mono", "Cascadia Mono", monospace;
+  --pax-font-display: "Exo", "Segoe UI", system-ui, sans-serif;
+  --pax-font-techno: "Orbitron", "Rajdhani", sans-serif;
 
   /* Size scale — densified in the small-UI band (0.5625–1rem) so every used
      size maps to a token instead of a raw px/rem orphan. Below `base` the
@@ -97,6 +101,7 @@
 
   /* Weight tokens — the one typography axis that had NO tokens (7 raw weights
      were in use). Migrate raw font-weight numbers to these. */
+  --pax-weight-light: 300;
   --pax-weight-regular: 400;
   --pax-weight-medium: 500;
   --pax-weight-semibold: 600;
