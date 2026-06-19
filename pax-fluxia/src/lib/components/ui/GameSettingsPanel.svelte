@@ -17,7 +17,6 @@
     import {
         LOG_CATEGORIES,
     } from "./settingsDefs";
-    import { nudgeSliders } from "./settings/nudgeSliders";
     import {
         setSetting,
         setSettingsFromConfigPatch,
@@ -1177,8 +1176,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
 <div
     class="controls-panel"
     class:controls-panel--ribbon-expanded={ribbonExpanded}
-    class:controls-panel--dock-left={dockSide === "left"}
-    use:nudgeSliders>
+    class:controls-panel--dock-left={dockSide === "left"}>
 
     <div class="settings-shell" class:settings-shell--with-panel={activeToolHasPanel}>
     <!-- Icon Toolbar -->
@@ -1739,7 +1737,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         color: var(--pax-ui-text-soft);
         font-family: var(--pax-ui-font-ui);
         font-size: 0.64rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.12em;
         text-transform: uppercase;
         cursor: pointer;
@@ -1822,7 +1820,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         white-space: nowrap;
         font-family: var(--pax-ui-font-ui);
         font-size: 0.62rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         text-transform: uppercase;
         letter-spacing: 0.11em;
         color: inherit;
@@ -1905,7 +1903,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .head-label {
         flex: 1;
         font-size: 0.84rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         text-transform: uppercase;
         letter-spacing: 0.09em;
         text-align: left;
@@ -1948,7 +1946,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         color: var(--pax-ui-text);
         font-family: var(--pax-ui-font-ui);
         font-size: 0.6rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.1em;
         text-transform: uppercase;
         cursor: pointer;
@@ -1989,7 +1987,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     :global(.is-hidden-by-subsection) {
         display: none !important;
     }
-    /* ── Nudge slider buttons (injected via nudgeSliders action) ── */
+
     @media (max-width: 720px) {
         .settings-shell {
             grid-template-columns: 1fr;
@@ -2025,47 +2023,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         }
     }
 
-    :global(.nudge-slider-wrap) {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        width: 100%;
-    }
-    :global(.nudge-slider-wrap input[type="range"]) {
-        flex: 1;
-        min-width: 0;
-    }
-    :global(.slider-nudge-btn) {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 24px;
-        height: 24px;
-        flex-shrink: 0;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 5px;
-        background: rgba(255, 255, 255, 0.06);
-        color: rgba(255, 255, 255, 0.7);
-        font-size: 0.9rem;
-        font-weight: 700;
-        cursor: pointer;
-        user-select: none;
-        -webkit-tap-highlight-color: transparent;
-        transition:
-            background 0.12s,
-            border-color 0.12s;
-        padding: 0;
-        line-height: 1;
-    }
-    :global(.slider-nudge-btn:hover) {
-        background: rgba(74, 222, 128, 0.12);
-        border-color: rgba(74, 222, 128, 0.4);
-        color: #4ade80;
-    }
-    :global(.slider-nudge-btn:active) {
-        background: rgba(74, 222, 128, 0.25);
-        border-color: rgba(74, 222, 128, 0.6);
-    }
     /* Aurelia Drift correction layer: this turns the settings surface into
        a real command ribbon plus drawer instead of a text-heavy empty panel. */
     .controls-panel {
@@ -2245,7 +2202,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         color: rgba(255, 229, 174, 0.9);
         clip-path: var(--pax-ui-cut-corner-xs);
         font-family: var(--pax-ui-font-ui);
-        font-weight: 800;
+        font-weight: var(--pax-weight-extrabold);
         letter-spacing: 0.06em;
     }
 
@@ -2266,7 +2223,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         color: var(--pax-ui-accent-warm);
         font-family: var(--pax-ui-font-ui);
         font-size: 0.62rem;
-        font-weight: 900;
+        font-weight: var(--pax-weight-black);
         letter-spacing: 0.16em;
     }
 
@@ -2276,7 +2233,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .section-body :global(.var-name) {
         color: rgba(255, 232, 181, 0.9);
         font-family: var(--pax-ui-font-ui);
-        font-weight: 800;
+        font-weight: var(--pax-weight-extrabold);
         letter-spacing: 0.04em;
     }
 
