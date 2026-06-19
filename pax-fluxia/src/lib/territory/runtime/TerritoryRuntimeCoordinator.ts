@@ -300,22 +300,13 @@ export class TerritoryRuntimeCoordinator {
             2,
         );
 
+        // Diagnostic only — opt-in via the `renderer` log category (toggle it in the
+        // Logging/Diagnostics panel). The automatic Chrome file download and raw
+        // console.log that previously fired on the first conquest are removed.
         log.renderer(
             'Territory',
-            `GEOMETRY DUMP: ${json.length} bytes captured. Check console for data.`,
+            `GEOMETRY SNAPSHOT DUMP (${json.length} bytes)`,
+            json,
         );
-        console.log('[Territory] GEOMETRY SNAPSHOT DUMP:\n', json);
-
-        try {
-            const blob = new Blob([json], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const anchor = document.createElement('a');
-            anchor.href = url;
-            anchor.download = 'geometry-snapshot-dump.json';
-            anchor.click();
-            URL.revokeObjectURL(url);
-        } catch {
-            // Browser-only convenience path.
-        }
     }
 }
