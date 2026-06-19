@@ -53,6 +53,7 @@ Never assume that something already in the code/design/architecture SHOULD be th
 - MCP Atlas-harness: read `.agent/docs/agentic/AGENT-GUIDE_MCP_atlas-harness.md` at session start.
 - Live settings: `common/resources/settings-live/current-settings.json` (***IMPORTANT: IGNORE this for git commits, or commit, it DOES NOT MATTER, just ensure you DO NOT waste time or attention on it, ever)
 - Multi-lane/worktree operating guide: `.agent/MULTI_LANE_WORKTREE_GUIDE.md`
+- **Logging panel**: there is a custom telemetry logger (`$lib/utils/logger`: `log.sys/state/data/net/error/success/combat/conquest/input/repair/canvas/renderer`) gated per-category by `logFlags` (persisted to `localStorage['pax_logFlags']`, exposed on `window.logFlags`) and surfaced as a **full UI panel of toggleable log categories** (the Logging debug controls) so the user can hide console noise. Most categories default **OFF**; only `error` and `canvas` default **ON**. Consequences (see §5.2): never use raw `console.log`; never tell the user to enable flags via console commands. For a diagnostic the user must SEE, either log on a default-ON channel (`canvas`) or instruct them to enable that category in the Logging UI panel — and confirm the channel actually emits by default before saying "paste the log line."
 
 ## 2. Core Behavior
 

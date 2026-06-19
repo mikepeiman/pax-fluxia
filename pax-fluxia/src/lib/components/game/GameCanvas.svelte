@@ -2195,16 +2195,13 @@
                 allAncestorsVisible,
             };
             store[mode] = snap;
-            // Ungated on purpose: this is a one-shot diagnostic the user must see
-            // without enabling logFlags.state. Fires once per mode, then silent.
-            // eslint-disable-next-line no-console
-            console.log("[PHASE-DIAG]", JSON.stringify(snap));
+            // Routed through the telemetry logger (per AGENT.md §5.2 — no raw
+            // console.log). Uses the `canvas` channel, which defaults ON in
+            // logFlags, so it is visible without a console command and remains
+            // toggleable from the UI Logging panel. One-shot per mode (idle-quiet).
+            log.canvas("GameCanvas", `[PHASE-DIAG] ${mode}`, snap);
         } catch (e) {
-            // eslint-disable-next-line no-console
-            console.log(
-                `[PHASE-DIAG] ${mode} probe error:`,
-                String((e as any)?.message ?? e),
-            );
+            log.error("GameCanvas", `[PHASE-DIAG] ${mode} probe error`, e);
         }
     }
 
