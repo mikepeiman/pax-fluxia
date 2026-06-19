@@ -730,12 +730,20 @@
 
 
 .pf-standings__summary span {
-  display: grid;
-  gap: 1px;
   min-width: 0;
+  text-align: right;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.pf-standings__summary .pf-standings__summary-label {
+  text-align: left;
+  color: var(--pax-ui-text-dim);
+  font-family: var(--pax-ui-font-label);
+  font-weight: var(--pax-weight-extrabold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 
@@ -1565,14 +1573,10 @@
 }
 
 .pf-standings__summary {
-  border: 1px solid rgba(246, 196, 105, 0.13);
-  border-radius: 10px;
-  background: rgba(5, 22, 26, 0.72);
+  margin-top: 2px;
+  padding: 7px 8px 1px;
+  border-top: 1px solid var(--pax-ui-divider);
   color: var(--pax-ui-text-soft);
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 5px;
-  text-align: center;
-  padding: 8px;
   font-size: calc(0.62rem * var(--pax-ui-type-scale, 1));
 }
 
@@ -1590,10 +1594,11 @@
 }
 
 .pf-standings__columns {
+  padding: 1px 8px 3px;
   color: var(--pax-ui-text-dim);
   font-weight: var(--pax-weight-black);
   letter-spacing: 0.08em;
-  font-size: calc(0.54rem * var(--pax-ui-label-scale, 1));
+  font-size: calc(0.66rem * var(--pax-ui-label-scale, 1));
 }
 
 .pf-star-card {

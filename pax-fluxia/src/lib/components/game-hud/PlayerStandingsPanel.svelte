@@ -58,9 +58,10 @@
         acc.active += player.activeShips;
         acc.total += player.totalShips;
         acc.stars += player.starCount;
+        acc.production += player.production;
         return acc;
       },
-      { active: 0, total: 0, stars: 0 },
+      { active: 0, total: 0, stars: 0, production: 0 },
     ),
   );
 </script>
@@ -76,7 +77,7 @@
   {/snippet}
 
   <div class="pf-standings__toolbar">
-    <span>Focus</span>
+    <span class="pf-standings__tick">Tick <strong class="font-hud-data">{currentTick}</strong></span>
     <PaxHudSegmentedControl
       value={shipFocus}
       options={shipFocusOptions}
@@ -86,13 +87,6 @@
       iconSize={13}
       onValueChange={(value) => setShipFocus(value as ShipFocus)}
     />
-  </div>
-
-  <div class="pf-standings__summary">
-    <span><strong class="font-hud-data">{formatHudNumber(totals.active)}</strong> active</span>
-    <span><strong class="font-hud-data">{formatHudNumber(totals.total)}</strong> total</span>
-    <span><strong class="font-hud-data">{formatHudNumber(totals.stars)}</strong> stars</span>
-    <span>Tick <strong class="font-hud-data">{currentTick}</strong></span>
   </div>
 
   <div class="pf-standings__columns">
@@ -126,4 +120,13 @@
       <li class="pf-standings__empty">No players</li>
     {/each}
   </ul>
+
+  <div class="pf-standings__summary">
+    <span class="pf-standings__summary-label">Totals</span>
+    <span class="font-hud-data">{formatHudNumber(totals.active)}</span>
+    <span class="font-hud-data">{formatHudNumber(totals.total)}</span>
+    <span class="font-hud-data">{formatHudNumber(totals.stars)}</span>
+    <span class="font-hud-data">+{formatHudNumber(totals.production, 1)}</span>
+    <span></span>
+  </div>
 </HudPanel>
