@@ -894,7 +894,7 @@
         font-size: 4.5rem;
         letter-spacing: 0.25em;
         margin: 0;
-        font-family: "Exo", sans-serif;
+        font-family: var(--pax-ui-font-display);
         font-weight: 900;
         line-height: 1;
     }
@@ -944,7 +944,7 @@
         color: #eee;
         font-size: 20px;
         font-weight: 700;
-        font-family: "Exo", sans-serif;
+        font-family: var(--pax-ui-font-display);
     }
     .winner-subtitle {
         color: #667;
@@ -981,7 +981,7 @@
     .stat-value {
         font-size: 2rem;
         color: #00ffff;
-        font-family: "Exo", sans-serif;
+        font-family: var(--pax-ui-font-display);
         font-weight: 700;
         line-height: 1.1;
         text-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
@@ -1016,7 +1016,7 @@
         cursor: pointer;
         border-radius: 9px;
         transition: all 0.25s;
-        font-family: "Exo", sans-serif;
+        font-family: var(--pax-ui-font-display);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -1080,7 +1080,7 @@
         font-size: 16px;
         font-weight: 800;
         color: #445;
-        font-family: "Exo", sans-serif;
+        font-family: var(--pax-ui-font-display);
     }
     .winner-row .sb-rank {
         color: #00ffff;
@@ -1101,7 +1101,7 @@
     }
     .sb-stat {
         font-size: 15px;
-        font-family: "Exo", sans-serif;
+        font-family: var(--pax-ui-font-display);
         color: #889;
         text-align: center;
         font-weight: 600;
@@ -1123,7 +1123,7 @@
         letter-spacing: 0.12em;
         margin: 0;
         font-weight: 700;
-        font-family: "Exo", sans-serif;
+        font-family: var(--pax-ui-font-display);
     }
     .chart {
         width: 100%;
@@ -1132,7 +1132,7 @@
     .axis-label {
         font-size: 10px;
         fill: #556;
-        font-family: "Exo", monospace;
+        font-family: var(--pax-ui-font-display);
     }
     .chart-legend {
         display: flex;
@@ -1188,7 +1188,7 @@
         border-radius: 6px;
         padding: 6px 10px;
         color: #b0c4de;
-        font-family: "Orbitron", sans-serif;
+        font-family: var(--pax-ui-font-techno);
         font-size: 0.7rem;
     }
     .save-map-input::placeholder {
@@ -1202,7 +1202,7 @@
         border: 1px solid rgba(0, 255, 255, 0.2);
         color: #88ccdd;
         cursor: pointer;
-        font-family: "Orbitron", sans-serif;
+        font-family: var(--pax-ui-font-techno);
         letter-spacing: 0.5px;
     }
     .btn--small:hover:not(:disabled) {
@@ -1218,7 +1218,7 @@
         border: none;
         border-radius: 12px;
         cursor: pointer;
-        font-family: "Exo", sans-serif;
+        font-family: var(--pax-ui-font-display);
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.12em;

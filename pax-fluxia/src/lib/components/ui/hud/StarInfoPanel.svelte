@@ -211,7 +211,7 @@
     }
 
     .star-id {
-        font-family: "JetBrains Mono", monospace;
+        font-family: var(--pax-ui-font-data);
         font-size: 11px;
         opacity: 0.7;
         flex: 1;
@@ -259,7 +259,7 @@
     }
 
     .stat-value {
-        font-family: "JetBrains Mono", monospace;
+        font-family: var(--pax-ui-font-data);
         font-size: 11px;
         text-align: right;
     }

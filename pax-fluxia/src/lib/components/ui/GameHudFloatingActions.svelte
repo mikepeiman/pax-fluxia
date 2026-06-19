@@ -96,7 +96,7 @@
 
     .help-fab {
         right: 64px;
-        font-family: "Exo", sans-serif;
+        font-family: var(--pax-ui-font-display);
         font-size: 1rem;
         font-weight: 700;
     }

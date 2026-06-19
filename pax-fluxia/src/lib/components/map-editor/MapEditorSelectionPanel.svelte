@@ -266,7 +266,7 @@
 
   .selection-panel header strong,
   .subheading {
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--pax-ui-font-ui);
     font-size: 0.98rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;

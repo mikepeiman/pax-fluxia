@@ -1129,7 +1129,7 @@
   .context-menu__label {
     margin-bottom: 8px;
     color: rgba(226, 232, 240, 0.92);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--pax-ui-font-data);
     font-size: 11px;
   }
 
@@ -1227,7 +1227,7 @@
   }
 
   .portal-group-label {
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--pax-ui-font-ui);
     font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.1em;
@@ -1235,7 +1235,7 @@
   }
 
   .owner-badge__text {
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--pax-ui-font-ui);
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -1249,7 +1249,7 @@
 
   .star-node text {
     fill: rgba(226, 232, 240, 0.95);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--pax-ui-font-data);
     font-size: 11px;
     text-anchor: middle;
     pointer-events: none;
@@ -1275,7 +1275,7 @@
 
   .measurement text {
     fill: rgba(253, 224, 71, 0.94);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--pax-ui-font-data);
     font-size: 12px;
     text-anchor: middle;
     cursor: pointer;

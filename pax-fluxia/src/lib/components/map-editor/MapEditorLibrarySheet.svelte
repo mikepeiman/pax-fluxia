@@ -728,7 +728,7 @@
 
   .modal__header strong,
   .section-header strong {
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--pax-ui-font-ui);
     font-size: 1rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -944,7 +944,7 @@
 
   .map-card__meta strong,
   .autosave-item strong {
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--pax-ui-font-ui);
     font-size: 0.98rem;
     color: #f8fafc;
   }

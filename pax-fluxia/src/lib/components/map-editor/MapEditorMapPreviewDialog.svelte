@@ -187,7 +187,7 @@
   }
 
   .preview-dialog__title-block strong {
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--pax-ui-font-ui);
     font-size: 1.2rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -239,7 +239,7 @@
     border-color: rgba(125, 211, 252, 0.42);
     background: rgba(17, 39, 63, 0.88);
     color: #f8fafc;
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--pax-ui-font-ui);
     font-size: 0.98rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;

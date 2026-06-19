@@ -1173,7 +1173,7 @@
       radial-gradient(circle at bottom right, rgba(234, 179, 8, 0.1), transparent 28%),
       #020617;
     color: #e2e8f0;
-    font-family: "Inter", sans-serif;
+    font-family: var(--pax-ui-font-copy);
     --editor-border: rgba(148, 163, 184, 0.16);
     --editor-surface: rgba(4, 11, 26, 0.84);
   }
@@ -1237,7 +1237,7 @@
   }
 
   .topbar-btn span {
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--pax-ui-font-ui);
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }

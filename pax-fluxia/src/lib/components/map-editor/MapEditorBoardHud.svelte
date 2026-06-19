@@ -259,7 +259,7 @@
 
   .hud-readout strong,
   .status-chip {
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--pax-ui-font-ui);
     letter-spacing: 0.08em;
   }
 
@@ -305,7 +305,7 @@
 
   .grid-flyout__header strong,
   .grid-flyout__footer span:last-child {
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--pax-ui-font-ui);
     letter-spacing: 0.08em;
   }
 
@@ -354,7 +354,7 @@
     border: 1px solid rgba(148, 163, 184, 0.2);
     background: rgba(10, 17, 33, 0.88);
     color: #f8fafc;
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--pax-ui-font-ui);
     font-size: 1rem;
     font-weight: 700;
   }
@@ -373,7 +373,7 @@
     background: transparent;
     color: rgba(226, 232, 240, 0.86);
     cursor: pointer;
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--pax-ui-font-ui);
     font-weight: 700;
     letter-spacing: 0.08em;
   }

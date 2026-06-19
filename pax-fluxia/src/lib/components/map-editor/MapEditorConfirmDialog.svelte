@@ -72,7 +72,7 @@
   }
 
   .dialog__header strong {
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--pax-ui-font-ui);
     font-size: 1rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;

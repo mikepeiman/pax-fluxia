@@ -101,7 +101,7 @@
   .sheet__header strong,
   .summary-strip strong,
   .issue strong {
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--pax-ui-font-ui);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: #f8fafc;

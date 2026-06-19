@@ -819,7 +819,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--pax-ui-font-data);
     font-size: 0.58rem;
     font-weight: 700;
     letter-spacing: 0.04em;
@@ -845,7 +845,7 @@
 
   .rail-copy strong {
     display: block;
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--pax-ui-font-ui);
     font-size: 1rem;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -1002,7 +1002,7 @@
   .tool-panel header strong,
   .subsection__header strong,
   .hint-card strong {
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--pax-ui-font-ui);
     font-size: 0.98rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -1087,7 +1087,7 @@
   }
 
   .portal-group-card__header strong {
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--pax-ui-font-ui);
     font-size: 0.9rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -1154,7 +1154,7 @@
 
   .swatch strong,
   .owner-chip strong {
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--pax-ui-font-ui);
     font-size: 0.92rem;
     letter-spacing: 0.06em;
     text-transform: uppercase;

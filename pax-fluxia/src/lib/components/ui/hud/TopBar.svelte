@@ -152,7 +152,7 @@
   }
 
   .game-title-mini {
-    font-family: "Exo", sans-serif;
+    font-family: var(--pax-ui-font-display);
     font-size: 0.65rem;
     font-weight: 700;
     letter-spacing: 0.2em;
@@ -164,7 +164,7 @@
     background: transparent;
     border: 1px solid rgba(255, 255, 255, 0.12);
     color: rgba(255, 255, 255, 0.5);
-    font-family: "Montserrat", sans-serif;
+    font-family: var(--pax-ui-font-display);
     font-size: 0.7rem;
     font-weight: 600;
     letter-spacing: 0.1em;
@@ -214,7 +214,7 @@
 
   .help-fab {
     right: 64px;
-    font-family: "Exo", sans-serif;
+    font-family: var(--pax-ui-font-display);
     font-size: 1rem;
     font-weight: 700;
   }

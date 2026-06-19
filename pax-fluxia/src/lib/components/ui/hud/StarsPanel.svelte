@@ -357,7 +357,7 @@
     }
 
     .section-title {
-        font-family: "Exo", sans-serif;
+        font-family: var(--pax-ui-font-display);
         font-size: 11px;
         font-weight: 700;
         text-transform: uppercase;
@@ -393,7 +393,7 @@
         font-size: 16px;
     }
     .star-name {
-        font-family: "JetBrains Mono", "Exo", monospace;
+        font-family: var(--pax-ui-font-data);
         font-size: 12px;
         font-weight: 600;
         flex: 1;
@@ -443,7 +443,7 @@
         min-width: 55px;
     }
     .detail-row .value {
-        font-family: "JetBrains Mono", monospace;
+        font-family: var(--pax-ui-font-data);
         font-size: 10px;
         text-align: right;
     }
@@ -545,7 +545,7 @@
         text-align: center;
     }
     .row-id {
-        font-family: "JetBrains Mono", monospace;
+        font-family: var(--pax-ui-font-data);
         font-size: 10px;
         color: #8899aa;
         overflow: hidden;
@@ -560,20 +560,20 @@
         letter-spacing: 0.3px;
     }
     .row-active {
-        font-family: "JetBrains Mono", monospace;
+        font-family: var(--pax-ui-font-data);
         font-size: 10px;
         text-align: right;
         color: #4ade80;
         font-weight: 600;
     }
     .row-damaged {
-        font-family: "JetBrains Mono", monospace;
+        font-family: var(--pax-ui-font-data);
         font-size: 10px;
         text-align: right;
         color: #f87171;
     }
     .row-repaired {
-        font-family: "JetBrains Mono", monospace;
+        font-family: var(--pax-ui-font-data);
         font-size: 10px;
         text-align: right;
         color: #a855f7;

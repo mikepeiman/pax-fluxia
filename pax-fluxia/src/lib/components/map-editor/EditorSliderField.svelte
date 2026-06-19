@@ -143,7 +143,7 @@
     background: color-mix(in srgb, var(--slider-accent) 18%, rgba(255, 255, 255, 0.04));
     border: 1px solid color-mix(in srgb, var(--slider-accent) 34%, rgba(255, 255, 255, 0.08));
     color: color-mix(in srgb, var(--slider-accent) 72%, white 28%);
-    font-family: "Rajdhani", sans-serif;
+    font-family: var(--pax-ui-font-ui);
     font-size: 0.86rem;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -184,7 +184,7 @@
     background: transparent;
     color: #f8fafc;
     font: inherit;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--pax-ui-font-data);
     font-size: 0.8rem;
     font-weight: 700;
   }
