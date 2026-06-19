@@ -98,7 +98,7 @@
         right: 64px;
         font-family: var(--pax-ui-font-display);
         font-size: 1rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
     }
 
     .fit-fab {

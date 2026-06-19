@@ -182,7 +182,7 @@
     .check {
         color: #fff;
         font-size: 0.8rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
     }
 

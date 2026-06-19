@@ -118,7 +118,7 @@
     color: var(--pax-ui-accent);
     font-family: var(--pax-ui-font-label);
     font-size: calc(0.62rem * var(--pax-ui-label-scale, 1));
-    font-weight: 800;
+    font-weight: var(--pax-weight-extrabold);
     letter-spacing: 0.14em;
     text-transform: uppercase;
   }
@@ -164,7 +164,7 @@
     color: var(--pax-ui-text-dim);
     font-family: var(--pax-ui-font-label);
     font-size: calc(0.62rem * var(--pax-ui-label-scale, 1));
-    font-weight: 800;
+    font-weight: var(--pax-weight-extrabold);
     letter-spacing: 0.14em;
     text-transform: uppercase;
   }
@@ -176,7 +176,7 @@
     border-radius: var(--pax-ui-radius-xs);
     padding: 0 10px;
     font-size: calc(0.78rem * var(--pax-ui-type-scale, 1));
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
   }
 
   .pf-hud-theme-panel__cards {

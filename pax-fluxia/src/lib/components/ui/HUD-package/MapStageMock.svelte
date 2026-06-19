@@ -136,7 +136,7 @@
   .region-label {
     position: absolute;
     font-size: clamp(1.2rem, 2.1vw, 2.2rem);
-    font-weight: 800;
+    font-weight: var(--pax-weight-extrabold);
     letter-spacing: 0.08em;
     line-height: 1.05;
     text-shadow: 0 0 2rem currentColor;

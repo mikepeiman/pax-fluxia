@@ -245,7 +245,7 @@
         overflow: hidden;
         color: #dbeafe;
         font-size: 11px;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         text-overflow: ellipsis;
         white-space: nowrap;
     }
@@ -257,7 +257,7 @@
     .players-detail summary {
         cursor: pointer;
         font-size: 11px;
-        font-weight: 600;
+        font-weight: var(--pax-weight-semibold);
         color: rgba(190, 220, 255, 0.78);
         list-style: none;
     }

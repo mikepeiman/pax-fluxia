@@ -356,7 +356,7 @@
     color: #f8fafc;
     font-family: var(--pax-ui-font-ui);
     font-size: 1rem;
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
   }
 
   .grid-flyout__number input:focus {
@@ -374,7 +374,7 @@
     color: rgba(226, 232, 240, 0.86);
     cursor: pointer;
     font-family: var(--pax-ui-font-ui);
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
     letter-spacing: 0.08em;
   }
 

@@ -358,14 +358,14 @@ body {
    -------------------------------------------------------------------------- */
 .font-display {
   font-family: var(--pax-ui-font-ui);
-  font-weight: 700;
+  font-weight: var(--pax-weight-bold);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
 .font-data {
   font-family: var(--pax-ui-font-data);
-  font-weight: 400;
+  font-weight: var(--pax-weight-regular);
   font-variant-numeric: tabular-nums;
 }
 
@@ -423,7 +423,7 @@ body {
   padding: var(--pax-space-3) var(--pax-space-6);
   font-family: var(--pax-ui-font-ui);
   font-size: var(--pax-type-sm);
-  font-weight: 600;
+  font-weight: var(--pax-weight-semibold);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   text-decoration: none;
@@ -577,7 +577,7 @@ select optgroup {
 .segmented__btn--active {
   background: var(--pax-ui-accent);
   color: var(--pax-color-void);
-  font-weight: 600;
+  font-weight: var(--pax-weight-semibold);
 }
 
 /* --------------------------------------------------------------------------

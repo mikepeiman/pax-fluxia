@@ -895,7 +895,7 @@
         letter-spacing: 0.25em;
         margin: 0;
         font-family: var(--pax-ui-font-display);
-        font-weight: 900;
+        font-weight: var(--pax-weight-black);
         line-height: 1;
     }
     .results-title.victory {
@@ -943,7 +943,7 @@
     .winner-text {
         color: #eee;
         font-size: 20px;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         font-family: var(--pax-ui-font-display);
     }
     .winner-subtitle {
@@ -982,7 +982,7 @@
         font-size: 2rem;
         color: #00ffff;
         font-family: var(--pax-ui-font-display);
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         line-height: 1.1;
         text-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
     }
@@ -991,7 +991,7 @@
         color: #556;
         text-transform: uppercase;
         letter-spacing: 0.15em;
-        font-weight: 600;
+        font-weight: var(--pax-weight-semibold);
     }
 
     /* ── Tab Navigation ─────────────────── */
@@ -1010,7 +1010,7 @@
         background: transparent;
         color: #556;
         font-size: 13px;
-        font-weight: 600;
+        font-weight: var(--pax-weight-semibold);
         text-transform: uppercase;
         letter-spacing: 0.06em;
         cursor: pointer;
@@ -1054,7 +1054,7 @@
         color: #445;
         text-transform: uppercase;
         letter-spacing: 0.12em;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
     }
     .scoreboard-row {
         display: grid;
@@ -1078,7 +1078,7 @@
     }
     .sb-rank {
         font-size: 16px;
-        font-weight: 800;
+        font-weight: var(--pax-weight-extrabold);
         color: #445;
         font-family: var(--pax-ui-font-display);
     }
@@ -1090,7 +1090,7 @@
         align-items: center;
         gap: 10px;
         font-size: 15px;
-        font-weight: 600;
+        font-weight: var(--pax-weight-semibold);
         color: #ccd;
     }
     .sb-dot {
@@ -1104,7 +1104,7 @@
         font-family: var(--pax-ui-font-display);
         color: #889;
         text-align: center;
-        font-weight: 600;
+        font-weight: var(--pax-weight-semibold);
     }
     .winner-row .sb-stat {
         color: #bbd;
@@ -1122,7 +1122,7 @@
         text-transform: uppercase;
         letter-spacing: 0.12em;
         margin: 0;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         font-family: var(--pax-ui-font-display);
     }
     .chart {
@@ -1153,7 +1153,7 @@
     .legend-label {
         font-size: 12px;
         color: #889;
-        font-weight: 600;
+        font-weight: var(--pax-weight-semibold);
     }
 
     /* ── Action Buttons ────────────────── */
@@ -1219,7 +1219,7 @@
         border-radius: 12px;
         cursor: pointer;
         font-family: var(--pax-ui-font-display);
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         text-transform: uppercase;
         letter-spacing: 0.12em;
         transition: all 0.3s;

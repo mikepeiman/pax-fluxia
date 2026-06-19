@@ -148,7 +148,7 @@
     overflow: hidden;
     color: var(--pax-ui-text);
     font-size: calc(0.74rem * var(--pax-ui-type-scale, 1));
-    font-weight: 800;
+    font-weight: var(--pax-weight-extrabold);
     letter-spacing: 0.05em;
     text-overflow: ellipsis;
     text-transform: uppercase;
@@ -170,7 +170,7 @@
     color: var(--pax-ui-accent-warm-strong);
     font-family: var(--pax-ui-font-data);
     font-size: calc(0.68rem * var(--pax-ui-data-scale, 1));
-    font-weight: 800;
+    font-weight: var(--pax-weight-extrabold);
     white-space: nowrap;
   }
 </style>

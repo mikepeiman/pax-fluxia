@@ -148,7 +148,7 @@ import type { MenuTheme } from "./menuTheme";
         color: var(--pf-muted-strong);
         font-family: var(--pf-font-body);
         font-size: 0.9rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
         cursor: pointer;

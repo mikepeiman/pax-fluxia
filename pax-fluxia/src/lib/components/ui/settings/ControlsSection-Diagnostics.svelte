@@ -757,7 +757,7 @@
 
     .ruler-readout > div > span:first-child {
         color: rgba(180, 130, 255, 0.72);
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         text-transform: uppercase;
         letter-spacing: 0.08em;
         font-size: 0.62rem;
@@ -833,7 +833,7 @@
 
     .status-grid > div > span:first-child {
         color: rgba(180, 130, 255, 0.72);
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
         font-size: 0.62rem;

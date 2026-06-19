@@ -62,7 +62,7 @@
         color: var(--pax-ui-accent);
         font-family: var(--pax-ui-font-ui);
         font-size: calc(0.68rem * var(--pax-ui-type-scale, 1));
-        font-weight: 800;
+        font-weight: var(--pax-weight-extrabold);
         letter-spacing: 0.12em;
         text-transform: uppercase;
     }

@@ -47,7 +47,7 @@
   color: color-mix(in srgb, var(--pax-ui-accent-warm) 62%, var(--pax-ui-text-dim));
   font-family: var(--pax-ui-font-label);
   font-size: 0.58rem;
-  font-weight: 800;
+  font-weight: var(--pax-weight-extrabold);
   letter-spacing: 0.14em;
 }
 
@@ -173,7 +173,7 @@
   padding: 0 10px;
   border-radius: 12px;
   font-size: 0.72rem;
-  font-weight: 800;
+  font-weight: var(--pax-weight-extrabold);
   letter-spacing: 0.05em;
 }
 
@@ -198,7 +198,7 @@
   gap: 10px;
   color: var(--pax-ui-text-dim);
   font-size: 0.58rem;
-  font-weight: 900;
+  font-weight: var(--pax-weight-black);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -253,7 +253,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 800;
+  font-weight: var(--pax-weight-extrabold);
 }
 
 .pf-standings__empty {
@@ -583,7 +583,7 @@
 
 .pf-hud-panel__title {
   margin: 0;
-  font-weight: 800;
+  font-weight: var(--pax-weight-extrabold);
   letter-spacing: 0.07em;
   white-space: nowrap;
   color: rgba(255, 235, 180, 0.96);
@@ -675,7 +675,7 @@
 .pf-hud-topbar__summary-cell span {
   color: rgba(246, 196, 105, 0.72);
   font-size: 0.5rem;
-  font-weight: 900;
+  font-weight: var(--pax-weight-black);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -716,7 +716,7 @@
 
 .pf-hud-topbar__mode {
   border-radius: 10px;
-  font-weight: 900;
+  font-weight: var(--pax-weight-black);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -906,7 +906,7 @@
   color: var(--pax-ui-accent);
   font-family: var(--pax-ui-font-label);
   font-size: 0.5rem;
-  font-weight: 900;
+  font-weight: var(--pax-weight-black);
   letter-spacing: 0.16em;
   text-transform: uppercase;
 }
@@ -916,7 +916,7 @@
   margin: 0;
   color: var(--pax-ui-accent-warm-strong);
   font-size: 0.78rem;
-  font-weight: 900;
+  font-weight: var(--pax-weight-black);
   letter-spacing: 0.12em;
   line-height: 1;
   text-transform: uppercase;
@@ -945,7 +945,7 @@
 .pf-theme-library__select-label span {
   color: rgba(246, 196, 105, 0.7);
   font-size: 0.5rem;
-  font-weight: 900;
+  font-weight: var(--pax-weight-black);
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
@@ -961,7 +961,7 @@
   color: var(--pax-ui-text-strong);
   font-family: var(--pax-ui-font-ui);
   font-size: 0.72rem;
-  font-weight: 800;
+  font-weight: var(--pax-weight-extrabold);
   line-height: 1;
 }
 
@@ -986,7 +986,7 @@
   color: rgba(255, 226, 165, 0.88);
   font-family: var(--pax-ui-font-ui);
   font-size: 0.55rem;
-  font-weight: 900;
+  font-weight: var(--pax-weight-black);
   letter-spacing: 0.1em;
   line-height: 1;
   text-transform: uppercase;
@@ -1036,7 +1036,7 @@
   color: var(--pax-ui-text-strong);
   font-family: var(--pax-ui-font-label);
   font-size: 0.6rem;
-  font-weight: 900;
+  font-weight: var(--pax-weight-black);
   letter-spacing: 0.12em;
   line-height: 1;
   text-transform: uppercase;
@@ -1062,7 +1062,7 @@
   white-space: nowrap;
   color: var(--pax-ui-accent-warm-strong);
   font-size: 0.78rem;
-  font-weight: 800;
+  font-weight: var(--pax-weight-extrabold);
   line-height: 1.05;
 }
 
@@ -1097,7 +1097,7 @@
   color: var(--pax-ui-text-strong);
   font-family: var(--pax-ui-font-label);
   font-size: calc(0.6rem * var(--pax-ui-label-scale, 1));
-  font-weight: 900;
+  font-weight: var(--pax-weight-black);
   letter-spacing: 0.12em;
   line-height: 1;
   text-transform: uppercase;
@@ -1131,7 +1131,7 @@
   color: var(--pax-ui-accent-warm-strong);
   font-family: var(--pax-ui-font-data);
   font-size: calc(0.66rem * var(--pax-ui-data-scale, 1));
-  font-weight: 800;
+  font-weight: var(--pax-weight-extrabold);
   text-align: right;
 }
 
@@ -1143,7 +1143,7 @@
   color: rgba(144, 224, 184, 0.96);
   font-family: var(--pax-ui-font-copy);
   font-size: 0.58rem;
-  font-weight: 800;
+  font-weight: var(--pax-weight-extrabold);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -1174,7 +1174,7 @@
   color: rgba(144, 224, 184, 0.96);
   font-family: var(--pax-ui-font-copy);
   font-size: 0.58rem;
-  font-weight: 800;
+  font-weight: var(--pax-weight-extrabold);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -1234,7 +1234,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 0.66rem;
-  font-weight: 800;
+  font-weight: var(--pax-weight-extrabold);
   line-height: 1;
 }
 
@@ -1247,7 +1247,7 @@
   white-space: nowrap;
   color: var(--pax-ui-text-dim);
   font-size: 0.5rem;
-  font-weight: 900;
+  font-weight: var(--pax-weight-black);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -1437,7 +1437,7 @@
 .pf-hud-topbar__title {
   font-family: var(--pax-ui-font-brand);
   color: var(--pax-ui-accent-warm-strong, var(--pax-ui-text-strong));
-  font-weight: 800;
+  font-weight: var(--pax-weight-extrabold);
   text-transform: uppercase;
   white-space: nowrap;
   text-shadow: 0 0 16px rgba(246, 196, 105, 0.22);
@@ -1540,7 +1540,7 @@
 
 .pf-game-speed__button {
   border-radius: 10px;
-  font-weight: 800;
+  font-weight: var(--pax-weight-extrabold);
   letter-spacing: 0.06em;
   white-space: nowrap;
   min-height: 40px;
@@ -1591,7 +1591,7 @@
 
 .pf-standings__columns {
   color: var(--pax-ui-text-dim);
-  font-weight: 900;
+  font-weight: var(--pax-weight-black);
   letter-spacing: 0.08em;
   font-size: calc(0.54rem * var(--pax-ui-label-scale, 1));
 }
@@ -1702,7 +1702,7 @@
   color: rgba(255, 225, 165, 0.82);
   font-family: var(--pax-ui-font-label);
   font-size: calc(0.66rem * var(--pax-ui-label-scale, 1));
-  font-weight: 900;
+  font-weight: var(--pax-weight-black);
   letter-spacing: 0.09em;
   line-height: 1;
   text-transform: uppercase;

@@ -154,7 +154,7 @@
   .game-title-mini {
     font-family: var(--pax-ui-font-display);
     font-size: 0.65rem;
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
     letter-spacing: 0.2em;
     color: rgba(255, 255, 255, 0.25);
     text-transform: uppercase;
@@ -166,7 +166,7 @@
     color: rgba(255, 255, 255, 0.5);
     font-family: var(--pax-ui-font-display);
     font-size: 0.7rem;
-    font-weight: 600;
+    font-weight: var(--pax-weight-semibold);
     letter-spacing: 0.1em;
     padding: 4px 12px;
     border-radius: 4px;
@@ -216,7 +216,7 @@
     right: 64px;
     font-family: var(--pax-ui-font-display);
     font-size: 1rem;
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
   }
 
   .fit-fab {

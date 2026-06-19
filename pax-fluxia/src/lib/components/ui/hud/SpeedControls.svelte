@@ -110,7 +110,7 @@
         gap: 8px;
         padding: 0 14px;
         font-size: 0.72rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.14em;
     }
 

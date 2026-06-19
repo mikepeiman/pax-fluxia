@@ -1383,14 +1383,14 @@
 
     .pax {
         font-size: clamp(2.4rem, 4.5vw, 4rem);
-        font-weight: 300;
+        font-weight: var(--pax-weight-light);
         letter-spacing: var(--pf-title-pax-spacing);
         color: var(--pf-muted-strong);
     }
 
     .fluxia {
         font-size: clamp(3.6rem, 7vw, 5.8rem);
-        font-weight: 800;
+        font-weight: var(--pax-weight-extrabold);
         letter-spacing: var(--pf-title-fluxia-spacing);
         background: linear-gradient(
             180deg,
@@ -1407,7 +1407,7 @@
         margin: 0;
         font-family: var(--pf-font-body);
         font-size: 0.88rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: var(--pf-title-subtitle-spacing);
         text-transform: uppercase;
         color: var(--pf-muted);
@@ -1480,7 +1480,7 @@
         margin: 0;
         font-family: var(--pf-font-display);
         font-size: 1.16rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.12em;
         text-transform: uppercase;
         color: var(--pf-heading);
@@ -1490,7 +1490,7 @@
         margin: 6px 0 0;
         font-family: var(--pf-font-body);
         font-size: 1.02rem;
-        font-weight: 600;
+        font-weight: var(--pax-weight-semibold);
         color: var(--pf-muted-strong);
     }
 
@@ -1576,7 +1576,7 @@
         margin: 0 0 10px;
         font-family: var(--pf-font-body);
         font-size: 0.9rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
         color: var(--pf-muted);
@@ -1599,7 +1599,7 @@
         background: var(--pf-frame-control), var(--pf-surface-pill);
         font-family: var(--pf-font-body);
         font-size: 0.92rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         cursor: pointer;
         transition:
             border-color 0.15s ease,
@@ -1634,7 +1634,7 @@
         border: 1px solid var(--pf-border-soft);
         font-family: var(--pf-font-body);
         font-size: 0.98rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
         cursor: pointer;
@@ -1706,7 +1706,7 @@
             color: var(--pf-muted-strong);
             font-family: var(--pf-font-body);
             font-size: 0.9rem;
-            font-weight: 700;
+            font-weight: var(--pax-weight-bold);
             letter-spacing: 0.08em;
             text-transform: uppercase;
         }

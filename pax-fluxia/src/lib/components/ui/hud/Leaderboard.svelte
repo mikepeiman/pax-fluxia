@@ -267,7 +267,7 @@
         color: var(--pax-ui-accent);
         font-family: var(--pax-ui-font-ui);
         font-size: 0.56rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.18em;
         text-transform: uppercase;
     }
@@ -277,7 +277,7 @@
         color: var(--pax-ui-text-strong);
         font-family: var(--pax-ui-font-ui);
         font-size: 0.96rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.06em;
         text-transform: uppercase;
     }
@@ -334,7 +334,7 @@
         padding: 0 12px;
         font-family: var(--pax-ui-font-ui);
         font-size: 0.64rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
     }
@@ -364,7 +364,7 @@
     .summary-chip__meta {
         font-family: var(--pax-ui-font-ui);
         font-size: 0.6rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.14em;
         text-transform: uppercase;
     }
@@ -509,7 +509,7 @@
         white-space: nowrap;
         font-family: var(--pax-ui-font-ui);
         font-size: 0.84rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.03em;
         color: var(--pax-ui-text-strong);
     }

@@ -284,7 +284,7 @@
         color: var(--pax-ui-text-strong);
         font-family: var(--pax-ui-font-ui);
         font-size: 1.18rem;
-        font-weight: 800;
+        font-weight: var(--pax-weight-extrabold);
         letter-spacing: 0.16em;
         text-transform: uppercase;
         white-space: nowrap;
@@ -316,7 +316,7 @@
         color: var(--pax-ui-text-dim);
         font-family: var(--pax-ui-font-ui);
         font-size: 0.56rem;
-        font-weight: 800;
+        font-weight: var(--pax-weight-extrabold);
         letter-spacing: 0.14em;
         line-height: 1;
         text-transform: uppercase;
@@ -330,7 +330,7 @@
         color: var(--pax-ui-text-strong);
         font-family: var(--pax-ui-font-ui);
         font-size: 0.84rem;
-        font-weight: 600;
+        font-weight: var(--pax-weight-semibold);
         letter-spacing: 0.02em;
     }
 
@@ -369,7 +369,7 @@
     .mode-shortcut__short {
         color: var(--pax-ui-text-strong);
         font-size: 0.58rem;
-        font-weight: 800;
+        font-weight: var(--pax-weight-extrabold);
         letter-spacing: 0.16em;
         text-transform: uppercase;
     }
@@ -451,7 +451,7 @@
         border-radius: 14px;
         font-family: var(--pax-ui-font-ui);
         font-size: 0.72rem;
-        font-weight: 800;
+        font-weight: var(--pax-weight-extrabold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
         white-space: nowrap;

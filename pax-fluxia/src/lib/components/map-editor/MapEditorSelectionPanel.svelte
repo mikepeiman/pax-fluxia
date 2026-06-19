@@ -349,7 +349,7 @@
 
   .portal-group-chip {
     justify-content: center;
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
   }
 
   .owner-chip.is-active,

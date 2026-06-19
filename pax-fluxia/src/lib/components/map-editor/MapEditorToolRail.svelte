@@ -821,7 +821,7 @@
     justify-content: center;
     font-family: var(--pax-ui-font-data);
     font-size: 0.58rem;
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
     letter-spacing: 0.04em;
     line-height: 1;
     color: rgba(15, 23, 42, 0.96);
@@ -847,7 +847,7 @@
     display: block;
     font-family: var(--pax-ui-font-ui);
     font-size: 1rem;
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: #f8fafc;
@@ -1045,7 +1045,7 @@
     background: rgba(15, 23, 42, 0.9);
     font: inherit;
     font-size: 0.74rem;
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
     color: #f8fafc;
   }
 
@@ -1110,7 +1110,7 @@
     background: rgba(15, 23, 42, 0.88);
     color: #e0e7ff;
     font: inherit;
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
     cursor: pointer;
   }
 

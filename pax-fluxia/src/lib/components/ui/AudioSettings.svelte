@@ -448,7 +448,7 @@
         margin: 0 0 6px;
         font-family: var(--pf-font-display);
         font-size: 0.74rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.14em;
         text-transform: uppercase;
         color: var(--pf-heading);
@@ -549,7 +549,7 @@
     .setting-name {
         flex: 1;
         color: var(--pf-text);
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
     }
 
     .setting-value,
@@ -557,7 +557,7 @@
         min-width: 44px;
         text-align: right;
         color: var(--pf-heading);
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
     }
 
     .btn {
@@ -566,7 +566,7 @@
         border-radius: var(--pf-button-radius);
         font-family: var(--pf-font-body);
         font-size: 0.84rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
         cursor: pointer;
@@ -613,7 +613,7 @@
         margin-left: 10px;
         color: var(--pf-muted);
         font-size: 0.72rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
     }

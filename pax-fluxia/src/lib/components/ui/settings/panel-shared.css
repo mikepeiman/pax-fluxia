@@ -16,7 +16,7 @@
     color: var(--pax-ui-accent-warm-strong, #ffe3a3);
     font-family: var(--pax-ui-font-label, var(--pax-font-label));
     font-size: calc(0.68rem * var(--pax-ui-label-scale, 1));
-    font-weight: 800;
+    font-weight: var(--pax-weight-extrabold);
     letter-spacing: 0.14em;
     line-height: 1.1;
     text-transform: uppercase;
@@ -79,7 +79,7 @@
     color: var(--pax-ui-text, rgba(224, 232, 232, 0.9));
     font-family: var(--pax-ui-font-ui, var(--pax-font-ui));
     font-size: calc(0.76rem * var(--pax-ui-type-scale, 1));
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
     line-height: 1.2;
 }
 
@@ -87,7 +87,7 @@
     color: var(--pax-ui-accent-warm-strong, #ffe3a3);
     font-family: var(--pax-ui-font-data, var(--pax-font-data));
     font-size: calc(0.7rem * var(--pax-ui-data-scale, 1));
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }
@@ -231,7 +231,7 @@ select.mode-select {
     cursor: pointer;
     font-family: var(--pax-ui-font-ui, var(--pax-font-ui));
     font-size: calc(0.78rem * var(--pax-ui-type-scale, 1));
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
     appearance: none;
     -webkit-appearance: none;
 }
@@ -264,7 +264,7 @@ select.mode-select {
     cursor: pointer;
     font-family: var(--pax-ui-font-ui, var(--pax-font-ui));
     font-size: calc(0.68rem * var(--pax-ui-label-scale, 1));
-    font-weight: 800;
+    font-weight: var(--pax-weight-extrabold);
     letter-spacing: 0.08em;
     line-height: 1;
     text-transform: uppercase;

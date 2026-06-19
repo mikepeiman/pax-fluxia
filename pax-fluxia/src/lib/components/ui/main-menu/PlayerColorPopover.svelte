@@ -155,7 +155,7 @@
     .player-color-popover__title {
         font-family: var(--pf-font-display);
         font-size: 0.82rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.12em;
         text-transform: uppercase;
         color: var(--pf-text);
@@ -178,7 +178,7 @@
     .player-color-popover__label {
         font-family: var(--pf-font-body);
         font-size: 0.84rem;
-        font-weight: 600;
+        font-weight: var(--pax-weight-semibold);
         letter-spacing: 0.04em;
         color: var(--pf-muted-strong);
         text-transform: uppercase;
@@ -193,7 +193,7 @@
         text-align: right;
         font-family: var(--pf-font-body);
         font-size: 0.9rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         color: var(--pf-text);
     }
 
@@ -207,7 +207,7 @@
         color: var(--pf-muted-strong);
         font-family: var(--pf-font-body);
         font-size: 0.88rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
         cursor: pointer;

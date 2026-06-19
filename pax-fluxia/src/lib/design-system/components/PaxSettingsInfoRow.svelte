@@ -46,7 +46,7 @@
     overflow: hidden;
     color: var(--pax-ui-text-soft);
     font-size: calc(0.74rem * var(--pax-ui-type-scale, 1));
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
     letter-spacing: 0.04em;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -58,7 +58,7 @@
     color: var(--pax-ui-accent-warm-strong);
     font-family: var(--pax-ui-font-data);
     font-size: calc(0.72rem * var(--pax-ui-data-scale, 1));
-    font-weight: 800;
+    font-weight: var(--pax-weight-extrabold);
     font-variant-numeric: tabular-nums;
     text-align: right;
     text-overflow: ellipsis;

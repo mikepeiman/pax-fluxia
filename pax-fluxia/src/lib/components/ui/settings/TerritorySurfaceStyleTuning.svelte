@@ -731,7 +731,7 @@
         margin: 12px 0 6px;
         color: rgba(128, 222, 255, 0.92);
         font-size: 10px;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.12em;
         text-transform: uppercase;
     }

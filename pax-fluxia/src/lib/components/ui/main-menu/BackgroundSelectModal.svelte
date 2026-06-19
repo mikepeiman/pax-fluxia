@@ -194,7 +194,7 @@
         color: var(--pf-accent-soft);
         font-family: var(--pf-font-body);
         font-size: 0.76rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.18em;
         text-transform: uppercase;
     }
@@ -225,7 +225,7 @@
         background: var(--pf-frame-control), var(--pf-surface-pill);
         color: var(--pf-muted-strong);
         font-family: var(--pf-font-body);
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
         cursor: pointer;
@@ -283,7 +283,7 @@
         color: var(--pf-muted);
         font-family: var(--pf-font-body);
         font-size: 1rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
     }
@@ -292,7 +292,7 @@
         color: var(--pf-muted-strong);
         font-family: var(--pf-font-body);
         font-size: 0.84rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.04em;
         text-transform: capitalize;
     }

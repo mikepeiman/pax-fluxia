@@ -359,7 +359,7 @@
     .section-title {
         font-family: var(--pax-ui-font-display);
         font-size: 11px;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         text-transform: uppercase;
         letter-spacing: 1px;
         color: #6478a0;
@@ -367,7 +367,7 @@
         border-bottom: 1px solid rgba(100, 120, 160, 0.15);
     }
     .section-title .count {
-        font-weight: 400;
+        font-weight: var(--pax-weight-regular);
         color: #445;
     }
 
@@ -395,14 +395,14 @@
     .star-name {
         font-family: var(--pax-ui-font-data);
         font-size: 12px;
-        font-weight: 600;
+        font-weight: var(--pax-weight-semibold);
         flex: 1;
     }
     .type-chip {
         font-size: 9px;
         padding: 1px 5px;
         border-radius: 3px;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.5px;
     }
     .owner-dot {
@@ -463,12 +463,12 @@
     .mult-row {
         display: flex;
         gap: 4px;
-        font-weight: 600;
+        font-weight: var(--pax-weight-semibold);
     }
 
     .active {
         color: #4ade80;
-        font-weight: 600;
+        font-weight: var(--pax-weight-semibold);
     }
     .damaged {
         color: #f87171;
@@ -556,7 +556,7 @@
         font-size: 8px;
         padding: 0 4px;
         border-radius: 2px;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.3px;
     }
     .row-active {
@@ -564,7 +564,7 @@
         font-size: 10px;
         text-align: right;
         color: #4ade80;
-        font-weight: 600;
+        font-weight: var(--pax-weight-semibold);
     }
     .row-damaged {
         font-family: var(--pax-ui-font-data);
@@ -577,7 +577,7 @@
         font-size: 10px;
         text-align: right;
         color: #a855f7;
-        font-weight: 600;
+        font-weight: var(--pax-weight-semibold);
     }
 
     /* ── Force Display ── */
@@ -588,7 +588,7 @@
     }
     .force-abs {
         color: #c8d0e0;
-        font-weight: 600;
+        font-weight: var(--pax-weight-semibold);
     }
     .force-sep {
         color: #445;
@@ -603,7 +603,7 @@
         font-size: 10px;
     }
     .force-ratio {
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         font-size: 11px;
     }
     .force-ratio.favorable {

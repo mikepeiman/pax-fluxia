@@ -1229,7 +1229,7 @@
   .portal-group-label {
     font-family: var(--pax-ui-font-ui);
     font-size: 9px;
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
     letter-spacing: 0.1em;
     text-transform: uppercase;
   }
@@ -1237,7 +1237,7 @@
   .owner-badge__text {
     font-family: var(--pax-ui-font-ui);
     font-size: 11px;
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
@@ -1257,7 +1257,7 @@
 
   .ships-label {
     fill: rgba(250, 204, 21, 0.95);
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
   }
 
   .measurement line,

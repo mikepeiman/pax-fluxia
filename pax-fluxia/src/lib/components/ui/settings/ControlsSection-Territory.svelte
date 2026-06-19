@@ -1906,7 +1906,7 @@
   .territory-inline-heading {
     margin: 2px 0 0;
     font-size: 10px;
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: rgba(168, 208, 239, 0.78);
@@ -1965,7 +1965,7 @@
     letter-spacing: 0.4px;
     color: var(--accent, #888);
     padding-top: 4px;
-    font-weight: 600;
+    font-weight: var(--pax-weight-semibold);
   }
   .territory-axis {
     align-items: stretch;

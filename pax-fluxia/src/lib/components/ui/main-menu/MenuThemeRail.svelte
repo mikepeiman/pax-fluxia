@@ -96,7 +96,7 @@
         z-index: 1;
         font-family: var(--pf-font-display);
         font-size: 0.58rem;
-        font-weight: 800;
+        font-weight: var(--pax-weight-extrabold);
         letter-spacing: 0.16em;
         text-transform: uppercase;
         color: #f8fcff;

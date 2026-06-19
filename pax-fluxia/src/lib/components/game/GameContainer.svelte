@@ -1836,7 +1836,7 @@
     color: var(--pax-ui-text-soft);
     font-family: var(--pax-ui-font-ui);
     font-size: 0.62rem;
-    font-weight: 800;
+    font-weight: var(--pax-weight-extrabold);
     letter-spacing: 0.14em;
     text-transform: uppercase;
   }
@@ -1911,7 +1911,7 @@
   }
   .room-id-label {
     font-size: 0.6rem;
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
     letter-spacing: 0.12em;
     color: rgba(255, 255, 255, 0.5);
     text-transform: uppercase;
@@ -1967,7 +1967,7 @@
   .speed-card__label {
     font-family: var(--pax-ui-font-ui);
     font-size: 0.56rem;
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
     letter-spacing: 0.16em;
     text-transform: uppercase;
     color: var(--pax-ui-accent);
@@ -1993,7 +1993,7 @@
     border-radius: 4px;
     cursor: pointer;
     font-family: inherit;
-    font-weight: 600;
+    font-weight: var(--pax-weight-semibold);
     text-transform: uppercase;
     font-size: 11px;
     transition: all 0.2s;

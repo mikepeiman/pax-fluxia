@@ -221,7 +221,7 @@
         font-size: 10px;
         padding: 1px 6px;
         border-radius: 4px;
-        font-weight: 600;
+        font-weight: var(--pax-weight-semibold);
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
@@ -266,7 +266,7 @@
 
     .active {
         color: #4ade80;
-        font-weight: 600;
+        font-weight: var(--pax-weight-semibold);
     }
     .damaged {
         color: #f87171;
@@ -285,7 +285,7 @@
     }
 
     .mult {
-        font-weight: 600;
+        font-weight: var(--pax-weight-semibold);
         font-size: 11px;
     }
     .mult.grey {

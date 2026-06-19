@@ -316,7 +316,7 @@
     .browser-header__label {
         font-family: var(--pf-font-body);
         font-size: 0.8rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.12em;
         text-transform: uppercase;
         color: var(--pf-muted);
@@ -332,7 +332,7 @@
         color: var(--pf-muted-strong);
         font-family: var(--pf-font-body);
         font-size: 0.86rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
         cursor: pointer;
@@ -384,7 +384,7 @@
         text-align: center;
         font-family: var(--pf-font-display);
         font-size: 0.82rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         color: var(--pf-heading);
     }
 
@@ -398,7 +398,7 @@
     .room-browser__top strong {
         font-family: var(--pf-font-display);
         font-size: 0.9rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         color: var(--pf-text);
     }
 
@@ -426,7 +426,7 @@
         background: var(--pf-surface-pill-active);
         font-family: var(--pf-font-body);
         font-size: 0.78rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
         color: var(--pf-muted-strong);
@@ -460,7 +460,7 @@
         color: var(--pf-text);
         font-family: var(--pf-font-body);
         font-size: 1rem;
-        font-weight: 600;
+        font-weight: var(--pax-weight-semibold);
         outline: none;
     }
 
@@ -500,7 +500,7 @@
         color: var(--pf-text);
         font-family: var(--pf-font-display);
         font-size: 0.86rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
         cursor: pointer;
@@ -536,7 +536,7 @@
     }
 
     .chat-shell__sender {
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
     }
 
     .chat-shell__text {

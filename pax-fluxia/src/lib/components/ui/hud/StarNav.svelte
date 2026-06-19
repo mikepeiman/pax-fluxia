@@ -346,7 +346,7 @@
         color: var(--pax-ui-accent);
         font-family: var(--pax-ui-font-ui);
         font-size: 0.56rem;
-        font-weight: 800;
+        font-weight: var(--pax-weight-extrabold);
         letter-spacing: 0.18em;
         text-transform: uppercase;
     }
@@ -379,7 +379,7 @@
         color: var(--pax-ui-text-strong);
         font-family: var(--pax-ui-font-ui);
         font-size: 1rem;
-        font-weight: 800;
+        font-weight: var(--pax-weight-extrabold);
         letter-spacing: 0.04em;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -390,7 +390,7 @@
         color: var(--pax-ui-text-soft);
         font-family: var(--pax-ui-font-ui);
         font-size: 0.62rem;
-        font-weight: 800;
+        font-weight: var(--pax-weight-extrabold);
         letter-spacing: 0.14em;
         text-transform: uppercase;
     }
@@ -511,7 +511,7 @@
         color: var(--pax-ui-text-soft);
         font-family: var(--pax-ui-font-ui);
         font-size: 0.55rem;
-        font-weight: 800;
+        font-weight: var(--pax-weight-extrabold);
         letter-spacing: 0.13em;
         line-height: 1;
         text-transform: uppercase;
@@ -526,7 +526,7 @@
         color: var(--pax-ui-text-strong);
         font-family: var(--pax-ui-font-ui);
         font-size: 0.78rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
     }
 
     .star-field__dot {
@@ -564,7 +564,7 @@
         color: var(--pax-ui-text-soft);
         font-family: var(--pax-ui-font-ui);
         font-size: 0.66rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         white-space: nowrap;
     }
 

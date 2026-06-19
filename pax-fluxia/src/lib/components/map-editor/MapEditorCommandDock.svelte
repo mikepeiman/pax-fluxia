@@ -155,7 +155,7 @@
   }
 
   .command-btn {
-    font-weight: 600;
+    font-weight: var(--pax-weight-semibold);
     background: rgba(9, 16, 31, 0.9);
     border-color: rgba(148, 163, 184, 0.18);
     color: rgba(226, 232, 240, 0.92);

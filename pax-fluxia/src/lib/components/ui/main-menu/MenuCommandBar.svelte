@@ -125,7 +125,7 @@
     .command-bar__eyebrow {
         font-family: var(--pf-font-body);
         font-size: 0.76rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.14em;
         text-transform: uppercase;
         color: var(--pf-heading);
@@ -134,7 +134,7 @@
     .command-bar__summary {
         font-family: var(--pf-font-display);
         font-size: 1rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         color: var(--pf-text);
         white-space: nowrap;
         overflow: hidden;
@@ -164,7 +164,7 @@
         color: var(--pf-text);
         font-family: var(--pf-font-body);
         font-size: 1rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
         cursor: pointer;

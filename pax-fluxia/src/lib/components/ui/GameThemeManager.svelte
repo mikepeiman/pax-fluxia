@@ -376,7 +376,7 @@
     color: var(--pax-ui-accent);
     font-family: var(--pax-ui-font-ui);
     font-size: 0.56rem;
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
     letter-spacing: 0.18em;
     text-transform: uppercase;
   }
@@ -385,7 +385,7 @@
     color: var(--pax-ui-accent-warm);
     font-family: var(--pax-ui-font-ui);
     font-size: 0.88rem;
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
     letter-spacing: 0.1em;
     text-transform: uppercase;
   }
@@ -419,7 +419,7 @@
     color: var(--pax-ui-text);
     font-family: var(--pax-ui-font-ui);
     font-size: 0.68rem;
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     cursor: pointer;
@@ -573,7 +573,7 @@
   }
 
   .game-theme-manager--menu .theme-chip-name {
-    font-weight: 600;
+    font-weight: var(--pax-weight-semibold);
   }
 
   .theme-chip-status {
@@ -584,7 +584,7 @@
     background: rgba(255, 255, 255, 0.05);
     font-family: var(--pax-ui-font-ui);
     font-size: 0.58rem;
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
     letter-spacing: 0.12em;
     text-transform: uppercase;
     text-align: center;
@@ -614,7 +614,7 @@
     white-space: nowrap;
     font-family: var(--pax-ui-font-ui);
     font-size: 0.82rem;
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
     letter-spacing: 0.03em;
   }
 

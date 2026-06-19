@@ -327,7 +327,7 @@
     .trace-heading {
         margin: 0;
         font-size: 0.68rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
         color: rgba(191, 219, 254, 0.88);
@@ -362,7 +362,7 @@
         color: var(--pax-ui-text);
         font-family: var(--pax-ui-font-ui);
         font-size: calc(0.74rem * var(--pax-ui-type-scale, 1));
-        font-weight: 800;
+        font-weight: var(--pax-weight-extrabold);
         letter-spacing: 0.06em;
         text-transform: uppercase;
     }
@@ -371,7 +371,7 @@
         color: var(--pax-ui-accent-warm-strong);
         font-family: var(--pax-ui-font-data);
         font-size: calc(0.68rem * var(--pax-ui-data-scale, 1));
-        font-weight: 800;
+        font-weight: var(--pax-weight-extrabold);
     }
 
     .trace-panel {

@@ -696,7 +696,7 @@
     .preview-well__label {
         font-family: var(--pf-font-body);
         font-size: 0.82rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.1em;
         text-transform: uppercase;
         color: var(--pf-muted);
@@ -714,7 +714,7 @@
     .metric-field strong {
         font-family: var(--pf-font-body);
         font-size: 0.96rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         color: var(--pf-text);
     }
 
@@ -745,7 +745,7 @@
         border-radius: var(--pf-button-radius);
         font-family: var(--pf-font-body);
         font-size: 0.92rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
     }
@@ -789,7 +789,7 @@
     .control-cluster__value {
         font-family: var(--pf-font-display);
         font-size: 0.92rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.12em;
         text-transform: uppercase;
     }
@@ -876,7 +876,7 @@
         border-radius: var(--pf-pill-radius);
         font-family: var(--pf-font-body);
         font-size: 0.84rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
     }
@@ -946,7 +946,7 @@
     .saved-map-card__title {
         font-family: var(--pf-font-display);
         font-size: 0.9rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         color: var(--pf-text);
     }
 

@@ -200,7 +200,7 @@
         margin: 0;
         color: rgba(128, 222, 255, 0.92);
         font-size: 10px;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.12em;
         text-transform: uppercase;
     }
@@ -223,7 +223,7 @@
         background: rgba(245, 158, 11, 0.12);
         color: rgba(255, 214, 140, 0.96);
         font-size: 10px;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.1em;
         text-transform: uppercase;
     }

@@ -104,7 +104,7 @@
   .pax-color-swatch-button__label {
     color: var(--pax-ui-text);
     font-size: calc(0.68rem * var(--pax-ui-type-scale, 1));
-    font-weight: 800;
+    font-weight: var(--pax-weight-extrabold);
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
@@ -113,6 +113,6 @@
     color: var(--pax-ui-text-soft);
     font-family: var(--pax-ui-font-data);
     font-size: calc(0.62rem * var(--pax-ui-data-scale, 1));
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
   }
 </style>

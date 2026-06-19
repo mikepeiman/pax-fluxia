@@ -259,7 +259,7 @@
     .players-panel__count-label {
         font-family: var(--pf-font-body);
         font-size: 0.82rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.12em;
         text-transform: uppercase;
         color: var(--pf-muted);
@@ -275,7 +275,7 @@
         color: var(--pf-muted-strong);
         font-family: var(--pf-font-body);
         font-size: 0.85rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
         cursor: pointer;
@@ -403,7 +403,7 @@
     .player-row__slot {
         font-family: var(--pf-font-display);
         font-size: 0.86rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         letter-spacing: 0.1em;
         text-transform: uppercase;
         color: var(--pf-text);
@@ -412,7 +412,7 @@
     .player-row__role {
         font-family: var(--pf-font-body);
         font-size: 0.8rem;
-        font-weight: 600;
+        font-weight: var(--pax-weight-semibold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
         color: var(--pf-muted);
@@ -429,7 +429,7 @@
         color: var(--pf-text);
         font-family: var(--pf-font-body);
         font-size: 1rem;
-        font-weight: 600;
+        font-weight: var(--pax-weight-semibold);
         outline: none;
     }
 

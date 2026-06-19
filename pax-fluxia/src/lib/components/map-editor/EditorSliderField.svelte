@@ -131,7 +131,7 @@
 
   .slider-field__label {
     font-size: 0.7rem;
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: rgba(186, 204, 226, 0.82);
@@ -145,7 +145,7 @@
     color: color-mix(in srgb, var(--slider-accent) 72%, white 28%);
     font-family: var(--pax-ui-font-ui);
     font-size: 0.86rem;
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
     letter-spacing: 0.08em;
     line-height: 1;
   }
@@ -170,7 +170,7 @@
 
   .slider-field__unit {
     font-size: 0.64rem;
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: rgba(148, 163, 184, 0.76);
@@ -186,7 +186,7 @@
     font: inherit;
     font-family: var(--pax-ui-font-data);
     font-size: 0.8rem;
-    font-weight: 700;
+    font-weight: var(--pax-weight-bold);
   }
 
   .slider-field__number::-webkit-outer-spin-button,

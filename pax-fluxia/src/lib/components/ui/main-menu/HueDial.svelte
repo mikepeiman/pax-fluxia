@@ -210,7 +210,7 @@
 
     .hue-dial__value {
         font-size: 1.2rem;
-        font-weight: 700;
+        font-weight: var(--pax-weight-bold);
         line-height: 1;
     }
 
