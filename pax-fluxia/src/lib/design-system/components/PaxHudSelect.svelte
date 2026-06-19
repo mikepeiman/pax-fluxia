@@ -97,7 +97,7 @@
     width: max-content;
     max-width: 220px;
     padding: 6px 8px;
-    background: var(--pax-ui-panel, #0a1418);
+    background: var(--pax-ui-panel-bg-strong);
     border: 1px solid var(--pax-ui-border, rgba(246, 196, 105, 0.35));
     border-radius: 6px;
     color: var(--pax-ui-text, rgba(224, 232, 232, 0.95));

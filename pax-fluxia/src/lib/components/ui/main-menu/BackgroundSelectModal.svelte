@@ -162,7 +162,7 @@
         background:
             var(--pf-frame-modal),
             linear-gradient(180deg, color-mix(in srgb, var(--pf-surface-dialog) 90%, transparent) 0%, var(--pf-surface-dialog) 100%);
-        box-shadow: var(--pf-shadow-modal);
+        box-shadow: var(--pf-shadow-elevated);
         backdrop-filter: blur(28px);
     }
 

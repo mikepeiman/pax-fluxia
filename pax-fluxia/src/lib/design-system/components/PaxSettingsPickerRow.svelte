@@ -202,7 +202,7 @@
     background:
       linear-gradient(180deg, rgba(0, 17, 20, 0.98), rgba(0, 8, 10, 0.98)) padding-box,
       var(--pax-ui-border-gradient) border-box;
-    box-shadow: var(--pax-ui-shadow-panel);
+    box-shadow: var(--pax-ui-shadow);
   }
 
   .pax-settings-picker-row__option {

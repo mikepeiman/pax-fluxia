@@ -373,7 +373,7 @@
         background:
             linear-gradient(180deg, rgba(3, 23, 26, 0.98), rgba(1, 8, 13, 0.99)) padding-box,
             var(--pax-ui-border-gradient) border-box;
-        box-shadow: var(--pax-ui-shadow-strong);
+        box-shadow: var(--pax-ui-shadow);
         padding: 14px;
         color: var(--pax-ui-text);
         font-family: var(--pax-ui-font-ui);
