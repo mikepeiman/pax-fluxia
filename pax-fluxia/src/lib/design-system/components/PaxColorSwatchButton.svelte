@@ -110,7 +110,7 @@
   }
 
   .pax-color-swatch-button__meta {
-    color: var(--pax-ui-text-muted);
+    color: var(--pax-ui-text-soft);
     font-family: var(--pax-ui-font-data);
     font-size: calc(0.62rem * var(--pax-ui-data-scale, 1));
     font-weight: 700;

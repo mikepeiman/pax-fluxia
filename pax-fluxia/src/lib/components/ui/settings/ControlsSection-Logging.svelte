@@ -71,24 +71,12 @@
 
 <h4 class="sub-heading">Renderer Traces</h4>
 {#key logRefresh}
-    <label class="toggle-row">
-        <input
-            type="checkbox"
-            checked={gridGradientTraceEnabled()}
-            onchange={(e) => {
-                setGridGradientTraceEnabled(
-                    (e.target as HTMLInputElement).checked,
-                );
-            }}
-        />
-        <span
-            class="log-label"
-            data-setting-config-key="GRID_GRADIENT_DEBUG_TRANSITIONS"
-            data-setting-description="Detailed Grid Gradient conquest transition trace logs. Does not enable the broad Render log channel."
-            >Grid Gradient transition trace</span
-        >
-        <span class="log-desc">Filter logs for [GG_TRANSITION]</span>
-    </label>
+    <PaxSettingsToggleRow
+        label="Grid Gradient transition trace"
+        checked={gridGradientTraceEnabled()}
+        description="Filter logs for [GG_TRANSITION]"
+        settingConfigKey="GRID_GRADIENT_DEBUG_TRANSITIONS"
+        onChange={(checked) => setGridGradientTraceEnabled(checked)} />
 {/key}
 
 <style>

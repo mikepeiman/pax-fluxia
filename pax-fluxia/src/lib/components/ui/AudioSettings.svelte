@@ -8,6 +8,7 @@
     } from "$lib/services/audioManager.svelte";
     import { fade, fly } from "svelte/transition";
     import { getMenuThemeCssVars, type MenuTheme } from "./main-menu/menuTheme";
+    import PaxSettingsToggleRow from "$lib/design-system/components/PaxSettingsToggleRow.svelte";
 
     const CONQUEST_TYPES: SoundType[] = [
         "conquest",
@@ -167,14 +168,10 @@
                         </div>
                     </div>
 
-                    <label class="toggle">
-                        <input
-                            type="checkbox"
-                            checked={!audioManager.muted}
-                            onchange={() => audioManager.toggleMute()}
-                        />
-                        <span>Sound Enabled</span>
-                    </label>
+                    <PaxSettingsToggleRow
+                        label="Sound Enabled"
+                        checked={!audioManager.muted}
+                        onChange={() => audioManager.toggleMute()} />
 
                     <div class="setting-row" class:disabled={audioManager.muted}>
                         <div class="setting-header">
@@ -290,17 +287,12 @@
                             <h3>Conquest Signals</h3>
                         </div>
 
-                        <label class="toggle toggle-inline">
-                            <input
-                                type="checkbox"
-                                checked={audioManager.separateConquestSounds}
-                                onchange={(event) =>
-                                    audioManager.setSeparateConquestSounds((event.target as HTMLInputElement).checked)}
-                                disabled={audioManager.muted}
-                            />
-                            <span>Split Variants</span>
-                            <small>{audioManager.separateConquestSounds ? "3 distinct" : "1 generic"}</small>
-                        </label>
+                        <PaxSettingsToggleRow
+                            label="Split Variants"
+                            checked={audioManager.separateConquestSounds}
+                            disabled={audioManager.muted}
+                            meta={audioManager.separateConquestSounds ? "3 distinct" : "1 generic"}
+                            onChange={(checked) => audioManager.setSeparateConquestSounds(checked)} />
                     </div>
 
                     {#each CONQUEST_TYPES as soundType}
@@ -521,7 +513,6 @@
     input[type="range"] {
         transition: border-color 0.14s ease, background 0.14s ease, transform 0.14s ease;
     }
-    .toggle small,
     .picker-item small {
         color: var(--pf-muted);
         font-size: 0.82rem;
@@ -535,22 +526,11 @@
         outline: none;
     }
 
-    .toggle,
     .setting-header,
     .offset-row {
         display: flex;
         gap: 10px;
         align-items: center;
-    }
-
-    .toggle {
-        font-weight: 700;
-    }
-
-    .toggle input[type="checkbox"] {
-        width: 18px;
-        height: 18px;
-        accent-color: var(--pf-accent-strong);
     }
 
     .setting-row {

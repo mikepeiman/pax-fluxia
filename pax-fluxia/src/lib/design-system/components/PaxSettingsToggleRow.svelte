@@ -103,7 +103,7 @@
     display: inline-flex;
     align-items: center;
     padding: 2px;
-    border: 1px solid color-mix(in srgb, var(--pax-ui-text-muted) 38%, transparent);
+    border: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 38%, transparent);
     border-radius: 999px;
     background: rgba(1, 12, 16, 0.9);
     transition:
@@ -116,7 +116,7 @@
     width: 14px;
     height: 14px;
     border-radius: 999px;
-    background: var(--pax-ui-text-muted);
+    background: var(--pax-ui-text-soft);
     box-shadow: 0 0 0 transparent;
     transform: translateX(0);
     transition:
@@ -126,14 +126,14 @@
   }
 
   .pax-settings-toggle-row--checked .pax-settings-toggle-row__switch {
-    border-color: color-mix(in srgb, var(--pax-ui-accent-cyan) 65%, transparent);
-    background: color-mix(in srgb, var(--pax-ui-accent-cyan) 22%, rgba(1, 12, 16, 0.9));
-    box-shadow: 0 0 16px color-mix(in srgb, var(--pax-ui-accent-cyan) 18%, transparent);
+    border-color: color-mix(in srgb, var(--pax-ui-accent) 65%, transparent);
+    background: color-mix(in srgb, var(--pax-ui-accent) 22%, rgba(1, 12, 16, 0.9));
+    box-shadow: 0 0 16px color-mix(in srgb, var(--pax-ui-accent) 18%, transparent);
   }
 
   .pax-settings-toggle-row--checked .pax-settings-toggle-row__knob {
-    background: var(--pax-ui-accent-cyan);
-    box-shadow: 0 0 10px color-mix(in srgb, var(--pax-ui-accent-cyan) 42%, transparent);
+    background: var(--pax-ui-accent);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--pax-ui-accent) 42%, transparent);
     transform: translateX(16px);
   }
 

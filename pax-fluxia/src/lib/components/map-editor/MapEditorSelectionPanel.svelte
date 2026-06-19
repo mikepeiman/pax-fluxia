@@ -4,6 +4,7 @@
   import { mapEditorStore } from "$lib/editor/mapEditorStore.svelte";
   import { mapEditorUiStore } from "$lib/editor/mapEditorUiStore.svelte";
   import { buildRegularPolygonPoints } from "$lib/editor/mapEditorPresentation";
+  import PaxSettingsToggleRow from "$lib/design-system/components/PaxSettingsToggleRow.svelte";
 
   type OwnerChoice = {
     id: string;
@@ -210,10 +211,10 @@
           <span>Label</span>
           <input type="text" value={selectedMeasurement.label ?? ""} oninput={(event) => mapEditorStore.updateMeasurement(selectedMeasurement.id, { label: (event.currentTarget as HTMLInputElement).value })} />
         </label>
-        <label class="checkbox-row">
-          <input type="checkbox" checked={selectedMeasurement.visibleByDefault !== false} oninput={(event) => mapEditorStore.updateMeasurement(selectedMeasurement.id, { visibleByDefault: (event.currentTarget as HTMLInputElement).checked })} />
-          <span>Visible by default</span>
-        </label>
+        <PaxSettingsToggleRow
+          label="Visible by default"
+          checked={selectedMeasurement.visibleByDefault !== false}
+          onChange={(checked) => mapEditorStore.updateMeasurement(selectedMeasurement.id, { visibleByDefault: checked })} />
       </section>
     {/if}
   </aside>
@@ -249,8 +250,7 @@
     border-bottom-left-radius: 24px;
   }
 
-  .selection-panel header,
-  .checkbox-row {
+  .selection-panel header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -275,8 +275,7 @@
 
   .selection-panel header span,
   .stack span,
-  .readout-grid span,
-  .checkbox-row span {
+  .readout-grid span {
     font-size: 0.76rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -401,10 +400,6 @@
   .type-chip svg {
     width: 22px;
     height: 22px;
-  }
-
-  .checkbox-row {
-    justify-content: flex-start;
   }
 
   .editor-select {

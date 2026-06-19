@@ -4,6 +4,7 @@
     import type { GameHistoryEntry } from "$lib/types/game.types";
     import { onMount } from "svelte";
     import { audioManager } from "$lib/services/audioManager.svelte";
+    import PaxSettingsToggleRow from "$lib/design-system/components/PaxSettingsToggleRow.svelte";
 
     // Props
     let { onClose }: { onClose?: () => void } = $props();
@@ -754,10 +755,10 @@
                     </div>
                     <!-- Restart Options (F-71) -->
                     <div class="restart-row">
-                        <label class="restart-toggle">
-                            <input type="checkbox" bind:checked={reuseMap} />
-                            <span>Reuse this map</span>
-                        </label>
+                        <PaxSettingsToggleRow
+                            label="Reuse this map"
+                            checked={reuseMap}
+                            onChange={(checked) => (reuseMap = checked)} />
                     </div>
                     <button class="btn btn--primary" onclick={handleRestart}>
                         <span class="btn-glow"></span>
@@ -1211,18 +1212,6 @@
     .btn--small:disabled {
         opacity: 0.3;
         cursor: not-allowed;
-    }
-    .restart-toggle {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-        color: #88aacc;
-        font-family: "Orbitron", sans-serif;
-        font-size: 0.7rem;
-        cursor: pointer;
-    }
-    .restart-toggle input[type="checkbox"] {
-        accent-color: #00ccbb;
     }
     .btn {
         padding: 16px 40px;

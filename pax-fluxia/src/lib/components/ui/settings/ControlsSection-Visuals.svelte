@@ -472,7 +472,7 @@
     }
 
     .visuals-bg-none {
-        color: var(--pax-ui-text-muted);
+        color: var(--pax-ui-text-soft);
         font-family: var(--pax-ui-font-ui);
         font-size: calc(0.66rem * var(--pax-ui-type-scale, 1));
         font-weight: 800;

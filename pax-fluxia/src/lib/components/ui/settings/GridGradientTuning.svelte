@@ -2,6 +2,7 @@
   import "./panel-shared.css";
     import { GAME_CONFIG } from '$lib/config/game.config';
     import PaxSettingsRangeRow from '$lib/design-system/components/PaxSettingsRangeRow.svelte';
+    import PaxSettingsToggleRow from '$lib/design-system/components/PaxSettingsToggleRow.svelte';
     import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
     import { gridGradientStats } from '$lib/territory/families/gridGradient/gridGradientStats';
 
@@ -353,25 +354,17 @@
 
 <div class="sub-heading">Borders</div>
 
-<label class="toggle-line">
-    <input
-        type="checkbox"
-        checked={vectorBordersEnabled}
-        onchange={(event) => {
-            writeConfig('GRID_GRADIENT_VECTOR_BORDERS_ENABLED', 'gridGradientVectorBordersEnabled', (event.target as HTMLInputElement).checked);
-        }} />
-    <span>Vector borders</span>
-</label>
+<PaxSettingsToggleRow
+    label="Vector borders"
+    checked={vectorBordersEnabled}
+    settingConfigKey="GRID_GRADIENT_VECTOR_BORDERS_ENABLED"
+    onChange={(checked) => writeConfig('GRID_GRADIENT_VECTOR_BORDERS_ENABLED', 'gridGradientVectorBordersEnabled', checked)} />
 
-<label class="toggle-line">
-    <input
-        type="checkbox"
-        checked={borderDotsEnabled}
-        onchange={(event) => {
-            writeConfig('GRID_GRADIENT_BORDER_DOTS_ENABLED', 'gridGradientBorderDotsEnabled', (event.target as HTMLInputElement).checked);
-        }} />
-    <span>Border dots</span>
-</label>
+<PaxSettingsToggleRow
+    label="Border dots"
+    checked={borderDotsEnabled}
+    settingConfigKey="GRID_GRADIENT_BORDER_DOTS_ENABLED"
+    onChange={(checked) => writeConfig('GRID_GRADIENT_BORDER_DOTS_ENABLED', 'gridGradientBorderDotsEnabled', checked)} />
 
 <PaxSettingsRangeRow
     label="Dot Size"
@@ -430,15 +423,6 @@
         font-weight: 700;
         letter-spacing: 0;
         text-transform: uppercase;
-    }
-
-    .toggle-line {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        min-height: 30px;
-        color: rgba(240, 244, 248, 0.9);
-        font-size: 12px;
     }
 
     .var-row.disabled {

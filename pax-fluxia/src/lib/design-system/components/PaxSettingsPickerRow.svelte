@@ -240,7 +240,7 @@
 
   .pax-settings-picker-row__option-main:hover,
   .pax-settings-picker-row__preview:hover {
-    border-color: color-mix(in srgb, var(--pax-ui-accent-cyan) 48%, transparent);
+    border-color: color-mix(in srgb, var(--pax-ui-accent) 48%, transparent);
     color: var(--pax-ui-text);
   }
 
@@ -258,7 +258,7 @@
   }
 
   .pax-settings-picker-row__option-meta {
-    color: var(--pax-ui-text-muted);
+    color: var(--pax-ui-text-soft);
     font-size: calc(0.62rem * var(--pax-ui-type-scale, 1));
     text-transform: uppercase;
     white-space: nowrap;
@@ -267,6 +267,6 @@
   .pax-settings-picker-row__preview {
     width: 30px;
     min-height: 30px;
-    color: var(--pax-ui-accent-cyan);
+    color: var(--pax-ui-accent);
   }
 </style>
