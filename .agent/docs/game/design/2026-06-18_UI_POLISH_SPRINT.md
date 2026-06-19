@@ -1,7 +1,7 @@
 ---
 date created: 2026-06-18
 revised: 2026-06-18 (corrected arrow mapping per user; prior version mis-read A3/A4/A7)
-status: backlog — design polish sprint
+status: COMPLETE (2026-06-19) — all RAIL/SET/AUD items resolved; awaiting visual sign-off
 owner: UI design
 source: annotated screenshots
 ---
@@ -9,7 +9,15 @@ source: annotated screenshots
 # UI Polish Sprint — corrected catalog
 
 Each item is atomic and independently addressable. **Modals (§C) are DONE.**
-Everything else is backlog.
+
+> **RESOLVED 2026-06-19** — every item implemented (each `bun run check`-green;
+> awaiting the user's in-game visual sign-off):
+> - RAIL-1/2/3/4 — `PlayerStandingsPanel` redesigned cohesively (commit 8f9ffd472)
+> - RAIL-5/6 — segmented borders-in-borders + panel-header divider removed (8da8dab73)
+> - RAIL-7 — Star View icon semantic color (focus/fit=cyan) + stroke normalized (dfda89e5c)
+> - RAIL-8 — tactical overview moved into the topbar when collapsed (a736e58e7)
+> - SET-1/3 — compact sub-nav chips + padded export buttons (ee2a04a4d)
+> - AUD-2 — already an icon button + tooltip; AUD-3 — lighter sound cards (554146b41)
 
 > Correction note: the first version mis-read two arrows. A3 was NOT the
 > standings rows (rows are GOOD — do not touch). A4 was NOT the standings at all
