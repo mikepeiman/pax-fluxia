@@ -47,5 +47,6 @@
 
   .hud-icon :global(svg) {
     display: block;
+    stroke-width: var(--pax-ui-icon-stroke, 1.85);
   }
 </style>

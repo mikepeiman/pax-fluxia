@@ -8,6 +8,7 @@
     icon: string;
     title: string;
     active?: boolean;
+    accent?: boolean;
     danger?: boolean;
     disabled?: boolean;
     size?: number;
@@ -19,6 +20,7 @@
     icon,
     title,
     active = false,
+    accent = false,
     danger = false,
     disabled = false,
     size = 17,
@@ -28,9 +30,9 @@
 
   const buttonClass = $derived(
     hudButton({
-      intent: danger ? "danger" : active ? "selected" : "neutral",
+      intent: danger ? "danger" : active ? "selected" : accent ? "primary" : "neutral",
       size: "icon",
-      class: `${className} ${active ? "pf-hud-icon-button--active active" : ""} ${danger ? "pf-hud-icon-button--danger danger" : ""}`,
+      class: `${className} ${active ? "pf-hud-icon-button--active active" : ""} ${accent ? "pf-hud-icon-button--accent" : ""} ${danger ? "pf-hud-icon-button--danger danger" : ""}`,
     }),
   );
 </script>

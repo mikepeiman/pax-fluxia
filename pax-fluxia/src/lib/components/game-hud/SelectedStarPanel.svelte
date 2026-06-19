@@ -36,6 +36,7 @@
     />
     <HudIconButton
       icon="focus"
+      accent
       title={star ? "Zoom selected star" : "Select an owned star first"}
       disabled={!star}
       onclick={() => {
@@ -44,6 +45,7 @@
     />
     <HudIconButton
       icon="fit-view"
+      accent
       title="Fit map"
       onclick={onFitMap}
     />

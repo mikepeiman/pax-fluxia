@@ -5,6 +5,7 @@
     icon: string;
     title: string;
     active?: boolean;
+    accent?: boolean;
     danger?: boolean;
     disabled?: boolean;
     size?: number;
@@ -16,6 +17,7 @@
     icon,
     title,
     active = false,
+    accent = false,
     danger = false,
     disabled = false,
     size = 17,
@@ -29,6 +31,7 @@
   {icon}
   {title}
   {active}
+  {accent}
   {danger}
   {disabled}
   {size}
