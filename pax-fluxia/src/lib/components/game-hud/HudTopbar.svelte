@@ -40,6 +40,9 @@
   }: Props = $props();
 
   const localPlayer = $derived(players.find((player) => player.isLocal) ?? players[0] ?? null);
+  const tacticalOverview = $derived(
+    [...players].sort((a, b) => b.totalShips - a.totalShips).slice(0, 5),
+  );
 </script>
 
 <header class="pf-hud-topbar">
@@ -49,7 +52,7 @@
     <span class="pf-hud-topbar__title">Pax Fluxia</span>
   </div>
 
-  {#if localPlayer}
+  {#if localPlayer && !standingsCollapsed}
     <div
       class="pf-hud-topbar__player-summary"
       style:--player-color={localPlayer.color}
@@ -70,6 +73,22 @@
         <span>Stars</span>
         <strong class="font-hud-data">{formatHudNumber(localPlayer.starCount)}</strong>
       </div>
+    </div>
+  {/if}
+
+  {#if standingsCollapsed && tacticalOverview.length}
+    <div class="pf-hud-topbar__tactical" aria-label="Tactical overview">
+      {#each tacticalOverview as player}
+        <span
+          class="pf-hud-topbar__tactical-player"
+          style:--player-color={player.color}
+          title={player.name}
+        >
+          <span class="pf-hud-topbar__tactical-dot"></span>
+          <strong class="font-hud-data">{formatHudNumber(player.activeShips)}</strong>
+          <span class="font-hud-data">{formatHudNumber(player.starCount)}</span>
+        </span>
+      {/each}
     </div>
   {/if}
 
@@ -122,3 +141,39 @@
     {/if}
   </div>
 </header>
+
+<style>
+  .pf-hud-topbar__tactical {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .pf-hud-topbar__tactical-player {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(8, 15, 29, 0.55);
+    font-size: var(--pax-type-2xs);
+  }
+
+  .pf-hud-topbar__tactical-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 99px;
+    background: var(--player-color);
+    box-shadow: 0 0 8px var(--player-color);
+  }
+
+  .pf-hud-topbar__tactical-player strong {
+    color: var(--pax-ui-text-strong);
+  }
+
+  .pf-hud-topbar__tactical-player > span:last-child {
+    color: var(--pax-ui-text-dim);
+  }
+</style>

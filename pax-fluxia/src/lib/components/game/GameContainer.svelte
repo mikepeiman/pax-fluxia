@@ -450,10 +450,6 @@
     gameCanvasRef?.navigateToStar?.(nextStarId);
   }
 
-  const tacticalOverviewPlayers = $derived(
-    leaderboardPlayers.slice(0, 5),
-  );
-
   // ── Mobile drawer (icon-activated, no swipe) ──
   let mobileDrawerOpen = $state(false);
   let showSettingsFab = $state(false);
@@ -888,28 +884,6 @@
           </div>
         </div>
 
-        <section class="tactical-overview-card" aria-label="Tactical overview">
-          <div class="tactical-overview-card__header">
-            <span>Tactical Overview</span>
-            <span class="font-hud-data">{activeGameStore.currentTick ?? 0}</span>
-          </div>
-          <div class="tactical-overview-card__players">
-            {#each tacticalOverviewPlayers as player}
-              <div class="tactical-overview-player" title={player.name}>
-                <span
-                  class="tactical-overview-player__mark"
-                  style:background={player.color}
-                ></span>
-                <span class="tactical-overview-player__ships font-hud-data">
-                  {player.activeShips ?? player.totalShips ?? 0}
-                </span>
-                <span class="tactical-overview-player__stars font-hud-data">
-                  {player.starCount ?? 0}
-                </span>
-              </div>
-            {/each}
-          </div>
-        </section>
 
         {#if quickAccessActions.length > 0}
           <div class="sidebar-quick-access">
@@ -1805,73 +1779,6 @@
   .area-right :global(.star-route-strip) {
     flex-wrap: wrap;
     gap: 6px;
-  }
-
-  .tactical-overview-card {
-    flex-shrink: 0;
-    margin-bottom: 12px;
-    border: 1px solid var(--pax-ui-border);
-    border-radius: var(--pax-ui-radius-md);
-    background: rgba(6, 11, 23, 0.9);
-    box-shadow: var(--pax-ui-shadow-soft);
-  }
-
-  .tactical-overview-card {
-    display: none;
-    gap: 12px;
-    padding: 13px;
-  }
-
-  @media (min-height: 960px) {
-    .tactical-overview-card {
-      display: grid;
-    }
-  }
-
-  .tactical-overview-card__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    color: var(--pax-ui-text-soft);
-    font-family: var(--pax-ui-font-ui);
-    font-size: var(--pax-type-3xs);
-    font-weight: var(--pax-weight-extrabold);
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-  }
-
-  .tactical-overview-card__players {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 8px;
-  }
-
-  .tactical-overview-player {
-    min-width: 0;
-    display: grid;
-    justify-items: center;
-    gap: 5px;
-    padding: 9px 6px;
-    border-radius: 12px;
-    background: rgba(12, 22, 40, 0.72);
-  }
-
-  .tactical-overview-player__mark {
-    width: 22px;
-    height: 3px;
-    border-radius: 99px;
-    box-shadow: 0 0 12px currentColor;
-  }
-
-  .tactical-overview-player__ships {
-    color: var(--pax-ui-text-strong);
-    font-size: var(--pax-type-xs);
-  }
-
-  .tactical-overview-player__stars {
-    color: var(--pax-ui-text-soft);
-    font-size: var(--pax-type-3xs);
   }
 
   .sidebar-quick-access {
