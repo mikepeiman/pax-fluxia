@@ -102,23 +102,23 @@
                 <span class="stat-value mult-list">
                     {#if info.prodMult !== 1}<span
                             class="mult"
-                            style="color: #fbbf24">⚙{info.prodMult}×</span
+                            style="color: var(--pax-ui-warning)">⚙{info.prodMult}×</span
                         >{/if}
                     {#if info.repairMult !== 1}<span
                             class="mult"
-                            style="color: #a855f7">🔧{info.repairMult}×</span
+                            style="color: var(--pax-color-player-purple)">🔧{info.repairMult}×</span
                         >{/if}
                     {#if info.speedMult !== 1}<span
                             class="mult"
-                            style="color: #3b82f6">⚡{info.speedMult}×</span
+                            style="color: var(--pax-color-player-blue)">⚡{info.speedMult}×</span
                         >{/if}
                     {#if info.defenseMult !== 1}<span
                             class="mult"
-                            style="color: #ef4444">🛡{info.defenseMult}×</span
+                            style="color: var(--pax-ui-danger)">🛡{info.defenseMult}×</span
                         >{/if}
                     {#if info.attackMult !== 1}<span
                             class="mult"
-                            style="color: #22c55e">⚔{info.attackMult}×</span
+                            style="color: var(--pax-ui-success)">⚔{info.attackMult}×</span
                         >{/if}
                     {#if info.prodMult === 1 && info.repairMult === 1 && info.speedMult === 1 && info.defenseMult === 1 && info.attackMult === 1}
                         <span class="mult grey">all 1×</span>
@@ -186,12 +186,12 @@
 
 <style>
     .star-info-panel {
-        background: rgba(10, 14, 20, 0.92);
+        background: color-mix(in srgb, var(--pax-color-void) 92%, transparent);
         border: 1px solid rgba(100, 120, 160, 0.3);
         border-radius: 8px;
         padding: 10px 12px;
         font-size: var(--pax-type-xs);
-        color: #c8d0e0;
+        color: var(--pax-ui-text-strong);
         min-width: 220px;
         max-width: 280px;
         backdrop-filter: blur(8px);
@@ -229,14 +229,14 @@
     .close-btn {
         background: none;
         border: none;
-        color: #667;
+        color: var(--pax-ui-text-dim);
         cursor: pointer;
         font-size: var(--pax-type-sm);
         padding: 0 4px;
         line-height: 1;
     }
     .close-btn:hover {
-        color: #fff;
+        color: var(--pax-ui-text-strong);
     }
 
     .stats-grid {
@@ -253,7 +253,7 @@
     }
 
     .stat-label {
-        color: #7888a0;
+        color: var(--pax-ui-text-soft);
         font-size: var(--pax-type-2xs);
         min-width: 80px;
     }
@@ -265,15 +265,15 @@
     }
 
     .active {
-        color: #4ade80;
+        color: var(--pax-ui-success);
         font-weight: var(--pax-weight-semibold);
     }
     .damaged {
-        color: #f87171;
+        color: var(--pax-ui-danger);
         font-size: var(--pax-type-3xs);
     }
     .total {
-        color: #94a3b8;
+        color: var(--pax-ui-text-soft);
         font-size: var(--pax-type-3xs);
     }
 
@@ -289,11 +289,11 @@
         font-size: var(--pax-type-2xs);
     }
     .mult.grey {
-        color: #667;
+        color: var(--pax-ui-text-dim);
     }
 
     .empty-state {
-        color: #556;
+        color: var(--pax-ui-text-dim);
         font-style: italic;
         text-align: center;
         padding: 12px 0;

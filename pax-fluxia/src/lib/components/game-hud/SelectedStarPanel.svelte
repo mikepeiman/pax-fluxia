@@ -136,6 +136,6 @@
     margin: 0;
     font-size: var(--pax-type-xs);
     line-height: 1.35;
-    color: var(--pax-ui-text-dim, rgba(180, 188, 188, 0.7));
+    color: var(--pax-ui-text-dim, color-mix(in srgb, var(--pax-ui-text-soft) 70%, transparent));
   }
 </style>

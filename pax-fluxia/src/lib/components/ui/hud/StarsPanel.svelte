@@ -197,27 +197,27 @@
                         <span class="label">Mults</span>
                         <span class="value mult-row">
                             {#if selectedInfo.prodMult !== 1}<span
-                                    style="color: #fbbf24"
+                                    style="color: var(--pax-ui-warning)"
                                     >⚙{selectedInfo.prodMult}×</span
                                 >{/if}
                             {#if selectedInfo.repairMult !== 1}<span
-                                    style="color: #a855f7"
+                                    style="color: var(--pax-color-player-purple)"
                                     >🔧{selectedInfo.repairMult}×</span
                                 >{/if}
                             {#if selectedInfo.speedMult !== 1}<span
-                                    style="color: #3b82f6"
+                                    style="color: var(--pax-color-player-blue)"
                                     >⚡{selectedInfo.speedMult}×</span
                                 >{/if}
                             {#if selectedInfo.defenseMult !== 1}<span
-                                    style="color: #ef4444"
+                                    style="color: var(--pax-ui-danger)"
                                     >🛡{selectedInfo.defenseMult}×</span
                                 >{/if}
                             {#if selectedInfo.attackMult !== 1}<span
-                                    style="color: #22c55e"
+                                    style="color: var(--pax-ui-success)"
                                     >⚔{selectedInfo.attackMult}×</span
                                 >{/if}
                             {#if selectedInfo.prodMult === 1 && selectedInfo.repairMult === 1 && selectedInfo.speedMult === 1 && selectedInfo.defenseMult === 1 && selectedInfo.attackMult === 1}
-                                <span style="color: #556">all 1×</span>
+                                <span style="color: var(--pax-ui-text-dim)">all 1×</span>
                             {/if}
                         </span>
                     </div>
@@ -348,8 +348,8 @@
         width: 280px;
         gap: 0;
         font-size: var(--pax-type-xs);
-        color: #c8d0e0;
-        background: rgba(10, 14, 20, 0.92);
+        color: var(--pax-ui-text-strong);
+        background: color-mix(in srgb, var(--pax-color-void) 92%, transparent);
         border: 1px solid rgba(100, 120, 160, 0.3);
         border-radius: 8px;
         backdrop-filter: blur(8px);
@@ -362,13 +362,13 @@
         font-weight: var(--pax-weight-bold);
         text-transform: uppercase;
         letter-spacing: 1px;
-        color: #6478a0;
+        color: var(--pax-ui-text-soft);
         padding: 6px 10px 4px;
         border-bottom: 1px solid rgba(100, 120, 160, 0.15);
     }
     .section-title .count {
         font-weight: var(--pax-weight-regular);
-        color: #445;
+        color: var(--pax-ui-text-dim);
     }
 
     /* ── SELECTED STAR DETAIL ── */
@@ -414,14 +414,14 @@
     .close-btn {
         background: none;
         border: none;
-        color: #556;
+        color: var(--pax-ui-text-dim);
         cursor: pointer;
         font-size: var(--pax-type-xs-plus);
         padding: 0 2px;
         line-height: 1;
     }
     .close-btn:hover {
-        color: #fff;
+        color: var(--pax-ui-text-strong);
     }
 
     .detail-stats {
@@ -438,7 +438,7 @@
     }
 
     .detail-row .label {
-        color: #6478a0;
+        color: var(--pax-ui-text-soft);
         font-size: var(--pax-type-3xs);
         min-width: 55px;
     }
@@ -448,16 +448,16 @@
         text-align: right;
     }
     .detail-row .overflow {
-        color: #556;
+        color: var(--pax-ui-text-dim);
         font-size: var(--pax-type-3xs);
     }
     .detail-row.combat-active {
-        background: rgba(239, 68, 68, 0.08);
+        background: color-mix(in srgb, var(--pax-ui-danger) 8%, transparent);
         border-radius: 3px;
         padding: 2px 4px;
     }
     .detail-row.combat-active .label {
-        color: #f87171;
+        color: var(--pax-ui-danger);
     }
 
     .mult-row {
@@ -467,20 +467,20 @@
     }
 
     .active {
-        color: #4ade80;
+        color: var(--pax-ui-success);
         font-weight: var(--pax-weight-semibold);
     }
     .damaged {
-        color: #f87171;
+        color: var(--pax-ui-danger);
         font-size: var(--pax-type-3xs);
     }
     .total {
-        color: #667;
+        color: var(--pax-ui-text-dim);
         font-size: var(--pax-type-3xs);
     }
 
     .empty-hint {
-        color: #445;
+        color: var(--pax-ui-text-dim);
         font-style: italic;
         text-align: center;
         padding: 10px 0;
@@ -532,7 +532,7 @@
     }
     .star-row.selected {
         background: rgba(100, 120, 160, 0.18);
-        border-left: 2px solid #6478a0;
+        border-left: 2px solid var(--pax-ui-text-soft);
     }
 
     .row-owner {
@@ -547,7 +547,7 @@
     .row-id {
         font-family: var(--pax-ui-font-data);
         font-size: var(--pax-type-3xs);
-        color: #8899aa;
+        color: var(--pax-ui-text-soft);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -563,20 +563,20 @@
         font-family: var(--pax-ui-font-data);
         font-size: var(--pax-type-3xs);
         text-align: right;
-        color: #4ade80;
+        color: var(--pax-ui-success);
         font-weight: var(--pax-weight-semibold);
     }
     .row-damaged {
         font-family: var(--pax-ui-font-data);
         font-size: var(--pax-type-3xs);
         text-align: right;
-        color: #f87171;
+        color: var(--pax-ui-danger);
     }
     .row-repaired {
         font-family: var(--pax-ui-font-data);
         font-size: var(--pax-type-3xs);
         text-align: right;
-        color: #a855f7;
+        color: var(--pax-color-player-purple);
         font-weight: var(--pax-weight-semibold);
     }
 
@@ -587,19 +587,19 @@
         align-items: center;
     }
     .force-abs {
-        color: #c8d0e0;
+        color: var(--pax-ui-text-strong);
         font-weight: var(--pax-weight-semibold);
     }
     .force-sep {
-        color: #445;
+        color: var(--pax-ui-text-dim);
         font-size: var(--pax-type-3xs);
     }
     .force-atk {
-        color: #22c55e;
+        color: var(--pax-ui-success);
         font-size: var(--pax-type-3xs);
     }
     .force-def {
-        color: #ef4444;
+        color: var(--pax-ui-danger);
         font-size: var(--pax-type-3xs);
     }
     .force-ratio {
@@ -607,13 +607,13 @@
         font-size: var(--pax-type-2xs);
     }
     .force-ratio.favorable {
-        color: #4ade80;
+        color: var(--pax-ui-success);
     }
     .force-ratio.unfavorable {
-        color: #f87171;
+        color: var(--pax-ui-danger);
     }
     .force-vs {
-        color: #556;
+        color: var(--pax-ui-text-dim);
         font-size: var(--pax-type-3xs);
         margin-left: 3px;
     }

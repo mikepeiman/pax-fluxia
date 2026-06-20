@@ -366,7 +366,7 @@
         border: 1px solid color-mix(in srgb, var(--star-type-color, var(--pax-ui-accent)) 48%, transparent);
         background:
             radial-gradient(circle, color-mix(in srgb, var(--star-type-color, var(--pax-ui-accent)) 18%, transparent), transparent 62%),
-            rgba(255, 255, 255, 0.03);
+            color-mix(in srgb, var(--pax-ui-text-strong) 3%, transparent);
     }
 
     .star-nav-card__title-block {
@@ -448,8 +448,8 @@
         border: 1px solid color-mix(in srgb, var(--star-type-color, var(--pax-ui-accent)) 28%, transparent);
         background:
             radial-gradient(circle at center, color-mix(in srgb, var(--star-type-color, var(--pax-ui-accent)) 28%, transparent), transparent 44%),
-            radial-gradient(circle at center, rgba(255, 255, 255, 0.08), transparent 62%),
-            rgba(4, 9, 20, 0.78);
+            radial-gradient(circle at center, color-mix(in srgb, var(--pax-ui-text-strong) 8%, transparent), transparent 62%),
+            color-mix(in srgb, var(--pax-color-void) 78%, transparent);
         overflow: hidden;
     }
 
@@ -502,7 +502,7 @@
         padding: 10px;
         border-radius: 12px;
         border: 1px solid rgba(112, 142, 186, 0.16);
-        background: rgba(6, 12, 25, 0.78);
+        background: color-mix(in srgb, var(--pax-color-void) 78%, transparent);
     }
 
     .star-field__label,
@@ -560,7 +560,7 @@
         gap: 6px;
         padding: 0 10px;
         border-radius: 999px;
-        background: rgba(14, 24, 43, 0.88);
+        background: color-mix(in srgb, var(--pax-color-void) 88%, transparent);
         color: var(--pax-ui-text-soft);
         font-family: var(--pax-ui-font-ui);
         font-size: var(--pax-type-label);

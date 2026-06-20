@@ -222,7 +222,7 @@
         border-radius: var(--pax-ui-radius-sm);
         clip-path: var(--pax-ui-rounded-corner-sm);
         background:
-            linear-gradient(180deg, rgba(0, 18, 21, 0.78), rgba(0, 10, 13, 0.9)) padding-box,
+            linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 78%, transparent), color-mix(in srgb, var(--pax-color-void) 90%, transparent)) padding-box,
             var(--pax-ui-control-border-gradient) border-box;
     }
 
@@ -237,13 +237,13 @@
         font-size: var(--pax-type-3xs);
         letter-spacing: 0.1em;
         text-transform: uppercase;
-        color: rgba(185, 220, 255, 0.72);
+        color: color-mix(in srgb, var(--pax-ui-text-soft) 72%, transparent);
     }
 
     .players-focus-value {
         min-width: 0;
         overflow: hidden;
-        color: #dbeafe;
+        color: var(--pax-ui-text-strong);
         font-size: var(--pax-type-2xs);
         font-weight: var(--pax-weight-bold);
         text-overflow: ellipsis;
@@ -258,7 +258,7 @@
         cursor: pointer;
         font-size: var(--pax-type-2xs);
         font-weight: var(--pax-weight-semibold);
-        color: rgba(190, 220, 255, 0.78);
+        color: color-mix(in srgb, var(--pax-ui-text-soft) 78%, transparent);
         list-style: none;
     }
 

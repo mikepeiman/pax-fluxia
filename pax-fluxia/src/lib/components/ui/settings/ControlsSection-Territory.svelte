@@ -1909,7 +1909,7 @@
     font-weight: var(--pax-weight-bold);
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: rgba(168, 208, 239, 0.78);
+    color: color-mix(in srgb, var(--pax-ui-text-soft) 78%, transparent);
   }
   .engine-control-group {
     display: flex;
@@ -1917,11 +1917,11 @@
     gap: 10px;
     padding: 12px;
     border-radius: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid color-mix(in srgb, var(--pax-ui-text-strong) 8%, transparent);
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.025)),
-      rgba(16, 22, 34, 0.7);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      linear-gradient(180deg, color-mix(in srgb, var(--pax-ui-text-strong) 5%, transparent), color-mix(in srgb, var(--pax-ui-text-strong) 2.5%, transparent)),
+      color-mix(in srgb, var(--pax-color-void) 70%, transparent);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--pax-ui-text-strong) 4%, transparent);
   }
   @media (max-width: 900px) {
     .territory-module-grid {
@@ -1931,9 +1931,9 @@
   /* ── V3.2 Axis Card Layout ── */
   .axis-card {
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.025)),
-      rgba(16, 22, 34, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+      linear-gradient(180deg, color-mix(in srgb, var(--pax-ui-text-strong) 5%, transparent), color-mix(in srgb, var(--pax-ui-text-strong) 2.5%, transparent)),
+      color-mix(in srgb, var(--pax-color-void) 70%, transparent);
+    border: 1px solid color-mix(in srgb, var(--pax-ui-text-strong) 8%, transparent);
     border-radius: 14px;
     padding: 12px;
   }
@@ -1941,17 +1941,17 @@
     font-size: var(--pax-type-xs);
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    color: rgba(236, 242, 249, 0.92);
+    color: color-mix(in srgb, var(--pax-ui-text-strong) 92%, transparent);
     margin: 0;
     padding-bottom: 6px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid color-mix(in srgb, var(--pax-ui-text-strong) 6%, transparent);
   }
   .axis-row {
     display: flex;
     align-items: flex-start;
     gap: 8px;
     padding: 5px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid color-mix(in srgb, var(--pax-ui-text-strong) 4%, transparent);
   }
   .axis-row:last-child {
     border-bottom: none;
@@ -1963,7 +1963,7 @@
     font-size: var(--pax-type-3xs);
     text-transform: uppercase;
     letter-spacing: 0.4px;
-    color: var(--accent, #888);
+    color: var(--accent, var(--pax-ui-text-dim));
     padding-top: 4px;
     font-weight: var(--pax-weight-semibold);
   }
@@ -1971,12 +1971,12 @@
     align-items: stretch;
   }
   .territory-axis--render-mode {
-    --accent: #a78bfa;
-    --accent-bg: rgba(167, 139, 250, 0.15);
+    --accent: var(--pax-color-player-purple);
+    --accent-bg: color-mix(in srgb, var(--pax-color-player-purple) 15%, transparent);
   }
   .territory-axis--transition {
-    --accent: #22d3ee;
-    --accent-bg: rgba(34, 211, 238, 0.15);
+    --accent: var(--pax-ui-accent);
+    --accent-bg: color-mix(in srgb, var(--pax-ui-accent) 15%, transparent);
   }
   .territory-axis__stack {
     min-width: 0;
@@ -1991,8 +1991,8 @@
   .axis-note--warning {
     margin: 4px 0 8px;
     padding: 8px 10px;
-    border-left: 3px solid #f59e0b;
-    background: rgba(245, 158, 11, 0.08);
+    border-left: 3px solid var(--pax-ui-warning);
+    background: color-mix(in srgb, var(--pax-ui-warning) 8%, transparent);
   }
   .axis-note__actions {
     display: inline-flex;
@@ -2001,6 +2001,6 @@
     margin-left: 8px;
   }
   .axis-note__danger {
-    color: #fca5a5;
+    color: var(--pax-ui-danger);
   }
 </style>

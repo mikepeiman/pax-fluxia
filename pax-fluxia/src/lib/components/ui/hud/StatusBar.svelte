@@ -115,7 +115,7 @@
         grid-template-columns: auto 1fr auto;
         gap: 8px;
         padding: 6px 10px;
-        background: rgba(5, 10, 25, 0.94);
+        background: color-mix(in srgb, var(--pax-color-void) 94%, transparent);
         backdrop-filter: blur(12px);
         border-bottom: 1px solid var(--pax-ui-divider);
         min-height: 36px;
@@ -140,7 +140,7 @@
     .sb-swatch-btn,
     .sb-mute-btn {
         border: 1px solid var(--pax-ui-border);
-        background: rgba(9, 16, 31, 0.86);
+        background: color-mix(in srgb, var(--pax-color-void) 86%, transparent);
         color: var(--pax-ui-text-soft);
         cursor: pointer;
     }
@@ -179,8 +179,8 @@
         align-items: center;
         justify-content: center;
         border-radius: 999px;
-        background: rgba(6, 10, 20, 0.92);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: color-mix(in srgb, var(--pax-color-void) 92%, transparent);
+        border: 1px solid color-mix(in srgb, var(--pax-ui-text-strong) 8%, transparent);
     }
 
     .sb-mute-btn {

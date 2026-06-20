@@ -295,7 +295,7 @@
         border-radius: var(--pax-ui-radius-sm);
         /* Lighter treatment (AUD-3): subtle fill, no gradient border, to reduce
            the boxes-in-boxes busyness. No clip-path (would clip the File dropdown). */
-        background: rgba(5, 22, 26, 0.5);
+        background: color-mix(in srgb, var(--pax-color-void) 50%, transparent);
     }
 
     .audio-sound-card--disabled,

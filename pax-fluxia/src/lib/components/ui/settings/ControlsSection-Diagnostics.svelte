@@ -737,7 +737,7 @@
     .debug-hint {
         margin-left: auto;
         font-size: var(--pax-type-3xs);
-        color: #888;
+        color: var(--pax-ui-text-dim);
     }
 
     .ruler-readout {
@@ -745,7 +745,7 @@
         display: grid;
         gap: 4px;
         font-size: var(--pax-type-2xs);
-        color: rgba(220, 220, 240, 0.84);
+        color: color-mix(in srgb, var(--pax-ui-text) 84%, transparent);
     }
 
     .ruler-readout > div {
@@ -756,7 +756,7 @@
     }
 
     .ruler-readout > div > span:first-child {
-        color: rgba(180, 130, 255, 0.72);
+        color: color-mix(in srgb, var(--pax-color-player-purple) 72%, transparent);
         font-weight: var(--pax-weight-bold);
         text-transform: uppercase;
         letter-spacing: 0.08em;
@@ -783,8 +783,8 @@
         gap: 10px;
         padding: 8px 10px;
         border-radius: 10px;
-        background: rgba(17, 24, 39, 0.52);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: color-mix(in srgb, var(--pax-color-void) 52%, transparent);
+        border: 1px solid color-mix(in srgb, var(--pax-ui-text-strong) 8%, transparent);
     }
 
     .bundle-meta {
@@ -793,12 +793,12 @@
         gap: 6px 10px;
         align-items: center;
         font-size: var(--pax-type-2xs);
-        color: rgba(220, 232, 245, 0.82);
+        color: color-mix(in srgb, var(--pax-ui-text) 82%, transparent);
     }
 
     .bundle-time,
     .bundle-frames {
-        color: rgba(156, 163, 175, 0.9);
+        color: color-mix(in srgb, var(--pax-ui-text-soft) 90%, transparent);
         font-family: monospace;
     }
 
@@ -814,7 +814,7 @@
         margin-top: 6px;
         font-size: var(--pax-type-2xs);
         line-height: 1.45;
-        color: rgba(160, 160, 180, 0.72);
+        color: color-mix(in srgb, var(--pax-ui-text-soft) 72%, transparent);
     }
 
     .status-grid {
@@ -832,7 +832,7 @@
     }
 
     .status-grid > div > span:first-child {
-        color: rgba(180, 130, 255, 0.72);
+        color: color-mix(in srgb, var(--pax-color-player-purple) 72%, transparent);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.08em;
         text-transform: uppercase;
@@ -840,6 +840,6 @@
     }
 
     .status-grid__failure {
-        color: rgba(252, 165, 165, 0.92);
+        color: color-mix(in srgb, var(--pax-ui-danger) 92%, transparent);
     }
 </style>

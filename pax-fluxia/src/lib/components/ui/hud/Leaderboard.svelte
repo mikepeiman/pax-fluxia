@@ -324,7 +324,7 @@
         padding: 4px;
         border: 1px solid rgba(112, 142, 186, 0.16);
         border-radius: 14px;
-        background: rgba(9, 16, 31, 0.88);
+        background: color-mix(in srgb, var(--pax-color-void) 88%, transparent);
     }
 
     .focus-pill {
@@ -342,7 +342,7 @@
     .focus-pill--active {
         border-color: var(--pax-ui-border-warm);
         color: var(--pax-ui-accent-warm);
-        box-shadow: inset 0 0 0 1px rgba(255, 200, 107, 0.14);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pax-ui-accent-warm) 14%, transparent);
     }
 
     .leaderboard__summary {
@@ -357,7 +357,7 @@
         padding: 0 14px;
         border-radius: var(--pax-ui-radius-sm);
         border: 1px solid rgba(112, 142, 186, 0.14);
-        background: rgba(7, 13, 26, 0.88);
+        background: color-mix(in srgb, var(--pax-color-void) 88%, transparent);
     }
 
     .summary-chip__label,
@@ -391,7 +391,7 @@
         height: 4px;
         overflow: hidden;
         border-radius: 999px;
-        background: rgba(94, 230, 255, 0.08);
+        background: color-mix(in srgb, var(--pax-ui-accent) 8%, transparent);
     }
 
     .tick-progress-fill {
@@ -476,15 +476,15 @@
         padding: 0 10px;
         border-radius: 14px;
         border: 1px solid transparent;
-        background: rgba(7, 13, 26, 0.82);
+        background: color-mix(in srgb, var(--pax-color-void) 82%, transparent);
         color: var(--pax-ui-text);
     }
 
     .leaderboard__item.is-self {
-        border-color: rgba(255, 200, 107, 0.24);
+        border-color: color-mix(in srgb, var(--pax-ui-accent-warm) 24%, transparent);
         background:
             linear-gradient(180deg, rgba(28, 24, 14, 0.52), rgba(11, 14, 23, 0.82)),
-            rgba(7, 13, 26, 0.82);
+            color-mix(in srgb, var(--pax-color-void) 82%, transparent);
     }
 
     .player-dot {
@@ -492,13 +492,13 @@
         height: 10px;
         border-radius: 999px;
         flex: 0 0 auto;
-        box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.04);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--pax-ui-text-strong) 4%, transparent);
     }
 
     .player-dot--self {
         box-shadow:
-            0 0 0 3px rgba(255, 200, 107, 0.08),
-            0 0 0 1px rgba(255, 200, 107, 0.42);
+            0 0 0 3px color-mix(in srgb, var(--pax-ui-accent-warm) 8%, transparent),
+            0 0 0 1px color-mix(in srgb, var(--pax-ui-accent-warm) 42%, transparent);
     }
 
     .player-name {

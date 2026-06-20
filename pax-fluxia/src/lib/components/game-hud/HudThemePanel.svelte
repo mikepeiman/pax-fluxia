@@ -99,7 +99,7 @@
     border: 1px solid var(--pax-ui-border);
     border-radius: var(--pax-ui-radius-md);
     background: var(--pax-ui-panel-bg-muted);
-    box-shadow: inset 0 0 0 1px rgba(246, 196, 105, 0.045);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pax-ui-accent-warm) 4.5%, transparent);
   }
 
   .pf-hud-theme-panel__header,
@@ -200,8 +200,8 @@
   :global(.pf-hud-theme-card.active) {
     color: var(--pax-ui-text-strong);
     box-shadow:
-      inset 0 0 0 1px rgba(246, 196, 105, 0.14),
-      0 0 18px rgba(246, 196, 105, 0.12);
+      inset 0 0 0 1px color-mix(in srgb, var(--pax-ui-accent-warm) 14%, transparent),
+      0 0 18px color-mix(in srgb, var(--pax-ui-accent-warm) 12%, transparent);
   }
 
   :global(.pf-hud-theme-card.active) {

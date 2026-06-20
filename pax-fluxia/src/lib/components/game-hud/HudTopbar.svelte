@@ -157,7 +157,7 @@
     gap: 5px;
     padding: 3px 8px;
     border-radius: 999px;
-    background: rgba(8, 15, 29, 0.55);
+    background: color-mix(in srgb, var(--pax-color-void) 55%, transparent);
     font-size: var(--pax-type-2xs);
   }
 

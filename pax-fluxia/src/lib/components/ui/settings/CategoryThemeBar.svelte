@@ -359,7 +359,7 @@
         align-items: center;
         justify-content: center;
         padding: 24px;
-        background: rgba(0, 0, 0, 0.66);
+        background: color-mix(in srgb, var(--pax-color-void) 66%, transparent);
         backdrop-filter: blur(5px);
     }
 
@@ -371,7 +371,7 @@
         border-radius: var(--pax-ui-radius-md);
         clip-path: var(--pax-ui-rounded-corner-md);
         background:
-            linear-gradient(180deg, rgba(3, 23, 26, 0.98), rgba(1, 8, 13, 0.99)) padding-box,
+            linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 98%, transparent), color-mix(in srgb, var(--pax-color-void) 99%, transparent)) padding-box,
             var(--pax-ui-border-gradient) border-box;
         box-shadow: var(--pax-ui-shadow);
         padding: 14px;
@@ -417,7 +417,7 @@
         border-radius: var(--pax-ui-radius-sm);
         clip-path: var(--pax-ui-rounded-corner-sm);
         background:
-            linear-gradient(180deg, rgba(0, 18, 21, 0.78), rgba(0, 10, 13, 0.9)) padding-box,
+            linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 78%, transparent), color-mix(in srgb, var(--pax-color-void) 90%, transparent)) padding-box,
             var(--pax-ui-control-border-gradient) border-box;
     }
 
