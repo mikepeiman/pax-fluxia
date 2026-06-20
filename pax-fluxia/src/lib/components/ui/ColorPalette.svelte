@@ -129,7 +129,7 @@
         background: color-mix(in srgb, var(--pax-color-void) 96%, transparent);
         border: 1px solid color-mix(in srgb, var(--pax-ui-accent) 15%, transparent);
         border-radius: 12px;
-        padding: 10px;
+        padding: var(--pax-gap-sm);
         backdrop-filter: blur(12px);
         box-shadow: 0 8px 32px color-mix(in srgb, var(--pax-color-void) 70%, transparent);
         animation: popup-in 0.15s ease-out;
@@ -149,7 +149,7 @@
     .palette-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        gap: 6px;
+        gap: var(--pax-gap-xs);
     }
 
     .palette-swatch {

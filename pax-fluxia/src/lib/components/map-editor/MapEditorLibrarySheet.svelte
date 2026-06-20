@@ -698,7 +698,7 @@
     z-index: 13;
     width: min(1580px, calc(100% - 36px));
     max-height: calc(100% - 36px);
-    padding: 18px;
+    padding: var(--pax-gap-lg);
     border-radius: 24px;
     border: 1px solid var(--editor-border, color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent));
     background: color-mix(in srgb, var(--pax-color-void) 97%, transparent);
@@ -706,7 +706,7 @@
     box-shadow: 0 24px 70px color-mix(in srgb, var(--pax-color-void) 40%, transparent);
     display: grid;
     align-content: start;
-    gap: 16px;
+    gap: var(--pax-space-4);
     overflow: auto;
     transform: translate(-50%, -50%);
     isolation: isolate;
@@ -716,14 +716,14 @@
   .modal__toolbar,
   .stack {
     display: grid;
-    gap: 10px;
+    gap: var(--pax-gap-sm);
   }
 
   .modal__header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: var(--pax-space-3);
   }
 
   .modal__header strong,
@@ -760,7 +760,7 @@
   .filter-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: var(--pax-space-2);
   }
 
   @media (min-width: 1200px) {
@@ -777,7 +777,7 @@
   .map-card__favorite,
   .context-menu button {
     min-height: 40px;
-    padding: 0 12px;
+    padding: 0 var(--pax-space-3);
     border-radius: 12px;
     border: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent);
     background: color-mix(in srgb, var(--pax-color-void) 90%, transparent);
@@ -828,11 +828,11 @@
 
   .sheet-section {
     display: grid;
-    gap: 12px;
+    gap: var(--pax-space-3);
   }
 
   .sheet-section--recent {
-    padding: 14px;
+    padding: var(--pax-gap-md);
     border-radius: 20px;
     border: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 34%, transparent);
     background:
@@ -847,13 +847,13 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: var(--pax-space-3);
   }
 
   .card-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-    gap: 14px;
+    gap: var(--pax-gap-md);
   }
 
   .map-card {
@@ -863,10 +863,10 @@
 
   .map-card__open {
     display: grid;
-    gap: 10px;
+    gap: var(--pax-gap-sm);
     min-width: 0;
     width: 100%;
-    padding: 10px;
+    padding: var(--pax-gap-sm);
     border-radius: 18px;
     border: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 14%, transparent);
     background: color-mix(in srgb, var(--pax-color-void) 88%, transparent);
@@ -924,7 +924,7 @@
     display: grid;
     place-items: center;
     min-height: 128px;
-    padding: 18px;
+    padding: var(--pax-gap-lg);
     border-radius: 16px;
     border: 1px dashed color-mix(in srgb, var(--pax-ui-text-soft) 18%, transparent);
     background: color-mix(in srgb, var(--pax-color-void) 72%, transparent);
@@ -938,7 +938,7 @@
 
   .map-card__meta {
     display: grid;
-    gap: 4px;
+    gap: var(--pax-space-1);
     min-width: 0;
   }
 
@@ -957,7 +957,7 @@
 
   .autosave-list {
     display: grid;
-    gap: 10px;
+    gap: var(--pax-gap-sm);
   }
 
   .autosave-item {
@@ -966,7 +966,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: var(--pax-space-3);
     text-align: left;
   }
 
@@ -975,8 +975,8 @@
     z-index: 30;
     min-width: 220px;
     display: grid;
-    gap: 6px;
-    padding: 10px;
+    gap: var(--pax-gap-xs);
+    padding: var(--pax-gap-sm);
     border-radius: 16px;
     border: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent);
     background: color-mix(in srgb, var(--pax-color-void) 98%, transparent);
@@ -1013,7 +1013,7 @@
     .modal {
       width: calc(100% - 24px);
       max-height: calc(100% - 24px);
-      padding: 14px;
+      padding: var(--pax-gap-md);
     }
 
     .card-grid {

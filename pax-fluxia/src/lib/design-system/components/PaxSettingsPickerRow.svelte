@@ -123,7 +123,7 @@
     min-width: 0;
     display: grid;
     gap: 7px;
-    padding: 10px;
+    padding: var(--pax-gap-sm);
     border: 1px solid transparent;
     border-radius: var(--pax-ui-radius-sm);
     clip-path: var(--pax-ui-rounded-corner-sm);
@@ -156,8 +156,8 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    gap: 10px;
-    padding: 6px 9px;
+    gap: var(--pax-gap-sm);
+    padding: var(--pax-gap-xs) 9px;
     border: 1px solid transparent;
     border-radius: var(--pax-ui-radius-xs);
     background:
@@ -209,12 +209,12 @@
     min-width: 0;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 6px;
+    gap: var(--pax-gap-xs);
     align-items: center;
   }
 
   .pax-settings-picker-row__option + .pax-settings-picker-row__option {
-    margin-top: 4px;
+    margin-top: var(--pax-space-1);
   }
 
   .pax-settings-picker-row__option-main,
@@ -233,7 +233,7 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    gap: 8px;
+    gap: var(--pax-space-2);
     padding: 5px 7px;
     text-align: left;
   }

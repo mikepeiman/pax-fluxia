@@ -290,8 +290,8 @@
     .audio-conquest-group {
         min-width: 0;
         display: grid;
-        gap: 8px;
-        padding: 8px 10px;
+        gap: var(--pax-space-2);
+        padding: var(--pax-space-2) var(--pax-gap-sm);
         border-radius: var(--pax-ui-radius-sm);
         /* Lighter treatment (AUD-3): subtle fill, no gradient border, to reduce
            the boxes-in-boxes busyness. No clip-path (would clip the File dropdown). */
@@ -309,7 +309,7 @@
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
         align-items: center;
-        gap: 10px;
+        gap: var(--pax-gap-sm);
     }
 
     .audio-sound-card__label,
@@ -328,6 +328,6 @@
 
     :global(.audio-conquest-group__toggle) {
         min-width: 180px;
-        padding: 7px 8px;
+        padding: 7px var(--pax-space-2);
     }
 </style>

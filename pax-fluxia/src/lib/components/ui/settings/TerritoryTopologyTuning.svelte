@@ -366,14 +366,14 @@
   .territory-section-shell {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    margin: 0 0 16px;
+    gap: var(--pax-gap-sm);
+    margin: 0 0 var(--pax-space-4);
   }
 
   .territory-section-head {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--pax-gap-sm);
   }
 
   .territory-section-title {
@@ -384,7 +384,7 @@
   .territory-module-grid {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--pax-gap-sm);
   }
 
   .territory-module-card {
@@ -394,13 +394,13 @@
   .territory-module-stack {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--pax-gap-sm);
   }
 
   .territory-card__header {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--pax-gap-xs);
   }
 
   .territory-inline-heading {
@@ -415,8 +415,8 @@
   .engine-control-group {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 12px;
+    gap: var(--pax-gap-sm);
+    padding: var(--pax-space-3);
     border-radius: 14px;
     border: 1px solid color-mix(in srgb, var(--pax-ui-text-strong) 8%, transparent);
     background:
@@ -426,6 +426,6 @@
   }
 
   :global(.topology-indent) {
-    margin-left: 12px;
+    margin-left: var(--pax-space-3);
   }
 </style>

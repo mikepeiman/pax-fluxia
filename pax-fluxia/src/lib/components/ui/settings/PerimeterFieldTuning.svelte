@@ -245,20 +245,20 @@
     .module-head {
         display: flex;
         justify-content: flex-end;
-        margin: 0 0 8px;
+        margin: 0 0 var(--pax-space-2);
     }
 
     .module-scope-toggle {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: var(--pax-gap-xs);
     }
 
     .module-nav {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 8px;
-        margin: 0 0 10px;
+        gap: var(--pax-space-2);
+        margin: 0 0 var(--pax-gap-sm);
     }
 
     :global(.perimeter-field-chip) {
@@ -273,14 +273,14 @@
     .module-block {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: var(--pax-gap-sm);
     }
 
     .perimeter-field-select {
         min-width: 0;
         display: grid;
-        gap: 8px;
-        padding: 10px;
+        gap: var(--pax-space-2);
+        padding: var(--pax-gap-sm);
         border: 1px solid transparent;
         border-radius: var(--pax-ui-radius-sm);
         clip-path: var(--pax-ui-rounded-corner-sm);

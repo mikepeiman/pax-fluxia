@@ -89,9 +89,9 @@
         z-index: 18;
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
-        gap: 16px;
+        gap: var(--pax-space-4);
         align-items: center;
-        padding: 14px 16px;
+        padding: var(--pax-gap-md) var(--pax-space-4);
         border-radius: var(--pf-topbar-radius);
         border: 1px solid var(--pf-border-soft);
         background: var(--pf-frame-command), var(--pf-surface-command);
@@ -118,7 +118,7 @@
 
     .command-bar__meta {
         display: grid;
-        gap: 4px;
+        gap: var(--pax-space-1);
         min-width: 0;
     }
 
@@ -149,7 +149,7 @@
 
     .command-bar__actions {
         display: flex;
-        gap: 10px;
+        gap: var(--pax-gap-sm);
         flex-wrap: wrap;
         justify-content: flex-end;
     }
@@ -157,7 +157,7 @@
     .command-bar__button {
         min-width: 150px;
         min-height: 46px;
-        padding: 0 18px;
+        padding: 0 var(--pax-gap-lg);
         border-radius: var(--pf-button-radius);
         border: 1px solid var(--pf-border-soft);
         background: var(--pf-frame-control), var(--pf-surface-control);

@@ -363,7 +363,7 @@
         text-transform: uppercase;
         letter-spacing: 1px;
         color: var(--pax-ui-text-soft);
-        padding: 6px 10px 4px;
+        padding: var(--pax-gap-xs) var(--pax-gap-sm) var(--pax-space-1);
         border-bottom: 1px solid rgba(100, 120, 160, 0.15);
     }
     .section-title .count {
@@ -375,18 +375,18 @@
     .selected-section {
         flex-shrink: 0;
         border-bottom: 1px solid rgba(100, 120, 160, 0.2);
-        padding-bottom: 4px;
+        padding-bottom: var(--pax-space-1);
     }
 
     .selected-detail {
-        padding: 6px 10px;
+        padding: var(--pax-gap-xs) var(--pax-gap-sm);
     }
 
     .detail-header {
         display: flex;
         align-items: center;
-        gap: 6px;
-        margin-bottom: 6px;
+        gap: var(--pax-gap-xs);
+        margin-bottom: var(--pax-gap-xs);
     }
 
     .type-icon {
@@ -454,7 +454,7 @@
     .detail-row.combat-active {
         background: color-mix(in srgb, var(--pax-ui-danger) 8%, transparent);
         border-radius: 3px;
-        padding: 2px 4px;
+        padding: 2px var(--pax-space-1);
     }
     .detail-row.combat-active .label {
         color: var(--pax-ui-danger);
@@ -462,7 +462,7 @@
 
     .mult-row {
         display: flex;
-        gap: 4px;
+        gap: var(--pax-space-1);
         font-weight: var(--pax-weight-semibold);
     }
 
@@ -483,7 +483,7 @@
         color: var(--pax-ui-text-dim);
         font-style: italic;
         text-align: center;
-        padding: 10px 0;
+        padding: var(--pax-gap-sm) 0;
         font-size: var(--pax-type-2xs);
     }
 
@@ -516,8 +516,8 @@
         display: grid;
         grid-template-columns: 6px 14px 7ch 40px 1fr 5ch 4ch;
         align-items: center;
-        gap: 4px;
-        padding: 3px 10px;
+        gap: var(--pax-space-1);
+        padding: 3px var(--pax-gap-sm);
         cursor: pointer;
         border: none;
         background: transparent;
@@ -554,7 +554,7 @@
     }
     .row-chip {
         font-size: var(--pax-type-4xs);
-        padding: 0 4px;
+        padding: 0 var(--pax-space-1);
         border-radius: 2px;
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.3px;

@@ -188,7 +188,7 @@
     align-items: center;
     justify-content: flex-end;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: var(--pax-space-3);
     width: 100%;
     min-width: 0;
   }
@@ -197,7 +197,7 @@
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: var(--pax-gap-sm);
   }
 
   .board-hud__cluster--right {
@@ -221,10 +221,10 @@
   .hud-pill,
   .hud-readout,
   .status-chip {
-    padding: 0 12px;
+    padding: 0 var(--pax-space-3);
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--pax-space-2);
   }
 
   .hud-pill {
@@ -275,9 +275,9 @@
   }
 
   .density-picker {
-    padding: 4px;
+    padding: var(--pax-space-1);
     display: inline-flex;
-    gap: 4px;
+    gap: var(--pax-space-1);
   }
 
   .grid-flyout {
@@ -285,14 +285,14 @@
     top: calc(100% + 10px);
     left: 0;
     min-width: 156px;
-    padding: 10px;
+    padding: var(--pax-gap-sm);
     border-radius: 16px;
     border: 1px solid color-mix(in srgb, var(--pax-ui-accent) 30%, transparent);
     background: color-mix(in srgb, var(--pax-color-void) 94%, transparent);
     backdrop-filter: blur(18px);
     box-shadow: 0 20px 48px color-mix(in srgb, var(--pax-color-void) 30%, transparent);
     display: grid;
-    gap: 12px;
+    gap: var(--pax-space-3);
   }
 
   .grid-flyout__header,
@@ -300,7 +300,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
+    gap: var(--pax-gap-sm);
   }
 
   .grid-flyout__header strong,
@@ -320,7 +320,7 @@
     display: flex;
     align-items: stretch;
     justify-content: center;
-    gap: 10px;
+    gap: var(--pax-gap-sm);
   }
 
   .grid-flyout__slider {
@@ -337,7 +337,7 @@
   .grid-flyout__number {
     display: grid;
     align-content: center;
-    gap: 6px;
+    gap: var(--pax-gap-xs);
   }
 
   .grid-flyout__number span {
@@ -349,7 +349,7 @@
   .grid-flyout__number input {
     width: 62px;
     min-height: 36px;
-    padding: 0 10px;
+    padding: 0 var(--pax-gap-sm);
     border-radius: 12px;
     border: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 20%, transparent);
     background: color-mix(in srgb, var(--pax-color-void) 88%, transparent);

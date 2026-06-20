@@ -146,7 +146,7 @@
   .pf-hud-topbar__tactical {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--pax-gap-xs);
     min-width: 0;
     overflow: hidden;
   }
@@ -155,7 +155,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    padding: 3px 8px;
+    padding: 3px var(--pax-space-2);
     border-radius: 999px;
     background: color-mix(in srgb, var(--pax-color-void) 55%, transparent);
     font-size: var(--pax-type-2xs);

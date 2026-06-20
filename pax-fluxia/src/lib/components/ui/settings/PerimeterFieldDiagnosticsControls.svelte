@@ -222,13 +222,13 @@
     .module-block {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--pax-space-2);
     }
 
     .scrub-card {
         display: grid;
-        gap: 8px;
-        padding: 10px;
+        gap: var(--pax-space-2);
+        padding: var(--pax-gap-sm);
         border: 1px solid transparent;
         border-radius: var(--pax-ui-radius-sm);
         clip-path: var(--pax-ui-rounded-corner-sm);
@@ -242,7 +242,7 @@
         min-width: 0;
         display: grid;
         align-items: center;
-        gap: 8px;
+        gap: var(--pax-space-2);
     }
 
     .scrub-card__header {
@@ -282,7 +282,7 @@
     }
 
     .sub-heading {
-        margin: 12px 0 6px;
+        margin: var(--pax-space-3) 0 var(--pax-gap-xs);
         color: var(--pax-ui-accent);
         font-family: var(--pax-ui-font-ui);
         font-size: calc(0.68rem * var(--pax-ui-type-scale, 1));

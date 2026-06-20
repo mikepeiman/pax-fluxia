@@ -113,8 +113,8 @@
         grid-area: statusbar;
         display: grid;
         grid-template-columns: auto 1fr auto;
-        gap: 8px;
-        padding: 6px 10px;
+        gap: var(--pax-space-2);
+        padding: var(--pax-gap-xs) var(--pax-gap-sm);
         background: color-mix(in srgb, var(--pax-color-void) 94%, transparent);
         backdrop-filter: blur(12px);
         border-bottom: 1px solid var(--pax-ui-divider);
@@ -133,7 +133,7 @@
     }
 
     .sb-swatch-wrap {
-        gap: 6px;
+        gap: var(--pax-gap-xs);
         flex-shrink: 0;
     }
 
@@ -195,14 +195,14 @@
 
     .sb-leaders {
         display: flex;
-        gap: 6px;
+        gap: var(--pax-gap-xs);
         overflow: hidden;
         justify-content: center;
         flex-wrap: nowrap;
     }
 
     .sb-player {
-        gap: 4px;
+        gap: var(--pax-space-1);
         flex-shrink: 0;
         opacity: 0.74;
     }
@@ -224,14 +224,14 @@
     }
 
     .sb-stats {
-        gap: 8px;
+        gap: var(--pax-space-2);
         justify-content: flex-end;
         flex-shrink: 0;
         white-space: nowrap;
     }
 
     .sb-stat {
-        gap: 4px;
+        gap: var(--pax-space-1);
         font-size: var(--pax-type-3xs);
     }
 
@@ -247,25 +247,25 @@
         .statusbar {
             grid-template-columns: 1fr;
             grid-template-rows: auto 1fr auto;
-            padding: 6px 4px;
+            padding: var(--pax-gap-xs) var(--pax-space-1);
             border-bottom: none;
             border-right: 1px solid var(--pax-ui-divider);
             width: 56px;
             min-height: 0;
             height: 100%;
             max-height: 100dvh;
-            gap: 4px;
+            gap: var(--pax-space-1);
         }
 
         .sb-swatch-wrap {
             flex-direction: column;
-            gap: 4px;
+            gap: var(--pax-space-1);
         }
 
         .sb-leaders {
             flex-direction: column;
             align-items: center;
-            gap: 4px;
+            gap: var(--pax-space-1);
             overflow: hidden;
         }
 
@@ -276,7 +276,7 @@
 
         .sb-stats {
             flex-direction: column;
-            gap: 4px;
+            gap: var(--pax-space-1);
             align-items: center;
         }
     }

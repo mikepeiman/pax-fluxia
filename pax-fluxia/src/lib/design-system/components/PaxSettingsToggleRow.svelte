@@ -69,8 +69,8 @@
     display: grid;
     grid-template-columns: 38px minmax(0, 1fr) auto;
     align-items: center;
-    gap: 10px;
-    padding: 5px 6px;
+    gap: var(--pax-gap-sm);
+    padding: 5px var(--pax-gap-xs);
     border-radius: var(--pax-ui-radius-sm);
     background: transparent;
     color: var(--pax-ui-text);

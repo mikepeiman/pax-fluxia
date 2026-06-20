@@ -107,8 +107,8 @@
 <style>
   .slider-field {
     display: grid;
-    gap: 8px;
-    padding: 10px 12px;
+    gap: var(--pax-space-2);
+    padding: var(--pax-gap-sm) var(--pax-space-3);
     border-radius: 16px;
     border: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 14%, transparent);
     background:
@@ -122,7 +122,7 @@
   .slider-field__body {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--pax-gap-sm);
   }
 
   .slider-field__top {
@@ -138,7 +138,7 @@
   }
 
   .slider-field__value {
-    padding: 3px 8px;
+    padding: 3px var(--pax-space-2);
     border-radius: 999px;
     background: color-mix(in srgb, var(--slider-accent) 18%, rgba(255, 255, 255, 0.04));
     border: 1px solid color-mix(in srgb, var(--slider-accent) 34%, rgba(255, 255, 255, 0.08));
@@ -159,9 +159,9 @@
   .slider-field__number-wrap {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--pax-gap-xs);
     min-width: 74px;
-    padding: 0 8px;
+    padding: 0 var(--pax-space-2);
     min-height: 34px;
     border-radius: 12px;
     border: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent);

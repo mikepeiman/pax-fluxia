@@ -210,14 +210,14 @@
     .players-preview-grid {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 6px;
+        gap: var(--pax-gap-xs);
     }
 
     .players-focus-card {
         display: grid;
-        gap: 8px;
-        margin-top: 8px;
-        padding: 10px;
+        gap: var(--pax-space-2);
+        margin-top: var(--pax-space-2);
+        padding: var(--pax-gap-sm);
         border: 1px solid transparent;
         border-radius: var(--pax-ui-radius-sm);
         clip-path: var(--pax-ui-rounded-corner-sm);
@@ -230,7 +230,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        gap: 10px;
+        gap: var(--pax-gap-sm);
     }
 
     .players-focus-label {
@@ -251,7 +251,7 @@
     }
 
     .players-detail {
-        margin-top: 8px;
+        margin-top: var(--pax-space-2);
     }
 
     .players-detail summary {
@@ -269,7 +269,7 @@
     .players-detail-grid {
         display: grid;
         grid-template-columns: 1fr;
-        gap: 6px;
-        margin-top: 8px;
+        gap: var(--pax-gap-xs);
+        margin-top: var(--pax-space-2);
     }
 </style>

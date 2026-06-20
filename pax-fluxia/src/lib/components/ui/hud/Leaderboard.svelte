@@ -231,7 +231,7 @@
 <style>
     .leaderboard {
         display: grid;
-        gap: 12px;
+        gap: var(--pax-space-3);
         min-width: 0;
         padding: var(--pax-ui-pad-md);
         border: 1px solid var(--pax-ui-border);
@@ -255,7 +255,7 @@
 
     .leaderboard__header {
         justify-content: space-between;
-        gap: 12px;
+        gap: var(--pax-space-3);
     }
 
     .leaderboard__title-block {
@@ -283,7 +283,7 @@
     }
 
     .leaderboard__actions {
-        gap: 8px;
+        gap: var(--pax-space-2);
         flex-wrap: wrap;
         justify-content: flex-end;
     }
@@ -320,8 +320,8 @@
     }
 
     .leaderboard__focus-toggle {
-        gap: 6px;
-        padding: 4px;
+        gap: var(--pax-gap-xs);
+        padding: var(--pax-space-1);
         border: 1px solid rgba(112, 142, 186, 0.16);
         border-radius: 14px;
         background: color-mix(in srgb, var(--pax-color-void) 88%, transparent);
@@ -331,7 +331,7 @@
         display: inline-flex;
         align-items: center;
         gap: 7px;
-        padding: 0 12px;
+        padding: 0 var(--pax-space-3);
         font-family: var(--pax-ui-font-ui);
         font-size: var(--pax-type-label);
         font-weight: var(--pax-weight-bold);
@@ -346,15 +346,15 @@
     }
 
     .leaderboard__summary {
-        gap: 10px;
+        gap: var(--pax-gap-sm);
     }
 
     .summary-chip {
         flex: 1 1 0;
         justify-content: space-between;
-        gap: 10px;
+        gap: var(--pax-gap-sm);
         min-height: 58px;
-        padding: 0 14px;
+        padding: 0 var(--pax-gap-md);
         border-radius: var(--pax-ui-radius-sm);
         border: 1px solid rgba(112, 142, 186, 0.14);
         background: color-mix(in srgb, var(--pax-color-void) 88%, transparent);
@@ -418,8 +418,8 @@
     }
 
     .leaderboard__columns {
-        gap: 10px;
-        padding: 0 10px;
+        gap: var(--pax-gap-sm);
+        padding: 0 var(--pax-gap-sm);
         color: var(--pax-ui-text-soft);
         font-size: var(--pax-type-3xs);
         letter-spacing: 0.12em;
@@ -449,7 +449,7 @@
     .leaderboard__col--detail,
     .stat-detail {
         width: 74px;
-        gap: 6px;
+        gap: var(--pax-gap-xs);
     }
 
     .leaderboard__col--stars,
@@ -464,16 +464,16 @@
 
     .leaderboard__list {
         display: grid;
-        gap: 6px;
+        gap: var(--pax-gap-xs);
         list-style: none;
         padding: 0;
         margin: 0;
     }
 
     .leaderboard__item {
-        gap: 10px;
+        gap: var(--pax-gap-sm);
         min-height: 42px;
-        padding: 0 10px;
+        padding: 0 var(--pax-gap-sm);
         border-radius: 14px;
         border: 1px solid transparent;
         background: color-mix(in srgb, var(--pax-color-void) 82%, transparent);
@@ -538,7 +538,7 @@
     }
 
     .leaderboard__empty {
-        padding: 16px;
+        padding: var(--pax-space-4);
         border-radius: var(--pax-ui-radius-sm);
         border: 1px dashed rgba(112, 142, 186, 0.24);
         color: var(--pax-ui-text-soft);

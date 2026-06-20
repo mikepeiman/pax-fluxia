@@ -138,7 +138,7 @@
         z-index: 1400;
         display: grid;
         place-items: start center;
-        padding: clamp(18px, 4vh, 40px) 16px 16px;
+        padding: clamp(18px, 4vh, 40px) var(--pax-space-4) var(--pax-space-4);
         isolation: isolate;
     }
 
@@ -156,7 +156,7 @@
         width: min(1080px, calc(100vw - 32px));
         max-height: calc(100vh - 32px);
         overflow: auto;
-        padding: 20px;
+        padding: var(--pax-space-5);
         border-radius: var(--pf-title-radius);
         border: 1px solid var(--pf-border-strong);
         background:
@@ -185,12 +185,12 @@
         display: flex;
         align-items: start;
         justify-content: space-between;
-        gap: 16px;
-        margin-bottom: 18px;
+        gap: var(--pax-space-4);
+        margin-bottom: var(--pax-gap-lg);
     }
 
     .background-modal__eyebrow {
-        margin: 0 0 4px;
+        margin: 0 0 var(--pax-space-1);
         color: var(--pf-accent-soft);
         font-family: var(--pf-font-body);
         font-size: var(--pax-type-xs);
@@ -209,7 +209,7 @@
     }
 
     .background-modal__copy {
-        margin: 8px 0 0;
+        margin: var(--pax-space-2) 0 0;
         color: var(--pf-muted);
         font-family: var(--pf-font-body);
         font-size: var(--pax-type-base);
@@ -219,7 +219,7 @@
     .background-modal__close {
         min-width: 42px;
         min-height: 42px;
-        padding: 0 14px;
+        padding: 0 var(--pax-gap-md);
         border-radius: var(--pf-pill-radius);
         border: 1px solid var(--pf-border-soft);
         background: var(--pf-frame-control), var(--pf-surface-pill);
@@ -244,13 +244,13 @@
     .background-modal__grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(176px, 1fr));
-        gap: 12px;
+        gap: var(--pax-space-3);
     }
 
     .background-modal__thumb {
         display: grid;
-        gap: 8px;
-        padding: 8px;
+        gap: var(--pax-space-2);
+        padding: var(--pax-space-2);
         border-radius: var(--pf-card-radius);
         border: 1px solid var(--pf-border-soft);
         background: var(--pf-frame-panel), var(--pf-surface-card);
@@ -299,13 +299,13 @@
 
     @media (max-width: 640px) {
         .background-modal {
-            padding: 12px;
+            padding: var(--pax-space-3);
         }
 
         .background-modal__shell {
             width: min(100vw - 24px, 1080px);
             max-height: calc(100vh - 24px);
-            padding: 16px;
+            padding: var(--pax-space-4);
             border-radius: 22px;
         }
 

@@ -190,13 +190,13 @@
     .phase-field-shell {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: var(--pax-space-3);
     }
 
     .sub-heading {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--pax-space-2);
         margin: 0;
         color: color-mix(in srgb, var(--pax-ui-accent) 92%, transparent);
         font-size: var(--pax-type-3xs);
@@ -209,7 +209,7 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 12px;
+        gap: var(--pax-space-3);
     }
 
     .phase-field-status {
@@ -217,7 +217,7 @@
         align-items: center;
         justify-content: center;
         min-height: 24px;
-        padding: 0 10px;
+        padding: 0 var(--pax-gap-sm);
         border-radius: 999px;
         border: 1px solid color-mix(in srgb, var(--pax-ui-warning) 35%, transparent);
         background: color-mix(in srgb, var(--pax-ui-warning) 12%, transparent);
@@ -237,8 +237,8 @@
     .phase-field-card {
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        padding: 12px;
+        gap: var(--pax-space-2);
+        padding: var(--pax-space-3);
         border-radius: 14px;
         border: 1px solid color-mix(in srgb, var(--pax-color-player-blue) 18%, transparent);
         background: linear-gradient(
@@ -251,9 +251,9 @@
     .phase-field-note {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: var(--pax-space-1);
         margin-top: 2px;
-        padding: 10px 12px;
+        padding: var(--pax-gap-sm) var(--pax-space-3);
         border-left: 3px solid color-mix(in srgb, var(--pax-color-player-blue) 60%, transparent);
         border-radius: 10px;
         background: color-mix(in srgb, var(--pax-color-void) 60%, transparent);

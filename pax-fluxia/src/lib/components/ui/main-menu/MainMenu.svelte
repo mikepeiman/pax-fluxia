@@ -1275,7 +1275,7 @@
         display: flex;
         justify-content: center;
         align-items: flex-start;
-        padding: 24px;
+        padding: var(--pax-space-6);
         overflow-y: auto;
         isolation: isolate;
         background-color: var(--pax-color-void);
@@ -1316,18 +1316,18 @@
         z-index: 1;
         display: flex;
         flex-direction: column;
-        gap: 18px;
+        gap: var(--pax-gap-lg);
         width: min(1640px, 100%);
     }
 
     .title-block {
         position: relative;
         display: grid;
-        gap: 8px;
+        gap: var(--pax-space-2);
         justify-items: center;
         text-align: center;
         min-height: clamp(168px, 20vw, 228px);
-        padding: 26px 28px 20px;
+        padding: 26px 28px var(--pax-space-5);
         border-radius: var(--pf-title-radius);
         border: 1px solid var(--pf-border-faint);
         background:
@@ -1416,7 +1416,7 @@
     .desktop-panels {
         display: grid;
         grid-template-columns: minmax(0, 1.56fr) minmax(320px, 0.96fr) minmax(280px, 0.82fr);
-        gap: 18px;
+        gap: var(--pax-gap-lg);
         align-items: start;
     }
 
@@ -1470,9 +1470,9 @@
         display: flex;
         justify-content: space-between;
         align-items: flex-end;
-        gap: 16px;
+        gap: var(--pax-space-4);
         margin-bottom: 2px;
-        padding-bottom: 12px;
+        padding-bottom: var(--pax-space-3);
         border-bottom: 1px solid var(--pf-divider);
     }
 
@@ -1487,7 +1487,7 @@
     }
 
     :global(.menu-panel__title) {
-        margin: 6px 0 0;
+        margin: var(--pax-gap-xs) 0 0;
         font-family: var(--pf-font-body);
         font-size: var(--pax-type-base);
         font-weight: var(--pax-weight-semibold);
@@ -1535,7 +1535,7 @@
         inset: 0;
         display: grid;
         place-items: center;
-        padding: 24px;
+        padding: var(--pax-space-6);
         background: var(--pf-overlay-modal-scrim);
         backdrop-filter: blur(10px);
         z-index: 40;
@@ -1543,7 +1543,7 @@
 
     .confirm-dialog {
         width: min(460px, 100%);
-        padding: 24px;
+        padding: var(--pax-space-6);
         border-radius: var(--pf-panel-radius);
         border: 1px solid var(--pf-border-strong);
         background: var(--pf-frame-modal), var(--pf-surface-dialog);
@@ -1552,7 +1552,7 @@
     }
 
     .confirm-dialog h3 {
-        margin: 0 0 12px;
+        margin: 0 0 var(--pax-space-3);
         font-family: var(--pf-font-display);
         font-size: var(--pax-type-md);
         letter-spacing: 0.08em;
@@ -1560,20 +1560,20 @@
     }
 
     .confirm-dialog p {
-        margin: 10px 0 0;
+        margin: var(--pax-gap-sm) 0 0;
         font-family: var(--pf-font-body);
         font-size: var(--pax-type-base);
         color: var(--pf-muted-strong);
     }
 
     .ai-select {
-        margin-top: 16px;
-        padding-top: 16px;
+        margin-top: var(--pax-space-4);
+        padding-top: var(--pax-space-4);
         border-top: 1px solid var(--pf-divider);
     }
 
     .ai-label {
-        margin: 0 0 10px;
+        margin: 0 0 var(--pax-gap-sm);
         font-family: var(--pf-font-body);
         font-size: var(--pax-type-sm);
         font-weight: var(--pax-weight-bold);
@@ -1585,15 +1585,15 @@
     .ai-list {
         display: flex;
         flex-wrap: wrap;
-        gap: 10px;
+        gap: var(--pax-gap-sm);
     }
 
     .ai-chip {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--pax-space-2);
         min-height: 38px;
-        padding: 0 14px;
+        padding: 0 var(--pax-gap-md);
         border-radius: var(--pf-pill-radius);
         border: 1px solid var(--pf-border-soft);
         background: var(--pf-frame-control), var(--pf-surface-pill);
@@ -1622,8 +1622,8 @@
 
     .confirm-actions {
         display: flex;
-        gap: 12px;
-        margin-top: 20px;
+        gap: var(--pax-space-3);
+        margin-top: var(--pax-space-5);
     }
 
     .confirm-primary,
@@ -1651,7 +1651,7 @@
     }
 
     .error-msg {
-        margin-top: 14px;
+        margin-top: var(--pax-gap-md);
         color: var(--pf-danger);
         font-family: var(--pf-font-body);
     }
@@ -1668,12 +1668,12 @@
 
     @media (max-width: 767px) {
         .menu-fullscreen {
-            padding: 16px 12px 92px;
+            padding: var(--pax-space-4) var(--pax-space-3) 92px;
         }
 
         .title-block {
             min-height: 150px;
-            padding: 20px 18px 18px;
+            padding: var(--pax-space-5) var(--pax-gap-lg) var(--pax-gap-lg);
         }
 
         .title-block::before {
@@ -1695,7 +1695,7 @@
         .mobile-tabs {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 8px;
+            gap: var(--pax-space-2);
         }
 
         .mobile-tabs__button {

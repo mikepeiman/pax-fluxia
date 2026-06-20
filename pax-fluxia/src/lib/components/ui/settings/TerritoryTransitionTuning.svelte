@@ -346,7 +346,7 @@
 <style>
 
     .row-hint {
-        margin: 8px 0 10px;
+        margin: var(--pax-space-2) 0 var(--pax-gap-sm);
         font-size: var(--pax-type-2xs);
         line-height: 1.45;
         color: color-mix(in srgb, var(--pax-ui-text-soft) 82%, transparent);
@@ -356,7 +356,7 @@
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
         align-items: end;
-        gap: 8px;
+        gap: var(--pax-space-2);
     }
 
     .transition-slider-row--locked {
@@ -366,6 +366,6 @@
     .transition-slider-row__locks {
         display: flex;
         gap: 5px;
-        padding-bottom: 10px;
+        padding-bottom: var(--pax-gap-sm);
     }
 </style>

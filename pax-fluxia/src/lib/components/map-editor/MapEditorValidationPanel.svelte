@@ -70,14 +70,14 @@
     right: 16px;
     bottom: 92px;
     width: min(420px, 36vw);
-    padding: 16px;
+    padding: var(--pax-space-4);
     border-radius: 24px;
     border: 1px solid var(--editor-border, color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent));
     background: color-mix(in srgb, var(--pax-color-void) 96%, transparent);
     backdrop-filter: blur(20px);
     box-shadow: 0 24px 70px color-mix(in srgb, var(--pax-color-void) 40%, transparent);
     display: grid;
-    gap: 14px;
+    gap: var(--pax-gap-md);
     overflow: auto;
     z-index: 12;
   }
@@ -90,12 +90,12 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
+    gap: var(--pax-gap-sm);
   }
 
   .issue-list {
     display: grid;
-    gap: 10px;
+    gap: var(--pax-gap-sm);
   }
 
   .sheet__header strong,
@@ -130,7 +130,7 @@
   .icon-btn,
   .filter-row button {
     min-height: 40px;
-    padding: 0 12px;
+    padding: 0 var(--pax-space-3);
     cursor: pointer;
   }
 
@@ -154,20 +154,20 @@
   .summary-strip div {
     flex: 1;
     min-height: 64px;
-    padding: 12px;
+    padding: var(--pax-space-3);
     border-radius: 16px;
     border: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 14%, transparent);
     background: color-mix(in srgb, var(--pax-color-void) 88%, transparent);
     display: grid;
-    gap: 4px;
+    gap: var(--pax-space-1);
     place-items: center;
   }
 
   .issue {
-    padding: 12px 14px;
+    padding: var(--pax-space-3) var(--pax-gap-md);
     text-align: left;
     display: grid;
-    gap: 8px;
+    gap: var(--pax-space-2);
     cursor: pointer;
   }
 
@@ -184,7 +184,7 @@
 
   .empty-state {
     min-height: 68px;
-    padding: 12px;
+    padding: var(--pax-space-3);
     border-radius: 16px;
     border: 1px dashed color-mix(in srgb, var(--pax-ui-text-soft) 24%, transparent);
     display: grid;

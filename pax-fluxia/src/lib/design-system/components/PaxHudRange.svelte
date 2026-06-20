@@ -127,7 +127,7 @@
     background: transparent;
     border: 0;
     border-radius: 5px;
-    padding: 2px 4px;
+    padding: 2px var(--pax-space-1);
     appearance: none;
     cursor: text;
     transition:

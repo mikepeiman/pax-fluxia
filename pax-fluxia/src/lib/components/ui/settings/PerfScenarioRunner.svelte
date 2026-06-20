@@ -154,7 +154,7 @@
     .snapshot-actions {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
+        gap: var(--pax-space-2);
     }
 
     .warning {

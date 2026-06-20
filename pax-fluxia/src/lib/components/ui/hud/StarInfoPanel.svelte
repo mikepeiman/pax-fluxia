@@ -189,7 +189,7 @@
         background: color-mix(in srgb, var(--pax-color-void) 92%, transparent);
         border: 1px solid rgba(100, 120, 160, 0.3);
         border-radius: 8px;
-        padding: 10px 12px;
+        padding: var(--pax-gap-sm) var(--pax-space-3);
         font-size: var(--pax-type-xs);
         color: var(--pax-ui-text-strong);
         min-width: 220px;
@@ -200,9 +200,9 @@
     .panel-header {
         display: flex;
         align-items: center;
-        gap: 8px;
-        margin-bottom: 8px;
-        padding-bottom: 6px;
+        gap: var(--pax-space-2);
+        margin-bottom: var(--pax-space-2);
+        padding-bottom: var(--pax-gap-xs);
         border-bottom: 1px solid rgba(100, 120, 160, 0.2);
     }
 
@@ -219,7 +219,7 @@
 
     .type-badge {
         font-size: var(--pax-type-3xs);
-        padding: 1px 6px;
+        padding: 1px var(--pax-gap-xs);
         border-radius: 4px;
         font-weight: var(--pax-weight-semibold);
         text-transform: uppercase;
@@ -232,7 +232,7 @@
         color: var(--pax-ui-text-dim);
         cursor: pointer;
         font-size: var(--pax-type-sm);
-        padding: 0 4px;
+        padding: 0 var(--pax-space-1);
         line-height: 1;
     }
     .close-btn:hover {
@@ -279,7 +279,7 @@
 
     .mult-list {
         display: flex;
-        gap: 6px;
+        gap: var(--pax-gap-xs);
         flex-wrap: wrap;
         justify-content: flex-end;
     }
@@ -296,6 +296,6 @@
         color: var(--pax-ui-text-dim);
         font-style: italic;
         text-align: center;
-        padding: 12px 0;
+        padding: var(--pax-space-3) 0;
     }
 </style>

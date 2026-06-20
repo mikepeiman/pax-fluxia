@@ -320,8 +320,8 @@
     .trace-diagnostics {
         display: flex;
         flex-direction: column;
-        gap: 10px;
-        margin-top: 8px;
+        gap: var(--pax-gap-sm);
+        margin-top: var(--pax-space-2);
     }
 
     .trace-heading {
@@ -335,13 +335,13 @@
 
     .trace-actions {
         display: flex;
-        gap: 6px;
+        gap: var(--pax-gap-xs);
     }
 
     .trace-stage-card {
         display: grid;
-        gap: 8px;
-        padding: 9px 10px;
+        gap: var(--pax-space-2);
+        padding: 9px var(--pax-gap-sm);
         border: 1px solid transparent;
         border-radius: var(--pax-ui-radius-sm);
         clip-path: var(--pax-ui-rounded-corner-sm);
@@ -355,7 +355,7 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 10px;
+        gap: var(--pax-gap-sm);
     }
 
     .trace-stage-card__label {
@@ -377,8 +377,8 @@
     .trace-panel {
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        padding: 8px;
+        gap: var(--pax-space-2);
+        padding: var(--pax-space-2);
         border: 1px solid color-mix(in srgb, var(--pax-ui-text-strong) 8%, transparent);
         border-radius: 6px;
         background: color-mix(in srgb, var(--pax-ui-text-strong) 3%, transparent);
@@ -387,11 +387,11 @@
     .trace-chip-row {
         display: flex;
         flex-wrap: wrap;
-        gap: 4px;
+        gap: var(--pax-space-1);
     }
 
     .trace-chip {
-        padding: 2px 6px;
+        padding: 2px var(--pax-gap-xs);
         border-radius: 999px;
         background: color-mix(in srgb, var(--pax-ui-success) 12%, transparent);
         border: 1px solid color-mix(in srgb, var(--pax-ui-success) 20%, transparent);
@@ -403,7 +403,7 @@
     .trace-section {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: var(--pax-space-1);
     }
 
     .trace-section-title {
@@ -417,7 +417,7 @@
         display: flex;
         flex-direction: column;
         gap: 2px;
-        padding: 6px;
+        padding: var(--pax-gap-xs);
         border-radius: 5px;
         background: color-mix(in srgb, var(--pax-ui-text-strong) 4%, transparent);
     }
@@ -426,13 +426,13 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 8px;
+        gap: var(--pax-space-2);
     }
 
     .trace-badge {
         display: inline-flex;
         align-items: center;
-        padding: 2px 6px;
+        padding: 2px var(--pax-gap-xs);
         border-radius: 4px;
         background: color-mix(in srgb, var(--pax-color-player-blue) 12%, transparent);
         color: var(--pax-color-player-blue);

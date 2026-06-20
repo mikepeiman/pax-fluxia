@@ -275,7 +275,7 @@
     .multiplayer-panel {
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: var(--pax-space-4);
     }
 
     .room-status,
@@ -295,19 +295,19 @@
     .signal-card,
     .manual-join,
     .chat-shell {
-        padding: 14px;
+        padding: var(--pax-gap-md);
     }
 
     .room-status {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        gap: 12px;
+        gap: var(--pax-space-3);
     }
 
     .room-status__identity {
         display: grid;
-        gap: 4px;
+        gap: var(--pax-space-1);
     }
 
     .room-status__label,
@@ -325,7 +325,7 @@
     .room-status__copy,
     .action-pill {
         min-height: var(--pf-pill-h);
-        padding: 0 14px;
+        padding: 0 var(--pax-gap-md);
         border-radius: var(--pf-pill-radius);
         border: 1px solid var(--pf-border-soft);
         background: var(--pf-surface-pill);
@@ -365,14 +365,14 @@
     .room-slots {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: var(--pax-gap-sm);
     }
 
     .room-slot {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding: 12px 14px;
+        gap: var(--pax-space-3);
+        padding: var(--pax-space-3) var(--pax-gap-md);
     }
 
     .room-slot.is-local {
@@ -416,12 +416,12 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        gap: 10px;
+        gap: var(--pax-gap-sm);
     }
 
     .selected-room__phase,
     .room-browser__phase {
-        padding: 5px 10px;
+        padding: 5px var(--pax-gap-sm);
         border-radius: var(--pf-pill-radius);
         background: var(--pf-surface-pill-active);
         font-family: var(--pf-font-body);
@@ -437,8 +437,8 @@
     .room-browser__players {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px 12px;
-        margin-top: 10px;
+        gap: var(--pax-space-2) var(--pax-space-3);
+        margin-top: var(--pax-gap-sm);
     }
 
     .multiplayer-panel__actions,
@@ -446,14 +446,14 @@
     .manual-join__row {
         display: flex;
         flex-wrap: wrap;
-        gap: 10px;
+        gap: var(--pax-gap-sm);
     }
 
     .manual-join input,
     .chat-shell__composer input {
         flex: 1;
         min-height: var(--pf-control-h);
-        padding: 0 14px;
+        padding: 0 var(--pax-gap-md);
         border-radius: var(--pf-button-radius);
         border: 1px solid var(--pf-border-soft);
         background: var(--pf-surface-control);
@@ -467,22 +467,22 @@
     .room-browser {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: var(--pax-gap-sm);
         max-height: 440px;
         overflow-y: auto;
-        padding-right: 4px;
+        padding-right: var(--pax-space-1);
     }
 
     .room-browser__card {
         display: grid;
-        gap: 8px;
-        padding: 14px;
+        gap: var(--pax-space-2);
+        padding: var(--pax-gap-md);
         text-align: left;
         cursor: pointer;
     }
 
     .room-browser__players span {
-        padding: 4px 8px;
+        padding: var(--pax-space-1) var(--pax-space-2);
         border-radius: var(--pf-pill-radius);
         background: var(--pf-surface-tag);
         font-family: var(--pf-font-body);
@@ -493,7 +493,7 @@
     .chat-shell__toggle {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--pax-space-2);
         padding: 0;
         border: none;
         background: none;
@@ -509,7 +509,7 @@
     .chat-shell__count {
         min-width: 22px;
         min-height: 22px;
-        padding: 0 6px;
+        padding: 0 var(--pax-gap-xs);
         border-radius: var(--pf-pill-radius);
         display: inline-grid;
         place-items: center;
@@ -521,16 +521,16 @@
     .chat-shell__messages {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--pax-space-2);
         max-height: 180px;
         overflow-y: auto;
-        margin-top: 12px;
-        padding-right: 4px;
+        margin-top: var(--pax-space-3);
+        padding-right: var(--pax-space-1);
     }
 
     .chat-shell__message {
         display: flex;
-        gap: 8px;
+        gap: var(--pax-space-2);
         font-family: var(--pf-font-body);
         font-size: var(--pax-type-sm-plus);
     }

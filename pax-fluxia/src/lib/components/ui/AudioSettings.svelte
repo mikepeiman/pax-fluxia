@@ -395,7 +395,7 @@
         display: flex;
         justify-content: center;
         align-items: flex-start;
-        padding: 24px;
+        padding: var(--pax-space-6);
         overflow-y: auto;
         overscroll-behavior: contain;
         background: var(--pf-overlay-modal-scrim);
@@ -432,20 +432,20 @@
     .section-head {
         display: flex;
         justify-content: space-between;
-        gap: 16px;
+        gap: var(--pax-space-4);
     }
 
     .modal-header {
         position: sticky;
         top: 0;
-        padding: 22px 24px 18px;
+        padding: 22px var(--pax-space-6) var(--pax-gap-lg);
         border-bottom: 1px solid var(--pf-divider);
         background: var(--pf-surface-modal);
         z-index: 2;
     }
 
     .eyebrow {
-        margin: 0 0 6px;
+        margin: 0 0 var(--pax-gap-xs);
         font-family: var(--pf-font-display);
         font-size: var(--pax-type-xs);
         font-weight: var(--pax-weight-bold);
@@ -463,7 +463,7 @@
     }
 
     .subtitle {
-        margin: 6px 0 0;
+        margin: var(--pax-gap-xs) 0 0;
         color: var(--pf-muted);
         font-size: var(--pax-type-sm-plus);
     }
@@ -471,14 +471,14 @@
     .header-actions,
     .preset-row {
         display: flex;
-        gap: 8px;
+        gap: var(--pax-space-2);
         align-items: center;
     }
 
     .settings-body {
         display: grid;
-        gap: 16px;
-        padding: 18px 24px 24px;
+        gap: var(--pax-space-4);
+        padding: var(--pax-gap-lg) var(--pax-space-6) var(--pax-space-6);
     }
 
     .modal-content > * {
@@ -488,8 +488,8 @@
 
     .section {
         display: grid;
-        gap: 14px;
-        padding: 18px;
+        gap: var(--pax-gap-md);
+        padding: var(--pax-gap-lg);
         border-radius: var(--pf-card-radius);
         border: 1px solid var(--pf-border-faint);
         background: var(--pf-frame-panel), var(--pf-surface-card);
@@ -529,13 +529,13 @@
     .setting-header,
     .offset-row {
         display: flex;
-        gap: 10px;
+        gap: var(--pax-gap-sm);
         align-items: center;
     }
 
     .setting-row {
         display: grid;
-        gap: 8px;
+        gap: var(--pax-space-2);
     }
 
     .setting-row.disabled,
@@ -562,7 +562,7 @@
 
     .btn {
         min-height: 34px;
-        padding: 0 12px;
+        padding: 0 var(--pax-space-3);
         border-radius: var(--pf-button-radius);
         font-family: var(--pf-font-body);
         font-size: var(--pax-type-xs-plus);
@@ -590,7 +590,7 @@
     .select {
         width: 100%;
         min-height: 38px;
-        padding: 0 12px;
+        padding: 0 var(--pax-space-3);
         border-radius: var(--pf-button-radius);
         font-family: var(--pf-font-body);
         font-size: var(--pax-type-sm-plus);
@@ -610,7 +610,7 @@
     }
 
     .picker-arrow {
-        margin-left: 10px;
+        margin-left: var(--pax-gap-sm);
         color: var(--pf-muted);
         font-size: var(--pax-type-xs);
         font-weight: var(--pax-weight-bold);
@@ -627,7 +627,7 @@
         display: grid;
         gap: 2px;
         max-height: 220px;
-        padding: 8px;
+        padding: var(--pax-space-2);
         overflow-y: auto;
         border-radius: 16px;
         border: 1px solid var(--pf-border-strong);
@@ -637,9 +637,9 @@
 
     .picker-item {
         display: flex;
-        gap: 10px;
+        gap: var(--pax-gap-sm);
         align-items: center;
-        padding: 8px 10px;
+        padding: var(--pax-space-2) var(--pax-gap-sm);
         border-radius: 12px;
     }
 
@@ -666,7 +666,7 @@
 
     @media (max-width: 767px) {
         .modal-overlay {
-            padding: 12px;
+            padding: var(--pax-space-3);
         }
 
         .modal-content {

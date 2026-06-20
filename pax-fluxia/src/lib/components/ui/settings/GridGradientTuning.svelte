@@ -417,7 +417,7 @@
 <style>
 
     .sub-heading {
-        margin: 12px 0 6px;
+        margin: var(--pax-space-3) 0 var(--pax-gap-xs);
         color: color-mix(in srgb, var(--pax-ui-accent) 92%, transparent);
         font-size: var(--pax-type-3xs);
         font-weight: var(--pax-weight-bold);
@@ -432,9 +432,9 @@
     .perf-grid {
         display: grid;
         grid-template-columns: max-content 1fr;
-        gap: 6px 14px;
+        gap: var(--pax-gap-xs) var(--pax-gap-md);
         align-items: baseline;
-        padding: 10px 12px;
+        padding: var(--pax-gap-sm) var(--pax-space-3);
         border-radius: 8px;
         border: 1px solid color-mix(in srgb, var(--pax-ui-text-strong) 8%, transparent);
         background: color-mix(in srgb, var(--pax-color-void) 40%, transparent);

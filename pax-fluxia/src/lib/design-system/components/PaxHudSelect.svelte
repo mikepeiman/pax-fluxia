@@ -96,7 +96,7 @@
     transform: translateX(-50%);
     width: max-content;
     max-width: 220px;
-    padding: 6px 8px;
+    padding: var(--pax-gap-xs) var(--pax-space-2);
     background: var(--pax-ui-panel-bg-strong);
     border: 1px solid var(--pax-ui-border, color-mix(in srgb, var(--pax-ui-accent-warm) 35%, transparent));
     border-radius: 6px;

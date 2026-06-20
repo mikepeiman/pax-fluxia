@@ -102,8 +102,8 @@
     transform: translateX(-50%);
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px 10px;
+    gap: var(--pax-gap-sm);
+    padding: var(--pax-space-2) var(--pax-gap-sm);
     border-radius: 18px;
     border: 1px solid var(--editor-border, color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent));
     background: color-mix(in srgb, var(--pax-color-void) 86%, transparent);
@@ -115,7 +115,7 @@
   .command-dock__actions {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--pax-gap-xs);
     flex-wrap: wrap;
   }
 
@@ -128,19 +128,19 @@
     left: 0;
     bottom: calc(100% + 10px);
     min-width: 132px;
-    padding: 8px;
+    padding: var(--pax-space-2);
     border-radius: 14px;
     border: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent);
     background: color-mix(in srgb, var(--pax-color-void) 96%, transparent);
     backdrop-filter: blur(18px);
     box-shadow: 0 18px 42px color-mix(in srgb, var(--pax-color-void) 34%, transparent);
     display: grid;
-    gap: 6px;
+    gap: var(--pax-gap-xs);
   }
 
   button {
     min-height: 36px;
-    padding: 0 12px;
+    padding: 0 var(--pax-space-3);
     border-radius: 12px;
     border: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent);
     background: color-mix(in srgb, var(--pax-color-void) 90%, transparent);

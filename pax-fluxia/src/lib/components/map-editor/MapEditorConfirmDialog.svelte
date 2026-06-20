@@ -52,14 +52,14 @@
     left: 50%;
     z-index: 14;
     width: min(420px, calc(100vw - 32px));
-    padding: 18px;
+    padding: var(--pax-gap-lg);
     border-radius: 24px;
     border: 1px solid var(--editor-border, color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent));
     background: color-mix(in srgb, var(--pax-color-void) 97%, transparent);
     backdrop-filter: blur(20px);
     box-shadow: 0 24px 70px color-mix(in srgb, var(--pax-color-void) 40%, transparent);
     display: grid;
-    gap: 16px;
+    gap: var(--pax-space-4);
     transform: translate(-50%, -50%);
   }
 
@@ -68,7 +68,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: var(--pax-space-3);
   }
 
   .dialog__header strong {
@@ -88,7 +88,7 @@
   .dialog__close,
   .dialog__action {
     min-height: 40px;
-    padding: 0 12px;
+    padding: 0 var(--pax-space-3);
     border-radius: 12px;
     border: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent);
     background: color-mix(in srgb, var(--pax-color-void) 90%, transparent);

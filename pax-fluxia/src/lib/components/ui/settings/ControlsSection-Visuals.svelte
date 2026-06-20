@@ -404,7 +404,7 @@
     .visuals-section {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: var(--pax-gap-sm);
     }
 
 
@@ -412,8 +412,8 @@
     .visuals-control-card {
         min-width: 0;
         display: grid;
-        gap: 8px;
-        padding: 10px;
+        gap: var(--pax-space-2);
+        padding: var(--pax-gap-sm);
         border: 1px solid transparent;
         border-radius: var(--pax-ui-radius-sm);
         clip-path: var(--pax-ui-rounded-corner-sm);
@@ -454,7 +454,7 @@
     .visuals-bg-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));
-        gap: 8px;
+        gap: var(--pax-space-2);
     }
 
     :global(.visuals-bg-thumb) {

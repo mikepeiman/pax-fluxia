@@ -709,26 +709,26 @@
     .territory-style-stack {
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: var(--pax-gap-xs);
     }
 
     .territory-style-finish-heading {
-        margin-top: 10px;
+        margin-top: var(--pax-gap-sm);
     }
 
     .territory-style-subheading {
-        margin-top: 12px;
+        margin-top: var(--pax-space-3);
     }
 
     .var-desc {
-        margin: 4px 0 10px;
+        margin: var(--pax-space-1) 0 var(--pax-gap-sm);
         color: color-mix(in srgb, var(--pax-ui-text-soft) 72%, transparent);
         font-size: var(--pax-type-3xs);
         line-height: 1.35;
     }
 
     .sub-heading {
-        margin: 12px 0 6px;
+        margin: var(--pax-space-3) 0 var(--pax-gap-xs);
         color: color-mix(in srgb, var(--pax-ui-accent) 92%, transparent);
         font-size: var(--pax-type-3xs);
         font-weight: var(--pax-weight-bold);

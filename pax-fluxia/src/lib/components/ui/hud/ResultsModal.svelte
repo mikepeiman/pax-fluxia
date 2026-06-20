@@ -819,7 +819,7 @@
         max-width: 900px;
         max-height: 92vh;
         overflow-y: auto;
-        padding: 48px 56px;
+        padding: var(--pax-space-12) 56px;
         display: flex;
         flex-direction: column;
         gap: 28px;
@@ -878,7 +878,7 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 16px;
+        gap: var(--pax-space-4);
         position: relative;
         z-index: 1;
     }
@@ -887,7 +887,7 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 8px;
+        gap: var(--pax-space-2);
     }
 
     .results-title {
@@ -931,7 +931,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 10px;
+        gap: var(--pax-gap-sm);
         margin: 0;
     }
     .winner-dot {
@@ -956,14 +956,14 @@
     .stats-row {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        gap: 16px;
+        gap: var(--pax-space-4);
     }
     .stat-card {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 4px;
-        padding: 18px 12px;
+        gap: var(--pax-space-1);
+        padding: var(--pax-gap-lg) var(--pax-space-3);
         background: color-mix(in srgb, var(--pax-ui-text-strong) 2.5%, transparent);
         border: 1px solid color-mix(in srgb, var(--pax-ui-text-strong) 5%, transparent);
         border-radius: 14px;
@@ -997,7 +997,7 @@
     /* ── Tab Navigation ─────────────────── */
     .tab-nav {
         display: flex;
-        gap: 4px;
+        gap: var(--pax-space-1);
         background: color-mix(in srgb, var(--pax-color-void) 30%, transparent);
         padding: 5px;
         border-radius: 12px;
@@ -1005,7 +1005,7 @@
     }
     .tab-btn {
         flex: 1;
-        padding: 12px 16px;
+        padding: var(--pax-space-3) var(--pax-space-4);
         border: none;
         background: transparent;
         color: var(--pax-ui-text-dim);
@@ -1020,7 +1020,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 6px;
+        gap: var(--pax-gap-xs);
     }
     .tab-btn:hover {
         color: var(--pax-ui-text-soft);
@@ -1044,12 +1044,12 @@
     .scoreboard {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: var(--pax-space-1);
     }
     .scoreboard-header {
         display: grid;
         grid-template-columns: 40px 1fr 80px 80px 80px;
-        padding: 8px 16px;
+        padding: var(--pax-space-2) var(--pax-space-4);
         font-size: var(--pax-type-3xs);
         color: var(--pax-ui-text-dim);
         text-transform: uppercase;
@@ -1059,7 +1059,7 @@
     .scoreboard-row {
         display: grid;
         grid-template-columns: 40px 1fr 80px 80px 80px;
-        padding: 14px 16px;
+        padding: var(--pax-gap-md) var(--pax-space-4);
         background: color-mix(in srgb, var(--pax-ui-text-strong) 2%, transparent);
         border-radius: 10px;
         align-items: center;
@@ -1088,7 +1088,7 @@
     .sb-player {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: var(--pax-gap-sm);
         font-size: var(--pax-type-sm-plus);
         font-weight: var(--pax-weight-semibold);
         color: var(--pax-ui-text);
@@ -1114,7 +1114,7 @@
     .chart-container {
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: var(--pax-space-4);
     }
     .chart-title {
         font-size: var(--pax-type-sm);
@@ -1137,13 +1137,13 @@
     .chart-legend {
         display: flex;
         justify-content: center;
-        gap: 24px;
+        gap: var(--pax-space-6);
         flex-wrap: wrap;
     }
     .legend-item {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--pax-space-2);
     }
     .legend-dot {
         width: 10px;
@@ -1159,25 +1159,25 @@
     /* ── Action Buttons ────────────────── */
     .results-actions {
         display: flex;
-        gap: 14px;
+        gap: var(--pax-gap-md);
         justify-content: center;
-        margin-top: 8px;
+        margin-top: var(--pax-space-2);
         flex-wrap: wrap;
         align-items: center;
     }
     .restart-options {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: var(--pax-gap-sm);
         align-items: center;
-        padding: 12px 16px;
+        padding: var(--pax-space-3) var(--pax-space-4);
         border: 1px solid color-mix(in srgb, var(--pax-ui-accent) 10%, transparent);
         border-radius: 10px;
         background: color-mix(in srgb, var(--pax-color-void) 30%, transparent);
     }
     .restart-row {
         display: flex;
-        gap: 8px;
+        gap: var(--pax-space-2);
         align-items: center;
         width: 100%;
     }
@@ -1186,7 +1186,7 @@
         background: color-mix(in srgb, var(--pax-color-void) 30%, transparent);
         border: 1px solid color-mix(in srgb, var(--pax-ui-accent) 12%, transparent);
         border-radius: 6px;
-        padding: 6px 10px;
+        padding: var(--pax-gap-xs) var(--pax-gap-sm);
         color: var(--pax-ui-text-soft);
         font-family: var(--pax-ui-font-techno);
         font-size: var(--pax-type-2xs);
@@ -1195,7 +1195,7 @@
         color: color-mix(in srgb, var(--pax-ui-text-strong) 20%, transparent);
     }
     .btn--small {
-        padding: 6px 14px;
+        padding: var(--pax-gap-xs) var(--pax-gap-md);
         font-size: var(--pax-type-label);
         border-radius: 6px;
         background: color-mix(in srgb, var(--pax-ui-accent) 8%, transparent);
@@ -1214,7 +1214,7 @@
         cursor: not-allowed;
     }
     .btn {
-        padding: 16px 40px;
+        padding: var(--pax-space-4) 40px;
         border: none;
         border-radius: 12px;
         cursor: pointer;

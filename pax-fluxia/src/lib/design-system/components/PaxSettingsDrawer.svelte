@@ -94,7 +94,7 @@
     width: 100%;
     min-height: 48px;
     justify-content: flex-start;
-    padding: 0 14px;
+    padding: 0 var(--pax-gap-md);
     border: 0;
     border-radius: 0;
     background: transparent;
@@ -148,8 +148,8 @@
   .pax-settings-drawer__subnav {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
-    padding: 0 12px 12px;
+    gap: var(--pax-space-2);
+    padding: 0 var(--pax-space-3) var(--pax-space-3);
   }
 
   .pax-settings-drawer__body {
@@ -157,9 +157,9 @@
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: var(--pax-space-3);
     overflow-y: auto;
-    padding: 10px;
+    padding: var(--pax-gap-sm);
   }
 
   .pax-settings-drawer__body :global(p) {

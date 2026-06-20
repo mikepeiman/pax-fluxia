@@ -58,7 +58,7 @@
 <style>
 
     .sub-heading {
-        margin: 12px 0 6px;
+        margin: var(--pax-space-3) 0 var(--pax-gap-xs);
         color: var(--pax-ui-accent);
         font-family: var(--pax-ui-font-ui);
         font-size: calc(0.68rem * var(--pax-ui-type-scale, 1));

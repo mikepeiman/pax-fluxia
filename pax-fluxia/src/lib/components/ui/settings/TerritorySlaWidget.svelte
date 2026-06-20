@@ -168,8 +168,8 @@
 
     .territory-sla-widget {
         display: grid;
-        gap: 8px;
-        margin: 4px 0 10px;
+        gap: var(--pax-space-2);
+        margin: var(--pax-space-1) 0 var(--pax-gap-sm);
     }
 
     .territory-sla-widget--disabled {

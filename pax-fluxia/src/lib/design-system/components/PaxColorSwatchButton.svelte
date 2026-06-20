@@ -46,7 +46,7 @@
     display: grid;
     justify-items: center;
     gap: 5px;
-    padding: 8px 6px;
+    padding: var(--pax-space-2) var(--pax-gap-xs);
     border: 1px solid transparent;
     border-radius: var(--pax-ui-radius-sm);
     clip-path: var(--pax-ui-rounded-corner-sm);

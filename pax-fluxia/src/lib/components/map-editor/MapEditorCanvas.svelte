@@ -1118,7 +1118,7 @@
     position: absolute;
     z-index: 4;
     min-width: 160px;
-    padding: 10px;
+    padding: var(--pax-gap-sm);
     border-radius: 14px;
     border: 1px solid rgba(148, 163, 184, 0.24);
     background: rgba(2, 6, 23, 0.96);
@@ -1127,7 +1127,7 @@
   }
 
   .context-menu__label {
-    margin-bottom: 8px;
+    margin-bottom: var(--pax-space-2);
     color: rgba(226, 232, 240, 0.92);
     font-family: var(--pax-ui-font-data);
     font-size: var(--pax-type-2xs);

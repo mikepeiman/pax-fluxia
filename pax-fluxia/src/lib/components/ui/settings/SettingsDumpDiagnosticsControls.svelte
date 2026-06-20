@@ -83,9 +83,9 @@
     .sub-heading {
         display: flex;
         align-items: center;
-        gap: 8px;
-        margin: 16px 0 8px;
-        padding-top: 12px;
+        gap: var(--pax-space-2);
+        margin: var(--pax-space-4) 0 var(--pax-space-2);
+        padding-top: var(--pax-space-3);
         border-top: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 18%, transparent);
         color: var(--pax-ui-text-soft);
         font-family: var(--pax-ui-font-ui);
@@ -97,8 +97,8 @@
 
     .status-grid {
         display: grid;
-        gap: 6px;
-        margin-top: 4px;
+        gap: var(--pax-gap-xs);
+        margin-top: var(--pax-space-1);
         font-family: var(--pax-ui-font-data);
         font-size: calc(0.7rem * var(--pax-ui-data-scale, 1));
     }
@@ -106,7 +106,7 @@
     .status-grid > div {
         display: grid;
         grid-template-columns: 72px 1fr;
-        gap: 8px;
+        gap: var(--pax-space-2);
         align-items: start;
     }
 
@@ -120,7 +120,7 @@
     }
 
     .status-grid--compact {
-        margin-top: 8px;
+        margin-top: var(--pax-space-2);
     }
 
     .status-grid--compact code {
@@ -131,12 +131,12 @@
     .actions-row {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 10px;
+        gap: var(--pax-space-2);
+        margin-top: var(--pax-gap-sm);
     }
 
     .readout {
-        margin-top: 10px;
+        margin-top: var(--pax-gap-sm);
         color: var(--pax-ui-text-dim);
         font-family: var(--pax-ui-font-copy);
         font-size: calc(0.68rem * var(--pax-ui-type-scale, 1));

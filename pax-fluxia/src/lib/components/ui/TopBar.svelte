@@ -64,7 +64,7 @@
     grid-template-columns: 1fr auto 1fr;
     grid-template-areas: "left center right";
     align-items: center;
-    padding: 0 16px;
+    padding: 0 var(--pax-space-4);
     z-index: 200;
     pointer-events: none;
     transition: background 0.3s ease;
@@ -98,7 +98,7 @@
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 8px;
+    gap: var(--pax-space-2);
     pointer-events: auto;
   }
 
@@ -119,7 +119,7 @@
     font-size: var(--pax-type-2xs);
     font-weight: var(--pax-weight-semibold);
     letter-spacing: 0.1em;
-    padding: 4px 12px;
+    padding: var(--pax-space-1) var(--pax-space-3);
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -133,7 +133,7 @@
 
   .icon-btn {
     font-size: var(--pax-type-md);
-    padding: 4px 8px;
+    padding: var(--pax-space-1) var(--pax-space-2);
     line-height: 1;
   }
 

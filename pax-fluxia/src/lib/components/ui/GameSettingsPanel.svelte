@@ -1559,7 +1559,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         --settings-ribbon-width: 68px;
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: var(--pax-gap-sm);
         color: var(--pax-ui-text);
         font-family: var(--pax-ui-font-ui);
         height: 100%;
@@ -1576,7 +1576,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         display: grid;
         grid-template-columns: var(--settings-ribbon-width) minmax(0, 1fr);
         grid-template-areas: "rail content";
-        gap: 14px;
+        gap: var(--pax-gap-md);
         align-items: stretch;
     }
 
@@ -1589,7 +1589,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         grid-area: content;
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: var(--pax-space-3);
         min-height: 0;
         /* Single scroll surface per panel: the open .section-panel is flex:1
            and its .section-body owns the scroll (header + subnav stay fixed).
@@ -1603,9 +1603,9 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         flex: 0 0 auto;
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--pax-space-2);
         min-height: 34px;
-        padding: 0 10px;
+        padding: 0 var(--pax-gap-sm);
         border: 1px solid var(--pax-ui-border);
         border-radius: var(--pax-ui-radius-sm);
         background: var(--pax-ui-button-bg);
@@ -1651,7 +1651,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         overflow-y: auto;
         display: flex;
         flex-direction: column;
-        padding: 4px;
+        padding: var(--pax-space-1);
         border: 1px solid var(--pax-ui-border);
         border-radius: var(--pax-ui-radius-sm);
         background: var(--pax-ui-panel-bg-strong, var(--pax-color-void-mid));
@@ -1659,7 +1659,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
     .settings-search__empty {
         margin: 0;
-        padding: 8px;
+        padding: var(--pax-space-2);
         color: var(--pax-ui-text-dim);
         font-size: var(--pax-type-xs);
     }
@@ -1667,7 +1667,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         display: flex;
         align-items: baseline;
         justify-content: space-between;
-        gap: 10px;
+        gap: var(--pax-gap-sm);
         padding: 7px 9px;
         border: 0;
         border-radius: var(--pax-ui-radius-xs);
@@ -1708,8 +1708,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         grid-area: rail;
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        padding: 4px 4px 4px 0;
+        gap: var(--pax-space-2);
+        padding: var(--pax-space-1) var(--pax-space-1) var(--pax-space-1) 0;
         min-height: 0;
         overflow-y: auto;
     }
@@ -1719,7 +1719,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .icon-toolbar__controls {
         display: flex;
         flex-direction: row;
-        gap: 6px;
+        gap: var(--pax-gap-xs);
     }
 
     /* Pushes Restart/Quit actions to the bottom of the rail, away from categories. */
@@ -1756,16 +1756,16 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     .icon-toolbar.has-active {
-        gap: 8px;
+        gap: var(--pax-space-2);
     }
     :global(.icon-btn) {
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 10px;
+        gap: var(--pax-gap-sm);
         width: 100%;
         min-height: 46px;
-        padding: 10px 0;
+        padding: var(--pax-gap-sm) 0;
         background: color-mix(in srgb, var(--pax-color-void) 78%, transparent);
         border: 1px solid var(--pax-ui-border);
         border-radius: 14px;
@@ -1775,13 +1775,13 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         text-align: left;
     }
     :global(.icon-toolbar.has-active .icon-btn) {
-        padding: 10px 0;
+        padding: var(--pax-gap-sm) 0;
         border-radius: 12px;
     }
     :global(.controls-panel--ribbon-expanded .icon-btn),
     :global(.controls-panel--ribbon-expanded .icon-toolbar.has-active .icon-btn) {
         justify-content: flex-start;
-        padding: 10px 12px;
+        padding: var(--pax-gap-sm) var(--pax-space-3);
     }
     :global(.icon-btn:hover) {
         background: color-mix(in srgb, var(--pax-color-void) 92%, transparent);
@@ -1880,9 +1880,9 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     :global(.section-head) {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--pax-space-2);
         width: 100%;
-        padding: 12px 14px 10px;
+        padding: var(--pax-space-3) var(--pax-gap-md) var(--pax-gap-sm);
         background: transparent;
         border: none;
         cursor: pointer;
@@ -1920,10 +1920,10 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     .section-body {
-        padding: 12px;
+        padding: var(--pax-space-3);
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: var(--pax-gap-sm);
         flex: 1;
         overflow-y: auto;
         min-height: 0;
@@ -1931,13 +1931,13 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .section-subnav {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
-        padding: 0 12px 12px;
+        gap: var(--pax-space-2);
+        padding: 0 var(--pax-space-3) var(--pax-space-3);
     }
     :global(.subsection-chip) {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: var(--pax-gap-xs);
         min-height: 24px;
         padding: 0 9px;
         border-radius: 7px;
@@ -2010,7 +2010,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         :global(.icon-btn) {
             flex: 1 1 140px;
             justify-content: flex-start;
-            padding: 10px 12px;
+            padding: var(--pax-gap-sm) var(--pax-space-3);
         }
 
         .icon-label {
@@ -2026,7 +2026,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     /* Aurelia Drift correction layer: this turns the settings surface into
        a real command ribbon plus drawer instead of a text-heavy empty panel. */
     .controls-panel {
-        gap: 12px;
+        gap: var(--pax-space-3);
         height: auto;
         max-height: 100%;
         overflow: visible;
@@ -2034,14 +2034,14 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
 
     .settings-shell {
         grid-template-columns: var(--settings-ribbon-width) minmax(0, 1fr);
-        gap: 10px;
+        gap: var(--pax-gap-sm);
         flex: 0 1 auto;
         align-items: start;
     }
 
     .icon-toolbar {
         gap: 7px;
-        padding: 8px 6px;
+        padding: var(--pax-space-2) var(--pax-gap-xs);
         border: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 32%, transparent);
         background:
             linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 92%, transparent), color-mix(in srgb, var(--pax-color-void) 96%, transparent)),
@@ -2104,8 +2104,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     :global(.controls-panel--ribbon-expanded .icon-btn),
     :global(.controls-panel--ribbon-expanded .icon-toolbar.has-active .icon-btn) {
         min-height: 42px;
-        padding: 0 10px;
-        gap: 8px;
+        padding: 0 var(--pax-gap-sm);
+        gap: var(--pax-space-2);
     }
 
     :global(.icon-btn:hover),
@@ -2141,7 +2141,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     .settings-content {
-        gap: 10px;
+        gap: var(--pax-gap-sm);
         padding: 0 2px 0 0;
         max-height: calc(100vh - var(--pax-ui-topbar-height) - 24px);
     }
@@ -2158,7 +2158,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
 
     :global(.section-head) {
         min-height: 42px;
-        padding: 0 12px;
+        padding: 0 var(--pax-space-3);
         color: var(--pax-ui-accent-warm-strong);
         border-bottom-color: color-mix(in srgb, var(--pax-ui-accent-warm) 20%, transparent);
         background: color-mix(in srgb, var(--pax-color-void) 72%, transparent);
@@ -2177,12 +2177,12 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     .section-body {
-        padding: 10px;
+        padding: var(--pax-gap-sm);
     }
 
     .section-body :global(.category-theme-bar) {
-        margin: -2px -2px 10px;
-        padding: 8px;
+        margin: -2px -2px var(--pax-gap-sm);
+        padding: var(--pax-space-2);
         border: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 26%, transparent);
         background:
             linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 90%, transparent), color-mix(in srgb, var(--pax-color-void) 94%, transparent)),
@@ -2217,7 +2217,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     .section-body :global(.sub-heading) {
-        margin: 10px 0 8px;
+        margin: var(--pax-gap-sm) 0 var(--pax-space-2);
         padding-top: 0;
         border-top: none;
         color: var(--pax-ui-accent-warm);
@@ -2313,7 +2313,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         display: grid;
         grid-template-columns: var(--settings-ribbon-width);
         grid-template-areas: "rail";
-        gap: 10px;
+        gap: var(--pax-gap-sm);
         align-items: stretch;
         transition:
             grid-template-columns 0.22s ease,
@@ -2334,7 +2334,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         width: var(--settings-ribbon-width);
         height: 100%;
         max-height: none;
-        padding: 8px;
+        padding: var(--pax-space-2);
         overflow-x: hidden;
         overflow-y: auto;
         transition:
@@ -2346,7 +2346,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .icon-toolbar__controls {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 6px;
+        gap: var(--pax-gap-xs);
     }
 
     :global(.icon-toolbar-control),
@@ -2363,7 +2363,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     :global(.controls-panel--ribbon-expanded .icon-toolbar.has-active .icon-btn),
     :global(.controls-panel--ribbon-expanded .icon-toolbar-control) {
         justify-content: flex-start;
-        padding: 0 10px;
+        padding: 0 var(--pax-gap-sm);
     }
 
     :global(.settings-tool-danger) {
@@ -2503,12 +2503,12 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     .icon-toolbar {
-        gap: 8px;
-        padding: 10px;
+        gap: var(--pax-space-2);
+        padding: var(--pax-gap-sm);
     }
 
     .icon-toolbar__controls {
-        gap: 8px;
+        gap: var(--pax-space-2);
         padding-bottom: 9px;
     }
 
@@ -2523,8 +2523,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     :global(.controls-panel--ribbon-expanded .icon-toolbar.has-active .icon-btn),
     :global(.controls-panel--ribbon-expanded .icon-toolbar-control) {
         min-height: 46px;
-        padding: 0 12px;
-        gap: 10px;
+        padding: 0 var(--pax-space-3);
+        gap: var(--pax-gap-sm);
     }
 
     .icon-symbol {
@@ -2544,12 +2544,12 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     .settings-content {
-        gap: 12px;
+        gap: var(--pax-space-3);
     }
 
     :global(.section-head) {
         min-height: 48px;
-        padding: 0 14px;
+        padding: 0 var(--pax-gap-md);
     }
 
     .head-label {
@@ -2558,8 +2558,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     .section-body {
-        gap: 12px;
-        padding: 14px;
+        gap: var(--pax-space-3);
+        padding: var(--pax-gap-md);
     }
 
 </style>

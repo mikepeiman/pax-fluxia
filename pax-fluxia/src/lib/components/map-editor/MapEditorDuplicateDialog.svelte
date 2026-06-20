@@ -184,14 +184,14 @@
     left: 50%;
     z-index: 12;
     width: min(460px, calc(100vw - 32px));
-    padding: 18px;
+    padding: var(--pax-gap-lg);
     border-radius: 24px;
     border: 1px solid var(--editor-border, color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent));
     background: color-mix(in srgb, var(--pax-color-void) 97%, transparent);
     backdrop-filter: blur(20px);
     box-shadow: 0 24px 70px color-mix(in srgb, var(--pax-color-void) 40%, transparent);
     display: grid;
-    gap: 16px;
+    gap: var(--pax-space-4);
     transform: translate(-50%, -50%);
   }
 
@@ -201,25 +201,25 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: var(--pax-space-3);
   }
 
   .dialog__body,
   .stack {
     display: grid;
-    gap: 10px;
+    gap: var(--pax-gap-sm);
   }
 
   .density-input {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 10px;
+    gap: var(--pax-gap-sm);
     align-items: center;
   }
 
   .density-input span {
     min-height: 40px;
-    padding: 0 12px;
+    padding: 0 var(--pax-space-3);
     border-radius: 12px;
     border: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent);
     background: color-mix(in srgb, var(--pax-color-void) 90%, transparent);
@@ -251,7 +251,7 @@
   select,
   textarea {
     min-height: 40px;
-    padding: 0 12px;
+    padding: 0 var(--pax-space-3);
     border-radius: 12px;
     border: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent);
     background: color-mix(in srgb, var(--pax-color-void) 90%, transparent);
@@ -279,7 +279,7 @@
 
   textarea {
     min-height: 120px;
-    padding: 12px;
+    padding: var(--pax-space-3);
     resize: vertical;
   }
 

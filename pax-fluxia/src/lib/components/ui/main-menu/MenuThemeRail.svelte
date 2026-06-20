@@ -39,8 +39,8 @@
     .theme-rail {
         display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 4px;
+        gap: var(--pax-gap-xs);
+        padding: var(--pax-space-1);
         border-radius: var(--pf-rail-radius);
         border: 1px solid var(--pf-border-soft);
         background: var(--pf-frame-control), var(--pf-surface-control);

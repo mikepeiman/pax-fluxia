@@ -47,12 +47,12 @@
     .perimeter-diagnostics-panel {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: var(--pax-gap-sm);
     }
 
     .panel-head {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--pax-space-2);
     }
 </style>

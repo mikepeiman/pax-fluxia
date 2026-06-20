@@ -107,15 +107,15 @@
     }
 
     .speed-controls-container :global(.start-btn) {
-        gap: 8px;
-        padding: 0 14px;
+        gap: var(--pax-space-2);
+        padding: 0 var(--pax-gap-md);
         font-size: var(--pax-type-xs);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.14em;
     }
 
     .speed-controls {
-        gap: 6px;
+        gap: var(--pax-gap-xs);
         padding: 0;
     }
 
@@ -131,7 +131,7 @@
 
     @media (max-width: 1024px) {
         .speed-controls-container {
-            gap: 4px;
+            gap: var(--pax-space-1);
             min-width: 0;
         }
 
@@ -141,7 +141,7 @@
         }
 
         .speed-controls {
-            gap: 4px;
+            gap: var(--pax-space-1);
         }
 
         .speed-controls :global(.speed-btn) {

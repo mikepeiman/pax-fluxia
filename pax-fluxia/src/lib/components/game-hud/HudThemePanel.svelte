@@ -94,8 +94,8 @@
 <style>
   .pf-hud-theme-panel {
     display: grid;
-    gap: 12px;
-    padding: 14px;
+    gap: var(--pax-space-3);
+    padding: var(--pax-gap-md);
     border: 1px solid var(--pax-ui-border);
     border-radius: var(--pax-ui-radius-md);
     background: var(--pax-ui-panel-bg-muted);
@@ -110,7 +110,7 @@
 
   .pf-hud-theme-panel__header {
     justify-content: space-between;
-    gap: 10px;
+    gap: var(--pax-gap-sm);
   }
 
   .pf-hud-theme-panel__eyebrow,
@@ -156,7 +156,7 @@
   :global(.pf-hud-theme-panel__select) {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--pax-gap-sm);
   }
 
   :global(.pf-hud-theme-panel__select span) {
@@ -174,21 +174,21 @@
     flex: 1 1 auto;
     height: 36px;
     border-radius: var(--pax-ui-radius-xs);
-    padding: 0 10px;
+    padding: 0 var(--pax-gap-sm);
     font-size: calc(0.78rem * var(--pax-ui-type-scale, 1));
     font-weight: var(--pax-weight-bold);
   }
 
   .pf-hud-theme-panel__cards {
     display: grid;
-    gap: 8px;
+    gap: var(--pax-space-2);
   }
 
   :global(.pf-hud-theme-card) {
     display: flex;
     align-items: center;
     width: 100%;
-    gap: 10px;
+    gap: var(--pax-gap-sm);
     min-height: 58px;
     padding: 9px;
     border-radius: var(--pax-ui-radius-sm);

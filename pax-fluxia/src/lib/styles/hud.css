@@ -55,7 +55,7 @@
 
 .pf-hud-panel__actions {
   justify-content: flex-end;
-  gap: 6px;
+  gap: var(--pax-gap-xs);
 }
 
 .pf-hud-panel__body {
@@ -85,10 +85,10 @@
   z-index: 20;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--pax-space-3);
   min-width: 280px;
   height: 100%;
-  padding: 12px;
+  padding: var(--pax-space-3);
   overflow: hidden;
   background: var(--pax-ui-panel-bg-strong);
   border-left: 1px solid var(--pax-ui-border);
@@ -164,13 +164,13 @@
 
 .pf-hud-topbar__actions {
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--pax-space-2);
 }
 
 .pf-hud-topbar__player-badge {
   min-height: 36px;
-  gap: 8px;
-  padding: 0 10px;
+  gap: var(--pax-space-2);
+  padding: 0 var(--pax-gap-sm);
   border-radius: 12px;
   font-size: var(--pax-type-xs);
   font-weight: var(--pax-weight-extrabold);
@@ -195,7 +195,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: var(--pax-gap-sm);
   color: var(--pax-ui-text-dim);
   font-size: var(--pax-type-3xs);
   font-weight: var(--pax-weight-black);
@@ -211,7 +211,7 @@
 
 .pf-standings__focus {
   display: inline-flex;
-  gap: 4px;
+  gap: var(--pax-space-1);
   padding: 3px;
   border: 1px solid var(--pax-ui-border);
   border-radius: 12px;
@@ -227,7 +227,7 @@
 .pf-standings__list {
   list-style: none;
   display: grid;
-  gap: 6px;
+  gap: var(--pax-gap-xs);
   margin: 0;
   padding: 0;
 }
@@ -257,7 +257,7 @@
 }
 
 .pf-standings__empty {
-  padding: 14px;
+  padding: var(--pax-gap-md);
   color: var(--pax-ui-text-dim);
   text-align: center;
 }
@@ -317,7 +317,7 @@
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: 1fr 1.2fr;
-  gap: 5px 10px;
+  gap: 5px var(--pax-gap-sm);
   padding: 9px;
   border: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 12%, transparent);
   border-radius: 10px;
@@ -337,8 +337,8 @@
 .pf-selected-star-panel__empty {
   display: grid;
   justify-items: center;
-  gap: 8px;
-  padding: 18px 12px;
+  gap: var(--pax-space-2);
+  padding: var(--pax-gap-lg) var(--pax-space-3);
   color: var(--pax-ui-text-soft);
   text-align: center;
 }
@@ -397,8 +397,8 @@
 
 @media (max-height: 960px) and (min-width: 1025px) {
   .pf-hud-panel {
-    gap: 8px;
-    padding: 10px;
+    gap: var(--pax-space-2);
+    padding: var(--pax-gap-sm);
   }
 
   .pf-hud-panel__header {
@@ -425,15 +425,15 @@
 
   .pf-standings__row {
     min-height: 29px;
-    padding: 4px 7px;
+    padding: var(--pax-space-1) 7px;
     font-size: var(--pax-type-2xs);
   }
 
   .pf-selected-star-panel__empty {
     grid-template-columns: auto 1fr;
     justify-items: start;
-    gap: 8px 10px;
-    padding: 8px;
+    gap: var(--pax-space-2) var(--pax-gap-sm);
+    padding: var(--pax-space-2);
     text-align: left;
   }
 
@@ -467,7 +467,7 @@
 
   .pf-star-card__metrics {
     grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 4px;
+    gap: var(--pax-space-1);
   }
 
   .pf-star-metric {
@@ -494,7 +494,7 @@
   }
 
   .pf-quick-access-dock {
-    gap: 6px;
+    gap: var(--pax-gap-xs);
     padding: 7px;
   }
 
@@ -507,7 +507,7 @@
 @media (min-height: 761px) and (max-height: 960px) and (min-width: 1025px) {
   .pf-star-card {
     grid-template-columns: 74px minmax(0, 1fr);
-    gap: 12px;
+    gap: var(--pax-space-3);
   }
 
   .pf-star-card__type {
@@ -535,7 +535,7 @@
   }
 
   .pf-star-metric {
-    gap: 4px;
+    gap: var(--pax-space-1);
     padding: 9px;
   }
 
@@ -644,7 +644,7 @@
 
 .pf-hud-topbar__brand {
   min-width: 250px;
-  gap: 10px;
+  gap: var(--pax-gap-sm);
 }
 
 
@@ -664,7 +664,7 @@
   display: grid;
   gap: 1px;
   min-width: 0;
-  padding: 4px 10px;
+  padding: var(--pax-space-1) var(--pax-gap-sm);
   border-left: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 16%, transparent);
 }
 
@@ -692,7 +692,7 @@
 
 .pf-hud-topbar__status {
   min-width: 0;
-  gap: 8px;
+  gap: var(--pax-space-2);
   flex: 0 1 auto;
   justify-content: center;
 }
@@ -702,14 +702,14 @@
   gap: 1px;
   border-left: 1px solid var(--pax-ui-divider);
   min-width: 104px;
-  padding: 4px 12px;
+  padding: var(--pax-space-1) var(--pax-space-3);
 }
 
 
 
 .pf-hud-topbar__modes {
   flex: 0 1 auto;
-  gap: 6px;
+  gap: var(--pax-gap-xs);
   overflow: hidden;
   max-width: 390px;
 }
@@ -751,7 +751,7 @@
 .pf-standings__columns span {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--pax-space-1);
   min-width: 0;
   justify-content: flex-end;
   overflow: hidden;
@@ -824,7 +824,7 @@
   border-color: var(--pax-ui-border-warm);
   background: var(--pax-ui-panel-bg-strong);
   gap: 7px;
-  padding: 8px;
+  padding: var(--pax-space-2);
   clip-path: var(--pax-ui-cut-corner-md);
 }
 
@@ -838,7 +838,7 @@
 
 .pf-settings-ribbon {
   min-width: 0;
-  padding: 12px;
+  padding: var(--pax-space-3);
   overflow: visible;
   border: none;
   background: transparent;
@@ -871,9 +871,9 @@
 
 .pf-theme-library {
   display: grid;
-  gap: 8px;
+  gap: var(--pax-space-2);
   min-width: 0;
-  padding: 10px;
+  padding: var(--pax-gap-sm);
   border: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 36%, transparent);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 92%, transparent), color-mix(in srgb, var(--pax-color-void) 96%, transparent)),
@@ -884,9 +884,9 @@
 
 .pf-typography-panel {
   display: grid;
-  gap: 8px;
+  gap: var(--pax-space-2);
   min-width: 0;
-  padding: 10px;
+  padding: var(--pax-gap-sm);
   border: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 36%, transparent);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 92%, transparent), color-mix(in srgb, var(--pax-color-void) 96%, transparent)),
@@ -976,7 +976,7 @@
 .pf-theme-library__select-row,
 .pf-theme-library__save-row,
 .pf-theme-library__actions {
-  gap: 6px;
+  gap: var(--pax-gap-xs);
 }
 
 .pf-theme-library__icon-btn,
@@ -988,7 +988,7 @@
   align-items: center;
   justify-content: center;
   gap: 5px;
-  padding: 0 8px;
+  padding: 0 var(--pax-space-2);
   border: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 28%, transparent);
   background: color-mix(in srgb, var(--pax-color-void) 75%, transparent);
   color: color-mix(in srgb, var(--pax-ui-accent-warm-strong) 88%, transparent);
@@ -1019,7 +1019,7 @@
 .pf-typography-panel__scales {
   display: grid;
   gap: 7px;
-  padding-top: 8px;
+  padding-top: var(--pax-space-2);
   border-top: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 16%, transparent);
 }
 
@@ -1027,7 +1027,7 @@
   min-width: 0;
   display: grid;
   grid-template-columns: minmax(72px, 0.9fr) minmax(96px, 1fr);
-  gap: 5px 8px;
+  gap: 5px var(--pax-space-2);
   padding: 7px;
   border: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 18%, transparent);
   background: color-mix(in srgb, var(--pax-color-void) 66%, transparent);
@@ -1085,7 +1085,7 @@
   min-width: 0;
   display: grid;
   grid-template-columns: minmax(90px, 0.9fr) minmax(130px, 1fr);
-  gap: 8px;
+  gap: var(--pax-space-2);
   align-items: center;
   padding: 7px;
   border: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 18%, transparent);
@@ -1127,7 +1127,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 44px;
   align-items: center;
-  gap: 8px;
+  gap: var(--pax-space-2);
 }
 
 .pf-typography-scale-row input[type="range"] {
@@ -1291,8 +1291,8 @@
   border-top: none;
   justify-content: space-between;
   height: var(--pax-ui-topbar-height);
-  padding: 7px 14px;
-  gap: 14px;
+  padding: 7px var(--pax-gap-md);
+  gap: var(--pax-gap-md);
   background:
     linear-gradient(90deg, color-mix(in srgb, var(--pax-color-void) 98%, transparent), color-mix(in srgb, var(--pax-color-void) 96%, transparent) 48%, color-mix(in srgb, var(--pax-color-void) 98%, transparent)),
     radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--pax-ui-accent-warm) 12%, transparent), transparent 50%);
@@ -1505,7 +1505,7 @@
 
 .pf-hud-panel__header {
   justify-content: space-between;
-  gap: 10px;
+  gap: var(--pax-gap-sm);
   border-bottom: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 18%, transparent);
   border-bottom-color: color-mix(in srgb, var(--pax-ui-accent-warm) 22%, transparent);
   min-height: 38px;
@@ -1543,7 +1543,7 @@
 
 .pf-game-speed__buttons,
 .pf-quick-access-dock {
-  gap: 8px;
+  gap: var(--pax-space-2);
 }
 
 .pf-game-speed__button {
@@ -1552,8 +1552,8 @@
   letter-spacing: 0.06em;
   white-space: nowrap;
   min-height: 40px;
-  gap: 6px;
-  padding: 0 8px;
+  gap: var(--pax-gap-xs);
+  padding: 0 var(--pax-space-2);
   font-size: calc(0.68rem * var(--pax-ui-type-scale, 1));
 }
 
@@ -1569,12 +1569,12 @@
     minmax(28px, 0.48fr)
     minmax(34px, 0.58fr)
     minmax(32px, 0.5fr);
-  gap: 6px;
+  gap: var(--pax-gap-xs);
 }
 
 .pf-standings__summary {
   margin-top: 2px;
-  padding: 7px 8px 1px;
+  padding: 7px var(--pax-space-2) 1px;
   border-top: 1px solid var(--pax-ui-divider);
   color: var(--pax-ui-text-soft);
   font-size: calc(0.62rem * var(--pax-ui-type-scale, 1));
@@ -1589,12 +1589,12 @@
   color: var(--pax-ui-text);
   align-items: center;
   min-height: 36px;
-  padding: 6px 8px;
+  padding: var(--pax-gap-xs) var(--pax-space-2);
   font-size: calc(0.72rem * var(--pax-ui-type-scale, 1));
 }
 
 .pf-standings__columns {
-  padding: 1px 8px 3px;
+  padding: 1px var(--pax-space-2) 3px;
   color: var(--pax-ui-text-dim);
   font-weight: var(--pax-weight-black);
   letter-spacing: 0.08em;
@@ -1604,7 +1604,7 @@
 .pf-star-card {
   display: grid;
   grid-template-columns: 72px minmax(0, 1fr);
-  gap: 12px;
+  gap: var(--pax-space-3);
 }
 
 .pf-star-card__type {
@@ -1624,7 +1624,7 @@
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: var(--pax-space-2);
 }
 
 .pf-star-metric {
@@ -1635,20 +1635,20 @@
   border-radius: 0;
   clip-path: var(--pax-ui-cut-corner-xs);
   min-height: 52px;
-  padding: 9px 10px;
+  padding: 9px var(--pax-gap-sm);
   gap: 5px;
 }
 
 .pf-theme-library,
 .pf-typography-panel {
-  gap: 10px;
-  padding: 12px;
+  gap: var(--pax-gap-sm);
+  padding: var(--pax-space-3);
 }
 
 .pf-theme-library__header,
 .pf-typography-panel__header {
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--pax-space-2);
   border-bottom: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 18%, transparent);
   padding-bottom: 9px;
 }
@@ -1694,7 +1694,7 @@
   border-color: var(--pax-ui-border-warm);
   background: var(--pax-ui-panel-bg-strong);
   min-height: 76px;
-  padding: 10px 16px;
+  padding: var(--pax-gap-sm) var(--pax-space-4);
 }
 
 .pf-bottom-command-bar__button {
@@ -1718,7 +1718,7 @@
     text-shadow 0.16s ease;
   min-width: 98px;
   gap: 7px;
-  padding: 8px 14px;
+  padding: var(--pax-space-2) var(--pax-gap-md);
 }
 
 

@@ -727,11 +727,11 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 8px;
+        gap: var(--pax-space-2);
     }
 
     :global(.diagnostics-indent) {
-        margin-left: 12px;
+        margin-left: var(--pax-space-3);
     }
 
     .debug-hint {
@@ -741,9 +741,9 @@
     }
 
     .ruler-readout {
-        margin-top: 8px;
+        margin-top: var(--pax-space-2);
         display: grid;
-        gap: 4px;
+        gap: var(--pax-space-1);
         font-size: var(--pax-type-2xs);
         color: color-mix(in srgb, var(--pax-ui-text) 84%, transparent);
     }
@@ -751,7 +751,7 @@
     .ruler-readout > div {
         display: grid;
         grid-template-columns: 68px 1fr;
-        gap: 8px;
+        gap: var(--pax-space-2);
         align-items: start;
     }
 
@@ -764,24 +764,24 @@
     }
 
     .ruler-controls {
-        margin-top: 10px;
+        margin-top: var(--pax-gap-sm);
         display: grid;
-        gap: 6px;
+        gap: var(--pax-gap-xs);
     }
 
     .bundle-list {
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        margin-top: 8px;
+        gap: var(--pax-space-2);
+        margin-top: var(--pax-space-2);
     }
 
     .bundle-item {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 10px;
-        padding: 8px 10px;
+        gap: var(--pax-gap-sm);
+        padding: var(--pax-space-2) var(--pax-gap-sm);
         border-radius: 10px;
         background: color-mix(in srgb, var(--pax-color-void) 52%, transparent);
         border: 1px solid color-mix(in srgb, var(--pax-ui-text-strong) 8%, transparent);
@@ -790,7 +790,7 @@
     .bundle-meta {
         display: flex;
         flex-wrap: wrap;
-        gap: 6px 10px;
+        gap: var(--pax-gap-xs) var(--pax-gap-sm);
         align-items: center;
         font-size: var(--pax-type-2xs);
         color: color-mix(in srgb, var(--pax-ui-text) 82%, transparent);
@@ -806,12 +806,12 @@
     .actions-row {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
+        gap: var(--pax-space-2);
         align-items: center;
     }
 
     .readout {
-        margin-top: 6px;
+        margin-top: var(--pax-gap-xs);
         font-size: var(--pax-type-2xs);
         line-height: 1.45;
         color: color-mix(in srgb, var(--pax-ui-text-soft) 72%, transparent);
@@ -819,15 +819,15 @@
 
     .status-grid {
         display: grid;
-        gap: 6px;
-        margin-top: 4px;
+        gap: var(--pax-gap-xs);
+        margin-top: var(--pax-space-1);
         font-size: var(--pax-type-2xs);
     }
 
     .status-grid > div {
         display: grid;
         grid-template-columns: 72px 1fr;
-        gap: 8px;
+        gap: var(--pax-space-2);
         align-items: start;
     }
 

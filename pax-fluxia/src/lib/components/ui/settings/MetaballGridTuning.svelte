@@ -1669,11 +1669,11 @@
     .module-head {
         display: flex;
         justify-content: flex-end;
-        margin: 0 0 8px;
+        margin: 0 0 var(--pax-space-2);
     }
 
     .mode-lock-note {
-        margin: 0 0 10px;
+        margin: 0 0 var(--pax-gap-sm);
         font-size: var(--pax-type-2xs);
         line-height: 1.4;
         color: color-mix(in srgb, var(--pax-ui-text-strong) 72%, transparent);
@@ -1688,24 +1688,24 @@
     .preset-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 8px;
-        margin: 4px 0 2px;
+        gap: var(--pax-space-2);
+        margin: var(--pax-space-1) 0 2px;
     }
 
     .var-desc {
-        margin: 4px 0 10px;
+        margin: var(--pax-space-1) 0 var(--pax-gap-sm);
         color: color-mix(in srgb, var(--pax-ui-text-soft) 72%, transparent);
         font-size: var(--pax-type-3xs);
         line-height: 1.35;
     }
 
     .perf-intro {
-        margin-bottom: 8px;
+        margin-bottom: var(--pax-space-2);
         opacity: 0.9;
     }
 
     .finish-tail-intro {
-        margin: 14px 0 8px;
+        margin: var(--pax-gap-md) 0 var(--pax-space-2);
         opacity: 0.92;
     }
 
@@ -1716,9 +1716,9 @@
     .perf-grid {
         display: grid;
         grid-template-columns: max-content 1fr;
-        gap: 6px 14px;
+        gap: var(--pax-gap-xs) var(--pax-gap-md);
         align-items: baseline;
-        padding: 10px 12px;
+        padding: var(--pax-gap-sm) var(--pax-space-3);
         border-radius: 8px;
         border: 1px solid color-mix(in srgb, var(--pax-ui-text-strong) 8%, transparent);
         background: color-mix(in srgb, var(--pax-color-void) 40%, transparent);
@@ -1738,12 +1738,12 @@
 
     .perf-sub {
         color: color-mix(in srgb, var(--pax-ui-text-soft) 55%, transparent);
-        margin-left: 6px;
+        margin-left: var(--pax-gap-xs);
     }
 
     .perf-coarsen {
         color: color-mix(in srgb, var(--pax-ui-accent-warm) 90%, transparent);
-        margin-left: 4px;
+        margin-left: var(--pax-space-1);
         font-size: var(--pax-type-3xs);
     }
 </style>

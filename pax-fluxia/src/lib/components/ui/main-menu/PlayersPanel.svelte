@@ -227,29 +227,29 @@
         position: relative;
         display: flex;
         flex-direction: column;
-        gap: 18px;
+        gap: var(--pax-gap-lg);
     }
 
     .players-panel__header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        gap: 16px;
+        gap: var(--pax-space-4);
     }
 
     .players-panel__header-controls {
         display: flex;
         align-items: stretch;
-        gap: 12px;
+        gap: var(--pax-space-3);
     }
 
     .players-panel__knob-block {
         display: grid;
         justify-items: center;
-        gap: 10px;
+        gap: var(--pax-gap-sm);
         min-width: 108px;
         min-height: 110px;
-        padding: 12px 14px;
+        padding: var(--pax-space-3) var(--pax-gap-md);
         border-radius: var(--pf-card-radius);
         border: 1px solid var(--pf-border-faint);
         background: var(--pf-surface-card);
@@ -268,7 +268,7 @@
     .players-panel__toggle,
     .players-panel__count-button {
         min-height: var(--pf-pill-h);
-        padding: 0 14px;
+        padding: 0 var(--pax-gap-md);
         border-radius: var(--pf-pill-radius);
         border: 1px solid var(--pf-border-soft);
         background: var(--pf-surface-pill);
@@ -289,10 +289,10 @@
         display: grid;
         align-content: center;
         justify-items: center;
-        gap: 4px;
+        gap: var(--pax-space-1);
         min-width: 120px;
         min-height: 110px;
-        padding: 12px 16px;
+        padding: var(--pax-space-3) var(--pax-space-4);
         border-radius: var(--pf-card-radius);
         background: var(--pf-surface-card);
     }
@@ -322,7 +322,7 @@
 
     .players-panel__count-block {
         display: grid;
-        gap: 10px;
+        gap: var(--pax-gap-sm);
         padding: var(--pf-card-pad);
         border-radius: var(--pf-card-radius);
         border: 1px solid var(--pf-border-faint);
@@ -332,7 +332,7 @@
     .players-panel__count-row {
         display: grid;
         grid-template-columns: repeat(5, minmax(0, 1fr));
-        gap: 8px;
+        gap: var(--pax-space-2);
     }
 
     .players-panel__count-button {
@@ -345,7 +345,7 @@
     .players-panel__stack {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: var(--pax-space-3);
     }
 
     .player-row-block {
@@ -356,9 +356,9 @@
         display: grid;
         grid-template-columns: 42px minmax(64px, auto) minmax(0, 1fr);
         align-items: center;
-        gap: 12px;
+        gap: var(--pax-space-3);
         min-height: 68px;
-        padding: 12px 14px;
+        padding: var(--pax-space-3) var(--pax-gap-md);
         border-radius: var(--pf-card-radius);
         border: 1px solid var(--pf-border-soft);
         background: var(--pf-surface-card);
@@ -422,7 +422,7 @@
     .player-row__select {
         width: 100%;
         min-height: var(--pf-control-h);
-        padding: 0 14px;
+        padding: 0 var(--pax-gap-md);
         border-radius: var(--pf-button-radius);
         border: 1px solid var(--pf-border-soft);
         background: var(--pf-surface-control);
@@ -442,7 +442,7 @@
     .player-row__controls {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
+        gap: var(--pax-gap-sm);
     }
 
     @media (max-width: 1024px) {

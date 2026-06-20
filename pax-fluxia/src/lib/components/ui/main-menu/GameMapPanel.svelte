@@ -673,7 +673,7 @@
     .game-map-panel {
         display: flex;
         flex-direction: column;
-        gap: 18px;
+        gap: var(--pax-gap-lg);
     }
 
     .game-map-panel__header {
@@ -682,10 +682,10 @@
 
     .tick-chip {
         display: grid;
-        gap: 8px;
+        gap: var(--pax-space-2);
         min-width: min(260px, 100%);
         min-height: 74px;
-        padding: 12px 16px;
+        padding: var(--pax-space-3) var(--pax-space-4);
         border-radius: var(--pf-card-radius);
         border: 1px solid var(--pf-border-soft);
         background: var(--pf-surface-card);
@@ -705,7 +705,7 @@
     .tick-chip__controls {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
-        gap: 12px;
+        gap: var(--pax-space-3);
         align-items: center;
     }
 
@@ -721,7 +721,7 @@
     .game-map-panel__tabs {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 8px;
+        gap: var(--pax-space-2);
     }
 
     .game-map-panel__tab,
@@ -766,7 +766,7 @@
     .game-map-panel__random-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 16px;
+        gap: var(--pax-space-4);
         align-items: stretch;
     }
 
@@ -778,7 +778,7 @@
     .control-cluster {
         display: flex;
         flex-direction: column;
-        gap: 14px;
+        gap: var(--pax-gap-md);
         padding: var(--pf-card-pad);
         border-radius: var(--pf-card-radius);
         border: 1px solid var(--pf-border-soft);
@@ -805,32 +805,32 @@
     .control-cluster__title-row {
         display: flex;
         justify-content: space-between;
-        gap: 12px;
+        gap: var(--pax-space-3);
         align-items: center;
     }
 
     .control-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 14px;
+        gap: var(--pax-gap-md);
     }
 
     .lane-mode {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 8px;
+        gap: var(--pax-space-2);
     }
 
     .metric-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px;
+        gap: var(--pax-space-3);
     }
 
     .range-field,
     .metric-field {
         display: grid;
-        gap: 8px;
+        gap: var(--pax-space-2);
         align-content: start;
     }
 
@@ -843,11 +843,11 @@
     }
 
     .dual-range-shell {
-        padding-inline: 4px;
+        padding-inline: var(--pax-space-1);
     }
 
     .metric-field {
-        padding: 12px 14px;
+        padding: var(--pax-space-3) var(--pax-gap-md);
         border-radius: var(--pf-button-radius);
         background: var(--pf-surface-control);
         border: 1px solid var(--pf-border-faint);
@@ -856,7 +856,7 @@
     .preview-well {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: var(--pax-space-3);
         padding: var(--pf-card-pad);
         border-radius: var(--pf-card-radius);
         border: 1px solid var(--pf-border-soft);
@@ -867,12 +867,12 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        gap: 12px;
+        gap: var(--pax-space-3);
     }
 
     .preview-well__reshuffle {
         min-height: var(--pf-pill-h);
-        padding: 0 12px;
+        padding: 0 var(--pax-space-3);
         border-radius: var(--pf-pill-radius);
         font-family: var(--pf-font-body);
         font-size: var(--pax-type-xs-plus);
@@ -886,7 +886,7 @@
         place-items: center;
         flex: 1;
         min-height: 0;
-        padding: 12px;
+        padding: var(--pax-space-3);
         border-radius: calc(var(--pf-card-radius) - 2px);
         overflow: hidden;
         border: 1px solid var(--pf-border-faint);
@@ -907,7 +907,7 @@
         display: grid;
         place-items: center;
         min-height: 100%;
-        padding: 24px;
+        padding: var(--pax-space-6);
         border-radius: var(--pf-card-radius);
         color: var(--pf-muted);
         font-family: var(--pf-font-body);
@@ -919,19 +919,19 @@
 
     .saved-mode-layout {
         display: grid;
-        gap: 14px;
+        gap: var(--pax-gap-md);
     }
 
     .saved-map-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(156px, 1fr));
-        gap: 12px;
+        gap: var(--pax-space-3);
     }
 
     .saved-map-card {
         display: grid;
-        gap: 8px;
-        padding: 12px;
+        gap: var(--pax-space-2);
+        padding: var(--pax-space-3);
         border-radius: var(--pf-card-radius);
         text-align: left;
     }

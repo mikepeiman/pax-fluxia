@@ -252,7 +252,7 @@
         min-width: 0;
         display: grid;
         gap: 9px;
-        padding: 10px;
+        padding: var(--pax-gap-sm);
         border: 1px solid transparent;
         border-radius: var(--pax-ui-radius-sm);
         clip-path: var(--pax-ui-rounded-corner-sm);
@@ -270,7 +270,7 @@
         min-width: 0;
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--pax-space-2);
     }
 
     .timing-lock-card__header {

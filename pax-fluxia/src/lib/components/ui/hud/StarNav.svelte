@@ -309,7 +309,7 @@
 <style>
     .star-nav-card {
         display: grid;
-        gap: 14px;
+        gap: var(--pax-gap-md);
         padding: var(--pax-ui-pad-md);
         border: 1px solid var(--pax-ui-border);
         border-radius: var(--pax-ui-radius-md);
@@ -331,15 +331,15 @@
 
     .star-nav-card__header {
         justify-content: space-between;
-        gap: 12px;
-        padding-bottom: 10px;
+        gap: var(--pax-space-3);
+        padding-bottom: var(--pax-gap-sm);
         border-bottom: 1px solid var(--pax-ui-divider);
     }
 
     .star-nav-card__identity {
         min-width: 0;
         display: grid;
-        gap: 8px;
+        gap: var(--pax-space-2);
     }
 
     .star-nav-card__eyebrow {
@@ -352,7 +352,7 @@
     }
 
     .star-nav-card__title-row {
-        gap: 10px;
+        gap: var(--pax-gap-sm);
         min-width: 0;
     }
 
@@ -396,7 +396,7 @@
     }
 
     .star-nav-controls {
-        gap: 6px;
+        gap: var(--pax-gap-xs);
     }
 
     .sn-btn,
@@ -437,7 +437,7 @@
     .star-nav-body {
         display: grid;
         grid-template-columns: 86px minmax(0, 1fr);
-        gap: 14px;
+        gap: var(--pax-gap-md);
         align-items: stretch;
     }
 
@@ -491,7 +491,7 @@
     .star-identity-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 8px;
+        gap: var(--pax-space-2);
     }
 
     .star-field,
@@ -499,7 +499,7 @@
         min-width: 0;
         display: grid;
         gap: 5px;
-        padding: 10px;
+        padding: var(--pax-gap-sm);
         border-radius: 12px;
         border: 1px solid rgba(112, 142, 186, 0.16);
         background: color-mix(in srgb, var(--pax-color-void) 78%, transparent);
@@ -507,7 +507,7 @@
 
     .star-field__label,
     .star-rate__label {
-        gap: 6px;
+        gap: var(--pax-gap-xs);
         color: var(--pax-ui-text-soft);
         font-family: var(--pax-ui-font-ui);
         font-size: var(--pax-type-4xs);
@@ -540,7 +540,7 @@
     .star-rate-grid {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 8px;
+        gap: var(--pax-space-2);
     }
 
     .star-rate__value {
@@ -549,7 +549,7 @@
     }
 
     .star-route-strip {
-        gap: 8px;
+        gap: var(--pax-space-2);
         min-width: 0;
         padding-top: 2px;
     }
@@ -557,8 +557,8 @@
     .star-route-chip {
         min-width: 0;
         min-height: 28px;
-        gap: 6px;
-        padding: 0 10px;
+        gap: var(--pax-gap-xs);
+        padding: 0 var(--pax-gap-sm);
         border-radius: 999px;
         background: color-mix(in srgb, var(--pax-color-void) 88%, transparent);
         color: var(--pax-ui-text-soft);
@@ -578,7 +578,7 @@
         min-height: 126px;
         display: grid;
         place-items: center;
-        padding: 18px;
+        padding: var(--pax-gap-lg);
         border-radius: var(--pax-ui-radius-sm);
         border: 1px dashed rgba(112, 142, 186, 0.24);
         color: var(--pax-ui-text-soft);
@@ -589,13 +589,13 @@
 
     @media (max-width: 1024px) {
         .star-nav-card {
-            gap: 10px;
+            gap: var(--pax-gap-sm);
             padding: var(--pax-ui-pad-sm);
         }
 
         .star-nav-body {
             grid-template-columns: 72px minmax(0, 1fr);
-            gap: 10px;
+            gap: var(--pax-gap-sm);
         }
 
         .star-orb {

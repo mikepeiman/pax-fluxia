@@ -29,8 +29,8 @@
     display: grid;
     grid-template-columns: minmax(88px, 0.42fr) minmax(0, 1fr);
     align-items: center;
-    gap: 12px;
-    padding: 0 12px;
+    gap: var(--pax-space-3);
+    padding: 0 var(--pax-space-3);
     border: 1px solid transparent;
     border-radius: var(--pax-ui-radius-xs);
     clip-path: var(--pax-ui-rounded-corner-xs);

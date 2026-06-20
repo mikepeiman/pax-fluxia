@@ -1207,9 +1207,9 @@
   .sidebar-quicktools {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: var(--pax-gap-sm);
     padding: 0;
-    margin-bottom: 10px;
+    margin-bottom: var(--pax-gap-sm);
     flex: 1 1 auto;
     min-height: 0;
     border-radius: 0;
@@ -1264,8 +1264,8 @@
       background: color-mix(in srgb, var(--pax-color-void) 95%, transparent) !important;
       backdrop-filter: blur(12px) !important;
       overflow-y: auto !important;
-      padding: 12px !important;
-      padding-top: 48px !important;
+      padding: var(--pax-space-3) !important;
+      padding-top: var(--pax-space-12) !important;
     }
     /* Hide desktop-only overlays */
     .overlay-top-left,
@@ -1276,7 +1276,7 @@
     .area-controls-bar {
       display: flex;
       grid-area: ribbon;
-      padding: 6px 8px;
+      padding: var(--pax-gap-xs) var(--pax-space-2);
       padding-bottom: 4rem;
       background: color-mix(in srgb, var(--pax-color-void) 92%, transparent);
       backdrop-filter: blur(8px);
@@ -1284,8 +1284,8 @@
     }
     .speed-card {
       flex-direction: row !important;
-      gap: 6px;
-      padding: 6px 8px !important;
+      gap: var(--pax-gap-xs);
+      padding: var(--pax-gap-xs) var(--pax-space-2) !important;
       max-width: 100%;
       overflow: visible;
     }
@@ -1313,7 +1313,7 @@
       padding: 2px 2px;
       border-top: none;
       border-left: 1px solid color-mix(in srgb, var(--pax-ui-text-strong) 8%, transparent);
-      gap: 4px;
+      gap: var(--pax-space-1);
       overflow: visible;
       max-height: 100dvh;
       align-items: center !important;
@@ -1325,7 +1325,7 @@
       writing-mode: vertical-rl;
       transform: rotate(180deg);
       flex-direction: row-reverse !important;
-      padding: 4px 2px !important;
+      padding: var(--pax-space-1) 2px !important;
       gap: 2px !important;
       margin: 0;
       border-width: 1px;
@@ -1360,8 +1360,8 @@
       flex-direction: column !important;
       background: color-mix(in srgb, var(--pax-color-void) 95%, transparent) !important;
       backdrop-filter: blur(12px) !important;
-      padding: 12px !important;
-      padding-top: 48px !important;
+      padding: var(--pax-space-3) !important;
+      padding-top: var(--pax-space-12) !important;
     }
     .mobile-scrim {
       z-index: 599 !important;
@@ -1371,8 +1371,8 @@
       flex-direction: row !important;
       align-items: flex-start !important;
       justify-content: center !important;
-      padding: 16px 32px !important;
-      gap: 24px !important;
+      padding: var(--pax-space-4) var(--pax-space-8) !important;
+      gap: var(--pax-space-6) !important;
     }
     .drawer-leaderboard {
       max-width: 280px !important;
@@ -1467,8 +1467,8 @@
       justify-content: center;
       align-items: center;
       height: 100%;
-      padding: 56px 24px 24px; /* top padding clears close button */
-      gap: 12px;
+      padding: 56px var(--pax-space-6) var(--pax-space-6); /* top padding clears close button */
+      gap: var(--pax-space-3);
       overflow: visible;
     }
 
@@ -1480,17 +1480,17 @@
 
     /* ── Compact leaderboard inside drawer ── */
     .drawer-leaderboard :global(.leaderboard) {
-      padding: 8px 10px;
+      padding: var(--pax-space-2) var(--pax-gap-sm);
       min-width: unset;
     }
     .drawer-leaderboard :global(.leaderboard__header) {
-      margin-bottom: 4px;
+      margin-bottom: var(--pax-space-1);
     }
     .drawer-leaderboard :global(.leaderboard__title) {
       font-size: var(--pax-type-label);
     }
     .drawer-leaderboard :global(.game-totals) {
-      padding: 2px 4px;
+      padding: 2px var(--pax-space-1);
       margin-bottom: 2px;
       font-size: var(--pax-type-label);
     }
@@ -1498,7 +1498,7 @@
       font-size: var(--pax-type-2xs);
     }
     .drawer-leaderboard :global(.tick-counter) {
-      gap: 4px;
+      gap: var(--pax-space-1);
     }
     .drawer-leaderboard :global(.tick-label) {
       font-size: var(--pax-type-3xs);
@@ -1508,14 +1508,14 @@
     }
     .drawer-leaderboard :global(.tick-progress-bar) {
       height: 3px;
-      margin: 2px 0 4px 0;
+      margin: 2px 0 var(--pax-space-1) 0;
     }
     .drawer-leaderboard :global(.leaderboard__list) {
       gap: 2px;
     }
     .drawer-leaderboard :global(.leaderboard__item) {
-      padding: 3px 6px;
-      gap: 6px;
+      padding: 3px var(--pax-gap-xs);
+      gap: var(--pax-gap-xs);
       font-size: var(--pax-type-xs);
     }
     .drawer-leaderboard :global(.player-dot) {
@@ -1647,7 +1647,7 @@
     border-left: 1px solid var(--pax-ui-divider);
     display: flex;
     flex-direction: column;
-    padding: 12px 12px 10px;
+    padding: var(--pax-space-3) var(--pax-space-3) var(--pax-gap-sm);
     gap: 0;
     z-index: 20;
     box-shadow: -12px 0 32px color-mix(in srgb, var(--pax-color-void) 42%, transparent);
@@ -1685,14 +1685,14 @@
   /* Leaderboard: standalone with gap below */
   .sidebar-leaderboard {
     flex-shrink: 0;
-    padding-bottom: 8px;
-    margin-bottom: 10px;
+    padding-bottom: var(--pax-space-2);
+    margin-bottom: var(--pax-gap-sm);
     border-bottom: 1px solid var(--pax-ui-divider);
   }
 
   .area-right :global(.leaderboard) {
-    gap: 8px;
-    padding: 12px;
+    gap: var(--pax-space-2);
+    padding: var(--pax-space-3);
   }
 
   .area-right :global(.leaderboard__eyebrow),
@@ -1702,7 +1702,7 @@
   }
 
   .area-right :global(.leaderboard__header) {
-    gap: 8px;
+    gap: var(--pax-space-2);
   }
 
   .area-right :global(.leaderboard__title) {
@@ -1734,22 +1734,22 @@
 
   .area-right :global(.leaderboard__item) {
     min-height: 30px;
-    padding: 4px 7px;
+    padding: var(--pax-space-1) 7px;
   }
 
   .area-right :global(.star-nav-card) {
-    gap: 10px;
-    padding: 12px;
+    gap: var(--pax-gap-sm);
+    padding: var(--pax-space-3);
   }
 
   .area-right :global(.star-nav-card__header) {
-    gap: 8px;
-    padding-bottom: 8px;
+    gap: var(--pax-space-2);
+    padding-bottom: var(--pax-space-2);
   }
 
   .area-right :global(.star-nav-body) {
     grid-template-columns: 68px minmax(0, 1fr);
-    gap: 10px;
+    gap: var(--pax-gap-sm);
   }
 
   .area-right :global(.star-orb) {
@@ -1769,7 +1769,7 @@
 
   .area-right :global(.star-field),
   .area-right :global(.star-rate) {
-    padding: 8px;
+    padding: var(--pax-space-2);
   }
 
   .area-right :global(.star-rate-grid) {
@@ -1778,13 +1778,13 @@
 
   .area-right :global(.star-route-strip) {
     flex-wrap: wrap;
-    gap: 6px;
+    gap: var(--pax-gap-xs);
   }
 
   .sidebar-quick-access {
     flex-shrink: 0;
     position: relative;
-    margin: 0 0 12px;
+    margin: 0 0 var(--pax-space-3);
     z-index: 2;
   }
 
@@ -1802,8 +1802,8 @@
     display: flex;
     z-index: 10;
     align-items: center;
-    gap: 8px;
-    padding: 6px 12px;
+    gap: var(--pax-space-2);
+    padding: var(--pax-gap-xs) var(--pax-space-3);
     cursor: pointer;
     border: 1px solid color-mix(in srgb, var(--pax-ui-accent) 25%, transparent);
     transition: all 0.2s ease;
@@ -1863,12 +1863,12 @@
 
   .speed-card {
     margin: 0;
-    padding: 12px;
+    padding: var(--pax-space-3);
     border: 1px solid var(--pax-ui-border);
     border-radius: var(--pax-ui-radius-md);
     background: var(--pax-ui-panel-bg-muted);
     display: flex;
-    gap: 8px;
+    gap: var(--pax-space-2);
     align-items: center;
   }
   .speed-card__label {
@@ -1895,7 +1895,7 @@
      app.css's real .btn styles. Keep them confined to the game modals. */
   .surrender-modal :global(.btn) {
     flex: 1;
-    padding: 8px;
+    padding: var(--pax-space-2);
     border: none;
     border-radius: 4px;
     cursor: pointer;
@@ -1927,17 +1927,17 @@
   }
 
   .surrender-modal :global(.btn--md) {
-    padding: 12px 16px;
+    padding: var(--pax-space-3) var(--pax-space-4);
     font-size: var(--pax-type-xs-plus);
   }
 
   .surrender-modal {
-    padding: 24px;
+    padding: var(--pax-space-6);
     max-width: 340px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 16px;
+    gap: var(--pax-space-4);
     text-align: center;
   }
   .surrender-modal__title {
@@ -1953,7 +1953,7 @@
   }
   .surrender-modal__actions {
     display: flex;
-    gap: 12px;
+    gap: var(--pax-space-3);
     width: 100%;
   }
   .modal-action {
@@ -1961,7 +1961,7 @@
     min-width: 0; /* allow shrink — was overflowing the modal */
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--pax-gap-xs);
   }
   .surrender-modal__actions :global(.btn) {
     width: 100%;
@@ -1994,7 +1994,7 @@
     background: color-mix(in srgb, var(--pax-color-void) 96%, transparent);
     border: 1px solid color-mix(in srgb, var(--pax-ui-accent) 15%, transparent);
     border-radius: 12px;
-    padding: 6px;
+    padding: var(--pax-gap-xs);
     backdrop-filter: blur(16px);
     box-shadow: 0 8px 32px color-mix(in srgb, var(--pax-color-void) 60%, transparent);
     animation: fab-pop-in 0.15s ease-out;
@@ -2015,9 +2015,9 @@
   :global(.fab-item) {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--pax-gap-sm);
     width: 100%;
-    padding: 10px 14px;
+    padding: var(--pax-gap-sm) var(--pax-gap-md);
     border: none;
     background: transparent;
     color: color-mix(in srgb, var(--pax-ui-text-strong) 85%, transparent);

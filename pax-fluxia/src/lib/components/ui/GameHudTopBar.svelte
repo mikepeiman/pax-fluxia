@@ -212,9 +212,9 @@
         display: grid;
         grid-template-columns: auto minmax(360px, 1fr) minmax(0, 420px) auto;
         align-items: stretch;
-        gap: 14px;
+        gap: var(--pax-gap-md);
         min-width: 0;
-        padding: 8px 12px;
+        padding: var(--pax-space-2) var(--pax-space-3);
         border-bottom: 1px solid var(--pax-ui-divider);
         background:
             linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 98%, transparent), color-mix(in srgb, var(--pax-color-void) 90%, transparent)),
@@ -241,8 +241,8 @@
     }
 
     .topbar-brand {
-        gap: 10px;
-        padding-right: 8px;
+        gap: var(--pax-gap-sm);
+        padding-right: var(--pax-space-2);
     }
 
     .topbar-icon-button,
@@ -303,7 +303,7 @@
         display: grid;
         align-content: center;
         gap: 2px;
-        padding: 0 14px;
+        padding: 0 var(--pax-gap-md);
         border-right: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 13%, transparent);
     }
 
@@ -338,7 +338,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 6px;
+        gap: var(--pax-gap-xs);
         min-width: 0;
         overflow: hidden;
     }
@@ -346,7 +346,7 @@
     .mode-shortcut {
         position: relative;
         min-width: 76px;
-        padding: 6px 9px 7px;
+        padding: var(--pax-gap-xs) 9px 7px;
         border-radius: 10px;
         text-align: left;
         overflow: hidden;
@@ -415,20 +415,20 @@
 
     .topbar-status {
         justify-content: flex-end;
-        gap: 10px;
+        gap: var(--pax-gap-sm);
     }
 
     .topbar-kpis {
         height: 46px;
         gap: 9px;
-        padding: 0 10px;
+        padding: 0 var(--pax-gap-sm);
         border: 1px solid color-mix(in srgb, var(--pax-ui-accent) 14%, transparent);
         border-radius: 14px;
         background: color-mix(in srgb, var(--pax-color-void) 76%, transparent);
     }
 
     .topbar-kpi {
-        gap: 6px;
+        gap: var(--pax-gap-xs);
         color: var(--pax-ui-accent);
         white-space: nowrap;
     }
@@ -439,15 +439,15 @@
     }
 
     .topbar-actions {
-        gap: 8px;
+        gap: var(--pax-space-2);
     }
 
     .topbar-chip {
         height: 46px;
         justify-content: center;
-        gap: 8px;
+        gap: var(--pax-space-2);
         max-width: 220px;
-        padding: 0 12px;
+        padding: 0 var(--pax-space-3);
         border-radius: 14px;
         font-family: var(--pax-ui-font-ui);
         font-size: var(--pax-type-xs);
@@ -502,7 +502,7 @@
     }
 
     @media (max-width: 1260px) {
-        .game-hud-topbar { grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; }
+        .game-hud-topbar { grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--pax-gap-sm); }
         .topbar-meta { grid-template-columns: repeat(3, minmax(84px, 1fr)); }
         .topbar-meta-item:nth-child(1), .topbar-meta-item:nth-child(3), .topbar-kpis { display: none; }
     }

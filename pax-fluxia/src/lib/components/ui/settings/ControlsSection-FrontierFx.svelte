@@ -388,8 +388,8 @@
     .frontier-fx-card {
         display: flex;
         flex-direction: column;
-        gap: 10px;
-        padding: 12px;
+        gap: var(--pax-gap-sm);
+        padding: var(--pax-space-3);
         border: 1px solid transparent;
         border-radius: var(--pax-ui-radius-sm);
         clip-path: var(--pax-ui-rounded-corner-sm);
@@ -401,7 +401,7 @@
     .frontier-fx-card__header {
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: var(--pax-gap-xs);
     }
 
     .axis-note {
@@ -413,7 +413,7 @@
     }
 
     .axis-note {
-        padding: 12px;
+        padding: var(--pax-space-3);
         border: 1px solid transparent;
         border-radius: var(--pax-ui-radius-sm);
         clip-path: var(--pax-ui-rounded-corner-sm);
@@ -424,7 +424,7 @@
 
     .axis-card-title {
         margin: 0;
-        padding-bottom: 6px;
+        padding-bottom: var(--pax-gap-xs);
         border-bottom: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 22%, transparent);
         color: var(--pax-ui-text);
         font-family: var(--pax-ui-font-ui);

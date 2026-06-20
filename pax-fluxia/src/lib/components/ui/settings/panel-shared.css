@@ -10,8 +10,8 @@
     display: flex;
     align-items: center;
     gap: var(--pax-gap-xs, 6px);
-    margin: 16px 0 9px;
-    padding-top: 12px;
+    margin: var(--pax-space-4) 0 9px;
+    padding-top: var(--pax-space-3);
     border-top: 1px solid var(--pax-ui-divider, color-mix(in srgb, var(--pax-ui-accent-warm) 18%, transparent));
     color: var(--pax-ui-accent-warm-strong, #ffe3a3);
     font-family: var(--pax-ui-font-label, var(--pax-font-label));
@@ -45,7 +45,7 @@
     display: flex;
     flex-direction: column;
     gap: 5px;
-    padding: 4px 6px;
+    padding: var(--pax-space-1) var(--pax-gap-xs);
 }
 
 .var-row:hover,
@@ -70,7 +70,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: var(--pax-space-3);
 }
 
 .var-name,
@@ -95,13 +95,13 @@
 .val-group {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--pax-gap-xs);
 }
 
 .toggle-label {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--pax-space-2);
     cursor: pointer;
 }
 
@@ -166,8 +166,8 @@
 .toggle-row {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 9px 12px;
+    gap: var(--pax-gap-sm);
+    padding: 9px var(--pax-space-3);
     cursor: pointer;
 }
 
@@ -221,7 +221,7 @@ select.mode-select {
     width: 100%;
     min-height: 36px;
     min-width: 0;
-    padding: 0 28px 0 10px;
+    padding: 0 28px 0 var(--pax-gap-sm);
     border: 1px solid transparent;
     border-radius: var(--pax-ui-radius-xs, var(--pax-radius-xs, 8px));
     background:
@@ -254,7 +254,7 @@ select.mode-select {
     align-items: center;
     justify-content: center;
     min-height: 32px;
-    padding: 7px 14px;
+    padding: 7px var(--pax-gap-md);
     border: 1px solid transparent;
     border-radius: var(--pax-ui-radius-xs, var(--pax-radius-xs, 8px));
     background:
@@ -336,7 +336,7 @@ select.mode-select {
 .log-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: var(--pax-gap-xs);
 }
 
 .log-desc,
@@ -348,7 +348,7 @@ select.mode-select {
 }
 
 .future-desc {
-    padding: 0 6px 2px;
+    padding: 0 var(--pax-gap-xs) 2px;
 }
 
 .var-row.compact {
@@ -371,5 +371,5 @@ select.mode-select {
 .orb-pair {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 6px;
+    gap: var(--pax-gap-xs);
 }

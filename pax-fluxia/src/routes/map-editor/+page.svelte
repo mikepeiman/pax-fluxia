@@ -1164,9 +1164,9 @@
     inset: 0;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
-    gap: 12px;
+    gap: var(--pax-space-3);
     overflow: hidden;
-    padding: 16px;
+    padding: var(--pax-space-4);
     overscroll-behavior: none;
     background:
       radial-gradient(circle at top left, color-mix(in srgb, var(--pax-ui-accent) 14%, transparent), transparent 32%),
@@ -1182,14 +1182,14 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: var(--pax-space-3);
     min-height: 0;
   }
 
   .editor-topbar__cluster {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--pax-gap-sm);
   }
 
   .editor-topbar__cluster--right {
@@ -1201,7 +1201,7 @@
 
   .topbar-btn {
     min-height: 40px;
-    padding: 0 12px;
+    padding: 0 var(--pax-space-3);
     border-radius: 14px;
     border: 1px solid var(--editor-border, color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent));
     background: color-mix(in srgb, var(--pax-color-void) 82%, transparent);
@@ -1210,7 +1210,7 @@
     box-shadow: 0 14px 40px color-mix(in srgb, var(--pax-color-void) 24%, transparent);
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--pax-space-2);
     cursor: pointer;
     transition:
       border-color 140ms ease,
@@ -1253,7 +1253,7 @@
     display: grid;
     grid-template-columns: minmax(72px, auto) minmax(0, 1fr);
     grid-template-areas: "rail stage";
-    gap: 14px;
+    gap: var(--pax-gap-md);
   }
 
   .rail-area {
@@ -1301,7 +1301,7 @@
 
   @media (max-width: 980px) {
     .editor-page {
-      padding: 12px;
+      padding: var(--pax-space-3);
     }
 
     .editor-topbar {
@@ -1315,7 +1315,7 @@
     }
 
     .editor-shell {
-      gap: 12px;
+      gap: var(--pax-space-3);
       grid-template-columns: 72px minmax(0, 1fr);
     }
 

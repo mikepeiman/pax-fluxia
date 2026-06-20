@@ -101,8 +101,8 @@ import type { MenuTheme } from "./menuTheme";
         display: flex;
         justify-content: space-between;
         align-items: center;
-        gap: 16px;
-        padding: 12px 14px;
+        gap: var(--pax-space-4);
+        padding: var(--pax-space-3) var(--pax-gap-md);
         border-radius: var(--pf-topbar-radius);
         border: 1px solid var(--pf-border-soft);
         background: var(--pf-frame-topbar), var(--pf-surface-elevated);
@@ -130,7 +130,7 @@ import type { MenuTheme } from "./menuTheme";
     .menu-topbar__cluster {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: var(--pax-gap-sm);
         min-width: 0;
     }
 
@@ -141,7 +141,7 @@ import type { MenuTheme } from "./menuTheme";
     .topbar-chip,
     .topbar-icon {
         min-height: var(--pf-pill-h);
-        padding: 0 14px;
+        padding: 0 var(--pax-gap-md);
         border-radius: var(--pf-pill-radius);
         border: 1px solid var(--pf-border-soft);
         background: var(--pf-frame-control), var(--pf-surface-pill);
@@ -173,9 +173,9 @@ import type { MenuTheme } from "./menuTheme";
     .audio-chip {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: var(--pax-gap-sm);
         min-height: var(--pf-pill-h);
-        padding: 4px 6px 4px 4px;
+        padding: var(--pax-space-1) var(--pax-gap-xs) var(--pax-space-1) var(--pax-space-1);
         border-radius: var(--pf-pill-radius);
         border: 1px solid var(--pf-border-soft);
         background: var(--pf-frame-control), var(--pf-surface-control);

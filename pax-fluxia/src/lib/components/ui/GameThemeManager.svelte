@@ -329,7 +329,7 @@
 <style>
   .game-theme-manager {
     display: grid;
-    gap: 10px;
+    gap: var(--pax-gap-sm);
     width: 100%;
     min-width: 0;
     padding: var(--pax-ui-pad-sm);
@@ -363,7 +363,7 @@
 
   .game-theme-manager__header {
     justify-content: space-between;
-    gap: 10px;
+    gap: var(--pax-gap-sm);
   }
 
   .game-theme-manager__title-block {
@@ -392,7 +392,7 @@
 
   .game-theme-manager__body {
     display: grid;
-    gap: 10px;
+    gap: var(--pax-gap-sm);
   }
 
   .game-theme-manager__top-row {
@@ -401,7 +401,7 @@
 
   .game-theme-manager__actions,
   .game-theme-manager__save-row {
-    gap: 8px;
+    gap: var(--pax-space-2);
     min-width: 0;
   }
 
@@ -435,13 +435,13 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    padding: 0 12px;
+    gap: var(--pax-space-2);
+    padding: 0 var(--pax-space-3);
   }
 
   .theme-manager-toggle {
     min-height: 32px;
-    padding-inline: 10px 12px;
+    padding-inline: var(--pax-gap-sm) var(--pax-space-3);
   }
 
   .theme-manager-toggle:hover,
@@ -472,7 +472,7 @@
   .game-theme-manager__save-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
+    gap: var(--pax-space-2);
     width: 100%;
   }
 
@@ -484,7 +484,7 @@
     border: 1px solid var(--pax-ui-border);
     background: color-mix(in srgb, var(--pax-color-void) 96%, transparent);
     color: var(--pax-ui-text-strong);
-    padding: 0 12px;
+    padding: 0 var(--pax-space-3);
     font-family: var(--pax-ui-font-ui);
     font-size: var(--pax-type-xs-plus);
   }
@@ -496,16 +496,16 @@
   }
 
   .game-theme-manager__utility-row {
-    gap: 8px;
+    gap: var(--pax-space-2);
   }
 
   .theme-manager-mini-btn {
-    gap: 8px;
-    padding: 0 12px;
+    gap: var(--pax-space-2);
+    padding: 0 var(--pax-space-3);
   }
 
   .game-theme-manager__status {
-    padding: 7px 10px;
+    padding: 7px var(--pax-gap-sm);
     border-radius: 12px;
     background: color-mix(in srgb, var(--pax-color-void) 90%, transparent);
     font-family: var(--pax-ui-font-ui);
@@ -536,10 +536,10 @@
 
   .theme-chip {
     justify-content: space-between;
-    gap: 10px;
+    gap: var(--pax-gap-sm);
     width: 100%;
     min-width: 0;
-    padding: 10px 12px;
+    padding: var(--pax-gap-sm) var(--pax-space-3);
     border-radius: 14px;
     border: 1px solid var(--pax-ui-border);
     background: color-mix(in srgb, var(--pax-color-void) 86%, transparent);
@@ -566,8 +566,8 @@
   }
 
   .theme-chip--menu {
-    gap: 8px;
-    padding: 7px 12px;
+    gap: var(--pax-space-2);
+    padding: 7px var(--pax-space-3);
     background: color-mix(in srgb, var(--pax-color-void) 78%, transparent);
     border-color: color-mix(in srgb, var(--pax-ui-text-strong) 8%, transparent);
   }
@@ -579,7 +579,7 @@
   .theme-chip-status {
     flex: 0 0 auto;
     min-width: 54px;
-    padding: 2px 8px;
+    padding: 2px var(--pax-space-2);
     border-radius: 999px;
     background: color-mix(in srgb, var(--pax-ui-text-strong) 5%, transparent);
     font-family: var(--pax-ui-font-ui);
