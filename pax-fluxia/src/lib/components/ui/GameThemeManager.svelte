@@ -341,8 +341,8 @@
 
   .game-theme-manager--menu {
     background:
-      linear-gradient(180deg, rgba(19, 24, 38, 0.95), rgba(10, 14, 24, 0.97)),
-      rgba(255, 255, 255, 0.02);
+      linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 95%, transparent), color-mix(in srgb, var(--pax-color-void) 97%, transparent)),
+      color-mix(in srgb, var(--pax-ui-text-strong) 2%, transparent);
   }
 
   .game-theme-manager--drawer {
@@ -482,7 +482,7 @@
     min-height: 38px;
     border-radius: 12px;
     border: 1px solid var(--pax-ui-border);
-    background: rgba(7, 13, 26, 0.96);
+    background: color-mix(in srgb, var(--pax-color-void) 96%, transparent);
     color: var(--pax-ui-text-strong);
     padding: 0 12px;
     font-family: var(--pax-ui-font-ui);
@@ -492,7 +492,7 @@
   .game-theme-manager__save-input:focus {
     outline: none;
     border-color: var(--pax-ui-border-strong);
-    box-shadow: 0 0 0 1px rgba(94, 230, 255, 0.18);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--pax-ui-accent) 18%, transparent);
   }
 
   .game-theme-manager__utility-row {
@@ -507,7 +507,7 @@
   .game-theme-manager__status {
     padding: 7px 10px;
     border-radius: 12px;
-    background: rgba(8, 14, 29, 0.9);
+    background: color-mix(in srgb, var(--pax-color-void) 90%, transparent);
     font-family: var(--pax-ui-font-ui);
     font-size: var(--pax-type-2xs);
     letter-spacing: 0.06em;
@@ -515,11 +515,11 @@
   }
 
   .game-theme-manager__status--success {
-    color: #90e0b8;
+    color: var(--pax-ui-success);
   }
 
   .game-theme-manager__status--error {
-    color: #ffb4be;
+    color: var(--pax-ui-danger);
   }
 
   .game-theme-manager__status--muted {
@@ -542,7 +542,7 @@
     padding: 10px 12px;
     border-radius: 14px;
     border: 1px solid var(--pax-ui-border);
-    background: rgba(8, 14, 28, 0.86);
+    background: color-mix(in srgb, var(--pax-color-void) 86%, transparent);
     color: var(--pax-ui-text);
     text-align: left;
     cursor: pointer;
@@ -555,21 +555,21 @@
 
   .theme-chip:hover {
     border-color: var(--pax-ui-border-strong);
-    background: rgba(12, 23, 43, 0.94);
+    background: color-mix(in srgb, var(--pax-color-void) 94%, transparent);
     color: var(--pax-ui-text-strong);
     transform: translateY(-1px);
   }
 
   .theme-chip.active {
     border-color: var(--pax-ui-border-warm);
-    box-shadow: inset 0 0 0 1px rgba(255, 200, 107, 0.16);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pax-ui-accent-warm) 16%, transparent);
   }
 
   .theme-chip--menu {
     gap: 8px;
     padding: 7px 12px;
-    background: rgba(18, 24, 38, 0.78);
-    border-color: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--pax-color-void) 78%, transparent);
+    border-color: color-mix(in srgb, var(--pax-ui-text-strong) 8%, transparent);
   }
 
   .game-theme-manager--menu .theme-chip-name {
@@ -581,7 +581,7 @@
     min-width: 54px;
     padding: 2px 8px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.05);
+    background: color-mix(in srgb, var(--pax-ui-text-strong) 5%, transparent);
     font-family: var(--pax-ui-font-ui);
     font-size: var(--pax-type-3xs);
     font-weight: var(--pax-weight-bold);
@@ -591,15 +591,15 @@
   }
 
   .status-wired {
-    color: #8ae0ff;
+    color: var(--pax-ui-accent);
   }
 
   .status-compat {
-    color: #ffd792;
+    color: var(--pax-ui-accent-warm);
   }
 
   .status-needs-edit {
-    color: #ff97a7;
+    color: var(--pax-ui-danger);
   }
 
   .status-agnostic {

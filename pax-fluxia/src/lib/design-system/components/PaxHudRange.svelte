@@ -135,12 +135,12 @@
       box-shadow 120ms ease;
   }
   .pax-hud-range__value:hover:not(:disabled) {
-    background: rgba(246, 196, 105, 0.07);
+    background: color-mix(in srgb, var(--pax-ui-accent-warm) 7%, transparent);
   }
   .pax-hud-range__value:focus {
     outline: none;
-    background: rgba(246, 196, 105, 0.12);
-    box-shadow: inset 0 0 0 1px rgba(246, 196, 105, 0.5);
+    background: color-mix(in srgb, var(--pax-ui-accent-warm) 12%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pax-ui-accent-warm) 50%, transparent);
   }
   .pax-hud-range__value:disabled {
     cursor: default;

@@ -128,7 +128,7 @@
     border-radius: var(--pax-ui-radius-sm);
     clip-path: var(--pax-ui-rounded-corner-sm);
     background:
-      linear-gradient(180deg, rgba(0, 18, 21, 0.78), rgba(0, 10, 13, 0.9)) padding-box,
+      linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 78%, transparent), color-mix(in srgb, var(--pax-color-void) 90%, transparent)) padding-box,
       var(--pax-ui-control-border-gradient) border-box;
     color: var(--pax-ui-text);
     font-family: var(--pax-ui-font-ui);
@@ -161,7 +161,7 @@
     border: 1px solid transparent;
     border-radius: var(--pax-ui-radius-xs);
     background:
-      linear-gradient(180deg, rgba(0, 21, 25, 0.9), rgba(0, 11, 14, 0.96)) padding-box,
+      linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 90%, transparent), color-mix(in srgb, var(--pax-color-void) 96%, transparent)) padding-box,
       var(--pax-ui-control-border-gradient) border-box;
     color: var(--pax-ui-text);
     cursor: pointer;
@@ -200,7 +200,7 @@
     border: 1px solid transparent;
     border-radius: var(--pax-ui-radius-sm);
     background:
-      linear-gradient(180deg, rgba(0, 17, 20, 0.98), rgba(0, 8, 10, 0.98)) padding-box,
+      linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 98%, transparent), color-mix(in srgb, var(--pax-color-void) 98%, transparent)) padding-box,
       var(--pax-ui-border-gradient) border-box;
     box-shadow: var(--pax-ui-shadow);
   }
@@ -221,7 +221,7 @@
   .pax-settings-picker-row__preview {
     border: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 22%, transparent);
     border-radius: var(--pax-ui-radius-xs);
-    background: rgba(0, 18, 21, 0.74);
+    background: color-mix(in srgb, var(--pax-color-void) 74%, transparent);
     color: var(--pax-ui-text-dim);
     cursor: pointer;
     font: inherit;

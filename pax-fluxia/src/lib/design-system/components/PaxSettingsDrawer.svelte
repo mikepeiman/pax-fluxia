@@ -73,7 +73,7 @@
     border-radius: var(--pax-ui-radius-md);
     clip-path: var(--pax-ui-rounded-corner-md);
     background:
-      linear-gradient(180deg, rgba(3, 23, 26, 0.97), rgba(1, 8, 13, 0.99)) padding-box,
+      linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 97%, transparent), color-mix(in srgb, var(--pax-color-void) 99%, transparent)) padding-box,
       var(--pax-ui-border-gradient) border-box;
     box-shadow: var(--pax-ui-shadow-soft);
     color: var(--pax-ui-text);
@@ -87,7 +87,7 @@
     border-bottom: 1px solid var(--pax-ui-divider);
     background:
       linear-gradient(90deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent),
-      rgba(0, 15, 18, 0.72);
+      color-mix(in srgb, var(--pax-color-void) 72%, transparent);
   }
 
   :global(.pax-settings-drawer__head) {

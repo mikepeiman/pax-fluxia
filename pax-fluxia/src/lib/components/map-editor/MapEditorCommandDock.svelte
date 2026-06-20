@@ -105,10 +105,10 @@
     gap: 10px;
     padding: 8px 10px;
     border-radius: 18px;
-    border: 1px solid var(--editor-border, rgba(148, 163, 184, 0.16));
-    background: rgba(4, 11, 26, 0.86);
+    border: 1px solid var(--editor-border, color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent));
+    background: color-mix(in srgb, var(--pax-color-void) 86%, transparent);
     backdrop-filter: blur(18px);
-    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.32);
+    box-shadow: 0 18px 50px color-mix(in srgb, var(--pax-color-void) 32%, transparent);
     z-index: 8;
   }
 
@@ -130,10 +130,10 @@
     min-width: 132px;
     padding: 8px;
     border-radius: 14px;
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    background: rgba(4, 11, 26, 0.96);
+    border: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent);
+    background: color-mix(in srgb, var(--pax-color-void) 96%, transparent);
     backdrop-filter: blur(18px);
-    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34);
+    box-shadow: 0 18px 42px color-mix(in srgb, var(--pax-color-void) 34%, transparent);
     display: grid;
     gap: 6px;
   }
@@ -142,9 +142,9 @@
     min-height: 36px;
     padding: 0 12px;
     border-radius: 12px;
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    background: rgba(9, 16, 31, 0.9);
-    color: rgba(226, 232, 240, 0.92);
+    border: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent);
+    background: color-mix(in srgb, var(--pax-color-void) 90%, transparent);
+    color: color-mix(in srgb, var(--pax-ui-text) 92%, transparent);
     font: inherit;
     cursor: pointer;
     transition:
@@ -156,17 +156,17 @@
 
   .command-btn {
     font-weight: var(--pax-weight-semibold);
-    background: rgba(9, 16, 31, 0.9);
-    border-color: rgba(148, 163, 184, 0.18);
-    color: rgba(226, 232, 240, 0.92);
+    background: color-mix(in srgb, var(--pax-color-void) 90%, transparent);
+    border-color: color-mix(in srgb, var(--pax-ui-text-soft) 18%, transparent);
+    color: color-mix(in srgb, var(--pax-ui-text) 92%, transparent);
   }
 
   .command-btn:hover,
   .command-btn.is-active {
-    border-color: rgba(125, 211, 252, 0.58);
-    background: rgba(17, 39, 63, 0.88);
-    color: #f8fafc;
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+    border-color: color-mix(in srgb, var(--pax-ui-accent) 58%, transparent);
+    background: color-mix(in srgb, var(--pax-color-void) 88%, transparent);
+    color: var(--pax-ui-text-strong);
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--pax-color-void) 22%, transparent);
   }
 
   button:disabled {

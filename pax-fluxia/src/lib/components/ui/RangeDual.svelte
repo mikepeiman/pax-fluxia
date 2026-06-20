@@ -103,7 +103,7 @@
         background: var(--pax-ui-accent);
         cursor: pointer;
         pointer-events: auto;
-        box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+        box-shadow: 0 0 4px color-mix(in srgb, var(--pax-color-void) 50%, transparent);
         border: 2px solid var(--pax-color-void);
     }
 

@@ -103,16 +103,16 @@
         width: 28px;
         height: 28px;
         border-radius: 50%;
-        border: 2px solid rgba(255, 255, 255, 0.2);
+        border: 2px solid color-mix(in srgb, var(--pax-ui-text-strong) 20%, transparent);
         cursor: pointer;
         transition: all 0.2s;
-        box-shadow: 0 0 8px rgba(0, 0, 0, 0.4);
+        box-shadow: 0 0 8px color-mix(in srgb, var(--pax-color-void) 40%, transparent);
         flex-shrink: 0;
     }
     .swatch-trigger:hover {
-        border-color: rgba(255, 255, 255, 0.5);
+        border-color: color-mix(in srgb, var(--pax-ui-text-strong) 50%, transparent);
         transform: scale(1.1);
-        box-shadow: 0 0 12px rgba(0, 0, 0, 0.6);
+        box-shadow: 0 0 12px color-mix(in srgb, var(--pax-color-void) 60%, transparent);
     }
 
     .palette-backdrop {
@@ -126,12 +126,12 @@
         z-index: 1000;
         top: calc(100% + 8px);
         left: 0;
-        background: rgba(10, 12, 20, 0.96);
-        border: 1px solid rgba(0, 255, 255, 0.15);
+        background: color-mix(in srgb, var(--pax-color-void) 96%, transparent);
+        border: 1px solid color-mix(in srgb, var(--pax-ui-accent) 15%, transparent);
         border-radius: 12px;
         padding: 10px;
         backdrop-filter: blur(12px);
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
+        box-shadow: 0 8px 32px color-mix(in srgb, var(--pax-color-void) 70%, transparent);
         animation: popup-in 0.15s ease-out;
     }
 
@@ -156,7 +156,7 @@
         width: 36px;
         height: 36px;
         border-radius: 50%;
-        border: 2px solid rgba(255, 255, 255, 0.12);
+        border: 2px solid color-mix(in srgb, var(--pax-ui-text-strong) 12%, transparent);
         cursor: pointer;
         transition: all 0.15s;
         display: flex;
@@ -166,12 +166,12 @@
         background: none;
     }
     .palette-swatch:hover {
-        border-color: rgba(255, 255, 255, 0.5);
+        border-color: color-mix(in srgb, var(--pax-ui-text-strong) 50%, transparent);
         transform: scale(1.15);
     }
     .palette-swatch.selected {
-        border-color: #fff;
-        box-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
+        border-color: var(--pax-ui-text-strong);
+        box-shadow: 0 0 10px color-mix(in srgb, var(--pax-ui-text-strong) 40%, transparent);
         transform: scale(1.1);
     }
     .palette-swatch.claimed {
@@ -180,14 +180,14 @@
     }
 
     .check {
-        color: #fff;
+        color: var(--pax-ui-text-strong);
         font-size: var(--pax-type-xs-plus);
         font-weight: var(--pax-weight-bold);
-        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+        text-shadow: 0 1px 3px color-mix(in srgb, var(--pax-color-void) 80%, transparent);
     }
 
     .claimed-mark {
-        color: rgba(255, 255, 255, 0.6);
+        color: color-mix(in srgb, var(--pax-ui-text-strong) 60%, transparent);
         font-size: var(--pax-type-base);
     }
 </style>

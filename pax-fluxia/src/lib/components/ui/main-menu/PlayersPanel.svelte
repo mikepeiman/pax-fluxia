@@ -381,7 +381,7 @@
         border-radius: 999px;
         border: 2px solid var(--pf-border-swatch);
         box-shadow:
-            0 0 0 1px rgba(0, 0, 0, 0.22),
+            0 0 0 1px color-mix(in srgb, var(--pax-color-void) 22%, transparent),
             var(--pf-shadow-glow);
         cursor: pointer;
         transition:

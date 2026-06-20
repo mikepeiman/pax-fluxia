@@ -71,11 +71,11 @@
     height: 14px;
     margin-left: 5px;
     border-radius: 999px;
-    border: 1px solid var(--pax-ui-border, rgba(246, 196, 105, 0.35));
+    border: 1px solid var(--pax-ui-border, color-mix(in srgb, var(--pax-ui-accent-warm) 35%, transparent));
     font-size: var(--pax-type-3xs);
     font-weight: var(--pax-weight-bold);
     line-height: 1;
-    color: var(--pax-ui-text-dim, rgba(180, 188, 188, 0.7));
+    color: var(--pax-ui-text-dim, color-mix(in srgb, var(--pax-ui-text-soft) 70%, transparent));
     cursor: help;
     position: relative;
     text-transform: none;
@@ -98,7 +98,7 @@
     max-width: 220px;
     padding: 6px 8px;
     background: var(--pax-ui-panel-bg-strong);
-    border: 1px solid var(--pax-ui-border, rgba(246, 196, 105, 0.35));
+    border: 1px solid var(--pax-ui-border, color-mix(in srgb, var(--pax-ui-accent-warm) 35%, transparent));
     border-radius: 6px;
     color: var(--pax-ui-text, rgba(224, 232, 232, 0.95));
     font-size: var(--pax-type-2xs);
@@ -106,7 +106,7 @@
     line-height: 1.35;
     white-space: normal;
     z-index: 60;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 4px 16px color-mix(in srgb, var(--pax-color-void) 45%, transparent);
     pointer-events: none;
     opacity: 0;
     animation: paxHudSelectHintFade 120ms ease forwards;

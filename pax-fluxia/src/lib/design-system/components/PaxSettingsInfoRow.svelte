@@ -35,7 +35,7 @@
     border-radius: var(--pax-ui-radius-xs);
     clip-path: var(--pax-ui-rounded-corner-xs);
     background:
-      linear-gradient(180deg, rgba(0, 18, 21, 0.86), rgba(0, 10, 13, 0.94)) padding-box,
+      linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 86%, transparent), color-mix(in srgb, var(--pax-color-void) 94%, transparent)) padding-box,
       var(--pax-ui-control-border-gradient) border-box;
     color: var(--pax-ui-text-soft);
     font-family: var(--pax-ui-font-ui);

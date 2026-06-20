@@ -54,10 +54,10 @@
     width: min(420px, calc(100vw - 32px));
     padding: 18px;
     border-radius: 24px;
-    border: 1px solid var(--editor-border, rgba(148, 163, 184, 0.16));
-    background: rgba(3, 10, 24, 0.97);
+    border: 1px solid var(--editor-border, color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent));
+    background: color-mix(in srgb, var(--pax-color-void) 97%, transparent);
     backdrop-filter: blur(20px);
-    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 24px 70px color-mix(in srgb, var(--pax-color-void) 40%, transparent);
     display: grid;
     gap: 16px;
     transform: translate(-50%, -50%);
@@ -76,12 +76,12 @@
     font-size: var(--pax-type-base);
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: #f8fafc;
+    color: var(--pax-ui-text-strong);
   }
 
   .dialog__body p {
     margin: 0;
-    color: rgba(226, 232, 240, 0.92);
+    color: color-mix(in srgb, var(--pax-ui-text) 92%, transparent);
     line-height: 1.55;
   }
 
@@ -90,9 +90,9 @@
     min-height: 40px;
     padding: 0 12px;
     border-radius: 12px;
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    background: rgba(9, 16, 31, 0.9);
-    color: rgba(226, 232, 240, 0.92);
+    border: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent);
+    background: color-mix(in srgb, var(--pax-color-void) 90%, transparent);
+    color: color-mix(in srgb, var(--pax-ui-text) 92%, transparent);
     font: inherit;
     cursor: pointer;
   }
@@ -112,18 +112,18 @@
 
   .dialog__close:hover,
   .dialog__action:hover {
-    border-color: rgba(125, 211, 252, 0.58);
-    background: rgba(17, 39, 63, 0.88);
-    color: #f8fafc;
+    border-color: color-mix(in srgb, var(--pax-ui-accent) 58%, transparent);
+    background: color-mix(in srgb, var(--pax-color-void) 88%, transparent);
+    color: var(--pax-ui-text-strong);
   }
 
   .dialog__action--danger {
-    border-color: rgba(248, 113, 113, 0.28);
-    background: rgba(60, 16, 16, 0.9);
+    border-color: color-mix(in srgb, var(--pax-ui-danger) 28%, transparent);
+    background: color-mix(in srgb, var(--pax-ui-danger) 22%, var(--pax-color-void));
   }
 
   .dialog__action--danger:hover {
-    border-color: rgba(248, 113, 113, 0.62);
-    background: rgba(127, 29, 29, 0.82);
+    border-color: color-mix(in srgb, var(--pax-ui-danger) 62%, transparent);
+    background: color-mix(in srgb, var(--pax-ui-danger) 34%, var(--pax-color-void));
   }
 </style>

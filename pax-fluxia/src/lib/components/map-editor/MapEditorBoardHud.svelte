@@ -211,11 +211,11 @@
   .status-chip {
     min-height: 40px;
     border-radius: 14px;
-    border: 1px solid var(--editor-border, rgba(148, 163, 184, 0.16));
-    background: rgba(4, 11, 26, 0.82);
+    border: 1px solid var(--editor-border, color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent));
+    background: color-mix(in srgb, var(--pax-color-void) 82%, transparent);
     backdrop-filter: blur(14px);
-    color: #e2e8f0;
-    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.24);
+    color: var(--pax-ui-text);
+    box-shadow: 0 14px 40px color-mix(in srgb, var(--pax-color-void) 24%, transparent);
   }
 
   .hud-pill,
@@ -238,7 +238,7 @@
 
   .hud-readout--interactive {
     cursor: pointer;
-    border-color: rgba(148, 163, 184, 0.2);
+    border-color: color-mix(in srgb, var(--pax-ui-text-soft) 20%, transparent);
     transition:
       border-color 140ms ease,
       background 140ms ease,
@@ -247,9 +247,9 @@
 
   .hud-readout--interactive:hover,
   .hud-readout--interactive.is-open {
-    border-color: rgba(125, 211, 252, 0.52);
-    background: rgba(8, 18, 36, 0.9);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+    border-color: color-mix(in srgb, var(--pax-ui-accent) 52%, transparent);
+    background: color-mix(in srgb, var(--pax-color-void) 90%, transparent);
+    box-shadow: 0 16px 40px color-mix(in srgb, var(--pax-color-void) 28%, transparent);
   }
 
   .hud-pill svg {
@@ -271,7 +271,7 @@
   }
 
   .hud-pill--strong {
-    background: linear-gradient(135deg, rgba(18, 48, 78, 0.96), rgba(11, 29, 50, 0.95));
+    background: linear-gradient(135deg, color-mix(in srgb, var(--pax-color-void) 96%, transparent), color-mix(in srgb, var(--pax-color-void) 95%, transparent));
   }
 
   .density-picker {
@@ -287,10 +287,10 @@
     min-width: 156px;
     padding: 10px;
     border-radius: 16px;
-    border: 1px solid rgba(125, 211, 252, 0.3);
-    background: rgba(4, 11, 26, 0.94);
+    border: 1px solid color-mix(in srgb, var(--pax-ui-accent) 30%, transparent);
+    background: color-mix(in srgb, var(--pax-color-void) 94%, transparent);
     backdrop-filter: blur(18px);
-    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 20px 48px color-mix(in srgb, var(--pax-color-void) 30%, transparent);
     display: grid;
     gap: 12px;
   }
@@ -331,7 +331,7 @@
     width: 20px;
     height: 148px;
     margin: 0;
-    accent-color: #60a5fa;
+    accent-color: var(--pax-color-player-blue);
   }
 
   .grid-flyout__number {
@@ -351,9 +351,9 @@
     min-height: 36px;
     padding: 0 10px;
     border-radius: 12px;
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    background: rgba(10, 17, 33, 0.88);
-    color: #f8fafc;
+    border: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 20%, transparent);
+    background: color-mix(in srgb, var(--pax-color-void) 88%, transparent);
+    color: var(--pax-ui-text-strong);
     font-family: var(--pax-ui-font-ui);
     font-size: var(--pax-type-base);
     font-weight: var(--pax-weight-bold);
@@ -361,8 +361,8 @@
 
   .grid-flyout__number input:focus {
     outline: none;
-    border-color: rgba(125, 211, 252, 0.58);
-    box-shadow: 0 0 0 1px rgba(125, 211, 252, 0.25);
+    border-color: color-mix(in srgb, var(--pax-ui-accent) 58%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--pax-ui-accent) 25%, transparent);
   }
 
   .density-picker button {
@@ -371,7 +371,7 @@
     border-radius: 10px;
     border: 1px solid transparent;
     background: transparent;
-    color: rgba(226, 232, 240, 0.86);
+    color: color-mix(in srgb, var(--pax-ui-text) 86%, transparent);
     cursor: pointer;
     font-family: var(--pax-ui-font-ui);
     font-weight: var(--pax-weight-bold);
@@ -379,9 +379,9 @@
   }
 
   .density-picker button.is-active {
-    border-color: rgba(125, 211, 252, 0.58);
-    background: rgba(17, 39, 63, 0.88);
-    color: #f8fafc;
+    border-color: color-mix(in srgb, var(--pax-ui-accent) 58%, transparent);
+    background: color-mix(in srgb, var(--pax-color-void) 88%, transparent);
+    color: var(--pax-ui-text-strong);
   }
 
 

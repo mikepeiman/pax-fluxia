@@ -700,10 +700,10 @@
     max-height: calc(100% - 36px);
     padding: 18px;
     border-radius: 24px;
-    border: 1px solid var(--editor-border, rgba(148, 163, 184, 0.16));
-    background: rgba(3, 10, 24, 0.97);
+    border: 1px solid var(--editor-border, color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent));
+    background: color-mix(in srgb, var(--pax-color-void) 97%, transparent);
     backdrop-filter: blur(20px);
-    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 24px 70px color-mix(in srgb, var(--pax-color-void) 40%, transparent);
     display: grid;
     align-content: start;
     gap: 16px;
@@ -732,7 +732,7 @@
     font-size: var(--pax-type-base);
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: #f8fafc;
+    color: var(--pax-ui-text-strong);
   }
 
   .section-header span,
@@ -740,7 +740,7 @@
     font-size: var(--pax-type-xs);
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: rgba(148, 163, 184, 0.88);
+    color: color-mix(in srgb, var(--pax-ui-text-soft) 88%, transparent);
   }
 
   .modal__toolbar {
@@ -779,9 +779,9 @@
     min-height: 40px;
     padding: 0 12px;
     border-radius: 12px;
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    background: rgba(9, 16, 31, 0.9);
-    color: rgba(226, 232, 240, 0.92);
+    border: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent);
+    background: color-mix(in srgb, var(--pax-color-void) 90%, transparent);
+    color: color-mix(in srgb, var(--pax-ui-text) 92%, transparent);
     font: inherit;
   }
 
@@ -821,9 +821,9 @@
   .map-card__open:hover,
   .map-card__favorite:hover,
   .context-menu button:hover {
-    border-color: rgba(125, 211, 252, 0.58);
-    background: rgba(17, 39, 63, 0.88);
-    color: #f8fafc;
+    border-color: color-mix(in srgb, var(--pax-ui-accent) 58%, transparent);
+    background: color-mix(in srgb, var(--pax-color-void) 88%, transparent);
+    color: var(--pax-ui-text-strong);
   }
 
   .sheet-section {
@@ -834,13 +834,13 @@
   .sheet-section--recent {
     padding: 14px;
     border-radius: 20px;
-    border: 1px solid rgba(251, 191, 36, 0.34);
+    border: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 34%, transparent);
     background:
-      linear-gradient(180deg, rgba(82, 48, 10, 0.26), rgba(24, 16, 8, 0.18)),
-      rgba(19, 23, 38, 0.1);
+      linear-gradient(180deg, color-mix(in srgb, var(--pax-ui-accent-warm) 26%, transparent), color-mix(in srgb, var(--pax-ui-accent-warm) 18%, transparent)),
+      color-mix(in srgb, var(--pax-color-void) 10%, transparent);
     box-shadow:
-      inset 0 1px 0 rgba(251, 191, 36, 0.12),
-      0 18px 36px rgba(0, 0, 0, 0.18);
+      inset 0 1px 0 color-mix(in srgb, var(--pax-ui-accent-warm) 12%, transparent),
+      0 18px 36px color-mix(in srgb, var(--pax-color-void) 18%, transparent);
   }
 
   .section-header {
@@ -868,20 +868,20 @@
     width: 100%;
     padding: 10px;
     border-radius: 18px;
-    border: 1px solid rgba(148, 163, 184, 0.14);
-    background: rgba(9, 16, 31, 0.88);
+    border: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 14%, transparent);
+    background: color-mix(in srgb, var(--pax-color-void) 88%, transparent);
     text-align: left;
-    color: rgba(226, 232, 240, 0.92);
+    color: color-mix(in srgb, var(--pax-ui-text) 92%, transparent);
   }
 
   .map-card--recent .map-card__open {
-    background: linear-gradient(180deg, rgba(40, 26, 9, 0.86), rgba(16, 23, 40, 0.96));
-    border-color: rgba(251, 191, 36, 0.3);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--pax-ui-accent-warm) 22%, color-mix(in srgb, var(--pax-color-void) 86%, transparent)), color-mix(in srgb, var(--pax-color-void) 96%, transparent));
+    border-color: color-mix(in srgb, var(--pax-ui-accent-warm) 30%, transparent);
   }
 
   .map-card__open:hover {
     transform: translateY(-1px);
-    box-shadow: 0 16px 30px rgba(0, 0, 0, 0.24);
+    box-shadow: 0 16px 30px color-mix(in srgb, var(--pax-color-void) 24%, transparent);
   }
 
   .map-card__favorite {
@@ -895,20 +895,20 @@
     min-width: 36px;
     min-height: 36px;
     padding: 0;
-    color: rgba(226, 232, 240, 0.72);
+    color: color-mix(in srgb, var(--pax-ui-text) 72%, transparent);
   }
 
   .map-card__favorite.is-active {
-    color: #fbbf24;
-    border-color: rgba(251, 191, 36, 0.44);
-    background: rgba(61, 43, 8, 0.92);
+    color: var(--pax-ui-accent-warm);
+    border-color: color-mix(in srgb, var(--pax-ui-accent-warm) 44%, transparent);
+    background: color-mix(in srgb, var(--pax-ui-accent-warm) 24%, color-mix(in srgb, var(--pax-color-void) 92%, transparent));
   }
 
   .map-card__thumb-shell {
     overflow: hidden;
     border-radius: 14px;
-    border: 1px solid rgba(148, 163, 184, 0.12);
-    background: rgba(3, 10, 24, 0.92);
+    border: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 12%, transparent);
+    background: color-mix(in srgb, var(--pax-color-void) 92%, transparent);
     aspect-ratio: 1.5;
   }
 
@@ -926,9 +926,9 @@
     min-height: 128px;
     padding: 18px;
     border-radius: 16px;
-    border: 1px dashed rgba(148, 163, 184, 0.18);
-    background: rgba(9, 16, 31, 0.72);
-    color: rgba(148, 163, 184, 0.9);
+    border: 1px dashed color-mix(in srgb, var(--pax-ui-text-soft) 18%, transparent);
+    background: color-mix(in srgb, var(--pax-color-void) 72%, transparent);
+    color: color-mix(in srgb, var(--pax-ui-text-soft) 90%, transparent);
     text-align: center;
   }
 
@@ -946,13 +946,13 @@
   .autosave-item strong {
     font-family: var(--pax-ui-font-ui);
     font-size: var(--pax-type-base);
-    color: #f8fafc;
+    color: var(--pax-ui-text-strong);
   }
 
   .map-card__meta span,
   .autosave-item span {
     font-size: var(--pax-type-xs-plus);
-    color: rgba(148, 163, 184, 0.9);
+    color: color-mix(in srgb, var(--pax-ui-text-soft) 90%, transparent);
   }
 
   .autosave-list {
@@ -978,9 +978,9 @@
     gap: 6px;
     padding: 10px;
     border-radius: 16px;
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    background: rgba(3, 10, 24, 0.98);
-    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.32);
+    border: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent);
+    background: color-mix(in srgb, var(--pax-color-void) 98%, transparent);
+    box-shadow: 0 18px 36px color-mix(in srgb, var(--pax-color-void) 32%, transparent);
     backdrop-filter: blur(18px);
   }
 
@@ -990,12 +990,12 @@
   }
 
   .context-menu button.danger {
-    border-color: rgba(248, 113, 113, 0.24);
+    border-color: color-mix(in srgb, var(--pax-ui-danger) 24%, transparent);
   }
 
   .context-menu button.danger:hover {
-    border-color: rgba(248, 113, 113, 0.58);
-    background: rgba(127, 29, 29, 0.82);
+    border-color: color-mix(in srgb, var(--pax-ui-danger) 58%, transparent);
+    background: color-mix(in srgb, var(--pax-ui-danger) 34%, var(--pax-color-void));
   }
 
   .context-menu button:disabled {

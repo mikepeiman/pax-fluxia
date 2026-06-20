@@ -51,7 +51,7 @@
     border-radius: var(--pax-ui-radius-sm);
     clip-path: var(--pax-ui-rounded-corner-sm);
     background:
-      linear-gradient(180deg, rgba(0, 18, 21, 0.78), rgba(0, 10, 13, 0.92)) padding-box,
+      linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 78%, transparent), color-mix(in srgb, var(--pax-color-void) 92%, transparent)) padding-box,
       var(--pax-ui-control-border-gradient) border-box;
     color: var(--pax-ui-text);
     cursor: pointer;
@@ -64,7 +64,7 @@
 
   .pax-color-swatch-button:hover {
     background:
-      linear-gradient(180deg, rgba(28, 26, 16, 0.88), rgba(3, 26, 30, 0.94)) padding-box,
+      linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 88%, transparent), color-mix(in srgb, var(--pax-color-void) 94%, transparent)) padding-box,
       var(--pax-ui-border-gradient) border-box;
     transform: translateY(-1px);
   }

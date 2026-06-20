@@ -1654,8 +1654,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         padding: 4px;
         border: 1px solid var(--pax-ui-border);
         border-radius: var(--pax-ui-radius-sm);
-        background: var(--pax-ui-panel-bg-strong, #0a1418);
-        box-shadow: var(--pax-ui-shadow-soft, 0 12px 32px rgba(0, 0, 0, 0.5));
+        background: var(--pax-ui-panel-bg-strong, var(--pax-color-void-mid));
+        box-shadow: var(--pax-ui-shadow-soft, 0 12px 32px color-mix(in srgb, var(--pax-color-void) 50%, transparent));
     }
     .settings-search__empty {
         margin: 0;
@@ -1678,7 +1678,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         cursor: pointer;
     }
     .settings-search__result:hover {
-        background: rgba(246, 196, 105, 0.1);
+        background: color-mix(in srgb, var(--pax-ui-accent-warm) 10%, transparent);
     }
     .settings-search__result-title {
         min-width: 0;
@@ -1766,7 +1766,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         width: 100%;
         min-height: 46px;
         padding: 10px 0;
-        background: rgba(7, 13, 26, 0.78);
+        background: color-mix(in srgb, var(--pax-color-void) 78%, transparent);
         border: 1px solid var(--pax-ui-border);
         border-radius: 14px;
         cursor: pointer;
@@ -1784,7 +1784,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         padding: 10px 12px;
     }
     :global(.icon-btn:hover) {
-        background: rgba(14, 24, 43, 0.92);
+        background: color-mix(in srgb, var(--pax-color-void) 92%, transparent);
         border-color: color-mix(in srgb, var(--accent) 55%, var(--pax-ui-border));
         color: var(--pax-ui-text-strong);
         transform: translateY(-1px);
@@ -1864,16 +1864,16 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
     @keyframes settings-search-hit-flash {
         0% {
-            background: rgba(37, 99, 235, 0.12);
-            box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.35);
+            background: color-mix(in srgb, var(--pax-color-player-blue) 12%, transparent);
+            box-shadow: 0 0 0 0 color-mix(in srgb, var(--pax-color-player-blue) 35%, transparent);
         }
         40% {
-            background: rgba(37, 99, 235, 0.2);
-            box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.28);
+            background: color-mix(in srgb, var(--pax-color-player-blue) 20%, transparent);
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--pax-color-player-blue) 28%, transparent);
         }
         100% {
             background: transparent;
-            box-shadow: 0 0 0 0 rgba(96, 165, 250, 0);
+            box-shadow: 0 0 0 0 color-mix(in srgb, var(--pax-color-player-blue) 0%, transparent);
         }
     }
 
@@ -1942,7 +1942,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         padding: 0 9px;
         border-radius: 7px;
         border: 1px solid var(--pax-ui-border);
-        background: rgba(7, 12, 24, 0.62);
+        background: color-mix(in srgb, var(--pax-color-void) 62%, transparent);
         color: var(--pax-ui-text);
         font-family: var(--pax-ui-font-ui);
         font-size: var(--pax-type-3xs);
@@ -1963,7 +1963,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             rgba(255, 255, 255, 0.12)
         );
         background: color-mix(in srgb, var(--accent) 10%, rgba(7, 12, 24, 0.5));
-        color: rgba(241, 245, 249, 0.96);
+        color: color-mix(in srgb, var(--pax-ui-text-strong) 96%, transparent);
         transform: translateY(-1px);
     }
     :global(.subsection-chip.active) {
@@ -1973,7 +1973,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             rgba(255, 255, 255, 0.12)
         );
         background: color-mix(in srgb, var(--accent) 18%, rgba(7, 12, 24, 0.6));
-        color: rgba(248, 250, 252, 0.98);
+        color: color-mix(in srgb, var(--pax-ui-text-strong) 98%, transparent);
         box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent);
     }
     .subsection-chip__icon {
@@ -2042,12 +2042,12 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .icon-toolbar {
         gap: 7px;
         padding: 8px 6px;
-        border: 1px solid rgba(246, 196, 105, 0.32);
+        border: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 32%, transparent);
         background:
-            linear-gradient(180deg, rgba(2, 24, 27, 0.92), rgba(1, 8, 13, 0.96)),
-            radial-gradient(circle at 50% 0%, rgba(246, 196, 105, 0.12), transparent 38%);
+            linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 92%, transparent), color-mix(in srgb, var(--pax-color-void) 96%, transparent)),
+            radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--pax-ui-accent-warm) 12%, transparent), transparent 38%);
         clip-path: var(--pax-ui-cut-corner-sm);
-        box-shadow: inset 0 0 0 1px rgba(255, 231, 178, 0.05);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pax-ui-accent-warm-strong) 5%, transparent);
         overflow-x: hidden;
         max-height: min(52vh, calc(100vh - var(--pax-ui-topbar-height) - 330px));
     }
@@ -2055,18 +2055,18 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .icon-toolbar__controls {
         gap: 7px;
         padding-bottom: 7px;
-        border-bottom: 1px solid rgba(246, 196, 105, 0.18);
+        border-bottom: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 18%, transparent);
     }
 
     :global(.icon-toolbar-control),
     :global(.icon-btn) {
         min-height: 42px;
         border-radius: 0;
-        border-color: rgba(246, 196, 105, 0.22);
-        background: rgba(0, 17, 21, 0.72);
-        color: rgba(255, 221, 160, 0.82);
+        border-color: color-mix(in srgb, var(--pax-ui-accent-warm) 22%, transparent);
+        background: color-mix(in srgb, var(--pax-color-void) 72%, transparent);
+        color: color-mix(in srgb, var(--pax-ui-accent-warm) 82%, transparent);
         clip-path: var(--pax-ui-cut-corner-xs);
-        box-shadow: inset 0 0 0 1px rgba(120, 255, 244, 0.03);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pax-ui-accent) 3%, transparent);
     }
 
     :global(.icon-toolbar-control) {
@@ -2084,16 +2084,16 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         justify-content: center;
         border-radius: 999px;
         clip-path: none;
-        border-color: rgba(120, 200, 255, 0.3);
-        background: rgba(120, 200, 255, 0.06);
+        border-color: color-mix(in srgb, var(--pax-color-player-blue) 30%, transparent);
+        background: color-mix(in srgb, var(--pax-color-player-blue) 6%, transparent);
         box-shadow: none;
     }
 
     .icon-toolbar .icon-toolbar__controls :global(.icon-toolbar-control:hover) {
         clip-path: none;
         border-radius: 999px;
-        border-color: rgba(120, 200, 255, 0.6);
-        background: rgba(120, 200, 255, 0.12);
+        border-color: color-mix(in srgb, var(--pax-color-player-blue) 60%, transparent);
+        background: color-mix(in srgb, var(--pax-color-player-blue) 12%, transparent);
         transform: none;
     }
 
@@ -2111,19 +2111,19 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     :global(.icon-btn:hover),
     :global(.icon-toolbar-control:hover) {
         background:
-            linear-gradient(180deg, rgba(21, 44, 39, 0.92), rgba(4, 23, 25, 0.94)),
-            rgba(246, 196, 105, 0.04);
+            linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 92%, transparent), color-mix(in srgb, var(--pax-color-void) 94%, transparent)),
+            color-mix(in srgb, var(--pax-ui-accent-warm) 4%, transparent);
         color: var(--pax-ui-accent-warm-strong);
-        border-color: rgba(246, 196, 105, 0.62);
+        border-color: color-mix(in srgb, var(--pax-ui-accent-warm) 62%, transparent);
         transform: none;
     }
 
     :global(.icon-btn.active) {
         background:
-            linear-gradient(180deg, rgba(97, 72, 25, 0.92), rgba(4, 29, 29, 0.96));
-        color: #fff1bf;
-        border-color: rgba(255, 214, 120, 0.78);
-        box-shadow: inset 0 0 0 1px rgba(255, 235, 175, 0.13), 0 0 18px rgba(246, 196, 105, 0.18);
+            linear-gradient(180deg, rgba(97, 72, 25, 0.92), color-mix(in srgb, var(--pax-color-void) 96%, transparent));
+        color: var(--pax-ui-accent-warm-strong);
+        border-color: color-mix(in srgb, var(--pax-ui-accent-warm-strong) 78%, transparent);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pax-ui-accent-warm-strong) 13%, transparent), 0 0 18px color-mix(in srgb, var(--pax-ui-accent-warm) 18%, transparent);
     }
 
     .icon-symbol {
@@ -2148,11 +2148,11 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
 
     .section-panel {
         border-radius: 0;
-        border-color: rgba(246, 196, 105, 0.35);
+        border-color: color-mix(in srgb, var(--pax-ui-accent-warm) 35%, transparent);
         background:
-            linear-gradient(180deg, rgba(3, 23, 26, 0.97), rgba(1, 8, 13, 0.99)),
-            radial-gradient(circle at 0% 0%, rgba(90, 245, 235, 0.08), transparent 42%),
-            radial-gradient(circle at 100% 0%, rgba(246, 196, 105, 0.12), transparent 44%);
+            linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 97%, transparent), color-mix(in srgb, var(--pax-color-void) 99%, transparent)),
+            radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--pax-ui-accent) 8%, transparent), transparent 42%),
+            radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--pax-ui-accent-warm) 12%, transparent), transparent 44%);
         clip-path: var(--pax-ui-cut-corner-md);
     }
 
@@ -2160,8 +2160,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         min-height: 42px;
         padding: 0 12px;
         color: var(--pax-ui-accent-warm-strong);
-        border-bottom-color: rgba(246, 196, 105, 0.2);
-        background: rgba(0, 15, 18, 0.72);
+        border-bottom-color: color-mix(in srgb, var(--pax-ui-accent-warm) 20%, transparent);
+        background: color-mix(in srgb, var(--pax-color-void) 72%, transparent);
     }
 
     .head-icon {
@@ -2183,10 +2183,10 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .section-body :global(.category-theme-bar) {
         margin: -2px -2px 10px;
         padding: 8px;
-        border: 1px solid rgba(246, 196, 105, 0.26);
+        border: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 26%, transparent);
         background:
-            linear-gradient(180deg, rgba(3, 21, 24, 0.9), rgba(0, 9, 12, 0.94)),
-            radial-gradient(circle at 0% 0%, rgba(90, 245, 235, 0.08), transparent 42%);
+            linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 90%, transparent), color-mix(in srgb, var(--pax-color-void) 94%, transparent)),
+            radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--pax-ui-accent) 8%, transparent), transparent 42%);
         clip-path: var(--pax-ui-cut-corner-sm);
     }
 
@@ -2197,9 +2197,9 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .section-body :global(.modal-chip),
     .section-body :global(.modal-chip button) {
         border-radius: 0;
-        border-color: rgba(246, 196, 105, 0.28);
-        background: rgba(0, 17, 21, 0.78);
-        color: rgba(255, 229, 174, 0.9);
+        border-color: color-mix(in srgb, var(--pax-ui-accent-warm) 28%, transparent);
+        background: color-mix(in srgb, var(--pax-color-void) 78%, transparent);
+        color: color-mix(in srgb, var(--pax-ui-accent-warm) 90%, transparent);
         clip-path: var(--pax-ui-cut-corner-xs);
         font-family: var(--pax-ui-font-ui);
         font-weight: var(--pax-weight-extrabold);
@@ -2211,9 +2211,9 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .section-body :global(.drawer-btn:hover),
     .section-body :global(.chip:hover),
     .section-body :global(.chip.active) {
-        border-color: rgba(255, 218, 132, 0.72);
+        border-color: color-mix(in srgb, var(--pax-ui-accent-warm-strong) 72%, transparent);
         background: linear-gradient(180deg, rgba(58, 48, 22, 0.9), rgba(3, 31, 32, 0.94));
-        color: #fff0ba;
+        color: var(--pax-ui-accent-warm-strong);
     }
 
     .section-body :global(.sub-heading) {
@@ -2231,7 +2231,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
        No per-row border/box here — grouping comes from .sub-heading dividers. */
 
     .section-body :global(.var-name) {
-        color: rgba(255, 232, 181, 0.9);
+        color: color-mix(in srgb, var(--pax-ui-accent-warm) 90%, transparent);
         font-family: var(--pax-ui-font-ui);
         font-weight: var(--pax-weight-extrabold);
         letter-spacing: 0.04em;
@@ -2254,7 +2254,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         border-radius: var(--pax-ui-radius-md);
         clip-path: var(--pax-ui-rounded-corner-md);
         background:
-            linear-gradient(180deg, rgba(3, 23, 26, 0.97), rgba(1, 8, 13, 0.99)) padding-box,
+            linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 97%, transparent), color-mix(in srgb, var(--pax-color-void) 99%, transparent)) padding-box,
             var(--pax-ui-border-gradient) border-box;
     }
 
@@ -2270,7 +2270,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         border-radius: var(--pax-ui-radius-xs);
         clip-path: var(--pax-ui-rounded-corner-xs);
         background:
-            linear-gradient(180deg, rgba(0, 18, 21, 0.86), rgba(0, 10, 13, 0.94)) padding-box,
+            linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 86%, transparent), color-mix(in srgb, var(--pax-color-void) 94%, transparent)) padding-box,
             var(--pax-ui-control-border-gradient) border-box;
     }
 
@@ -2373,115 +2373,115 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     :global(.icon-btn[data-accent-id="theme_library"]),
     :global(.icon-btn[data-accent-id="stats"]),
     :global(.icon-btn[data-accent-id="restart"]) {
-        --accent: #f6c469;
+        --accent: var(--pax-ui-accent-warm);
     }
 
     :global(.icon-btn[data-accent-id="appearance"]) {
-        --accent: #5ee6ff;
+        --accent: var(--pax-ui-accent);
     }
 
     :global(.icon-btn[data-accent-id="combat_tuning"]) {
-        --accent: #ff8a94;
+        --accent: var(--pax-ui-danger);
     }
 
     :global(.icon-btn[data-accent-id="audio"]) {
-        --accent: #44ddbb;
+        --accent: var(--pax-ui-accent);
     }
 
     :global(.icon-btn[data-accent-id="video_graphics"]) {
-        --accent: #93c5fd;
+        --accent: var(--pax-color-player-blue);
     }
 
     :global(.icon-btn[data-accent-id="diagnostics"]) {
-        --accent: #f59e0b;
+        --accent: var(--pax-ui-warning);
     }
 
     :global(.icon-btn[data-accent-id="hotkeys"]) {
-        --accent: #8ab4ff;
+        --accent: var(--pax-color-player-blue);
     }
 
     :global(.icon-btn[data-accent-id="help"]) {
-        --accent: #a8b6cf;
+        --accent: var(--pax-ui-text-soft);
     }
 
     :global(.icon-btn[data-accent-id="quit"]) {
-        --accent: #ff6a7a;
+        --accent: var(--pax-ui-danger);
     }
 
     .section-panel[data-accent-id="players"] {
-        --accent: #7dd3fc;
+        --accent: var(--pax-ui-accent);
     }
 
     .section-panel[data-accent-id="match_flow"] {
-        --accent: #ffcc00;
+        --accent: var(--pax-color-player-yellow);
     }
 
     .section-panel[data-accent-id="combat_tuning"] {
-        --accent: #ff4466;
+        --accent: var(--pax-ui-danger);
     }
 
     .section-panel[data-accent-id="economy"] {
-        --accent: #44ff88;
+        --accent: var(--pax-ui-success);
     }
 
     .section-panel[data-accent-id="travel_orders"] {
-        --accent: #44aaff;
+        --accent: var(--pax-color-player-blue);
     }
 
     .section-panel[data-accent-id="conquest"] {
-        --accent: #ff66aa;
+        --accent: var(--pax-ui-danger);
     }
 
     .section-panel[data-accent-id="effects"] {
-        --accent: #f472b6;
+        --accent: var(--pax-ui-danger);
     }
 
     .section-panel[data-accent-id="map_options"] {
-        --accent: #cc66ff;
+        --accent: var(--pax-color-player-purple);
     }
 
     .section-panel[data-accent-id="territory_phase_field"] {
-        --accent: #8ab4ff;
+        --accent: var(--pax-color-player-blue);
     }
 
     .section-panel[data-accent-id="territory_phase_edges"] {
-        --accent: #fda4af;
+        --accent: var(--pax-ui-danger);
     }
 
     .section-panel[data-accent-id="territory_ember_lattice"] {
-        --accent: #fb923c;
+        --accent: var(--pax-color-player-orange);
     }
 
     .section-panel[data-accent-id="frontier_fx"] {
-        --accent: #f97316;
+        --accent: var(--pax-color-player-orange);
     }
 
     .section-panel[data-accent-id="territory_tuning"] {
-        --accent: #6ee7b7;
+        --accent: var(--pax-ui-success);
     }
 
     .section-panel[data-accent-id="territory_styles"] {
-        --accent: #93c5fd;
+        --accent: var(--pax-color-player-blue);
     }
 
     .section-panel[data-accent-id="fleet_star_visuals"] {
-        --accent: #88ccff;
+        --accent: var(--pax-color-player-blue);
     }
 
     .section-panel[data-accent-id="audio"] {
-        --accent: #44ddbb;
+        --accent: var(--pax-ui-accent);
     }
 
     .section-panel[data-accent-id="diagnostics"] {
-        --accent: #f59e0b;
+        --accent: var(--pax-ui-warning);
     }
 
     .section-panel[data-accent-id="logging"] {
-        --accent: #88aacc;
+        --accent: var(--pax-ui-text-soft);
     }
 
     .section-panel[data-accent-id="ai"] {
-        --accent: #ff8844;
+        --accent: var(--pax-color-player-orange);
     }
 
     .settings-content {

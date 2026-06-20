@@ -82,10 +82,10 @@
         width: 36px;
         height: 36px;
         border-radius: 50%;
-        background: rgba(20, 20, 30, 0.7);
+        background: color-mix(in srgb, var(--pax-color-void) 70%, transparent);
         backdrop-filter: blur(8px);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        color: rgba(255, 255, 255, 0.4);
+        border: 1px solid color-mix(in srgb, var(--pax-ui-text-strong) 15%, transparent);
+        color: color-mix(in srgb, var(--pax-ui-text-strong) 40%, transparent);
         cursor: pointer;
         z-index: 200;
         transition: all 0.2s ease;
@@ -122,17 +122,17 @@
     }
 
     .hud-fab:hover {
-        color: #fff;
-        border-color: rgba(0, 255, 255, 0.4);
-        background: rgba(20, 20, 30, 0.9);
-        box-shadow: 0 0 12px rgba(0, 255, 255, 0.15);
+        color: var(--pax-ui-text-strong);
+        border-color: color-mix(in srgb, var(--pax-ui-accent) 40%, transparent);
+        background: color-mix(in srgb, var(--pax-color-void) 90%, transparent);
+        box-shadow: 0 0 12px color-mix(in srgb, var(--pax-ui-accent) 15%, transparent);
     }
 
     .hud-fab.active {
-        color: #57f8ff;
-        border-color: rgba(87, 248, 255, 0.5);
-        background: rgba(20, 20, 30, 0.95);
-        box-shadow: 0 0 14px rgba(87, 248, 255, 0.2);
+        color: var(--pax-ui-accent);
+        border-color: color-mix(in srgb, var(--pax-ui-accent) 50%, transparent);
+        background: color-mix(in srgb, var(--pax-color-void) 95%, transparent);
+        box-shadow: 0 0 14px color-mix(in srgb, var(--pax-ui-accent) 20%, transparent);
     }
 
     @media (max-width: 1024px) {

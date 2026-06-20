@@ -110,12 +110,12 @@
     gap: 8px;
     padding: 10px 12px;
     border-radius: 16px;
-    border: 1px solid rgba(148, 163, 184, 0.14);
+    border: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 14%, transparent);
     background:
-      linear-gradient(180deg, rgba(14, 23, 42, 0.92), rgba(6, 11, 23, 0.92));
+      linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 92%, transparent), color-mix(in srgb, var(--pax-color-void) 92%, transparent));
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.03),
-      0 10px 24px rgba(2, 8, 23, 0.18);
+      inset 0 1px 0 color-mix(in srgb, var(--pax-ui-text-strong) 3%, transparent),
+      0 10px 24px color-mix(in srgb, var(--pax-color-void) 18%, transparent);
   }
 
   .slider-field__top,
@@ -164,8 +164,8 @@
     padding: 0 8px;
     min-height: 34px;
     border-radius: 12px;
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    background: rgba(7, 14, 28, 0.9);
+    border: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent);
+    background: color-mix(in srgb, var(--pax-color-void) 90%, transparent);
   }
 
   .slider-field__unit {
@@ -173,7 +173,7 @@
     font-weight: var(--pax-weight-bold);
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: rgba(148, 163, 184, 0.76);
+    color: color-mix(in srgb, var(--pax-ui-text-soft) 76%, transparent);
   }
 
   .slider-field__number {
@@ -182,7 +182,7 @@
     border: none;
     outline: none;
     background: transparent;
-    color: #f8fafc;
+    color: var(--pax-ui-text-strong);
     font: inherit;
     font-family: var(--pax-ui-font-data);
     font-size: var(--pax-type-xs-plus);

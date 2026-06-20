@@ -80,7 +80,7 @@
   }
 
   .pax-settings-toggle-row:hover {
-    background: rgba(246, 196, 105, 0.05);
+    background: color-mix(in srgb, var(--pax-ui-accent-warm) 5%, transparent);
   }
 
   .pax-settings-toggle-row--disabled {
@@ -105,7 +105,7 @@
     padding: 2px;
     border: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 38%, transparent);
     border-radius: 999px;
-    background: rgba(1, 12, 16, 0.9);
+    background: color-mix(in srgb, var(--pax-color-void) 90%, transparent);
     transition:
       background var(--pax-motion-fast, 150ms ease),
       border-color var(--pax-motion-fast, 150ms ease),

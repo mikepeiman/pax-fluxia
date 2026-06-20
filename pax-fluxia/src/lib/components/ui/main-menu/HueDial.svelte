@@ -142,7 +142,7 @@
         inset: 0;
         border-radius: 999px;
         background:
-            radial-gradient(circle at center, rgba(0, 0, 0, 0) 45%, rgba(0, 0, 0, 0.3) 46%, rgba(0, 0, 0, 0.3) 47%, rgba(0, 0, 0, 0) 48%),
+            radial-gradient(circle at center, color-mix(in srgb, var(--pax-color-void) 0%, transparent) 45%, color-mix(in srgb, var(--pax-color-void) 30%, transparent) 46%, color-mix(in srgb, var(--pax-color-void) 30%, transparent) 47%, color-mix(in srgb, var(--pax-color-void) 0%, transparent) 48%),
             conic-gradient(
                 from 0deg,
                 hsl(0 85% 58%),
@@ -156,7 +156,7 @@
             );
         box-shadow:
             inset 0 0 0 1px var(--pf-border-soft),
-            inset 0 20px 28px rgba(255, 255, 255, 0.08),
+            inset 0 20px 28px color-mix(in srgb, var(--pax-ui-text-strong) 8%, transparent),
             var(--pf-shadow-elevated);
     }
 
@@ -164,8 +164,8 @@
         inset: 16px;
         border-radius: 999px;
         background:
-            radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.18), transparent 42%),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.14)),
+            radial-gradient(circle at 30% 24%, color-mix(in srgb, var(--pax-ui-text-strong) 18%, transparent), transparent 42%),
+            linear-gradient(180deg, color-mix(in srgb, var(--pax-ui-text-strong) 8%, transparent), color-mix(in srgb, var(--pax-color-void) 14%, transparent)),
             var(--pf-surface-control);
         border: 1px solid var(--pf-border-strong);
         display: grid;
@@ -204,7 +204,7 @@
         border-radius: 999px;
         background: var(--pf-accent-strong);
         box-shadow:
-            0 0 0 3px rgba(3, 10, 22, 0.78),
+            0 0 0 3px color-mix(in srgb, var(--pax-color-void) 78%, transparent),
             var(--pf-shadow-glow);
     }
 

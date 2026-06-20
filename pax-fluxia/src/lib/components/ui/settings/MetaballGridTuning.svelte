@@ -1676,7 +1676,7 @@
         margin: 0 0 10px;
         font-size: var(--pax-type-2xs);
         line-height: 1.4;
-        color: rgba(255, 255, 255, 0.72);
+        color: color-mix(in srgb, var(--pax-ui-text-strong) 72%, transparent);
     }
 
     .module-block {
@@ -1694,7 +1694,7 @@
 
     .var-desc {
         margin: 4px 0 10px;
-        color: rgba(220, 232, 245, 0.72);
+        color: color-mix(in srgb, var(--pax-ui-text-soft) 72%, transparent);
         font-size: var(--pax-type-3xs);
         line-height: 1.35;
     }
@@ -1720,29 +1720,29 @@
         align-items: baseline;
         padding: 10px 12px;
         border-radius: 8px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(7, 12, 24, 0.4);
+        border: 1px solid color-mix(in srgb, var(--pax-ui-text-strong) 8%, transparent);
+        background: color-mix(in srgb, var(--pax-color-void) 40%, transparent);
         font-size: var(--pax-type-2xs);
     }
 
     .perf-label {
-        color: rgba(220, 232, 245, 0.7);
+        color: color-mix(in srgb, var(--pax-ui-text-soft) 70%, transparent);
         letter-spacing: 0.04em;
     }
 
     .perf-value {
-        color: rgba(248, 250, 252, 0.95);
+        color: color-mix(in srgb, var(--pax-ui-text-strong) 95%, transparent);
         font-variant-numeric: tabular-nums;
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     }
 
     .perf-sub {
-        color: rgba(220, 232, 245, 0.55);
+        color: color-mix(in srgb, var(--pax-ui-text-soft) 55%, transparent);
         margin-left: 6px;
     }
 
     .perf-coarsen {
-        color: rgba(255, 196, 105, 0.9);
+        color: color-mix(in srgb, var(--pax-ui-accent-warm) 90%, transparent);
         margin-left: 4px;
         font-size: var(--pax-type-3xs);
     }

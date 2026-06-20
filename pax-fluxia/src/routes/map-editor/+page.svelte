@@ -1169,13 +1169,13 @@
     padding: 16px;
     overscroll-behavior: none;
     background:
-      radial-gradient(circle at top left, rgba(14, 165, 233, 0.14), transparent 32%),
-      radial-gradient(circle at bottom right, rgba(234, 179, 8, 0.1), transparent 28%),
-      #020617;
-    color: #e2e8f0;
+      radial-gradient(circle at top left, color-mix(in srgb, var(--pax-ui-accent) 14%, transparent), transparent 32%),
+      radial-gradient(circle at bottom right, color-mix(in srgb, var(--pax-ui-accent-warm) 10%, transparent), transparent 28%),
+      var(--pax-color-void);
+    color: var(--pax-ui-text);
     font-family: var(--pax-ui-font-copy);
-    --editor-border: rgba(148, 163, 184, 0.16);
-    --editor-surface: rgba(4, 11, 26, 0.84);
+    --editor-border: color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent);
+    --editor-surface: color-mix(in srgb, var(--pax-color-void) 84%, transparent);
   }
 
   .editor-topbar {
@@ -1203,11 +1203,11 @@
     min-height: 40px;
     padding: 0 12px;
     border-radius: 14px;
-    border: 1px solid var(--editor-border, rgba(148, 163, 184, 0.16));
-    background: rgba(4, 11, 26, 0.82);
+    border: 1px solid var(--editor-border, color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent));
+    background: color-mix(in srgb, var(--pax-color-void) 82%, transparent);
     backdrop-filter: blur(14px);
-    color: #e2e8f0;
-    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.24);
+    color: var(--pax-ui-text);
+    box-shadow: 0 14px 40px color-mix(in srgb, var(--pax-color-void) 24%, transparent);
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -1220,10 +1220,10 @@
   }
 
   .topbar-btn:hover {
-    border-color: rgba(125, 211, 252, 0.58);
-    background: rgba(17, 39, 63, 0.88);
-    color: #f8fafc;
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+    border-color: color-mix(in srgb, var(--pax-ui-accent) 58%, transparent);
+    background: color-mix(in srgb, var(--pax-color-void) 88%, transparent);
+    color: var(--pax-ui-text-strong);
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--pax-color-void) 22%, transparent);
   }
 
   .topbar-btn:disabled {
@@ -1281,8 +1281,8 @@
     border-radius: 30px;
     overflow: hidden;
     border: 1px solid var(--editor-border);
-    background: rgba(3, 7, 18, 0.82);
-    box-shadow: 0 28px 90px rgba(0, 0, 0, 0.36);
+    background: color-mix(in srgb, var(--pax-color-void) 82%, transparent);
+    box-shadow: 0 28px 90px color-mix(in srgb, var(--pax-color-void) 36%, transparent);
   }
 
   .board-dismiss-layer {

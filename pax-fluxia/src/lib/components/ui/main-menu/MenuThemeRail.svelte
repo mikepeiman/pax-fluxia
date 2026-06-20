@@ -44,7 +44,7 @@
         border-radius: var(--pf-rail-radius);
         border: 1px solid var(--pf-border-soft);
         background: var(--pf-frame-control), var(--pf-surface-control);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+        box-shadow: inset 0 1px 0 color-mix(in srgb, var(--pax-ui-text-strong) 3%, transparent);
     }
 
     .theme-rail__button {
@@ -56,7 +56,7 @@
         border: 1px solid transparent;
         background:
             var(--pf-frame-control),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 100%),
+            linear-gradient(180deg, color-mix(in srgb, var(--pax-ui-text-strong) 6%, transparent), transparent 100%),
             var(--pf-surface-card);
         color: var(--pf-muted-strong);
         cursor: pointer;
@@ -83,7 +83,7 @@
         position: absolute;
         inset: 0;
         background:
-            linear-gradient(180deg, rgba(3, 6, 14, 0.02), rgba(3, 6, 14, 0.54)),
+            linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 2%, transparent), color-mix(in srgb, var(--pax-color-void) 54%, transparent)),
             radial-gradient(circle at 50% 0%, var(--pf-glow), transparent 62%);
         pointer-events: none;
     }
@@ -99,8 +99,8 @@
         font-weight: var(--pax-weight-extrabold);
         letter-spacing: 0.16em;
         text-transform: uppercase;
-        color: #f8fcff;
-        text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
+        color: var(--pax-ui-text-strong);
+        text-shadow: 0 1px 8px color-mix(in srgb, var(--pax-color-void) 70%, transparent);
         white-space: nowrap;
     }
 
@@ -114,7 +114,7 @@
     .theme-rail__button.is-active {
         background:
             var(--pf-frame-control),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 100%),
+            linear-gradient(180deg, color-mix(in srgb, var(--pax-ui-text-strong) 10%, transparent), transparent 100%),
             var(--pf-surface-card-hover);
     }
 

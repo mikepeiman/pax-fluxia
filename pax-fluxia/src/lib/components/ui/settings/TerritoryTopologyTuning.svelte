@@ -409,7 +409,7 @@
     font-weight: var(--pax-weight-bold);
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: rgba(168, 208, 239, 0.78);
+    color: color-mix(in srgb, var(--pax-color-player-blue) 78%, transparent);
   }
 
   .engine-control-group {
@@ -418,11 +418,11 @@
     gap: 10px;
     padding: 12px;
     border-radius: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid color-mix(in srgb, var(--pax-ui-text-strong) 8%, transparent);
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.025)),
-      rgba(16, 22, 34, 0.7);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      linear-gradient(180deg, color-mix(in srgb, var(--pax-ui-text-strong) 5%, transparent), color-mix(in srgb, var(--pax-ui-text-strong) 2.5%, transparent)),
+      color-mix(in srgb, var(--pax-color-void) 70%, transparent);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--pax-ui-text-strong) 4%, transparent);
   }
 
   :global(.topology-indent) {

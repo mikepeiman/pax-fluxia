@@ -198,7 +198,7 @@
         align-items: center;
         gap: 8px;
         margin: 0;
-        color: rgba(128, 222, 255, 0.92);
+        color: color-mix(in srgb, var(--pax-ui-accent) 92%, transparent);
         font-size: var(--pax-type-3xs);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.12em;
@@ -219,9 +219,9 @@
         min-height: 24px;
         padding: 0 10px;
         border-radius: 999px;
-        border: 1px solid rgba(245, 158, 11, 0.35);
-        background: rgba(245, 158, 11, 0.12);
-        color: rgba(255, 214, 140, 0.96);
+        border: 1px solid color-mix(in srgb, var(--pax-ui-warning) 35%, transparent);
+        background: color-mix(in srgb, var(--pax-ui-warning) 12%, transparent);
+        color: color-mix(in srgb, var(--pax-ui-accent-warm) 96%, transparent);
         font-size: var(--pax-type-3xs);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.1em;
@@ -229,9 +229,9 @@
     }
 
     .phase-field-status--live {
-        border-color: rgba(110, 231, 183, 0.4);
-        background: rgba(16, 185, 129, 0.12);
-        color: rgba(182, 255, 224, 0.96);
+        border-color: color-mix(in srgb, var(--pax-ui-success) 40%, transparent);
+        background: color-mix(in srgb, var(--pax-ui-success) 12%, transparent);
+        color: color-mix(in srgb, var(--pax-ui-success) 96%, transparent);
     }
 
     .phase-field-card {
@@ -240,11 +240,11 @@
         gap: 8px;
         padding: 12px;
         border-radius: 14px;
-        border: 1px solid rgba(122, 162, 255, 0.18);
+        border: 1px solid color-mix(in srgb, var(--pax-color-player-blue) 18%, transparent);
         background: linear-gradient(
             180deg,
-            rgba(13, 20, 38, 0.94) 0%,
-            rgba(8, 13, 26, 0.94) 100%
+            color-mix(in srgb, var(--pax-color-void) 94%, transparent) 0%,
+            color-mix(in srgb, var(--pax-color-void) 94%, transparent) 100%
         );
     }
 
@@ -254,10 +254,10 @@
         gap: 4px;
         margin-top: 2px;
         padding: 10px 12px;
-        border-left: 3px solid rgba(122, 162, 255, 0.6);
+        border-left: 3px solid color-mix(in srgb, var(--pax-color-player-blue) 60%, transparent);
         border-radius: 10px;
-        background: rgba(17, 24, 39, 0.6);
-        color: rgba(226, 236, 248, 0.9);
+        background: color-mix(in srgb, var(--pax-color-void) 60%, transparent);
+        color: color-mix(in srgb, var(--pax-ui-text-strong) 90%, transparent);
         font-size: var(--pax-type-2xs);
         line-height: 1.35;
     }

@@ -349,7 +349,7 @@
         margin: 8px 0 10px;
         font-size: var(--pax-type-2xs);
         line-height: 1.45;
-        color: rgba(187, 205, 223, 0.82);
+        color: color-mix(in srgb, var(--pax-ui-text-soft) 82%, transparent);
     }
 
     .transition-slider-row {

@@ -722,14 +722,14 @@
 
     .var-desc {
         margin: 4px 0 10px;
-        color: rgba(220, 232, 245, 0.72);
+        color: color-mix(in srgb, var(--pax-ui-text-soft) 72%, transparent);
         font-size: var(--pax-type-3xs);
         line-height: 1.35;
     }
 
     .sub-heading {
         margin: 12px 0 6px;
-        color: rgba(128, 222, 255, 0.92);
+        color: color-mix(in srgb, var(--pax-ui-accent) 92%, transparent);
         font-size: var(--pax-type-3xs);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0.12em;

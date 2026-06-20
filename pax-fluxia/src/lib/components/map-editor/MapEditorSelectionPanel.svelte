@@ -230,10 +230,10 @@
     overflow: auto;
     padding: 14px;
     border-radius: 24px;
-    border: 1px solid var(--editor-border, rgba(148, 163, 184, 0.16));
-    background: rgba(3, 10, 24, 0.94);
+    border: 1px solid var(--editor-border, color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent));
+    background: color-mix(in srgb, var(--pax-color-void) 94%, transparent);
     backdrop-filter: blur(20px);
-    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 24px 70px color-mix(in srgb, var(--pax-color-void) 40%, transparent);
     display: grid;
     gap: 12px;
     z-index: 10;
@@ -245,7 +245,7 @@
     position: absolute;
     inset: 0 auto 0 0;
     width: 3px;
-    background: linear-gradient(180deg, rgba(125, 211, 252, 0.86), rgba(167, 139, 250, 0.72));
+    background: linear-gradient(180deg, color-mix(in srgb, var(--pax-ui-accent) 86%, transparent), color-mix(in srgb, var(--pax-color-player-purple) 72%, transparent));
     border-top-left-radius: 24px;
     border-bottom-left-radius: 24px;
   }
@@ -270,7 +270,7 @@
     font-size: var(--pax-type-base);
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: #f8fafc;
+    color: var(--pax-ui-text-strong);
   }
 
   .selection-panel header span,
@@ -279,12 +279,12 @@
     font-size: var(--pax-type-xs);
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: rgba(148, 163, 184, 0.88);
+    color: color-mix(in srgb, var(--pax-ui-text-soft) 88%, transparent);
   }
 
   .panel-block--subtle {
     padding-top: 10px;
-    border-top: 1px solid rgba(148, 163, 184, 0.12);
+    border-top: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 12%, transparent);
   }
 
   .readout-grid {
@@ -296,14 +296,14 @@
   .readout-grid div {
     padding: 10px 12px;
     border-radius: 14px;
-    background: rgba(9, 16, 31, 0.88);
-    border: 1px solid rgba(148, 163, 184, 0.14);
+    background: color-mix(in srgb, var(--pax-color-void) 88%, transparent);
+    border: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 14%, transparent);
     display: grid;
     gap: 6px;
   }
 
   .readout-grid strong {
-    color: #f8fafc;
+    color: var(--pax-ui-text-strong);
   }
 
   .owner-grid,
@@ -331,9 +331,9 @@
     min-height: 48px;
     padding: 9px 10px;
     border-radius: 14px;
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    background: rgba(9, 16, 31, 0.9);
-    color: rgba(226, 232, 240, 0.92);
+    border: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent);
+    background: color-mix(in srgb, var(--pax-color-void) 90%, transparent);
+    color: color-mix(in srgb, var(--pax-ui-text) 92%, transparent);
     display: flex;
     align-items: center;
     gap: 10px;
@@ -355,8 +355,8 @@
   .owner-chip.is-active,
   .type-chip.is-active,
   .portal-group-chip.is-active {
-    border-color: rgba(125, 211, 252, 0.58);
-    background: rgba(17, 39, 63, 0.88);
+    border-color: color-mix(in srgb, var(--pax-ui-accent) 58%, transparent);
+    background: color-mix(in srgb, var(--pax-color-void) 88%, transparent);
   }
 
   .owner-chip div {
@@ -370,7 +370,7 @@
     border-radius: 999px;
     background: var(--owner-color);
     box-shadow:
-      0 0 0 2px rgba(15, 23, 42, 0.95),
+      0 0 0 2px color-mix(in srgb, var(--pax-color-void) 95%, transparent),
       0 0 16px color-mix(in srgb, var(--owner-color) 42%, transparent);
     flex: 0 0 auto;
   }
@@ -381,9 +381,9 @@
     min-height: 36px;
     padding: 0 10px;
     border-radius: 12px;
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    background: rgba(7, 14, 28, 0.92);
-    color: #e2e8f0;
+    border: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent);
+    background: color-mix(in srgb, var(--pax-color-void) 92%, transparent);
+    color: var(--pax-ui-text);
     font: inherit;
   }
 
@@ -391,9 +391,9 @@
     min-height: 34px;
     padding: 0 10px;
     border-radius: 12px;
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    background: rgba(9, 16, 31, 0.9);
-    color: rgba(226, 232, 240, 0.92);
+    border: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 16%, transparent);
+    background: color-mix(in srgb, var(--pax-color-void) 90%, transparent);
+    color: color-mix(in srgb, var(--pax-ui-text) 92%, transparent);
     cursor: pointer;
   }
 
@@ -405,7 +405,7 @@
   .editor-select {
     appearance: none;
     background:
-      linear-gradient(180deg, rgba(10, 18, 36, 0.96), rgba(5, 11, 22, 0.96));
+      linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 96%, transparent), color-mix(in srgb, var(--pax-color-void) 96%, transparent));
   }
 
   [data-density="compact"]:not(.is-expanded) {

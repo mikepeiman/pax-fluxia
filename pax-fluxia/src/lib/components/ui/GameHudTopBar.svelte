@@ -217,9 +217,9 @@
         padding: 8px 12px;
         border-bottom: 1px solid var(--pax-ui-divider);
         background:
-            linear-gradient(180deg, rgba(5, 10, 22, 0.98), rgba(4, 8, 17, 0.9)),
-            radial-gradient(circle at top left, rgba(255, 200, 107, 0.12), transparent 32%),
-            radial-gradient(circle at top right, rgba(94, 230, 255, 0.12), transparent 40%);
+            linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 98%, transparent), color-mix(in srgb, var(--pax-color-void) 90%, transparent)),
+            radial-gradient(circle at top left, color-mix(in srgb, var(--pax-ui-accent-warm) 12%, transparent), transparent 32%),
+            radial-gradient(circle at top right, color-mix(in srgb, var(--pax-ui-accent) 12%, transparent), transparent 40%);
         backdrop-filter: blur(20px);
         box-shadow: var(--pax-ui-shadow-soft);
         overflow: hidden;
@@ -249,7 +249,7 @@
     .topbar-chip,
     .mode-shortcut {
         border: 1px solid var(--pax-ui-border);
-        background: rgba(10, 18, 34, 0.82);
+        background: color-mix(in srgb, var(--pax-color-void) 82%, transparent);
         color: var(--pax-ui-text);
         cursor: pointer;
         transition: transform 0.14s ease, border-color 0.14s ease, background 0.14s ease, color 0.14s ease, box-shadow 0.14s ease;
@@ -260,7 +260,7 @@
     .mode-shortcut:hover {
         transform: translateY(-1px);
         border-color: var(--pax-ui-border-strong);
-        background: rgba(16, 30, 52, 0.94);
+        background: color-mix(in srgb, var(--pax-color-void) 94%, transparent);
         color: var(--pax-ui-text-strong);
         box-shadow: var(--pax-ui-glow);
     }
@@ -277,7 +277,7 @@
         height: 30px;
         justify-content: center;
         color: var(--pax-ui-accent-warm);
-        filter: drop-shadow(0 0 12px rgba(255, 200, 107, 0.42));
+        filter: drop-shadow(0 0 12px color-mix(in srgb, var(--pax-ui-accent-warm) 42%, transparent));
     }
 
     .brand-wordmark {
@@ -304,7 +304,7 @@
         align-content: center;
         gap: 2px;
         padding: 0 14px;
-        border-right: 1px solid rgba(112, 142, 186, 0.13);
+        border-right: 1px solid color-mix(in srgb, var(--pax-ui-text-soft) 13%, transparent);
     }
 
     .topbar-meta-item:last-child {
@@ -376,7 +376,7 @@
 
     .mode-shortcut__label {
         margin-top: 2px;
-        color: rgba(226, 232, 240, 0.86);
+        color: color-mix(in srgb, var(--pax-ui-text) 86%, transparent);
         font-size: var(--pax-type-4xs);
         white-space: nowrap;
     }
@@ -410,7 +410,7 @@
 
     .mode-shortcut.active {
         border-color: var(--pax-ui-border-warm);
-        box-shadow: inset 0 0 0 1px rgba(255, 200, 107, 0.18);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pax-ui-accent-warm) 18%, transparent);
     }
 
     .topbar-status {
@@ -422,9 +422,9 @@
         height: 46px;
         gap: 9px;
         padding: 0 10px;
-        border: 1px solid rgba(94, 230, 255, 0.14);
+        border: 1px solid color-mix(in srgb, var(--pax-ui-accent) 14%, transparent);
         border-radius: 14px;
-        background: rgba(7, 14, 29, 0.76);
+        background: color-mix(in srgb, var(--pax-color-void) 76%, transparent);
     }
 
     .topbar-kpi {
@@ -481,7 +481,7 @@
         width: 9px;
         height: 9px;
         border-radius: 999px;
-        box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.04);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--pax-ui-text-strong) 4%, transparent);
     }
 
     .topbar-badge__name {

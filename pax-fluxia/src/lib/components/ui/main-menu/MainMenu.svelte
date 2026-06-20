@@ -1262,7 +1262,7 @@
 <style>
     :global(body) {
         margin: 0;
-        background: #050510;
+        background: var(--pax-color-void);
     }
 
     .menu-fullscreen {
@@ -1278,7 +1278,7 @@
         padding: 24px;
         overflow-y: auto;
         isolation: isolate;
-        background-color: #050510;
+        background-color: var(--pax-color-void);
         color: var(--pf-text);
         font-family: var(--pf-font-body);
     }
@@ -1332,7 +1332,7 @@
         border: 1px solid var(--pf-border-faint);
         background:
             var(--pf-frame-title),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 48%),
+            linear-gradient(180deg, color-mix(in srgb, var(--pax-ui-text-strong) 4%, transparent), transparent 48%),
             var(--pf-surface-panel);
         box-shadow: var(--pf-shadow-panel);
         overflow: hidden;

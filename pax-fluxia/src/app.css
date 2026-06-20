@@ -6,6 +6,7 @@
 @import "./lib/design-system/pax-theme.css";
 @import "./lib/aurelia-hud/aurelia-hud-theme.css";
 @import "./lib/styles/hud.css";
+@import "./lib/components/landing-site/site.css";
 
 @font-face {
   font-family: "Cinzel";
@@ -400,7 +401,7 @@ body {
    Glassmorphism Panel
    -------------------------------------------------------------------------- */
 .glass-panel {
-  background: rgba(10, 10, 18, var(--pax-glass-opacity));
+  background: color-mix(in srgb, var(--pax-color-void) calc(var(--pax-glass-opacity) * 100%), transparent);
   backdrop-filter: blur(var(--pax-glass-blur));
   -webkit-backdrop-filter: blur(var(--pax-glass-blur));
   border: var(--pax-ui-border-width) solid var(--pax-ui-divider);
@@ -461,7 +462,7 @@ body {
 }
 
 .btn--secondary:hover {
-  background: rgba(0, 255, 255, 0.1);
+  background: color-mix(in srgb, var(--pax-ui-accent) 10%, transparent);
   box-shadow: var(--pax-shadow-soft);
 }
 
@@ -483,7 +484,7 @@ body {
 }
 
 .btn--danger:hover {
-  background: rgba(255, 51, 102, 0.1);
+  background: color-mix(in srgb, var(--pax-ui-danger) 10%, transparent);
 }
 
 .btn--sm {
@@ -515,11 +516,11 @@ select optgroup {
 
   0%,
   100% {
-    box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--pax-ui-accent) 30%, transparent);
   }
 
   50% {
-    box-shadow: 0 0 25px rgba(0, 255, 255, 0.6);
+    box-shadow: 0 0 25px color-mix(in srgb, var(--pax-ui-accent) 60%, transparent);
   }
 }
 
@@ -746,7 +747,7 @@ select optgroup {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.8);
+  background: color-mix(in srgb, var(--pax-color-void) 80%, transparent);
   backdrop-filter: blur(8px);
   display: flex;
   align-items: center;

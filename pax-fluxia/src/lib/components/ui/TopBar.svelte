@@ -73,8 +73,8 @@
   .top-bar.in-game {
     background: linear-gradient(
       180deg,
-      rgba(5, 5, 16, 0.85) 0%,
-      rgba(5, 5, 16, 0) 100%
+      color-mix(in srgb, var(--pax-color-void) 85%, transparent) 0%,
+      color-mix(in srgb, var(--pax-color-void) 0%, transparent) 100%
     );
   }
 
@@ -107,14 +107,14 @@
     font-size: var(--pax-type-label);
     font-weight: var(--pax-weight-bold);
     letter-spacing: 0.2em;
-    color: rgba(255, 255, 255, 0.25);
+    color: color-mix(in srgb, var(--pax-ui-text-strong) 25%, transparent);
     text-transform: uppercase;
   }
 
   .top-bar-btn {
     background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    color: rgba(255, 255, 255, 0.5);
+    border: 1px solid color-mix(in srgb, var(--pax-ui-text-strong) 12%, transparent);
+    color: color-mix(in srgb, var(--pax-ui-text-strong) 50%, transparent);
     font-family: var(--pax-ui-font-display);
     font-size: var(--pax-type-2xs);
     font-weight: var(--pax-weight-semibold);
@@ -126,9 +126,9 @@
   }
 
   .top-bar-btn:hover {
-    color: #fff;
-    border-color: rgba(255, 255, 255, 0.4);
-    background: rgba(255, 255, 255, 0.05);
+    color: var(--pax-ui-text-strong);
+    border-color: color-mix(in srgb, var(--pax-ui-text-strong) 40%, transparent);
+    background: color-mix(in srgb, var(--pax-ui-text-strong) 5%, transparent);
   }
 
   .icon-btn {

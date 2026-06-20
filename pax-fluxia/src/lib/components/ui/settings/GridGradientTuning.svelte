@@ -418,7 +418,7 @@
 
     .sub-heading {
         margin: 12px 0 6px;
-        color: rgba(128, 222, 255, 0.92);
+        color: color-mix(in srgb, var(--pax-ui-accent) 92%, transparent);
         font-size: var(--pax-type-3xs);
         font-weight: var(--pax-weight-bold);
         letter-spacing: 0;
@@ -436,18 +436,18 @@
         align-items: baseline;
         padding: 10px 12px;
         border-radius: 8px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(7, 12, 24, 0.4);
+        border: 1px solid color-mix(in srgb, var(--pax-ui-text-strong) 8%, transparent);
+        background: color-mix(in srgb, var(--pax-color-void) 40%, transparent);
         font-size: var(--pax-type-2xs);
     }
 
     .perf-label {
-        color: rgba(220, 232, 245, 0.7);
+        color: color-mix(in srgb, var(--pax-ui-text-soft) 70%, transparent);
         letter-spacing: 0;
     }
 
     .perf-value {
-        color: rgba(248, 250, 252, 0.95);
+        color: color-mix(in srgb, var(--pax-ui-text-strong) 95%, transparent);
         font-variant-numeric: tabular-nums;
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     }
