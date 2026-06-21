@@ -2804,12 +2804,21 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
             return { container: this.root };
         }
 
-        const enabled = readTunableBoolean(
+        const enabledTunable = readTunableBoolean(
             input,
             'METABALL_GRID_ENABLED',
             GAME_CONFIG.METABALL_GRID_ENABLED ??
                 (GAME_CONFIG.TERRITORY_RENDER_MODE === 'metaball_grid'),
         );
+        // The legacy METABALL_GRID_ENABLED master gate belongs to the old shared
+        // 'metaball_grid' mode. This is a DEDICATED family (Phase Edges / Ember),
+        // dispatched ONLY when its own mode is the active render mode — so the user
+        // selecting it MUST render regardless of that legacy toggle. Regression from
+        // f4bc81a93: the gate default never accounted for the dedicated phase modes,
+        // so whenever the toggle was off (theme/persisted state) these modes silently
+        // early-returned blank with cachedPlan never built (probe: planPresent=false).
+        const enabled =
+            enabledTunable || GAME_CONFIG.TERRITORY_RENDER_MODE === this.id;
         if (!enabled) {
             this.graphics.clear();
             this.frontierGraphics.clear();
