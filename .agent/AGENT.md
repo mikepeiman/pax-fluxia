@@ -52,7 +52,8 @@ Never assume that something already in the code/design/architecture SHOULD be th
 - Shell: PowerShell on Windows. Never chain commands with `&&`.
 - MCP Atlas-harness: read `.agent/docs/agentic/AGENT-GUIDE_MCP_atlas-harness.md` at session start.
 - Live settings: `common/resources/settings-live/current-settings.json` (***IMPORTANT: IGNORE this for git commits, or commit, it DOES NOT MATTER, just ensure you DO NOT waste time or attention on it, ever)
-- Multi-lane/worktree operating guide: `.agent/MULTI_LANE_WORKTREE_GUIDE.md`
+- **Intra-agent coordination (READ AT SESSION START):** all agents share `master` in one root. Before editing files, read and claim on the board `.agent/intra-agent-coordination.md` (protocol: `.agent/2026-06-21_intra-agent-coordination-proposal.md`). This prevents two agents editing the same files at once.
+- Multi-lane/worktree operating guide: `.agent/MULTI_LANE_WORKTREE_GUIDE.md` (RETIRED — superseded by the single-master coordination board above)
 - **Logging panel**: there is a custom telemetry logger (`$lib/utils/logger`: `log.sys/state/data/net/error/success/combat/conquest/input/repair/canvas/renderer`) gated per-category by `logFlags` (persisted to `localStorage['pax_logFlags']`, exposed on `window.logFlags`) and surfaced as a **full UI panel of toggleable log categories** (the Logging debug controls) so the user can hide console noise. Most categories default **OFF**; only `error` and `canvas` default **ON**. Consequences (see §5.2): never use raw `console.log`; never tell the user to enable flags via console commands. For a diagnostic the user must SEE, either log on a default-ON channel (`canvas`) or instruct them to enable that category in the Logging UI panel — and confirm the channel actually emits by default before saying "paste the log line."
 
 ## 2. Core Behavior
@@ -330,6 +331,13 @@ For complex or non-obvious code, comment:
 - assumptions
 - tradeoffs
 
+### 5.6 Svelte component conventions
+
+Components mix Svelte 4 (`export let`) and Svelte 5 runes (`$props`/`$state`/`$derived`/`$effect`) — match the style of the file you are editing. When a component uses runes, type props by **annotating the destructure**, never by passing a generic to `$props()`. The annotation form is the one used everywhere in the codebase; match it for consistency.
+
+- ✅ `let { onPlay }: { onPlay: () => void } = $props();`
+- ❌ `let { onPlay } = $props<{ onPlay: () => void }>();`
+
 ## 6. Architecture
 
 ### 6.1 Shared Engine
@@ -408,18 +416,10 @@ Then:
 
 ### 7.4 Trace-First Debugging
 
-Mandatory:
+Trace the real code path end-to-end, and form hypotheses only AFTER tracing — never theorize first. Preconditions: plan/spec/status alignment (§5.1a) and user observations as ground truth (§2.2).
 
-1. Trace the real code path end-to-end before theorizing.
-2. Accept user observations as ground truth.
-3. Check active plan/spec/status before treating the issue as a mysterious bug.
-4. Form hypotheses only after tracing.
-5. If something "used to work," inspect what changed:
-   - `git log -p --follow`
-   - config diffs
-   - data-format diffs
-6. Never claim fixed without user verification.
-7. Repeated "wait, actually" usually means tracing or plan/spec/status review was skipped.
+- If something "used to work," inspect what changed before anything else: `git log -p --follow`, config diffs, data-format diffs.
+- Repeated "wait, actually" reversals usually mean tracing or plan/spec/status review was skipped — stop and re-trace.
 
 ## 8. Common Failure Modes
 
@@ -428,6 +428,7 @@ Mandatory:
 | Declaring fixed without verification | Say "please verify"                     |
 | Using `console.log`                  | Use telemetry logger                    |
 | Guessing type signatures             | Read definitions first                  |
+| `$props<T>()` generic prop typing    | Annotate the destructure (§5.6)         |
 | Removing user controls               | Never without instruction               |
 | Using npm/npx/yarn                   | Bun only                                |
 | Chaining with `&&`                   | Run commands separately                 |
