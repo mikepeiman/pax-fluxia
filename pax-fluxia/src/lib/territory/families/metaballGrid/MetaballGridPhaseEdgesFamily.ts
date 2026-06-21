@@ -1423,6 +1423,16 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         conquestEvents: readonly import('@pax/common').ConquestEvent[];
         prevOwnedStars: readonly GridOwnedStar[];
         nextOwnedStars: readonly GridOwnedStar[];
+        /**
+         * Wave params override. Steady-state plans must use the same wave the
+         * synchronous `buildSteadyStatePlan` uses (grid_bfs / winner_natives), NOT
+         * the configured transition wave (e.g. pre_to_post_frontier) — otherwise the
+         * async worker commits a steady plan that disagrees with the sync one.
+         */
+        waveOverride?: Pick<
+            MetaballGridPlanSettings,
+            'waveSeeding' | 'waveGeometry' | 'adjacency'
+        >;
     }): {
         request: MetaballGridPlanWorkerRequest;
         meta: MetaballGridPlanWorkerRequestMeta;
@@ -1446,9 +1456,11 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                 distribution: params.settings.distribution,
                 positionJitter: params.settings.positionJitter,
                 maxCells: params.settings.maxCells,
-                adjacency: params.settings.adjacency,
-                waveGeometry: params.settings.waveGeometry,
-                waveSeeding: params.settings.waveSeeding,
+                adjacency: params.waveOverride?.adjacency ?? params.settings.adjacency,
+                waveGeometry:
+                    params.waveOverride?.waveGeometry ?? params.settings.waveGeometry,
+                waveSeeding:
+                    params.waveOverride?.waveSeeding ?? params.settings.waveSeeding,
                 conquestEvents: params.conquestEvents,
                 prevRegions: params.prevGeometry.territoryRegions,
                 nextRegions: sameSnapshot
@@ -3097,6 +3109,15 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
                     conquestEvents: [],
                     prevOwnedStars: ownedStars,
                     nextOwnedStars: ownedStars,
+                    // Steady-state wave MUST match buildSteadyStatePlan() (the proven
+                    // sync path), not the configured transition wave. Otherwise the
+                    // worker commits a divergent steady plan over the good sync one —
+                    // the suspected Phase Edges/Ember blank (worker-only, not in tests).
+                    waveOverride: {
+                        waveSeeding: 'winner_natives',
+                        waveGeometry: 'grid_bfs',
+                        adjacency: '8',
+                    },
                 });
                 const scheduled = this.enqueuePlanWorkerRequest(workerRequest);
                 if (!scheduled || !this.cachedPlan) {
