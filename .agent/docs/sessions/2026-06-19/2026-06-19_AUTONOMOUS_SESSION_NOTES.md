@@ -14,6 +14,29 @@ User stepped away for several hours and asked for maximum progress across the ma
 (PVV4 geometry/render/transition pipeline; Grid Gradient + Phase Field/Edges/Ember performance;
 any other issues/improvements), with full autonomy, clear documentation, and proper git hygiene.
 
+## ✅ UPDATE 2 (2026-06-19, after user perf feedback) — Edges/Ember blank RESOLVED + perf findings
+
+**Blank ROOT CAUSE (real, via the live probe + git archaeology — supersedes §1's worker hypothesis):**
+The live `[PHASE-DIAG]` showed Ember `geomRegions:10` (geometry FINE) but `planPresent:false` — `cachedPlan`
+never built. `MetaballGridPhaseEdgesFamily.update()` (~line 2807) **early-returns blank** when the legacy
+`METABALL_GRID_ENABLED` master gate is off, and its default `(TERRITORY_RENDER_MODE === 'metaball_grid')` never
+enabled the dedicated phase modes — regression from **f4bc81a93**. My node tests masked it by forcing
+`METABALL_GRID_ENABLED:true`. **Fixed (98c517457):** `enabled = enabledTunable || TERRITORY_RENDER_MODE ===
+this.id`. Proven by `phaseEdgesEnabledGate.test.ts` (fails without the fix — verified by neutralizing it).
+My earlier worker-empty-plan guard + steady-wave candidates were the WRONG hypothesis (geometry was never empty);
+the guard remains as a harmless defensive net but is not the fix.
+
+**Performance findings (benchmark `gridFamilyPerf.bench.test.ts`, since deleted — results recorded here):**
+With a realistic ~10k-cell grid, ALL three families SKIP unchanged steady frames — per-frame steady cost
+≈0.1–0.4ms (well under the 6.9ms/144fps budget). One-shot plan+scene BUILD is 42–77ms but is offloaded to the
+plan Worker (the sync fallback only runs the very first frame). The geometry cache key (`id:owner:x:y` per star,
+NOT ship counts) is stable between frames, so geometry isn't rebuilt per-frame. **So I could NOT reproduce
+continuous lag headless — it is live-specific:** most likely (a) GridGradient's shader-field backend (only runs
+when `document` exists — node falls back to graphics, so it's unmeasured here), and/or (b) a live input that
+breaks the per-frame skip during active transitions. **Needs live profiling** (the 36s bottoms-up self-time names
+the function — capture it). My one-shot `[PHASE-DIAG]` probe was NOT a per-frame cost; removed it anyway (it was
+in the render path). The real perf work needs the profiler's function name, which I can't get headless.
+
 ## Operating guardrails (from memory + AGENT.md)
 - **Visual sign-off is the gate** for geometry/transition *correctness*. I cannot run the live game
   headlessly (menu START GAME needs players/map; PIXI blocks long evals; screenshots hang). So any

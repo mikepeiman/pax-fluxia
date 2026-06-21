@@ -72,12 +72,12 @@ describe('MetaballGridPhaseEdgesFamily legacy enabled gate', () => {
         const savedEnabled = GAME_CONFIG.METABALL_GRID_ENABLED;
         const savedMode = GAME_CONFIG.TERRITORY_RENDER_MODE;
         try {
-            (GAME_CONFIG as Record<string, unknown>).METABALL_GRID_ENABLED = false; // live broken state
+            (GAME_CONFIG as unknown as Record<string, unknown>).METABALL_GRID_ENABLED = false; // live broken state
             for (const create of [createMetaballGridPhaseEdgesFamily, createMetaballGridEmberLatticeFamily]) {
                 const family = create({
                     getPlayerColor: (o: string) => (o === 'p1' ? 0x3366ff : 0xff6633),
                 } as never);
-                (GAME_CONFIG as Record<string, unknown>).TERRITORY_RENDER_MODE = (family as { id: string }).id;
+                (GAME_CONFIG as unknown as Record<string, unknown>).TERRITORY_RENDER_MODE = (family as { id: string }).id;
                 family.update(makeInput(family) as never);
                 const f = family as unknown as Record<string, any>;
                 expect(f.root.visible).toBe(true); // NOT the early-return blank
@@ -85,8 +85,8 @@ describe('MetaballGridPhaseEdgesFamily legacy enabled gate', () => {
                 family.dispose();
             }
         } finally {
-            (GAME_CONFIG as Record<string, unknown>).METABALL_GRID_ENABLED = savedEnabled;
-            (GAME_CONFIG as Record<string, unknown>).TERRITORY_RENDER_MODE = savedMode;
+            (GAME_CONFIG as unknown as Record<string, unknown>).METABALL_GRID_ENABLED = savedEnabled;
+            (GAME_CONFIG as unknown as Record<string, unknown>).TERRITORY_RENDER_MODE = savedMode;
         }
     });
 
@@ -94,8 +94,8 @@ describe('MetaballGridPhaseEdgesFamily legacy enabled gate', () => {
         const savedEnabled = GAME_CONFIG.METABALL_GRID_ENABLED;
         const savedMode = GAME_CONFIG.TERRITORY_RENDER_MODE;
         try {
-            (GAME_CONFIG as Record<string, unknown>).METABALL_GRID_ENABLED = false;
-            (GAME_CONFIG as Record<string, unknown>).TERRITORY_RENDER_MODE = 'voronoi'; // different mode
+            (GAME_CONFIG as unknown as Record<string, unknown>).METABALL_GRID_ENABLED = false;
+            (GAME_CONFIG as unknown as Record<string, unknown>).TERRITORY_RENDER_MODE = 'voronoi'; // different mode
             const family = createMetaballGridPhaseEdgesFamily({
                 getPlayerColor: () => 0x3366ff,
             } as never);
@@ -104,8 +104,8 @@ describe('MetaballGridPhaseEdgesFamily legacy enabled gate', () => {
             expect(f.root.visible).toBe(false); // gate preserved when this family is inactive
             family.dispose();
         } finally {
-            (GAME_CONFIG as Record<string, unknown>).METABALL_GRID_ENABLED = savedEnabled;
-            (GAME_CONFIG as Record<string, unknown>).TERRITORY_RENDER_MODE = savedMode;
+            (GAME_CONFIG as unknown as Record<string, unknown>).METABALL_GRID_ENABLED = savedEnabled;
+            (GAME_CONFIG as unknown as Record<string, unknown>).TERRITORY_RENDER_MODE = savedMode;
         }
     });
 });

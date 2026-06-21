@@ -2130,106 +2130,6 @@
         return snapshot;
     }
 
-    // [PHASE-DIAG] One-shot live scene-graph probe (territory blank investigation).
-    // Logs once per mode: does the family emit fills in the LIVE path, and does its
-    // displayRoot actually reach the rendered output? Stashed on globalThis.__PHASE_DIAG.
-    function logPhaseDiag(
-        mode: string,
-        displayRoot: any,
-        container: any,
-        family?: any,
-        geometry?: any,
-        activeTransition?: any,
-    ): void {
-        const g = globalThis as any;
-        const store = g.__PHASE_DIAG ?? (g.__PHASE_DIAG = {});
-        if (store[mode]) return;
-        try {
-            let fillInstructions = 0;
-            let graphicsNodes = 0;
-            const walk = (node: any, depth: number): void => {
-                if (!node || depth > 6) return;
-                const instr = node?.context?.instructions;
-                if (Array.isArray(instr)) {
-                    fillInstructions += instr.length;
-                    graphicsNodes += 1;
-                }
-                const kids = node?.children;
-                if (Array.isArray(kids)) for (const k of kids) walk(k, depth + 1);
-            };
-            walk(displayRoot, 0);
-            const rect = (x: any) =>
-                x
-                    ? {
-                          x: x.x ?? x.minX ?? null,
-                          y: x.y ?? x.minY ?? null,
-                          w:
-                              x.width ??
-                              (x.maxX != null && x.minX != null
-                                  ? x.maxX - x.minX
-                                  : null),
-                          h:
-                              x.height ??
-                              (x.maxY != null && x.minY != null
-                                  ? x.maxY - x.minY
-                                  : null),
-                      }
-                    : null;
-            let anc: any = displayRoot?.parent;
-            let ancestorDepth = 0;
-            let allAncestorsVisible = true;
-            while (anc && ancestorDepth < 24) {
-                if (anc.visible === false) allAncestorsVisible = false;
-                anc = anc.parent;
-                ancestorDepth += 1;
-            }
-            const plan = family?.cachedPlan;
-            const vstars = plan?.classification?.vstars;
-            let planNative: number | null = null;
-            if (Array.isArray(vstars)) {
-                planNative = 0;
-                for (const v of vstars) if (v?.role === "native") planNative += 1;
-            }
-            const snap = {
-                mode,
-                geomRegions: geometry?.territoryRegions?.length ?? null,
-                geomFrontiers: geometry?.frontierPolylines?.length ?? null,
-                geomLadderRegions:
-                    geometry?.diagnostics?.stageLadder?.resolvedRegions?.length ??
-                    null,
-                planPresent: !!plan,
-                planVstars: Array.isArray(vstars) ? vstars.length : null,
-                planNative,
-                planEmittable: plan?.classification?.emittableVstars?.length ?? null,
-                hasTransition: !!activeTransition,
-                transitionEvents: activeTransition?.events?.length ?? 0,
-                fillInstructions,
-                graphicsNodes,
-                drVisible: displayRoot?.visible,
-                drRenderable: displayRoot?.renderable,
-                drAlpha: displayRoot?.alpha,
-                drChildCount: displayRoot?.children?.length ?? null,
-                drInContainer: displayRoot?.parent === container,
-                drBounds: rect(displayRoot?.getBounds?.()),
-                containerVisible: container?.visible,
-                containerRenderable: container?.renderable,
-                containerAlpha: container?.alpha,
-                containerXY: { x: container?.x, y: container?.y },
-                containerBounds: rect(container?.getBounds?.()),
-                ancestorDepthToStage: ancestorDepth,
-                allAncestorsVisible,
-            };
-            store[mode] = snap;
-            // Telemetry logger (AGENT.md §5.2 — no raw console.log), on the
-            // `renderer` channel: the correct category for territory-renderer
-            // diagnostics, and one the user keeps enabled. Toggleable from the UI
-            // Logging panel. One-shot per mode (idle-quiet). Filter on [PHASE-DIAG].
-            log.renderer("GameCanvas", `[PHASE-DIAG] ${mode}`, snap);
-        } catch (e) {
-            log.error("GameCanvas", `[PHASE-DIAG] ${mode} probe error`, e);
-        }
-    }
-
     type PerimeterFieldCapturedFrame = {
         geometry: ResolvedGeometrySnapshot;
         ownership: OwnershipSnapshot;
@@ -5993,9 +5893,7 @@
                         if (mg.displayRoot.parent !== activeVoronoiContainer) {
                             activeVoronoiContainer.addChild(mg.displayRoot);
                         }
-                        mg.displayRoot.visible = true;
-                        logPhaseDiag(activeMode, mg.displayRoot, activeVoronoiContainer, mg, geometry, activeTransition);
-                        syncLiveRenderFamilyStableFrame({
+                        mg.displayRoot.visible = true;                        syncLiveRenderFamilyStableFrame({
                             activeTransition,
                             stars,
                             lanes,
@@ -6080,9 +5978,7 @@
                         if (mg.displayRoot.parent !== activeVoronoiContainer) {
                             activeVoronoiContainer.addChild(mg.displayRoot);
                         }
-                        mg.displayRoot.visible = true;
-                        logPhaseDiag(activeMode, mg.displayRoot, activeVoronoiContainer, mg, geometry, activeTransition);
-                        syncLiveRenderFamilyStableFrame({
+                        mg.displayRoot.visible = true;                        syncLiveRenderFamilyStableFrame({
                             activeTransition,
                             stars,
                             lanes,
@@ -6161,9 +6057,7 @@
                         if (mg.displayRoot.parent !== activeVoronoiContainer) {
                             activeVoronoiContainer.addChild(mg.displayRoot);
                         }
-                        mg.displayRoot.visible = true;
-                        logPhaseDiag(activeMode, mg.displayRoot, activeVoronoiContainer, mg, geometry, activeTransition);
-                        syncLiveRenderFamilyStableFrame({
+                        mg.displayRoot.visible = true;                        syncLiveRenderFamilyStableFrame({
                             activeTransition,
                             stars,
                             lanes,
@@ -6316,9 +6210,7 @@
                         if (gg.displayRoot.parent !== activeVoronoiContainer) {
                             activeVoronoiContainer.addChild(gg.displayRoot);
                         }
-                        gg.displayRoot.visible = true;
-                        logPhaseDiag(activeMode, gg.displayRoot, activeVoronoiContainer, gg, geometry, activeTransition);
-                        syncLiveRenderFamilyStableFrame({
+                        gg.displayRoot.visible = true;                        syncLiveRenderFamilyStableFrame({
                             activeTransition,
                             stars,
                             lanes,
