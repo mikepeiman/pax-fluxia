@@ -489,7 +489,16 @@ function assignPreToPostFrontierFlipTimes(params: {
  */
 export function planGridWave(params: PlanGridWaveParams): GridWavePlan {
     const { classification, seeding, geometry, adjacency, conquestEvents, resolveStarPosition } = params;
-    const index = buildIndex(classification);
+    // The per-cell string-keyed index is only consumed inside the per-event loop below.
+    // In steady state (no conquest events / no changed cells) it is never needed, so build
+    // it lazily — this avoids a full-grid Map allocation (one entry per cell, up to
+    // ~50k-160k) on every cold plan build, the dominant avoidable cost when switching into
+    // a grid-based render mode. Transition frames still build it on first use (unchanged).
+    let indexMemo: GridIndex | null = null;
+    const ensureIndex = (): GridIndex => {
+        if (!indexMemo) indexMemo = buildIndex(classification);
+        return indexMemo;
+    };
 
     const eventOrder: Array<{ eventId: string; event?: ConquestEvent }> = conquestEvents.map((event) => ({
         eventId: makeEventId(event),
@@ -505,6 +514,7 @@ export function planGridWave(params: PlanGridWaveParams): GridWavePlan {
     for (const { eventId, event } of eventOrder) {
         const changedIds = classification.dispossessedByEventId[eventId];
         if (!changedIds || changedIds.length === 0) continue;
+        const index = ensureIndex();
 
         let flipPlan: DirectFlipPlan;
 

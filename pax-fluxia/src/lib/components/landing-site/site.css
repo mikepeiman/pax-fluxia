@@ -1,0 +1,301 @@
+/* ==========================================================================
+   PAX FLUXIA — Marketing-site design layer
+   --------------------------------------------------------------------------
+   Scoped to `.site-root` so it never leaks into the game UI / HUD themes.
+   Anchors the public site on a neon cyan + magenta identity over space-black,
+   with gold as a sparing premium accent (ties to the Fatherlion lion mark
+   and the warm tones in the key art). Single source of truth for the site's
+   tokens, buttons, headings and section rhythm — fix here, not at call sites.
+   ========================================================================== */
+
+.site-root {
+  /* Surfaces ------------------------------------------------------------- */
+  --site-void: #04060f;
+  --site-void-2: #070b1a;
+  --site-void-3: #0b1126;
+  --site-panel: rgba(16, 22, 44, 0.55);
+  --site-panel-2: rgba(22, 30, 58, 0.72);
+  --site-hairline: rgba(150, 180, 255, 0.14);
+  --site-hairline-strong: rgba(150, 180, 255, 0.3);
+
+  /* Neon identity -------------------------------------------------------- */
+  --site-cyan: #2fe3ff;
+  --site-cyan-bright: #9ff4ff;
+  --site-magenta: #c768ff;
+  --site-magenta-bright: #e7adff;
+  --site-gold: #ffce5a;
+
+  /* Faction / star-type signal colors (mirrors the in-game player palette) */
+  --site-green: #44ff88;
+  --site-red: #ff4d6a;
+  --site-yellow: #ffcc44;
+  --site-purple: #aa66ff;
+  --site-blue: #4f9dff;
+  --site-orange: #ff8a44;
+
+  /* Ink ------------------------------------------------------------------ */
+  --site-ink: #eef3ff;
+  --site-ink-soft: rgba(206, 217, 242, 0.76);
+  --site-ink-dim: rgba(150, 166, 202, 0.62);
+
+  /* Gradients & glows ---------------------------------------------------- */
+  --site-flow: linear-gradient(105deg, var(--site-cyan), var(--site-magenta));
+  --site-flow-soft: linear-gradient(
+    105deg,
+    rgba(47, 227, 255, 0.16),
+    rgba(199, 104, 255, 0.16)
+  );
+  --site-glow-cyan: 0 0 40px rgba(47, 227, 255, 0.35);
+  --site-glow-magenta: 0 0 40px rgba(199, 104, 255, 0.32);
+
+  /* Type ----------------------------------------------------------------- */
+  --site-font-brand: "Cinzel", Georgia, serif;
+  --site-font-display: "Rajdhani", "Segoe UI", system-ui, sans-serif;
+  --site-font-body: "Inter", "Segoe UI", system-ui, sans-serif;
+  --site-font-mono: "JetBrains Mono", "Cascadia Mono", monospace;
+
+  /* Rhythm --------------------------------------------------------------- */
+  --site-maxw: 1200px;
+  --site-maxw-wide: 1360px;
+  --site-maxw-prose: 760px;
+  --site-radius: 16px;
+  --site-radius-lg: 24px;
+  --site-section-y: clamp(4rem, 9vw, 8rem);
+  --site-header-h: 76px;
+
+  color: var(--site-ink);
+  font-family: var(--site-font-body);
+  background: var(--site-void);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Layout primitives ------------------------------------------------------ */
+/* Both classes are self-contained centering containers. `--wide` is NOT a
+   bare max-width modifier — it carries the same centering + gutters as the
+   base, so `class="site-shell--wide"` alone stays centered on large screens
+   (using it without the base previously pinned content flush-left at x=0). */
+.site-shell,
+.site-shell--wide {
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: clamp(1.25rem, 4vw, 3rem);
+}
+.site-shell {
+  max-width: var(--site-maxw);
+}
+.site-shell--wide {
+  max-width: var(--site-maxw-wide);
+}
+.site-section {
+  position: relative;
+  padding-block: var(--site-section-y);
+}
+
+/* Eyebrow / kicker label ------------------------------------------------- */
+.site-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0;
+  font-family: var(--site-font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--site-cyan-bright);
+}
+.site-eyebrow::before {
+  content: "";
+  width: 24px;
+  height: 1px;
+  background: var(--site-flow);
+}
+.site-eyebrow--center {
+  justify-content: center;
+}
+
+/* Headings & copy -------------------------------------------------------- */
+.site-h1 {
+  margin: 0;
+  font-family: var(--site-font-display);
+  font-weight: 700;
+  font-size: clamp(2.6rem, 6.2vw, 5.2rem);
+  line-height: 1;
+  letter-spacing: -0.005em;
+  text-transform: uppercase;
+}
+.site-h2 {
+  margin: 0;
+  font-family: var(--site-font-display);
+  font-weight: 700;
+  font-size: clamp(2rem, 4vw, 3.1rem);
+  line-height: 1.06;
+  letter-spacing: 0.005em;
+  text-transform: uppercase;
+}
+.site-h3 {
+  margin: 0;
+  font-family: var(--site-font-display);
+  font-weight: 600;
+  font-size: 1.35rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.site-lead {
+  margin: 0;
+  font-size: clamp(1.05rem, 1.5vw, 1.28rem);
+  line-height: 1.62;
+  color: var(--site-ink-soft);
+}
+.site-prose {
+  font-size: 1.05rem;
+  line-height: 1.72;
+  color: var(--site-ink-soft);
+}
+.site-prose p {
+  margin: 0 0 1.15rem;
+}
+.site-gradient-text {
+  background: var(--site-flow);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Buttons ---------------------------------------------------------------- */
+.site-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6em;
+  padding: 0.9rem 1.6rem;
+  font-family: var(--site-font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  /* Snappy + cheap: only short, GPU-friendly transitions. The button gets its
+     own compositor layer (will-change) so hover repaints stay local instead of
+     re-rasterizing the animated hero behind it. */
+  transition:
+    transform 0.12s ease-out,
+    box-shadow 0.16s ease-out,
+    background-color 0.16s ease-out,
+    border-color 0.16s ease-out,
+    color 0.16s ease-out;
+  will-change: transform;
+}
+.site-btn:focus-visible {
+  outline: 2px solid var(--site-cyan);
+  outline-offset: 3px;
+}
+.site-btn--lg {
+  padding: 1.05rem 2.15rem;
+  font-size: 1.05rem;
+}
+.site-btn--primary {
+  color: #05070f;
+  background: var(--site-flow);
+  box-shadow: 0 8px 26px rgba(94, 166, 255, 0.28);
+}
+.site-btn--primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(94, 166, 255, 0.42);
+}
+.site-btn--primary:active {
+  transform: translateY(0);
+}
+.site-btn--ghost {
+  color: var(--site-ink);
+  /* Solid translucent fill instead of backdrop-filter: a blurred backdrop over
+     the animated hero re-blurs every frame on hover and was the main source of
+     the jank. This reads the same but is essentially free to paint. */
+  background: rgba(14, 21, 44, 0.55);
+  border-color: var(--site-hairline-strong);
+}
+.site-btn--ghost:hover {
+  color: var(--site-cyan-bright);
+  border-color: var(--site-cyan);
+  background: rgba(20, 30, 60, 0.62);
+  box-shadow: 0 0 22px rgba(47, 227, 255, 0.3);
+}
+
+/* Chips / tags ----------------------------------------------------------- */
+.site-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.8rem;
+  font-family: var(--site-font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--site-ink-soft);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--site-hairline);
+  border-radius: 999px;
+}
+.site-chip__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--site-cyan);
+  box-shadow: 0 0 10px var(--site-cyan);
+}
+
+/* Cards ------------------------------------------------------------------ */
+.site-card {
+  background: var(--site-panel);
+  border: 1px solid var(--site-hairline);
+  border-radius: var(--site-radius);
+  backdrop-filter: blur(10px);
+}
+
+/* Inline text link ------------------------------------------------------- */
+.site-textlink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--site-font-display);
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--site-cyan-bright);
+  text-decoration: none;
+  transition:
+    gap 0.2s ease,
+    color 0.2s ease;
+}
+.site-textlink:hover {
+  gap: 0.75rem;
+  color: var(--site-ink);
+}
+
+/* Hairline divider rule -------------------------------------------------- */
+.site-rule {
+  height: 1px;
+  border: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--site-hairline-strong),
+    transparent
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-root *,
+  .site-root *::before,
+  .site-root *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

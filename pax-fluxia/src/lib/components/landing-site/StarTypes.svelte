@@ -1,129 +1,146 @@
 <script lang="ts">
-  const stars = [
-    { type: "Offense", shape: "triangle", color: "var(--pax-color-player-green)", desc: "Maximizes offensive fleet strength (2x)." },
-    { type: "Defense", shape: "square", color: "var(--pax-color-player-red)", desc: "Increases combat defense multiplier (2x)." },
-    { type: "Production", shape: "pentagon", color: "var(--pax-color-player-yellow)", desc: "Boosts new ship creation rate (2x)." },
-    { type: "Repair", shape: "hexagon", color: "var(--pax-color-player-purple)", desc: "Accelerates self-repair rate (2x)." },
-    { type: "Speed", shape: "heptagon", color: "var(--pax-color-player-blue)", desc: "Increases movement/transfer speed (2x)." },
-    { type: "Standard", shape: "circle", color: "#ccc", desc: "Balanced node with no specialization." }
-  ];
+  import { STAR_TYPES } from "./content";
+
+  // Reused on the home page and the /game page. Header can be hidden when the
+  // host page provides its own section intro.
+  let { showHeader = true }: { showHeader?: boolean } = $props();
 </script>
 
-<section class="star-types">
-  <div class="header">
-    <h2 class="title font-display">VISUALIZING STAR POWER</h2>
-    <p class="subtitle font-body">
-      Every star is a distinct strategic asset, identified instantly by its unique polygon shape and color aura.
-    </p>
-  </div>
+<section class="star-types site-section">
+  <div class="site-shell">
+    {#if showHeader}
+      <header class="head">
+        <p class="site-eyebrow site-eyebrow--center">Know the board</p>
+        <h2 class="site-h2">Every star is a decision</h2>
+        <p class="site-lead">
+          Stars aren't interchangeable. Each type doubles down on one role — read
+          its shape and aura, and you know its worth at a glance.
+        </p>
+      </header>
+    {/if}
 
-  <div class="grid">
-    {#each stars as star}
-      <div class="star-card glass-panel" style="--star-color: {star.color}">
-        <div class="icon-container">
-          {#if star.shape === "triangle"}
-            <svg viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2z" fill="currentColor"/></svg>
-          {:else if star.shape === "square"}
-            <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" fill="currentColor"/></svg>
-          {:else if star.shape === "pentagon"}
-            <svg viewBox="0 0 24 24"><path d="M12 2l10 7-3 13H5L2 9z" fill="currentColor"/></svg>
-          {:else if star.shape === "hexagon"}
-            <svg viewBox="0 0 24 24"><path d="M12 2l9 5v10l-9 5-9-5V7z" fill="currentColor"/></svg>
-          {:else if star.shape === "heptagon"}
-             <svg viewBox="0 0 24 24"><path d="M12 2l7.8 3.8 2.2 8.7-4.3 8.5H6.3L2 14.5l2.2-8.7z" fill="currentColor"/></svg>
-          {:else if star.shape === "circle"}
-             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="currentColor"/></svg>
-          {:else}
-             <svg viewBox="0 0 24 24"><path d="M12 2l3 9h9l-7 5 3 9-8-6-8 6 3-9-7-5h9z" fill="currentColor"/></svg>
-          {/if}
-        </div>
-        <h3 class="star-name font-display">{star.type}</h3>
-        <p class="star-desc font-body">{star.desc}</p>
-      </div>
-    {/each}
+    <div class="grid">
+      {#each STAR_TYPES as star}
+        <article class="star" style="--star:{star.color}">
+          <div class="icon">
+            {#if star.shape === "triangle"}
+              <svg viewBox="0 0 24 24"><path d="M12 2 2 22h20L12 2z" fill="currentColor" /></svg>
+            {:else if star.shape === "square"}
+              <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1.5" fill="currentColor" /></svg>
+            {:else if star.shape === "pentagon"}
+              <svg viewBox="0 0 24 24"><path d="M12 2l10 7-3 13H5L2 9z" fill="currentColor" /></svg>
+            {:else if star.shape === "hexagon"}
+              <svg viewBox="0 0 24 24"><path d="M12 2l9 5v10l-9 5-9-5V7z" fill="currentColor" /></svg>
+            {:else if star.shape === "heptagon"}
+              <svg viewBox="0 0 24 24"><path d="M12 2l7.8 3.8 2.2 8.7-4.3 8.5H6.3L2 14.5l2.2-8.7z" fill="currentColor" /></svg>
+            {:else}
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="currentColor" /></svg>
+            {/if}
+          </div>
+          <div class="star-head">
+            <h3 class="star-name">{star.type}</h3>
+            <span class="star-tag">{star.tag}</span>
+          </div>
+          <p class="star-desc">{star.desc}</p>
+        </article>
+      {/each}
+    </div>
   </div>
 </section>
 
 <style>
   .star-types {
-    padding: var(--pax-space-12) var(--pax-space-8);
-    background: radial-gradient(circle at center, #1a1a2e 0%, #000 100%);
+    background:
+      radial-gradient(circle at 50% 0%, rgba(47, 227, 255, 0.06), transparent 55%),
+      linear-gradient(180deg, var(--site-void-2), var(--site-void));
     text-align: center;
   }
-
-  .header {
-    margin-bottom: var(--pax-space-12);
-  }
-
-  .title {
-    font-size: 2.5rem;
-    color: var(--pax-ui-text-strong);
-    margin-bottom: var(--pax-space-4);
-  }
-
-  .subtitle {
-    font-size: 1.1rem;
-    color: var(--pax-ui-text-soft);
-    max-width: 600px;
-    margin: 0 auto;
+  .head {
+    max-width: 620px;
+    margin: 0 auto clamp(2.5rem, 5vw, 4rem);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
   }
 
   .grid {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: var(--pax-space-6);
-    max-width: 1400px;
-    margin: 0 auto;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.2rem;
   }
 
-  @media (min-width: 600px) {
+  .star {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 2rem 1.5rem;
+    text-align: center;
+    background: var(--site-panel);
+    border: 1px solid var(--site-hairline);
+    border-radius: var(--site-radius);
+    transition:
+      transform 0.25s ease,
+      border-color 0.25s ease,
+      box-shadow 0.25s ease;
+  }
+  .star:hover {
+    transform: translateY(-5px);
+    border-color: color-mix(in srgb, var(--star) 60%, transparent);
+    box-shadow: 0 0 30px color-mix(in srgb, var(--star) 22%, transparent);
+  }
+
+  .icon {
+    width: 56px;
+    height: 56px;
+    color: var(--star);
+    filter: drop-shadow(0 0 10px color-mix(in srgb, var(--star) 70%, transparent));
+  }
+  .icon svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .star-head {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .star-name {
+    margin: 0;
+    font-family: var(--site-font-display);
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--star);
+  }
+  .star-tag {
+    font-family: var(--site-font-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--site-ink-soft);
+    padding: 0.2rem 0.5rem;
+    border: 1px solid color-mix(in srgb, var(--star) 40%, transparent);
+    border-radius: 999px;
+  }
+  .star-desc {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--site-ink-soft);
+  }
+
+  @media (max-width: 900px) {
     .grid {
       grid-template-columns: repeat(2, 1fr);
     }
   }
-
-  @media (min-width: 900px) {
+  @media (max-width: 540px) {
     .grid {
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: 1fr;
     }
-  }
-
-  @media (min-width: 1400px) {
-    .grid {
-      grid-template-columns: repeat(6, 1fr);
-    }
-  }
-
-  .star-card {
-    padding: var(--pax-space-6);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--pax-space-4);
-    transition: transform 0.3s;
-    border-color: rgba(255, 255, 255, 0.05);
-  }
-
-  .star-card:hover {
-    transform: translateY(-5px);
-    border-color: var(--star-color);
-    box-shadow: 0 0 20px var(--star-color);
-  }
-
-  .icon-container {
-    width: 64px;
-    height: 64px;
-    color: var(--star-color);
-    filter: drop-shadow(0 0 8px var(--star-color));
-  }
-
-  .star-name {
-    font-size: 1.2rem;
-    color: var(--star-color);
-  }
-
-  .star-desc {
-    font-size: 0.9rem;
-    color: var(--pax-ui-text-soft);
   }
 </style>

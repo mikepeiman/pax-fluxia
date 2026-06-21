@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { afterNavigate, goto } from "$app/navigation";
   import "../app.css";
   import LandingPage from "$lib/components/landing-site";
   import { audioManager } from "$lib/services/audioManager.svelte";
@@ -17,6 +18,7 @@
     canAccessAudience,
     resolveAudienceAccess,
   } from "$lib/shell/audience";
+  import { GAME_APP_URL, isGameHost, isMarketingHost } from "$lib/site/play";
 
   const EMPTY_HOME_ROUTE_DIAG: HomeRouteDiagSnapshot = {
     lastUpdatedAt: null,
@@ -318,6 +320,32 @@
     window.document.body.classList.remove("game-active");
   });
 
+  // Drive the landing↔game-shell view from the URL so the browser back/forward
+  // buttons work. Entering the game pushes `?showGame=1`; navigating back removes
+  // it and restores the landing. afterNavigate fires once on the initial load
+  // (handling deep links and the play.* game subdomain) and again on every client
+  // navigation — crucially including history back/forward (popstate).
+  afterNavigate(({ to }) => {
+    const wantsGame =
+      isGameHost(getHostname()) ||
+      to?.url.searchParams.get("showGame") === "1";
+    if (wantsGame) {
+      if (!showGame && !isGameShellLoading) {
+        recordHomeRouteEvent("enter_game_from_url", {
+          host: getHostname(),
+          href: to?.url.href ?? null,
+        });
+        void openGameShell("query");
+      }
+    } else if (showGame) {
+      recordHomeRouteEvent("exit_game_to_landing", {
+        href: to?.url.href ?? null,
+      });
+      showGame = false;
+      gameContainerMounted = false;
+    }
+  });
+
   onMount(() => {
     audioManager.init();
     resetHomeRouteDiagnostics();
@@ -359,6 +387,16 @@
       gameContainerMounted = false;
       refreshHomeRouteDiagnostics();
     };
+    // The game shell asks to leave when the back button is pressed at its
+    // top-level menu. Return to the landing and clean `?showGame=1` off the URL.
+    // The dedicated game host has no landing, so ignore the request there.
+    const handleExitToLanding = () => {
+      if (isGameHost(getHostname())) return;
+      recordHomeRouteEvent("game_requested_exit_to_landing", null);
+      showGame = false;
+      gameContainerMounted = false;
+      void goto("/", { replaceState: true });
+    };
 
     if (browserWindow) {
       browserWindow.__PAX_HOME_ROUTE_READY__ = true;
@@ -370,6 +408,10 @@
         "pax-game-container-unmounted",
         handleGameContainerUnmounted as EventListener,
       );
+      browserWindow.addEventListener(
+        "pax-exit-to-landing",
+        handleExitToLanding,
+      );
     }
 
     scheduleGameShellWarmup();
@@ -378,16 +420,9 @@
       await openGameShell(benchmarkEnabled ? "benchmark" : "query");
     };
 
-    const autoEnterGame =
-      isGameHost(getHostname()) ||
-      url?.searchParams.get("showGame") === "1";
-    if (autoEnterGame) {
-      recordHomeRouteEvent("auto_enter_game", {
-        reason: isGameHost(getHostname()) ? "game_host" : "show_game_query",
-        benchmarkEnabled,
-      });
-      void openShell();
-    }
+    // Initial entry into the game (deep link `?showGame=1` or the play.* game
+    // host) is handled by the afterNavigate hook above, which also wires up
+    // browser back/forward. Benchmark tooling drives openShell() directly.
 
     if (benchmarkEnabled) {
       recordHomeRouteEvent("benchmark_bridge_requested", null);
@@ -417,6 +452,10 @@
           "pax-game-container-unmounted",
           handleGameContainerUnmounted as EventListener,
         );
+        browserWindow.removeEventListener(
+          "pax-exit-to-landing",
+          handleExitToLanding,
+        );
       }
       removeGlobalErrorHandlers();
       benchmarkDisposer?.();
@@ -424,21 +463,10 @@
     };
   });
 
-  /** The game app lives on its own subdomain; the landing site lives at the root. */
-  const GAME_APP_URL = "https://play.paxfluxia.com";
-
+  // Host + game-app routing helpers live in $lib/site/play (shared with the
+  // marketing pages) so the rules have a single source of truth.
   function getHostname(): string {
     return typeof window !== "undefined" ? window.location.hostname : "";
-  }
-
-  /** Public marketing site (paxfluxia.com). Play actions here hand off to the game app. */
-  function isMarketingHost(host: string): boolean {
-    return host === "paxfluxia.com" || host === "www.paxfluxia.com";
-  }
-
-  /** Game app subdomain (play.paxfluxia.com). The shell auto-loads here, not the landing. */
-  function isGameHost(host: string): boolean {
-    return host === "play.paxfluxia.com" || host.startsWith("play.");
   }
 
   function handlePlay() {
@@ -448,13 +476,15 @@
       host,
       href: typeof window !== "undefined" ? window.location.href : null,
     });
-    // On the marketing site, send players to the game app. In local dev/preview
-    // (and when already on the game host) there is no separate subdomain, so
-    // load the shell inline instead.
+    // On the marketing site, send players to the game app subdomain. In local
+    // dev/preview (and when already on the game host) there is no separate
+    // subdomain, so navigate to `?showGame=1` — this pushes a history entry so
+    // the browser back button returns to the landing, and the afterNavigate hook
+    // opens the shell inline.
     if (isMarketingHost(host)) {
       window.location.href = GAME_APP_URL;
     } else {
-      void openGameShell("play");
+      void goto("/?showGame=1");
     }
   }
 </script>

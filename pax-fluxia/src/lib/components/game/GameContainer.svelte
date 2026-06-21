@@ -556,31 +556,38 @@
     pushState("", { pax: "game" });
 
     window.addEventListener("popstate", (e) => {
-      // Always re-push so we never actually leave the page
-      pushState("", { pax: "game" });
+      // Re-push to keep trapping the back button for in-game states; each branch
+      // below resolves "back" internally instead of leaving the page.
+      const trap = () => pushState("", { pax: "game" });
 
       // Close overlays in priority order
       if (showSettingsPanel) {
+        trap();
         setSettingsPanelOpen(false);
         return;
       }
       if (mobileDrawerOpen) {
+        trap();
         mobileDrawerOpen = false;
         return;
       }
       if (showAudioSettings) {
+        trap();
         showAudioSettings = false;
         return;
       }
       if (showSurrenderModal) {
+        trap();
         showSurrenderModal = false;
         return;
       }
       if (showResults && !resultsDismissed) {
+        trap();
         resultsDismissed = true;
         return;
       }
       if (showExitConfirm) {
+        trap();
         showExitConfirm = false;
         return;
       }
@@ -589,13 +596,26 @@
         gameStore.currentView === "game" &&
         activeGameStore.phase === "playing"
       ) {
+        trap();
         showExitConfirm = true;
         return;
       }
-      // Not in active game — allow natural back (go to menu)
+      // In game view but not playing — step back to the menu
       if (gameStore.currentView === "game") {
+        trap();
         gameStore.setView("menu");
+        return;
       }
+      // Top-level menu with nothing open: a genuine "leave the game" back.
+      // Don't re-trap — hand control to the host route so it returns to the
+      // landing site (the home route listens for this and cleans the URL). On
+      // the dedicated game host there is no landing, so the host ignores it.
+      if (gameStore.currentView === "menu") {
+        window.dispatchEvent(new CustomEvent("pax-exit-to-landing"));
+        return;
+      }
+      // Unknown view — keep trapping to be safe.
+      trap();
     });
   }
 
