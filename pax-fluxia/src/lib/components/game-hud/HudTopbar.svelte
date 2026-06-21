@@ -5,6 +5,7 @@
   import { PaxHudButton } from "$lib/design-system";
   import HudIconButton from "./HudIconButton.svelte";
   import { formatHudNumber } from "./viewModels";
+  import { gameHudStatsStore } from "$lib/stores/gameHudStatsStore";
   import type { PlayerStandingViewModel, SelectedStarViewModel } from "./types";
 
   interface Props {
@@ -104,6 +105,14 @@
     <div class="pf-hud-topbar__status-item">
       <span>Selected</span>
       <strong>{selectedStar?.label ?? "None"}</strong>
+    </div>
+    <div class="pf-hud-topbar__status-item pf-hud-topbar__perf" title="Render frames per second">
+      <span>FPS</span>
+      <strong class="font-hud-data">{$gameHudStatsStore.fps}</strong>
+    </div>
+    <div class="pf-hud-topbar__status-item pf-hud-topbar__perf" title="Total ships drawn this frame">
+      <span>Ships</span>
+      <strong class="font-hud-data">{formatHudNumber($gameHudStatsStore.visualShips)}</strong>
     </div>
   </div>
 

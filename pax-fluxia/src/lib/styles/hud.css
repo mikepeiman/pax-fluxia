@@ -405,14 +405,6 @@
     padding-bottom: 7px;
   }
 
-  .pf-standings__summary {
-    display: none;
-  }
-
-  .pf-standings__toolbar {
-    display: none;
-  }
-
   .pf-standings__columns {
     font-size: var(--pax-type-4xs);
   }
