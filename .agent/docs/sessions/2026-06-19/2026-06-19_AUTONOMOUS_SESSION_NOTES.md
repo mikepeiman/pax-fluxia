@@ -71,12 +71,25 @@ never exercise (no `Worker` in node → sync fallback → renders). In the brows
 The worker classification itself is NOT empty (same `buildGridClassification`, same inputs → cells). The
 divergence is the **wave params**: steady worker plan ≠ sync steady plan.
 
-### Candidate fix (committed; needs visual verification)
-`MetaballGridPhaseEdgesFamily.buildWorkerRequest` now accepts a `waveOverride`; the **steady-state** worker
+### Candidate fixes (committed; need visual verification)
+Two complementary changes in `MetaballGridPhaseEdgesFamily`:
+
+**(A) Worker-plan empty guard (PRIMARY, robust).** `commitPendingWorkerPlan` now refuses to replace a
+non-empty cached plan with an **empty** worker plan (0 emittable cells). This is the clearest node-vs-live
+difference: node tests have no `Worker` and render 1600+ cells; the live `Worker` can return a 0-cell plan
+that blanks the family. The guard triggers ONLY when the sync plan produced cells but the worker did not, so
+it never masks a legitimately-empty territory (sync would be empty too). Covered by a unit test
+(`phaseEdgesWorkerPlanGuard.test.ts`). This handles *any* worker-produces-empty cause.
+
+**(B) Steady wave consistency (secondary).** `buildWorkerRequest` accepts a `waveOverride`; the steady-state
 request passes `{ waveSeeding:'winner_natives', waveGeometry:'grid_bfs', adjacency:'8' }` so the worker's
-steady plan is **identical to `buildSteadyStatePlan`**. The transition branch is unchanged (still uses the
-configured wave). This preserves the worker offload (perf) and is safe either way: worker steady == sync
-steady, both proven to render.
+steady plan matches `buildSteadyStatePlan` (which uses `grid_bfs`), instead of the configured transition wave
+`pre_to_post_frontier`. A real consistency bug, though at steady `rawProgress===1` the scene likely ignores
+the wave — so this is probably not the root, but it is correct and safe.
+
+**Caveat:** if the live cause is **empty geometry** (`geomRegions: 0` — edge-forward 0319 produces no regions
+for the live map), neither fix helps (sync would be empty too); that would be a geometry-generation issue
+needing the live map. The probe's `geomRegions` distinguishes this.
 
 **Status: CANDIDATE.** If Phase Edges/Ember still blank after this, the next datum is the live probe's
 `geomRegions` / `planPresent` / `planNative` (already instrumented) which separates empty-geometry vs
@@ -84,4 +97,59 @@ absent/empty-plan vs scene-step. The probe logs on the `renderer` channel as `[P
 
 ---
 
-## 2–5. (appended below as completed)
+## 2. Pre-existing test failures (diagnosed, NOT auto-fixed — both are geometry-visual)
+
+Two failures in the territory suite (baseline, predate this session). Both are geometry-visual decisions
+in the user's domain, so I diagnosed precisely but did **not** change geometry without visual sign-off.
+
+### 2a. `TerritorySettingsBridge` — `starMargin` default
+- Test `reads tunables from config and falls back safely` expects default `starMargin: 75`; code returns `0`.
+- Source: `geometryTuning.ts:41` `const DEFAULT_STAR_MARGIN = 0;`.
+- **Git forensics:** `040634c08` (ember split) *deliberately* introduced `DEFAULT_STAR_MARGIN = 75`
+  (replacing an inline `45`). Then `6a67a5d34` ("refactor: decouple lane clearance and trim telemetry",
+  a 44-file / −2345-line refactor) changed `75 → 0` — a value change unrelated to the commit's stated
+  purpose. The test was NOT touched. → **Almost certainly accidental drift.**
+- **Recommendation:** restore `DEFAULT_STAR_MARGIN = 75` (matches the deliberate value + the test-as-spec).
+  Low real-world impact (themes set `MODIFIED_VORONOI_STAR_MARGIN` explicitly, overriding the default).
+  Left for your call because it's a geometry-visual default. Verify no other geometry snapshot tests rely on 0.
+
+### 2b. `powerVoronoiTerritoryGeometryGenerator` — `constructFillsFromFrontierChain` junction walk
+- Test `walks the clockwise-adjacent owner boundary at a junction instead of taking the first spur`
+  expects `fills.length === 1`; gets `0` (empty).
+- This is the known **junction-walk bug** ("broken fills = executeChainWalk junction bug"). The test
+  encodes the **angular-order** clockwise-adjacent walk — which YOU reverted (`07c343ef7`) in favor of the
+  greedy baseline. Re-implementing angular-order would contradict that revert.
+- The greedy path returning *empty* (rather than a differently-shaped fill) is a genuine bug, but it's
+  core geometry you have specific direction on + visually verified. **Not auto-touched.** Decide: update
+  the test to the greedy expectation, or fix greedy to not return empty at junctions (needs your call on
+  the intended junction behavior).
+
+## 3. Audit / hygiene notes (not changed)
+- `TerritoryRuntimeCoordinator` PVV4 auto-download + raw `console.log` already removed earlier this session
+  (`b737e1fd8`); geometry dump now opt-in on the `renderer` channel.
+- `travelTrace.ts` uses raw `console.log` (§5.2) — but it is an explicitly-armed dev trace tool whose
+  console output IS its product; converting to a gated channel would hide it. Left as-is.
+- `downloadPerimeterFieldGeometryArtifact` / `downloadPerimeterFieldConquestPackage` /
+  `...ContactSheet` are exported but have **no callers** (dead/manual). Deletion candidates — left intact
+  (no deletions without sign-off).
+
+## 4. Verification constraint (why this session is candidate-fix + docs heavy)
+The live game cannot be driven headlessly here: `/bench` stubs `openGameShell`; `/play` START GAME needs
+players/map (canvas mounts then unmounts at players:0); PIXI blocks long `preview_eval`; screenshots hang.
+So geometry/transition **correctness** and **per-frame performance** can't be verified by me — they need
+your visual sign-off / live profiling. I therefore committed one safe candidate fix and otherwise produced
+precise diagnoses + recommendations rather than unverifiable geometry changes.
+
+## 5. Prioritized action list for the user (on return)
+1. **Run the `[PHASE-DIAG]` probe on Phase Edges** (Renderer channel on; filter `PHASE-DIAG`). The fields
+   `geomRegions` / `planPresent` / `planNative` decide the blank's true cause:
+   - `geomRegions: 0` → edge-forward 0319 geometry is empty for the live map (geometry-gen issue).
+   - `geomRegions > 0`, `planNative: 0` → classification/plan empties live (worker serialization?).
+   - `planNative > 0`, `fillInstructions: 0` → scene step. (My committed wave fix targets a related
+     consistency issue but, given steady `rawProgress===1`, is likely not the root — confirm with the probe.)
+2. **starMargin**: restore `DEFAULT_STAR_MARGIN = 75` if you agree it was accidental (2a).
+3. **Junction walk**: decide greedy junction behavior (2b) — re-spec the test or fix greedy-returns-empty.
+4. **Provenance experiment (`power_voronoi_frontier`)**: ready to build collaboratively — additive, behind a
+   flag, Grid Gradient consumes first. Held back from blind autonomous build (needs visual gate).
+5. **Performance**: needs live profiling (classification is already bucketed + cached one-shot; the per-frame
+   cost is scene-building, which I can't profile headless).

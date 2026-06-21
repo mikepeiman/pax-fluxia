@@ -1379,6 +1379,20 @@ export class MetaballGridPhaseEdgesFamily implements RenderFamily {
         this.latestPlanWorkerMeta = null;
         if (meta.sessionKey !== this.sessionKey) return false;
         if (response.planKey !== meta.planKey) return false;
+        // Guard: never replace a NON-empty cached plan with an EMPTY worker plan.
+        // The family renders correctly via the synchronous plan (1600+ cells in node
+        // tests, which have no Worker), but a worker plan that comes back with 0
+        // emittable cells would blank it — the suspected Phase Edges/Ember complete-
+        // absence (live has a Worker; node does not). This triggers ONLY when the sync
+        // plan produced cells but the worker did not, so it never masks a legitimately
+        // empty territory (in that case the sync plan would be empty too).
+        const workerEmittable =
+            response.classification?.emittableVstars?.length ?? 0;
+        const cachedEmittable =
+            this.cachedPlan?.classification?.emittableVstars?.length ?? 0;
+        if (workerEmittable === 0 && cachedEmittable > 0) {
+            return false;
+        }
         this.cachedPlan = {
             planKey: response.planKey,
             classification: response.classification,

@@ -2200,7 +2200,7 @@
                 planPresent: !!plan,
                 planVstars: Array.isArray(vstars) ? vstars.length : null,
                 planNative,
-                planEmittable: plan?.classification?.emittable?.length ?? null,
+                planEmittable: plan?.classification?.emittableVstars?.length ?? null,
                 hasTransition: !!activeTransition,
                 transitionEvents: activeTransition?.events?.length ?? 0,
                 fillInstructions,
