@@ -65,7 +65,7 @@ import type {
 import type { GridGradientOwnerGrid } from './typedClassification';
 
 interface PlanResolveResult {
-    readonly plan: CachedGridGradientPlan;
+    readonly plan: CachedGridGradientPlan | null;
     readonly cacheHit: boolean;
     readonly rebuildReason: string | null;
     readonly requestedPlanKey: string;
@@ -555,7 +555,13 @@ export class GridGradientFamily implements RenderFamily {
             hasActiveTransition &&
             Boolean(params.input.activeTransition) &&
             this.lastVisualTransitionPlanKey !== planKey;
-        if (this.cachedPlan) {
+        // Route the plan (re)build to the worker for BOTH the warm key-change case AND
+        // the cold initial case (cachedPlan === null). Building the ~50k–160k-cell plan
+        // synchronously on the first switch into Grid Gradient is what caused the
+        // multi-second main-thread freeze; off-threading it keeps the frame at 60fps.
+        // The synchronous build below remains the fallback when no Worker is available
+        // or the worker has failed (ensurePlanWorker → enqueue returns false).
+        {
             const alreadyPending = this.hasPendingPlanRequest(planKey);
             let workerScheduled = alreadyPending;
             if (!alreadyPending) {
@@ -570,16 +576,35 @@ export class GridGradientFamily implements RenderFamily {
                 workerScheduled = this.enqueuePlanWorkerRequest(workerRequest);
             }
             if (workerScheduled) {
-                this.logTransitionDebug(params.settings, 'resolve_plan.worker_pending', {
+                if (this.cachedPlan) {
+                    // Warm: keep showing the stale plan while the worker rebuilds.
+                    this.logTransitionDebug(params.settings, 'resolve_plan.worker_pending', {
+                        rebuildReason,
+                        requestedPlanKey: planKey,
+                        cachedPlanKey: this.cachedPlan.planKey,
+                        workerWaitMs: this.resolveWorkerWaitMs(planKey, params.input.nowMs),
+                    });
+                    return {
+                        plan: this.cachedPlan,
+                        cacheHit: true,
+                        rebuildReason: 'worker_pending',
+                        requestedPlanKey: planKey,
+                        requestedPlanPending: true,
+                        workerScheduled: true,
+                        workerWaitMs: this.resolveWorkerWaitMs(planKey, params.input.nowMs),
+                    };
+                }
+                // Cold: no plan to show yet. Draw nothing this frame; the worker plan
+                // commits within a few frames via commitPendingWorkerPlan().
+                this.logTransitionDebug(params.settings, 'resolve_plan.initial_worker_pending', {
                     rebuildReason,
                     requestedPlanKey: planKey,
-                    cachedPlanKey: this.cachedPlan.planKey,
                     workerWaitMs: this.resolveWorkerWaitMs(planKey, params.input.nowMs),
                 });
                 return {
-                    plan: this.cachedPlan,
-                    cacheHit: true,
-                    rebuildReason: 'worker_pending',
+                    plan: null,
+                    cacheHit: false,
+                    rebuildReason: 'initial_worker_pending',
                     requestedPlanKey: planKey,
                     requestedPlanPending: true,
                     workerScheduled: true,
@@ -728,6 +753,19 @@ export class GridGradientFamily implements RenderFamily {
         });
         const planResult = this.resolvePlan({ input, geometry, settings });
         const { plan } = planResult;
+        if (!plan) {
+            // Cold first build is running on the worker (see resolvePlan): nothing to
+            // draw yet. Keep the root empty until the worker plan commits a few frames
+            // later — this trades a multi-second frozen frame for territory appearing
+            // shortly while the rest of the game stays at 60fps.
+            this.logTransitionDebug(settings, 'update.plan_pending', {
+                requestedPlanKey: planResult.requestedPlanKey,
+                workerScheduled: planResult.workerScheduled,
+                workerWaitMs: planResult.workerWaitMs,
+            });
+            resetGridGradientStats();
+            return { container: this.root };
+        }
         const progressState = this.resolveProgressState({
             input,
             plan,
