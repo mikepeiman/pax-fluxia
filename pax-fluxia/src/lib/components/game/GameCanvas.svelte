@@ -1996,6 +1996,19 @@
         };
     }
 
+    // Ember Lattice is a DISTINCT mode from Phase Edges. Unlike Phase Edges, it does
+    // NOT apply `metaballGridPhaseEdgesModeDefaults` (the locked edge-forward border/
+    // fill/wave look) — its "dense lattice + inward heat grading" presentation is driven
+    // by live config instead. This distinction existed at 040634c08 (split-ember) and was
+    // lost when Ember was re-pointed at buildEdgeForwardRenderFamilyConfigSource, making
+    // the two modes render identically. Restored here.
+    function buildEmberLatticeRenderFamilyConfigSource(): Record<string, unknown> {
+        return {
+            ...(GAME_CONFIG as unknown as Record<string, unknown>),
+            ...metaballGridPhaseEdgesGeometryDefaults,
+        };
+    }
+
     function buildGridGradientRenderFamilyConfigSource(): Record<string, unknown> {
         return {
             ...(GAME_CONFIG as unknown as Record<string, unknown>),
@@ -2020,7 +2033,7 @@
             return buildEdgeForwardRenderFamilyConfigSource();
         }
         if (mode === "metaball_grid_ember_lattice") {
-            return buildEdgeForwardRenderFamilyConfigSource();
+            return buildEmberLatticeRenderFamilyConfigSource();
         }
         if (mode === "metaball_grid_phase_field") {
             return buildPhaseFieldRenderFamilyConfigSource();
