@@ -1998,8 +1998,12 @@
 
     function buildEdgeForwardRenderFamilyConfigSource(): Record<string, unknown> {
         return {
-            ...(GAME_CONFIG as unknown as Record<string, unknown>),
+            // Geometry constraints (disconnect/DX/MSR/CX) come from live GAME_CONFIG so they
+            // are UNIFORM across every render mode and honour the user's tuning — the geometry
+            // defaults are a fallback only (spread FIRST so GAME_CONFIG overrides them). Mode
+            // defaults (presentation: border/fill/wave) win LAST to keep this mode's look.
             ...metaballGridPhaseEdgesGeometryDefaults,
+            ...(GAME_CONFIG as unknown as Record<string, unknown>),
             ...metaballGridPhaseEdgesModeDefaults,
         };
     }
@@ -2012,15 +2016,19 @@
     // the two modes render identically. Restored here.
     function buildEmberLatticeRenderFamilyConfigSource(): Record<string, unknown> {
         return {
-            ...(GAME_CONFIG as unknown as Record<string, unknown>),
+            // Geometry from live GAME_CONFIG (uniform across modes); geometry defaults are a
+            // fallback only. Ember's presentation is GAME_CONFIG-driven (no mode defaults).
             ...metaballGridPhaseEdgesGeometryDefaults,
+            ...(GAME_CONFIG as unknown as Record<string, unknown>),
         };
     }
 
     function buildGridGradientRenderFamilyConfigSource(): Record<string, unknown> {
         return {
-            ...(GAME_CONFIG as unknown as Record<string, unknown>),
+            // Geometry from live GAME_CONFIG (uniform across modes); geometry defaults are a
+            // fallback only. Mode defaults (presentation) win last.
             ...metaballGridPhaseEdgesGeometryDefaults,
+            ...(GAME_CONFIG as unknown as Record<string, unknown>),
             ...metaballGridPhaseEdgesModeDefaults,
             PERIMETER_FIELD_GEOMETRY_SOURCE: "power_voronoi_0319",
         };
