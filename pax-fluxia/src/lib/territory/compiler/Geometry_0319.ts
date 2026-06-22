@@ -24,6 +24,7 @@ import {
     snapshotGeometry0319DebugConfig,
 } from '../../config/geometry0319Debug';
 import { log } from '../../utils/logger';
+import { geometryTrace } from '$lib/territory/devtools/geometryPipelineTrace';
 import type { CompileError } from './types';
 
 import {
@@ -244,6 +245,8 @@ export function computeGeometry0319(
             } satisfies CompileError;
         }
 
+        geometryTrace.step('0', 'input', { stars: stars.length, lanes: connections.length, owned: ownedStars.length, owners: new Set(ownedStars.map((s) => s.ownerId)).size, world: `${worldWidth}x${worldHeight}` });
+
         // ── Stage 0: Build site array ───────────────────────────────────────
         const localStarMargins = resolvePerStarMinStarMarginPx({
             stars: ownedStars,
@@ -281,6 +284,8 @@ export function computeGeometry0319(
             for (const es of extraSites) sites.push(es);
         }
 
+        let traceCorridorVirtualCount = 0;
+        let traceDisconnectVirtualCount = 0;
         if (config.corridorEnabled) {
             const corridorVirtuals = computeCorridorVirtuals(
                 ownedStars,
@@ -313,6 +318,7 @@ export function computeGeometry0319(
                     starId: `corridor_${cv.sourceStarA}_${cv.sourceStarB}`,
                     virtual: 'corridor',
                 });
+                traceCorridorVirtualCount++;
             }
         }
 
@@ -333,8 +339,11 @@ export function computeGeometry0319(
                     starId: `disconnect_${dv.sourceStarA}_${dv.sourceStarB}`,
                     virtual: 'disconnect',
                 });
+                traceDisconnectVirtualCount++;
             }
         }
+
+        geometryTrace.step('1', 'sites', { total: sites.length, cx: traceCorridorVirtualCount, dx: traceDisconnectVirtualCount });
 
         // ── Stage 1: Power diagram ──────────────────────────────────────────
         // Use the configured world clip, matching the authoritative power-voronoi
@@ -402,6 +411,7 @@ export function computeGeometry0319(
         }
 
         // Individual stage logs consolidated into single summary below (see Stage 10)
+        geometryTrace.step('2', 'cells', { rawPolys: polygons.length, cells: cells.length });
 
         // ── Stage 3: Extract inter-owner shared edges ───────────────────────
         const sharedEdges = extractSharedEdges(cells);
@@ -440,6 +450,7 @@ export function computeGeometry0319(
         // This is the KEY FIX: captures corner-crossing edges that the old
         // extractWorldBorderPolylines misses.
         const worldBoundaryEdges = extractAllWorldBoundaryEdges(mergedRaw, interOwnerEdgeKeys);
+        geometryTrace.step('3', 'edges', { shared: sharedEdges.length, merged: mergedRaw.length, world: worldBoundaryEdges.length });
 
         // ── Stage 7: Chain ALL edges into polylines ─────────────────────────
         // Concatenate inter-owner + owner-world edges and chain together.
@@ -467,6 +478,7 @@ export function computeGeometry0319(
                 rawSharedPolylines.push(pl);
             }
         }
+        geometryTrace.step('4', 'chains', { polylines: allPolylines.length, shared: sharedPolylines.length, world: worldBorderPolylines.length, chaikin: config.chaikinPasses });
 
 
         // ── Stage 9: Enclaves ───────────────────────────────────────────────
@@ -532,6 +544,7 @@ export function computeGeometry0319(
             cells,
             sharedWalkResult,
         );
+        geometryTrace.step('5', 'fills', { regions: mergedTerritories.length });
         if (
             adjustedGeometry.minAppliedMarginPx > 0 &&
             (Math.abs(adjustedGeometry.minAppliedMarginPx - adjustedGeometry.requestedMarginPx) >
@@ -564,6 +577,8 @@ export function computeGeometry0319(
             const dy = Math.abs(first[1] - last[1]);
             if (dx < 6 && dy < 6) closedCount++;
         }
+
+        geometryTrace.step('6', 'frontier', { junctions: junctionPts.size, enclaves: enclaveMap.size, closed: closedCount, fp: fingerprint });
 
         // Single consolidated summary log (replaces ~8 individual stage logs)
         const closureOk = closedCount === mergedTerritories.length;

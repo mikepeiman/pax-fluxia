@@ -131,7 +131,11 @@
         metaballGridPhaseFieldGeometryDefaults,
         metaballGridPhaseFieldModeDefaults,
     } from "$lib/territory/families/metaballGrid/config";
-    import { updateMetaballGridStats } from "$lib/territory/families/metaballGrid/metaballGridStats";
+    import {
+        metaballGridStats,
+        updateMetaballGridStats,
+    } from "$lib/territory/families/metaballGrid/metaballGridStats";
+    import { gridGradientStats } from "$lib/territory/families/gridGradient/gridGradientStats";
     import {
         GridGradientFamily,
         createGridGradientFamily,
@@ -176,6 +180,10 @@
     import { TerritoryEngineController } from "$lib/territory/engine/TerritoryEngineController";
     import { TerritoryRenderer } from "$lib/territory/render/TerritoryRenderer";
     import { transitionSnapshotRecorder } from "$lib/territory/devtools/TransitionSnapshotRecorder";
+    import {
+        geometryTrace,
+        summarizeOwners,
+    } from "$lib/territory/devtools/geometryPipelineTrace";
     import {
         buildRulerMeasurement,
         getRulerCssColor,
@@ -2742,6 +2750,7 @@
     let runtimeController: TerritoryEngineController | null = null;
     let runtimeControllerTransitionDurationMs: number | null = null;
     let runtimeRenderer: TerritoryRenderer | null = null;
+    let pipelineTraceFrame = 0;
     let renderFamilyGeometryCacheKey: string | null = null;
     let renderFamilyGeometryCache: ResolvedGeometrySnapshot | null = null;
     let renderFamilyStableGeometryKey: string | null = null;
@@ -2820,6 +2829,8 @@
             configSource ??
             (GAME_CONFIG as unknown as Record<string, unknown>);
         const key = buildRenderFamilyGeometryCacheKey(stars, lanes, source);
+        const __wasMiss =
+            renderFamilyGeometryCacheKey !== key || !renderFamilyGeometryCache;
         if (renderFamilyGeometryCacheKey !== key || !renderFamilyGeometryCache) {
             renderFamilyGeometryCache = buildPerimeterFieldRenderFamilyGeometry({
                 stars,
@@ -2835,6 +2846,29 @@
             });
             renderFamilyGeometryCacheKey = key;
 
+        }
+        if (geometryTrace.capturing) {
+            const g = renderFamilyGeometryCache;
+            geometryTrace.step("g", "geomcache", {
+                hit: !__wasMiss,
+                key: key.slice(-12),
+            });
+            if (g)
+                geometryTrace.step("s", "snapshot", {
+                    v: String(g.version ?? "").slice(0, 10),
+                    srcMode: g.sourceMode,
+                    method: g.sourceMethod,
+                    fam: g.geometryFamily,
+                    regions: g.territoryRegions.length,
+                    fronts: g.frontierPolylines.length,
+                    world: g.worldBorderPolylines.length,
+                    shells: g.shells.length,
+                    topo: g.diagnostics?.topologyReliable,
+                    closed: g.diagnostics?.closureReliable,
+                    owners: summarizeOwners(
+                        g.territoryRegions.map((r) => r.ownerId),
+                    ),
+                });
         }
         return renderFamilyGeometryCache;
     }
@@ -5108,6 +5142,7 @@
         )
             return;
         const frameStartedAtMs = performance.now();
+        pipelineTraceFrame += 1;
 
         // Reset state on new game session
         const currentSessionId = activeGameStore.sessionId;
@@ -5441,6 +5476,36 @@
                     getRenderFamilyModeConfigSource(activeMode);
                 const activeRenderFamilyTransition =
                     renderFamilyTransitionState.activeTransition;
+                const __pipePhase = activeRenderFamilyTransition
+                    ? "transition"
+                    : "steady";
+                geometryTrace.begin({
+                    mode: activeMode,
+                    frame: pipelineTraceFrame,
+                    phase: __pipePhase,
+                    prog: activeRenderFamilyTransition?.progress ?? null,
+                });
+                if (geometryTrace.capturing) {
+                    const __cfg = renderFamilyConfigSource as Record<
+                        string,
+                        unknown
+                    >;
+                    geometryTrace.step("cfg", "config", {
+                        src: String(
+                            __cfg.PERIMETER_FIELD_GEOMETRY_SOURCE ?? "",
+                        ),
+                        wave: String(__cfg.METABALL_GRID_WAVE_GEOMETRY ?? ""),
+                        flush: __cfg.METABALL_GRID_BOUNDARY_FILL_FLUSH as
+                            | boolean
+                            | undefined,
+                        border: String(
+                            __cfg.TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE ?? "",
+                        ),
+                        outer: __cfg.TERRITORY_FRONTIER_OUTER_BORDER_ENABLED as
+                            | boolean
+                            | undefined,
+                    });
+                }
                 const readFamilyGeometry = (): ResolvedGeometrySnapshot => {
                     const geometry = measurePerf(
                         `game.renderFrame.geometry.${activeMode}`,
@@ -6644,6 +6709,55 @@
                     const rendererDiagnostics = resolvePixiRendererDiagnostics(
                         app?.renderer,
                     );
+                    if (geometryTrace.capturing) {
+                        // family stats (read-only; the family already wrote them this frame)
+                        if (activeMode === "grid_gradient") {
+                            const st = get(gridGradientStats);
+                            geometryTrace.step("fam", "family", {
+                                backend: st.drawBackend,
+                                total: st.totalCells,
+                                emit: st.emittableCells,
+                                painted: st.paintedCells,
+                                active: st.activeTransitionCells,
+                                planMs: st.lastPlanBuildMs,
+                                sceneMs: st.lastSceneBuildMs,
+                                planHit: st.planCacheHit,
+                                clock: st.clockSource,
+                            });
+                        } else if (activeMode.startsWith("metaball")) {
+                            const st = get(metaballGridStats);
+                            geometryTrace.step("fam", "family", {
+                                id: st.familyId,
+                                total: st.totalCells,
+                                emit: st.emittableCells,
+                                painted: st.paintedCells,
+                                fronts: st.frontierPolylineCount,
+                                planMs: st.lastPlanBuildMs,
+                                sceneMs: st.lastSceneBuildMs,
+                                skipped: st.lastFrameSkipped,
+                                clock: st.clockSource,
+                            });
+                        }
+                        // transition (primitive fields only — events array is non-primitive)
+                        const tr = summarizeRenderFamilyTransitionForLog(
+                            activeRenderFamilyTransition,
+                        );
+                        geometryTrace.step("trn", "transition", {
+                            present: tr.present as boolean,
+                            eventCount: tr.eventCount as number,
+                            progress: tr.progress as number | undefined,
+                            rawProgress: tr.rawProgress as number | undefined,
+                            startedAtMs: tr.startedAtMs as number | undefined,
+                            durationMs: tr.durationMs as number | undefined,
+                        });
+                        // render outcome
+                        geometryTrace.step("out", "render", {
+                            needsGeom: activeModeNeedsGeometry,
+                            ready: geometryReady,
+                            fail: (lastRenderFailure ?? null) as string | null,
+                        });
+                    }
+                    geometryTrace.end(fxOrchestrator.gameTime);
                     setTerritoryRenderStatus({
                         territoryMode: activeMode,
                         geometryReady,

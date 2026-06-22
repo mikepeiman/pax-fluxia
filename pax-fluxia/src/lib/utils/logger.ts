@@ -28,6 +28,7 @@ export const logFlags = (() => {
         repair: false,
         canvas: true,    // Canvas debug (viewport, scaling, centering)
         renderer: false, // Territory renderer pipeline (borders, fills, transitions)
+        pipeline: false, // Geometry pipeline trace: every stage, step 0 -> render (steady + conquest)
     };
 
     // Load persisted flags if available
@@ -73,6 +74,7 @@ const styles = {
     canvas: 'background: #0ea5e9; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
     renderer: 'background: #f97316; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
     gridGradientTrace: 'background: #7c3aed; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
+    pipeline: 'background: #14b8a6; color: #06251f; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
     reset: 'color: inherit;'
 };
 
@@ -449,6 +451,15 @@ export const log = {
     /** Grid Gradient transition trace. Gated by the Grid Gradient trace setting before this is called. */
     gridGradientTrace: (context: string, msg: string, data?: unknown) => {
         console.log(`%cGRID-GRADIENT%c [${context}] ${msg}`, styles.gridGradientTrace, styles.reset, data ?? '');
+    },
+
+    /**
+     * 🛰️ PIPELINE - Geometry pipeline diagnostic trace (gated by logFlags.pipeline).
+     * Pass ONE preformatted multi-line block; printed verbatim for clean copy-paste.
+     */
+    pipeline: (block: string) => {
+        if (!logFlags.pipeline) return;
+        console.log(`%c${block}`, styles.pipeline);
     },
 };
 
