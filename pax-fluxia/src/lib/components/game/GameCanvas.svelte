@@ -6,7 +6,7 @@
     import { animationStore } from "$lib/stores/animationStore.svelte";
     import { audioManager } from "$lib/services/audioManager.svelte";
     import { mapTranspose } from "$lib/stores/mapTranspose.svelte";
-    import { log } from "$lib/utils/logger";
+    import { log, setGamePaused } from "$lib/utils/logger";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { normalizeBgImagePath } from "$lib/config/bgManifest";
     import { resolvePixiRendererDiagnostics } from "$lib/renderers/pixiRendererDiagnostics";
@@ -3875,6 +3875,8 @@
 
     onDestroy(() => {
         log.sys("GameCanvas", "Destroying PixiJS application");
+        // Restore telemetry logging when leaving the game (don't leave it paused-suppressed).
+        setGamePaused(false);
         gameHudStatsStore.reset();
 
         window.removeEventListener("resize", handleResize);
@@ -3971,6 +3973,8 @@
 
             // Tick FXClock per-frame (pause-aware game time for all ship animations)
             const isPaused = activeGameStore.isPaused;
+            // Pause ALL telemetry logging (except errors) while the game is paused.
+            setGamePaused(isPaused);
             // Initialize lastTickGameTimeMs on first frame so tickProgress starts at 0
             if (lastTickGameTimeMs === 0)
                 lastTickGameTimeMs = fxOrchestrator.gameTime;
@@ -5486,7 +5490,9 @@
                     prog: activeRenderFamilyTransition?.progress ?? null,
                 });
                 if (geometryTrace.capturing) {
-                    const __cfg = renderFamilyConfigSource as Record<
+                    // renderFamilyConfigSource is undefined for non-family / 'none' modes
+                    // (no config builder) — guard so the trace never throws.
+                    const __cfg = (renderFamilyConfigSource ?? {}) as Record<
                         string,
                         unknown
                     >;

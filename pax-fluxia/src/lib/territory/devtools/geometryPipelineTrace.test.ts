@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { log, logFlags } from '$lib/utils/logger';
+import { log, logFlags, setGamePaused } from '$lib/utils/logger';
 import { geometryTrace, summarizeOwners } from './geometryPipelineTrace';
 
 const flags = logFlags as unknown as Record<string, boolean>;
@@ -17,6 +17,7 @@ describe('geometryPipelineTrace', () => {
     afterEach(() => {
         spy.mockRestore();
         flags.pipeline = false;
+        setGamePaused(false);
         geometryTrace.reset();
     });
 
@@ -105,6 +106,35 @@ describe('geometryPipelineTrace', () => {
         expect(block).not.toContain('key=aaa');
         // original position preserved: 'g' still before 's'
         expect(block.indexOf('geomcache')).toBeLessThan(block.indexOf('snapshot'));
+    });
+
+    it('the geometry trace is suppressed while the game is paused', () => {
+        setGamePaused(true);
+        geometryTrace.begin({ mode: 'm', frame: 1, phase: 'steady' });
+        expect(geometryTrace.capturing).toBe(false);
+        geometryTrace.step('0', 'input', { stars: 5 });
+        geometryTrace.end(1000);
+        expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('all logger categories are suppressed while paused; the error channel is not', () => {
+        const clSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+        const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        flags.state = true;
+        try {
+            setGamePaused(true);
+            log.state('ctx', 'while-paused'); // gated category → suppressed
+            expect(clSpy).not.toHaveBeenCalled();
+            log.error('ctx', 'errors-always-surface'); // error channel → exempt from pause
+            expect(errSpy).toHaveBeenCalledTimes(1);
+            setGamePaused(false);
+            log.state('ctx', 'after-resume'); // resumes once unpaused
+            expect(clSpy).toHaveBeenCalled();
+        } finally {
+            flags.state = false;
+            clSpy.mockRestore();
+            errSpy.mockRestore();
+        }
     });
 
     it('summarizeOwners counts per owner, sorted by id', () => {

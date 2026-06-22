@@ -23,7 +23,7 @@
  *   if (geometryTrace.capturing) geometryTrace.step('x', 'expensive', heavySummary());
  *   geometryTrace.end(performance.now());                // render loop, after render
  */
-import { log, logFlags } from '$lib/utils/logger';
+import { log, logFlags, isLoggingPaused } from '$lib/utils/logger';
 
 type TraceVal = string | number | boolean | null | undefined;
 export type TraceStepData = Record<string, TraceVal>;
@@ -51,9 +51,9 @@ class GeometryPipelineTrace {
 
     private throttleMs = DEFAULT_THROTTLE_MS;
 
-    /** Cheap flag read — true when the Pipeline log category is enabled. */
+    /** Cheap flag read — true when Pipeline logging is enabled AND the game is not paused. */
     private get flagOn(): boolean {
-        return logFlags.pipeline === true;
+        return logFlags.pipeline === true && !isLoggingPaused();
     }
 
     /**

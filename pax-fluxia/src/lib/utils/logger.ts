@@ -61,6 +61,51 @@ if (typeof window !== 'undefined') {
     (window as any).logFlags = logFlags;
 }
 
+// ============================================================================
+// Game-pause gate. When the game is paused, suppress ALL telemetry output below
+// (every category EXCEPT `error`, which uses console.error and always surfaces) so
+// per-frame + other diagnostics don't spam while nothing is advancing. Wired from
+// the render loop via setGamePaused(activeGameStore.isPaused); reset on teardown.
+// ============================================================================
+// Captured once (browser only) so the pause gate can ALSO silence the ~97 raw console.*
+// calls in legacy renderers/devtools that bypass this logger. Swapping the channels to
+// no-ops (vs wrapping) preserves the real source file:line in devtools when not paused.
+const __consoleOrig =
+    typeof window !== 'undefined' && typeof console !== 'undefined'
+        ? { log: console.log, info: console.info, debug: console.debug, warn: console.warn }
+        : null;
+const __noopLog = (): void => {};
+let gamePaused = false;
+
+export function setGamePaused(paused: boolean): void {
+    if (paused === gamePaused) return; // called every frame — act only on a real change
+    gamePaused = paused;
+    if (!__consoleOrig) return; // SSR / tests: gate via gamePaused only, don't touch console
+    try {
+        // Project-wide: silence ALL raw console.* across the app while paused.
+        // console.error is intentionally left untouched so real errors always surface.
+        console.log = paused ? __noopLog : __consoleOrig.log;
+        console.info = paused ? __noopLog : __consoleOrig.info;
+        console.debug = paused ? __noopLog : __consoleOrig.debug;
+        console.warn = paused ? __noopLog : __consoleOrig.warn;
+    } catch {
+        /* console is read-only in this environment — leave it as-is */
+    }
+}
+
+export function isLoggingPaused(): boolean {
+    return gamePaused;
+}
+
+// Pause-gated logging sink: EVERY category method below outputs through `cl` (the
+// `console.log(` calls were rewritten to `cl(`), so a paused game emits nothing. This is
+// the logger's own intentional console sink — the no-raw-console.log rule is about APP
+// code. console.error (the `error` channel) calls console.error directly and is exempt.
+const cl = (...args: unknown[]): void => {
+    if (gamePaused) return;
+    console.log(...args);
+};
+
 
 const styles = {
     sys: 'background: #3b82f6; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
@@ -95,25 +140,25 @@ export const log = {
     /** 🔵 SYSTEM - Lifecycle and initialization */
     sys: (context: string, msg: string, data?: unknown) => {
         if (!logFlags.sys) return;
-        console.log(`%cSYSTEM%c [${context}] ${msg}`, styles.sys, styles.reset, data ?? '');
+        cl(`%cSYSTEM%c [${context}] ${msg}`, styles.sys, styles.reset, data ?? '');
     },
 
     /** 🟣 STATE - Logic and state transitions */
     state: (context: string, msg: string, state?: unknown) => {
         if (!logFlags.state) return;
-        console.log(`%cSTATE%c [${context}] ${msg}`, styles.state, styles.reset, state ?? '');
+        cl(`%cSTATE%c [${context}] ${msg}`, styles.state, styles.reset, state ?? '');
     },
 
     /** 🟢 DATA - Data flow and transformations */
     data: (context: string, msg: string, data?: unknown) => {
         if (!logFlags.data) return;
-        console.log(`%cDATA%c [${context}] ${msg}`, styles.data, styles.reset, data ?? '');
+        cl(`%cDATA%c [${context}] ${msg}`, styles.data, styles.reset, data ?? '');
     },
 
     /** 🟡 NET - Network and API calls */
     net: (context: string, msg: string, data?: unknown) => {
         if (!logFlags.net) return;
-        console.log(`%cNET%c [${context}] ${msg}`, styles.net, styles.reset, data ?? '');
+        cl(`%cNET%c [${context}] ${msg}`, styles.net, styles.reset, data ?? '');
     },
 
     /** 🔴 ERROR - Errors and corrections */
@@ -125,13 +170,13 @@ export const log = {
     /** ✅ SUCCESS - Verification and success */
     success: (context: string, msg: string, data?: unknown) => {
         if (!logFlags.success) return;
-        console.log(`%cSUCCESS%c [${context}] ${msg}`, styles.ok, styles.reset, data ?? '');
+        cl(`%cSUCCESS%c [${context}] ${msg}`, styles.ok, styles.reset, data ?? '');
     },
 
     /** ⚔️ COMBAT - Battle and conflict events (simple) */
     combat: (context: string, msg: string, data?: unknown) => {
         if (!logFlags.combat) return;
-        console.log(`%cCOMBAT%c [${context}] ${msg}`, styles.combat, styles.reset, data ?? '');
+        cl(`%cCOMBAT%c [${context}] ${msg}`, styles.combat, styles.reset, data ?? '');
     },
 
     /**
@@ -189,7 +234,7 @@ export const log = {
         const defOwner = defender.ownerId || 'unknown';
 
         // ── HEADER ──
-        console.log(
+        cl(
             `%c⚔️ T${tick}%c │ %c${getOwnerLabel(atkOwner)}%c ${attacker.id} (${atkShips} ships) → %c${getOwnerLabel(defOwner)}%c ${defender.id} (${defShips} ships)`,
             styles.combat, styles.reset,
             getOwnerStyle(atkOwner), styles.reset,
@@ -213,7 +258,7 @@ export const log = {
             const grn = 'color: #4ade80; font-weight: bold;';
 
             // Step 1: Base Output
-            console.log(
+            cl(
                 `  %cSTEP 1 Base Output%c │ ATK: %c${atkShips}%c × %c${f(settings.damage)}%c dmg/ship = %c${f(baseOutputAtk)}%c  │  DEF: %c${defShips}%c × %c${f(settings.damage)}%c = %c${f(baseOutputDef)}%c`,
                 dim, styles.reset, hl, styles.reset, dim, styles.reset, hl, styles.reset,
                 hl, styles.reset, dim, styles.reset, hl, styles.reset
@@ -222,21 +267,21 @@ export const log = {
             // Step 2: Aggressor Advantage
             const atkRole = attacker.isAttacking ? 'ATTACKING' : 'defending';
             const defRole = defender.isAttacking ? 'ATTACKING' : 'defending';
-            console.log(
+            cl(
                 `  %cSTEP 2 Aggressor%c   │ ATK %c${atkRole}%c × %c${f(aggressorMultAtk)}%c = %c${f(outputAtk)}%c  │  DEF %c${defRole}%c × %c${f(aggressorMultDef)}%c = %c${f(outputDef)}%c  (advantage: %c${f(settings.aggressor)}%c)`,
                 dim, styles.reset, grn, styles.reset, dim, styles.reset, hl, styles.reset,
                 grn, styles.reset, dim, styles.reset, hl, styles.reset, org, styles.reset
             );
 
             // Step 3: Force Ratio
-            console.log(
+            cl(
                 `  %cSTEP 3 Force Ratio%c │ ratio %c${f(ratio)}%c:1  log₂ bonus %c${f(forceBonus)}%c  (effect: %c${f(settings.forceRatio)}%c)  │  mod→def %c${f(forceMod_dmgToDefender)}%c  mod→atk %c${f(forceMod_dmgToAttacker)}%c`,
                 dim, styles.reset, hl, styles.reset, hl, styles.reset, dim, styles.reset,
                 hl, styles.reset, hl, styles.reset
             );
 
             // Step 4: Final Damage
-            console.log(
+            cl(
                 `  %cSTEP 4 Damage%c      │ Raw→DEF: %c${f(rawDmgToDefender)}%c Raw→ATK: %c${f(rawDmgToAttacker)}%c  min=%c${minDamage}%c  │  %cFinal→DEF: ${f(finalDmgToDefender)}%c  %cFinal→ATK: ${f(finalDmgToAttacker)}%c`,
                 dim, styles.reset, hl, styles.reset, hl, styles.reset, dim, styles.reset,
                 red, styles.reset, red, styles.reset
@@ -247,7 +292,7 @@ export const log = {
             const defDis = n(damageToDefender.disabled);
             const atkKills = n(damageToAttacker.kills);
             const atkDis = n(damageToAttacker.disabled);
-            console.log(
+            cl(
                 `  %cSTEP 5 Lethality%c   │ leth=%c${f(settings.lethality)}%c  │  DEF takes ☠️%c${defKills}%c killed + 🔧%c${defDis}%c disabled  │  ATK takes ☠️%c${atkKills}%c killed + 🔧%c${atkDis}%c disabled`,
                 dim, styles.reset, org, styles.reset,
                 red, styles.reset, org, styles.reset,
@@ -257,7 +302,7 @@ export const log = {
             // Outcome
             const defRemaining = Math.max(0, defShips - defKills - defDis);
             const atkRemaining = Math.max(0, atkShips - atkKills - atkDis);
-            console.log(
+            cl(
                 `  %cOUTCOME%c            │ DEF remaining: %c${defRemaining}%c  │  ATK remaining: %c${atkRemaining}%c`,
                 'color: #fff; font-weight: bold;', styles.reset,
                 defRemaining > 0 ? grn : red, styles.reset,
@@ -269,11 +314,11 @@ export const log = {
             const defDis = n(damageToDefender.disabled);
             const atkKills = n(damageToAttacker.kills);
             const atkDis = n(damageToAttacker.disabled);
-            console.log(
+            cl(
                 `  DEF takes ☠️${defKills} killed + 🔧${defDis} disabled  │  ATK takes ☠️${atkKills} killed + 🔧${atkDis} disabled`
             );
             if (settings) {
-                console.log(
+                cl(
                     `  %cSettings%c │ Agg:${f(settings.aggressor)} Dmg:${f(settings.damage)} Leth:${f(settings.lethality)} Force:${f(settings.forceRatio)} RR:${f(settings.repairRate)}`,
                     'color: #666;', styles.reset
                 );
@@ -286,13 +331,13 @@ export const log = {
      */
     input: (action: string, data?: unknown) => {
         if (!logFlags.input) return;
-        console.log(`%cINPUT%c ${action}`, 'background: #6366f1; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;', styles.reset, data ?? '');
+        cl(`%cINPUT%c ${action}`, 'background: #6366f1; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;', styles.reset, data ?? '');
     },
 
     /** 🖥️ CANVAS - Viewport, scaling, centering, pan diagnostics */
     canvas: (context: string, msg: string, data?: unknown) => {
         if (!logFlags.canvas) return;
-        console.log(`%cCANVAS%c [${context}] ${msg}`, styles.canvas, styles.reset, data ?? '');
+        cl(`%cCANVAS%c [${context}] ${msg}`, styles.canvas, styles.reset, data ?? '');
     },
 
     /**
@@ -327,7 +372,7 @@ export const log = {
         const effectiveRate = data.repairRate * data.typeMult * (data.isPinned ? data.combatPenalty : 1);
 
         // Line 1: Star name (big bold) + type chip + rate
-        console.log(
+        cl(
             `%c🔧 ${starId}%c  %c ${label} %c  RATE %c${(effectiveRate * 100).toFixed(1)}%%c` +
             `${data.isPinned ? '  %c⚡PINNED%c' : ''}`,
             `font-size: 13px; font-weight: bold; color: #fff;`,
@@ -343,7 +388,7 @@ export const log = {
         );
 
         // Line 2: Ship counts — DAMAGED and REPAIRED with clear spacing
-        console.log(
+        cl(
             `     DAMAGED  %c${data.damagedBefore}%c  →  %c${data.damagedAfter}%c      REPAIRED  %c+${data.repaired}%c      %c(overflow: ${data.overflow.toFixed(2)})%c`,
             `color: #f87171; font-weight: bold; font-size: 12px;`, styles.reset,
             `color: ${data.repaired > 0 ? '#4ade80' : '#f87171'}; font-weight: bold; font-size: 12px;`, styles.reset,
@@ -393,7 +438,7 @@ export const log = {
         const rst = styles.reset;
 
         // ── HEADER ── 
-        console.log(
+        cl(
             `%c🏰 CONQUEST T${tick}%c │ %c${lbl(data.previousOwner)}%c → %c${lbl(data.newOwner)}%c │ ⭐${data.starId} │ DEF had %c${data.defenderTotal}%c ships │ ATK had %c${data.attackerShips}%c ships`,
             styles.conquest, rst,
             red, rst, grn, rst,
@@ -411,10 +456,10 @@ export const log = {
             const pairs = data.scatterTargetIds.map((id, i) => `${id}(${data.scatterShipCounts?.[i] ?? '?'})`).join(',');
             dispLine += `  💨→${pairs}`;
         }
-        console.log(dispLine, ...dispStyles);
+        cl(dispLine, ...dispStyles);
 
         // ── POST STATE: attacker + conquered star ──
-        console.log(
+        cl(
             `  📍 ATK post:%c${data.attackerPostShips}%c ships │ %c${data.starId}%c post:%c${data.defenderPostShips}%c ships (now %c${lbl(data.newOwner)}%c)`,
             blu, rst, grn, rst, grn, rst, grn, rst
         );
@@ -427,7 +472,7 @@ export const log = {
                 preParts.push(`%c${(p.name || lbl(p.id)).padEnd(6)}%c ⭐${p.stars} A:%c${p.active}%c D:%c${p.damaged}%c T:%c${p.total}%c`);
                 preStyles.push('font-weight:bold;color:#ddd', rst, grn, rst, yel, rst, blu, rst);
             });
-            console.log(`  %cPRE%c  │ ${preParts.join(' │ ')}`, 'background:#444;color:#fff;padding:1px 4px;border-radius:2px;font-weight:bold;', rst, ...preStyles);
+            cl(`  %cPRE%c  │ ${preParts.join(' │ ')}`, 'background:#444;color:#fff;padding:1px 4px;border-radius:2px;font-weight:bold;', rst, ...preStyles);
         }
 
         // ── POST PLAYER TOTALS (after conquest) ──
@@ -438,19 +483,19 @@ export const log = {
                 postParts.push(`%c${(p.name || lbl(p.id)).padEnd(6)}%c ⭐${p.stars} A:%c${p.active}%c D:%c${p.damaged}%c T:%c${p.total}%c`);
                 postStyles.push('font-weight:bold;color:#ddd', rst, grn, rst, yel, rst, blu, rst);
             });
-            console.log(`  %cPOST%c │ ${postParts.join(' │ ')}`, 'background:#2a6;color:#fff;padding:1px 4px;border-radius:2px;font-weight:bold;', rst, ...postStyles);
+            cl(`  %cPOST%c │ ${postParts.join(' │ ')}`, 'background:#2a6;color:#fff;padding:1px 4px;border-radius:2px;font-weight:bold;', rst, ...postStyles);
         }
     },
 
     /** 🎨 RENDERER - Territory renderer pipeline (borders, fills, transitions) */
     renderer: (context: string, msg: string, data?: unknown) => {
         if (!logFlags.renderer) return;
-        console.log(`%cRENDERER%c [${context}] ${msg}`, styles.renderer, styles.reset, data ?? '');
+        cl(`%cRENDERER%c [${context}] ${msg}`, styles.renderer, styles.reset, data ?? '');
     },
 
     /** Grid Gradient transition trace. Gated by the Grid Gradient trace setting before this is called. */
     gridGradientTrace: (context: string, msg: string, data?: unknown) => {
-        console.log(`%cGRID-GRADIENT%c [${context}] ${msg}`, styles.gridGradientTrace, styles.reset, data ?? '');
+        cl(`%cGRID-GRADIENT%c [${context}] ${msg}`, styles.gridGradientTrace, styles.reset, data ?? '');
     },
 
     /**
@@ -459,7 +504,7 @@ export const log = {
      */
     pipeline: (block: string) => {
         if (!logFlags.pipeline) return;
-        console.log(`%c${block}`, styles.pipeline);
+        cl(`%c${block}`, styles.pipeline);
     },
 };
 
