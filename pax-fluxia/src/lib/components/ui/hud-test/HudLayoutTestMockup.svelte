@@ -121,7 +121,7 @@
 
   <div class="hud-grid">
     <header class="test-topbar hud-panel">
-      <a class="back-link" href="/?showGame=1">
+      <a class="back-link" href="/play">
         <HudIcon name="chevron-left" />
         <span>Back to Game</span>
       </a>

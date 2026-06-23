@@ -1,9 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
-  import {
-    pushStateCompat as pushState,
-    replaceStateCompat as replaceState,
-  } from "$lib/utils/navigationCompat";
+  import { pushStateCompat as pushState } from "$lib/utils/navigationCompat";
+  import { goto } from "$app/navigation";
   import { gameStore } from "$lib/stores/gameStore.svelte";
   import { modalDismiss } from "$lib/actions/modalDismiss";
   import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
@@ -547,89 +545,97 @@
   );
 
   // ── Back button navigation: close overlays instead of exiting ──
-  // Push a history entry so Android back button fires popstate
-  if (typeof window !== "undefined") {
-    // Ensure we have a base history entry to pop against
-    replaceState("", { pax: "base" });
-    pushState("", { pax: "game" });
+  // On mount we push a history entry so the (Android) back button fires popstate
+  // and in-game states resolve "back" internally. At the top-level menu, back is
+  // a genuine "leave the game" — we navigate to the real landing route (`/`),
+  // since the game lives at its own `/play` route. Handlers are named and removed
+  // on destroy so this trap never leaks onto the landing after we leave /play.
+  function handleBackPopstate() {
+    // Re-push to keep trapping the back button for in-game states.
+    const trap = () => pushState("", { pax: "game" });
 
-    window.addEventListener("popstate", (e) => {
-      // Re-push to keep trapping the back button for in-game states; each branch
-      // below resolves "back" internally instead of leaving the page.
-      const trap = () => pushState("", { pax: "game" });
-
-      // Close overlays in priority order
-      if (showSettingsPanel) {
-        trap();
-        setSettingsPanelOpen(false);
-        return;
-      }
-      if (mobileDrawerOpen) {
-        trap();
-        mobileDrawerOpen = false;
-        return;
-      }
-      if (showAudioSettings) {
-        trap();
-        showAudioSettings = false;
-        return;
-      }
-      if (showSurrenderModal) {
-        trap();
-        showSurrenderModal = false;
-        return;
-      }
-      if (showResults && !resultsDismissed) {
-        trap();
-        resultsDismissed = true;
-        return;
-      }
-      if (showExitConfirm) {
-        trap();
-        showExitConfirm = false;
-        return;
-      }
-      // Nothing open — if game is active, show exit confirmation
-      if (
-        gameStore.currentView === "game" &&
-        activeGameStore.phase === "playing"
-      ) {
-        trap();
-        showExitConfirm = true;
-        return;
-      }
-      // In game view but not playing — step back to the menu
-      if (gameStore.currentView === "game") {
-        trap();
-        gameStore.setView("menu");
-        return;
-      }
-      // Top-level menu with nothing open: a genuine "leave the game" back.
-      // Don't re-trap — hand control to the host route so it returns to the
-      // landing site (the home route listens for this and cleans the URL). On
-      // the dedicated game host there is no landing, so the host ignores it.
-      if (gameStore.currentView === "menu") {
-        window.dispatchEvent(new CustomEvent("pax-exit-to-landing"));
-        return;
-      }
-      // Unknown view — keep trapping to be safe.
+    // Close overlays in priority order
+    if (showSettingsPanel) {
       trap();
-    });
+      setSettingsPanelOpen(false);
+      return;
+    }
+    if (mobileDrawerOpen) {
+      trap();
+      mobileDrawerOpen = false;
+      return;
+    }
+    if (showAudioSettings) {
+      trap();
+      showAudioSettings = false;
+      return;
+    }
+    if (showSurrenderModal) {
+      trap();
+      showSurrenderModal = false;
+      return;
+    }
+    if (showResults && !resultsDismissed) {
+      trap();
+      resultsDismissed = true;
+      return;
+    }
+    if (showExitConfirm) {
+      trap();
+      showExitConfirm = false;
+      return;
+    }
+    // Nothing open — if game is active, show exit confirmation
+    if (
+      gameStore.currentView === "game" &&
+      activeGameStore.phase === "playing"
+    ) {
+      trap();
+      showExitConfirm = true;
+      return;
+    }
+    // In game view but not playing — step back to the menu
+    if (gameStore.currentView === "game") {
+      trap();
+      gameStore.setView("menu");
+      return;
+    }
+    // Top-level menu with nothing open: a genuine "leave the game" back. Don't
+    // re-trap — leave /play and return to the landing route. (On the dedicated
+    // game host the home route just sends `/` back to /play.)
+    if (gameStore.currentView === "menu") {
+      // Leave /play for the landing. A plain push discards the shallow trap
+      // entry (so there's no forward "landing shown at /play URL" glitch); the
+      // real /play route entry stays in history for clean re-entry.
+      void goto("/");
+      return;
+    }
+    // Unknown view — keep trapping to be safe.
+    trap();
   }
 
   // ── Exit confirmation: warn before closing tab during active game ──
+  function handleGameBeforeUnload(e: BeforeUnloadEvent) {
+    if (
+      gameStore.currentView === "game" &&
+      activeGameStore.phase === "playing"
+    ) {
+      e.preventDefault();
+      // Modern browsers show their own message, this is just for compat
+      e.returnValue =
+        "You have an active game. Are you sure you want to leave?";
+    }
+  }
+
   if (typeof window !== "undefined") {
-    window.addEventListener("beforeunload", (e) => {
-      if (
-        gameStore.currentView === "game" &&
-        activeGameStore.phase === "playing"
-      ) {
-        e.preventDefault();
-        // Modern browsers show their own message, this is just for compat
-        e.returnValue =
-          "You have an active game. Are you sure you want to leave?";
-      }
-    });
+    // Push a trap entry ON TOP of the real /play route entry. Back pops to /play
+    // (real route) where the in-game branches re-trap. We intentionally do NOT
+    // replaceState the route entry into a shallow marker — keeping it real means
+    // leaving to the landing and re-entering stay clean route navigations with
+    // no shallow-state ("landing shown at /play URL") glitch.
+    pushState("", { pax: "game" });
+    window.addEventListener("popstate", handleBackPopstate);
+    window.addEventListener("beforeunload", handleGameBeforeUnload);
   }
 
   function confirmExit() {
@@ -701,6 +707,8 @@
       document.body.classList.remove("game-active");
     }
     if (typeof window !== "undefined") {
+      window.removeEventListener("popstate", handleBackPopstate);
+      window.removeEventListener("beforeunload", handleGameBeforeUnload);
       window.dispatchEvent(new CustomEvent("pax-game-container-unmounted"));
     }
   });
