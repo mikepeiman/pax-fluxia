@@ -6733,8 +6733,17 @@
                                 emit: st.emittableCells,
                                 painted: st.paintedCells,
                                 active: st.activeTransitionCells,
-                                planMs: st.lastPlanBuildMs,
+                                // Full cold-load stage breakdown. The 3-6s first-load freeze
+                                // shows in updateMs (TOTAL); the sub-stage ms pinpoint WHICH
+                                // stage owns it (plan build is only ~49ms — not the freeze).
+                                updateMs: st.lastUpdateMs,
+                                classMs: st.lastClassificationBuildMs,
+                                matMs: st.lastClassificationMaterializeMs,
+                                distMs: st.lastDistanceBuildMs,
+                                waveMs: st.lastWavePlanBuildMs,
                                 sceneMs: st.lastSceneBuildMs,
+                                texPackMs: st.lastTexturePackMs,
+                                texUpMs: st.lastTextureUploadMs,
                                 planHit: st.planCacheHit,
                                 clock: st.clockSource,
                             });
