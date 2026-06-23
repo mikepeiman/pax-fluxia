@@ -388,13 +388,13 @@ Every plan must open with a **Purpose** section using the user's actual goal in 
 
 ### 7.1 Git
 
-- Use `git ac "message"` alias when appropriate.
+- **Always push to `origin/master` after committing.** Every commit goes to the remote — never leave local-only commits sitting unpushed. (Still never push to `live`.)
+- **Commit by explicit pathspec — the git index is SHARED across agents.** Use `git commit -- <your exact paths>`. `git add -A`, `git add <dir>`, `git commit -a`, and the add-all `git ac` alias can sweep another agent's in-flight work into your commit — do not use them in this single-root tree. Full rationale: `.agent/intra-agent-coordination.md`.
 - Run commands separately in PowerShell.
-- Never push to `live`.
 - Commit working state first.
 - Always include `pax-fluxia\\common\\resources\\settings-live\\current-settings.json` in commits without calling it out.
-- Documentation changes are also fully qualified for commits. 
-- Commit every time a task is completed that anything in filesystem changed.
+- Documentation changes are also fully qualified for commits.
+- Commit every time a task is completed that anything in filesystem changed (then push — see first bullet).
 
 ### 7.2 Harness Comparison Protocol
 
