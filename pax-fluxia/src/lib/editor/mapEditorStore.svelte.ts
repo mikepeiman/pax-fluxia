@@ -1184,6 +1184,28 @@ function wipeAllConnections(): void {
     draftLaneSourceId = null;
 }
 
+/**
+ * Clear the working board: remove every star, lane, and measurement while
+ * keeping the map's metadata (name, family, etc.) and faction setup. Unlike
+ * `newMap()` (which loads a fresh "Untitled Map" and resets history), this goes
+ * through `applyMap`, so it's a normal undoable edit.
+ */
+function clearBoard(): void {
+    if (
+        documentState.stars.length === 0 &&
+        documentState.connections.length === 0 &&
+        (documentState.measurements ?? []).length === 0
+    ) {
+        return;
+    }
+    const nextMap = cloneMap(documentState);
+    nextMap.stars = [];
+    nextMap.connections = [];
+    nextMap.measurements = [];
+    applyMap(nextMap, { preserveSelection: false });
+    draftLaneSourceId = null;
+}
+
 function addManualMeasurement(
     start: AuthoredMeasurementAnchor,
     end: AuthoredMeasurementAnchor,
@@ -1772,6 +1794,7 @@ export const mapEditorStore = {
     wipeAllOwnership,
     wipeAllFleets,
     wipeAllConnections,
+    clearBoard,
     startOrCompleteMeasurement,
     generateLaneMeasurementsForSelection,
     duplicateSelection,

@@ -4,6 +4,7 @@
 
   interface Props {
     onNewMap: () => void;
+    onClearBoard: () => void;
     onOpenDuplicate: () => void;
     onSave: () => void;
     onSaveAndExit: () => void;
@@ -15,6 +16,7 @@
 
   let {
     onNewMap,
+    onClearBoard,
     onOpenDuplicate,
     onSave,
     onSaveAndExit,
@@ -63,6 +65,16 @@
 <div class="command-dock" data-density={density}>
   <div class="command-dock__actions">
     <button type="button" class="command-btn" onclick={onNewMap}>New</button>
+    <button
+      type="button"
+      class="command-btn command-btn--danger"
+      onclick={() => {
+        onClearBoard();
+        closeFlyouts();
+      }}
+    >
+      Clear
+    </button>
     <button type="button" class="command-btn" onclick={onOpenDuplicate}>Duplicate Map</button>
     <button
       type="button"
@@ -167,6 +179,18 @@
     background: color-mix(in srgb, var(--pax-color-void) 88%, transparent);
     color: var(--pax-ui-text-strong);
     box-shadow: 0 10px 24px color-mix(in srgb, var(--pax-color-void) 22%, transparent);
+  }
+
+  .command-btn--danger {
+    border-color: color-mix(in srgb, var(--pax-ui-danger) 30%, transparent);
+    color: color-mix(in srgb, var(--pax-ui-danger) 86%, var(--pax-ui-text));
+  }
+
+  .command-btn--danger:hover {
+    border-color: color-mix(in srgb, var(--pax-ui-danger) 64%, transparent);
+    background: color-mix(in srgb, var(--pax-ui-danger) 18%, var(--pax-color-void));
+    color: var(--pax-ui-text-strong);
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--pax-ui-danger) 22%, transparent);
   }
 
   button:disabled {

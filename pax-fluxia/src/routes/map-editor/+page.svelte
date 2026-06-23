@@ -93,6 +93,7 @@
   let ownerColorAlpha = $state(94);
   let deleteTarget = $state<{ name: string; favoriteKey?: string } | null>(null);
   let metadataDialog = $state<MetadataDialogState | null>(null);
+  let showClearConfirm = $state(false);
 
   const selectedStars = $derived.by(() =>
     mapEditorStore.document.stars.filter((star) =>
@@ -323,6 +324,7 @@
   function closeActiveOverlays() {
     deleteTarget = null;
     metadataDialog = null;
+    showClearConfirm = false;
     mapEditorUiStore.closeSheet();
     mapEditorUiStore.closeToolPanel();
   }
@@ -500,6 +502,17 @@
     mapEditorUiStore.closeSheet();
     mapEditorUiStore.closeToolPanel();
     setStatus("Started a new map.");
+  }
+
+  function requestClearBoard() {
+    showClearConfirm = true;
+  }
+
+  function confirmClearBoard() {
+    mapEditorStore.clearBoard();
+    showClearConfirm = false;
+    mapEditorUiStore.closeToolPanel();
+    setStatus("Cleared the board. Press Ctrl+Z to undo.");
   }
 
   function confirmDuplicateMap(patch: MapMetadataPatch) {
@@ -1039,7 +1052,7 @@
 
     <main class="stage-area">
       <div class="board-stage">
-        {#if mapEditorUiStore.activeSheet !== null || deleteTarget !== null || metadataDialog !== null}
+        {#if mapEditorUiStore.activeSheet !== null || deleteTarget !== null || metadataDialog !== null || showClearConfirm}
           <button
             type="button"
             class="board-dismiss-layer"
@@ -1143,8 +1156,21 @@
           />
         {/if}
 
+        {#if showClearConfirm}
+          <MapEditorConfirmDialog
+            title="Clear Board"
+            message={`Remove every star, lane, and measurement from "${mapEditorStore.document.metadata.name || "this map"}"? Factions and map details are kept, and you can undo with Ctrl+Z.`}
+            confirmLabel="Clear Board"
+            onConfirm={confirmClearBoard}
+            onClose={() => {
+              showClearConfirm = false;
+            }}
+          />
+        {/if}
+
         <MapEditorCommandDock
           onNewMap={createNewMap}
+          onClearBoard={requestClearBoard}
           onOpenDuplicate={openDuplicateSheet}
           onSave={saveDocument}
           onSaveAndExit={saveAndExitDocument}
