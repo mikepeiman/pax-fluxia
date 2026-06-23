@@ -4,6 +4,8 @@ Date: 2026-05-08
 Scope: Fix Phase Field misalignment, Phase Field/Phase Edges/Ember world borders, and the fill-vs-border seam mismatch on local `master`.
 Status: Plan. Many steps need user verification in the running app — `please verify` after each phase.
 
+> **2026-06-23 update (opus-territory):** Phase 1+2 LANDED for **`grid_gradient` only** — that mode post-dates this plan (added in the 2026-05-16 shader_field rewrite) and was the reported "territory slides off the starmap on resize/devtools/centerAndFit" bug. GG was migrated to the map-space `(0,0)` contract Phase Field already uses (container `(0,0)`; `stars`/`geometry` map-space, no `localizePresentationGeometry`; `world = 0,0,GAME_WIDTH,GAME_HEIGHT`), and `updateTerritoryViewportFrame` (the §3 mode-unaware "second writer") is now mode-aware: it writes `(0,0)` for `metaball_grid_phase_field` + `grid_gradient`, frame-min otherwise — which also resolves §3 for Phase Field itself. The remaining presentation-local families (`metaball_grid`, `metaball_grid_phase_edges`, `metaball_grid_ember_lattice`, `perimeter_field`, legacy) are **still on the presentation-local contract** and await the same migration (Phases 1-2 for them, then 3-6). Pending GG visual sign-off.
+
 ## Terminology
 
 Two coordinate spaces are referenced throughout this document. The repo recently retired the term "canonical" (see commit `bdbdd08d5 refactor(territory): replace canonical live terminology`). This plan uses the in-code terminology only.

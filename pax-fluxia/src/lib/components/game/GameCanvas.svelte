@@ -4140,15 +4140,24 @@
         if (voronoiContainer) {
             const prevX = voronoiContainer.x;
             const prevY = voronoiContainer.y;
-            voronoiContainer.x = territoryWorldMinX;
-            voronoiContainer.y = territoryWorldMinY;
-            // Phase 0 diagnostic: logs every time a resize/recenter event moves
-            // voronoiContainer. This is the second writer of container.position and is
-            // mode-unaware — it can clobber Phase Field's (0,0) reset between presents.
-            // Fires on resize / centerAndFit, not per frame. logFlags.canvas is ON by default.
+            // Map-space families (Phase Field, Grid Gradient) draw at absolute world
+            // coords with the container parked at the stage origin, like the starmap;
+            // presentation-local families draw frame-local and need the container at the
+            // frame minimum. Writing the presentation-local minimum UNCONDITIONALLY here was
+            // the resize / centerAndFit "second writer" that displaced map-space territory
+            // from the starmap until the next present re-ran (the bug this fixes). See
+            // TERRITORY_COORD_AND_WORLD_BORDER_UNIFICATION_2026-05-08.
+            const resizeActiveMode = resolveActiveTerritoryMode();
+            const containerAtMapOrigin =
+                resizeActiveMode === "metaball_grid_phase_field" ||
+                resizeActiveMode === "grid_gradient";
+            const nextContainerX = containerAtMapOrigin ? 0 : territoryWorldMinX;
+            const nextContainerY = containerAtMapOrigin ? 0 : territoryWorldMinY;
+            voronoiContainer.x = nextContainerX;
+            voronoiContainer.y = nextContainerY;
             log.canvas(
                 "TerritoryFrame",
-                `voronoiContainer (${prevX.toFixed(2)},${prevY.toFixed(2)}) -> (${territoryWorldMinX.toFixed(2)},${territoryWorldMinY.toFixed(2)}) frame=${territoryWorldWidth.toFixed(0)}x${territoryWorldHeight.toFixed(0)} mode=${resolveActiveTerritoryMode()}`,
+                `voronoiContainer (${prevX.toFixed(2)},${prevY.toFixed(2)}) -> (${nextContainerX.toFixed(2)},${nextContainerY.toFixed(2)}) frame=${territoryWorldWidth.toFixed(0)}x${territoryWorldHeight.toFixed(0)} mode=${resizeActiveMode} mapOrigin=${containerAtMapOrigin}`,
             );
         }
     }
@@ -6167,6 +6176,12 @@
                         break;
                     }
                     case "grid_gradient": {
+                        // Grid Gradient draws in map-space (absolute world coords), so the
+                        // container sits at the stage origin like Phase Field and the
+                        // starmap — not at the presentation-local frame minimum. Without
+                        // this, resize / centerAndFit slid the territory off the starmap.
+                        activeVoronoiContainer.x = 0;
+                        activeVoronoiContainer.y = 0;
                         let fam = getRenderFamily("grid_gradient");
                         if (!fam) {
                             registerRenderFamily(
@@ -6198,7 +6213,7 @@
                             "game.renderFrame.ownership.grid_gradient",
                             () =>
                                 buildRenderFamilyOwnershipSnapshot(
-                                    territoryPresentationStars,
+                                    stars,
                                     activeTransition,
                                 ),
                         );
@@ -6255,21 +6270,17 @@
                             "game.renderFrame.renderFamilyInput.grid_gradient",
                             () =>
                                 buildRenderFamilyInput({
-                                    stars: territoryPresentationStars,
+                                    stars,
                                     lanes,
-                                    worldMinX: territoryPresentationFrame.minX,
-                                    worldMinY: territoryPresentationFrame.minY,
-                                    worldWidth: territoryPresentationWorldWidth,
-                                    worldHeight: territoryPresentationWorldHeight,
+                                    worldWidth: GAME_WIDTH,
+                                    worldHeight: GAME_HEIGHT,
                                     nowMs: fxOrchestrator.gameTime,
                                     paused: isPausedNow,
                                     gameTick: activeGameStore.currentTick,
                                     ownership,
-                                    geometry:
-                                        localizePresentationGeometry(geometry),
-                                    prevGeometry: localizePresentationGeometry(
+                                    geometry,
+                                    prevGeometry:
                                         diagnosticPrevFrame?.geometry ?? null,
-                                    ),
                                     renderer: app?.renderer ?? undefined,
                                     activeTransition,
                                     transitionSessions:
