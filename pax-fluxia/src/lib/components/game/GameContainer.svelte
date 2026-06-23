@@ -33,7 +33,6 @@
   } from "$lib/components/game-hud";
   import GameCanvas from "$lib/components/game/GameCanvas.svelte";
   import AudioSettings from "$lib/components/ui/AudioSettings.svelte";
-  import TopBar from "$lib/components/ui/TopBar.svelte";
   import {
     PaxHudButton,
     PaxHudIconButton,
@@ -715,12 +714,12 @@
 </script>
 
 <div class="app-container">
-  {#if gameStore.currentView !== "game"}
-    <TopBar
-      onSettingsClick={openAudioSettings}
-      onHelpClick={() => alert("Help & controls guide coming soon!")}
-    />
-  {/if}
+  <!-- The main menu has its own controls (MenuUtilityTopbar: Background / Audio /
+       Mixer). The legacy fixed TopBar only rendered OUTSIDE the game, where its
+       left/center content is gated off — leaving two stray Settings/"?" buttons
+       floating over the menu (Settings opened an audio modal that isn't even
+       mounted on the menu; "?" was a placeholder alert). Removed. In-game uses
+       HudTopbar, which never rendered this TopBar. -->
 
   {#if gameStore.currentView === "menu"}
     <MainMenu />
