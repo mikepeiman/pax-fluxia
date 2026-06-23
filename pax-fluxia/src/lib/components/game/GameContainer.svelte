@@ -149,7 +149,6 @@
     typeof localStorage === "undefined" ||
       localStorage.getItem("pax-pause-on-settings") !== "false",
   ); // Default: ON
-  let wasPausedBeforeSettings = false;
 
   function setSettingsPanelOpen(nextOpen: boolean) {
     if (showSettingsPanel === nextOpen) return;
@@ -157,15 +156,16 @@
     if (typeof localStorage !== "undefined") {
       localStorage.setItem("pax-settings-open", String(showSettingsPanel));
     }
-    if (pauseOnSettings && activeGameStore.phase === "playing") {
-      if (showSettingsPanel) {
-        wasPausedBeforeSettings = activeGameStore.isPaused;
-        if (!activeGameStore.isPaused) {
-          activeGameStore.pauseGame();
-        }
-      } else if (!wasPausedBeforeSettings && activeGameStore.isPaused) {
-        activeGameStore.resumeGame();
-      }
+    // Opening settings pauses the game so you can read it; closing never
+    // auto-resumes. Resuming is always a deliberate player action, so toggling
+    // the settings panel can no longer unpause the game.
+    if (
+      pauseOnSettings &&
+      activeGameStore.phase === "playing" &&
+      showSettingsPanel &&
+      !activeGameStore.isPaused
+    ) {
+      activeGameStore.pauseGame();
     }
   }
 
