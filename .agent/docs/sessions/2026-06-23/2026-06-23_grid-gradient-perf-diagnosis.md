@@ -37,15 +37,40 @@ Per §7.4 / RULE 0 I will not off-thread or rewrite a stage I have not timed as 
 - Reverted the cold worker-defer that blanked the mode (`44ca5b48e`); cold build is synchronous
   again (renders), warm rebuilds still off-thread.
 
-## Next: MEASURE, then fix the named stage
-USER ACTION: reload, switch cold into Grid Gradient, copy the `[GEOMTRACE mode=grid_gradient]`
-block. Read `updateMs` (is it still 3-6s post-revert?) and the largest sub-stage:
-- `texUpMs` large → texture upload of the per-cell textures is the cost → upload smaller /
-  async / incremental, or reduce texture count.
-- `distMs` large → the frontier distance field → cache / coarser / reuse buffers.
-- `updateMs` >> sum(sub-stages) → first WebGL **shader compile** (not separately timed) →
-  precompile/warm the program off the first render frame.
-- all sub-stages small but `updateMs` large on the FIRST load only → one-time GPU warmup.
+## CONFIRMED root cause (2026-06-23, DevTools profile + cold trace)
+The freeze is the **first-time WebGL shader program LINK**, not any CPU pipeline stage:
+- DevTools profile: `getProgramParameter` = **3,572.9 ms self-time (95.7 %)**, under
+  `draw → _tick → GlEncoderSystem` (PIXI's GL program-link / `LINK_STATUS` check, which blocks
+  until the driver finishes compiling + linking the program).
+- The cold `[GEOMTRACE]` block confirms every CPU stage is tiny: `classMs=36.2 matMs=17.4
+  distMs=8.7 waveMs=0.4 sceneMs=0 texPackMs=9 texUpMs=0 updateMs<2`, `planHit=true`.
+
+**Why the link is so slow:** `gridGradientShaderFieldShaders.ts` `main()` invoked `shadeCell()`
+1 + up-to-4 + up-to-4 times, gated by the `uNeighborMode` **uniform**. A uniform is not a
+compile-time constant, so the compiler had to compile **all 9** inlined `shadeCell()` trees —
+each heavy (2 texture reads, hash jitter, sin/cos drift, up to 2× `shadeCellSide` with the
+3-variant `markMask`, `noiseMask`'s 3 sins, pulse, glow). The **default `neighborMode` is
+`'eight'`** (`GridGradientFamily.ts:134` → number 2 → all 9), so the default path compiled the
+most expensive variant. ANGLE/Windows links that ~3.5 s (varies 2-10 s by driver/thermal).
+
+## Fix shipped: uniform-bounded neighbour loop (zero visual change)
+`gridGradientShaderFieldShaders.ts` — replaced the 9 unrolled `shadeCell()` calls with a loop
+over a `const vec2 kNeighborOffsets[9]` array, bounded by `neighborCount` *derived from the
+`uNeighborMode` uniform* (1 / 5 / 9). Because the bound is not a compile-time constant the driver
+**cannot unroll** the loop → `shadeCell()` is compiled **once**, not 9×, collapsing the program
+size that dominates link time. Same cells, same accumulation order (center → 4-neighbour →
+8-neighbour) → byte-identical output for every neighbour mode. Renderer untouched (`uNeighborMode`
+still set as before). One file.
+
+CONFIDENCE / RISK: correctness + zero-visual = high (mechanical equivalence). The *magnitude* of
+the link reduction depends on the driver honouring the dynamic loop (WebGL2 / `#version 300 es`
+ANGLE supports native dynamic loops and should not force-unroll) — **must be confirmed by a cold
+GG trace** (link/freeze should drop sharply). If ANGLE force-unrolls anyway, escalate to: (a) drop
+the default `neighborMode` `'eight'`→`'cross'` (visual sign-off), (b) shape/animation compile-time
+variants inside `shadeCell`, or (c) KHR_parallel_shader_compile / off-frame warm.
+
+USER ACTION: reload, switch cold into Grid Gradient, copy the `[GEOMTRACE]` block + confirm the
+territory looks identical. The first-frame freeze should be gone or much smaller.
 
 ## Perf backlog (prioritized; not blind-applied)
 1. **The real freeze** — fix the stage the cold trace names (above). Highest value.

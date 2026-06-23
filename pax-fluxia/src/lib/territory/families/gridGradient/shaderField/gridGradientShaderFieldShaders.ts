@@ -44,6 +44,22 @@ export const gridGradientShaderFieldBitGl = {
             uniform float uShapeMode;
             uniform float uNeighborMode;
 
+            // Center + 4-neighbour + 8-neighbour offsets, in that order. The neighbour
+            // loop in main() indexes this array with a uniform-derived bound so the GLSL
+            // compiler keeps shadeCell() as a single function instead of inlining it up
+            // to 9x (the inlining is what made the first-frame program link cost seconds).
+            const vec2 kNeighborOffsets[9] = vec2[9](
+                vec2( 0.0,  0.0),
+                vec2( 1.0,  0.0),
+                vec2(-1.0,  0.0),
+                vec2( 0.0,  1.0),
+                vec2( 0.0, -1.0),
+                vec2( 1.0,  1.0),
+                vec2( 1.0, -1.0),
+                vec2(-1.0,  1.0),
+                vec2(-1.0, -1.0)
+            );
+
             float saturate(float v) {
                 return clamp(v, 0.0, 1.0);
             }
@@ -343,20 +359,16 @@ export const gridGradientShaderFieldBitGl = {
             vec2 cellFloat = floor((worldPos - uWorldOrigin) / uSpacingPx);
             vec4 accum = vec4(0.0);
 
-            accum = alphaOver(accum, shadeCell(cellFloat, worldPos));
-
-            if (uNeighborMode > 0.5) {
-                accum = alphaOver(accum, shadeCell(cellFloat + vec2( 1.0,  0.0), worldPos));
-                accum = alphaOver(accum, shadeCell(cellFloat + vec2(-1.0,  0.0), worldPos));
-                accum = alphaOver(accum, shadeCell(cellFloat + vec2( 0.0,  1.0), worldPos));
-                accum = alphaOver(accum, shadeCell(cellFloat + vec2( 0.0, -1.0), worldPos));
-            }
-
-            if (uNeighborMode > 1.5) {
-                accum = alphaOver(accum, shadeCell(cellFloat + vec2( 1.0,  1.0), worldPos));
-                accum = alphaOver(accum, shadeCell(cellFloat + vec2( 1.0, -1.0), worldPos));
-                accum = alphaOver(accum, shadeCell(cellFloat + vec2(-1.0,  1.0), worldPos));
-                accum = alphaOver(accum, shadeCell(cellFloat + vec2(-1.0, -1.0), worldPos));
+            // Sample the center cell plus, by neighbour mode, its 4- or 8-neighbourhood
+            // (marks overflow cell bounds, so a pixel must gather every cell whose mark
+            // could reach it). neighbourCount comes from the uNeighborMode UNIFORM, so the
+            // loop bound is NOT a compile-time constant and the driver cannot unroll it:
+            // shadeCell() is compiled once rather than inlined up to 9x. Same cells, same
+            // accumulation order (center -> 4-neighbour -> 8-neighbour) as the previous
+            // unrolled form, so the rendered output is identical.
+            int neighborCount = uNeighborMode < 0.5 ? 1 : (uNeighborMode < 1.5 ? 5 : 9);
+            for (int i = 0; i < neighborCount; i++) {
+                accum = alphaOver(accum, shadeCell(cellFloat + kNeighborOffsets[i], worldPos));
             }
 
             if (accum.a <= 0.001) discard;
