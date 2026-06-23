@@ -511,14 +511,12 @@
       id: "view",
       icon: "fit-view",
       label: "View",
-      title: selectedStarStore.id ? "Zoom selected star" : "Fit map to screen",
-      onClick: () => {
-        if (selectedStarStore.id) {
-          gameCanvasRef?.navigateToStar?.(selectedStarStore.id);
-          return;
-        }
-        gameCanvasRef?.centerAndFit?.();
-      },
+      title: "Fit map to screen",
+      // Identical to the Star View fit button (StarNav onCenterFit): always
+      // center+fit the whole map. Previously this branched to navigateToStar
+      // whenever a star was selected, so the fit/maximize icon zoomed *into*
+      // the selected star instead of fitting the map.
+      onClick: () => gameCanvasRef?.centerAndFit?.(),
     },
   ]);
 
