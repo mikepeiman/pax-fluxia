@@ -1826,6 +1826,11 @@
         <div class="territory-card__header">
           <h4 class="axis-card-title">{sharedSurfaceStyleHeading()}</h4>
         </div>
+        {#if isMetaballGridStyle()}
+          <MetaballGridTuning {panel} {updatePanel} />
+        {:else if resolveActiveStyleId() === "perimeter_field"}
+          <PerimeterFieldTuning {panel} {updatePanel} />
+        {/if}
         <TerritorySurfaceStyleTuning
           {panel}
           onUpdate={debouncedConfigUpdate}
