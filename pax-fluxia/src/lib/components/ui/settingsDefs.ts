@@ -388,6 +388,8 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'METABALL_COVERAGE' },
     { configKey: 'METABALL_SATURATION' },
     { configKey: 'METABALL_LIGHTNESS' },
+    { panelKey: 'metaballFillEnabled', configKey: 'METABALL_FILL_ENABLED' },
+    { panelKey: 'metaballBorderEnabled', configKey: 'METABALL_BORDER_ENABLED' },
     { configKey: 'METABALL_BORDER_SATURATION' },
     { configKey: 'METABALL_BORDER_LIGHTNESS' },
     { configKey: 'METABALL_CHAIKIN_PASSES' },

@@ -20,6 +20,7 @@
   } from "$lib/territory/families/metaballGrid/config";
   import TerritoryGeometrySourceTuning from "./TerritoryGeometrySourceTuning.svelte";
   import TerritorySurfaceStyleTuning from "./TerritorySurfaceStyleTuning.svelte";
+  import { untrack } from 'svelte';
   import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
   import { territoryRenderStatus } from "$lib/stores/territoryRenderStatusStore";
   import {
@@ -641,7 +642,7 @@
 
   $effect(() => {
     if (isEmberLatticeStyle()) {
-      primeMetaballGridPhaseEdgesTunables();
+      untrack(() => primeMetaballGridPhaseEdgesTunables());
     }
   });
 
@@ -744,16 +745,6 @@
   function setActiveRendererModule(value: TerritoryRendererModuleId) {
     updatePanel(TERRITORY_RENDERER_MODULE_PANEL_KEY, value);
   }
-
-  $effect(() => {
-    if (
-      activeRendererModule !== "all" &&
-      activeRendererModule !== "none" &&
-      !rendererModules().some((module) => module.id === activeRendererModule)
-    ) {
-      setActiveRendererModule("all");
-    }
-  });
 
 </script>
 

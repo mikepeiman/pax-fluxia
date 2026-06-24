@@ -96,7 +96,6 @@
     import {
         PaxHudButton,
         PaxHudIconButton,
-        PaxSettingsDrawer,
         PaxSettingsInfoRow,
     } from "$lib/design-system";
     import HudIcon from "./hud/HudIcon.svelte";
