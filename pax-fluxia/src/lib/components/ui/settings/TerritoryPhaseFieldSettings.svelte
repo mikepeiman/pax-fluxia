@@ -138,6 +138,10 @@
             title="Territory fill"
             {panel}
             onUpdate={writeConfig}
+            configEnabled="METABALL_FILL_ENABLED"
+            panelEnabled="metaballFillEnabled"
+            defaultEnabled={true}
+            enabledLabel="Show fill"
             configSat="METABALL_SATURATION"
             panelSat="metaballSaturation"
             defaultSat={1.05}

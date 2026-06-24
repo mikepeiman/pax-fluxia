@@ -56,7 +56,6 @@
     import ControlsSectionFrontierFx from "./settings/ControlsSection-FrontierFx.svelte";
     import TerritoryPhaseFieldSettings from "./settings/TerritoryPhaseFieldSettings.svelte";
     import TerritoryGeometrySourceTuning from "./settings/TerritoryGeometrySourceTuning.svelte";
-    import TerritoryTopologyTuning from "./settings/TerritoryTopologyTuning.svelte";
     import ControlsSectionShips from "./settings/ControlsSection-Ships.svelte";
     import ControlsSectionPlayers from "./settings/ControlsSection-Players.svelte";
     import ControlsSectionVisuals from "./settings/ControlsSection-Visuals.svelte";
@@ -1421,18 +1420,10 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         {lockRatioToTick}
                         {lockRatioToAnimSpeed}
                         syncFromConfig={syncAllFromConfig}
-                        view="all"
+                        view="modes"
                         systemTitle="Render Mode"
                     />
                 {:else if sec.id === "territory_tuning"}
-                    <TerritoryTopologyTuning
-                        {panel}
-                        {updatePanel}
-                    />
-                    <TerritoryGeometrySourceTuning
-                        {panel}
-                        {updatePanel}
-                    />
                     <ControlsSectionTerritory
                         {panel}
                         {updatePanel}
@@ -1445,9 +1436,11 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         {lockRatioToTick}
                         {lockRatioToAnimSpeed}
                         syncFromConfig={syncAllFromConfig}
-                        view="modes"
-                        hideRenderModeSelector={true}
-                        systemTitle="Territory Runtime"
+                        view="tuning"
+                    />
+                    <TerritoryGeometrySourceTuning
+                        {panel}
+                        {updatePanel}
                     />
                 {:else if sec.id === "territory_phase_field"}
                     <TerritoryPhaseFieldSettings
