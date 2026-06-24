@@ -3,7 +3,7 @@
  *
  * Additive render family. Not a replacement for perimeter_field.
  *
- * Two-layer architecture (per ./METABALL_GRID_MODE_PLAN_2026-04-17.md):
+ * Two-layer architecture (per ./CELL_GRID_MODE_PLAN_2026-04-17.md):
  *
  *  1. Ownership-geometry truth underlayer (`ResolvedGeometrySnapshot`,
  *     authoritative — e.g. tuned `power_voronoi_0319`).
@@ -20,7 +20,7 @@ import type { ConquestEvent } from '@pax/common';
 import type { ResolvedGeometrySnapshot } from '../../contracts/GeometryContracts';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Config option unions — mirror `METABALL_GRID_*` keys in `game.config.ts`.
+// Config option unions — mirror `CELL_GRID_*` keys in `game.config.ts`.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type GridOriginMode = 'centered' | 'corner';
@@ -28,9 +28,9 @@ export type GridOriginMode = 'centered' | 'corner';
 /**
  * Cell-position distribution mode. `square` is the classical row-major grid.
  * `hex_offset` shifts odd rows by half-spacing to produce honeycomb packing
- * (pairs naturally with `METABALL_GRID_CELL_SHAPE === 'hex'`). `jittered`
+ * (pairs naturally with `CELL_GRID_CELL_SHAPE === 'hex'`). `jittered`
  * applies a deterministic per-cell scatter whose amplitude is controlled by
- * `METABALL_GRID_POSITION_JITTER` (fraction of spacing).
+ * `CELL_GRID_POSITION_JITTER` (fraction of spacing).
  */
 export type GridDistribution = 'square' | 'hex_offset' | 'jittered';
 
@@ -122,7 +122,7 @@ export interface GridClassification {
     readonly rows: number;
     /**
      * Spacing actually used to build this classification, in world px. Equal to
-     * the requested spacing unless the `METABALL_GRID_MAX_CELLS` cap coarsened
+     * the requested spacing unless the `CELL_GRID_MAX_CELLS` cap coarsened
      * it. See `requestedSpacingPx` for the uncoarsened input.
      */
     readonly spacingPx: number;
@@ -253,7 +253,7 @@ export interface GridRenderCell {
     /**
      * Role of the source vstar. Painters that want to apply a different
      * visual treatment to ownership-boundary cells (e.g.
-     * `METABALL_GRID_INWARD_OFFSET_PX`) key on `role !== 'native'`.
+     * `CELL_GRID_INWARD_OFFSET_PX`) key on `role !== 'native'`.
      */
     readonly role: GridVRole;
 }

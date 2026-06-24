@@ -23,14 +23,14 @@ export const PANEL_STORAGE_KEY = 'pax-fluxia-panel-settings';
 export const VISUALS_STORAGE_KEY = 'pax-fluxia-visuals';
 export const ANIM_LOCK_STORAGE_KEY = 'pax-anim-lock-ratios';
 export const TIER_STORAGE_KEY = 'pax-fluxia-settings-tier';
-const LEGACY_METABALL_GRID_SPACING_PX = 48;
-const SMOOTH_METABALL_GRID_SPACING_PX = 32;
-const LEGACY_METABALL_GRID_FLIP_TRANSITION = 'hard';
-const SMOOTH_METABALL_GRID_FLIP_TRANSITION = 'dual_pass_blend';
-const LEGACY_METABALL_GRID_FLIP_WINDOW = 0.06;
-const SMOOTH_METABALL_GRID_FLIP_WINDOW = 0.14;
-const LEGACY_METABALL_GRID_FLIP_WINDOW_JITTER = 0.02;
-const SMOOTH_METABALL_GRID_FLIP_WINDOW_JITTER = 0;
+const LEGACY_CELL_GRID_SPACING_PX = 48;
+const SMOOTH_CELL_GRID_SPACING_PX = 32;
+const LEGACY_CELL_GRID_FLIP_TRANSITION = 'hard';
+const SMOOTH_CELL_GRID_FLIP_TRANSITION = 'dual_pass_blend';
+const LEGACY_CELL_GRID_FLIP_WINDOW = 0.06;
+const SMOOTH_CELL_GRID_FLIP_WINDOW = 0.14;
+const LEGACY_CELL_GRID_FLIP_WINDOW_JITTER = 0.02;
+const SMOOTH_CELL_GRID_FLIP_WINDOW_JITTER = 0;
 const LEGACY_TERRITORY_TRANSITION_MS = 400;
 const TERRITORY_TRANSITION_POLICY_VERSION = 1;
 const TERRITORY_MODE_SPLIT_POLICY_VERSION = 1;
@@ -185,28 +185,28 @@ function migrateLegacyMetaballGridPanelSettings(
     stored: Record<string, any>,
 ): boolean {
     let changed = false;
-    if (stored.metaballGridSpacingPx === LEGACY_METABALL_GRID_SPACING_PX) {
-        stored.metaballGridSpacingPx = SMOOTH_METABALL_GRID_SPACING_PX;
+    if (stored.metaballGridSpacingPx === LEGACY_CELL_GRID_SPACING_PX) {
+        stored.metaballGridSpacingPx = SMOOTH_CELL_GRID_SPACING_PX;
         changed = true;
     }
     if (
         stored.metaballGridFlipTransition ===
-        LEGACY_METABALL_GRID_FLIP_TRANSITION
+        LEGACY_CELL_GRID_FLIP_TRANSITION
     ) {
         stored.metaballGridFlipTransition =
-            SMOOTH_METABALL_GRID_FLIP_TRANSITION;
+            SMOOTH_CELL_GRID_FLIP_TRANSITION;
         changed = true;
     }
-    if (stored.metaballGridFlipWindow === LEGACY_METABALL_GRID_FLIP_WINDOW) {
-        stored.metaballGridFlipWindow = SMOOTH_METABALL_GRID_FLIP_WINDOW;
+    if (stored.metaballGridFlipWindow === LEGACY_CELL_GRID_FLIP_WINDOW) {
+        stored.metaballGridFlipWindow = SMOOTH_CELL_GRID_FLIP_WINDOW;
         changed = true;
     }
     if (
         stored.metaballGridFlipWindowJitter ===
-        LEGACY_METABALL_GRID_FLIP_WINDOW_JITTER
+        LEGACY_CELL_GRID_FLIP_WINDOW_JITTER
     ) {
         stored.metaballGridFlipWindowJitter =
-            SMOOTH_METABALL_GRID_FLIP_WINDOW_JITTER;
+            SMOOTH_CELL_GRID_FLIP_WINDOW_JITTER;
         changed = true;
     }
     if (normalizeTerritoryTransitionTimingDefaults(stored)) {

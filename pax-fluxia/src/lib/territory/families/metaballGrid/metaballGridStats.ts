@@ -94,7 +94,7 @@ export interface MetaballGridStats {
     readonly transitionEventCount: number;
     /** Requested cell spacing from config (px). */
     readonly requestedSpacingPx: number;
-    /** Effective spacing after `METABALL_GRID_MAX_CELLS` coarsening (px). */
+    /** Effective spacing after `CELL_GRID_MAX_CELLS` coarsening (px). */
     readonly effectiveSpacingPx: number;
     /** Requested grid density expressed as cells per megapixel. */
     readonly requestedDensityCellsPerMpx: number;

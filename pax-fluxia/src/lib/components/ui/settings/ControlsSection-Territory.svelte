@@ -466,48 +466,48 @@
         metaballGridPhaseEdgesModeDefaults.TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE,
     },
     {
-      configKey: "METABALL_GRID_WAVE_GEOMETRY",
+      configKey: "CELL_GRID_WAVE_GEOMETRY",
       panelKey: "metaballGridWaveGeometry",
-      familyDefault: metaballGridFamilyConfigDefaults.METABALL_GRID_WAVE_GEOMETRY,
+      familyDefault: metaballGridFamilyConfigDefaults.CELL_GRID_WAVE_GEOMETRY,
       phaseEdgesDefault:
-        metaballGridPhaseEdgesModeDefaults.METABALL_GRID_WAVE_GEOMETRY,
+        metaballGridPhaseEdgesModeDefaults.CELL_GRID_WAVE_GEOMETRY,
     },
     {
-      configKey: "METABALL_GRID_BORDER_MODE",
+      configKey: "CELL_GRID_BORDER_MODE",
       panelKey: "metaballGridBorderMode",
-      familyDefault: metaballGridFamilyConfigDefaults.METABALL_GRID_BORDER_MODE,
+      familyDefault: metaballGridFamilyConfigDefaults.CELL_GRID_BORDER_MODE,
       phaseEdgesDefault:
-        metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_MODE,
+        metaballGridPhaseEdgesModeDefaults.CELL_GRID_BORDER_MODE,
     },
     {
-      configKey: "METABALL_GRID_BORDER_BLEND",
+      configKey: "CELL_GRID_BORDER_BLEND",
       panelKey: "metaballGridBorderBlend",
-      familyDefault: metaballGridFamilyConfigDefaults.METABALL_GRID_BORDER_BLEND,
+      familyDefault: metaballGridFamilyConfigDefaults.CELL_GRID_BORDER_BLEND,
       phaseEdgesDefault:
-        metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_BLEND,
+        metaballGridPhaseEdgesModeDefaults.CELL_GRID_BORDER_BLEND,
     },
     {
-      configKey: "METABALL_GRID_EDGE_SMOOTHING_PASSES",
+      configKey: "CELL_GRID_EDGE_SMOOTHING_PASSES",
       panelKey: "metaballGridEdgeSmoothingPasses",
       familyDefault:
-        metaballGridFamilyConfigDefaults.METABALL_GRID_EDGE_SMOOTHING_PASSES,
+        metaballGridFamilyConfigDefaults.CELL_GRID_EDGE_SMOOTHING_PASSES,
       phaseEdgesDefault:
-        metaballGridPhaseEdgesModeDefaults.METABALL_GRID_EDGE_SMOOTHING_PASSES,
+        metaballGridPhaseEdgesModeDefaults.CELL_GRID_EDGE_SMOOTHING_PASSES,
     },
     {
-      configKey: "METABALL_GRID_EDGE_TRIM_PX",
+      configKey: "CELL_GRID_EDGE_TRIM_PX",
       panelKey: "metaballGridEdgeTrimPx",
-      familyDefault: metaballGridFamilyConfigDefaults.METABALL_GRID_EDGE_TRIM_PX,
+      familyDefault: metaballGridFamilyConfigDefaults.CELL_GRID_EDGE_TRIM_PX,
       phaseEdgesDefault:
-        metaballGridPhaseEdgesModeDefaults.METABALL_GRID_EDGE_TRIM_PX,
+        metaballGridPhaseEdgesModeDefaults.CELL_GRID_EDGE_TRIM_PX,
     },
     {
-      configKey: "METABALL_GRID_BORDER_CHAIKIN_PASSES",
+      configKey: "CELL_GRID_BORDER_CHAIKIN_PASSES",
       panelKey: "metaballGridBorderChaikinPasses",
       familyDefault:
-        metaballGridFamilyConfigDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES,
+        metaballGridFamilyConfigDefaults.CELL_GRID_BORDER_CHAIKIN_PASSES,
       phaseEdgesDefault:
-        metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES,
+        metaballGridPhaseEdgesModeDefaults.CELL_GRID_BORDER_CHAIKIN_PASSES,
     },
   ] as const;
 

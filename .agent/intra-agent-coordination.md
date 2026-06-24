@@ -23,7 +23,8 @@ Pick a short stable handle: `model-lane`, e.g. `opus-web`, `sonnet-territory`.
 
 | Handle | Paths / globs | Task | Started |
 | ------ | ------------- | ---- | ------- |
-| _(none active)_ | | | |
+| `sonnet-hud` | `pax-fluxia/src/lib/components/ui/settings/**`, `pax-fluxia/src/lib/components/ui/GameSettingsPanel.svelte`, `pax-fluxia/src/lib/design-system/**` (settings rows), Typography panel | Full settings overhaul: descriptions→tooltips, diagnostics→Diagnostics, Typography top-level, ALL chips | 2026-06-24 |
+| `opus-hud` | repo-wide (config keys + territory/families/metaballGrid + renderers + theme JSONs + settings refs) | **Semantic rename: `metaball`→accurate names for the cell-grid family** (user-directed, ATOMIC). METABALL_GRID_*→CELL_GRID_*; shared surface keys→TERRITORY_SURFACE_*. ⚠️ OVERLAPS sonnet-hud settings files — config-key rename is atomic, unavoidable; committing by exact pathspec. | 2026-06-24 |
 
 ## Log (newest first)
 

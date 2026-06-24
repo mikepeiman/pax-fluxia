@@ -60,7 +60,7 @@ describe('MetaballGridPhaseEdgesFamily worker-plan guard', () => {
 
         const configSource: Record<string, unknown> = {
             ...(GAME_CONFIG as unknown as Record<string, unknown>),
-            METABALL_GRID_SPACING_PX: 24,
+            CELL_GRID_SPACING_PX: 24,
             ...territoryFrontierConfigDefaults,
             ...metaballGridPhaseEdgesGeometryDefaults,
             ...metaballGridPhaseEdgesModeDefaults,

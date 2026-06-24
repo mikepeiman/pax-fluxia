@@ -36,7 +36,7 @@
         | 'flip'
         | 'perf';
 
-    const METABALL_GRID_MODULES = [
+    const CELL_GRID_MODULES = [
         { id: 'grid', label: 'Grid' },
         { id: 'frontier', label: 'Frontier' },
         { id: 'wave', label: 'Wave' },
@@ -44,7 +44,7 @@
         { id: 'perf', label: 'Perf' },
     ] as const;
 
-    const METABALL_GRID_MODULE_PANEL_KEY = 'metaballGridModuleVisibility';
+    const CELL_GRID_MODULE_PANEL_KEY = 'metaballGridModuleVisibility';
 
     const ORIGIN_MODE_OPTIONS = [
         { value: 'centered', label: 'Centered (half-spacing offset)' },
@@ -125,7 +125,7 @@
     ];
 
     let activeModule = $derived(
-        (panel[METABALL_GRID_MODULE_PANEL_KEY] ?? 'all') as MetaballGridModuleId,
+        (panel[CELL_GRID_MODULE_PANEL_KEY] ?? 'all') as MetaballGridModuleId,
     );
     let moduleVisibilityOptions = $derived<PaxHudSegmentedOption[]>([
         { value: 'all', label: 'All' },
@@ -161,7 +161,7 @@
     }
 
     function visibleModules() {
-        return METABALL_GRID_MODULES.filter(
+        return CELL_GRID_MODULES.filter(
             (module) => module.id !== 'frontier' || isEmberLatticeMode(),
         );
     }
@@ -169,7 +169,7 @@
     $effect(() => {
         if (activeModule === 'all' || activeModule === 'none') return;
         if (!visibleModules().some((module) => module.id === activeModule)) {
-            updatePanel(METABALL_GRID_MODULE_PANEL_KEY, 'all');
+            updatePanel(CELL_GRID_MODULE_PANEL_KEY, 'all');
         }
     });
 
@@ -182,7 +182,7 @@
     }
 
     function setActiveModule(value: MetaballGridModuleId): void {
-        updatePanel(METABALL_GRID_MODULE_PANEL_KEY, value);
+        updatePanel(CELL_GRID_MODULE_PANEL_KEY, value);
     }
 
     function writeConfig(configKey: string, panelKey: string, value: unknown): void {
@@ -230,8 +230,8 @@
     function currentPatternSpacingPx(): number {
         const raw = (
             panel.metaballGridPatternSpacingPx ??
-            (GAME_CONFIG as unknown as Record<string, unknown>).METABALL_GRID_PATTERN_SPACING_PX ??
-            metaballGridPhaseFieldModeDefaults.METABALL_GRID_PATTERN_SPACING_PX ??
+            (GAME_CONFIG as unknown as Record<string, unknown>).CELL_GRID_PATTERN_SPACING_PX ??
+            metaballGridPhaseFieldModeDefaults.CELL_GRID_PATTERN_SPACING_PX ??
             64
         ) as number;
         return snapPatternSpacingPx(raw);
@@ -307,7 +307,7 @@
     function currentDistribution(): 'square' | 'hex_offset' | 'jittered' {
         const raw =
             panel.metaballGridDistribution ??
-            GAME_CONFIG.METABALL_GRID_DISTRIBUTION ??
+            GAME_CONFIG.CELL_GRID_DISTRIBUTION ??
             'square';
         if (raw === 'hex_offset') return 'hex_offset';
         if (raw === 'jittered') return 'jittered';
@@ -317,14 +317,14 @@
     function currentOriginMode(): 'centered' | 'corner' {
         const raw =
             panel.metaballGridOriginMode ??
-            GAME_CONFIG.METABALL_GRID_ORIGIN_MODE ??
+            GAME_CONFIG.CELL_GRID_ORIGIN_MODE ??
             'centered';
         return raw === 'corner' ? 'corner' : 'centered';
     }
 
     function currentAdjacency(): '4' | '8' {
         const raw =
-            panel.metaballGridAdjacency ?? GAME_CONFIG.METABALL_GRID_ADJACENCY ?? '8';
+            panel.metaballGridAdjacency ?? GAME_CONFIG.CELL_GRID_ADJACENCY ?? '8';
         return raw === '4' ? '4' : '8';
     }
 
@@ -335,9 +335,9 @@
         | 'pre_to_post_frontier' {
         const raw =
             panel.metaballGridWaveGeometry ??
-            GAME_CONFIG.METABALL_GRID_WAVE_GEOMETRY ??
+            GAME_CONFIG.CELL_GRID_WAVE_GEOMETRY ??
             (isEmberLatticeMode()
-                ? metaballGridPhaseEdgesModeDefaults.METABALL_GRID_WAVE_GEOMETRY
+                ? metaballGridPhaseEdgesModeDefaults.CELL_GRID_WAVE_GEOMETRY
                 : 'grid_bfs');
         if (raw === 'conquered_star_radial') return 'conquered_star_radial';
         if (raw === 'pre_to_post_frontier') return 'pre_to_post_frontier';
@@ -350,7 +350,7 @@
         | 'winner_nearest_edge' {
         const raw =
             panel.metaballGridWaveSeeding ??
-            GAME_CONFIG.METABALL_GRID_WAVE_SEEDING ??
+            GAME_CONFIG.CELL_GRID_WAVE_SEEDING ??
             'winner_natives';
         if (raw === 'conquered_star_center') return 'conquered_star_center';
         if (raw === 'winner_nearest_edge') return 'winner_nearest_edge';
@@ -360,7 +360,7 @@
     function currentFlipTransition(): 'hard' | 'lerp_per_cell' | 'dual_pass_blend' {
         const raw =
             panel.metaballGridFlipTransition ??
-            GAME_CONFIG.METABALL_GRID_FLIP_TRANSITION ??
+            GAME_CONFIG.CELL_GRID_FLIP_TRANSITION ??
             'hard';
         if (raw === 'lerp_per_cell') return 'lerp_per_cell';
         if (raw === 'dual_pass_blend') return 'dual_pass_blend';
@@ -370,7 +370,7 @@
     function currentCellShape(): 'square' | 'circle' | 'diamond' | 'hex' {
         const raw =
             panel.metaballGridCellShape ??
-            GAME_CONFIG.METABALL_GRID_CELL_SHAPE ??
+            GAME_CONFIG.CELL_GRID_CELL_SHAPE ??
             'square';
         if (raw === 'circle') return 'circle';
         if (raw === 'diamond') return 'diamond';
@@ -380,13 +380,13 @@
 
     function currentBorderMode(): 'off' | 'per_cell' | 'territory_edge' {
         const modeDefault = isEmberLatticeMode()
-            ? metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_MODE
+            ? metaballGridPhaseEdgesModeDefaults.CELL_GRID_BORDER_MODE
             : isPhaseFieldMode()
-              ? metaballGridPhaseFieldModeDefaults.METABALL_GRID_BORDER_MODE
+              ? metaballGridPhaseFieldModeDefaults.CELL_GRID_BORDER_MODE
               : 'off';
         const raw =
             panel.metaballGridBorderMode ??
-            GAME_CONFIG.METABALL_GRID_BORDER_MODE ??
+            GAME_CONFIG.CELL_GRID_BORDER_MODE ??
             modeDefault;
         if (raw === 'per_cell') return 'per_cell';
         if (raw === 'territory_edge') return 'territory_edge';
@@ -395,22 +395,22 @@
 
     function currentBorderBlend(): boolean {
         const modeDefault = isEmberLatticeMode()
-            ? metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_BLEND
+            ? metaballGridPhaseEdgesModeDefaults.CELL_GRID_BORDER_BLEND
             : isPhaseFieldMode()
-              ? metaballGridPhaseFieldModeDefaults.METABALL_GRID_BORDER_BLEND
+              ? metaballGridPhaseFieldModeDefaults.CELL_GRID_BORDER_BLEND
               : true;
-        return panel.metaballGridBorderBlend ?? GAME_CONFIG.METABALL_GRID_BORDER_BLEND ?? modeDefault;
+        return panel.metaballGridBorderBlend ?? GAME_CONFIG.CELL_GRID_BORDER_BLEND ?? modeDefault;
     }
 
     function currentBorderChaikinPasses(): number {
         const modeDefault = isEmberLatticeMode()
-            ? metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES
+            ? metaballGridPhaseEdgesModeDefaults.CELL_GRID_BORDER_CHAIKIN_PASSES
             : isPhaseFieldMode()
-              ? metaballGridPhaseFieldModeDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES
+              ? metaballGridPhaseFieldModeDefaults.CELL_GRID_BORDER_CHAIKIN_PASSES
               : 0;
         return (
             panel.metaballGridBorderChaikinPasses ??
-            GAME_CONFIG.METABALL_GRID_BORDER_CHAIKIN_PASSES ??
+            GAME_CONFIG.CELL_GRID_BORDER_CHAIKIN_PASSES ??
             modeDefault
         );
     }
@@ -424,7 +424,7 @@
         | 'elastic_out' {
         const raw =
             panel.metaballGridWaveEase ??
-            GAME_CONFIG.METABALL_GRID_WAVE_EASE ??
+            GAME_CONFIG.CELL_GRID_WAVE_EASE ??
             'linear';
         if (
             raw === 'ease_in' ||
@@ -440,7 +440,7 @@
     function currentPhaseFieldFinishFadeStart(): number {
         return (
             panel.metaballGridPhaseFieldFinishFadeStart ??
-            GAME_CONFIG.METABALL_GRID_PHASE_FIELD_FINISH_FADE_START ??
+            GAME_CONFIG.CELL_GRID_PHASE_FIELD_FINISH_FADE_START ??
             0.82
         );
     }
@@ -448,7 +448,7 @@
     function currentPhaseFieldFinishFadeEnd(): number {
         return (
             panel.metaballGridPhaseFieldFinishFadeEnd ??
-            GAME_CONFIG.METABALL_GRID_PHASE_FIELD_FINISH_FADE_END ??
+            GAME_CONFIG.CELL_GRID_PHASE_FIELD_FINISH_FADE_END ??
             1
         );
     }
@@ -456,7 +456,7 @@
     function currentPhaseFieldSizeCollapseStart(): number {
         return (
             panel.metaballGridPhaseFieldSizeCollapseStart ??
-            GAME_CONFIG.METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_START ??
+            GAME_CONFIG.CELL_GRID_PHASE_FIELD_SIZE_COLLAPSE_START ??
             0.72
         );
     }
@@ -464,7 +464,7 @@
     function currentPhaseFieldSizeCollapseEnd(): number {
         return (
             panel.metaballGridPhaseFieldSizeCollapseEnd ??
-            GAME_CONFIG.METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_END ??
+            GAME_CONFIG.CELL_GRID_PHASE_FIELD_SIZE_COLLAPSE_END ??
             1
         );
     }
@@ -472,7 +472,7 @@
     function currentPhaseFieldFinalCellSizePx(): number {
         return (
             panel.metaballGridPhaseFieldFinalCellSizePx ??
-            GAME_CONFIG.METABALL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX ??
+            GAME_CONFIG.CELL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX ??
             1
         );
     }
@@ -480,7 +480,7 @@
     function currentPhaseFieldFrontierHighlight(): boolean {
         return (
             panel.metaballGridPhaseFieldFrontierHighlight ??
-            GAME_CONFIG.METABALL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT ??
+            GAME_CONFIG.CELL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT ??
             true
         );
     }
@@ -488,7 +488,7 @@
     function currentPhaseFieldFrontierFadeStart(): number {
         return (
             panel.metaballGridPhaseFieldFrontierFadeStart ??
-            GAME_CONFIG.METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_START ??
+            GAME_CONFIG.CELL_GRID_PHASE_FIELD_FRONTIER_FADE_START ??
             0.8
         );
     }
@@ -496,15 +496,15 @@
     function currentPhaseFieldFrontierFadeEnd(): number {
         return (
             panel.metaballGridPhaseFieldFrontierFadeEnd ??
-            GAME_CONFIG.METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END ??
+            GAME_CONFIG.CELL_GRID_PHASE_FIELD_FRONTIER_FADE_END ??
             0.96
         );
     }
 
-    const METABALL_GRID_BASELINE_SPACING_PX = 48;
+    const CELL_GRID_BASELINE_SPACING_PX = 48;
 
     function currentSpacingPx(): number {
-        return panel.metaballGridSpacingPx ?? GAME_CONFIG.METABALL_GRID_SPACING_PX ?? METABALL_GRID_BASELINE_SPACING_PX;
+        return panel.metaballGridSpacingPx ?? GAME_CONFIG.CELL_GRID_SPACING_PX ?? CELL_GRID_BASELINE_SPACING_PX;
     }
 
     function spacingToDensityCellsPerMpx(spacingPx: number): number {
@@ -515,14 +515,14 @@
     function spacingToDensityMultiplier(spacingPx: number): number {
         if (!Number.isFinite(spacingPx) || spacingPx <= 0) return 0;
         return (
-            (METABALL_GRID_BASELINE_SPACING_PX * METABALL_GRID_BASELINE_SPACING_PX) /
+            (CELL_GRID_BASELINE_SPACING_PX * CELL_GRID_BASELINE_SPACING_PX) /
             (spacingPx * spacingPx)
         );
     }
 
     function densityMultiplierToSpacing(multiplier: number): number {
         const safe = Math.max(0.05, multiplier);
-        return METABALL_GRID_BASELINE_SPACING_PX / Math.sqrt(safe);
+        return CELL_GRID_BASELINE_SPACING_PX / Math.sqrt(safe);
     }
 
     function currentFrontierTechnique():
@@ -701,12 +701,12 @@
 <div class="module-block">
 <PaxSettingsToggleRow
     label="Metaball Grid Enabled"
-    checked={panel.metaballGridEnabled ?? GAME_CONFIG.METABALL_GRID_ENABLED ?? false}
+    checked={panel.metaballGridEnabled ?? GAME_CONFIG.CELL_GRID_ENABLED ?? false}
     description="Master enable flag for the metaball-grid mode."
-    meta={(panel.metaballGridEnabled ?? GAME_CONFIG.METABALL_GRID_ENABLED ?? false) ? 'On' : 'Off'}
-    settingConfigKey="METABALL_GRID_ENABLED"
+    meta={(panel.metaballGridEnabled ?? GAME_CONFIG.CELL_GRID_ENABLED ?? false) ? 'On' : 'Off'}
+    settingConfigKey="CELL_GRID_ENABLED"
     onChange={(value) => {
-        writeConfig('METABALL_GRID_ENABLED', 'metaballGridEnabled', value);
+        writeConfig('CELL_GRID_ENABLED', 'metaballGridEnabled', value);
     }}
 />
 <div class="var-desc">
@@ -721,9 +721,9 @@
     max={200}
     step={1}
     suffix="px"
-    settingConfigKey="METABALL_GRID_SPACING_PX"
+    settingConfigKey="CELL_GRID_SPACING_PX"
     onInput={(value) => {
-        writeConfig('METABALL_GRID_SPACING_PX', 'metaballGridSpacingPx', value);
+        writeConfig('CELL_GRID_SPACING_PX', 'metaballGridSpacingPx', value);
     }}
 />
 
@@ -736,10 +736,10 @@
     max={64}
     step={1}
     suffix="px"
-    settingConfigKey="METABALL_GRID_PATTERN_SPACING_PX"
+    settingConfigKey="CELL_GRID_PATTERN_SPACING_PX"
     onInput={(raw) => {
         const value = snapPatternSpacingPx(raw);
-        writeConfig('METABALL_GRID_PATTERN_SPACING_PX', 'metaballGridPatternSpacingPx', value);
+        writeConfig('CELL_GRID_PATTERN_SPACING_PX', 'metaballGridPatternSpacingPx', value);
     }}
 />
 {/if}
@@ -752,10 +752,10 @@
     max={8}
     step={0.05}
     output={`${spacingToDensityMultiplier(currentSpacingPx()).toFixed(2)}x`}
-    settingConfigKey="METABALL_GRID_SPACING_PX"
+    settingConfigKey="CELL_GRID_SPACING_PX"
     onInput={(value) => {
         writeConfig(
-            'METABALL_GRID_SPACING_PX',
+            'CELL_GRID_SPACING_PX',
             'metaballGridSpacingPx',
             densityMultiplierToSpacing(value),
         );
@@ -767,7 +767,7 @@
     value={currentOriginMode()}
     options={ORIGIN_MODE_OPTIONS}
     onValueChange={(value) => {
-        writeConfig('METABALL_GRID_ORIGIN_MODE', 'metaballGridOriginMode', value);
+        writeConfig('CELL_GRID_ORIGIN_MODE', 'metaballGridOriginMode', value);
     }}
 />
 
@@ -776,36 +776,36 @@
     value={currentDistribution()}
     options={DISTRIBUTION_OPTIONS}
     onValueChange={(value) => {
-        writeConfig('METABALL_GRID_DISTRIBUTION', 'metaballGridDistribution', value);
+        writeConfig('CELL_GRID_DISTRIBUTION', 'metaballGridDistribution', value);
     }}
 />
 
 <PaxSettingsRangeRow
     label="Position Jitter"
     note="Deterministic per-cell scatter as a fraction of spacing."
-    value={panel.metaballGridPositionJitter ?? GAME_CONFIG.METABALL_GRID_POSITION_JITTER ?? 0}
+    value={panel.metaballGridPositionJitter ?? GAME_CONFIG.CELL_GRID_POSITION_JITTER ?? 0}
     min={0}
     max={0.5}
     step={0.005}
-    output={(panel.metaballGridPositionJitter ?? GAME_CONFIG.METABALL_GRID_POSITION_JITTER ?? 0).toFixed(3)}
+    output={(panel.metaballGridPositionJitter ?? GAME_CONFIG.CELL_GRID_POSITION_JITTER ?? 0).toFixed(3)}
     disabled={currentDistribution() !== 'jittered'}
-    settingConfigKey="METABALL_GRID_POSITION_JITTER"
+    settingConfigKey="CELL_GRID_POSITION_JITTER"
     onInput={(value) => {
-        writeConfig('METABALL_GRID_POSITION_JITTER', 'metaballGridPositionJitter', value);
+        writeConfig('CELL_GRID_POSITION_JITTER', 'metaballGridPositionJitter', value);
     }}
 />
 
 <PaxSettingsRangeRow
     label="Max Cells"
     note="Planner safety cap. Set to 0 to remove the cap."
-    value={panel.metaballGridMaxCells ?? GAME_CONFIG.METABALL_GRID_MAX_CELLS ?? 0}
+    value={panel.metaballGridMaxCells ?? GAME_CONFIG.CELL_GRID_MAX_CELLS ?? 0}
     min={0}
     max={200000}
     step={1000}
-    output={`${Math.round(panel.metaballGridMaxCells ?? GAME_CONFIG.METABALL_GRID_MAX_CELLS ?? 0)}`}
-    settingConfigKey="METABALL_GRID_MAX_CELLS"
+    output={`${Math.round(panel.metaballGridMaxCells ?? GAME_CONFIG.CELL_GRID_MAX_CELLS ?? 0)}`}
+    settingConfigKey="CELL_GRID_MAX_CELLS"
     onInput={(value) => {
-        writeConfig('METABALL_GRID_MAX_CELLS', 'metaballGridMaxCells', value);
+        writeConfig('CELL_GRID_MAX_CELLS', 'metaballGridMaxCells', value);
     }}
 />
 
@@ -837,7 +837,7 @@
         value={currentCellShape()}
         options={CELL_SHAPE_OPTIONS}
         onValueChange={(value) => {
-            writeConfig('METABALL_GRID_CELL_SHAPE', 'metaballGridCellShape', value);
+            writeConfig('CELL_GRID_CELL_SHAPE', 'metaballGridCellShape', value);
         }}
     />
 </div>
@@ -847,21 +847,21 @@
         <span class="var-name" title="Shrink each cell by this many pixels on every side. Creates gridline gaps between cells. Capped to 45% of spacing so cells never collapse.">
             Cell Inset (px)
         </span>
-        <span class="val">{panel.metaballGridCellInsetPx ?? GAME_CONFIG.METABALL_GRID_CELL_INSET_PX ?? 0}px</span>
+        <span class="val">{panel.metaballGridCellInsetPx ?? GAME_CONFIG.CELL_GRID_CELL_INSET_PX ?? 0}px</span>
     </div>
     <div class="var-desc">
         Per-cell inward shrink on every side. 0 = fully tiled; small values draw visible grid lines; large values isolate each cell as a small shape.
     </div>
     <PaxSettingsRangeRow
         label="Cell Inset"
-        value={panel.metaballGridCellInsetPx ?? GAME_CONFIG.METABALL_GRID_CELL_INSET_PX ?? 0}
+        value={panel.metaballGridCellInsetPx ?? GAME_CONFIG.CELL_GRID_CELL_INSET_PX ?? 0}
         min={0}
         max={48}
         step={0.5}
-        output={`${panel.metaballGridCellInsetPx ?? GAME_CONFIG.METABALL_GRID_CELL_INSET_PX ?? 0}px`}
-        settingConfigKey="METABALL_GRID_CELL_INSET_PX"
+        output={`${panel.metaballGridCellInsetPx ?? GAME_CONFIG.CELL_GRID_CELL_INSET_PX ?? 0}px`}
+        settingConfigKey="CELL_GRID_CELL_INSET_PX"
         onInput={(value) => {
-            writeConfig('METABALL_GRID_CELL_INSET_PX', 'metaballGridCellInsetPx', value);
+            writeConfig('CELL_GRID_CELL_INSET_PX', 'metaballGridCellInsetPx', value);
         }}
     />
 </div>
@@ -871,21 +871,21 @@
         <span class="var-name" title="Contracts the resolved fill surface inward after MSR/CX/DX/LP shaping. The cell pattern is drawn inside that inset surface.">
             Inward Offset
         </span>
-        <span class="val">{(panel.metaballGridInwardOffsetPx ?? GAME_CONFIG.METABALL_GRID_INWARD_OFFSET_PX ?? 0).toFixed(0)}px</span>
+        <span class="val">{(panel.metaballGridInwardOffsetPx ?? GAME_CONFIG.CELL_GRID_INWARD_OFFSET_PX ?? 0).toFixed(0)}px</span>
     </div>
     <div class="var-desc">
         Contracts the resolved fill surface inward after MSR/CX/DX/LP shaping. The cell pattern is drawn inside that inset surface.
     </div>
     <PaxSettingsRangeRow
         label="Inward Offset"
-        value={panel.metaballGridInwardOffsetPx ?? GAME_CONFIG.METABALL_GRID_INWARD_OFFSET_PX ?? 0}
+        value={panel.metaballGridInwardOffsetPx ?? GAME_CONFIG.CELL_GRID_INWARD_OFFSET_PX ?? 0}
         min={0}
         max={24}
         step={1}
         suffix="px"
-        settingConfigKey="METABALL_GRID_INWARD_OFFSET_PX"
+        settingConfigKey="CELL_GRID_INWARD_OFFSET_PX"
         onInput={(value) => {
-            writeConfig('METABALL_GRID_INWARD_OFFSET_PX', 'metaballGridInwardOffsetPx', value);
+            writeConfig('CELL_GRID_INWARD_OFFSET_PX', 'metaballGridInwardOffsetPx', value);
         }}
     />
 </div>
@@ -895,21 +895,21 @@
         <span class="var-name" title="Rounded-corner radius for square cells only. Circle/diamond ignore this knob.">
             Square Corner (px)
         </span>
-        <span class="val">{panel.metaballGridCellCornerPx ?? GAME_CONFIG.METABALL_GRID_CELL_CORNER_PX ?? 0}px</span>
+        <span class="val">{panel.metaballGridCellCornerPx ?? GAME_CONFIG.CELL_GRID_CELL_CORNER_PX ?? 0}px</span>
     </div>
     <div class="var-desc">
         Rounded-corner radius for square cells. Ignored for circle and diamond primitives. Clamped to half the cell size.
     </div>
     <PaxSettingsRangeRow
         label="Square Corner"
-        value={panel.metaballGridCellCornerPx ?? GAME_CONFIG.METABALL_GRID_CELL_CORNER_PX ?? 0}
+        value={panel.metaballGridCellCornerPx ?? GAME_CONFIG.CELL_GRID_CELL_CORNER_PX ?? 0}
         min={0}
         max={48}
         step={0.5}
-        output={`${panel.metaballGridCellCornerPx ?? GAME_CONFIG.METABALL_GRID_CELL_CORNER_PX ?? 0}px`}
-        settingConfigKey="METABALL_GRID_CELL_CORNER_PX"
+        output={`${panel.metaballGridCellCornerPx ?? GAME_CONFIG.CELL_GRID_CELL_CORNER_PX ?? 0}px`}
+        settingConfigKey="CELL_GRID_CELL_CORNER_PX"
         onInput={(value) => {
-            writeConfig('METABALL_GRID_CELL_CORNER_PX', 'metaballGridCellCornerPx', value);
+            writeConfig('CELL_GRID_CELL_CORNER_PX', 'metaballGridCellCornerPx', value);
         }}
     />
 </div>
@@ -934,7 +934,7 @@
         options={BORDER_MODE_OPTIONS}
         disabled={isEmberLatticeMode() && currentFrontierTechnique() !== 'control'}
         onValueChange={(value) => {
-            writeConfig('METABALL_GRID_BORDER_MODE', 'metaballGridBorderMode', value);
+            writeConfig('CELL_GRID_BORDER_MODE', 'metaballGridBorderMode', value);
         }}
     />
 </div>
@@ -945,9 +945,9 @@
     disabled={(isEmberLatticeMode() && currentFrontierTechnique() !== 'control') || currentBorderMode() !== 'territory_edge'}
     description={currentBorderBlendDescription()}
     meta={currentBorderBlend() ? 'On' : 'Off'}
-    settingConfigKey="METABALL_GRID_BORDER_BLEND"
+    settingConfigKey="CELL_GRID_BORDER_BLEND"
     onChange={(value) => {
-        writeConfig('METABALL_GRID_BORDER_BLEND', 'metaballGridBorderBlend', value);
+        writeConfig('CELL_GRID_BORDER_BLEND', 'metaballGridBorderBlend', value);
     }}
 />
 
@@ -957,10 +957,10 @@
     checked={currentPhaseFieldFrontierHighlight()}
     description="Phase Field only: add a winner-side accent at the active conquest front."
     meta={currentPhaseFieldFrontierHighlight() ? 'On' : 'Off'}
-    settingConfigKey="METABALL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT"
+    settingConfigKey="CELL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT"
     onChange={(value) => {
         writeConfig(
-            'METABALL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT',
+            'CELL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT',
             'metaballGridPhaseFieldFrontierHighlight',
             value,
         );
@@ -981,9 +981,9 @@
             max={4}
             step={1}
             output={`${currentBorderChaikinPasses()}`}
-            settingConfigKey="METABALL_GRID_BORDER_CHAIKIN_PASSES"
+            settingConfigKey="CELL_GRID_BORDER_CHAIKIN_PASSES"
             onInput={(value) => {
-                writeConfig('METABALL_GRID_BORDER_CHAIKIN_PASSES', 'metaballGridBorderChaikinPasses', value);
+                writeConfig('CELL_GRID_BORDER_CHAIKIN_PASSES', 'metaballGridBorderChaikinPasses', value);
             }}
         />
     {/if}
@@ -992,14 +992,14 @@
         <PaxSettingsRangeRow
             label="Shared Edge Smoothing"
             note={sharedEdgeSmoothingDescription()}
-            value={panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}
+            value={panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.CELL_GRID_EDGE_SMOOTHING_PASSES ?? 0}
             min={0}
             max={4}
             step={1}
-            output={`${panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}`}
-            settingConfigKey="METABALL_GRID_EDGE_SMOOTHING_PASSES"
+            output={`${panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.CELL_GRID_EDGE_SMOOTHING_PASSES ?? 0}`}
+            settingConfigKey="CELL_GRID_EDGE_SMOOTHING_PASSES"
             onInput={(value) => {
-                writeConfig('METABALL_GRID_EDGE_SMOOTHING_PASSES', 'metaballGridEdgeSmoothingPasses', value);
+                writeConfig('CELL_GRID_EDGE_SMOOTHING_PASSES', 'metaballGridEdgeSmoothingPasses', value);
             }}
         />
     {/if}
@@ -1007,14 +1007,14 @@
     <PaxSettingsRangeRow
         label="Shared Edge Trim"
         note={sharedEdgeTrimDescription()}
-        value={panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0}
+        value={panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.CELL_GRID_EDGE_TRIM_PX ?? 0}
         min={0}
         max={12}
         step={0.5}
-        output={`${(panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0).toFixed(1)}px`}
-        settingConfigKey="METABALL_GRID_EDGE_TRIM_PX"
+        output={`${(panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.CELL_GRID_EDGE_TRIM_PX ?? 0).toFixed(1)}px`}
+        settingConfigKey="CELL_GRID_EDGE_TRIM_PX"
         onInput={(value) => {
-            writeConfig('METABALL_GRID_EDGE_TRIM_PX', 'metaballGridEdgeTrimPx', value);
+            writeConfig('CELL_GRID_EDGE_TRIM_PX', 'metaballGridEdgeTrimPx', value);
         }}
     />
 {:else if isEmberLatticeMode()}
@@ -1027,39 +1027,39 @@
     step={1}
     output={`${currentBorderChaikinPasses()}`}
     disabled={!isControlFrontierTechnique() || currentBorderMode() !== 'territory_edge'}
-    settingConfigKey="METABALL_GRID_BORDER_CHAIKIN_PASSES"
+    settingConfigKey="CELL_GRID_BORDER_CHAIKIN_PASSES"
     onInput={(value) => {
-        writeConfig('METABALL_GRID_BORDER_CHAIKIN_PASSES', 'metaballGridBorderChaikinPasses', value);
+        writeConfig('CELL_GRID_BORDER_CHAIKIN_PASSES', 'metaballGridBorderChaikinPasses', value);
     }}
 />
 
 <PaxSettingsRangeRow
     label="Shared Edge Smoothing"
     note="Additional shared-edge softening for the straight control border path."
-    value={panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}
+    value={panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.CELL_GRID_EDGE_SMOOTHING_PASSES ?? 0}
     min={0}
     max={4}
     step={1}
-    output={`${panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ?? 0}`}
+    output={`${panel.metaballGridEdgeSmoothingPasses ?? GAME_CONFIG.CELL_GRID_EDGE_SMOOTHING_PASSES ?? 0}`}
     disabled={!canUseControlFrontierBorderGeometry() || currentFrontierBorderGeometryMode() !== 'shared_edge'}
-    settingConfigKey="METABALL_GRID_EDGE_SMOOTHING_PASSES"
+    settingConfigKey="CELL_GRID_EDGE_SMOOTHING_PASSES"
     onInput={(value) => {
-        writeConfig('METABALL_GRID_EDGE_SMOOTHING_PASSES', 'metaballGridEdgeSmoothingPasses', value);
+        writeConfig('CELL_GRID_EDGE_SMOOTHING_PASSES', 'metaballGridEdgeSmoothingPasses', value);
     }}
 />
 
 <PaxSettingsRangeRow
     label="Shared Edge Trim"
     note="Endpoint trim for open shared-edge chains."
-    value={panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0}
+    value={panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.CELL_GRID_EDGE_TRIM_PX ?? 0}
     min={0}
     max={12}
     step={0.5}
-    output={`${(panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ?? 0).toFixed(1)}px`}
+    output={`${(panel.metaballGridEdgeTrimPx ?? GAME_CONFIG.CELL_GRID_EDGE_TRIM_PX ?? 0).toFixed(1)}px`}
     disabled={!canUseControlFrontierBorderGeometry() || currentFrontierBorderGeometryMode() !== 'shared_edge'}
-    settingConfigKey="METABALL_GRID_EDGE_TRIM_PX"
+    settingConfigKey="CELL_GRID_EDGE_TRIM_PX"
     onInput={(value) => {
-        writeConfig('METABALL_GRID_EDGE_TRIM_PX', 'metaballGridEdgeTrimPx', value);
+        writeConfig('CELL_GRID_EDGE_TRIM_PX', 'metaballGridEdgeTrimPx', value);
     }}
 />
 {:else if currentBorderMode() === 'territory_edge' && usesSingularCenterlineTerritoryBorders()}
@@ -1211,7 +1211,7 @@
     value={currentAdjacency()}
     options={ADJACENCY_OPTIONS}
     onValueChange={(value) => {
-        writeConfig('METABALL_GRID_ADJACENCY', 'metaballGridAdjacency', value);
+        writeConfig('CELL_GRID_ADJACENCY', 'metaballGridAdjacency', value);
     }}
 />
 
@@ -1235,7 +1235,7 @@
         value={currentWaveGeometry()}
         options={WAVE_GEOMETRY_OPTIONS}
         onValueChange={(value) => {
-            writeConfig('METABALL_GRID_WAVE_GEOMETRY', 'metaballGridWaveGeometry', value);
+            writeConfig('CELL_GRID_WAVE_GEOMETRY', 'metaballGridWaveGeometry', value);
         }}
     />
 </div>
@@ -1259,7 +1259,7 @@
         value={currentWaveSeeding()}
         options={WAVE_SEEDING_OPTIONS}
         onValueChange={(value) => {
-            writeConfig('METABALL_GRID_WAVE_SEEDING', 'metaballGridWaveSeeding', value);
+            writeConfig('CELL_GRID_WAVE_SEEDING', 'metaballGridWaveSeeding', value);
         }}
     />
 </div>
@@ -1287,7 +1287,7 @@
         value={currentFlipTransition()}
         options={FLIP_TRANSITION_OPTIONS}
         onValueChange={(value) => {
-            writeConfig('METABALL_GRID_FLIP_TRANSITION', 'metaballGridFlipTransition', value);
+            writeConfig('CELL_GRID_FLIP_TRANSITION', 'metaballGridFlipTransition', value);
         }}
     />
 </div>
@@ -1297,7 +1297,7 @@
         <span class="var-name" title="Half-width of the crossfade window around each cell's flipTime (as a fraction of transition progress 0..1).">
             Flip Window
         </span>
-        <span class="val">{(panel.metaballGridFlipWindow ?? GAME_CONFIG.METABALL_GRID_FLIP_WINDOW ?? 0.06).toFixed(3)}</span>
+        <span class="val">{(panel.metaballGridFlipWindow ?? GAME_CONFIG.CELL_GRID_FLIP_WINDOW ?? 0.06).toFixed(3)}</span>
     </div>
     <div class="var-desc">
         Crossfade half-width for lerp_per_cell and dual_pass_blend. Larger values soften flips; 0 collapses to hard behavior.
@@ -1305,14 +1305,14 @@
     <PaxSettingsRangeRow
         label="Flip Window"
         note="Crossfade half-width around each cell flip time."
-        value={panel.metaballGridFlipWindow ?? GAME_CONFIG.METABALL_GRID_FLIP_WINDOW ?? 0.06}
+        value={panel.metaballGridFlipWindow ?? GAME_CONFIG.CELL_GRID_FLIP_WINDOW ?? 0.06}
         min={0}
         max={1}
         step={0.005}
-        output={`${(panel.metaballGridFlipWindow ?? GAME_CONFIG.METABALL_GRID_FLIP_WINDOW ?? 0.06).toFixed(3)}`}
-        settingConfigKey="METABALL_GRID_FLIP_WINDOW"
+        output={`${(panel.metaballGridFlipWindow ?? GAME_CONFIG.CELL_GRID_FLIP_WINDOW ?? 0.06).toFixed(3)}`}
+        settingConfigKey="CELL_GRID_FLIP_WINDOW"
         onInput={(value) => {
-            writeConfig('METABALL_GRID_FLIP_WINDOW', 'metaballGridFlipWindow', value);
+            writeConfig('CELL_GRID_FLIP_WINDOW', 'metaballGridFlipWindow', value);
         }}
     />
 </div>
@@ -1339,7 +1339,7 @@
         value={currentWaveEase()}
         options={WAVE_EASE_OPTIONS}
         onValueChange={(value) => {
-            writeConfig('METABALL_GRID_WAVE_EASE', 'metaballGridWaveEase', value);
+            writeConfig('CELL_GRID_WAVE_EASE', 'metaballGridWaveEase', value);
         }}
     />
 </div>
@@ -1349,7 +1349,7 @@
         <span class="var-name" title="Per-cell deterministic shift applied to flipTime, in progress units. 0.05 = each cell flips up to ±5 percent earlier/later than the wave rank would dictate. Breaks up rigid fronts for a more organic feel.">
             FlipTime Jitter
         </span>
-        <span class="val">{(panel.metaballGridFlipWindowJitter ?? GAME_CONFIG.METABALL_GRID_FLIP_WINDOW_JITTER ?? 0).toFixed(3)}</span>
+        <span class="val">{(panel.metaballGridFlipWindowJitter ?? GAME_CONFIG.CELL_GRID_FLIP_WINDOW_JITTER ?? 0).toFixed(3)}</span>
     </div>
     <div class="var-desc">
         Deterministic per-cell scatter of flip-time (seeded by cell id, stable across runs). Great for softening straight wave fronts.
@@ -1357,14 +1357,14 @@
     <PaxSettingsRangeRow
         label="FlipTime Jitter"
         note="Deterministic per-cell scatter of flip time."
-        value={panel.metaballGridFlipWindowJitter ?? GAME_CONFIG.METABALL_GRID_FLIP_WINDOW_JITTER ?? 0}
+        value={panel.metaballGridFlipWindowJitter ?? GAME_CONFIG.CELL_GRID_FLIP_WINDOW_JITTER ?? 0}
         min={0}
         max={0.5}
         step={0.005}
-        output={`${(panel.metaballGridFlipWindowJitter ?? GAME_CONFIG.METABALL_GRID_FLIP_WINDOW_JITTER ?? 0).toFixed(3)}`}
-        settingConfigKey="METABALL_GRID_FLIP_WINDOW_JITTER"
+        output={`${(panel.metaballGridFlipWindowJitter ?? GAME_CONFIG.CELL_GRID_FLIP_WINDOW_JITTER ?? 0).toFixed(3)}`}
+        settingConfigKey="CELL_GRID_FLIP_WINDOW_JITTER"
         onInput={(value) => {
-            writeConfig('METABALL_GRID_FLIP_WINDOW_JITTER', 'metaballGridFlipWindowJitter', value);
+            writeConfig('CELL_GRID_FLIP_WINDOW_JITTER', 'metaballGridFlipWindowJitter', value);
         }}
     />
 </div>
@@ -1543,10 +1543,10 @@
     max={1}
     step={0.005}
     output={currentPhaseFieldFinishFadeStart().toFixed(3)}
-    settingConfigKey="METABALL_GRID_PHASE_FIELD_FINISH_FADE_START"
+    settingConfigKey="CELL_GRID_PHASE_FIELD_FINISH_FADE_START"
     onInput={(value) => {
         writeConfig(
-            'METABALL_GRID_PHASE_FIELD_FINISH_FADE_START',
+            'CELL_GRID_PHASE_FIELD_FINISH_FADE_START',
             'metaballGridPhaseFieldFinishFadeStart',
             value,
         );
@@ -1561,10 +1561,10 @@
     max={1}
     step={0.005}
     output={currentPhaseFieldFinishFadeEnd().toFixed(3)}
-    settingConfigKey="METABALL_GRID_PHASE_FIELD_FINISH_FADE_END"
+    settingConfigKey="CELL_GRID_PHASE_FIELD_FINISH_FADE_END"
     onInput={(value) => {
         writeConfig(
-            'METABALL_GRID_PHASE_FIELD_FINISH_FADE_END',
+            'CELL_GRID_PHASE_FIELD_FINISH_FADE_END',
             'metaballGridPhaseFieldFinishFadeEnd',
             value,
         );
@@ -1579,10 +1579,10 @@
     max={1}
     step={0.005}
     output={currentPhaseFieldSizeCollapseStart().toFixed(3)}
-    settingConfigKey="METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_START"
+    settingConfigKey="CELL_GRID_PHASE_FIELD_SIZE_COLLAPSE_START"
     onInput={(value) => {
         writeConfig(
-            'METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_START',
+            'CELL_GRID_PHASE_FIELD_SIZE_COLLAPSE_START',
             'metaballGridPhaseFieldSizeCollapseStart',
             value,
         );
@@ -1597,10 +1597,10 @@
     max={1}
     step={0.005}
     output={currentPhaseFieldSizeCollapseEnd().toFixed(3)}
-    settingConfigKey="METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_END"
+    settingConfigKey="CELL_GRID_PHASE_FIELD_SIZE_COLLAPSE_END"
     onInput={(value) => {
         writeConfig(
-            'METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_END',
+            'CELL_GRID_PHASE_FIELD_SIZE_COLLAPSE_END',
             'metaballGridPhaseFieldSizeCollapseEnd',
             value,
         );
@@ -1615,10 +1615,10 @@
     max={32}
     step={0.5}
     output={`${currentPhaseFieldFinalCellSizePx().toFixed(1)}px`}
-    settingConfigKey="METABALL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX"
+    settingConfigKey="CELL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX"
     onInput={(value) => {
         writeConfig(
-            'METABALL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX',
+            'CELL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX',
             'metaballGridPhaseFieldFinalCellSizePx',
             value,
         );
@@ -1633,10 +1633,10 @@
     max={1}
     step={0.005}
     output={currentPhaseFieldFrontierFadeStart().toFixed(3)}
-    settingConfigKey="METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_START"
+    settingConfigKey="CELL_GRID_PHASE_FIELD_FRONTIER_FADE_START"
     onInput={(value) => {
         writeConfig(
-            'METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_START',
+            'CELL_GRID_PHASE_FIELD_FRONTIER_FADE_START',
             'metaballGridPhaseFieldFrontierFadeStart',
             value,
         );
@@ -1651,10 +1651,10 @@
     max={1}
     step={0.005}
     output={currentPhaseFieldFrontierFadeEnd().toFixed(3)}
-    settingConfigKey="METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END"
+    settingConfigKey="CELL_GRID_PHASE_FIELD_FRONTIER_FADE_END"
     onInput={(value) => {
         writeConfig(
-            'METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END',
+            'CELL_GRID_PHASE_FIELD_FRONTIER_FADE_END',
             'metaballGridPhaseFieldFrontierFadeEnd',
             value,
         );

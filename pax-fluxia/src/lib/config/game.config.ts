@@ -408,42 +408,42 @@ interface GameConfigType {
     PERIMETER_FIELD_DEBUG_REPLAY_SLOT: number; // 0 = live, 1..3 = replay one of the last captured conquests
     PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX: number; // Exact captured frame index used for paused scrub/replay
     PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS: number; // 0..1 scrub position used when paused and scrub is enabled
-    METABALL_GRID_ENABLED: boolean; // Master gate for the metaball-grid render family
-    METABALL_GRID_SPACING_PX: number; // Requested world-space spacing between grid cell centers
-    METABALL_GRID_PATTERN_SPACING_PX: number; // Visible fill-pattern spacing for phase-field presentation
-    METABALL_GRID_ORIGIN_MODE: 'centered' | 'corner'; // Grid anchor mode in world space
-    METABALL_GRID_DISTRIBUTION: 'square' | 'hex_offset' | 'jittered'; // Planner lattice distribution
-    METABALL_GRID_POSITION_JITTER: number; // Deterministic scatter amplitude as a fraction of spacing
-    METABALL_GRID_MAX_CELLS: number; // Optional planner cap; coarsens spacing upward when exceeded
-    METABALL_GRID_INWARD_OFFSET_PX: number; // Extra inset applied to boundary / in-transition cells
-    METABALL_GRID_BOUNDARY_FILL_FLUSH: boolean; // Keep owner-boundary fills flush to the visible border unless explicit inward pullback is requested
-    METABALL_GRID_CELL_SHAPE: 'square' | 'circle' | 'diamond' | 'hex'; // Primitive painted for each cell
-    METABALL_GRID_CELL_INSET_PX: number; // Base inset applied to all cells
-    METABALL_GRID_CELL_CORNER_PX: number; // Corner radius for square cells
-    METABALL_GRID_BORDER_MODE: 'off' | 'per_cell' | 'territory_edge'; // Border rendering strategy
-    METABALL_GRID_BORDER_BLEND: boolean; // Blend opposing-owner border colors along territory edges
-    METABALL_GRID_EDGE_SMOOTHING_PASSES: number; // Extra smoothing applied to shared boundary corners
-    METABALL_GRID_EDGE_TRIM_PX: number; // Endpoint trim for shared-edge chains and junction shaping
-    METABALL_GRID_BORDER_CHAIKIN_PASSES: number; // Smoothing passes for blended edge polylines
-    METABALL_GRID_ADJACENCY: '4' | '8'; // Wave adjacency for BFS-based flip planning
-    METABALL_GRID_WAVE_GEOMETRY:
+    CELL_GRID_ENABLED: boolean; // Master gate for the metaball-grid render family
+    CELL_GRID_SPACING_PX: number; // Requested world-space spacing between grid cell centers
+    CELL_GRID_PATTERN_SPACING_PX: number; // Visible fill-pattern spacing for phase-field presentation
+    CELL_GRID_ORIGIN_MODE: 'centered' | 'corner'; // Grid anchor mode in world space
+    CELL_GRID_DISTRIBUTION: 'square' | 'hex_offset' | 'jittered'; // Planner lattice distribution
+    CELL_GRID_POSITION_JITTER: number; // Deterministic scatter amplitude as a fraction of spacing
+    CELL_GRID_MAX_CELLS: number; // Optional planner cap; coarsens spacing upward when exceeded
+    CELL_GRID_INWARD_OFFSET_PX: number; // Extra inset applied to boundary / in-transition cells
+    CELL_GRID_BOUNDARY_FILL_FLUSH: boolean; // Keep owner-boundary fills flush to the visible border unless explicit inward pullback is requested
+    CELL_GRID_CELL_SHAPE: 'square' | 'circle' | 'diamond' | 'hex'; // Primitive painted for each cell
+    CELL_GRID_CELL_INSET_PX: number; // Base inset applied to all cells
+    CELL_GRID_CELL_CORNER_PX: number; // Corner radius for square cells
+    CELL_GRID_BORDER_MODE: 'off' | 'per_cell' | 'territory_edge'; // Border rendering strategy
+    CELL_GRID_BORDER_BLEND: boolean; // Blend opposing-owner border colors along territory edges
+    CELL_GRID_EDGE_SMOOTHING_PASSES: number; // Extra smoothing applied to shared boundary corners
+    CELL_GRID_EDGE_TRIM_PX: number; // Endpoint trim for shared-edge chains and junction shaping
+    CELL_GRID_BORDER_CHAIKIN_PASSES: number; // Smoothing passes for blended edge polylines
+    CELL_GRID_ADJACENCY: '4' | '8'; // Wave adjacency for BFS-based flip planning
+    CELL_GRID_WAVE_GEOMETRY:
         | 'grid_bfs'
         | 'euclidean_band'
         | 'conquered_star_radial'
         | 'pre_to_post_frontier'; // Flip-time rank geometry
-    METABALL_GRID_WAVE_SEEDING: 'winner_natives' | 'conquered_star_center' | 'winner_nearest_edge'; // Seed selection mode
-    METABALL_GRID_FLIP_TRANSITION: 'hard' | 'lerp_per_cell' | 'dual_pass_blend'; // Per-cell ownership transition style
-    METABALL_GRID_FLIP_WINDOW: number; // Blend window around each cell's flip time
-    METABALL_GRID_WAVE_EASE: 'linear' | 'ease_in' | 'ease_out' | 'ease_in_out' | 'back_out' | 'elastic_out'; // Easing applied to transition progress before cell flips
-    METABALL_GRID_FLIP_WINDOW_JITTER: number; // Deterministic per-cell flip-time jitter
-    METABALL_GRID_PHASE_FIELD_FINISH_FADE_START: number; // Normalized conquest time when PRE-cell fade-out begins
-    METABALL_GRID_PHASE_FIELD_FINISH_FADE_END: number; // Normalized conquest time when PRE-cell fade-out finishes
-    METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_START: number; // Normalized conquest time when transition cells begin shrinking
-    METABALL_GRID_PHASE_FIELD_SIZE_COLLAPSE_END: number; // Normalized conquest time when transition cells finish shrinking
-    METABALL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX: number; // Final cell size in px at the end of the phase-field completion tail
-    METABALL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT: boolean; // Draw a winner-side highlight rim at the active frontier
-    METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_START: number; // Normalized conquest time when the frontier accent begins fading
-    METABALL_GRID_PHASE_FIELD_FRONTIER_FADE_END: number; // Normalized conquest time when the frontier accent fully fades
+    CELL_GRID_WAVE_SEEDING: 'winner_natives' | 'conquered_star_center' | 'winner_nearest_edge'; // Seed selection mode
+    CELL_GRID_FLIP_TRANSITION: 'hard' | 'lerp_per_cell' | 'dual_pass_blend'; // Per-cell ownership transition style
+    CELL_GRID_FLIP_WINDOW: number; // Blend window around each cell's flip time
+    CELL_GRID_WAVE_EASE: 'linear' | 'ease_in' | 'ease_out' | 'ease_in_out' | 'back_out' | 'elastic_out'; // Easing applied to transition progress before cell flips
+    CELL_GRID_FLIP_WINDOW_JITTER: number; // Deterministic per-cell flip-time jitter
+    CELL_GRID_PHASE_FIELD_FINISH_FADE_START: number; // Normalized conquest time when PRE-cell fade-out begins
+    CELL_GRID_PHASE_FIELD_FINISH_FADE_END: number; // Normalized conquest time when PRE-cell fade-out finishes
+    CELL_GRID_PHASE_FIELD_SIZE_COLLAPSE_START: number; // Normalized conquest time when transition cells begin shrinking
+    CELL_GRID_PHASE_FIELD_SIZE_COLLAPSE_END: number; // Normalized conquest time when transition cells finish shrinking
+    CELL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX: number; // Final cell size in px at the end of the phase-field completion tail
+    CELL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT: boolean; // Draw a winner-side highlight rim at the active frontier
+    CELL_GRID_PHASE_FIELD_FRONTIER_FADE_START: number; // Normalized conquest time when the frontier accent begins fading
+    CELL_GRID_PHASE_FIELD_FRONTIER_FADE_END: number; // Normalized conquest time when the frontier accent fully fades
     GRID_GRADIENT_ENABLED: boolean; // Master gate for the Grid Gradient render family
     GRID_GRADIENT_DEBUG_TRANSITIONS: boolean; // Emit scoped Grid Gradient transition diagnostics without enabling the broad renderer logger
     GRID_GRADIENT_DRAW_BACKEND: 'graphics' | 'shader_field' | 'mesh_quads'; // Grid Gradient fill presentation backend
@@ -636,7 +636,7 @@ interface GameConfigType {
     METABALL_INFLUENCE_RADIUS: number;  // How far each star's field extends in px (default 120)
     METABALL_FALLOFF: 'inverse-square' | 'gaussian' | 'smoothstep';  // Falloff curve (default 'inverse-square')
     METABALL_BLEND_SHARPNESS: number;   // Higher = sharper faction boundaries (default 3.0)
-    METABALL_ALPHA: number;             // Overall territory transparency (default 0.5)
+    TERRITORY_SURFACE_ALPHA: number;             // Overall territory transparency (default 0.5)
     METABALL_CELL_SIZE: number;         // Grid cell size in px — lower = higher res but slower (default 8)
     /**
      * Metaball dominance gate: per cell, winnerShare = w1/(w1+w2) for top two factions.
@@ -649,15 +649,15 @@ interface GameConfigType {
     METABALL_BLUR: number;              // GPU blur strength (0=sharp). Target: fill only, or fill+borders — see METABALL_BLUR_AFFECTS_BORDERS
     /** When true and METABALL_BLUR > 0, blur applies to a shared layer (fill + borders). When false, only fill Graphics is blurred. */
     METABALL_BLUR_AFFECTS_BORDERS: boolean;
-    METABALL_FILL_ENABLED: boolean;     // Master fill visibility gate for metaball-style territory surfaces
-    METABALL_BORDER_WIDTH: number;       // Border line width between territories (default 1.5)
-    METABALL_BORDER_ALPHA: number;       // Border line alpha (default 0.6)
-    METABALL_BORDER_ENABLED: boolean;   // Master border visibility gate for metaball-style territory surfaces
+    TERRITORY_SURFACE_FILL_ENABLED: boolean;     // Master fill visibility gate for metaball-style territory surfaces
+    TERRITORY_SURFACE_BORDER_WIDTH: number;       // Border line width between territories (default 1.5)
+    TERRITORY_SURFACE_BORDER_ALPHA: number;       // Border line alpha (default 0.6)
+    TERRITORY_SURFACE_BORDER_ENABLED: boolean;   // Master border visibility gate for metaball-style territory surfaces
     METABALL_COVERAGE: number;           // Grid padding factor (0=compact, 0.3=extended, default 0.3)
-    METABALL_SATURATION: number;         // Saturation multiplier (0=grey, 1=normal, 2=vivid, default 1.0)
-    METABALL_LIGHTNESS: number;          // Lightness multiplier (0=dark, 1=normal, 2=bright, default 1.0)
-    METABALL_BORDER_SATURATION: number; // Border saturation multiplier (default 1)
-    METABALL_BORDER_LIGHTNESS: number;  // Border lightness multiplier (default 1)
+    TERRITORY_SURFACE_SATURATION: number;         // Saturation multiplier (0=grey, 1=normal, 2=vivid, default 1.0)
+    TERRITORY_SURFACE_LIGHTNESS: number;          // Lightness multiplier (0=dark, 1=normal, 2=bright, default 1.0)
+    TERRITORY_SURFACE_BORDER_SATURATION: number; // Border saturation multiplier (default 1)
+    TERRITORY_SURFACE_BORDER_LIGHTNESS: number;  // Border lightness multiplier (default 1)
     METABALL_CHAIKIN_PASSES: number;    // Chaikin smoothing passes on border polylines (0=off, 1-4, default 0)
     /** 0 = no combat border boost; else tick window for lastCombatTick / lastAttackTick */
     METABALL_COMBAT_BORDER_TICKS: number;

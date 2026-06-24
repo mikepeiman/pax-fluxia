@@ -203,26 +203,26 @@ function makeInput(progress: number): RenderFamilyInput {
         ],
         lanes: [makeLane('attacker', 'target', 55)],
         tunables: makeTunables([
-            ['METABALL_GRID_ENABLED', true],
-            ['METABALL_GRID_SPACING_PX', 10],
-            ['METABALL_GRID_ORIGIN_MODE', 'centered'],
-            ['METABALL_GRID_DISTRIBUTION', 'square'],
-            ['METABALL_GRID_POSITION_JITTER', 0],
-            ['METABALL_GRID_MAX_CELLS', 0],
-            ['METABALL_GRID_ADJACENCY', '4'],
-            ['METABALL_GRID_WAVE_GEOMETRY', 'grid_bfs'],
-            ['METABALL_GRID_WAVE_SEEDING', 'conquered_star_center'],
-            ['METABALL_GRID_FLIP_TRANSITION', 'dual_pass_blend'],
-            ['METABALL_GRID_FLIP_WINDOW', 0.08],
-            ['METABALL_GRID_FLIP_WINDOW_JITTER', 0],
-            ['METABALL_GRID_CELL_SHAPE', 'square'],
-            ['METABALL_GRID_CELL_INSET_PX', 0],
-            ['METABALL_GRID_CELL_CORNER_PX', 0],
-            ['METABALL_GRID_BORDER_MODE', 'off'],
-            ['METABALL_BORDER_ALPHA', 0],
-            ['METABALL_ALPHA', 1],
-            ['METABALL_SATURATION', 1],
-            ['METABALL_LIGHTNESS', 0.5],
+            ['CELL_GRID_ENABLED', true],
+            ['CELL_GRID_SPACING_PX', 10],
+            ['CELL_GRID_ORIGIN_MODE', 'centered'],
+            ['CELL_GRID_DISTRIBUTION', 'square'],
+            ['CELL_GRID_POSITION_JITTER', 0],
+            ['CELL_GRID_MAX_CELLS', 0],
+            ['CELL_GRID_ADJACENCY', '4'],
+            ['CELL_GRID_WAVE_GEOMETRY', 'grid_bfs'],
+            ['CELL_GRID_WAVE_SEEDING', 'conquered_star_center'],
+            ['CELL_GRID_FLIP_TRANSITION', 'dual_pass_blend'],
+            ['CELL_GRID_FLIP_WINDOW', 0.08],
+            ['CELL_GRID_FLIP_WINDOW_JITTER', 0],
+            ['CELL_GRID_CELL_SHAPE', 'square'],
+            ['CELL_GRID_CELL_INSET_PX', 0],
+            ['CELL_GRID_CELL_CORNER_PX', 0],
+            ['CELL_GRID_BORDER_MODE', 'off'],
+            ['TERRITORY_SURFACE_BORDER_ALPHA', 0],
+            ['TERRITORY_SURFACE_ALPHA', 1],
+            ['TERRITORY_SURFACE_SATURATION', 1],
+            ['TERRITORY_SURFACE_LIGHTNESS', 0.5],
         ]),
         activeTransition: makeActiveTransition(event, progress, 1_500),
     };
@@ -279,26 +279,26 @@ function makeSteadyInput(): RenderFamilyInput {
         ],
         lanes: [makeLane('attacker', 'target', 55)],
         tunables: makeTunables([
-            ['METABALL_GRID_ENABLED', true],
-            ['METABALL_GRID_SPACING_PX', 10],
-            ['METABALL_GRID_ORIGIN_MODE', 'centered'],
-            ['METABALL_GRID_DISTRIBUTION', 'square'],
-            ['METABALL_GRID_POSITION_JITTER', 0],
-            ['METABALL_GRID_MAX_CELLS', 0],
-            ['METABALL_GRID_ADJACENCY', '4'],
-            ['METABALL_GRID_WAVE_GEOMETRY', 'grid_bfs'],
-            ['METABALL_GRID_WAVE_SEEDING', 'conquered_star_center'],
-            ['METABALL_GRID_FLIP_TRANSITION', 'dual_pass_blend'],
-            ['METABALL_GRID_FLIP_WINDOW', 0.08],
-            ['METABALL_GRID_FLIP_WINDOW_JITTER', 0],
-            ['METABALL_GRID_CELL_SHAPE', 'square'],
-            ['METABALL_GRID_CELL_INSET_PX', 0],
-            ['METABALL_GRID_CELL_CORNER_PX', 0],
-            ['METABALL_GRID_BORDER_MODE', 'off'],
-            ['METABALL_BORDER_ALPHA', 0],
-            ['METABALL_ALPHA', 1],
-            ['METABALL_SATURATION', 1],
-            ['METABALL_LIGHTNESS', 0.5],
+            ['CELL_GRID_ENABLED', true],
+            ['CELL_GRID_SPACING_PX', 10],
+            ['CELL_GRID_ORIGIN_MODE', 'centered'],
+            ['CELL_GRID_DISTRIBUTION', 'square'],
+            ['CELL_GRID_POSITION_JITTER', 0],
+            ['CELL_GRID_MAX_CELLS', 0],
+            ['CELL_GRID_ADJACENCY', '4'],
+            ['CELL_GRID_WAVE_GEOMETRY', 'grid_bfs'],
+            ['CELL_GRID_WAVE_SEEDING', 'conquered_star_center'],
+            ['CELL_GRID_FLIP_TRANSITION', 'dual_pass_blend'],
+            ['CELL_GRID_FLIP_WINDOW', 0.08],
+            ['CELL_GRID_FLIP_WINDOW_JITTER', 0],
+            ['CELL_GRID_CELL_SHAPE', 'square'],
+            ['CELL_GRID_CELL_INSET_PX', 0],
+            ['CELL_GRID_CELL_CORNER_PX', 0],
+            ['CELL_GRID_BORDER_MODE', 'off'],
+            ['TERRITORY_SURFACE_BORDER_ALPHA', 0],
+            ['TERRITORY_SURFACE_ALPHA', 1],
+            ['TERRITORY_SURFACE_SATURATION', 1],
+            ['TERRITORY_SURFACE_LIGHTNESS', 0.5],
         ]),
     };
 }
@@ -310,26 +310,26 @@ function makePhaseEdgesInput(
 ): RenderFamilyInput {
     const base = makeInput(progress);
     const configSource: Record<string, unknown> = {
-        METABALL_GRID_ENABLED: true,
-        METABALL_GRID_SPACING_PX: 10,
-        METABALL_GRID_ORIGIN_MODE: 'centered',
-        METABALL_GRID_DISTRIBUTION: 'square',
-        METABALL_GRID_POSITION_JITTER: 0,
-        METABALL_GRID_MAX_CELLS: 0,
-        METABALL_GRID_ADJACENCY: '4',
-        METABALL_GRID_WAVE_SEEDING: 'conquered_star_center',
-        METABALL_GRID_FLIP_TRANSITION: 'dual_pass_blend',
-        METABALL_GRID_FLIP_WINDOW: 0.08,
-        METABALL_GRID_FLIP_WINDOW_JITTER: 0,
-        METABALL_GRID_CELL_SHAPE: 'square',
-        METABALL_GRID_CELL_INSET_PX: 0,
-        METABALL_GRID_CELL_CORNER_PX: 0,
-        METABALL_BORDER_ALPHA: 1,
-        METABALL_FILL_ENABLED: true,
-        METABALL_BORDER_ENABLED: true,
-        METABALL_ALPHA: 1,
-        METABALL_SATURATION: 1,
-        METABALL_LIGHTNESS: 0.5,
+        CELL_GRID_ENABLED: true,
+        CELL_GRID_SPACING_PX: 10,
+        CELL_GRID_ORIGIN_MODE: 'centered',
+        CELL_GRID_DISTRIBUTION: 'square',
+        CELL_GRID_POSITION_JITTER: 0,
+        CELL_GRID_MAX_CELLS: 0,
+        CELL_GRID_ADJACENCY: '4',
+        CELL_GRID_WAVE_SEEDING: 'conquered_star_center',
+        CELL_GRID_FLIP_TRANSITION: 'dual_pass_blend',
+        CELL_GRID_FLIP_WINDOW: 0.08,
+        CELL_GRID_FLIP_WINDOW_JITTER: 0,
+        CELL_GRID_CELL_SHAPE: 'square',
+        CELL_GRID_CELL_INSET_PX: 0,
+        CELL_GRID_CELL_CORNER_PX: 0,
+        TERRITORY_SURFACE_BORDER_ALPHA: 1,
+        TERRITORY_SURFACE_FILL_ENABLED: true,
+        TERRITORY_SURFACE_BORDER_ENABLED: true,
+        TERRITORY_SURFACE_ALPHA: 1,
+        TERRITORY_SURFACE_SATURATION: 1,
+        TERRITORY_SURFACE_LIGHTNESS: 0.5,
         ...territoryFrontierConfigDefaults,
         ...metaballGridPhaseEdgesGeometryDefaults,
         ...metaballGridPhaseEdgesModeDefaults,
@@ -574,11 +574,11 @@ describe('MetaballGridFamily active frontier fast path', () => {
                 return ownerId === 'A' ? 0x3366ff : 0xff6633;
             },
         } as never);
-        const originalWaveGeometry = GAME_CONFIG.METABALL_GRID_WAVE_GEOMETRY;
-        const originalBorderMode = GAME_CONFIG.METABALL_GRID_BORDER_MODE;
-        const originalBorderBlend = GAME_CONFIG.METABALL_GRID_BORDER_BLEND;
+        const originalWaveGeometry = GAME_CONFIG.CELL_GRID_WAVE_GEOMETRY;
+        const originalBorderMode = GAME_CONFIG.CELL_GRID_BORDER_MODE;
+        const originalBorderBlend = GAME_CONFIG.CELL_GRID_BORDER_BLEND;
         const originalBorderChaikinPasses =
-            GAME_CONFIG.METABALL_GRID_BORDER_CHAIKIN_PASSES;
+            GAME_CONFIG.CELL_GRID_BORDER_CHAIKIN_PASSES;
         const originalDisconnectEnabled =
             GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED;
         const originalDisconnectDistance =
@@ -586,10 +586,10 @@ describe('MetaballGridFamily active frontier fast path', () => {
         const originalDxWeight = GAME_CONFIG.TERRITORY_DX_WEIGHT;
 
         try {
-            GAME_CONFIG.METABALL_GRID_WAVE_GEOMETRY = 'euclidean_band';
-            GAME_CONFIG.METABALL_GRID_BORDER_MODE = 'territory_edge';
-            GAME_CONFIG.METABALL_GRID_BORDER_BLEND = true;
-            GAME_CONFIG.METABALL_GRID_BORDER_CHAIKIN_PASSES = 4;
+            GAME_CONFIG.CELL_GRID_WAVE_GEOMETRY = 'euclidean_band';
+            GAME_CONFIG.CELL_GRID_BORDER_MODE = 'territory_edge';
+            GAME_CONFIG.CELL_GRID_BORDER_BLEND = true;
+            GAME_CONFIG.CELL_GRID_BORDER_CHAIKIN_PASSES = 4;
             GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED = true;
             GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_DISTANCE = 295;
             GAME_CONFIG.TERRITORY_DX_WEIGHT = 3;
@@ -610,10 +610,10 @@ describe('MetaballGridFamily active frontier fast path', () => {
             expect(stats.frontierBorderGeometryMode).toBe('shared_edge');
             expect(stats.frontierBorderGeometryFallbackReason).toBe('renderer_unavailable');
         } finally {
-            GAME_CONFIG.METABALL_GRID_WAVE_GEOMETRY = originalWaveGeometry;
-            GAME_CONFIG.METABALL_GRID_BORDER_MODE = originalBorderMode;
-            GAME_CONFIG.METABALL_GRID_BORDER_BLEND = originalBorderBlend;
-            GAME_CONFIG.METABALL_GRID_BORDER_CHAIKIN_PASSES =
+            GAME_CONFIG.CELL_GRID_WAVE_GEOMETRY = originalWaveGeometry;
+            GAME_CONFIG.CELL_GRID_BORDER_MODE = originalBorderMode;
+            GAME_CONFIG.CELL_GRID_BORDER_BLEND = originalBorderBlend;
+            GAME_CONFIG.CELL_GRID_BORDER_CHAIKIN_PASSES =
                 originalBorderChaikinPasses;
             GAME_CONFIG.MODIFIED_VORONOI_DISCONNECT_ENABLED =
                 originalDisconnectEnabled;
@@ -722,7 +722,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
 
         family.update(
             makePhaseEdgesInput(family, 0.35, {
-                METABALL_GRID_DISTRIBUTION: 'hex_offset',
+                CELL_GRID_DISTRIBUTION: 'hex_offset',
                 TERRITORY_FRONTIER_TECHNIQUE: 'marching_squares_scalar',
             }),
         );
@@ -795,9 +795,9 @@ describe('MetaballGridFamily active frontier fast path', () => {
 
         family.update(
             makePhaseEdgesInput(family, 0.35, {
-                METABALL_BORDER_ENABLED: true,
-                METABALL_GRID_BORDER_MODE: 'per_cell',
-                METABALL_GRID_BORDER_BLEND: true,
+                TERRITORY_SURFACE_BORDER_ENABLED: true,
+                CELL_GRID_BORDER_MODE: 'per_cell',
+                CELL_GRID_BORDER_BLEND: true,
                 TERRITORY_FRONTIER_TECHNIQUE: 'marching_squares_scalar',
             }),
         );
@@ -820,11 +820,11 @@ describe('MetaballGridFamily active frontier fast path', () => {
 
         family.update(
             makePhaseEdgesInput(family, 0.35, {
-                METABALL_GRID_BORDER_MODE: 'territory_edge',
-                METABALL_GRID_BORDER_BLEND: false,
-                METABALL_GRID_CELL_INSET_PX: 2,
-                METABALL_GRID_BOUNDARY_FILL_FLUSH: true,
-                METABALL_GRID_INWARD_OFFSET_PX: 0,
+                CELL_GRID_BORDER_MODE: 'territory_edge',
+                CELL_GRID_BORDER_BLEND: false,
+                CELL_GRID_CELL_INSET_PX: 2,
+                CELL_GRID_BOUNDARY_FILL_FLUSH: true,
+                CELL_GRID_INWARD_OFFSET_PX: 0,
                 TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: 'shared_edge',
             }),
         );
@@ -837,11 +837,11 @@ describe('MetaballGridFamily active frontier fast path', () => {
 
         family.update(
             makePhaseEdgesInput(family, 0.35, {
-                METABALL_GRID_BORDER_MODE: 'territory_edge',
-                METABALL_GRID_BORDER_BLEND: true,
-                METABALL_GRID_CELL_INSET_PX: 2,
-                METABALL_GRID_BOUNDARY_FILL_FLUSH: true,
-                METABALL_GRID_INWARD_OFFSET_PX: 0,
+                CELL_GRID_BORDER_MODE: 'territory_edge',
+                CELL_GRID_BORDER_BLEND: true,
+                CELL_GRID_CELL_INSET_PX: 2,
+                CELL_GRID_BOUNDARY_FILL_FLUSH: true,
+                CELL_GRID_INWARD_OFFSET_PX: 0,
                 TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: 'shared_edge',
             }),
         );
@@ -863,11 +863,11 @@ describe('MetaballGridFamily active frontier fast path', () => {
 
         family.update(
             makePhaseEdgesInput(family, 0.35, {
-                METABALL_GRID_BORDER_MODE: 'territory_edge',
-                METABALL_GRID_BORDER_BLEND: false,
-                METABALL_GRID_CELL_INSET_PX: 0,
-                METABALL_GRID_BOUNDARY_FILL_FLUSH: false,
-                METABALL_GRID_INWARD_OFFSET_PX: 0,
+                CELL_GRID_BORDER_MODE: 'territory_edge',
+                CELL_GRID_BORDER_BLEND: false,
+                CELL_GRID_CELL_INSET_PX: 0,
+                CELL_GRID_BOUNDARY_FILL_FLUSH: false,
+                CELL_GRID_INWARD_OFFSET_PX: 0,
                 TERRITORY_FRONTIER_TECHNIQUE: 'marching_triangles_gradient',
             }),
         );
@@ -883,11 +883,11 @@ describe('MetaballGridFamily active frontier fast path', () => {
 
         family.update(
             makePhaseEdgesInput(family, 0.35, {
-                METABALL_GRID_BORDER_MODE: 'territory_edge',
-                METABALL_GRID_BORDER_BLEND: true,
-                METABALL_GRID_CELL_INSET_PX: 0,
-                METABALL_GRID_BOUNDARY_FILL_FLUSH: false,
-                METABALL_GRID_INWARD_OFFSET_PX: 0,
+                CELL_GRID_BORDER_MODE: 'territory_edge',
+                CELL_GRID_BORDER_BLEND: true,
+                CELL_GRID_CELL_INSET_PX: 0,
+                CELL_GRID_BOUNDARY_FILL_FLUSH: false,
+                CELL_GRID_INWARD_OFFSET_PX: 0,
                 TERRITORY_FRONTIER_TECHNIQUE: 'marching_triangles_gradient',
             }),
         );
@@ -911,12 +911,12 @@ describe('MetaballGridFamily active frontier fast path', () => {
 
             family.update(
                 makePhaseEdgesInput(family, 0.35, {
-                    METABALL_GRID_BORDER_MODE: 'territory_edge',
-                    METABALL_GRID_BORDER_BLEND: borderBlend,
-                    METABALL_GRID_CELL_INSET_PX: 2,
-                    METABALL_GRID_EDGE_TRIM_PX: 2,
-                    METABALL_GRID_BOUNDARY_FILL_FLUSH: false,
-                    METABALL_GRID_INWARD_OFFSET_PX: 0,
+                    CELL_GRID_BORDER_MODE: 'territory_edge',
+                    CELL_GRID_BORDER_BLEND: borderBlend,
+                    CELL_GRID_CELL_INSET_PX: 2,
+                    CELL_GRID_EDGE_TRIM_PX: 2,
+                    CELL_GRID_BOUNDARY_FILL_FLUSH: false,
+                    CELL_GRID_INWARD_OFFSET_PX: 0,
                     TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: 'shared_edge',
                 }),
             );
@@ -925,12 +925,12 @@ describe('MetaballGridFamily active frontier fast path', () => {
 
             family.update(
                 makePhaseEdgesInput(family, 0.35, {
-                    METABALL_GRID_BORDER_MODE: 'territory_edge',
-                    METABALL_GRID_BORDER_BLEND: borderBlend,
-                    METABALL_GRID_CELL_INSET_PX: 2,
-                    METABALL_GRID_EDGE_TRIM_PX: 2,
-                    METABALL_GRID_BOUNDARY_FILL_FLUSH: true,
-                    METABALL_GRID_INWARD_OFFSET_PX: 0,
+                    CELL_GRID_BORDER_MODE: 'territory_edge',
+                    CELL_GRID_BORDER_BLEND: borderBlend,
+                    CELL_GRID_CELL_INSET_PX: 2,
+                    CELL_GRID_EDGE_TRIM_PX: 2,
+                    CELL_GRID_BOUNDARY_FILL_FLUSH: true,
+                    CELL_GRID_INWARD_OFFSET_PX: 0,
                     TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: 'shared_edge',
                 }),
             );
@@ -952,11 +952,11 @@ describe('MetaballGridFamily active frontier fast path', () => {
 
             family.update(
                 makePhaseEdgesInput(family, 0.35, {
-                    METABALL_GRID_BORDER_MODE: 'territory_edge',
-                    METABALL_GRID_BORDER_BLEND: borderBlend,
-                    METABALL_GRID_CELL_INSET_PX: 2,
-                    METABALL_GRID_BOUNDARY_FILL_FLUSH: true,
-                    METABALL_GRID_INWARD_OFFSET_PX: 0,
+                    CELL_GRID_BORDER_MODE: 'territory_edge',
+                    CELL_GRID_BORDER_BLEND: borderBlend,
+                    CELL_GRID_CELL_INSET_PX: 2,
+                    CELL_GRID_BOUNDARY_FILL_FLUSH: true,
+                    CELL_GRID_INWARD_OFFSET_PX: 0,
                     TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: 'shared_edge',
                 }),
             );
@@ -965,11 +965,11 @@ describe('MetaballGridFamily active frontier fast path', () => {
 
             family.update(
                 makePhaseEdgesInput(family, 0.35, {
-                    METABALL_GRID_BORDER_MODE: 'territory_edge',
-                    METABALL_GRID_BORDER_BLEND: borderBlend,
-                    METABALL_GRID_CELL_INSET_PX: 2,
-                    METABALL_GRID_BOUNDARY_FILL_FLUSH: true,
-                    METABALL_GRID_INWARD_OFFSET_PX: 3,
+                    CELL_GRID_BORDER_MODE: 'territory_edge',
+                    CELL_GRID_BORDER_BLEND: borderBlend,
+                    CELL_GRID_CELL_INSET_PX: 2,
+                    CELL_GRID_BOUNDARY_FILL_FLUSH: true,
+                    CELL_GRID_INWARD_OFFSET_PX: 3,
                     TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: 'shared_edge',
                 }),
             );
@@ -990,12 +990,12 @@ describe('MetaballGridFamily active frontier fast path', () => {
 
         family.update(
             makePhaseEdgesInput(family, 0.35, {
-                METABALL_GRID_SPACING_PX: 12,
-                METABALL_GRID_BORDER_MODE: 'territory_edge',
-                METABALL_GRID_BORDER_BLEND: true,
-                METABALL_GRID_CELL_INSET_PX: 0,
-                METABALL_GRID_BOUNDARY_FILL_FLUSH: true,
-                METABALL_GRID_INWARD_OFFSET_PX: 23,
+                CELL_GRID_SPACING_PX: 12,
+                CELL_GRID_BORDER_MODE: 'territory_edge',
+                CELL_GRID_BORDER_BLEND: true,
+                CELL_GRID_CELL_INSET_PX: 0,
+                CELL_GRID_BOUNDARY_FILL_FLUSH: true,
+                CELL_GRID_INWARD_OFFSET_PX: 23,
                 TERRITORY_FRONTIER_TECHNIQUE: 'marching_triangles_gradient',
             }),
         );
@@ -1004,12 +1004,12 @@ describe('MetaballGridFamily active frontier fast path', () => {
 
         family.update(
             makePhaseEdgesInput(family, 0.35, {
-                METABALL_GRID_SPACING_PX: 12,
-                METABALL_GRID_BORDER_MODE: 'territory_edge',
-                METABALL_GRID_BORDER_BLEND: true,
-                METABALL_GRID_CELL_INSET_PX: 0,
-                METABALL_GRID_BOUNDARY_FILL_FLUSH: true,
-                METABALL_GRID_INWARD_OFFSET_PX: 24,
+                CELL_GRID_SPACING_PX: 12,
+                CELL_GRID_BORDER_MODE: 'territory_edge',
+                CELL_GRID_BORDER_BLEND: true,
+                CELL_GRID_CELL_INSET_PX: 0,
+                CELL_GRID_BOUNDARY_FILL_FLUSH: true,
+                CELL_GRID_INWARD_OFFSET_PX: 24,
                 TERRITORY_FRONTIER_TECHNIQUE: 'marching_triangles_gradient',
             }),
         );
@@ -1029,8 +1029,8 @@ describe('MetaballGridFamily active frontier fast path', () => {
 
         family.update(
             makePhaseEdgesInput(family, 0.35, {
-                METABALL_GRID_BORDER_MODE: 'territory_edge',
-                METABALL_GRID_BORDER_BLEND: true,
+                CELL_GRID_BORDER_MODE: 'territory_edge',
+                CELL_GRID_BORDER_BLEND: true,
                 TERRITORY_FRONTIER_TECHNIQUE: 'marching_triangles_gradient',
                 TERRITORY_FRONTIER_FX_MODE: 'off',
             }),
@@ -1040,8 +1040,8 @@ describe('MetaballGridFamily active frontier fast path', () => {
 
         family.update(
             makePhaseEdgesInput(family, 0.35, {
-                METABALL_GRID_BORDER_MODE: 'territory_edge',
-                METABALL_GRID_BORDER_BLEND: true,
+                CELL_GRID_BORDER_MODE: 'territory_edge',
+                CELL_GRID_BORDER_BLEND: true,
                 TERRITORY_FRONTIER_TECHNIQUE: 'marching_triangles_gradient',
                 TERRITORY_FRONTIER_FX_MODE: 'soft_fade',
                 TERRITORY_FRONTIER_FX_WIDTH_PX: 24,
@@ -1065,8 +1065,8 @@ describe('MetaballGridFamily active frontier fast path', () => {
 
         family.update(
             makePhaseEdgesInput(family, 0.35, {
-                METABALL_GRID_BORDER_MODE: 'territory_edge',
-                METABALL_GRID_BORDER_BLEND: true,
+                CELL_GRID_BORDER_MODE: 'territory_edge',
+                CELL_GRID_BORDER_BLEND: true,
                 TERRITORY_FRONTIER_TECHNIQUE: 'marching_triangles_gradient',
                 TERRITORY_FRONTIER_FX_MODE: 'off',
             }),
@@ -1076,8 +1076,8 @@ describe('MetaballGridFamily active frontier fast path', () => {
 
         family.update(
             makePhaseEdgesInput(family, 0.35, {
-                METABALL_GRID_BORDER_MODE: 'territory_edge',
-                METABALL_GRID_BORDER_BLEND: true,
+                CELL_GRID_BORDER_MODE: 'territory_edge',
+                CELL_GRID_BORDER_BLEND: true,
                 TERRITORY_FRONTIER_TECHNIQUE: 'marching_triangles_gradient',
                 TERRITORY_FRONTIER_FX_MODE: 'stepped_moat',
                 TERRITORY_FRONTIER_FX_WIDTH_PX: 30,
@@ -1100,8 +1100,8 @@ describe('MetaballGridFamily active frontier fast path', () => {
         } as never);
 
         const inputA = makePhaseEdgesInput(family, 0.35, {
-            METABALL_GRID_BORDER_MODE: 'territory_edge',
-            METABALL_GRID_BORDER_BLEND: true,
+            CELL_GRID_BORDER_MODE: 'territory_edge',
+            CELL_GRID_BORDER_BLEND: true,
             TERRITORY_FRONTIER_TECHNIQUE: 'marching_triangles_gradient',
             TERRITORY_FRONTIER_FX_MODE: 'plasma_rim',
             TERRITORY_FRONTIER_FX_WIDTH_PX: 26,
@@ -1113,8 +1113,8 @@ describe('MetaballGridFamily active frontier fast path', () => {
         const earlySnapshot = captureFillRenderSnapshot(state.graphics);
 
         const inputB = makePhaseEdgesInput(family, 0.35, {
-            METABALL_GRID_BORDER_MODE: 'territory_edge',
-            METABALL_GRID_BORDER_BLEND: true,
+            CELL_GRID_BORDER_MODE: 'territory_edge',
+            CELL_GRID_BORDER_BLEND: true,
             TERRITORY_FRONTIER_TECHNIQUE: 'marching_triangles_gradient',
             TERRITORY_FRONTIER_FX_MODE: 'plasma_rim',
             TERRITORY_FRONTIER_FX_WIDTH_PX: 26,
@@ -1138,8 +1138,8 @@ describe('MetaballGridFamily active frontier fast path', () => {
 
         family.update(
             makePhaseEdgesInput(family, 0.35, {
-                METABALL_GRID_BORDER_MODE: 'territory_edge',
-                METABALL_GRID_BORDER_BLEND: true,
+                CELL_GRID_BORDER_MODE: 'territory_edge',
+                CELL_GRID_BORDER_BLEND: true,
                 TERRITORY_FRONTIER_TECHNIQUE: 'marching_triangles_gradient',
                 TERRITORY_FRONTIER_FX_MODE: 'off',
             }),
@@ -1148,8 +1148,8 @@ describe('MetaballGridFamily active frontier fast path', () => {
         const offSnapshot = captureFillRenderSnapshot(state.graphics);
 
         const ionInput = makePhaseEdgesInput(family, 0.35, {
-            METABALL_GRID_BORDER_MODE: 'territory_edge',
-            METABALL_GRID_BORDER_BLEND: true,
+            CELL_GRID_BORDER_MODE: 'territory_edge',
+            CELL_GRID_BORDER_BLEND: true,
             TERRITORY_FRONTIER_TECHNIQUE: 'marching_triangles_gradient',
             TERRITORY_FRONTIER_FX_MODE: 'ion_drift',
             TERRITORY_FRONTIER_FX_WIDTH_PX: 22,
@@ -1174,8 +1174,8 @@ describe('MetaballGridFamily active frontier fast path', () => {
         } as never);
 
         const inputA = makePhaseEdgesInput(family, 0.35, {
-            METABALL_GRID_BORDER_MODE: 'territory_edge',
-            METABALL_GRID_BORDER_BLEND: true,
+            CELL_GRID_BORDER_MODE: 'territory_edge',
+            CELL_GRID_BORDER_BLEND: true,
             TERRITORY_FRONTIER_TECHNIQUE: 'marching_triangles_gradient',
             TERRITORY_FRONTIER_FX_MODE: 'geometry_strip',
             TERRITORY_FRONTIER_FX_WIDTH_PX: 28,
@@ -1189,8 +1189,8 @@ describe('MetaballGridFamily active frontier fast path', () => {
         const earlySnapshot = captureFillRenderSnapshot(state.graphics);
 
         const inputB = makePhaseEdgesInput(family, 0.35, {
-            METABALL_GRID_BORDER_MODE: 'territory_edge',
-            METABALL_GRID_BORDER_BLEND: true,
+            CELL_GRID_BORDER_MODE: 'territory_edge',
+            CELL_GRID_BORDER_BLEND: true,
             TERRITORY_FRONTIER_TECHNIQUE: 'marching_triangles_gradient',
             TERRITORY_FRONTIER_FX_MODE: 'geometry_strip',
             TERRITORY_FRONTIER_FX_WIDTH_PX: 28,
@@ -1215,8 +1215,8 @@ describe('MetaballGridFamily active frontier fast path', () => {
         } as never);
 
         const completedInput = makePhaseEdgesInput(family, 1.01, {
-            METABALL_GRID_BORDER_MODE: 'territory_edge',
-            METABALL_GRID_BORDER_BLEND: true,
+            CELL_GRID_BORDER_MODE: 'territory_edge',
+            CELL_GRID_BORDER_BLEND: true,
             TERRITORY_FRONTIER_TECHNIQUE: 'marching_triangles_gradient',
             TERRITORY_FRONTIER_FX_MODE: 'plasma_rim',
             TERRITORY_FRONTIER_FX_WIDTH_PX: 24,
@@ -1306,8 +1306,8 @@ describe('MetaballGridFamily active frontier fast path', () => {
 
         family.update(
             makePhaseEdgesInput(family, 0.35, {
-                METABALL_FILL_ENABLED: false,
-                METABALL_BORDER_ENABLED: true,
+                TERRITORY_SURFACE_FILL_ENABLED: false,
+                TERRITORY_SURFACE_BORDER_ENABLED: true,
                 TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: 'shared_edge',
             }),
         );
@@ -1328,8 +1328,8 @@ describe('MetaballGridFamily active frontier fast path', () => {
 
         family.update(
             makePhaseEdgesInput(family, 0.35, {
-                METABALL_FILL_ENABLED: true,
-                METABALL_BORDER_ENABLED: false,
+                TERRITORY_SURFACE_FILL_ENABLED: true,
+                TERRITORY_SURFACE_BORDER_ENABLED: false,
                 TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: 'shared_edge',
             }),
         );
@@ -1365,9 +1365,9 @@ describe('MetaballGridFamily active frontier fast path', () => {
 
         family.update(
             makePhaseEdgesInput(family, 0.35, {
-                METABALL_BORDER_ENABLED: true,
-                METABALL_GRID_BORDER_MODE: 'off',
-                METABALL_GRID_BORDER_BLEND: true,
+                TERRITORY_SURFACE_BORDER_ENABLED: true,
+                CELL_GRID_BORDER_MODE: 'off',
+                CELL_GRID_BORDER_BLEND: true,
                 TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: 'shared_edge',
             }),
         );
@@ -1388,9 +1388,9 @@ describe('MetaballGridFamily active frontier fast path', () => {
 
         family.update(
             makePhaseEdgesInput(family, 0.35, {
-                METABALL_BORDER_ENABLED: true,
-                METABALL_GRID_BORDER_MODE: 'territory_edge',
-                METABALL_GRID_BORDER_BLEND: true,
+                TERRITORY_SURFACE_BORDER_ENABLED: true,
+                CELL_GRID_BORDER_MODE: 'territory_edge',
+                CELL_GRID_BORDER_BLEND: true,
                 TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE: 'shared_edge',
             }),
         );

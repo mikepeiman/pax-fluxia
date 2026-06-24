@@ -169,7 +169,7 @@ function resolveSectionTarget(
                     sectionId: "territory_ember_lattice",
                 };
             }
-            if (record.key.startsWith("METABALL_GRID_PHASE_FIELD_")) {
+            if (record.key.startsWith("CELL_GRID_PHASE_FIELD_")) {
                 return { sectionId: "territory_phase_field" };
             }
             if (record.key.startsWith("GRID_GRADIENT_")) {
@@ -177,7 +177,7 @@ function resolveSectionTarget(
             }
             if (
                 activeTerritoryRenderMode === "metaball_grid_ember_lattice" &&
-                (record.key.startsWith("METABALL_GRID_") ||
+                (record.key.startsWith("CELL_GRID_") ||
                     record.key.startsWith("METABALL_") ||
                     record.key.startsWith("VORONOI_"))
             ) {
@@ -185,7 +185,7 @@ function resolveSectionTarget(
             }
             if (
                 activeTerritoryRenderMode === "metaball_grid_phase_edges" &&
-                (record.key.startsWith("METABALL_GRID_") ||
+                (record.key.startsWith("CELL_GRID_") ||
                     record.key.startsWith("METABALL_") ||
                     record.key.startsWith("VORONOI_"))
             ) {
@@ -193,7 +193,7 @@ function resolveSectionTarget(
             }
             if (
                 activeTerritoryRenderMode === "metaball_grid_phase_field" &&
-                (record.key.startsWith("METABALL_GRID_") ||
+                (record.key.startsWith("CELL_GRID_") ||
                     record.key.startsWith("METABALL_"))
             ) {
                 return { sectionId: "territory_phase_field" };

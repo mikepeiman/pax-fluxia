@@ -45,8 +45,8 @@
     function currentBorderMode(): "off" | "per_cell" | "territory_edge" {
         const raw =
             panel.metaballGridBorderMode ??
-            GAME_CONFIG.METABALL_GRID_BORDER_MODE ??
-            metaballGridPhaseFieldModeDefaults.METABALL_GRID_BORDER_MODE;
+            GAME_CONFIG.CELL_GRID_BORDER_MODE ??
+            metaballGridPhaseFieldModeDefaults.CELL_GRID_BORDER_MODE;
         if (raw === "per_cell") return "per_cell";
         if (raw === "territory_edge") return "territory_edge";
         return "off";
@@ -55,8 +55,8 @@
     function currentBorderBlend(): boolean {
         const raw =
             panel.metaballGridBorderBlend ??
-            GAME_CONFIG.METABALL_GRID_BORDER_BLEND ??
-            metaballGridPhaseFieldModeDefaults.METABALL_GRID_BORDER_BLEND;
+            GAME_CONFIG.CELL_GRID_BORDER_BLEND ??
+            metaballGridPhaseFieldModeDefaults.CELL_GRID_BORDER_BLEND;
         return raw !== false;
     }
 
@@ -69,21 +69,21 @@
     }
 
     function borderState(): { tone: "live" | "blocked"; summary: string; detail: string } {
-        if (!boolVal("metaballBorderEnabled", "METABALL_BORDER_ENABLED", true)) {
+        if (!boolVal("metaballBorderEnabled", "TERRITORY_SURFACE_BORDER_ENABLED", true)) {
             return {
                 tone: "blocked",
                 summary: "Borders blocked",
                 detail: "Territory border is disabled.",
             };
         }
-        if (numVal("metaballBorderWidth", "METABALL_BORDER_WIDTH", 3) <= 0) {
+        if (numVal("metaballBorderWidth", "TERRITORY_SURFACE_BORDER_WIDTH", 3) <= 0) {
             return {
                 tone: "blocked",
                 summary: "Borders blocked",
                 detail: "Territory border width is 0px.",
             };
         }
-        if (numVal("metaballBorderAlpha", "METABALL_BORDER_ALPHA", 1) <= 0) {
+        if (numVal("metaballBorderAlpha", "TERRITORY_SURFACE_BORDER_ALPHA", 1) <= 0) {
             return {
                 tone: "blocked",
                 summary: "Borders blocked",
@@ -138,17 +138,17 @@
             title="Territory fill"
             {panel}
             onUpdate={writeConfig}
-            configEnabled="METABALL_FILL_ENABLED"
+            configEnabled="TERRITORY_SURFACE_FILL_ENABLED"
             panelEnabled="metaballFillEnabled"
             defaultEnabled={true}
             enabledLabel="Show fill"
-            configSat="METABALL_SATURATION"
+            configSat="TERRITORY_SURFACE_SATURATION"
             panelSat="metaballSaturation"
             defaultSat={1.05}
-            configLight="METABALL_LIGHTNESS"
+            configLight="TERRITORY_SURFACE_LIGHTNESS"
             panelLight="metaballLightness"
             defaultLight={0.65}
-            configAlpha="METABALL_ALPHA"
+            configAlpha="TERRITORY_SURFACE_ALPHA"
             panelAlpha="metaballAlpha"
             defaultAlpha={0.5}
         />
@@ -157,23 +157,23 @@
             title="Territory border"
             {panel}
             onUpdate={writeConfig}
-            configEnabled="METABALL_BORDER_ENABLED"
+            configEnabled="TERRITORY_SURFACE_BORDER_ENABLED"
             panelEnabled="metaballBorderEnabled"
             defaultEnabled={true}
             enabledLabel="Show border"
-            configWidth="METABALL_BORDER_WIDTH"
+            configWidth="TERRITORY_SURFACE_BORDER_WIDTH"
             panelWidth="metaballBorderWidth"
             defaultWidth={3}
             widthMin={0.5}
             widthMax={12}
             widthStep={0.5}
-            configSat="METABALL_BORDER_SATURATION"
+            configSat="TERRITORY_SURFACE_BORDER_SATURATION"
             panelSat="metaballBorderSaturation"
             defaultSat={1}
-            configLight="METABALL_BORDER_LIGHTNESS"
+            configLight="TERRITORY_SURFACE_BORDER_LIGHTNESS"
             panelLight="metaballBorderLightness"
             defaultLight={1}
-            configAlpha="METABALL_BORDER_ALPHA"
+            configAlpha="TERRITORY_SURFACE_BORDER_ALPHA"
             panelAlpha="metaballBorderAlpha"
             defaultAlpha={1}
         />

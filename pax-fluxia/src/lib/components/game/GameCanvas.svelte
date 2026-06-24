@@ -5517,8 +5517,8 @@
                         src: String(
                             __cfg.PERIMETER_FIELD_GEOMETRY_SOURCE ?? "",
                         ),
-                        wave: String(__cfg.METABALL_GRID_WAVE_GEOMETRY ?? ""),
-                        flush: __cfg.METABALL_GRID_BOUNDARY_FILL_FLUSH as
+                        wave: String(__cfg.CELL_GRID_WAVE_GEOMETRY ?? ""),
+                        flush: __cfg.CELL_GRID_BOUNDARY_FILL_FLUSH as
                             | boolean
                             | undefined,
                         border: String(

@@ -774,8 +774,25 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         { id: "ui_hotkeys", icon: "keyboard", label: "Hotkeys" },
         { id: "ui_help", icon: "help", label: "Help" },
     ] as const;
-    type InterfacePanelId = (typeof INTERFACE_PANELS)[number]["id"];
-    type ActiveSectionId = SectionId | InterfacePanelId;
+    // Typography is its own top-level category, but renders a bespoke drawer
+    // (not a SETTINGS_SECTION) just like the Interface utility panels.
+    const TYPOGRAPHY_PANELS = [
+        { id: "ui_typography", icon: "font", label: "Typography" },
+    ] as const;
+    const UTILITY_PANELS = [...INTERFACE_PANELS, ...TYPOGRAPHY_PANELS] as const;
+    type UtilityPanelId = (typeof UTILITY_PANELS)[number]["id"];
+    type ActiveSectionId = SectionId | UtilityPanelId;
+
+    // Which top-level category each bespoke utility panel belongs to.
+    const UTILITY_PANEL_CATEGORY: Record<UtilityPanelId, SettingsCategoryId> = {
+        ui_appearance: "interface",
+        ui_themes: "interface",
+        ui_savegame: "interface",
+        ui_stats: "interface",
+        ui_hotkeys: "interface",
+        ui_help: "interface",
+        ui_typography: "typography",
+    };
 
     const ACTION_TOOLS = [
         { id: "restart", icon: "restart", label: "Restart", run: () => onRestartGame?.() },
@@ -784,15 +801,15 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
 
     const ACTIVE_SECTION_KEY = "pax-fluxia-active-section";
 
-    function isInterfacePanelId(value: string | null): value is InterfacePanelId {
-        return INTERFACE_PANELS.some((panel) => panel.id === value);
+    function isUtilityPanelId(value: string | null): value is UtilityPanelId {
+        return UTILITY_PANELS.some((panel) => panel.id === value);
     }
 
     function loadActiveSection(): ActiveSectionId | null {
         if (typeof window === "undefined") return null;
         const value = localStorage.getItem(ACTIVE_SECTION_KEY);
         if (!value) return null;
-        return isInterfacePanelId(value)
+        return isUtilityPanelId(value)
             ? value
             : normalizeSettingsSectionId(value);
     }
@@ -880,6 +897,13 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 icon: panel.icon,
             }));
         }
+        if (catId === "typography") {
+            return TYPOGRAPHY_PANELS.map((panel) => ({
+                id: panel.id,
+                label: panel.label,
+                icon: panel.icon,
+            }));
+        }
         const category = SETTINGS_CATEGORIES.find((c) => c.id === catId);
         return (category?.sections ?? [])
             .map((sid) => visibleSections.find((s) => s.id === sid))
@@ -895,8 +919,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     let activeCategoryId = $derived<SettingsCategoryId | null>(
         activeSectionId === null
             ? null
-            : isInterfacePanelId(activeSectionId)
-              ? "interface"
+            : isUtilityPanelId(activeSectionId)
+              ? UTILITY_PANEL_CATEGORY[activeSectionId]
               : (CATEGORY_BY_SECTION[activeSectionId] ?? null),
     );
     let activeCategory = $derived(
@@ -909,8 +933,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     // The single open panel (a config section definition, or an interface panel).
     let activePanel = $derived.by<NavChip | null>(() => {
         if (activeSectionId === null) return null;
-        if (isInterfacePanelId(activeSectionId)) {
-            const panel = INTERFACE_PANELS.find((p) => p.id === activeSectionId)!;
+        if (isUtilityPanelId(activeSectionId)) {
+            const panel = UTILITY_PANELS.find((p) => p.id === activeSectionId)!;
             return { id: panel.id, label: panel.label, icon: panel.icon };
         }
         const section = sections.find((s) => s.id === activeSectionId);
@@ -933,7 +957,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     $effect(() => {
         if (
             activeSectionId !== null &&
-            !isInterfacePanelId(activeSectionId) &&
+            !isUtilityPanelId(activeSectionId) &&
             !visibleSections.some((s) => s.id === activeSectionId)
         ) {
             const fallback = activeCategoryId
@@ -1290,7 +1314,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         {/each}
                     </div>
                 {/if}
-                {#if !isInterfacePanelId(sec.id) && (sectionSubsections[sec.id]?.length ?? 0) > 0}
+                {#if !isUtilityPanelId(sec.id) && (sectionSubsections[sec.id]?.length ?? 0) > 0}
                     <div class="section-subnav section-subnav--secondary">
                         <PaxHudButton
                             class="subsection-chip"
@@ -1323,12 +1347,11 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                     activeSubsection: activeSubsections[sec.id] ?? "all",
                 }}
                 use:enhanceSettingMetadata={{
-                    scope: isInterfacePanelId(sec.id) ? null : getSectionDefinition(sec.id).scope,
+                    scope: isUtilityPanelId(sec.id) ? null : getSectionDefinition(sec.id).scope,
                 }}
             >
                 {#if sec.id === "ui_appearance"}
                     <HudThemePanel />
-                    <TypographyTokenPanel />
                     <ControlsSectionVisuals
                         {panel}
                         {updatePanel}
@@ -1336,6 +1359,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         {updateVisual}
                         syncFromConfig={syncAllFromConfig}
                     />
+                {:else if sec.id === "ui_typography"}
+                    <TypographyTokenPanel />
                 {:else if sec.id === "ui_themes"}
                     <ThemeLibraryPanel />
                 {:else if sec.id === "ui_savegame"}

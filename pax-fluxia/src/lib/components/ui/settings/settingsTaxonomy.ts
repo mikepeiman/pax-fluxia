@@ -24,6 +24,7 @@ export type SettingsCategoryId =
     | "map_effects"
     | "audio"
     | "interface"
+    | "typography"
     | "developer";
 
 export interface SettingsCategory {
@@ -93,6 +94,15 @@ export const SETTINGS_CATEGORIES: readonly SettingsCategory[] = [
         color: "#5ee6ff",
         // NOTE: themes/appearance/stats/hotkeys render as utility drawers, not
         // SETTINGS_SECTIONS. Migration step 2 unifies them as section-like panels.
+        sections: [],
+    },
+    {
+        id: "typography",
+        icon: "font",
+        label: "Typography",
+        color: "#9be15d",
+        // Renders the bespoke TypographyTokenPanel drawer (font roles + scales),
+        // not a SETTINGS_SECTION — handled like the Interface utility panels.
         sections: [],
     },
     {

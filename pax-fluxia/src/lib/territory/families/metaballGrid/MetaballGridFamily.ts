@@ -92,7 +92,7 @@ import {
 } from './metaballGridActiveFrontier';
 import { metaballGridPhaseEdgesModeDefaults } from './config';
 
-// ─── Tunable option unions (mirror METABALL_GRID_* keys) ──────────────────────
+// ─── Tunable option unions (mirror CELL_GRID_* keys) ──────────────────────
 
 type GridCellShape = 'square' | 'circle' | 'diamond' | 'hex';
 type GridBorderMode = 'off' | 'per_cell' | 'territory_edge';
@@ -212,38 +212,38 @@ function hash01(id: string): number {
     return ((h >>> 0) % 100000) / 100000;
 }
 
-const METABALL_GRID_TUNABLE_KEYS = [
-    'METABALL_GRID_ENABLED',
-    'METABALL_GRID_SPACING_PX',
-    'METABALL_GRID_ORIGIN_MODE',
-    'METABALL_GRID_ADJACENCY',
-    'METABALL_GRID_WAVE_GEOMETRY',
-    'METABALL_GRID_WAVE_SEEDING',
-    'METABALL_GRID_FLIP_TRANSITION',
-    'METABALL_GRID_FLIP_WINDOW',
-    'METABALL_GRID_INWARD_OFFSET_PX',
-    'METABALL_GRID_BOUNDARY_FILL_FLUSH',
-    'METABALL_GRID_CELL_SHAPE',
-    'METABALL_GRID_CELL_INSET_PX',
-    'METABALL_GRID_CELL_CORNER_PX',
-    'METABALL_GRID_BORDER_MODE',
-    'METABALL_GRID_BORDER_BLEND',
-    'METABALL_GRID_EDGE_SMOOTHING_PASSES',
-    'METABALL_GRID_EDGE_TRIM_PX',
-    'METABALL_GRID_BORDER_CHAIKIN_PASSES',
-    'METABALL_GRID_WAVE_EASE',
-    'METABALL_GRID_FLIP_WINDOW_JITTER',
-    'METABALL_GRID_DISTRIBUTION',
-    'METABALL_GRID_POSITION_JITTER',
-    'METABALL_GRID_MAX_CELLS',
+const CELL_GRID_TUNABLE_KEYS = [
+    'CELL_GRID_ENABLED',
+    'CELL_GRID_SPACING_PX',
+    'CELL_GRID_ORIGIN_MODE',
+    'CELL_GRID_ADJACENCY',
+    'CELL_GRID_WAVE_GEOMETRY',
+    'CELL_GRID_WAVE_SEEDING',
+    'CELL_GRID_FLIP_TRANSITION',
+    'CELL_GRID_FLIP_WINDOW',
+    'CELL_GRID_INWARD_OFFSET_PX',
+    'CELL_GRID_BOUNDARY_FILL_FLUSH',
+    'CELL_GRID_CELL_SHAPE',
+    'CELL_GRID_CELL_INSET_PX',
+    'CELL_GRID_CELL_CORNER_PX',
+    'CELL_GRID_BORDER_MODE',
+    'CELL_GRID_BORDER_BLEND',
+    'CELL_GRID_EDGE_SMOOTHING_PASSES',
+    'CELL_GRID_EDGE_TRIM_PX',
+    'CELL_GRID_BORDER_CHAIKIN_PASSES',
+    'CELL_GRID_WAVE_EASE',
+    'CELL_GRID_FLIP_WINDOW_JITTER',
+    'CELL_GRID_DISTRIBUTION',
+    'CELL_GRID_POSITION_JITTER',
+    'CELL_GRID_MAX_CELLS',
     // Shared HSLA knobs (reused from metaball family) — fill + border colour energy.
-    'METABALL_SATURATION',
-    'METABALL_LIGHTNESS',
-    'METABALL_ALPHA',
-    'METABALL_BORDER_WIDTH',
-    'METABALL_BORDER_ALPHA',
-    'METABALL_BORDER_SATURATION',
-    'METABALL_BORDER_LIGHTNESS',
+    'TERRITORY_SURFACE_SATURATION',
+    'TERRITORY_SURFACE_LIGHTNESS',
+    'TERRITORY_SURFACE_ALPHA',
+    'TERRITORY_SURFACE_BORDER_WIDTH',
+    'TERRITORY_SURFACE_BORDER_ALPHA',
+    'TERRITORY_SURFACE_BORDER_SATURATION',
+    'TERRITORY_SURFACE_BORDER_LIGHTNESS',
     'PERIMETER_FIELD_GEOMETRY_SOURCE', // reused for underlayer selection
     ...TERRITORY_FRONTIER_FX_TUNABLE_KEYS,
 ] as const;
@@ -260,7 +260,7 @@ interface MetaballGridFamilyVariant {
     readonly defaultBorderChaikinPasses: number;
 }
 
-const DEFAULT_METABALL_GRID_VARIANT: MetaballGridFamilyVariant = {
+const DEFAULT_CELL_GRID_VARIANT: MetaballGridFamilyVariant = {
     id: 'metaball_grid',
     label: 'Metaball Grid',
     defaultWaveGeometry: 'grid_bfs',
@@ -272,23 +272,23 @@ const DEFAULT_METABALL_GRID_VARIANT: MetaballGridFamilyVariant = {
     defaultBorderChaikinPasses: 0,
 };
 
-const PHASE_EDGE_METABALL_GRID_VARIANT: MetaballGridFamilyVariant = {
+const PHASE_EDGE_CELL_GRID_VARIANT: MetaballGridFamilyVariant = {
     id: 'metaball_grid_phase_edges',
     label: 'Phase Edges',
     defaultWaveGeometry:
-        metaballGridPhaseEdgesModeDefaults.METABALL_GRID_WAVE_GEOMETRY,
+        metaballGridPhaseEdgesModeDefaults.CELL_GRID_WAVE_GEOMETRY,
     defaultBorderMode:
-        metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_MODE,
+        metaballGridPhaseEdgesModeDefaults.CELL_GRID_BORDER_MODE,
     defaultBorderBlend:
-        metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_BLEND,
+        metaballGridPhaseEdgesModeDefaults.CELL_GRID_BORDER_BLEND,
     defaultBoundaryFillFlush:
-        metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BOUNDARY_FILL_FLUSH,
+        metaballGridPhaseEdgesModeDefaults.CELL_GRID_BOUNDARY_FILL_FLUSH,
     defaultEdgeSmoothingPasses:
-        metaballGridPhaseEdgesModeDefaults.METABALL_GRID_EDGE_SMOOTHING_PASSES,
+        metaballGridPhaseEdgesModeDefaults.CELL_GRID_EDGE_SMOOTHING_PASSES,
     defaultEdgeTrimPx:
-        metaballGridPhaseEdgesModeDefaults.METABALL_GRID_EDGE_TRIM_PX,
+        metaballGridPhaseEdgesModeDefaults.CELL_GRID_EDGE_TRIM_PX,
     defaultBorderChaikinPasses:
-        metaballGridPhaseEdgesModeDefaults.METABALL_GRID_BORDER_CHAIKIN_PASSES,
+        metaballGridPhaseEdgesModeDefaults.CELL_GRID_BORDER_CHAIKIN_PASSES,
 };
 
 function readTunableNumber(input: RenderFamilyInput, key: string, fallback: number): number {
@@ -344,7 +344,7 @@ function shouldCaptureMetaballGridDebug(): boolean {
     return Boolean(
         (window as unknown as Record<string, unknown>).__PAX_BENCH__
             || (window as unknown as Record<string, unknown>)
-                .__PAX_CAPTURE_METABALL_GRID_DEBUG__,
+                .__PAX_CAPTURE_CELL_GRID_DEBUG__,
     );
 }
 
@@ -574,7 +574,7 @@ function strokeSquareBounds(
 export class MetaballGridFamily implements RenderFamily {
     readonly id: string;
     readonly label: string;
-    readonly tunableKeys: readonly string[] = METABALL_GRID_TUNABLE_KEYS;
+    readonly tunableKeys: readonly string[] = CELL_GRID_TUNABLE_KEYS;
 
     private readonly root = new PIXI.Container();
     private readonly graphics = new PIXI.Graphics();
@@ -642,7 +642,7 @@ export class MetaballGridFamily implements RenderFamily {
 
     constructor(
         colorUtils: ColorUtils,
-        variant: MetaballGridFamilyVariant = DEFAULT_METABALL_GRID_VARIANT,
+        variant: MetaballGridFamilyVariant = DEFAULT_CELL_GRID_VARIANT,
     ) {
         this.colorUtils = colorUtils;
         this.variant = variant;
@@ -1708,8 +1708,8 @@ export class MetaballGridFamily implements RenderFamily {
 
         const enabled = readTunableBoolean(
             input,
-            'METABALL_GRID_ENABLED',
-            GAME_CONFIG.METABALL_GRID_ENABLED ??
+            'CELL_GRID_ENABLED',
+            GAME_CONFIG.CELL_GRID_ENABLED ??
                 (GAME_CONFIG.TERRITORY_RENDER_MODE === this.id),
         );
         if (!enabled) {
@@ -1728,31 +1728,31 @@ export class MetaballGridFamily implements RenderFamily {
             2,
             readTunableNumber(
                 input,
-                'METABALL_GRID_SPACING_PX',
-                GAME_CONFIG.METABALL_GRID_SPACING_PX ?? 24,
+                'CELL_GRID_SPACING_PX',
+                GAME_CONFIG.CELL_GRID_SPACING_PX ?? 24,
             ),
         );
         const originModeHoisted = readTunableString<GridOriginMode>(
             input,
-            'METABALL_GRID_ORIGIN_MODE',
-            (GAME_CONFIG.METABALL_GRID_ORIGIN_MODE as GridOriginMode | undefined) ?? 'centered',
+            'CELL_GRID_ORIGIN_MODE',
+            (GAME_CONFIG.CELL_GRID_ORIGIN_MODE as GridOriginMode | undefined) ?? 'centered',
             ['centered', 'corner'],
         );
         const distributionHoisted = readTunableString<GridDistribution>(
             input,
-            'METABALL_GRID_DISTRIBUTION',
-            (GAME_CONFIG.METABALL_GRID_DISTRIBUTION as GridDistribution | undefined) ?? 'square',
+            'CELL_GRID_DISTRIBUTION',
+            (GAME_CONFIG.CELL_GRID_DISTRIBUTION as GridDistribution | undefined) ?? 'square',
             ['square', 'hex_offset', 'jittered'],
         );
         const positionJitterHoisted = readTunableNumber(
             input,
-            'METABALL_GRID_POSITION_JITTER',
-            GAME_CONFIG.METABALL_GRID_POSITION_JITTER ?? 0,
+            'CELL_GRID_POSITION_JITTER',
+            GAME_CONFIG.CELL_GRID_POSITION_JITTER ?? 0,
         );
         const maxCellsHoisted = readTunableNumber(
             input,
-            'METABALL_GRID_MAX_CELLS',
-            GAME_CONFIG.METABALL_GRID_MAX_CELLS ?? 0,
+            'CELL_GRID_MAX_CELLS',
+            GAME_CONFIG.CELL_GRID_MAX_CELLS ?? 0,
         );
         const planParamsKey =
             `${requestedSpacingPx}|${originModeHoisted}|${distributionHoisted}|${positionJitterHoisted}|${maxCellsHoisted}`;
@@ -1771,48 +1771,48 @@ export class MetaballGridFamily implements RenderFamily {
                 2,
                 readTunableNumber(
                     input,
-                    'METABALL_GRID_SPACING_PX',
-                    GAME_CONFIG.METABALL_GRID_SPACING_PX ?? 48,
+                    'CELL_GRID_SPACING_PX',
+                    GAME_CONFIG.CELL_GRID_SPACING_PX ?? 48,
                 ),
             ),
             originMode: readTunableString<GridOriginMode>(
                 input,
-                'METABALL_GRID_ORIGIN_MODE',
-                (GAME_CONFIG.METABALL_GRID_ORIGIN_MODE as GridOriginMode | undefined) ??
+                'CELL_GRID_ORIGIN_MODE',
+                (GAME_CONFIG.CELL_GRID_ORIGIN_MODE as GridOriginMode | undefined) ??
                     'centered',
                 ['centered', 'corner'],
             ),
             distribution: readTunableString<GridDistribution>(
                 input,
-                'METABALL_GRID_DISTRIBUTION',
-                (GAME_CONFIG.METABALL_GRID_DISTRIBUTION as GridDistribution | undefined) ??
+                'CELL_GRID_DISTRIBUTION',
+                (GAME_CONFIG.CELL_GRID_DISTRIBUTION as GridDistribution | undefined) ??
                     'square',
                 ['square', 'hex_offset', 'jittered'],
             ),
             positionJitter: readTunableNumber(
                 input,
-                'METABALL_GRID_POSITION_JITTER',
-                GAME_CONFIG.METABALL_GRID_POSITION_JITTER ?? 0,
+                'CELL_GRID_POSITION_JITTER',
+                GAME_CONFIG.CELL_GRID_POSITION_JITTER ?? 0,
             ),
             maxCells: Math.max(
                 0,
                 readTunableNumber(
                     input,
-                    'METABALL_GRID_MAX_CELLS',
-                    GAME_CONFIG.METABALL_GRID_MAX_CELLS ?? 0,
+                    'CELL_GRID_MAX_CELLS',
+                    GAME_CONFIG.CELL_GRID_MAX_CELLS ?? 0,
                 ),
             ),
             adjacency: readTunableString<GridAdjacency>(
                 input,
-                'METABALL_GRID_ADJACENCY',
-                (GAME_CONFIG.METABALL_GRID_ADJACENCY as GridAdjacency | undefined) ??
+                'CELL_GRID_ADJACENCY',
+                (GAME_CONFIG.CELL_GRID_ADJACENCY as GridAdjacency | undefined) ??
                     '8',
                 ['4', '8'],
             ),
             waveGeometry: readTunableString<GridWaveGeometry>(
                 input,
-                'METABALL_GRID_WAVE_GEOMETRY',
-                (GAME_CONFIG.METABALL_GRID_WAVE_GEOMETRY as GridWaveGeometry | undefined) ??
+                'CELL_GRID_WAVE_GEOMETRY',
+                (GAME_CONFIG.CELL_GRID_WAVE_GEOMETRY as GridWaveGeometry | undefined) ??
                     this.variant.defaultWaveGeometry,
                 [
                     'grid_bfs',
@@ -1823,8 +1823,8 @@ export class MetaballGridFamily implements RenderFamily {
             ),
             waveSeeding: readTunableString<GridWaveSeeding>(
                 input,
-                'METABALL_GRID_WAVE_SEEDING',
-                (GAME_CONFIG.METABALL_GRID_WAVE_SEEDING as GridWaveSeeding | undefined) ??
+                'CELL_GRID_WAVE_SEEDING',
+                (GAME_CONFIG.CELL_GRID_WAVE_SEEDING as GridWaveSeeding | undefined) ??
                     'winner_natives',
                 [
                     'winner_natives',
@@ -2000,13 +2000,13 @@ export class MetaballGridFamily implements RenderFamily {
         // ── Transition / flip knobs ──────────────────────────────────────────
         const flipTransition = readTunableString<GridFlipTransition>(
             input,
-            'METABALL_GRID_FLIP_TRANSITION',
-            (GAME_CONFIG.METABALL_GRID_FLIP_TRANSITION as GridFlipTransition | undefined) ?? 'dual_pass_blend',
+            'CELL_GRID_FLIP_TRANSITION',
+            (GAME_CONFIG.CELL_GRID_FLIP_TRANSITION as GridFlipTransition | undefined) ?? 'dual_pass_blend',
             ['hard', 'lerp_per_cell', 'dual_pass_blend'],
         );
         const flipWindow = Math.max(
             0,
-            readTunableNumber(input, 'METABALL_GRID_FLIP_WINDOW', GAME_CONFIG.METABALL_GRID_FLIP_WINDOW ?? 0.14),
+            readTunableNumber(input, 'CELL_GRID_FLIP_WINDOW', GAME_CONFIG.CELL_GRID_FLIP_WINDOW ?? 0.14),
         );
         const frontierDiagnostics = summarizeMetaballGridFrontier({
             orderedFlipTimes: cached.wavePlan.orderedFlipTimes,
@@ -2015,18 +2015,18 @@ export class MetaballGridFamily implements RenderFamily {
         const strength = 1.0;
         const inwardOffsetPx = readTunableNumber(
             input,
-            'METABALL_GRID_INWARD_OFFSET_PX',
-            GAME_CONFIG.METABALL_GRID_INWARD_OFFSET_PX ?? 0,
+            'CELL_GRID_INWARD_OFFSET_PX',
+            GAME_CONFIG.CELL_GRID_INWARD_OFFSET_PX ?? 0,
         );
         const boundaryFillFlush = readTunableBoolean(
             input,
-            'METABALL_GRID_BOUNDARY_FILL_FLUSH',
+            'CELL_GRID_BOUNDARY_FILL_FLUSH',
             this.variant.defaultBoundaryFillFlush,
         );
         const waveEase = readTunableString<GridWaveEase>(
             input,
-            'METABALL_GRID_WAVE_EASE',
-            (GAME_CONFIG.METABALL_GRID_WAVE_EASE as GridWaveEase | undefined) ?? 'ease_in_out',
+            'CELL_GRID_WAVE_EASE',
+            (GAME_CONFIG.CELL_GRID_WAVE_EASE as GridWaveEase | undefined) ?? 'ease_in_out',
             ['linear', 'ease_in', 'ease_out', 'ease_in_out', 'back_out', 'elastic_out'],
         );
         const flipTimeJitter = Math.max(
@@ -2035,8 +2035,8 @@ export class MetaballGridFamily implements RenderFamily {
                 0.5,
                 readTunableNumber(
                     input,
-                    'METABALL_GRID_FLIP_WINDOW_JITTER',
-                    GAME_CONFIG.METABALL_GRID_FLIP_WINDOW_JITTER ?? 0,
+                    'CELL_GRID_FLIP_WINDOW_JITTER',
+                    GAME_CONFIG.CELL_GRID_FLIP_WINDOW_JITTER ?? 0,
                 ),
             ),
         );
@@ -2044,29 +2044,29 @@ export class MetaballGridFamily implements RenderFamily {
         // ── Shape / border knobs ─────────────────────────────────────────────
         const cellShape = readTunableString<GridCellShape>(
             input,
-            'METABALL_GRID_CELL_SHAPE',
-            (GAME_CONFIG.METABALL_GRID_CELL_SHAPE as GridCellShape | undefined) ?? 'square',
+            'CELL_GRID_CELL_SHAPE',
+            (GAME_CONFIG.CELL_GRID_CELL_SHAPE as GridCellShape | undefined) ?? 'square',
             ['square', 'circle', 'diamond', 'hex'],
         );
         const cellInsetPx = Math.max(
             0,
-            readTunableNumber(input, 'METABALL_GRID_CELL_INSET_PX', GAME_CONFIG.METABALL_GRID_CELL_INSET_PX ?? 0),
+            readTunableNumber(input, 'CELL_GRID_CELL_INSET_PX', GAME_CONFIG.CELL_GRID_CELL_INSET_PX ?? 0),
         );
         const cellCornerPx = Math.max(
             0,
-            readTunableNumber(input, 'METABALL_GRID_CELL_CORNER_PX', GAME_CONFIG.METABALL_GRID_CELL_CORNER_PX ?? 0),
+            readTunableNumber(input, 'CELL_GRID_CELL_CORNER_PX', GAME_CONFIG.CELL_GRID_CELL_CORNER_PX ?? 0),
         );
         const borderMode = readTunableString<GridBorderMode>(
             input,
-            'METABALL_GRID_BORDER_MODE',
-            (GAME_CONFIG.METABALL_GRID_BORDER_MODE as GridBorderMode | undefined) ??
+            'CELL_GRID_BORDER_MODE',
+            (GAME_CONFIG.CELL_GRID_BORDER_MODE as GridBorderMode | undefined) ??
                 this.variant.defaultBorderMode,
             ['off', 'per_cell', 'territory_edge'],
         );
         const borderBlend = readTunableBoolean(
             input,
-            'METABALL_GRID_BORDER_BLEND',
-            GAME_CONFIG.METABALL_GRID_BORDER_BLEND ??
+            'CELL_GRID_BORDER_BLEND',
+            GAME_CONFIG.CELL_GRID_BORDER_BLEND ??
                 this.variant.defaultBorderBlend,
         );
         const sharedEdgeSmoothingPasses = Math.max(
@@ -2076,8 +2076,8 @@ export class MetaballGridFamily implements RenderFamily {
                 Math.round(
                     readTunableNumber(
                         input,
-                        'METABALL_GRID_EDGE_SMOOTHING_PASSES',
-                        GAME_CONFIG.METABALL_GRID_EDGE_SMOOTHING_PASSES ??
+                        'CELL_GRID_EDGE_SMOOTHING_PASSES',
+                        GAME_CONFIG.CELL_GRID_EDGE_SMOOTHING_PASSES ??
                             this.variant.defaultEdgeSmoothingPasses,
                     ),
                 ),
@@ -2087,8 +2087,8 @@ export class MetaballGridFamily implements RenderFamily {
             0,
             readTunableNumber(
                 input,
-                'METABALL_GRID_EDGE_TRIM_PX',
-                GAME_CONFIG.METABALL_GRID_EDGE_TRIM_PX ??
+                'CELL_GRID_EDGE_TRIM_PX',
+                GAME_CONFIG.CELL_GRID_EDGE_TRIM_PX ??
                     this.variant.defaultEdgeTrimPx,
             ),
         );
@@ -2099,8 +2099,8 @@ export class MetaballGridFamily implements RenderFamily {
                 Math.round(
                     readTunableNumber(
                         input,
-                        'METABALL_GRID_BORDER_CHAIKIN_PASSES',
-                        GAME_CONFIG.METABALL_GRID_BORDER_CHAIKIN_PASSES ??
+                        'CELL_GRID_BORDER_CHAIKIN_PASSES',
+                        GAME_CONFIG.CELL_GRID_BORDER_CHAIKIN_PASSES ??
                             this.variant.defaultBorderChaikinPasses,
                     ),
                 ),
@@ -2128,29 +2128,29 @@ export class MetaballGridFamily implements RenderFamily {
         );
 
         // ── Shared HSLA knobs (fill + border) ───────────────────────────────
-        const fillSat = readTunableNumber(input, 'METABALL_SATURATION', GAME_CONFIG.METABALL_SATURATION ?? 1.05);
-        const fillLight = readTunableNumber(input, 'METABALL_LIGHTNESS', GAME_CONFIG.METABALL_LIGHTNESS ?? 0.65);
+        const fillSat = readTunableNumber(input, 'TERRITORY_SURFACE_SATURATION', GAME_CONFIG.TERRITORY_SURFACE_SATURATION ?? 1.05);
+        const fillLight = readTunableNumber(input, 'TERRITORY_SURFACE_LIGHTNESS', GAME_CONFIG.TERRITORY_SURFACE_LIGHTNESS ?? 0.65);
         const fillAlphaMult = Math.max(
             0,
-            Math.min(1, readTunableNumber(input, 'METABALL_ALPHA', GAME_CONFIG.METABALL_ALPHA ?? 0.5)),
+            Math.min(1, readTunableNumber(input, 'TERRITORY_SURFACE_ALPHA', GAME_CONFIG.TERRITORY_SURFACE_ALPHA ?? 0.5)),
         );
         const borderWidth = Math.max(
             0,
-            readTunableNumber(input, 'METABALL_BORDER_WIDTH', GAME_CONFIG.METABALL_BORDER_WIDTH ?? 1.5),
+            readTunableNumber(input, 'TERRITORY_SURFACE_BORDER_WIDTH', GAME_CONFIG.TERRITORY_SURFACE_BORDER_WIDTH ?? 1.5),
         );
         const borderAlpha = Math.max(
             0,
-            Math.min(1, readTunableNumber(input, 'METABALL_BORDER_ALPHA', GAME_CONFIG.METABALL_BORDER_ALPHA ?? 0.6)),
+            Math.min(1, readTunableNumber(input, 'TERRITORY_SURFACE_BORDER_ALPHA', GAME_CONFIG.TERRITORY_SURFACE_BORDER_ALPHA ?? 0.6)),
         );
         const borderSat = readTunableNumber(
             input,
-            'METABALL_BORDER_SATURATION',
-            GAME_CONFIG.METABALL_BORDER_SATURATION ?? 1.0,
+            'TERRITORY_SURFACE_BORDER_SATURATION',
+            GAME_CONFIG.TERRITORY_SURFACE_BORDER_SATURATION ?? 1.0,
         );
         const borderLight = readTunableNumber(
             input,
-            'METABALL_BORDER_LIGHTNESS',
-            GAME_CONFIG.METABALL_BORDER_LIGHTNESS ?? 1.0,
+            'TERRITORY_SURFACE_BORDER_LIGHTNESS',
+            GAME_CONFIG.TERRITORY_SURFACE_BORDER_LIGHTNESS ?? 1.0,
         );
 
         // ── Palette: owner → (colorIdx, adjusted fill hex, adjusted border hex) ─
@@ -3365,11 +3365,11 @@ export class MetaballGridFamily implements RenderFamily {
 }
 
 export function createMetaballGridFamily(colorUtils: ColorUtils): MetaballGridFamily {
-    return new MetaballGridFamily(colorUtils, DEFAULT_METABALL_GRID_VARIANT);
+    return new MetaballGridFamily(colorUtils, DEFAULT_CELL_GRID_VARIANT);
 }
 
 export function createMetaballGridPhaseEdgesVariantFamily(
     colorUtils: ColorUtils,
 ): MetaballGridFamily {
-    return new MetaballGridFamily(colorUtils, PHASE_EDGE_METABALL_GRID_VARIANT);
+    return new MetaballGridFamily(colorUtils, PHASE_EDGE_CELL_GRID_VARIANT);
 }

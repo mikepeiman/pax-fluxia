@@ -3,10 +3,10 @@
  *
  * Root cause (probe: geomRegions>0 but planPresent=false): the dedicated
  * MetaballGridPhaseEdgesFamily early-returned blank (cachedPlan never built) when the
- * legacy `METABALL_GRID_ENABLED` master gate was off, because the gate default only
+ * legacy `CELL_GRID_ENABLED` master gate was off, because the gate default only
  * enabled the old shared 'metaball_grid' mode — never the dedicated phase modes
  * (regression from f4bc81a93). Prior family tests masked this by forcing
- * METABALL_GRID_ENABLED:true in their config.
+ * CELL_GRID_ENABLED:true in their config.
  *
  * Fix: the family renders when ITS OWN mode is the active render mode, regardless of
  * the legacy toggle.
@@ -52,10 +52,10 @@ function makeInput(family: { tunableKeys: ReadonlyArray<string> }) {
         stars: STARS, lanes: LANES, worldWidth: 640, worldHeight: 360, nowMs: 1000,
         geometrySource: 'power_voronoi_0319', configSource: { TERRITORY_STYLE_MODE: 'vector' },
     } as never);
-    // Deliberately does NOT force METABALL_GRID_ENABLED:true — reproduces the live config.
+    // Deliberately does NOT force CELL_GRID_ENABLED:true — reproduces the live config.
     const configSource: Record<string, unknown> = {
         ...(GAME_CONFIG as unknown as Record<string, unknown>),
-        METABALL_GRID_SPACING_PX: 24,
+        CELL_GRID_SPACING_PX: 24,
         ...territoryFrontierConfigDefaults,
         ...metaballGridPhaseEdgesGeometryDefaults,
         ...metaballGridPhaseEdgesModeDefaults,
@@ -68,11 +68,11 @@ function makeInput(family: { tunableKeys: ReadonlyArray<string> }) {
 }
 
 describe('MetaballGridPhaseEdgesFamily legacy enabled gate', () => {
-    it('renders when its own mode is active even though METABALL_GRID_ENABLED is OFF', () => {
-        const savedEnabled = GAME_CONFIG.METABALL_GRID_ENABLED;
+    it('renders when its own mode is active even though CELL_GRID_ENABLED is OFF', () => {
+        const savedEnabled = GAME_CONFIG.CELL_GRID_ENABLED;
         const savedMode = GAME_CONFIG.TERRITORY_RENDER_MODE;
         try {
-            (GAME_CONFIG as unknown as Record<string, unknown>).METABALL_GRID_ENABLED = false; // live broken state
+            (GAME_CONFIG as unknown as Record<string, unknown>).CELL_GRID_ENABLED = false; // live broken state
             for (const create of [createMetaballGridPhaseEdgesFamily, createMetaballGridEmberLatticeFamily]) {
                 const family = create({
                     getPlayerColor: (o: string) => (o === 'p1' ? 0x3366ff : 0xff6633),
@@ -85,16 +85,16 @@ describe('MetaballGridPhaseEdgesFamily legacy enabled gate', () => {
                 family.dispose();
             }
         } finally {
-            (GAME_CONFIG as unknown as Record<string, unknown>).METABALL_GRID_ENABLED = savedEnabled;
+            (GAME_CONFIG as unknown as Record<string, unknown>).CELL_GRID_ENABLED = savedEnabled;
             (GAME_CONFIG as unknown as Record<string, unknown>).TERRITORY_RENDER_MODE = savedMode;
         }
     });
 
-    it('still no-ops when METABALL_GRID_ENABLED is OFF and its mode is NOT active', () => {
-        const savedEnabled = GAME_CONFIG.METABALL_GRID_ENABLED;
+    it('still no-ops when CELL_GRID_ENABLED is OFF and its mode is NOT active', () => {
+        const savedEnabled = GAME_CONFIG.CELL_GRID_ENABLED;
         const savedMode = GAME_CONFIG.TERRITORY_RENDER_MODE;
         try {
-            (GAME_CONFIG as unknown as Record<string, unknown>).METABALL_GRID_ENABLED = false;
+            (GAME_CONFIG as unknown as Record<string, unknown>).CELL_GRID_ENABLED = false;
             (GAME_CONFIG as unknown as Record<string, unknown>).TERRITORY_RENDER_MODE = 'voronoi'; // different mode
             const family = createMetaballGridPhaseEdgesFamily({
                 getPlayerColor: () => 0x3366ff,
@@ -104,7 +104,7 @@ describe('MetaballGridPhaseEdgesFamily legacy enabled gate', () => {
             expect(f.root.visible).toBe(false); // gate preserved when this family is inactive
             family.dispose();
         } finally {
-            (GAME_CONFIG as unknown as Record<string, unknown>).METABALL_GRID_ENABLED = savedEnabled;
+            (GAME_CONFIG as unknown as Record<string, unknown>).CELL_GRID_ENABLED = savedEnabled;
             (GAME_CONFIG as unknown as Record<string, unknown>).TERRITORY_RENDER_MODE = savedMode;
         }
     });
