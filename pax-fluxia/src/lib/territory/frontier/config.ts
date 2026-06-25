@@ -3,6 +3,7 @@ import type {
     TerritoryFrontierBorderGeometryMode,
     TerritoryFrontierFxMode,
     TerritoryFrontierJunctionRenderMode,
+    TerritoryFrontierRecipePresetId,
     TerritoryFrontierTechniqueId,
     TerritoryFrontierTriangleDiagonalPolicy,
 } from './types';
@@ -66,6 +67,14 @@ export interface TerritoryFrontierBenchmarkPreset {
     readonly id: TerritoryFrontierBenchmarkPresetId;
     readonly label: string;
     readonly description: string;
+    readonly values: Readonly<Record<string, string | number | boolean>>;
+}
+
+export interface TerritoryFrontierRecipePreset {
+    readonly id: TerritoryFrontierRecipePresetId;
+    readonly label: string;
+    readonly description: string;
+    readonly benchmarkPresetId: TerritoryFrontierBenchmarkPresetId;
     readonly values: Readonly<Record<string, string | number | boolean>>;
 }
 
@@ -201,6 +210,49 @@ export function getTerritoryFrontierBenchmarkPreset(
     );
     if (!preset) {
         throw new Error(`Unknown frontier benchmark preset: ${presetId}`);
+    }
+    return preset;
+}
+
+export const TERRITORY_FRONTIER_RECIPE_PRESETS: readonly TerritoryFrontierRecipePreset[] = [
+    {
+        id: 'current',
+        label: 'Current',
+        description: 'Shared-edge grid baseline. Fastest and most conservative.',
+        benchmarkPresetId: 'current_control',
+        values: getTerritoryFrontierBenchmarkPreset('current_control').values,
+    },
+    {
+        id: 'smooth_contour',
+        label: 'Smooth contour',
+        description: 'Scalar marching-squares contour. Good first choice for smoother territory edges.',
+        benchmarkPresetId: 'marching_squares_scalar',
+        values: getTerritoryFrontierBenchmarkPreset('marching_squares_scalar').values,
+    },
+    {
+        id: 'softened_contour',
+        label: 'Softened contour',
+        description: 'Scalar contour with one smoothing pass. Softer, with a small CPU tradeoff.',
+        benchmarkPresetId: 'marching_squares_scalar_chaikin_1',
+        values: getTerritoryFrontierBenchmarkPreset('marching_squares_scalar_chaikin_1').values,
+    },
+    {
+        id: 'adaptive_triangles',
+        label: 'Adaptive triangles',
+        description: 'Gradient-guided triangle contouring for an adaptive diagonal choice.',
+        benchmarkPresetId: 'marching_triangles_gradient',
+        values: getTerritoryFrontierBenchmarkPreset('marching_triangles_gradient').values,
+    },
+] as const;
+
+export function getTerritoryFrontierRecipePreset(
+    presetId: TerritoryFrontierRecipePresetId,
+): TerritoryFrontierRecipePreset {
+    const preset = TERRITORY_FRONTIER_RECIPE_PRESETS.find(
+        (entry) => entry.id === presetId,
+    );
+    if (!preset) {
+        throw new Error(`Unknown frontier recipe preset: ${presetId}`);
     }
     return preset;
 }

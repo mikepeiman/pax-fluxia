@@ -8,6 +8,10 @@
     import { territoryTuningStatus } from "$lib/stores/territoryTuningStatusStore";
     import { cellGridStats } from "$lib/territory/families/cellGrid/cellGridStats";
     import { gridGradientStats } from "$lib/territory/families/gridGradient/gridGradientStats";
+    import {
+        TERRITORY_FRONTIER_BENCHMARK_PRESETS,
+        type TerritoryFrontierBenchmarkPreset,
+    } from "$lib/territory/frontier";
     import PerimeterFieldDiagnosticsPanel from "$lib/components/ui/PerimeterFieldDiagnosticsPanel.svelte";
     import { overlayConfig } from "$lib/territory/devtools/overlayConfig";
     import {
@@ -126,6 +130,50 @@
         GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY = value;
         updatePanel("perimeterFieldDebugShowGeometry", value);
         bumpTerritoryVisualConfig();
+    }
+
+    function panelKeyFromConfig(configKey: string): string {
+        return configKey
+            .toLowerCase()
+            .replace(/_([a-z0-9])/g, (_, value: string) => value.toUpperCase());
+    }
+
+    function writeConfig(configKey: string, value: unknown): void {
+        (GAME_CONFIG as unknown as Record<string, unknown>)[configKey] = value;
+        updatePanel(panelKeyFromConfig(configKey), value);
+        bumpTerritoryVisualConfig();
+    }
+
+    function currentCellGridDistribution(): string {
+        return String(
+            panel.cellGridDistribution ??
+                GAME_CONFIG.CELL_GRID_DISTRIBUTION ??
+                "square",
+        );
+    }
+
+    function canApplyFrontierBenchmarkPreset(): boolean {
+        return currentCellGridDistribution() === "square";
+    }
+
+    function applyFrontierBenchmarkPreset(
+        preset: TerritoryFrontierBenchmarkPreset,
+    ): void {
+        if (!canApplyFrontierBenchmarkPreset()) return;
+        for (const [configKey, value] of Object.entries(preset.values)) {
+            writeConfig(configKey, value);
+        }
+    }
+
+    function isFrontierBenchmarkPresetSelected(
+        preset: TerritoryFrontierBenchmarkPreset,
+    ): boolean {
+        return Object.entries(preset.values).every(([configKey, value]) => {
+            const panelValue = panel[panelKeyFromConfig(configKey)];
+            const configValue =
+                (GAME_CONFIG as unknown as Record<string, unknown>)[configKey];
+            return (panelValue ?? configValue) === value;
+        });
     }
 
     function toggleAuthoredMeasurements(): void {
@@ -816,6 +864,34 @@
                 {/if}
             </div>
         </div>
+        <div class="frontier-matrix">
+            <div class="frontier-matrix__head">
+                <span>Frontier Matrix</span>
+                <PaxInfoHint
+                    placement="left"
+                    text="Developer comparison rows for the full frontier technique matrix. These are intentionally broader than the public Frontier Recipe selector."
+                />
+            </div>
+            <div class="row-hint">
+                Applies the original benchmark rows for visual and performance comparison.
+                {#if !canApplyFrontierBenchmarkPreset()}
+                    Square distribution required.
+                {/if}
+            </div>
+            <div class="frontier-matrix__grid">
+                {#each TERRITORY_FRONTIER_BENCHMARK_PRESETS as preset}
+                    <PaxHudButton
+                        class="frontier-matrix-button"
+                        label={preset.label}
+                        size="sm"
+                        active={isFrontierBenchmarkPresetSelected(preset)}
+                        title={preset.description}
+                        disabled={!canApplyFrontierBenchmarkPreset()}
+                        onclick={() => applyFrontierBenchmarkPreset(preset)}
+                    />
+                {/each}
+            </div>
+        </div>
         {#if liveRenderMode === "ember_lattice"}
             <div class="diag-guide">
                 <PaxInfoHint
@@ -897,6 +973,13 @@
         margin-left: auto;
         font-size: var(--pax-type-3xs);
         color: var(--pax-ui-text-dim);
+    }
+
+    .row-hint {
+        margin-top: var(--pax-space-1);
+        color: color-mix(in srgb, var(--pax-ui-text-soft) 70%, transparent);
+        font-size: var(--pax-type-2xs);
+        line-height: 1.4;
     }
 
     .ruler-readout {
@@ -1048,5 +1131,41 @@
         color: color-mix(in srgb, var(--pax-ui-accent-warm) 90%, transparent);
         margin-left: var(--pax-space-1);
         font-size: var(--pax-type-3xs);
+    }
+
+    .frontier-matrix {
+        margin-top: var(--pax-space-2);
+    }
+
+    .frontier-matrix__head {
+        display: flex;
+        align-items: center;
+        gap: var(--pax-space-2);
+        color: color-mix(in srgb, var(--pax-ui-text-strong) 90%, transparent);
+        font-size: var(--pax-type-2xs);
+        font-weight: var(--pax-weight-bold);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .frontier-matrix__grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: var(--pax-space-2);
+        margin-top: var(--pax-space-2);
+    }
+
+    :global(.frontier-matrix-button) {
+        height: auto;
+        min-height: 2rem;
+        padding-block: var(--pax-space-2);
+        white-space: normal;
+        text-align: center;
+    }
+
+    :global(.frontier-matrix-button span) {
+        white-space: normal;
+        line-height: 1.2;
+        overflow-wrap: anywhere;
     }
 </style>

@@ -170,7 +170,7 @@ Purpose:
 
 ### Frontier / Comparison Controls
 
-- `Preset Rows`
+- `Frontier Recipe`
 - `Frontier Technique`
 - `Phase Sampling`
 - `Blur Passes`
@@ -178,6 +178,10 @@ Purpose:
 - `Frontier Chaikin`
 - `Shader Softness`
 - `Band Width`
+
+The full 10-row frontier benchmark matrix now lives in Developer -> Diagnostics,
+where it can be used for visual/performance comparison without crowding the
+normal Cell Grid tuning flow.
 
 ### Shared Surface Controls Inline In Ember Lattice
 

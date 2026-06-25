@@ -2,8 +2,8 @@
   import "./panel-shared.css";
     import { GAME_CONFIG } from '$lib/config/game.config';
     import {
-        TERRITORY_FRONTIER_BENCHMARK_PRESETS,
-        type TerritoryFrontierBenchmarkPreset,
+        TERRITORY_FRONTIER_RECIPE_PRESETS,
+        type TerritoryFrontierRecipePreset,
     } from '$lib/territory/frontier';
     import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
     import {
@@ -11,7 +11,6 @@
         cellGridPhaseFieldModeDefaults,
     } from '$lib/territory/families/cellGrid/config';
     import {
-        PaxHudButton,
         PaxHudSegmentedControl,
         PaxHudSelect,
         PaxInfoHint,
@@ -90,6 +89,14 @@
         { value: 'fixed', label: 'Fixed' },
         { value: 'checkerboard', label: 'Checker' },
         { value: 'gradient', label: 'Gradient' },
+    ];
+
+    const FRONTIER_RECIPE_OPTIONS = [
+        { value: 'custom', label: 'Custom' },
+        ...TERRITORY_FRONTIER_RECIPE_PRESETS.map((preset) => ({
+            value: preset.id,
+            label: preset.label,
+        })),
     ];
 
     const ADJACENCY_OPTIONS = [
@@ -643,19 +650,38 @@
         );
     }
 
-    function applyFrontierPreset(preset: TerritoryFrontierBenchmarkPreset): void {
+    function applyFrontierPreset(
+        preset: Pick<TerritoryFrontierRecipePreset, 'values'>,
+    ): void {
         for (const [configKey, value] of Object.entries(preset.values)) {
             writeConfig(configKey, panelKeyFromConfig(configKey), value);
         }
     }
 
-    function isFrontierPresetSelected(preset: TerritoryFrontierBenchmarkPreset): boolean {
+    function isFrontierPresetSelected(
+        preset: Pick<TerritoryFrontierRecipePreset, 'values'>,
+    ): boolean {
         return Object.entries(preset.values).every(([configKey, value]) => {
             const panelValue = panel[panelKeyFromConfig(configKey)];
             const configValue =
                 (GAME_CONFIG as unknown as Record<string, unknown>)[configKey];
             return (panelValue ?? configValue) === value;
         });
+    }
+
+    function currentFrontierRecipeId(): string {
+        const selectedPreset = TERRITORY_FRONTIER_RECIPE_PRESETS.find((preset) =>
+            isFrontierPresetSelected(preset),
+        );
+        return selectedPreset?.id ?? 'custom';
+    }
+
+    function applyFrontierRecipe(recipeId: string): void {
+        const preset = TERRITORY_FRONTIER_RECIPE_PRESETS.find(
+            (candidate) => candidate.id === recipeId,
+        );
+        if (!preset) return;
+        applyFrontierPreset(preset);
     }
 </script>
 
@@ -970,30 +996,14 @@
 
 {#if showFrontierControls()}
 <div class="module-block">
-<div class="var-row" class:disabled={!canUseEmberFrontierTechnique()}>
-    <div class="row-top">
-        <span class="var-name">
-            Preset Rows
-            <PaxInfoHint text="Benchmark comparison rows matching the frontier technique matrix. Each applies a planned preset directly so effect and performance can be compared without dialing every knob by hand." />
-        </span>
-        <span class="val">
-            {#if !canUseEmberFrontierTechnique()}Square lattice required
-            {:else}Tap to apply{/if}
-        </span>
-    </div>
-    <div class="preset-grid">
-        {#each TERRITORY_FRONTIER_BENCHMARK_PRESETS as preset}
-            <PaxHudButton
-                label={preset.label}
-                size="sm"
-                active={isFrontierPresetSelected(preset)}
-                title={preset.description}
-                disabled={!canUseEmberFrontierTechnique()}
-                onclick={() => applyFrontierPreset(preset)}
-            />
-        {/each}
-    </div>
-</div>
+<PaxHudSelect
+    label="Frontier Recipe"
+    hint="Applies a curated starting point for the frontier controls below. Custom means the manual controls no longer match one recipe. The full benchmark matrix lives in Developer Diagnostics."
+    value={currentFrontierRecipeId()}
+    options={FRONTIER_RECIPE_OPTIONS}
+    disabled={!canUseEmberFrontierTechnique()}
+    onValueChange={applyFrontierRecipe}
+/>
 
 <PaxHudSelect
     label="Frontier Technique"
@@ -1341,16 +1351,5 @@
         display: flex;
         flex-direction: column;
         gap: 0;
-    }
-
-    .preset-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: var(--pax-space-2);
-        margin: var(--pax-space-1) 0 2px;
-    }
-
-    .var-row.disabled {
-        opacity: 0.55;
     }
 </style>
