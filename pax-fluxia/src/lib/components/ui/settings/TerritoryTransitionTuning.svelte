@@ -260,14 +260,11 @@
         {modeSemantics.note ?? activeTransitionOption?.description}
     </div>
 {/if}
-<div class="row-hint">
-    Final handoff smoothing is shared in Timing → End Settle. The controls here still govern the renderer-specific travel and influence behavior before that settle window.
-</div>
 
 <PaxSettingsToggleRow
     label={modeSemantics.bindLabel}
     checked={panel.vsBindToTick ?? GAME_CONFIG.VS_BIND_TO_TICK ?? true}
-    description={modeSemantics.bindDesc}
+    description={`${modeSemantics.bindDesc} Final handoff smoothing is shared in Timing → End Settle; these controls govern renderer-specific travel and influence before that settle window.`}
     meta={(panel.vsBindToTick ?? GAME_CONFIG.VS_BIND_TO_TICK ?? true) ? "On" : "Off"}
     settingConfigKey="VS_BIND_TO_TICK"
     onChange={(value) => {
@@ -275,7 +272,6 @@
         updatePanel("vsBindToTick", value);
     }}
 />
-<div class="row-hint row-hint--tight">{modeSemantics.bindDesc}</div>
 
 {#each visibleSliders as semantic}
     {@const slider = semantic.slider}

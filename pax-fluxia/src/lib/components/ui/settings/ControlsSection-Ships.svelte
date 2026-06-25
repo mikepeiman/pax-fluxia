@@ -4,6 +4,7 @@
     import {
         PaxHudButton,
         PaxHudSegmentedControl,
+        PaxInfoHint,
         PaxSettingsRangeRow,
         PaxSettingsToggleRow,
         type PaxHudSegmentedOption,
@@ -413,15 +414,15 @@
     </div>
     <div class="var-row">
         <div class="row-top">
-            <span class="var-name">Glow-Dominant Ownership</span>
+            <span class="var-name">
+                Glow-Dominant Ownership
+                <PaxInfoHint text="Opt-in halo-heavy preset for ownership readability experiments." />
+            </span>
             <PaxHudButton
                 label="Apply Experimental Preset"
                 size="sm"
                 onclick={applyGlowDominantOwnershipPreset}
             />
-        </div>
-        <div class="mini-help">
-            Opt-in halo-heavy preset for ownership readability experiments.
         </div>
     </div>
     <PaxSettingsToggleRow
