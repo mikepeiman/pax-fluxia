@@ -127,4 +127,66 @@ describe('TransitionLayerCoordinator', () => {
         expect(cancelled.transitionPrevTopology).toBeNull();
         expect(cancelled.snapshot.fillFrame.regions).toHaveLength(2);
     });
+
+    it('cancels an active PV frontline transition when the fill transition mode changes', () => {
+        const coordinator = new TransitionLayerCoordinator();
+        const preGeometry = buildTestGeometry('pre', [[0, 0], [5, 5], [10, 10]]);
+        const postGeometry = buildTestGeometry('post', [[0, 0], [4, 6], [10, 10]]);
+        const previousOwnership = buildTestOwnership('ownership:pre');
+        const conquestOwnership = buildTestOwnership('ownership:post');
+
+        const started = coordinator.compute({
+            nowMs: 100,
+            tunables: TEST_TUNABLES,
+            selection: TEST_PV_FRONTLINE_SELECTION,
+            ownership: conquestOwnership,
+            previousOwnership,
+            geometry: postGeometry,
+            previousGeometry: preGeometry,
+            previousTransition: buildStaticSnapshot(preGeometry.version),
+            activeFillPlan: null,
+            activeFrontPlan: null,
+            activePvFrontlineTransition: null,
+            resolvedPowerVoronoiPair: {
+                preGeometry,
+                postGeometry,
+                previousOwnership,
+                nextOwnership: conquestOwnership,
+            },
+            transitionPrevTopology: null,
+        });
+
+        const steadyOwnership = buildTestOwnership('ownership:steady', []);
+        const cancelled = coordinator.compute({
+            nowMs: 220,
+            tunables: TEST_TUNABLES,
+            selection: {
+                ...TEST_PV_FRONTLINE_SELECTION,
+                fillTransitionMode: 'off',
+            },
+            ownership: steadyOwnership,
+            previousOwnership: conquestOwnership,
+            geometry: postGeometry,
+            previousGeometry: postGeometry,
+            previousTransition: started.snapshot,
+            activeFillPlan: started.activeFillPlan,
+            activeFrontPlan: started.activeFrontPlan,
+            activePvFrontlineTransition: started.activePvFrontlineTransition,
+            resolvedPowerVoronoiPair: null,
+            transitionPrevTopology: started.transitionPrevTopology,
+        });
+
+        expect(started.snapshot.envelope).not.toBeNull();
+        expect(cancelled.snapshot.envelope).toBeNull();
+        expect(cancelled.activeFillPlan).toBeNull();
+        expect(cancelled.activeFrontPlan).toBeNull();
+        expect(cancelled.activePvFrontlineTransition).toBeNull();
+        expect(cancelled.transitionPrevTopology).toBeNull();
+        expect(cancelled.snapshot.fillFrame.regions).toEqual(
+            postGeometry.territoryRegions.map((region) => ({
+                ownerId: region.ownerId,
+                points: region.points,
+            })),
+        );
+    });
 });

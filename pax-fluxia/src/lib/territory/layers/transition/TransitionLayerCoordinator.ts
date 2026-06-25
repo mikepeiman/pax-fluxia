@@ -185,6 +185,30 @@ export class TransitionLayerCoordinator {
             transitionPrevTopology = null;
         }
 
+        const activePlanIncompatibleWithSelection =
+            (activePvFrontlineTransition !== null && !pvFrontlinePathEnabled) ||
+            (activeFrontPlan !== null &&
+                activePvFrontlineTransition === null &&
+                !topologyPathEnabled) ||
+            (activeFillPlan !== null &&
+                activeFillPlan.sourceMode !== input.selection.fillTransitionMode) ||
+            (activeFrontPlan !== null &&
+                activePvFrontlineTransition === null &&
+                topologyPathEnabled &&
+                (!samplePrevTopo || !nextTopo));
+
+        if (activePlanIncompatibleWithSelection) {
+            envelope = null;
+            activeFillPlan = null;
+            activeFrontPlan = null;
+            activePvFrontlineTransition = null;
+            transitionPrevTopology = null;
+            log.renderer(
+                'TransitionCoordinator',
+                'Active transition no longer matches selected mode/topology; snapping to steady geometry.',
+            );
+        }
+
         if (envelope) {
             envelope.progress = this.clock.sampleProgress(envelope, input.nowMs);
         }
