@@ -178,15 +178,27 @@ function matchRawTerritoryCandidate(params: {
     if (candidates.length === 1) return candidates[0]!;
 
     if (params.anchorStarIds.length > 0) {
-        const matchingAnchors = candidates.filter((territory) =>
-            params.anchorStarIds.every((starId) => territory.starIds.includes(starId)),
-        );
-        if (matchingAnchors.length === 1) return matchingAnchors[0]!;
-        if (matchingAnchors.length > 1) {
-            return matchingAnchors
-                .slice()
-                .sort((a, b) => a.starIds.length - b.starIds.length)[0]!;
+        let matchingAnchorCount = 0;
+        let smallestMatchingAnchor: RawMergedTerritory | null = null;
+        for (const territory of candidates) {
+            let hasAllAnchors = true;
+            for (const starId of params.anchorStarIds) {
+                if (!territory.starIds.includes(starId)) {
+                    hasAllAnchors = false;
+                    break;
+                }
+            }
+            if (!hasAllAnchors) continue;
+            matchingAnchorCount += 1;
+            if (
+                !smallestMatchingAnchor ||
+                territory.starIds.length < smallestMatchingAnchor.starIds.length
+            ) {
+                smallestMatchingAnchor = territory;
+            }
         }
+        if (matchingAnchorCount === 1) return smallestMatchingAnchor!;
+        if (matchingAnchorCount > 1) return smallestMatchingAnchor!;
     }
 
     const centroid = polygonCentroid(params.points);
@@ -199,9 +211,10 @@ function matchRawTerritoryCandidate(params: {
         let best: RawMergedTerritory | null = null;
         let bestScore = -1;
         for (const territory of candidates) {
-            const score = params.anchorStarIds.filter((starId) =>
-                territory.starIds.includes(starId),
-            ).length;
+            let score = 0;
+            for (const starId of params.anchorStarIds) {
+                if (territory.starIds.includes(starId)) score += 1;
+            }
             if (score > bestScore) {
                 best = territory;
                 bestScore = score;
@@ -231,25 +244,34 @@ function hydrateResolvedRegions(params: {
     return params.resolvedRegions.map((region) => {
         const ownedStars = ownerStars.get(region.ownerId) ?? [];
         const regionBounds = computeBounds(region.points);
-        const insideAnchorStarIds = ownedStars
-            .filter(
-                (star) =>
-                    isPointInBounds(star.x, star.y, regionBounds) &&
-                    pointInPolygon(star.x, star.y, region.points),
-            )
-            .map((star) => star.id)
-            .sort();
+        const insideAnchorStarIds: string[] = [];
+        for (const star of ownedStars) {
+            if (
+                isPointInBounds(star.x, star.y, regionBounds) &&
+                pointInPolygon(star.x, star.y, region.points)
+            ) {
+                insideAnchorStarIds.push(star.id);
+            }
+        }
+        insideAnchorStarIds.sort();
         const rawMatch = matchRawTerritoryCandidate({
             anchorStarIds: insideAnchorStarIds,
             points: region.points,
             rawTerritories: rawTerritoriesByOwner.get(region.ownerId) ?? [],
         });
-        const rawAnchorStarIds = rawMatch
-            ? rawMatch.starIds.filter((starId) => !isVirtualSiteId(starId)).sort()
-            : [];
-        const rawContributorIds = rawMatch
-            ? rawMatch.starIds.filter(isVirtualSiteId).sort()
-            : [];
+        const rawAnchorStarIds: string[] = [];
+        const rawContributorIds: string[] = [];
+        if (rawMatch) {
+            for (const starId of rawMatch.starIds) {
+                if (isVirtualSiteId(starId)) {
+                    rawContributorIds.push(starId);
+                } else {
+                    rawAnchorStarIds.push(starId);
+                }
+            }
+            rawAnchorStarIds.sort();
+            rawContributorIds.sort();
+        }
         const anchorStarIds =
             insideAnchorStarIds.length > 0 ? insideAnchorStarIds : rawAnchorStarIds;
         const starIds =
