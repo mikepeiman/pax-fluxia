@@ -580,17 +580,20 @@ export function computeGeometry0319(
         // ── Stage 10: Build fill regions ────────────────────────────────────
         // constructFillsFromFrontierChain now receives COMPLETE data
         // (including corner-crossing world boundary edges)
-        const rawMinStarMarginValidator = measurePerf(
-            'territory.geometry0319.compute.margin.rawValidator',
-            () =>
-                buildMinStarMarginValidator({
-                    cells,
-                    baselineSharedPolylines: rawSharedPolylines,
-                    baselineWorldBorderPolylines: rawWorldBorderPolylines,
-                    stars: ownedStars,
-                }),
-            { shared: rawSharedPolylines.length, world: rawWorldBorderPolylines.length },
-        );
+        const shouldValidateMinStarMarginRepair = starMargin > 0;
+        const rawMinStarMarginValidator = shouldValidateMinStarMarginRepair
+            ? measurePerf(
+                    'territory.geometry0319.compute.margin.rawValidator',
+                    () =>
+                        buildMinStarMarginValidator({
+                            cells,
+                            baselineSharedPolylines: rawSharedPolylines,
+                            baselineWorldBorderPolylines: rawWorldBorderPolylines,
+                            stars: ownedStars,
+                        }),
+                    { shared: rawSharedPolylines.length, world: rawWorldBorderPolylines.length },
+                )
+            : undefined;
         const adjustedRawGeometry = measurePerf(
             'territory.geometry0319.compute.margin.rawApply',
             () =>
@@ -601,27 +604,31 @@ export function computeGeometry0319(
                     requestedMarginPx: starMargin,
                     worldWidth,
                     worldHeight,
-                    validateRepair: (candidate) =>
-                        rawMinStarMarginValidator({
-                            sharedPolylines: candidate.sharedPolylines,
-                            worldBorderPolylines: candidate.worldBorderPolylines,
-                        }),
+                    validateRepair: rawMinStarMarginValidator
+                        ? (candidate) =>
+                                rawMinStarMarginValidator({
+                                    sharedPolylines: candidate.sharedPolylines,
+                                    worldBorderPolylines: candidate.worldBorderPolylines,
+                                })
+                        : undefined,
                 }),
             { shared: rawSharedPolylines.length, world: rawWorldBorderPolylines.length },
         );
         rawSharedPolylines = adjustedRawGeometry.sharedPolylines;
         rawWorldBorderPolylines = adjustedRawGeometry.worldBorderPolylines;
-        const minStarMarginValidator = measurePerf(
-            'territory.geometry0319.compute.margin.displayValidator',
-            () =>
-                buildMinStarMarginValidator({
-                    cells,
-                    baselineSharedPolylines: sharedPolylines,
-                    baselineWorldBorderPolylines: worldBorderPolylines,
-                    stars: ownedStars,
-                }),
-            { shared: sharedPolylines.length, world: worldBorderPolylines.length },
-        );
+        const minStarMarginValidator = shouldValidateMinStarMarginRepair
+            ? measurePerf(
+                    'territory.geometry0319.compute.margin.displayValidator',
+                    () =>
+                        buildMinStarMarginValidator({
+                            cells,
+                            baselineSharedPolylines: sharedPolylines,
+                            baselineWorldBorderPolylines: worldBorderPolylines,
+                            stars: ownedStars,
+                        }),
+                    { shared: sharedPolylines.length, world: worldBorderPolylines.length },
+                )
+            : undefined;
         const adjustedGeometry = measurePerf(
             'territory.geometry0319.compute.margin.displayApply',
             () =>
@@ -632,11 +639,13 @@ export function computeGeometry0319(
                     requestedMarginPx: starMargin,
                     worldWidth,
                     worldHeight,
-                    validateRepair: (candidate) =>
-                        minStarMarginValidator({
-                            sharedPolylines: candidate.sharedPolylines,
-                            worldBorderPolylines: candidate.worldBorderPolylines,
-                        }),
+                    validateRepair: minStarMarginValidator
+                        ? (candidate) =>
+                                minStarMarginValidator({
+                                    sharedPolylines: candidate.sharedPolylines,
+                                    worldBorderPolylines: candidate.worldBorderPolylines,
+                                })
+                        : undefined,
                 }),
             { shared: sharedPolylines.length, world: worldBorderPolylines.length },
         );
