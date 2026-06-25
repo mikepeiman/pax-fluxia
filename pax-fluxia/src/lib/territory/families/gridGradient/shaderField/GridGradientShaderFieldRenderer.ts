@@ -130,12 +130,6 @@ function updateUniformGroup(shader: PIXI.Shader, values: Record<string, unknown>
     group.update?.();
 }
 
-function setVec2(target: Float32Array, x: number, y: number): Float32Array {
-    target[0] = x;
-    target[1] = y;
-    return target;
-}
-
 export class GridGradientShaderFieldRenderer {
     private readonly root = new PIXI.Container();
     private ownerTexture: BufferTextureState | null = null;
@@ -146,10 +140,6 @@ export class GridGradientShaderFieldRenderer {
     private mesh: PIXI.Mesh | null = null;
     private textureSignature: string | null = null;
     private geometrySignature: string | null = null;
-    private uniformStaticSignature: string | null = null;
-    private readonly gridSizeUniform = new Float32Array(2);
-    private readonly worldOriginUniform = new Float32Array(2);
-    private readonly worldSizeUniform = new Float32Array(2);
     private readonly transitionTraceState =
         createGridGradientTransitionTraceState();
 
@@ -347,65 +337,18 @@ export class GridGradientShaderFieldRenderer {
         this.geometrySignature = geometrySignature;
     }
 
-    private buildUniformStaticSignature(params: GridGradientShaderFieldUpdateParams): string {
-        return [
-            params.plan.cols,
-            params.plan.rows,
-            params.plan.gridOriginX,
-            params.plan.gridOriginY,
-            params.plan.worldWidth,
-            params.plan.worldHeight,
-            params.plan.spacingPx,
-            params.plan.paletteSize,
-            params.settings.fillAlpha,
-            params.settings.centerSizePx,
-            params.settings.edgeSizePx,
-            params.settings.borderOffsetPx,
-            params.settings.curvePower,
-            params.settings.flipWindow,
-            params.shaderSettings.shaderMarkSoftness,
-            params.shaderSettings.shaderEdgeSoftnessPx,
-            params.shaderSettings.shaderNoiseStrength,
-            params.shaderSettings.shaderPulseStrength,
-            params.shaderSettings.shaderPulseSpeed,
-            params.shaderSettings.shaderFieldDriftPx,
-            params.shaderSettings.shaderFieldDriftSpeed,
-            params.shaderSettings.shaderGlowStrength,
-            params.shaderSettings.shaderInteriorAlphaBoost,
-            params.shaderSettings.shaderEdgeAlphaBoost,
-            params.settings.cellShape,
-            params.shaderSettings.neighborMode,
-        ].join('|');
-    }
-
-    private updateVec2Uniforms(params: GridGradientShaderFieldUpdateParams): void {
-        setVec2(this.gridSizeUniform, params.plan.cols, params.plan.rows);
-        setVec2(
-            this.worldOriginUniform,
-            params.plan.gridOriginX,
-            params.plan.gridOriginY,
-        );
-        setVec2(
-            this.worldSizeUniform,
-            params.plan.worldWidth,
-            params.plan.worldHeight,
-        );
-    }
-
     private makeUniforms(params: GridGradientShaderFieldUpdateParams): Record<string, unknown> {
-        this.updateVec2Uniforms(params);
-        this.uniformStaticSignature = this.buildUniformStaticSignature(params);
         return {
             uGridSize: {
-                value: this.gridSizeUniform,
+                value: new Float32Array([params.plan.cols, params.plan.rows]),
                 type: 'vec2<f32>',
             },
             uWorldOrigin: {
-                value: this.worldOriginUniform,
+                value: new Float32Array([params.plan.gridOriginX, params.plan.gridOriginY]),
                 type: 'vec2<f32>',
             },
             uWorldSize: {
-                value: this.worldSizeUniform,
+                value: new Float32Array([params.plan.worldWidth, params.plan.worldHeight]),
                 type: 'vec2<f32>',
             },
             uSpacingPx: { value: params.plan.spacingPx, type: 'f32' },
@@ -462,41 +405,33 @@ export class GridGradientShaderFieldRenderer {
 
     private updateUniforms(params: GridGradientShaderFieldUpdateParams): void {
         if (!this.shader) return;
-        const staticSignature = this.buildUniformStaticSignature(params);
-        const values: Record<string, unknown> = {
+        updateUniformGroup(this.shader, {
+            uGridSize: new Float32Array([params.plan.cols, params.plan.rows]),
+            uWorldOrigin: new Float32Array([params.plan.gridOriginX, params.plan.gridOriginY]),
+            uWorldSize: new Float32Array([params.plan.worldWidth, params.plan.worldHeight]),
+            uSpacingPx: params.plan.spacingPx,
+            uPaletteSize: params.plan.paletteSize,
             uProgress: params.progress,
             uTimeSec: params.nowMs / 1000,
-        };
-        if (this.uniformStaticSignature !== staticSignature) {
-            this.updateVec2Uniforms(params);
-            Object.assign(values, {
-                uGridSize: this.gridSizeUniform,
-                uWorldOrigin: this.worldOriginUniform,
-                uWorldSize: this.worldSizeUniform,
-                uSpacingPx: params.plan.spacingPx,
-                uPaletteSize: params.plan.paletteSize,
-                uFillAlpha: params.settings.fillAlpha,
-                uCenterSizePx: params.settings.centerSizePx,
-                uEdgeSizePx: params.settings.edgeSizePx,
-                uBorderOffsetPx: params.settings.borderOffsetPx,
-                uCurvePower: params.settings.curvePower,
-                uFlipWindow: params.settings.flipWindow,
-                uMarkSoftness: params.shaderSettings.shaderMarkSoftness,
-                uEdgeSoftnessPx: params.shaderSettings.shaderEdgeSoftnessPx,
-                uNoiseStrength: params.shaderSettings.shaderNoiseStrength,
-                uPulseStrength: params.shaderSettings.shaderPulseStrength,
-                uPulseSpeed: params.shaderSettings.shaderPulseSpeed,
-                uFieldDriftPx: params.shaderSettings.shaderFieldDriftPx,
-                uFieldDriftSpeed: params.shaderSettings.shaderFieldDriftSpeed,
-                uGlowStrength: params.shaderSettings.shaderGlowStrength,
-                uInteriorAlphaBoost: params.shaderSettings.shaderInteriorAlphaBoost,
-                uEdgeAlphaBoost: params.shaderSettings.shaderEdgeAlphaBoost,
-                uShapeMode: shapeToNumber(params.settings.cellShape),
-                uNeighborMode: neighborModeToNumber(params.shaderSettings.neighborMode),
-            });
-            this.uniformStaticSignature = staticSignature;
-        }
-        updateUniformGroup(this.shader, values);
+            uFillAlpha: params.settings.fillAlpha,
+            uCenterSizePx: params.settings.centerSizePx,
+            uEdgeSizePx: params.settings.edgeSizePx,
+            uBorderOffsetPx: params.settings.borderOffsetPx,
+            uCurvePower: params.settings.curvePower,
+            uFlipWindow: params.settings.flipWindow,
+            uMarkSoftness: params.shaderSettings.shaderMarkSoftness,
+            uEdgeSoftnessPx: params.shaderSettings.shaderEdgeSoftnessPx,
+            uNoiseStrength: params.shaderSettings.shaderNoiseStrength,
+            uPulseStrength: params.shaderSettings.shaderPulseStrength,
+            uPulseSpeed: params.shaderSettings.shaderPulseSpeed,
+            uFieldDriftPx: params.shaderSettings.shaderFieldDriftPx,
+            uFieldDriftSpeed: params.shaderSettings.shaderFieldDriftSpeed,
+            uGlowStrength: params.shaderSettings.shaderGlowStrength,
+            uInteriorAlphaBoost: params.shaderSettings.shaderInteriorAlphaBoost,
+            uEdgeAlphaBoost: params.shaderSettings.shaderEdgeAlphaBoost,
+            uShapeMode: shapeToNumber(params.settings.cellShape),
+            uNeighborMode: neighborModeToNumber(params.shaderSettings.neighborMode),
+        });
     }
 
     dispose(): void {
@@ -514,6 +449,5 @@ export class GridGradientShaderFieldRenderer {
         this.mesh = null;
         this.textureSignature = null;
         this.geometrySignature = null;
-        this.uniformStaticSignature = null;
     }
 }
