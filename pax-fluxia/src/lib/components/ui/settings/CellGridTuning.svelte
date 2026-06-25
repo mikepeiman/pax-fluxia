@@ -509,23 +509,6 @@
         return panel.cellGridSpacingPx ?? GAME_CONFIG.CELL_GRID_SPACING_PX ?? CELL_GRID_BASELINE_SPACING_PX;
     }
 
-    function spacingToDensityCellsPerMpx(spacingPx: number): number {
-        if (!Number.isFinite(spacingPx) || spacingPx <= 0) return 0;
-        return 1_000_000 / (spacingPx * spacingPx);
-    }
-
-    function spacingToDensityMultiplier(spacingPx: number): number {
-        if (!Number.isFinite(spacingPx) || spacingPx <= 0) return 0;
-        return (
-            (CELL_GRID_BASELINE_SPACING_PX * CELL_GRID_BASELINE_SPACING_PX) /
-            (spacingPx * spacingPx)
-        );
-    }
-
-    function densityMultiplierToSpacing(multiplier: number): number {
-        const safe = Math.max(0.05, multiplier);
-        return CELL_GRID_BASELINE_SPACING_PX / Math.sqrt(safe);
-    }
 
     function currentFrontierTechnique():
         | 'control'
@@ -735,24 +718,6 @@
     }}
 />
 {/if}
-
-<PaxSettingsRangeRow
-    label="Grid Density"
-    note={`Direct density alias for Cell Spacing. About ${Math.round(spacingToDensityCellsPerMpx(currentSpacingPx()))} cells/Mpx.`}
-    value={spacingToDensityMultiplier(currentSpacingPx())}
-    min={0.1}
-    max={8}
-    step={0.05}
-    output={`${spacingToDensityMultiplier(currentSpacingPx()).toFixed(2)}x`}
-    settingConfigKey="CELL_GRID_SPACING_PX"
-    onInput={(value) => {
-        writeConfig(
-            'CELL_GRID_SPACING_PX',
-            'cellGridSpacingPx',
-            densityMultiplierToSpacing(value),
-        );
-    }}
-/>
 
 <PaxHudSelect
     label="Origin Mode"
