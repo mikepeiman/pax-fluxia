@@ -905,6 +905,10 @@
         );
     }
 
+    function shouldBypassPresentationThrottling(nowMs = performance.now()): boolean {
+        return PRESENTATION_SMOOTHNESS_FIRST && !shouldHoldPresentationForInput(nowMs);
+    }
+
     function hasBrowserInputPending(): boolean {
         const scheduling = (navigator as Navigator & {
             scheduling?: { isInputPending?: () => boolean };
@@ -951,7 +955,7 @@
         frameStartedAtMs: number,
         stage: string,
     ): boolean {
-        if (PRESENTATION_SMOOTHNESS_FIRST) {
+        if (shouldBypassPresentationThrottling()) {
             return false;
         }
         const yieldState = getRenderFrameInputYieldState(frameStartedAtMs);
@@ -1163,7 +1167,7 @@
             params.lastPresentedAtMs > 0
                 ? params.nowMs - params.lastPresentedAtMs
                 : Number.POSITIVE_INFINITY;
-        if (PRESENTATION_SMOOTHNESS_FIRST) {
+        if (shouldBypassPresentationThrottling(params.nowMs)) {
             return {
                 defer: false,
                 reason: "smoothness_first",
@@ -1299,7 +1303,7 @@
             lastTerritoryPresentedAtMs > 0
                 ? params.nowMs - lastTerritoryPresentedAtMs
                 : Number.POSITIVE_INFINITY;
-        if (PRESENTATION_SMOOTHNESS_FIRST) {
+        if (shouldBypassPresentationThrottling(params.nowMs)) {
             return {
                 defer: false,
                 reason: "smoothness_first",
@@ -1308,12 +1312,13 @@
             };
         }
         const cadenceMs = computeTerritoryCadenceMs(params.nowMs);
+        const inputHoldActive = shouldHoldPresentationForInput(params.nowMs);
         const forceFresh =
             params.isPaused ||
             params.configChanged ||
             lastTerritoryPresentedAtMs === 0 ||
             territoryLastMode !== params.activeMode ||
-            params.pendingConquests > 0;
+            (params.pendingConquests > 0 && !inputHoldActive);
         if (forceFresh) {
             return {
                 defer: false,
@@ -1334,7 +1339,7 @@
             };
         }
         if (
-            shouldHoldPresentationForInput(params.nowMs) &&
+            inputHoldActive &&
             staleMs < TERRITORY_INPUT_HOLD_MAX_STALE_MS
         ) {
             return {
@@ -1369,7 +1374,7 @@
             lastShipRenderPresentedAtMs > 0
                 ? params.nowMs - lastShipRenderPresentedAtMs
                 : Number.POSITIVE_INFINITY;
-        if (PRESENTATION_SMOOTHNESS_FIRST) {
+        if (shouldBypassPresentationThrottling(params.nowMs)) {
             return {
                 defer: false,
                 reason: "smoothness_first",
@@ -4852,7 +4857,7 @@
     function scheduleTerritoryPresentationQueue(): void {
         if (territoryPresentationScheduled || territoryPresentationRunning) return;
         if (!territoryPresentationPendingRequest) return;
-        if (PRESENTATION_SMOOTHNESS_FIRST) {
+        if (shouldBypassPresentationThrottling()) {
             territoryPresentationLastScheduleMode = "immediate";
             void flushTerritoryPresentationQueue();
             return;
@@ -4897,7 +4902,7 @@
         if (territoryPresentationDelayTimer || !territoryPresentationPendingRequest) {
             return;
         }
-        if (PRESENTATION_SMOOTHNESS_FIRST) {
+        if (shouldBypassPresentationThrottling()) {
             territoryPresentationLastScheduleMode = "immediate-delay-bypass";
             void flushTerritoryPresentationQueue();
             return;
@@ -4945,7 +4950,7 @@
         forced: boolean;
     } {
         const requestAgeMs = nowMs - request.enqueuedAtMs;
-        if (PRESENTATION_SMOOTHNESS_FIRST) {
+        if (shouldBypassPresentationThrottling(nowMs)) {
             return {
                 yield: false,
                 requestAgeMs,
@@ -4962,6 +4967,17 @@
             };
         }
         if (request.pendingConquests.length > 0) {
+            if (requestAgeMs < TERRITORY_MAX_STALE_MS) {
+                const pressure = classifyTerritoryPresentationPressure(nowMs);
+                if (pressure.active) {
+                    return {
+                        yield: true,
+                        requestAgeMs,
+                        reason: `conquest_${pressure.reason}`,
+                        forced: false,
+                    };
+                }
+            }
             return {
                 yield: false,
                 requestAgeMs,
