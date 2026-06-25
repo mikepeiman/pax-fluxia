@@ -1,4 +1,5 @@
 import type { StarState } from '$lib/types/game.types';
+import { measurePerf } from '$lib/perf/perfProbe';
 import type {
     ResolvedFrontierPolyline,
     ResolvedGeometrySnapshot,
@@ -277,21 +278,33 @@ function buildShellsFromRegions(
 export function buildPowerVoronoi0319AuthoritySnapshot(
     params: BuildPowerVoronoi0319AuthoritySnapshotParams,
 ): ResolvedGeometrySnapshot {
-    const rawFrontierPolylines = params.geometry.sharedPolylines.map((polyline, index) =>
-        adaptSharedPolyline({
-            polyline,
-            index,
-            kind: 'raw_shared',
+    const rawBoundaryPolylines = measurePerf(
+        'territory.geometry0319.authority.rawBoundaries',
+        () => ({
+            rawFrontierPolylines: params.geometry.sharedPolylines.map(
+                (polyline, index) =>
+                    adaptSharedPolyline({
+                        polyline,
+                        index,
+                        kind: 'raw_shared',
+                    }),
+            ),
+            rawWorldBorderPolylines: params.geometry.worldBorderPolylines.map(
+                (polyline, index) =>
+                    adaptSharedPolyline({
+                        polyline,
+                        index,
+                        kind: 'raw_world',
+                    }),
+            ),
         }),
+        {
+            shared: params.geometry.sharedPolylines.length,
+            world: params.geometry.worldBorderPolylines.length,
+        },
     );
-    const rawWorldBorderPolylines = params.geometry.worldBorderPolylines.map(
-        (polyline, index) =>
-            adaptSharedPolyline({
-                polyline,
-                index,
-                kind: 'raw_world',
-            }),
-    );
+    const { rawFrontierPolylines, rawWorldBorderPolylines } =
+        rawBoundaryPolylines;
     const rawBoundarySnapshot: ResolvedGeometrySnapshot = {
         version: `${params.geometry.fingerprint}:raw-boundaries`,
         sourceMode: 'unified_vector',
@@ -322,24 +335,54 @@ export function buildPowerVoronoi0319AuthoritySnapshot(
         },
     };
 
-    const resolved = resolveConstraintAlignedTerritoryGeometry({
-        geometry: rawBoundarySnapshot,
-        stars: params.stars,
-        requestedMarginPx: params.requestedMarginPx,
-        preferSharedBoundaryResolution: true,
-    });
-    const resolvedRegions = hydrateResolvedRegions({
-        resolvedRegions: resolved.territoryRegions,
-        rawTerritories: params.geometry.mergedTerritories,
-        stars: params.stars,
-    });
-    const resolvedFrontiers = resolved.frontierPolylines.map(clonePolyline);
-    const resolvedWorldBorders = resolved.worldBorderPolylines.map(clonePolyline);
-    const displayFrontierPolylines = resolved.displayFrontierPolylines.map(
-        clonePolyline,
+    const resolved = measurePerf(
+        'territory.geometry0319.authority.resolveConstraints',
+        () =>
+            resolveConstraintAlignedTerritoryGeometry({
+                geometry: rawBoundarySnapshot,
+                stars: params.stars,
+                requestedMarginPx: params.requestedMarginPx,
+                preferSharedBoundaryResolution: true,
+            }),
+        {
+            stars: params.stars.length,
+            rawShared: rawFrontierPolylines.length,
+            rawWorld: rawWorldBorderPolylines.length,
+        },
     );
-    const displayWorldBorderPolylines = resolved.displayWorldBorderPolylines.map(
-        clonePolyline,
+    const resolvedRegions = measurePerf(
+        'territory.geometry0319.authority.hydrateRegions',
+        () =>
+            hydrateResolvedRegions({
+                resolvedRegions: resolved.territoryRegions,
+                rawTerritories: params.geometry.mergedTerritories,
+                stars: params.stars,
+            }),
+        {
+            regions: resolved.territoryRegions.length,
+            rawTerritories: params.geometry.mergedTerritories.length,
+            stars: params.stars.length,
+        },
+    );
+    const resolvedFrontiers = measurePerf(
+        'territory.geometry0319.authority.cloneResolvedBoundaries',
+        () => resolved.frontierPolylines.map(clonePolyline),
+        { frontiers: resolved.frontierPolylines.length },
+    );
+    const resolvedWorldBorders = measurePerf(
+        'territory.geometry0319.authority.cloneResolvedWorldBorders',
+        () => resolved.worldBorderPolylines.map(clonePolyline),
+        { world: resolved.worldBorderPolylines.length },
+    );
+    const displayFrontierPolylines = measurePerf(
+        'territory.geometry0319.authority.cloneDisplayFrontiers',
+        () => resolved.displayFrontierPolylines.map(clonePolyline),
+        { frontiers: resolved.displayFrontierPolylines.length },
+    );
+    const displayWorldBorderPolylines = measurePerf(
+        'territory.geometry0319.authority.cloneDisplayWorldBorders',
+        () => resolved.displayWorldBorderPolylines.map(clonePolyline),
+        { world: resolved.displayWorldBorderPolylines.length },
     );
     const resolvedBoundaryFingerprint = `${params.geometry.fingerprint}:resolved:${resolved.appliedMarginPx.toFixed(2)}`;
     const displayBorderFingerprint = `${resolvedBoundaryFingerprint}:display:${hashString32(
@@ -348,15 +391,27 @@ export function buildPowerVoronoi0319AuthoritySnapshot(
             ...displayWorldBorderPolylines.map((polyline) => polyline.frontierId),
         ].join('|'),
     )}`;
-    const topologyResult = buildPowerVoronoiFrontierTopology({
-        sharedPolylines: resolvedFrontiers.map(toSharedPolyline),
-        worldBorderPolylines: resolvedWorldBorders.map(toSharedPolyline),
-        ownershipVersion: params.ownershipVersion,
-        worldWidth: params.worldWidth,
-        worldHeight: params.worldHeight,
-        fingerprint: resolvedBoundaryFingerprint,
-    });
-    const { shells, shellLoops } = buildShellsFromRegions(resolvedRegions);
+    const topologyResult = measurePerf(
+        'territory.geometry0319.authority.topology',
+        () =>
+            buildPowerVoronoiFrontierTopology({
+                sharedPolylines: resolvedFrontiers.map(toSharedPolyline),
+                worldBorderPolylines: resolvedWorldBorders.map(toSharedPolyline),
+                ownershipVersion: params.ownershipVersion,
+                worldWidth: params.worldWidth,
+                worldHeight: params.worldHeight,
+                fingerprint: resolvedBoundaryFingerprint,
+            }),
+        {
+            frontiers: resolvedFrontiers.length,
+            world: resolvedWorldBorders.length,
+        },
+    );
+    const { shells, shellLoops } = measurePerf(
+        'territory.geometry0319.authority.shells',
+        () => buildShellsFromRegions(resolvedRegions),
+        { regions: resolvedRegions.length },
+    );
 
     return {
         version: `${resolvedBoundaryFingerprint}:pfield`,
@@ -388,17 +443,13 @@ export function buildPowerVoronoi0319AuthoritySnapshot(
                 authoritativeSeamFingerprint: resolvedBoundaryFingerprint,
                 displayBorderFingerprint,
                 appliedMarginPx: resolved.appliedMarginPx,
-                rawSharedFrontiers: rawFrontierPolylines.map(clonePolyline),
-                rawWorldBorders: rawWorldBorderPolylines.map(clonePolyline),
-                resolvedSharedBoundaryFrontiers: resolvedFrontiers.map(clonePolyline),
-                resolvedWorldBorders: resolvedWorldBorders.map(clonePolyline),
-                resolvedRegions: resolvedRegions.map((region) => ({
-                    ...region,
-                    points: clonePoints(region.points),
-                })),
-                displayFrontierPolylines: displayFrontierPolylines.map(clonePolyline),
-                displayWorldBorderPolylines:
-                    displayWorldBorderPolylines.map(clonePolyline),
+                rawSharedFrontiers: rawFrontierPolylines,
+                rawWorldBorders: rawWorldBorderPolylines,
+                resolvedSharedBoundaryFrontiers: resolvedFrontiers,
+                resolvedWorldBorders,
+                resolvedRegions,
+                displayFrontierPolylines,
+                displayWorldBorderPolylines,
                 notes: [
                     'raw_* stages are upstream 0319 outputs before shared-boundary authority resolution',
                     'resolved_* stages are the authoritative live seam used by 0319 consumers',

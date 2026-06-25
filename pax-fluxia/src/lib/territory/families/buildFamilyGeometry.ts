@@ -1,5 +1,6 @@
 import { GAME_CONFIG } from '$lib/config/game.config';
 
+import { measurePerf } from '$lib/perf/perfProbe';
 import type { StarConnection, StarState } from '$lib/types/game.types';
 import { log } from '$lib/utils/logger';
 import type { ResolvedGeometrySnapshot } from '../contracts/GeometryContracts';
@@ -101,17 +102,30 @@ function buildPowerVoronoi0319RenderFamilyGeometry(params: {
     sourceStyle: ResolvedGeometrySnapshot['sourceStyle'];
     configSource?: Record<string, unknown>;
 }): ResolvedGeometrySnapshot | null {
-    const settings = buildPowerVoronoi0319Settings({
-        lanes: params.lanes,
-        worldWidth: params.worldWidth,
-        worldHeight: params.worldHeight,
-        configSource: params.configSource,
-    });
+    const settings = measurePerf(
+        'territory.geometry0319.settings',
+        () =>
+            buildPowerVoronoi0319Settings({
+                lanes: params.lanes,
+                worldWidth: params.worldWidth,
+                worldHeight: params.worldHeight,
+                configSource: params.configSource,
+            }),
+        {
+            lanes: params.lanes.length,
+            worldWidth: params.worldWidth,
+            worldHeight: params.worldHeight,
+        },
+    );
 
-    const result = computeGeometry0319(
-        [...params.stars],
-        [...params.lanes],
-        settings,
+    const result = measurePerf(
+        'territory.geometry0319.compute',
+        () => computeGeometry0319([...params.stars], [...params.lanes], settings),
+        {
+            stars: params.stars.length,
+            lanes: params.lanes.length,
+            sourceStyle: params.sourceStyle,
+        },
     );
     if ('kind' in result) {
         log.error(
@@ -121,15 +135,25 @@ function buildPowerVoronoi0319RenderFamilyGeometry(params: {
         return null;
     }
 
-    return buildPowerVoronoi0319AuthoritySnapshot({
-        geometry: result,
-        stars: params.stars,
-        ownershipVersion: params.ownershipVersion,
-        sourceStyle: params.sourceStyle,
-        worldWidth: params.worldWidth,
-        worldHeight: params.worldHeight,
-        requestedMarginPx: settings.starMargin,
-    });
+    return measurePerf(
+        'territory.geometry0319.authority',
+        () =>
+            buildPowerVoronoi0319AuthoritySnapshot({
+                geometry: result,
+                stars: params.stars,
+                ownershipVersion: params.ownershipVersion,
+                sourceStyle: params.sourceStyle,
+                worldWidth: params.worldWidth,
+                worldHeight: params.worldHeight,
+                requestedMarginPx: settings.starMargin,
+            }),
+        {
+            stars: params.stars.length,
+            regions: result.mergedTerritories.length,
+            frontiers: result.sharedPolylines.length,
+            worldBorders: result.worldBorderPolylines.length,
+        },
+    );
 }
 
 export function buildPerimeterFieldRenderFamilyGeometry(params: {

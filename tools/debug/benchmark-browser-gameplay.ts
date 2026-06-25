@@ -673,6 +673,7 @@ const FOCUS_MEASURE_PATTERNS = [
     "game.renderFrame.renderFamilyInput.",
     "game.renderFrame.territory.",
     "game.renderFrame.territory.present.",
+    "territory.geometry0319.",
     "game.renderFrame.connections",
     "game.renderFrame.pixel.",
     "game.renderFrame.orderArrows",
