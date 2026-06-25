@@ -1045,7 +1045,11 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
 
     // Selecting a render mode (or any reactive change) can hide the open
     // section; if so, fall back to the first chip of its category so the panel
-    // never blanks out.
+    // never blanks out. This is a DISPLAY fallback only — it must NOT call
+    // persistActiveSection(), or a transient mount-time mismatch (e.g. the
+    // restored section belongs to a render mode that isn't the active one yet)
+    // would permanently erase the user's saved section choice. We leave the
+    // persisted preference intact so it restores the next time it's visible.
     $effect(() => {
         if (
             activeSectionId !== null &&
@@ -1056,7 +1060,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 ? chipsForCategory(activeCategoryId)[0]?.id ?? null
                 : null;
             activeSectionId = fallback;
-            persistActiveSection();
         }
     });
 
