@@ -17,7 +17,32 @@ Proceed boldly inside isolated branches. The safety model is:
 
 The coordination board at `.agent/intra-agent-coordination.md` is guidance for situational awareness, not a hard ownership lock.
 
-## 1. Branch And Worktree Campaign
+## 1. Throughput Imperative
+
+Compress more real progress into less time. Do not confuse safety with slowness, and do not confuse activity with progress.
+
+At the start of every lane and every realignment checkpoint, agents must project a 10X version of the outcome they think is feasible. If a task looks like 100 hours, ask what 1,000 hours of value would mean and then look for the leverage path that captures as much of that value as possible overnight.
+
+This is an execution imperative:
+
+- Prefer changes that unlock many downstream fixes over narrow cosmetic completion.
+- Prefer invariant oracles, fixtures, adapters, and benchmark harnesses that accelerate every later sprint.
+- Prefer parallel lanes and adversarial review when they reduce wall-clock time.
+- Prefer deleting uncertainty with measurement over debating plausible bottlenecks.
+- Prefer shipping durable candidate paths over leaving ambitious work only in notes.
+- Prefer one high-leverage integration commit over many local tweaks that cannot be validated.
+- Stop low-leverage work quickly, even if it was in the original checklist.
+
+Every sprint estimate should include:
+
+- baseline estimate: what the agent thinks is likely;
+- 10X target: the much larger result the agent will try to unlock;
+- compression tactic: parallelism, reuse of prior work, fixture generation, automation, or default-path promotion gate;
+- kill condition: the signal that this path is not yielding enough progress per hour.
+
+The guardrail: 10X/100X ambition does not waive correctness gates. It changes what work is chosen first. The fastest path is the one that creates verified, reversible, compounding progress.
+
+## 2. Branch And Worktree Campaign
 
 Use `origin/master` as the base reference. Work in pushed branches, not as loose edits in the main root.
 
@@ -47,7 +72,7 @@ Commit shape:
 3. Integration/default promotion.
 4. Validation report or artifact references.
 
-## 2. Core Technical Thesis
+## 3. Core Technical Thesis
 
 Current contracts describe a rich authoritative geometry model, but operational paths still downgrade the truth:
 
@@ -65,7 +90,7 @@ The campaign order is:
 3. Make Grid Gradient and cell-grid presentations preserve provenance while staying fast.
 4. Promote defaults only after tests, screenshots, and benchmark gates pass.
 
-## 3. Lane A - Geometry Authority
+## 4. Lane A - Geometry Authority
 
 Goal: make static geometry closed, deterministic, shared, and inspectable.
 
@@ -102,7 +127,7 @@ Promotion gate:
 - Current render-family geometry can generate without missing regions.
 - No topology is marked reliable unless the invariant oracle agrees.
 
-## 4. Lane B - Transition V2
+## 5. Lane B - Transition V2
 
 Goal: make transitions topology-first and multi-mode, not coordinate-first and fragile.
 
@@ -130,7 +155,7 @@ Promotion gate:
 - Unsupported topology changes produce named fallback, not broken morphs.
 - Existing transition modes still work.
 
-## 5. Lane C - Grid Gradient Provenance And Performance
+## 6. Lane C - Grid Gradient Provenance And Performance
 
 Goal: preserve topology/provenance through Grid Gradient and keep cold/load/transition performance high.
 
@@ -161,7 +186,7 @@ Promotion gate:
 - Topology-seeded wave is visually at least as good as current wave.
 - Worker path and synchronous fallback produce equivalent plans.
 
-## 6. Lane D - Validation And Integration
+## 7. Lane D - Validation And Integration
 
 Goal: prove the campaign before default promotion.
 
@@ -205,7 +230,7 @@ Acceptance:
 - topology diagnostics honest;
 - every default promotion is a reversible commit.
 
-## 7. Bounded Failure Loops
+## 8. Bounded Failure Loops
 
 The project has deep history and multiple prior attempts. Agents should use loops, but loops must be bounded. Every loop iteration records:
 
@@ -338,7 +363,7 @@ Exit:
 - decision recorded with evidence; or
 - unresolved ambiguity becomes an explicit risk and default promotion is blocked.
 
-## 8. Adversarial Review And Expert Council
+## 9. Adversarial Review And Expert Council
 
 Use adversarial review before default promotion and whenever a bounded loop reaches its escalation threshold. If multi-agent tools are available, assign separate agents. If not, one agent must run the roles sequentially and write the result.
 
@@ -357,7 +382,7 @@ Council protocol:
 3. Run at most 2 council rounds per promotion.
 4. If blockers remain after 2 rounds, commit the work behind a flag/candidate path and document why it is not default.
 
-## 9. Research-Driven Search Recipes
+## 10. Research-Driven Search Recipes
 
 Use these when loops trigger.
 
@@ -394,7 +419,7 @@ $env:PAX_BENCH_TERRITORY_MODE='grid_gradient'; bun run debug:browser-gameplay-pe
 bun run debug:browser-gameplay-summary
 ```
 
-## 10. Default Promotion Rules
+## 11. Default Promotion Rules
 
 Default promotion is allowed. It is the point of the campaign. It is also gated.
 
@@ -411,7 +436,7 @@ Promote a new path to default only when:
 
 Do not promote by mixing engine work, UI settings, and fallback changes in one commit.
 
-## 11. Adaptive Multi-Sprint Control
+## 12. Adaptive Multi-Sprint Control
 
 The campaign should run as a sequence of bounded sprints, not as one long uninterrupted implementation. End-goal primacy beats checklist completion.
 
@@ -503,7 +528,7 @@ Integration owner cadence:
 - Prefer preserving useful candidate work over forcing it into default behavior.
 - Keep an integration note listing: defaulted, candidate, blocked, reverted, next best action.
 
-## 12. Friction Budget
+## 13. Friction Budget
 
 The plan should create useful pressure, not ceremony. Treat the following as hard constraints:
 
@@ -538,7 +563,7 @@ Remove or defer work that becomes friction:
 - Do not keep polishing candidate APIs if invariant tests still fail.
 - Do not block useful candidate commits because default promotion is not yet safe.
 
-## 13. Stop Conditions
+## 14. Stop Conditions
 
 Stop coding and write a report when any of these happen:
 
@@ -557,7 +582,7 @@ The report must include:
 - blockers;
 - exact next action.
 
-## 14. Overnight Success Definition
+## 15. Overnight Success Definition
 
 A successful overnight run does not need every ambitious feature fully defaulted. It must leave the repo better in durable, selectable, validated pieces:
 
