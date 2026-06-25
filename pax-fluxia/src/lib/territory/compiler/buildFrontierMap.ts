@@ -9,7 +9,6 @@
 // ---------------------------------------------------------------------------
 
 import type { SharedPolyline } from './powerVoronoiTerritoryGeometryGenerator';
-import { ptKey } from './powerVoronoiTerritoryGeometryGenerator';
 import { executeChainWalk } from './chainWalkCore';
 import type { ChainWalkResult, ChainWalkLoop, ChainWalkSegment } from './chainWalkCore';
 import type {
@@ -43,13 +42,19 @@ function classifyVertex(
 
 /**
  * Build the set of polyline endpoint keys from world-border polylines.
+ * Reuse the endpoint keys parsed by the chain walk so this stage does not
+ * re-round every world endpoint after the walk has already done it.
  */
-function collectWorldEndpoints(worldBorderPolylines: SharedPolyline[]): Set<string> {
+function collectWorldEndpoints(
+    walkResult: ChainWalkResult,
+    sharedPolylineCount: number,
+): Set<string> {
     const eps = new Set<string>();
-    for (const pl of worldBorderPolylines) {
-        if (pl.points.length < 2) continue;
-        eps.add(ptKey(pl.points[0][0], pl.points[0][1]));
-        eps.add(ptKey(pl.points[pl.points.length - 1][0], pl.points[pl.points.length - 1][1]));
+    for (let i = sharedPolylineCount; i < walkResult.polylineInfos.length; i++) {
+        const info = walkResult.polylineInfos[i];
+        if (info.points.length < 2) continue;
+        eps.add(info.startKey);
+        eps.add(info.endKey);
     }
     return eps;
 }
@@ -62,7 +67,9 @@ function resolveOwnerSides(
     ownerPairKey: string,
     loopOwnerId: string,
 ): { leftOwnerId: string; rightOwnerId: string | null } {
-    const [a, b] = ownerPairKey.split('|');
+    const separator = ownerPairKey.indexOf('|');
+    const a = separator >= 0 ? ownerPairKey.slice(0, separator) : ownerPairKey;
+    const b = separator >= 0 ? ownerPairKey.slice(separator + 1) : '';
     if (a === loopOwnerId) {
         return { leftOwnerId: a, rightOwnerId: b === 'world' ? null : b };
     }
@@ -121,7 +128,7 @@ export function buildFrontierMap(
         return { vertices, edges, loops, fingerprint };
     }
 
-    const worldEndpoints = collectWorldEndpoints(worldBorderPolylines);
+    const worldEndpoints = collectWorldEndpoints(walkResult, sharedPolylines.length);
 
     // Collect closure vertices (headKey of each closed loop)
     const closureVertices = new Set<string>();
@@ -153,6 +160,8 @@ export function buildFrontierMap(
     }
 
     // --- Assemble edges and loops ---
+    let validClosedLoopCount = 0;
+    let partialOpenLoopCount = 0;
     for (let li = 0; li < walkResult.loops.length; li++) {
         const wLoop = walkResult.loops[li];
         const loopEdgeIds: string[] = [];
@@ -161,7 +170,6 @@ export function buildFrontierMap(
         for (const seg of wLoop.segments) {
             const eid = edgeIdFromSegment(seg);
             const sides = resolveOwnerSides(seg.ownerPairKey, wLoop.ownerId);
-            const isWorld = seg.ownerPairKey.includes('world');
 
             if (!edges.has(eid)) {
                 edges.set(eid, {
@@ -170,7 +178,7 @@ export function buildFrontierMap(
                     endVertexId: seg.endVertexKey,
                     leftOwnerId: sides.leftOwnerId,
                     rightOwnerId: sides.rightOwnerId,
-                    kind: isWorld ? 'owner-world' : 'owner-owner',
+                    kind: sides.rightOwnerId === null ? 'owner-world' : 'owner-owner',
                     curvePoints: seg.points,
                     sourcePolylineIdx: seg.polylineIdx,
                     orientation: seg.direction,
@@ -181,17 +189,24 @@ export function buildFrontierMap(
             loopVertexIds.push(seg.startVertexKey);
         }
 
+        const validity = loopValidity(wLoop);
+        if (validity === 'valid-closed') {
+            validClosedLoopCount += 1;
+        } else if (validity === 'partial-open') {
+            partialOpenLoopCount += 1;
+        }
+
         loops.push({
             loopId: `${wLoop.ownerId}:${li}`,
             ownerId: wLoop.ownerId,
             kind: 'outer', // enclave detection can reclassify in Phase 2
             edgeIds: loopEdgeIds,
             vertexIds: loopVertexIds,
-            validity: loopValidity(wLoop),
+            validity,
         });
     }
 
-    log.renderer('TMAP', `vertices=${vertices.size} edges=${edges.size} loops=${loops.length} (${loops.filter(l => l.validity === 'valid-closed').length} valid-closed, ${loops.filter(l => l.validity === 'partial-open').length} partial-open)`);
+    log.renderer('TMAP', `vertices=${vertices.size} edges=${edges.size} loops=${loops.length} (${validClosedLoopCount} valid-closed, ${partialOpenLoopCount} partial-open)`);
 
     return { vertices, edges, loops, fingerprint };
 }

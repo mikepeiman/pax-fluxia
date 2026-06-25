@@ -469,14 +469,15 @@ export function chaikinSmoothPolygon(
  */
 export function extractJunctionVertices(cells: TerritoryCell[]): Set<string> {
     const vertexCount = new Map<string, number>();
+    const vertexSeenStamp = new Map<string, number>();
+    let cellStamp = 0;
     for (const cell of cells) {
-        const seen = new Set<string>();
+        cellStamp += 1;
         for (const [x, y] of cell.points) {
             const k = ptKey(x, y);
-            if (!seen.has(k)) {
-                seen.add(k);
-                vertexCount.set(k, (vertexCount.get(k) ?? 0) + 1);
-            }
+            if (vertexSeenStamp.get(k) === cellStamp) continue;
+            vertexSeenStamp.set(k, cellStamp);
+            vertexCount.set(k, (vertexCount.get(k) ?? 0) + 1);
         }
     }
     const junctions = new Set<string>();
