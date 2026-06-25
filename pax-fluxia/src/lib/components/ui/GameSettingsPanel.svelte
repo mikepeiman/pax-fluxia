@@ -1287,12 +1287,62 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             [sectionId]: current === subsectionId ? "all" : subsectionId,
         };
     }
+
+    // TEMP DIAGNOSTIC (panel-collapse hunt): logs the pixel height of every link
+    // in the settings height chain whenever it changes, so a toggle that shrinks
+    // the panel reveals exactly which element resized and by how much. Visible in
+    // the log panel under the "canvas" channel. Remove once the cause is found.
+    function probePanelHeights(node: HTMLElement) {
+        const selectors = [
+            ".controls-panel",
+            ".settings-shell",
+            ".settings-content",
+            ".section-panel",
+            ".section-body",
+            ".icon-toolbar",
+        ];
+        const observed = new WeakSet<Element>();
+        const ro = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                const el = entry.target as HTMLElement;
+                const label =
+                    selectors.find((s) => el.matches(s)) ?? el.className;
+                log.canvas(
+                    "settings-probe",
+                    `${label} h=${Math.round(entry.contentRect.height)}`,
+                );
+            }
+        });
+        const scan = () => {
+            for (const sel of selectors) {
+                const els = node.matches(sel)
+                    ? [node]
+                    : Array.from(node.querySelectorAll<HTMLElement>(sel));
+                for (const el of els) {
+                    if (!observed.has(el)) {
+                        observed.add(el);
+                        ro.observe(el);
+                    }
+                }
+            }
+        };
+        scan();
+        const mo = new MutationObserver(() => scan());
+        mo.observe(node, { childList: true, subtree: true });
+        return {
+            destroy() {
+                ro.disconnect();
+                mo.disconnect();
+            },
+        };
+    }
 </script>
 
 <div
     class="controls-panel"
     class:controls-panel--ribbon-expanded={ribbonExpanded}
-    class:controls-panel--dock-left={dockSide === "left"}>
+    class:controls-panel--dock-left={dockSide === "left"}
+    use:probePanelHeights>
 
     <div class="settings-shell" class:settings-shell--with-panel={activeToolHasPanel}>
     <!-- Icon Toolbar -->
