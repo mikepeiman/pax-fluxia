@@ -20,6 +20,7 @@ import type {
     PowerVoronoiTransitionPair,
     PowerVoronoiTransitionPlan,
     PowerVoronoiTransitionVertex,
+    PowerVoronoiUnsupportedTransitionFront,
 } from './contracts';
 
 type Vec2 = [number, number];
@@ -268,28 +269,49 @@ function toFrontChain(prefix: string, chain: ChainPath, index: number): PowerVor
     };
 }
 
+interface TransitionFrontCollection {
+    fronts: PowerVoronoiTransitionFront[];
+    unsupportedFronts: PowerVoronoiUnsupportedTransitionFront[];
+}
+
 function collectTransitionFronts(
     prev: FrontierTopology,
     next: FrontierTopology,
-): PowerVoronoiTransitionFront[] {
+): TransitionFrontCollection {
     const anchors = findStableAnchors(prev, next);
     const prevByPair = groupChainsByAnchorPair(buildChainsBetweenAnchors(prev, anchors));
     const nextByPair = groupChainsByAnchorPair(buildChainsBetweenAnchors(next, anchors));
     const fronts: PowerVoronoiTransitionFront[] = [];
+    const unsupportedFronts: PowerVoronoiUnsupportedTransitionFront[] = [];
 
     for (const key of new Set<string>([...prevByPair.keys(), ...nextByPair.keys()])) {
         const prevChains = prevByPair.get(key) ?? [];
         const nextChains = nextByPair.get(key) ?? [];
         if (prevChains.length === 0 || nextChains.length === 0) continue;
 
-        const splitMode = splitModeFromCounts(prevChains.length, nextChains.length);
-        if (!splitMode) continue;
-
         const [anchorStartId, anchorEndId] = key.split('|');
         const ownerPairKey = nextChains[0]?.ownerPairKey ?? prevChains[0]?.ownerPairKey ?? 'unknown';
         if (isWorldOwnerPair(ownerPairKey) || !chainsChanged(prevChains, nextChains)) {
             continue;
         }
+
+        const splitMode = splitModeFromCounts(prevChains.length, nextChains.length);
+        if (!splitMode) {
+            const attemptedSplitMode = `${prevChains.length}to${nextChains.length}`;
+            unsupportedFronts.push({
+                frontId: `pv-front-unsupported:${ownerPairKey}:${anchorStartId}:${anchorEndId}:${attemptedSplitMode}`,
+                ownerPairKey,
+                anchorStartId,
+                anchorEndId,
+                preChainCount: prevChains.length,
+                postChainCount: nextChains.length,
+                attemptedSplitMode,
+                reason: 'unsupported_branch_count',
+                fallback: 'unsupported_front_skipped',
+            });
+            continue;
+        }
+
         const preConquestFront = prevChains.map((chain, index) =>
             toFrontChain(`pre:${ownerPairKey}`, chain, index),
         );
@@ -349,7 +371,7 @@ function collectTransitionFronts(
         });
     }
 
-    return fronts;
+    return { fronts, unsupportedFronts };
 }
 
 function cloneTunables(tunables: TerritoryTunables): TerritoryTunables {
@@ -385,10 +407,12 @@ function buildGeometryStageSummary(
 function buildTransitionPlanningStageSummary(
     activeFrontPlan: ActiveFrontTransitionPlan,
     fronts: readonly PowerVoronoiTransitionFront[],
+    unsupportedFronts: readonly PowerVoronoiUnsupportedTransitionFront[],
     unaffectedLoopIds: readonly string[],
 ) {
     return {
         transitionFrontCount: fronts.length,
+        unsupportedFrontCount: unsupportedFronts.length,
         activeFrontPlanFrontCount: activeFrontPlan.fronts.length,
         transitionPairCount: fronts.reduce(
             (count, front) => count + front.transitionPairs.length,
@@ -396,6 +420,9 @@ function buildTransitionPlanningStageSummary(
         ),
         unaffectedLoopCount: unaffectedLoopIds.length,
         splitModes: [...new Set(fronts.map((front) => front.splitMode))].sort(),
+        unsupportedSplitModes: [
+            ...new Set(unsupportedFronts.map((front) => front.attemptedSplitMode)),
+        ].sort(),
     };
 }
 
@@ -412,10 +439,11 @@ export function buildPowerVoronoiFrontlineRuntime(args: {
         args.nextOwnership,
     );
     const planId = `pv-frontline:${args.preGeometry.version}:${args.postGeometry.version}`;
-    const fronts = collectTransitionFronts(
+    const transitionFrontCollection = collectTransitionFronts(
         args.preGeometry.frontierTopology,
         args.postGeometry.frontierTopology,
     );
+    const { fronts, unsupportedFronts } = transitionFrontCollection;
     const unaffectedLoopIds = args.postGeometry.frontierTopology.loops
         .filter((loop) => !fronts.some((front) => front.ownerPairKey.includes(loop.ownerId)))
         .map((loop) => loop.id);
@@ -441,6 +469,7 @@ export function buildPowerVoronoiFrontlineRuntime(args: {
     const transitionPlanningSummary = buildTransitionPlanningStageSummary(
         activeFrontPlan as ActiveFrontTransitionPlan,
         fronts,
+        unsupportedFronts,
         unaffectedLoopIds,
     );
     const diagnostics: PowerVoronoiDiagnosticBundle = {
@@ -473,6 +502,7 @@ export function buildPowerVoronoiFrontlineRuntime(args: {
             preTopology: args.preGeometry.frontierTopology,
             postTopology: args.postGeometry.frontierTopology,
             transitionPlan,
+            unsupportedFronts,
             summary: transitionPlanningSummary,
         },
         frameEvaluationStage: {

@@ -281,6 +281,82 @@ describe('buildPowerVoronoiFrontlineRuntime', () => {
         expect(mergeRuntime.plan.fronts[0]?.transitionPairs).toHaveLength(2);
     });
 
+    it('reports unsupported branch counts as named transition diagnostics', () => {
+        const previousGeometry = buildMinimalGeometry(
+            buildMinimalTopology(
+                'unsupported-pre',
+                {
+                    a: [0, 0],
+                    b: [10, 10],
+                },
+                [
+                    {
+                        id: 'frontier-pre-a',
+                        startVertexId: 'a',
+                        endVertexId: 'b',
+                        points: [[0, 0], [3, 4], [10, 10]],
+                    },
+                    {
+                        id: 'frontier-pre-b',
+                        startVertexId: 'a',
+                        endVertexId: 'b',
+                        points: [[0, 0], [7, 6], [10, 10]],
+                    },
+                ],
+            ),
+        );
+        const nextGeometry = buildMinimalGeometry(
+            buildMinimalTopology(
+                'unsupported-post',
+                {
+                    a: [0, 0],
+                    b: [10, 10],
+                },
+                [
+                    {
+                        id: 'frontier-post-a',
+                        startVertexId: 'a',
+                        endVertexId: 'b',
+                        points: [[0, 0], [2, 5], [10, 10]],
+                    },
+                    {
+                        id: 'frontier-post-b',
+                        startVertexId: 'a',
+                        endVertexId: 'b',
+                        points: [[0, 0], [8, 5], [10, 10]],
+                    },
+                ],
+            ),
+        );
+
+        const runtime = buildPowerVoronoiFrontlineRuntime({
+            preGeometry: previousGeometry,
+            postGeometry: nextGeometry,
+            previousOwnership: buildTestOwnership('ownership:pre'),
+            nextOwnership: buildTestOwnership('ownership:post'),
+            tunables: TEST_TUNABLES,
+        });
+
+        expect(runtime.plan.fronts).toHaveLength(0);
+        expect(runtime.diagnostics.transitionPlanningStage.unsupportedFronts).toEqual([
+            expect.objectContaining({
+                ownerPairKey: 'blue|red',
+                anchorStartId: 'a',
+                anchorEndId: 'b',
+                preChainCount: 2,
+                postChainCount: 2,
+                attemptedSplitMode: '2to2',
+                reason: 'unsupported_branch_count',
+                fallback: 'unsupported_front_skipped',
+            }),
+        ]);
+        expect(runtime.diagnostics.transitionPlanningStage.summary).toMatchObject({
+            transitionFrontCount: 0,
+            unsupportedFrontCount: 1,
+            unsupportedSplitModes: ['2to2'],
+        });
+    });
+
     it('plans disjoint changed fronts independently within one transition envelope', () => {
         const previousGeometry = buildMinimalGeometry(
             buildMinimalTopology(
