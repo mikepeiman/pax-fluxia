@@ -312,6 +312,15 @@ export function computeGeometry0319(
         let traceCorridorVirtualCount = 0;
         let traceDisconnectVirtualCount = 0;
         if (config.corridorEnabled) {
+            const corridorSiteDetail = {
+                lanes: connections.length,
+                ownedStars: ownedStars.length,
+                generated: 0,
+                accepted: 0,
+                rejectedByClamp: 0,
+                totalSitesBefore: sites.length,
+                totalSitesAfter: sites.length,
+            };
             traceCorridorVirtualCount = measurePerf(
                 'territory.geometry0319.compute.sites.corridor',
                 () => {
@@ -331,7 +340,9 @@ export function computeGeometry0319(
                         config.cxContestPairSpacing,
                         config.starCoreGuardRadius,
                     );
+                    corridorSiteDetail.generated = corridorVirtuals.length;
                     let accepted = 0;
+                    let rejectedByClamp = 0;
                     for (const cv of corridorVirtuals) {
                         const clampedWeight =
                             clampVirtualSiteWeightForRealStarOwnership({
@@ -340,7 +351,10 @@ export function computeGeometry0319(
                                 weight: buildVirtualSiteWeight(cv.weight),
                                 realSites: realOwnershipGuardSites,
                             });
-                        if (clampedWeight <= 0) continue;
+                        if (clampedWeight <= 0) {
+                            rejectedByClamp++;
+                            continue;
+                        }
                         sites.push({
                             x: cv.x, y: cv.y,
                             weight: clampedWeight,
@@ -350,18 +364,33 @@ export function computeGeometry0319(
                         });
                         accepted++;
                     }
+                    corridorSiteDetail.accepted = accepted;
+                    corridorSiteDetail.rejectedByClamp = rejectedByClamp;
+                    corridorSiteDetail.totalSitesAfter = sites.length;
                     return accepted;
                 },
-                { lanes: connections.length, ownedStars: ownedStars.length },
+                corridorSiteDetail,
             );
         }
 
         if (config.disconnectEnabled) {
+            const disconnectSiteDetail = {
+                lanes: connections.length,
+                ownedStars: ownedStars.length,
+                allStars: stars.length,
+                generated: 0,
+                accepted: 0,
+                rejectedByClamp: 0,
+                totalSitesBefore: sites.length,
+                totalSitesAfter: sites.length,
+            };
             traceDisconnectVirtualCount = measurePerf(
                 'territory.geometry0319.compute.sites.disconnect',
                 () => {
                     const disconnectVirtuals = computeDisconnectVirtuals(ownedStars, stars, connections, config.disconnectDistance, config.dxWeight);
+                    disconnectSiteDetail.generated = disconnectVirtuals.length;
                     let accepted = 0;
+                    let rejectedByClamp = 0;
                     for (const dv of disconnectVirtuals) {
                         const clampedWeight =
                             clampVirtualSiteWeightForRealStarOwnership({
@@ -370,7 +399,10 @@ export function computeGeometry0319(
                                 weight: buildVirtualSiteWeight(dv.weight),
                                 realSites: realDisconnectGuardSites,
                             });
-                        if (clampedWeight <= 0) continue;
+                        if (clampedWeight <= 0) {
+                            rejectedByClamp++;
+                            continue;
+                        }
                         sites.push({
                             x: dv.x, y: dv.y,
                             weight: clampedWeight,
@@ -380,13 +412,12 @@ export function computeGeometry0319(
                         });
                         accepted++;
                     }
+                    disconnectSiteDetail.accepted = accepted;
+                    disconnectSiteDetail.rejectedByClamp = rejectedByClamp;
+                    disconnectSiteDetail.totalSitesAfter = sites.length;
                     return accepted;
                 },
-                {
-                    lanes: connections.length,
-                    ownedStars: ownedStars.length,
-                    allStars: stars.length,
-                },
+                disconnectSiteDetail,
             );
         }
 
