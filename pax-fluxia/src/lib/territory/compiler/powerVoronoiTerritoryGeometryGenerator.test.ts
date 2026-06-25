@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { executeChainWalk, flattenLoopPoints } from './chainWalkCore';
 import {
     chainSharedEdgesIntoPolylines,
     constructFillsFromFrontierChain,
@@ -68,40 +69,38 @@ describe('constructFillsFromFrontierChain', () => {
     });
 
     it('walks the clockwise-adjacent owner boundary at a junction instead of taking the first spur', () => {
-        const sharedPolylines: SharedPolyline[] = [
-            {
-                ownerPairKey: 'red|blue',
-                color: 0,
-                points: [
-                    [0, 0],
-                    [10, 0],
-                ],
-            },
-            {
-                ownerPairKey: 'red|cyan',
-                color: 0,
-                points: [
-                    [10, 0],
-                    [20, 0],
-                ],
-            },
-            {
-                ownerPairKey: 'red|yellow',
-                color: 0,
-                points: [
-                    [10, 0],
-                    [10, 10],
-                ],
-            },
-            {
-                ownerPairKey: 'red|green',
-                color: 0,
-                points: [
-                    [10, 10],
-                    [0, 10],
-                ],
-            },
-        ];
+        const base: SharedPolyline = {
+            ownerPairKey: 'red|blue',
+            color: 0,
+            points: [
+                [0, 0],
+                [10, 0],
+            ],
+        };
+        const spur: SharedPolyline = {
+            ownerPairKey: 'red|cyan',
+            color: 0,
+            points: [
+                [10, 0],
+                [20, 0],
+            ],
+        };
+        const adjacent: SharedPolyline = {
+            ownerPairKey: 'red|yellow',
+            color: 0,
+            points: [
+                [10, 0],
+                [10, 10],
+            ],
+        };
+        const top: SharedPolyline = {
+            ownerPairKey: 'red|green',
+            color: 0,
+            points: [
+                [10, 10],
+                [0, 10],
+            ],
+        };
         const worldBorderPolylines: SharedPolyline[] = [
             {
                 ownerPairKey: 'red|world',
@@ -113,20 +112,98 @@ describe('constructFillsFromFrontierChain', () => {
             },
         ];
 
-        const fills = constructFillsFromFrontierChain(
-            sharedPolylines,
-            worldBorderPolylines,
-        );
+        for (const sharedPolylines of [
+            [base, spur, adjacent, top],
+            [base, adjacent, spur, top],
+        ]) {
+            const fills = constructFillsFromFrontierChain(
+                sharedPolylines,
+                worldBorderPolylines,
+            );
 
-        expect(fills).toHaveLength(1);
-        expect(fills[0]?.ownerId).toBe('red');
-        expect(fills[0]?.points).toEqual([
-            [0, 0],
-            [10, 0],
-            [10, 10],
-            [0, 10],
-            [0, 0],
-        ]);
+            expect(fills).toHaveLength(1);
+            expect(fills[0]?.ownerId).toBe('red');
+            expect(fills[0]?.points).toEqual([
+                [0, 0],
+                [10, 0],
+                [10, 10],
+                [0, 10],
+                [0, 0],
+            ]);
+        }
+    });
+});
+
+describe('executeChainWalk', () => {
+    it('selects the same clockwise-adjacent segments across junction insertion orders', () => {
+        const base: SharedPolyline = {
+            ownerPairKey: 'red|blue',
+            color: 0,
+            points: [
+                [0, 0],
+                [10, 0],
+            ],
+        };
+        const spur: SharedPolyline = {
+            ownerPairKey: 'red|cyan',
+            color: 0,
+            points: [
+                [10, 0],
+                [20, 0],
+            ],
+        };
+        const adjacent: SharedPolyline = {
+            ownerPairKey: 'red|yellow',
+            color: 0,
+            points: [
+                [10, 0],
+                [10, 10],
+            ],
+        };
+        const top: SharedPolyline = {
+            ownerPairKey: 'red|green',
+            color: 0,
+            points: [
+                [10, 10],
+                [0, 10],
+            ],
+        };
+        const worldBorderPolylines: SharedPolyline[] = [
+            {
+                ownerPairKey: 'red|world',
+                color: 0,
+                points: [
+                    [0, 10],
+                    [0, 0],
+                ],
+            },
+        ];
+
+        const closedLoopSignatures = [
+            [base, spur, adjacent, top],
+            [base, adjacent, spur, top],
+        ].map((sharedPolylines) => {
+            const walk = executeChainWalk(sharedPolylines, worldBorderPolylines);
+            const closedRedLoops = walk.loops.filter(
+                (loop) => loop.ownerId === 'red' && loop.closed,
+            );
+
+            expect(closedRedLoops).toHaveLength(1);
+            const loop = closedRedLoops[0]!;
+            expect(flattenLoopPoints(loop)).toEqual([
+                [0, 0],
+                [10, 0],
+                [10, 10],
+                [0, 10],
+                [0, 0],
+            ]);
+
+            return loop.segments.map(
+                (segment) => `${segment.ownerPairKey}:${segment.direction}`,
+            );
+        });
+
+        expect(closedLoopSignatures[0]).toEqual(closedLoopSignatures[1]);
     });
 });
 

@@ -37,7 +37,13 @@ export function buildSortedOutgoingArcMap<T extends DirectedPlanarArc>(
     }
 
     for (const bucket of adjacency.values()) {
-        bucket.sort((a, b) => a.angle - b.angle);
+        bucket.sort(
+            (a, b) =>
+                a.angle - b.angle ||
+                a.physicalIdx - b.physicalIdx ||
+                a.fromKey.localeCompare(b.fromKey) ||
+                a.toKey.localeCompare(b.toKey),
+        );
     }
 
     return adjacency;
