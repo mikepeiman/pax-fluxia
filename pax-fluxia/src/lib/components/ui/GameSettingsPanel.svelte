@@ -1731,6 +1731,12 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         min-height: 0;
         display: grid;
         grid-template-columns: var(--settings-ribbon-width) minmax(0, 1fr);
+        /* Definite single row that fills the shell (min 0 so it never grows with
+           content). Without this the implicit row is `auto` = content-sized, and
+           .settings-content's height:100% resolves against a content-sized track
+           — a feedback loop the browser re-resolves on reflow, which is the
+           intermittent ~25% "collapse" seen when certain toggles force a relayout. */
+        grid-template-rows: minmax(0, 1fr);
         grid-template-areas: "rail content";
         gap: var(--pax-gap-md);
         align-items: stretch;
@@ -2243,6 +2249,9 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
 
     .settings-shell {
         grid-template-columns: var(--settings-ribbon-width) minmax(0, 1fr);
+        /* Definite single row (see base rule) so the content column has a real
+           height to scroll inside, independent of how tall its content is. */
+        grid-template-rows: minmax(0, 1fr);
         gap: var(--pax-gap-sm);
         flex: 1;
         min-height: 0;
