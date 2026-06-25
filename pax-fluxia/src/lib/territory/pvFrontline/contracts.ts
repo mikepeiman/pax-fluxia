@@ -9,6 +9,7 @@ import type {
 import type { ActiveFrontTransitionPlan } from '../layers/transition/ActiveFrontTransition';
 
 export type PowerVoronoiFrontSplitMode = '1to1' | '1to2' | '2to1';
+export type PowerVoronoiUnsupportedTransitionReason = 'unsupported_branch_count';
 
 export interface PowerVoronoiTransitionAnchor {
     vertexId: string;
@@ -48,6 +49,18 @@ export interface PowerVoronoiTransitionFront {
     postConquestFront: readonly PowerVoronoiFrontChain[];
     transitionVertices: readonly PowerVoronoiTransitionVertex[];
     transitionPairs: readonly PowerVoronoiTransitionPair[];
+}
+
+export interface PowerVoronoiUnsupportedTransitionFront {
+    frontId: string;
+    ownerPairKey: string;
+    anchorStartId: string;
+    anchorEndId: string;
+    preChainCount: number;
+    postChainCount: number;
+    attemptedSplitMode: string;
+    reason: PowerVoronoiUnsupportedTransitionReason;
+    fallback: 'unsupported_front_skipped';
 }
 
 export interface TransientTransitionFrontline {
@@ -106,10 +119,12 @@ export interface PowerVoronoiGeometryDiagnostics {
 
 export interface PowerVoronoiTransitionPlanningStageSummary {
     transitionFrontCount: number;
+    unsupportedFrontCount: number;
     activeFrontPlanFrontCount: number;
     transitionPairCount: number;
     unaffectedLoopCount: number;
     splitModes: readonly PowerVoronoiFrontSplitMode[];
+    unsupportedSplitModes: readonly string[];
 }
 
 export interface PowerVoronoiTransitionPlanningDiagnostics {
@@ -119,6 +134,7 @@ export interface PowerVoronoiTransitionPlanningDiagnostics {
     preTopology: FrontierTopology;
     postTopology: FrontierTopology;
     transitionPlan: PowerVoronoiTransitionPlan;
+    unsupportedFronts: readonly PowerVoronoiUnsupportedTransitionFront[];
     summary: PowerVoronoiTransitionPlanningStageSummary;
 }
 
