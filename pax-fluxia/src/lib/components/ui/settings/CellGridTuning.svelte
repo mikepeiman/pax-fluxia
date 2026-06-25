@@ -16,6 +16,7 @@
         PaxHudSelect,
         PaxInfoHint,
         PaxSettingsRangeRow,
+        PaxSettingsSegmentedRow,
         PaxSettingsToggleRow,
         type PaxHudSegmentedOption,
     } from '$lib/design-system';
@@ -47,8 +48,8 @@
     const CELL_GRID_MODULE_PANEL_KEY = 'cellGridModuleVisibility';
 
     const ORIGIN_MODE_OPTIONS = [
-        { value: 'centered', label: 'Centered (half-spacing offset)' },
-        { value: 'corner', label: 'Corner / origin (0,0 anchor)' },
+        { value: 'centered', label: 'Centered' },
+        { value: 'corner', label: 'Corner' },
     ];
 
     const DISTRIBUTION_OPTIONS = [
@@ -61,13 +62,13 @@
         { value: 'square', label: 'Square' },
         { value: 'circle', label: 'Circle' },
         { value: 'diamond', label: 'Diamond' },
-        { value: 'hex', label: 'Hex (pointy-top honeycomb)' },
+        { value: 'hex', label: 'Hex' },
     ];
 
     const BORDER_MODE_OPTIONS = [
-        { value: 'off', label: 'Off (no borders)' },
-        { value: 'territory_edge', label: 'Territory edge (owner boundaries only)' },
-        { value: 'per_cell', label: 'Per cell (full grid outline)' },
+        { value: 'off', label: 'Off' },
+        { value: 'territory_edge', label: 'Edge' },
+        { value: 'per_cell', label: 'Per cell' },
     ];
 
     const FRONTIER_TECHNIQUE_OPTIONS = [
@@ -719,19 +720,23 @@
 />
 {/if}
 
-<PaxHudSelect
+<PaxSettingsSegmentedRow
     label="Origin Mode"
+    hint="Cell origin: Centered = half-spacing offset; Corner = anchored at (0,0)."
     value={currentOriginMode()}
     options={ORIGIN_MODE_OPTIONS}
+    settingConfigKey="CELL_GRID_ORIGIN_MODE"
     onValueChange={(value) => {
         writeConfig('CELL_GRID_ORIGIN_MODE', 'cellGridOriginMode', value);
     }}
 />
 
-<PaxHudSelect
+<PaxSettingsSegmentedRow
     label="Distribution"
+    hint="Cell distribution: Square grid, Hex offset rows, or Jittered (per-cell scatter)."
     value={currentDistribution()}
     options={DISTRIBUTION_OPTIONS}
+    settingConfigKey="CELL_GRID_DISTRIBUTION"
     onValueChange={(value) => {
         writeConfig('CELL_GRID_DISTRIBUTION', 'cellGridDistribution', value);
     }}
@@ -771,11 +776,12 @@
 
 {#if isPhaseFieldMode() && showModule('grid')}
 <div class="module-block">
-<PaxHudSelect
+<PaxSettingsSegmentedRow
     label="Cell Shape"
     hint="Visual primitive drawn per cell. Square packs tightly; circle and diamond leave corner gaps for a stippled look; hex draws pointy-top hexagons with honeycomb row-offset tessellation (≈13% vertical gap reads as fine grid lines — pure pointy-top can't perfectly tile a square grid)."
     value={currentCellShape()}
     options={CELL_SHAPE_OPTIONS}
+    settingConfigKey="CELL_GRID_CELL_SHAPE"
     onValueChange={(value) => {
         writeConfig('CELL_GRID_CELL_SHAPE', 'cellGridCellShape', value);
     }}
@@ -823,12 +829,13 @@
     }}
 />
 
-<PaxHudSelect
+<PaxSettingsSegmentedRow
     label="Border Mode"
-    hint="Where to draw the Territory border stroke. Off = none. Per cell draws a full grid outline. Territory edge outlines only ownership boundaries (or the world edge) — cheap and distinctive. Width/alpha/HSL come from the Territory border SLA widget below."
+    hint="Where to draw the Territory border stroke. Off = none. Per cell draws a full grid outline. Edge outlines only ownership boundaries (or the world edge) — cheap and distinctive. Width/alpha/HSL come from the Territory border SLA widget below."
     value={currentBorderMode()}
     options={BORDER_MODE_OPTIONS}
     disabled={isEmberLatticeMode() && currentFrontierTechnique() !== 'control'}
+    settingConfigKey="CELL_GRID_BORDER_MODE"
     onValueChange={(value) => {
         writeConfig('CELL_GRID_BORDER_MODE', 'cellGridBorderMode', value);
     }}
