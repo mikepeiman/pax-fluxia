@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount, tick } from "svelte";
+    import { fade } from "svelte/transition";
     import { DEFAULT_GAME_CONFIG, GAME_CONFIG } from "$lib/config/game.config";
     import type { MapDefinition } from "$lib/types/map.types";
     import {
@@ -834,7 +835,35 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     let activeSectionId = $state<ActiveSectionId | null>(loadActiveSection());
-    let activeToolHasPanel = $derived(activeSectionId !== null);
+
+    // Which category panel is open — tracked INDEPENDENTLY of the selected
+    // section so that deselecting a section just hides its sub-content (body)
+    // while the category chrome + section chips stay visible. Persisted.
+    const OPEN_CATEGORY_KEY = "pax-fluxia-settings-open-category";
+
+    function categoryOf(id: ActiveSectionId | null): SettingsCategoryId | null {
+        if (id === null) return null;
+        return isUtilityPanelId(id)
+            ? UTILITY_PANEL_CATEGORY[id]
+            : (CATEGORY_BY_SECTION[id] ?? null);
+    }
+
+    function loadOpenCategory(): SettingsCategoryId | null {
+        if (typeof window === "undefined") return categoryOf(loadActiveSection());
+        const stored = localStorage.getItem(
+            OPEN_CATEGORY_KEY,
+        ) as SettingsCategoryId | null;
+        if (stored && SETTINGS_CATEGORIES.some((c) => c.id === stored)) {
+            return stored;
+        }
+        return categoryOf(loadActiveSection());
+    }
+
+    let openCategoryId = $state<SettingsCategoryId | null>(loadOpenCategory());
+
+    // The panel chrome is open whenever a category is open (even with no section
+    // selected), so layout/activity tracks the category, not the section.
+    let activeToolHasPanel = $derived(openCategoryId !== null);
     // "All" view: stack every section of the active category in one scroll.
     // activeSectionId is kept (so the category + chips stay resolved); this just
     // overlays the all-sections render. Persisted so the chosen view survives reload.
@@ -863,10 +892,36 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         );
     });
 
+    $effect(() => {
+        if (typeof window === "undefined") return;
+        if (openCategoryId) {
+            localStorage.setItem(OPEN_CATEGORY_KEY, openCategoryId);
+        } else {
+            localStorage.removeItem(OPEN_CATEGORY_KEY);
+        }
+    });
+
     function selectSection(id: ActiveSectionId | null) {
         // Selecting or closing any single section always exits the "All" view.
         showAllSections = false;
-        activeSectionId = activeSectionId === id ? null : id;
+        if (id === null) {
+            // Deselect: hide the sub-content only — keep the category panel +
+            // chips open (do NOT clear openCategoryId).
+            activeSectionId = null;
+        } else {
+            // Toggling the active chip deselects it (hides body); otherwise open it.
+            activeSectionId = activeSectionId === id ? null : id;
+            const category = categoryOf(id);
+            if (category) openCategoryId = category;
+        }
+        persistActiveSection();
+    }
+
+    /** Fully close the open category panel (chrome + body). */
+    function closeCategoryPanel() {
+        showAllSections = false;
+        activeSectionId = null;
+        openCategoryId = null;
         persistActiveSection();
     }
 
@@ -955,13 +1010,9 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         SETTINGS_CATEGORIES.filter((cat) => chipsForCategory(cat.id).length > 0),
     );
 
-    let activeCategoryId = $derived<SettingsCategoryId | null>(
-        activeSectionId === null
-            ? null
-            : isUtilityPanelId(activeSectionId)
-              ? UTILITY_PANEL_CATEGORY[activeSectionId]
-              : (CATEGORY_BY_SECTION[activeSectionId] ?? null),
-    );
+    // The open category is its own state now (see openCategoryId) so the panel
+    // chrome persists when no section is selected.
+    let activeCategoryId = $derived<SettingsCategoryId | null>(openCategoryId);
     let activeCategory = $derived(
         SETTINGS_CATEGORIES.find((c) => c.id === activeCategoryId) ?? null,
     );
@@ -983,10 +1034,12 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     });
 
     function selectCategory(catId: SettingsCategoryId) {
-        if (activeCategoryId === catId) {
-            selectSection(null);
+        if (openCategoryId === catId) {
+            // Clicking the open category again closes the whole panel.
+            closeCategoryPanel();
             return;
         }
+        openCategoryId = catId;
         selectSection(chipsForCategory(catId)[0]?.id ?? null);
     }
 
@@ -1020,6 +1073,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             setTier("developer");
         }
         activeSectionId = normalizeSettingsSectionId(forceOpenSection) ?? forceOpenSection;
+        const category = categoryOf(activeSectionId);
+        if (category) openCategoryId = category;
         persistActiveSection();
     });
 
@@ -1329,13 +1384,12 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             </div>
         {/if}
     </div>
-    {#if activePanel}
-        {@const sec = activePanel}
-        <div class="section-panel" data-accent-id={activeCategoryId}>
+    {#if openCategoryId}
+        <div class="section-panel" data-accent-id={activeCategoryId} transition:fade={{ duration: 120 }}>
             <div class="section-head-wrap">
-                <PaxHudButton class="section-head" onclick={() => selectSection(null)} title={`Close ${activeCategory?.label ?? sec.label}`}>
-                    <span class="head-icon"><HudIcon name={activeCategory?.icon ?? sec.icon} /></span>
-                    <span class="head-label">{activeCategory?.label ?? sec.label}</span>
+                <PaxHudButton class="section-head" onclick={closeCategoryPanel} title={`Close ${activeCategory?.label ?? "settings"}`}>
+                    <span class="head-icon"><HudIcon name={activeCategory?.icon ?? "settings"} /></span>
+                    <span class="head-label">{activeCategory?.label ?? ""}</span>
                     <span class="head-close"><HudIcon name="close" size={14} /></span>
                 </PaxHudButton>
                 {#if activeCategoryChips.length > 1}
@@ -1362,7 +1416,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         {/each}
                     </div>
                 {/if}
-                {#if !showAllSections && !isUtilityPanelId(sec.id) && (sectionSubsections[sec.id]?.length ?? 0) > 0}
+                {#if !showAllSections && activePanel && !isUtilityPanelId(activePanel.id) && (sectionSubsections[activePanel.id]?.length ?? 0) > 0}
+                    {@const sec = activePanel}
                     <div class="section-subnav section-subnav--secondary">
                         <PaxHudButton
                             class="subsection-chip"
@@ -1409,7 +1464,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         </div>
                     {/each}
                 </div>
-            {:else}
+            {:else if activePanel}
+                {@const sec = activePanel}
                 <div
                     class="section-body"
                     use:registerSectionBody={{
@@ -1421,6 +1477,14 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                     }}
                 >
                     {@render sectionContent(sec)}
+                </div>
+            {:else}
+                <!-- Category open but no section selected (deselected). Keep the
+                     panel + chips; show a quiet hint instead of collapsing. -->
+                <div class="section-body section-body--empty">
+                    <p class="section-empty-hint">
+                        Select a section above to edit its settings.
+                    </p>
                 </div>
             {/if}
         </div>
@@ -2023,6 +2087,19 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     /* "All" view: one scroll surface; each section becomes a labelled group. */
     .section-body--all {
         gap: var(--pax-space-4);
+    }
+    /* Category open but no section selected — quiet placeholder. */
+    .section-body--empty {
+        align-items: center;
+        justify-content: center;
+    }
+    .section-empty-hint {
+        margin: 0;
+        padding: var(--pax-space-4);
+        color: var(--pax-ui-text-dim);
+        font-family: var(--pax-ui-font-copy);
+        font-size: var(--pax-type-2xs);
+        text-align: center;
     }
     .section-all-group {
         display: flex;
