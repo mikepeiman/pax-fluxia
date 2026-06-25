@@ -9,6 +9,13 @@
 // Does NOT: render, import PIXI, mutate inputs
 // ---------------------------------------------------------------------------
 
+import {
+    buildSortedOutgoingArcMap,
+    normalizePlanarAngle,
+    pickClockwiseAdjacentArc,
+    type DirectedPlanarArc,
+} from './planarWalk';
+
 export interface SharedPolylineLike {
     points: [number, number][];
     ownerPairKey: string;
@@ -69,6 +76,10 @@ interface JunctionEntry {
     end: 'start' | 'end';
 }
 
+interface ChainWalkArc extends DirectedPlanarArc {
+    direction: 'forward' | 'reverse';
+}
+
 /** Complete result of the shared chain walk. */
 export interface ChainWalkResult {
     /** All loops discovered by the walk */
@@ -82,6 +93,35 @@ export interface ChainWalkResult {
 // ---------------------------------------------------------------------------
 // Core chain walk
 // ---------------------------------------------------------------------------
+
+function traversalKey(polylineIdx: number, direction: 'forward' | 'reverse'): string {
+    return `${polylineIdx}:${direction}`;
+}
+
+function endpointTangentAngle(
+    points: readonly [number, number][],
+    direction: 'forward' | 'reverse',
+): number {
+    if (direction === 'forward') {
+        const [fromX, fromY] = points[0]!;
+        for (let i = 1; i < points.length; i++) {
+            const [toX, toY] = points[i]!;
+            if (toX !== fromX || toY !== fromY) {
+                return normalizePlanarAngle(Math.atan2(toY - fromY, toX - fromX));
+            }
+        }
+    } else {
+        const [fromX, fromY] = points[points.length - 1]!;
+        for (let i = points.length - 2; i >= 0; i--) {
+            const [toX, toY] = points[i]!;
+            if (toX !== fromX || toY !== fromY) {
+                return normalizePlanarAngle(Math.atan2(toY - fromY, toX - fromX));
+            }
+        }
+    }
+
+    return 0;
+}
 
 /**
  * Execute the chain walk on combined polylines, producing a rich
@@ -135,6 +175,33 @@ export function executeChainWalk(
         addJunction(polylineInfos[i].endKey, i, 'end');
     }
 
+    const directedArcs: ChainWalkArc[] = [];
+    const directedArcByTraversal = new Map<string, ChainWalkArc>();
+    for (let i = 0; i < N; i++) {
+        const info = polylineInfos[i]!;
+        if (info.points.length < 2) continue;
+
+        const forwardArc: ChainWalkArc = {
+            physicalIdx: i,
+            fromKey: info.startKey,
+            toKey: info.endKey,
+            angle: endpointTangentAngle(info.points, 'forward'),
+            direction: 'forward',
+        };
+        const reverseArc: ChainWalkArc = {
+            physicalIdx: i,
+            fromKey: info.endKey,
+            toKey: info.startKey,
+            angle: endpointTangentAngle(info.points, 'reverse'),
+            direction: 'reverse',
+        };
+
+        directedArcs.push(forwardArc, reverseArc);
+        directedArcByTraversal.set(traversalKey(i, 'forward'), forwardArc);
+        directedArcByTraversal.set(traversalKey(i, 'reverse'), reverseArc);
+    }
+    const outgoingArcMap = buildSortedOutgoingArcMap(directedArcs);
+
     // --- Collect polylines per owner ---
     const ownerPolylines = new Map<string, Set<number>>();
     for (let i = 0; i < N; i++) {
@@ -162,6 +229,12 @@ export function executeChainWalk(
             const junctionKeys: string[] = [];
 
             // First segment: always forward
+            const firstArc = directedArcByTraversal.get(
+                traversalKey(startPlIdx, 'forward'),
+            );
+            if (!firstArc) continue;
+            let currentArc: ChainWalkArc = firstArc;
+
             segments.push({
                 polylineIdx: startPlIdx,
                 direction: 'forward',
@@ -187,44 +260,43 @@ export function executeChainWalk(
                 const candidates = junctionMap.get(tailKey);
                 if (!candidates) break;
 
-                let found = false;
-                for (const cand of candidates) {
-                    if (ownerUsed.has(cand.plIdx)) continue;
-                    const ci = polylineInfos[cand.plIdx];
-                    if (ci.ownerA !== ownerId && ci.ownerB !== ownerId) continue;
+                const nextArc: ChainWalkArc | null = pickClockwiseAdjacentArc({
+                    adjacency: outgoingArcMap,
+                    current: currentArc,
+                    isAvailable: (arc) => {
+                        if (ownerUsed.has(arc.physicalIdx)) return false;
+                        const ci = polylineInfos[arc.physicalIdx];
+                        return ci.ownerA === ownerId || ci.ownerB === ownerId;
+                    },
+                });
 
-                    ownerUsed.add(cand.plIdx);
+                if (!nextArc) break;
 
-                    if (cand.end === 'start') {
-                        // Forward traversal
-                        segments.push({
-                            polylineIdx: cand.plIdx,
-                            direction: 'forward',
-                            startVertexKey: ci.startKey,
-                            endVertexKey: ci.endKey,
-                            ownerPairKey: ci.ownerPairKey,
-                            points: ci.points,
-                        });
-                        junctionKeys.push(ci.startKey);
-                        tailKey = ci.endKey;
-                    } else {
-                        // Reverse traversal
-                        segments.push({
-                            polylineIdx: cand.plIdx,
-                            direction: 'reverse',
-                            startVertexKey: ci.endKey,
-                            endVertexKey: ci.startKey,
-                            ownerPairKey: ci.ownerPairKey,
-                            points: [...ci.points].reverse(),
-                        });
-                        junctionKeys.push(ci.endKey);
-                        tailKey = ci.startKey;
-                    }
-                    found = true;
-                    break;
+                ownerUsed.add(nextArc.physicalIdx);
+                const ci = polylineInfos[nextArc.physicalIdx];
+                if (nextArc.direction === 'forward') {
+                    segments.push({
+                        polylineIdx: nextArc.physicalIdx,
+                        direction: 'forward',
+                        startVertexKey: ci.startKey,
+                        endVertexKey: ci.endKey,
+                        ownerPairKey: ci.ownerPairKey,
+                        points: ci.points,
+                    });
+                    junctionKeys.push(ci.startKey);
+                } else {
+                    segments.push({
+                        polylineIdx: nextArc.physicalIdx,
+                        direction: 'reverse',
+                        startVertexKey: ci.endKey,
+                        endVertexKey: ci.startKey,
+                        ownerPairKey: ci.ownerPairKey,
+                        points: [...ci.points].reverse(),
+                    });
+                    junctionKeys.push(ci.endKey);
                 }
-
-                if (!found) break;
+                tailKey = nextArc.toKey;
+                currentArc = nextArc;
             }
 
             // Accept loops with at least 2 segments (mirrors original chain.length >= 3)
