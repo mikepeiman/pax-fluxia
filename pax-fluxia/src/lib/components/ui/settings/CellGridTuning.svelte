@@ -709,8 +709,8 @@
     label={currentPlannerSpacingLabel()}
     note={currentPlannerSpacingDescription()}
     value={currentSpacingPx()}
-    min={4}
-    max={200}
+    min={1}
+    max={64}
     step={1}
     suffix="px"
     settingConfigKey="CELL_GRID_SPACING_PX"

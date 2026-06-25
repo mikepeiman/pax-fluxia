@@ -2126,15 +2126,18 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         padding: 0 var(--pax-space-3) var(--pax-space-3);
     }
     :global(.subsection-chip) {
+        /* Per-chip hue (assigned by position below) gives each chip in a row its
+           own colour; active state fills with that hue. */
+        --chip-hue: 200;
         display: inline-flex;
         align-items: center;
         gap: var(--pax-gap-xs);
         min-height: 24px;
-        padding: 0 9px;
-        border-radius: 7px;
-        border: 1px solid var(--pax-ui-border);
-        background: color-mix(in srgb, var(--pax-color-void) 62%, transparent);
-        color: var(--pax-ui-text);
+        padding: 0 10px;
+        border-radius: 999px;
+        border: 1px solid hsl(var(--chip-hue) 55% 60% / 0.4);
+        background: hsl(var(--chip-hue) 45% 14% / 0.45);
+        color: hsl(var(--chip-hue) 35% 82%);
         font-family: var(--pax-ui-font-ui);
         font-size: var(--pax-type-3xs);
         font-weight: var(--pax-weight-bold);
@@ -2142,31 +2145,43 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         text-transform: uppercase;
         cursor: pointer;
         transition:
-            border-color 0.15s,
-            background 0.15s,
-            color 0.15s,
-            transform 0.15s;
+            border-color 0.15s ease,
+            background 0.15s ease,
+            color 0.15s ease,
+            box-shadow 0.15s ease,
+            transform 0.15s ease;
     }
     :global(.subsection-chip:hover) {
-        border-color: color-mix(
-            in srgb,
-            var(--accent) 60%,
-            rgba(255, 255, 255, 0.12)
-        );
-        background: color-mix(in srgb, var(--accent) 10%, rgba(7, 12, 24, 0.5));
-        color: color-mix(in srgb, var(--pax-ui-text-strong) 96%, transparent);
+        border-color: hsl(var(--chip-hue) 75% 62% / 0.85);
+        background: hsl(var(--chip-hue) 55% 22% / 0.7);
+        color: hsl(var(--chip-hue) 60% 92%);
         transform: translateY(-1px);
     }
     :global(.subsection-chip.active) {
-        border-color: color-mix(
-            in srgb,
-            var(--accent) 76%,
-            rgba(255, 255, 255, 0.12)
+        border-color: hsl(var(--chip-hue) 85% 64%);
+        /* Vivid active fill in the chip's own hue. */
+        background: linear-gradient(
+            180deg,
+            hsl(var(--chip-hue) 72% 52%),
+            hsl(var(--chip-hue) 70% 44%)
         );
-        background: color-mix(in srgb, var(--accent) 18%, rgba(7, 12, 24, 0.6));
-        color: color-mix(in srgb, var(--pax-ui-text-strong) 98%, transparent);
-        box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent);
+        color: hsl(var(--chip-hue) 95% 97%);
+        box-shadow:
+            0 0 0 1px hsl(var(--chip-hue) 80% 60% / 0.5),
+            0 2px 12px hsl(var(--chip-hue) 75% 50% / 0.45);
     }
+    :global(.subsection-chip.active:hover) {
+        transform: translateY(-1px);
+    }
+    /* Spread the row across a colour range by chip position. */
+    :global(.section-subnav .subsection-chip:nth-child(1)) { --chip-hue: 190; }
+    :global(.section-subnav .subsection-chip:nth-child(2)) { --chip-hue: 235; }
+    :global(.section-subnav .subsection-chip:nth-child(3)) { --chip-hue: 280; }
+    :global(.section-subnav .subsection-chip:nth-child(4)) { --chip-hue: 325; }
+    :global(.section-subnav .subsection-chip:nth-child(5)) { --chip-hue: 18; }
+    :global(.section-subnav .subsection-chip:nth-child(6)) { --chip-hue: 48; }
+    :global(.section-subnav .subsection-chip:nth-child(7)) { --chip-hue: 90; }
+    :global(.section-subnav .subsection-chip:nth-child(8)) { --chip-hue: 150; }
     .subsection-chip__icon {
         display: inline-grid;
         place-items: center;
