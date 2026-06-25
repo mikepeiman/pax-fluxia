@@ -378,6 +378,24 @@ function createPointInterner(): (x: number, y: number) => number {
     };
 }
 
+function createPointKeyInterner(): (key: string) => number {
+    const ids = new Map<string, number>();
+    return (key) => {
+        let id = ids.get(key);
+        if (id === undefined) {
+            id = ids.size;
+            ids.set(key, id);
+        }
+        return id;
+    };
+}
+
+function unorderedSegmentId(pointAId: number, pointBId: number): number {
+    return pointAId < pointBId
+        ? pointAId * SEGMENT_ID_STRIDE + pointBId
+        : pointBId * SEGMENT_ID_STRIDE + pointAId;
+}
+
 function buildDirectedSegmentIds(
     points: ReadonlyArray<[number, number]>,
     closed: boolean,
@@ -878,7 +896,8 @@ function buildDisplayGeometryFromResolvedRegions(
     const segmentOccurrences = measurePerf(
         'territory.constraintAlign.display.collectSegments',
         () => {
-            const collected = new Map<string, DisplaySegmentBucket>();
+            const internPointKey = createPointKeyInterner();
+            const collected = new Map<number, DisplaySegmentBucket>();
 
             for (const region of territoryRegions) {
                 const points = normalizeClosedRing(region.points);
@@ -889,10 +908,10 @@ function buildDisplayGeometryFromResolvedRegions(
                     const startKey = pointKey(start[0], start[1]);
                     const endKey = pointKey(end[0], end[1]);
                     if (startKey === endKey) continue;
-                    const segmentKey =
-                        startKey < endKey
-                            ? `${startKey}|${endKey}`
-                            : `${endKey}|${startKey}`;
+                    const segmentKey = unorderedSegmentId(
+                        internPointKey(startKey),
+                        internPointKey(endKey),
+                    );
                     const bucket = collected.get(segmentKey);
                     if (bucket) {
                         addDisplaySegmentOwner(bucket, region.ownerId);
