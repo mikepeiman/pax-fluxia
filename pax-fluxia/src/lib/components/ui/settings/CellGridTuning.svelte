@@ -14,6 +14,7 @@
         PaxHudButton,
         PaxHudSegmentedControl,
         PaxHudSelect,
+        PaxInfoHint,
         PaxSettingsRangeRow,
         PaxSettingsToggleRow,
         type PaxHudSegmentedOption,
@@ -672,6 +673,9 @@
 </script>
 
 <div class="module-head">
+    <PaxInfoHint
+        text="Section chips (Grid, Frontier, Wave, Flip, Finish) only change which controls are shown here — they do not switch the renderer or apply any visual effect by themselves."
+    />
     <PaxHudSegmentedControl
         class="module-scope-toggle"
         value={activeModule}
@@ -688,31 +692,18 @@
     </div>
 {/if}
 
-<div class="var-desc module-nav-note">
-    <strong>Panel Sections:</strong> Grid, Frontier, Wave, Flip, and Perf only change which controls are shown in this settings panel. They do not switch the renderer or apply a visual effect by themselves.
-</div>
-
-{#if isEmberLatticeMode() && !showModule('frontier')}
-<div class="mode-lock-note">
-    Frontier remains a module label in this panel, but the Ember Lattice comparison controls are kept visible below even if that chip is not selected.
-</div>
-{/if}
-
 {#if showModule('grid')}
 <div class="module-block">
 <PaxSettingsToggleRow
     label="Cell Grid Enabled"
     checked={panel.cellGridEnabled ?? GAME_CONFIG.CELL_GRID_ENABLED ?? false}
-    description="Master enable flag for the cell-grid mode."
+    description="Master switch for the cell-grid conquest family. Leave on to preview; the render mode selector in Mode must also be set to Cell grid."
     meta={(panel.cellGridEnabled ?? GAME_CONFIG.CELL_GRID_ENABLED ?? false) ? 'On' : 'Off'}
     settingConfigKey="CELL_GRID_ENABLED"
     onChange={(value) => {
         writeConfig('CELL_GRID_ENABLED', 'cellGridEnabled', value);
     }}
 />
-<div class="var-desc">
-    Master switch for the cell-grid conquest family. Leave on to preview; the render mode selector in "Mode" must also be set to "Cell grid".
-</div>
 
 <PaxSettingsRangeRow
     label={currentPlannerSpacingLabel()}
@@ -815,130 +806,68 @@
 
 {#if isPhaseFieldMode() && showModule('grid')}
 <div class="module-block">
-<div class="var-desc">
-    Phase Field keeps its cell-primitive, fill-boundary, and border-path controls local to the mode so fill-first tuning stays in one place.
-</div>
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Per-cell primitive. Square tiles the grid cleanly; circle and diamond create visible inter-cell gaps naturally.">
-            Cell Shape
-        </span>
-        <span class="val">
-            {#if currentCellShape() === 'square'}Square
-            {:else if currentCellShape() === 'circle'}Circle
-            {:else if currentCellShape() === 'diamond'}Diamond
-            {:else}Hex{/if}
-        </span>
-    </div>
-    <div class="var-desc">
-        Visual primitive drawn per cell. Square packs tightly; circle and diamond leave corner gaps for a stippled look; hex draws pointy-top hexagons with honeycomb row-offset tessellation (≈13% vertical gap reads as fine grid lines — pure pointy-top can't perfectly tile a square grid).
-    </div>
-    <PaxHudSelect
-        label="Cell Shape"
-        value={currentCellShape()}
-        options={CELL_SHAPE_OPTIONS}
-        onValueChange={(value) => {
-            writeConfig('CELL_GRID_CELL_SHAPE', 'cellGridCellShape', value);
-        }}
-    />
-</div>
+<PaxHudSelect
+    label="Cell Shape"
+    hint="Visual primitive drawn per cell. Square packs tightly; circle and diamond leave corner gaps for a stippled look; hex draws pointy-top hexagons with honeycomb row-offset tessellation (≈13% vertical gap reads as fine grid lines — pure pointy-top can't perfectly tile a square grid)."
+    value={currentCellShape()}
+    options={CELL_SHAPE_OPTIONS}
+    onValueChange={(value) => {
+        writeConfig('CELL_GRID_CELL_SHAPE', 'cellGridCellShape', value);
+    }}
+/>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Shrink each cell by this many pixels on every side. Creates gridline gaps between cells. Capped to 45% of spacing so cells never collapse.">
-            Cell Inset (px)
-        </span>
-        <span class="val">{panel.cellGridCellInsetPx ?? GAME_CONFIG.CELL_GRID_CELL_INSET_PX ?? 0}px</span>
-    </div>
-    <div class="var-desc">
-        Per-cell inward shrink on every side. 0 = fully tiled; small values draw visible grid lines; large values isolate each cell as a small shape.
-    </div>
-    <PaxSettingsRangeRow
-        label="Cell Inset"
-        value={panel.cellGridCellInsetPx ?? GAME_CONFIG.CELL_GRID_CELL_INSET_PX ?? 0}
-        min={0}
-        max={48}
-        step={0.5}
-        output={`${panel.cellGridCellInsetPx ?? GAME_CONFIG.CELL_GRID_CELL_INSET_PX ?? 0}px`}
-        settingConfigKey="CELL_GRID_CELL_INSET_PX"
-        onInput={(value) => {
-            writeConfig('CELL_GRID_CELL_INSET_PX', 'cellGridCellInsetPx', value);
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="Cell Inset"
+    note="Per-cell inward shrink on every side. 0 = fully tiled; small values draw visible grid lines; large values isolate each cell as a small shape. Capped to 45% of spacing so cells never collapse."
+    value={panel.cellGridCellInsetPx ?? GAME_CONFIG.CELL_GRID_CELL_INSET_PX ?? 0}
+    min={0}
+    max={48}
+    step={0.5}
+    output={`${panel.cellGridCellInsetPx ?? GAME_CONFIG.CELL_GRID_CELL_INSET_PX ?? 0}px`}
+    settingConfigKey="CELL_GRID_CELL_INSET_PX"
+    onInput={(value) => {
+        writeConfig('CELL_GRID_CELL_INSET_PX', 'cellGridCellInsetPx', value);
+    }}
+/>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Contracts the resolved fill surface inward after MSR/CX/DX/LP shaping. The cell pattern is drawn inside that inset surface.">
-            Inward Offset
-        </span>
-        <span class="val">{(panel.cellGridInwardOffsetPx ?? GAME_CONFIG.CELL_GRID_INWARD_OFFSET_PX ?? 0).toFixed(0)}px</span>
-    </div>
-    <div class="var-desc">
-        Contracts the resolved fill surface inward after MSR/CX/DX/LP shaping. The cell pattern is drawn inside that inset surface.
-    </div>
-    <PaxSettingsRangeRow
-        label="Inward Offset"
-        value={panel.cellGridInwardOffsetPx ?? GAME_CONFIG.CELL_GRID_INWARD_OFFSET_PX ?? 0}
-        min={0}
-        max={24}
-        step={1}
-        suffix="px"
-        settingConfigKey="CELL_GRID_INWARD_OFFSET_PX"
-        onInput={(value) => {
-            writeConfig('CELL_GRID_INWARD_OFFSET_PX', 'cellGridInwardOffsetPx', value);
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="Inward Offset"
+    note="Contracts the resolved fill surface inward after MSR/CX/DX/LP shaping. The cell pattern is drawn inside that inset surface."
+    value={panel.cellGridInwardOffsetPx ?? GAME_CONFIG.CELL_GRID_INWARD_OFFSET_PX ?? 0}
+    min={0}
+    max={24}
+    step={1}
+    suffix="px"
+    settingConfigKey="CELL_GRID_INWARD_OFFSET_PX"
+    onInput={(value) => {
+        writeConfig('CELL_GRID_INWARD_OFFSET_PX', 'cellGridInwardOffsetPx', value);
+    }}
+/>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Rounded-corner radius for square cells only. Circle/diamond ignore this knob.">
-            Square Corner (px)
-        </span>
-        <span class="val">{panel.cellGridCellCornerPx ?? GAME_CONFIG.CELL_GRID_CELL_CORNER_PX ?? 0}px</span>
-    </div>
-    <div class="var-desc">
-        Rounded-corner radius for square cells. Ignored for circle and diamond primitives. Clamped to half the cell size.
-    </div>
-    <PaxSettingsRangeRow
-        label="Square Corner"
-        value={panel.cellGridCellCornerPx ?? GAME_CONFIG.CELL_GRID_CELL_CORNER_PX ?? 0}
-        min={0}
-        max={48}
-        step={0.5}
-        output={`${panel.cellGridCellCornerPx ?? GAME_CONFIG.CELL_GRID_CELL_CORNER_PX ?? 0}px`}
-        settingConfigKey="CELL_GRID_CELL_CORNER_PX"
-        onInput={(value) => {
-            writeConfig('CELL_GRID_CELL_CORNER_PX', 'cellGridCellCornerPx', value);
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="Square Corner"
+    note="Rounded-corner radius for square cells. Ignored for circle and diamond primitives. Clamped to half the cell size."
+    value={panel.cellGridCellCornerPx ?? GAME_CONFIG.CELL_GRID_CELL_CORNER_PX ?? 0}
+    min={0}
+    max={48}
+    step={0.5}
+    output={`${panel.cellGridCellCornerPx ?? GAME_CONFIG.CELL_GRID_CELL_CORNER_PX ?? 0}px`}
+    settingConfigKey="CELL_GRID_CELL_CORNER_PX"
+    onInput={(value) => {
+        writeConfig('CELL_GRID_CELL_CORNER_PX', 'cellGridCellCornerPx', value);
+    }}
+/>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Where to draw the Territory border stroke. Off = no borders. Per cell = stroke every visible cell. Territory edge = stroke only cells on the boundary between owners (or the world edge).">
-            Border Mode
-        </span>
-        <span class="val">
-            {#if currentBorderMode() === 'off'}Off
-            {:else if currentBorderMode() === 'per_cell'}Per cell
-            {:else}Territory edge{/if}
-        </span>
-    </div>
-    <div class="var-desc">
-        Border stroke target. Per-cell draws a full grid outline; Territory-edge only outlines ownership boundaries — cheap and distinctive. Width/alpha/HSL come from the Territory border SLA widget below.
-    </div>
-    <PaxHudSelect
-        label="Border Mode"
-        value={currentBorderMode()}
-        options={BORDER_MODE_OPTIONS}
-        disabled={isEmberLatticeMode() && currentFrontierTechnique() !== 'control'}
-        onValueChange={(value) => {
-            writeConfig('CELL_GRID_BORDER_MODE', 'cellGridBorderMode', value);
-        }}
-    />
-</div>
+<PaxHudSelect
+    label="Border Mode"
+    hint="Where to draw the Territory border stroke. Off = none. Per cell draws a full grid outline. Territory edge outlines only ownership boundaries (or the world edge) — cheap and distinctive. Width/alpha/HSL come from the Territory border SLA widget below."
+    value={currentBorderMode()}
+    options={BORDER_MODE_OPTIONS}
+    disabled={isEmberLatticeMode() && currentFrontierTechnique() !== 'control'}
+    onValueChange={(value) => {
+        writeConfig('CELL_GRID_BORDER_MODE', 'cellGridBorderMode', value);
+    }}
+/>
 
 <PaxSettingsToggleRow
     label={currentBorderBlendLabel()}
@@ -967,9 +896,6 @@
         );
     }}
 />
-<div class="var-desc">
-    Phase Field only. Adds a conquest-local winner-side rim at the active front. The Frontier Fade controls in Flip govern how this accent disappears near completion.
-</div>
 {/if}
 
 {#if showGridEdgeShapingControls()}
@@ -1063,33 +989,23 @@
         writeConfig('CELL_GRID_EDGE_TRIM_PX', 'cellGridEdgeTrimPx', value);
     }}
 />
-{:else if currentBorderMode() === 'territory_edge' && usesSingularCenterlineTerritoryBorders()}
-    <div class="var-desc">
-        Singular blended territory borders ignore grid-edge shaping. Turn this off to tune the grid-edge fallback path.
-    </div>
 {/if}
 </div>
 {/if}
 
 {#if showFrontierControls()}
 <div class="module-block">
-<div class="var-desc">
-    Ember Lattice compares the control path against shader-band and contour-extraction variants without changing the underlying ownership truth. These options only apply cleanly on the square lattice. Surface styling and border-geometry controls live in Territory Styles.
-</div>
-
 <div class="var-row" class:disabled={!isEmberLatticeMode()}>
     <div class="row-top">
-        <span class="var-name" title="Benchmark comparison rows matching the frontier technique matrix.">
+        <span class="var-name">
             Preset Rows
+            <PaxInfoHint text="Benchmark comparison rows matching the frontier technique matrix. Each applies a planned preset directly so effect and performance can be compared without dialing every knob by hand." />
         </span>
         <span class="val">
             {#if !isEmberLatticeMode()}Ember Lattice only
             {:else if !canUseEmberFrontierTechnique()}Square lattice required
             {:else}Tap to apply{/if}
         </span>
-    </div>
-    <div class="var-desc">
-        These presets apply the planned benchmark rows directly so effect and performance can be compared without manually dialing each knob.
     </div>
     <div class="preset-grid">
         {#each TERRITORY_FRONTIER_BENCHMARK_PRESETS as preset}
@@ -1107,6 +1023,7 @@
 
 <PaxHudSelect
     label="Frontier Technique"
+    hint="Ember Lattice compares the control path against shader-band and contour-extraction variants without changing the underlying ownership truth. These options only apply cleanly on the square lattice; surface styling and border-geometry controls live in Territory Styles."
     value={currentFrontierTechnique()}
     options={FRONTIER_TECHNIQUE_OPTIONS}
     disabled={!isEmberLatticeMode()}
@@ -1216,169 +1133,83 @@
     }}
 />
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="How the wave's rank (ordering) is derived — BFS over grid steps or a Euclidean band around the seed set.">
-            Wave Geometry
-        </span>
-        <span class="val">
-            {#if currentWaveGeometry() === 'grid_bfs'}Grid BFS
-            {:else if currentWaveGeometry() === 'euclidean_band'}Euclidean band
-            {:else if currentWaveGeometry() === 'conquered_star_radial'}Conquered star radial
-            {:else}Pre → post frontier{/if}
-        </span>
-    </div>
-    <div class="var-desc">
-        Grid BFS follows grid neighbors step-by-step; Euclidean band bins cells by distance to nearest seed; the phase-edge geometries derive flip time directly from conquest-local frontier relationships.
-    </div>
-    <PaxHudSelect
-        label="Wave Geometry"
-        value={currentWaveGeometry()}
-        options={WAVE_GEOMETRY_OPTIONS}
-        onValueChange={(value) => {
-            writeConfig('CELL_GRID_WAVE_GEOMETRY', 'cellGridWaveGeometry', value);
-        }}
-    />
-</div>
+<PaxHudSelect
+    label="Wave Geometry"
+    hint="How the wave's rank (ordering) is derived. Grid BFS follows grid neighbors step-by-step; Euclidean band bins cells by distance to the nearest seed; the phase-edge geometries derive flip time directly from conquest-local frontier relationships."
+    value={currentWaveGeometry()}
+    options={WAVE_GEOMETRY_OPTIONS}
+    onValueChange={(value) => {
+        writeConfig('CELL_GRID_WAVE_GEOMETRY', 'cellGridWaveGeometry', value);
+    }}
+/>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Where the wave starts. Winner natives = all winner-owned cells; conquered star center = a single seed at the conquered star; winner nearest edge = the winner cell(s) closest to the conquered star (forces 4-adjacency).">
-            Wave Seeding
-        </span>
-        <span class="val">
-            {#if currentWaveSeeding() === 'winner_natives'}Winner natives
-            {:else if currentWaveSeeding() === 'conquered_star_center'}Conquered star
-            {:else}Winner nearest edge{/if}
-        </span>
-    </div>
-    <div class="var-desc">
-        Winner natives spreads from the entire winner footprint. Conquered star center is a point source. Winner nearest edge picks the winner-owned cell(s) closest to the conquered star.
-    </div>
-    <PaxHudSelect
-        label="Wave Seeding"
-        value={currentWaveSeeding()}
-        options={WAVE_SEEDING_OPTIONS}
-        onValueChange={(value) => {
-            writeConfig('CELL_GRID_WAVE_SEEDING', 'cellGridWaveSeeding', value);
-        }}
-    />
-</div>
+<PaxHudSelect
+    label="Wave Seeding"
+    hint="Where the wave starts. Winner natives spreads from the entire winner footprint; conquered star center is a single point source at the conquered star; winner nearest edge picks the winner-owned cell(s) closest to the conquered star (forces 4-adjacency)."
+    value={currentWaveSeeding()}
+    options={WAVE_SEEDING_OPTIONS}
+    onValueChange={(value) => {
+        writeConfig('CELL_GRID_WAVE_SEEDING', 'cellGridWaveSeeding', value);
+    }}
+/>
 </div>
 {/if}
 
 {#if showModule('flip')}
 <div class="module-block">
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="How each cell visually transitions at its flipTime. Hard = instant flip. Lerp per cell = local crossfade inside a window. Dual pass = always two passes crossfading.">
-            Flip Transition
-        </span>
-        <span class="val">
-            {#if currentFlipTransition() === 'hard'}Hard
-            {:else if currentFlipTransition() === 'lerp_per_cell'}Lerp per cell
-            {:else}Dual pass blend{/if}
-        </span>
-    </div>
-    <div class="var-desc">
-        Hard looks like pixel-flip; lerp_per_cell crossfades within ±window; dual_pass_blend always emits both passes with complementary alphas.
-    </div>
-    <PaxHudSelect
-        label="Flip Transition"
-        value={currentFlipTransition()}
-        options={FLIP_TRANSITION_OPTIONS}
-        onValueChange={(value) => {
-            writeConfig('CELL_GRID_FLIP_TRANSITION', 'cellGridFlipTransition', value);
-        }}
-    />
-</div>
+<PaxHudSelect
+    label="Flip Transition"
+    hint="How each cell visually transitions at its flip time. Hard looks like an instant pixel-flip; lerp per cell crossfades within ±window; dual pass blend always emits both passes with complementary alphas."
+    value={currentFlipTransition()}
+    options={FLIP_TRANSITION_OPTIONS}
+    onValueChange={(value) => {
+        writeConfig('CELL_GRID_FLIP_TRANSITION', 'cellGridFlipTransition', value);
+    }}
+/>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Half-width of the crossfade window around each cell's flipTime (as a fraction of transition progress 0..1).">
-            Flip Window
-        </span>
-        <span class="val">{(panel.cellGridFlipWindow ?? GAME_CONFIG.CELL_GRID_FLIP_WINDOW ?? 0.06).toFixed(3)}</span>
-    </div>
-    <div class="var-desc">
-        Crossfade half-width for lerp_per_cell and dual_pass_blend. Larger values soften flips; 0 collapses to hard behavior.
-    </div>
-    <PaxSettingsRangeRow
-        label="Flip Window"
-        note="Crossfade half-width around each cell flip time."
-        value={panel.cellGridFlipWindow ?? GAME_CONFIG.CELL_GRID_FLIP_WINDOW ?? 0.06}
-        min={0}
-        max={1}
-        step={0.005}
-        output={`${(panel.cellGridFlipWindow ?? GAME_CONFIG.CELL_GRID_FLIP_WINDOW ?? 0.06).toFixed(3)}`}
-        settingConfigKey="CELL_GRID_FLIP_WINDOW"
-        onInput={(value) => {
-            writeConfig('CELL_GRID_FLIP_WINDOW', 'cellGridFlipWindow', value);
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="Flip Window"
+    note="Crossfade half-width around each cell's flip time (fraction of transition progress 0..1), for lerp per cell and dual pass blend. Larger values soften flips; 0 collapses to hard behavior."
+    value={panel.cellGridFlipWindow ?? GAME_CONFIG.CELL_GRID_FLIP_WINDOW ?? 0.06}
+    min={0}
+    max={1}
+    step={0.005}
+    output={`${(panel.cellGridFlipWindow ?? GAME_CONFIG.CELL_GRID_FLIP_WINDOW ?? 0.06).toFixed(3)}`}
+    settingConfigKey="CELL_GRID_FLIP_WINDOW"
+    onInput={(value) => {
+        writeConfig('CELL_GRID_FLIP_WINDOW', 'cellGridFlipWindow', value);
+    }}
+/>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Progress easing curve applied BEFORE the per-cell flip math. Linear leaves transition timing as-is; ease_in/out bias the wave to the start/end; elastic_out/back_out add overshoot flavor.">
-            Wave Easing
-        </span>
-        <span class="val">
-            {#if currentWaveEase() === 'linear'}Linear
-            {:else if currentWaveEase() === 'ease_in'}Ease in
-            {:else if currentWaveEase() === 'ease_out'}Ease out
-            {:else if currentWaveEase() === 'ease_in_out'}Ease in-out
-            {:else if currentWaveEase() === 'back_out'}Back out
-            {:else}Elastic out{/if}
-        </span>
-    </div>
-    <div class="var-desc">
-        Remaps transition progress before the flip math runs. Back-out / elastic-out briefly overshoot 1 so the NEXT cells visibly "settle" into place — good with Lerp / Dual-pass flip modes.
-    </div>
-    <PaxHudSelect
-        label="Wave Easing"
-        value={currentWaveEase()}
-        options={WAVE_EASE_OPTIONS}
-        onValueChange={(value) => {
-            writeConfig('CELL_GRID_WAVE_EASE', 'cellGridWaveEase', value);
-        }}
-    />
-</div>
+<PaxHudSelect
+    label="Wave Easing"
+    hint="Progress easing curve applied BEFORE the per-cell flip math. Linear leaves timing as-is; ease in/out bias the wave to the start/end; back out / elastic out briefly overshoot 1 so the NEXT cells visibly settle into place — good with Lerp / Dual-pass flip modes."
+    value={currentWaveEase()}
+    options={WAVE_EASE_OPTIONS}
+    onValueChange={(value) => {
+        writeConfig('CELL_GRID_WAVE_EASE', 'cellGridWaveEase', value);
+    }}
+/>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name" title="Per-cell deterministic shift applied to flipTime, in progress units. 0.05 = each cell flips up to ±5 percent earlier/later than the wave rank would dictate. Breaks up rigid fronts for a more organic feel.">
-            FlipTime Jitter
-        </span>
-        <span class="val">{(panel.cellGridFlipWindowJitter ?? GAME_CONFIG.CELL_GRID_FLIP_WINDOW_JITTER ?? 0).toFixed(3)}</span>
-    </div>
-    <div class="var-desc">
-        Deterministic per-cell scatter of flip-time (seeded by cell id, stable across runs). Great for softening straight wave fronts.
-    </div>
-    <PaxSettingsRangeRow
-        label="FlipTime Jitter"
-        note="Deterministic per-cell scatter of flip time."
-        value={panel.cellGridFlipWindowJitter ?? GAME_CONFIG.CELL_GRID_FLIP_WINDOW_JITTER ?? 0}
-        min={0}
-        max={0.5}
-        step={0.005}
-        output={`${(panel.cellGridFlipWindowJitter ?? GAME_CONFIG.CELL_GRID_FLIP_WINDOW_JITTER ?? 0).toFixed(3)}`}
-        settingConfigKey="CELL_GRID_FLIP_WINDOW_JITTER"
-        onInput={(value) => {
-            writeConfig('CELL_GRID_FLIP_WINDOW_JITTER', 'cellGridFlipWindowJitter', value);
-        }}
-    />
-</div>
+<PaxSettingsRangeRow
+    label="FlipTime Jitter"
+    note="Per-cell deterministic shift applied to flip time, in progress units (seeded by cell id, stable across runs). 0.05 = each cell flips up to ±5% earlier/later than the wave rank dictates — breaks up rigid fronts for a more organic feel."
+    value={panel.cellGridFlipWindowJitter ?? GAME_CONFIG.CELL_GRID_FLIP_WINDOW_JITTER ?? 0}
+    min={0}
+    max={0.5}
+    step={0.005}
+    output={`${(panel.cellGridFlipWindowJitter ?? GAME_CONFIG.CELL_GRID_FLIP_WINDOW_JITTER ?? 0).toFixed(3)}`}
+    settingConfigKey="CELL_GRID_FLIP_WINDOW_JITTER"
+    onInput={(value) => {
+        writeConfig('CELL_GRID_FLIP_WINDOW_JITTER', 'cellGridFlipWindowJitter', value);
+    }}
+/>
 </div>
 {/if}
 
 {#if showModule('finish')}
 <div class="module-block">
 {#if isPhaseFieldMode()}
-<div class="var-desc finish-tail-intro">
-    Phase Field finish tail. These controls only affect how the PRE cell mask resolves into the smooth POST territory at the end of conquest.
-</div>
-
 <PaxSettingsRangeRow
     label="Finish Fade Start"
     note="Start of the end-tail alpha fade for PRE-side cells."
@@ -1534,18 +1365,6 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: var(--pax-space-2);
         margin: var(--pax-space-1) 0 2px;
-    }
-
-    .var-desc {
-        margin: var(--pax-space-1) 0 var(--pax-gap-sm);
-        color: color-mix(in srgb, var(--pax-ui-text-soft) 72%, transparent);
-        font-size: var(--pax-type-3xs);
-        line-height: 1.35;
-    }
-
-    .finish-tail-intro {
-        margin: var(--pax-gap-md) 0 var(--pax-space-2);
-        opacity: 0.92;
     }
 
     .var-row.disabled {
