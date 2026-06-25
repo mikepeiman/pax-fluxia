@@ -7,7 +7,7 @@ import type {
     MetaballWorkerSample,
     MetaballWorkerStar,
     MetaballWorkerStroke,
-} from './metaballGridWorkerTypes';
+} from './cellGridWorkerTypes';
 
 type MetaballCellWinner = {
     maxPlayer: number;

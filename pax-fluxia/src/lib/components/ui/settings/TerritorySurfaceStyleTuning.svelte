@@ -2,9 +2,9 @@
   import "./panel-shared.css";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import {
-        metaballGridFamilyConfigDefaults,
-        metaballGridPhaseEdgesModeDefaults,
-    } from "$lib/territory/families/metaballGrid/config";
+        cellGridFamilyConfigDefaults,
+        cellGridPhaseEdgesModeDefaults,
+    } from "$lib/territory/families/cellGrid/config";
     import {
         PaxHudSelect,
         PaxSettingsRangeRow,
@@ -106,7 +106,7 @@
         return activeSection === "all" || activeSection === sectionId;
     }
 
-    function isMetaballGridFamily(): boolean {
+    function isCellGridFamily(): boolean {
         return (
             styleFamily === "metaball_grid" ||
             styleFamily === "metaball_grid_phase_edges" ||
@@ -132,7 +132,7 @@
 
     function currentDistribution(): "square" | "hex_offset" | "jittered" {
         const raw = stringVal(
-            "metaballGridDistribution",
+            "cellGridDistribution",
             "CELL_GRID_DISTRIBUTION",
             "square",
         );
@@ -143,7 +143,7 @@
 
     function currentCellShape(): "square" | "circle" | "diamond" | "hex" {
         const raw = stringVal(
-            "metaballGridCellShape",
+            "cellGridCellShape",
             "CELL_GRID_CELL_SHAPE",
             "square",
         );
@@ -155,10 +155,10 @@
 
     function currentBorderMode(): "off" | "per_cell" | "territory_edge" {
         const fallback = usesEdgeForwardDefaults()
-            ? metaballGridPhaseEdgesModeDefaults.CELL_GRID_BORDER_MODE
-            : metaballGridFamilyConfigDefaults.CELL_GRID_BORDER_MODE;
+            ? cellGridPhaseEdgesModeDefaults.CELL_GRID_BORDER_MODE
+            : cellGridFamilyConfigDefaults.CELL_GRID_BORDER_MODE;
         const raw = stringVal(
-            "metaballGridBorderMode",
+            "cellGridBorderMode",
             "CELL_GRID_BORDER_MODE",
             fallback,
         );
@@ -169,11 +169,11 @@
 
     function currentBorderBlend(): boolean {
         return boolVal(
-            "metaballGridBorderBlend",
+            "cellGridBorderBlend",
             "CELL_GRID_BORDER_BLEND",
             usesEdgeForwardDefaults()
-                ? metaballGridPhaseEdgesModeDefaults.CELL_GRID_BORDER_BLEND
-                : metaballGridFamilyConfigDefaults.CELL_GRID_BORDER_BLEND,
+                ? cellGridPhaseEdgesModeDefaults.CELL_GRID_BORDER_BLEND
+                : cellGridFamilyConfigDefaults.CELL_GRID_BORDER_BLEND,
         );
     }
 
@@ -210,7 +210,7 @@
             "territoryFrontierBorderGeometryMode",
             "TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE",
             isEmberLatticeFamily()
-                ? metaballGridPhaseEdgesModeDefaults.TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE
+                ? cellGridPhaseEdgesModeDefaults.TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE
                 : "shared_edge",
         );
         return raw === "contour_matched" ? "contour_matched" : "shared_edge";
@@ -230,18 +230,18 @@
             "territoryFrontierOuterBorderEnabled",
             "TERRITORY_FRONTIER_OUTER_BORDER_ENABLED",
             usesEdgeForwardDefaults()
-                ? metaballGridPhaseEdgesModeDefaults.TERRITORY_FRONTIER_OUTER_BORDER_ENABLED
+                ? cellGridPhaseEdgesModeDefaults.TERRITORY_FRONTIER_OUTER_BORDER_ENABLED
                 : false,
         );
     }
 
     function currentBoundaryFillFlush(): boolean {
         return boolVal(
-            "metaballGridBoundaryFillFlush",
+            "cellGridBoundaryFillFlush",
             "CELL_GRID_BOUNDARY_FILL_FLUSH",
             usesEdgeForwardDefaults()
-                ? metaballGridPhaseEdgesModeDefaults.CELL_GRID_BOUNDARY_FILL_FLUSH
-                : metaballGridFamilyConfigDefaults.CELL_GRID_BOUNDARY_FILL_FLUSH,
+                ? cellGridPhaseEdgesModeDefaults.CELL_GRID_BOUNDARY_FILL_FLUSH
+                : cellGridFamilyConfigDefaults.CELL_GRID_BOUNDARY_FILL_FLUSH,
         );
     }
 
@@ -320,7 +320,7 @@
                 defaultAlpha={0.5}
             />
 
-            {#if isMetaballGridFamily()}
+            {#if isCellGridFamily()}
                 <div class="sub-heading territory-style-subheading">Cell Paint</div>
                 <div class="var-desc">
                     These are paint-time surface controls. They affect the visible cell
@@ -334,7 +334,7 @@
                     onValueChange={(value) => {
                         onUpdate(
                             "CELL_GRID_CELL_SHAPE",
-                            "metaballGridCellShape",
+                            "cellGridCellShape",
                             value,
                         );
                     }}
@@ -343,16 +343,16 @@
                 <PaxSettingsRangeRow
                     label="Cell Inset"
                     note="Creates visible gridline separation between cells without changing owner classification."
-                    value={numVal("metaballGridCellInsetPx", "CELL_GRID_CELL_INSET_PX", 0)}
+                    value={numVal("cellGridCellInsetPx", "CELL_GRID_CELL_INSET_PX", 0)}
                     min={0}
                     max={48}
                     step={0.5}
-                    output={`${numVal("metaballGridCellInsetPx", "CELL_GRID_CELL_INSET_PX", 0).toFixed(1)}px`}
+                    output={`${numVal("cellGridCellInsetPx", "CELL_GRID_CELL_INSET_PX", 0).toFixed(1)}px`}
                     settingConfigKey="CELL_GRID_CELL_INSET_PX"
                     onInput={(value) => {
                         onUpdate(
                             "CELL_GRID_CELL_INSET_PX",
-                            "metaballGridCellInsetPx",
+                            "cellGridCellInsetPx",
                             value,
                         );
                     }}
@@ -361,17 +361,17 @@
                 <PaxSettingsRangeRow
                     label="Square Corner"
                     note="Only applies when the cell primitive is Square."
-                    value={numVal("metaballGridCellCornerPx", "CELL_GRID_CELL_CORNER_PX", 0)}
+                    value={numVal("cellGridCellCornerPx", "CELL_GRID_CELL_CORNER_PX", 0)}
                     min={0}
                     max={48}
                     step={0.5}
-                    output={`${numVal("metaballGridCellCornerPx", "CELL_GRID_CELL_CORNER_PX", 0).toFixed(1)}px`}
+                    output={`${numVal("cellGridCellCornerPx", "CELL_GRID_CELL_CORNER_PX", 0).toFixed(1)}px`}
                     disabled={currentCellShape() !== "square"}
                     settingConfigKey="CELL_GRID_CELL_CORNER_PX"
                     onInput={(value) => {
                         onUpdate(
                             "CELL_GRID_CELL_CORNER_PX",
-                            "metaballGridCellCornerPx",
+                            "cellGridCellCornerPx",
                             value,
                         );
                     }}
@@ -386,7 +386,7 @@
                     onChange={(value) => {
                         onUpdate(
                             "CELL_GRID_BOUNDARY_FILL_FLUSH",
-                            "metaballGridBoundaryFillFlush",
+                            "cellGridBoundaryFillFlush",
                             value,
                         );
                     }}
@@ -395,7 +395,7 @@
                 <PaxSettingsRangeRow
                     label="Inward Offset"
                     note="Adds explicit pullback from the visible territory frontier."
-                    value={numVal("metaballGridInwardOffsetPx", "CELL_GRID_INWARD_OFFSET_PX", 0)}
+                    value={numVal("cellGridInwardOffsetPx", "CELL_GRID_INWARD_OFFSET_PX", 0)}
                     min={0}
                     max={60}
                     step={1}
@@ -404,7 +404,7 @@
                     onInput={(value) => {
                         onUpdate(
                             "CELL_GRID_INWARD_OFFSET_PX",
-                            "metaballGridInwardOffsetPx",
+                            "cellGridInwardOffsetPx",
                             value,
                         );
                     }}
@@ -462,7 +462,7 @@
                 defaultAlpha={1}
             />
 
-            {#if isMetaballGridFamily()}
+            {#if isCellGridFamily()}
                 <div class="sub-heading territory-style-subheading">Border Paint</div>
                 <div class="var-desc">
                     These controls own the visible border strategy for Metaball Grid surfaces. They no longer live in the tuning cards.
@@ -480,7 +480,7 @@
                     onValueChange={(value) => {
                         onUpdate(
                             "CELL_GRID_BORDER_MODE",
-                            "metaballGridBorderMode",
+                            "cellGridBorderMode",
                             value,
                         );
                     }}
@@ -496,7 +496,7 @@
                     onChange={(value) => {
                         onUpdate(
                             "CELL_GRID_BORDER_BLEND",
-                            "metaballGridBorderBlend",
+                            "cellGridBorderBlend",
                             value,
                         );
                     }}
@@ -529,7 +529,7 @@
                 <PaxSettingsRangeRow
                     label="Border Chaikin Passes"
                     note="Global visible border smoothing."
-                    value={numVal("metaballGridBorderChaikinPasses", "CELL_GRID_BORDER_CHAIKIN_PASSES", usesEdgeForwardDefaults() ? metaballGridPhaseEdgesModeDefaults.CELL_GRID_BORDER_CHAIKIN_PASSES : metaballGridFamilyConfigDefaults.CELL_GRID_BORDER_CHAIKIN_PASSES)}
+                    value={numVal("cellGridBorderChaikinPasses", "CELL_GRID_BORDER_CHAIKIN_PASSES", usesEdgeForwardDefaults() ? cellGridPhaseEdgesModeDefaults.CELL_GRID_BORDER_CHAIKIN_PASSES : cellGridFamilyConfigDefaults.CELL_GRID_BORDER_CHAIKIN_PASSES)}
                     min={0}
                     max={4}
                     step={1}
@@ -537,7 +537,7 @@
                     onInput={(value) => {
                         onUpdate(
                             "CELL_GRID_BORDER_CHAIKIN_PASSES",
-                            "metaballGridBorderChaikinPasses",
+                            "cellGridBorderChaikinPasses",
                             value,
                         );
                     }}
@@ -565,7 +565,7 @@
                     label="Shared Edge Smoothing"
                     note={sharedEdgeControlGateReason() ??
                         "Only affects the Straight shared edge border family."}
-                    value={numVal("metaballGridEdgeSmoothingPasses", "CELL_GRID_EDGE_SMOOTHING_PASSES", metaballGridPhaseEdgesModeDefaults.CELL_GRID_EDGE_SMOOTHING_PASSES)}
+                    value={numVal("cellGridEdgeSmoothingPasses", "CELL_GRID_EDGE_SMOOTHING_PASSES", cellGridPhaseEdgesModeDefaults.CELL_GRID_EDGE_SMOOTHING_PASSES)}
                     min={0}
                     max={4}
                     step={1}
@@ -574,7 +574,7 @@
                     onInput={(value) => {
                         onUpdate(
                             "CELL_GRID_EDGE_SMOOTHING_PASSES",
-                            "metaballGridEdgeSmoothingPasses",
+                            "cellGridEdgeSmoothingPasses",
                             value,
                         );
                     }}
@@ -598,17 +598,17 @@
                     label="Junction Gap Trim"
                     note={sharedEdgeControlGateReason() ??
                         "Trims open straight shared-edge chains at multi-owner junctions."}
-                    value={numVal("metaballGridEdgeTrimPx", "CELL_GRID_EDGE_TRIM_PX", metaballGridPhaseEdgesModeDefaults.CELL_GRID_EDGE_TRIM_PX)}
+                    value={numVal("cellGridEdgeTrimPx", "CELL_GRID_EDGE_TRIM_PX", cellGridPhaseEdgesModeDefaults.CELL_GRID_EDGE_TRIM_PX)}
                     min={0}
                     max={12}
                     step={0.5}
-                    output={`${numVal("metaballGridEdgeTrimPx", "CELL_GRID_EDGE_TRIM_PX", metaballGridPhaseEdgesModeDefaults.CELL_GRID_EDGE_TRIM_PX).toFixed(1)}px`}
+                    output={`${numVal("cellGridEdgeTrimPx", "CELL_GRID_EDGE_TRIM_PX", cellGridPhaseEdgesModeDefaults.CELL_GRID_EDGE_TRIM_PX).toFixed(1)}px`}
                     disabled={!canEditSharedEdgeControls()}
                     settingConfigKey="CELL_GRID_EDGE_TRIM_PX"
                     onInput={(value) => {
                         onUpdate(
                             "CELL_GRID_EDGE_TRIM_PX",
-                            "metaballGridEdgeTrimPx",
+                            "cellGridEdgeTrimPx",
                             value,
                         );
                     }}

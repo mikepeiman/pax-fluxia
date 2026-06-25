@@ -6,7 +6,7 @@
     import { mapTranspose } from "$lib/stores/mapTranspose.svelte";
     import { territoryRenderStatus } from "$lib/stores/territoryRenderStatusStore";
     import { territoryTuningStatus } from "$lib/stores/territoryTuningStatusStore";
-    import { metaballGridStats } from "$lib/territory/families/metaballGrid/metaballGridStats";
+    import { cellGridStats } from "$lib/territory/families/cellGrid/cellGridStats";
     import { gridGradientStats } from "$lib/territory/families/gridGradient/gridGradientStats";
     import PerimeterFieldDiagnosticsPanel from "$lib/components/ui/PerimeterFieldDiagnosticsPanel.svelte";
     import { overlayConfig } from "$lib/territory/devtools/overlayConfig";
@@ -62,7 +62,7 @@
     const showPerimeterFieldDiagnostics = $derived(
         liveRenderMode === "perimeter_field",
     );
-    const showMetaballGridDiagnostics = $derived(
+    const showCellGridDiagnostics = $derived(
         liveRenderMode === "metaball_grid" ||
             liveRenderMode === "metaball_grid_phase_edges" ||
             liveRenderMode === "metaball_grid_ember_lattice" ||
@@ -231,17 +231,17 @@
     }
 
     function formatBorderSummary(): string {
-        const mode = $metaballGridStats.borderMode;
-        const blend = $metaballGridStats.borderBlend ? "blend on" : "blend off";
-        return `${mode} · ${blend} · Chaikin ${$metaballGridStats.borderChaikinPasses}`;
+        const mode = $cellGridStats.borderMode;
+        const blend = $cellGridStats.borderBlend ? "blend on" : "blend off";
+        return `${mode} · ${blend} · Chaikin ${$cellGridStats.borderChaikinPasses}`;
     }
 
     function formatDxSummary(): string {
-        return `${$metaballGridStats.disconnectEnabled ? "on" : "off"} · ${$metaballGridStats.disconnectDistance}px · w ${$metaballGridStats.dxWeight.toFixed(2)}`;
+        return `${$cellGridStats.disconnectEnabled ? "on" : "off"} · ${$cellGridStats.disconnectDistance}px · w ${$cellGridStats.dxWeight.toFixed(2)}`;
     }
 
     function formatTransitionSummary(): string {
-        return `${$metaballGridStats.activeWindowCount} active / ${$metaballGridStats.transitionTotalCount} total`;
+        return `${$cellGridStats.activeWindowCount} active / ${$cellGridStats.transitionTotalCount} total`;
     }
 
     function formatMs(value: number | null, digits = 0): string {
@@ -253,44 +253,44 @@
     }
 
     function formatFastPathSummary(): string {
-        return $metaballGridStats.fastPathUsed
+        return $cellGridStats.fastPathUsed
             ? "retained active-frontier"
-            : `fallback / ${$metaballGridStats.fallbackReason ?? "unknown"}`;
+            : `fallback / ${$cellGridStats.fallbackReason ?? "unknown"}`;
     }
 
     function formatTimingConfigSummary(): string {
-        const binding = $metaballGridStats.bindTransitionToTick
+        const binding = $cellGridStats.bindTransitionToTick
             ? "bound to tick"
             : "slider";
-        return `${formatMs($metaballGridStats.configuredTransitionMs, 0)} / ${binding} / tick ${formatMs($metaballGridStats.effectiveTickMs, 0)}`;
+        return `${formatMs($cellGridStats.configuredTransitionMs, 0)} / ${binding} / tick ${formatMs($cellGridStats.effectiveTickMs, 0)}`;
     }
 
     function formatHandlerSummary(): string {
-        return `${formatMs($metaballGridStats.latestEntryDurationMs, 0)} / start ${$metaballGridStats.latestEntryStartedAtMs === null ? "n/a" : $metaballGridStats.latestEntryStartedAtMs.toFixed(1)}`;
+        return `${formatMs($cellGridStats.latestEntryDurationMs, 0)} / start ${$cellGridStats.latestEntryStartedAtMs === null ? "n/a" : $cellGridStats.latestEntryStartedAtMs.toFixed(1)}`;
     }
 
     function formatLifecycleSummary(): string {
-        return `${formatMs($metaballGridStats.activeTransitionDurationMs, 0)} / start ${$metaballGridStats.activeTransitionStartedAtMs === null ? "n/a" : $metaballGridStats.activeTransitionStartedAtMs.toFixed(1)}`;
+        return `${formatMs($cellGridStats.activeTransitionDurationMs, 0)} / start ${$cellGridStats.activeTransitionStartedAtMs === null ? "n/a" : $cellGridStats.activeTransitionStartedAtMs.toFixed(1)}`;
     }
 
     function formatProgressSummary(): string {
-        return `${formatProgress($metaballGridStats.schedulerRawProgress)} sched / ${formatProgress($metaballGridStats.rawProgress)} raw / ${formatProgress($metaballGridStats.easedProgress)} eased`;
+        return `${formatProgress($cellGridStats.schedulerRawProgress)} sched / ${formatProgress($cellGridStats.rawProgress)} raw / ${formatProgress($cellGridStats.easedProgress)} eased`;
     }
 
     function formatLocalClockSummary(): string {
-        return `${$metaballGridStats.visualTransitionActive ? "local active" : "scheduler-owned"} / ${formatMs($metaballGridStats.localVisualTransitionDurationMs, 0)}`;
+        return `${$cellGridStats.visualTransitionActive ? "local active" : "scheduler-owned"} / ${formatMs($cellGridStats.localVisualTransitionDurationMs, 0)}`;
     }
 
     function formatFrontierLifetimeSummary(): string {
-        return `${formatProgress($metaballGridStats.frontierVisibleStartProgress)} -> ${formatProgress($metaballGridStats.frontierVisibleEndProgress)} / span ${formatProgress($metaballGridStats.frontierVisibleLifetimeProgress)} / ${formatMs($metaballGridStats.frontierVisibleLifetimeMs, 0)}`;
+        return `${formatProgress($cellGridStats.frontierVisibleStartProgress)} -> ${formatProgress($cellGridStats.frontierVisibleEndProgress)} / span ${formatProgress($cellGridStats.frontierVisibleLifetimeProgress)} / ${formatMs($cellGridStats.frontierVisibleLifetimeMs, 0)}`;
     }
 
     function formatFlipPercentiles(): string {
-        return `min ${formatProgress($metaballGridStats.flipTimeMin)} / p25 ${formatProgress($metaballGridStats.flipTimeP25)} / p50 ${formatProgress($metaballGridStats.flipTimeP50)} / p75 ${formatProgress($metaballGridStats.flipTimeP75)} / p95 ${formatProgress($metaballGridStats.flipTimeP95)} / max ${formatProgress($metaballGridStats.flipTimeMax)}`;
+        return `min ${formatProgress($cellGridStats.flipTimeMin)} / p25 ${formatProgress($cellGridStats.flipTimeP25)} / p50 ${formatProgress($cellGridStats.flipTimeP50)} / p75 ${formatProgress($cellGridStats.flipTimeP75)} / p95 ${formatProgress($cellGridStats.flipTimeP95)} / max ${formatProgress($cellGridStats.flipTimeMax)}`;
     }
 
     function formatFlipBins(): string {
-        const bins = $metaballGridStats.flipTimeBins;
+        const bins = $cellGridStats.flipTimeBins;
         return `0-0.1 ${bins["0-0.1"]} / 0.1-0.25 ${bins["0.1-0.25"]} / 0.25-0.5 ${bins["0.25-0.5"]} / 0.5-0.75 ${bins["0.5-0.75"]} / 0.75-1 ${bins["0.75-1"]}`;
     }
 
@@ -642,15 +642,15 @@
     {#if showTerritoryEngineTraceDiagnostics}
         <TerritoryEngineTraceDiagnostics {panel} {updatePanel} />
     {/if}
-    {#if showMetaballGridDiagnostics}
+    {#if showCellGridDiagnostics}
         <div class="status-grid">
-            <div><span>Family</span><code>{$metaballGridStats.familyLabel}</code></div>
-            <div><span>Wave</span><code>{$metaballGridStats.waveGeometry}</code></div>
-            <div><span>Seeding</span><code>{$metaballGridStats.waveSeeding}</code></div>
+            <div><span>Family</span><code>{$cellGridStats.familyLabel}</code></div>
+            <div><span>Wave</span><code>{$cellGridStats.waveGeometry}</code></div>
+            <div><span>Seeding</span><code>{$cellGridStats.waveSeeding}</code></div>
             <div><span>Border</span><span>{formatBorderSummary()}</span></div>
             <div><span>DX</span><span>{formatDxSummary()}</span></div>
-            <div><span>Source</span><code>{$metaballGridStats.geometrySource ?? "n/a"}</code></div>
-            <div><span>Frame</span><span><code>{$metaballGridStats.clockSource}</code> / {$metaballGridStats.visibleFrameState}</span></div>
+            <div><span>Source</span><code>{$cellGridStats.geometrySource ?? "n/a"}</code></div>
+            <div><span>Frame</span><span><code>{$cellGridStats.clockSource}</code> / {$cellGridStats.visibleFrameState}</span></div>
             <div><span>Transition</span><span>{formatTransitionSummary()}</span></div>
             <div><span>Fast Path</span><span>{formatFastPathSummary()}</span></div>
             <div><span>Timing Config</span><span>{formatTimingConfigSummary()}</span></div>

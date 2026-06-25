@@ -10,10 +10,10 @@ import { GAME_CONFIG } from '$lib/config/game.config';
 import { territoryFrontierConfigDefaults } from '$lib/territory/frontier/config';
 import { buildPerimeterFieldRenderFamilyGeometry } from '../buildFamilyGeometry';
 import { buildRenderFamilyInput } from '../buildRenderFamilyInput';
-import { createMetaballGridPhaseEdgesFamily } from './MetaballGridPhaseEdgesFamily';
+import { createCellGridPhaseEdgesFamily } from './CellGridPhaseEdgesFamily';
 import {
-    metaballGridPhaseEdgesGeometryDefaults,
-    metaballGridPhaseEdgesModeDefaults,
+    cellGridPhaseEdgesGeometryDefaults,
+    cellGridPhaseEdgesModeDefaults,
 } from './config';
 
 function testStar(id: string, x: number, y: number, ownerId: string): StarState {
@@ -36,7 +36,7 @@ function emptyClassification() {
     };
 }
 
-describe('MetaballGridPhaseEdgesFamily worker-plan guard', () => {
+describe('CellGridPhaseEdgesFamily worker-plan guard', () => {
     it('does not replace a non-empty cached plan with an empty worker plan', () => {
         const stars = [
             testStar('a', 180, 180, 'p1'),
@@ -54,7 +54,7 @@ describe('MetaballGridPhaseEdgesFamily worker-plan guard', () => {
             configSource: { TERRITORY_STYLE_MODE: 'vector' },
         } as never);
 
-        const family = createMetaballGridPhaseEdgesFamily({
+        const family = createCellGridPhaseEdgesFamily({
             getPlayerColor: (o: string) => (o === 'p1' ? 0x3366ff : 0xff6633),
         } as never);
 
@@ -62,8 +62,8 @@ describe('MetaballGridPhaseEdgesFamily worker-plan guard', () => {
             ...(GAME_CONFIG as unknown as Record<string, unknown>),
             CELL_GRID_SPACING_PX: 24,
             ...territoryFrontierConfigDefaults,
-            ...metaballGridPhaseEdgesGeometryDefaults,
-            ...metaballGridPhaseEdgesModeDefaults,
+            ...cellGridPhaseEdgesGeometryDefaults,
+            ...cellGridPhaseEdgesModeDefaults,
         };
 
         const input = buildRenderFamilyInput({

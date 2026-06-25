@@ -6,8 +6,8 @@ import type {
     GridClassification,
     GridOwnedStar,
     GridWavePlan,
-} from '../metaballGrid/metaballGridTypes';
-import { planGridWave } from '../metaballGrid/planGridWave';
+} from '../cellGrid/cellGridTypes';
+import { planGridWave } from '../cellGrid/planGridWave';
 import type { GridGradientSettings } from './settings';
 import {
     buildGridGradientTypedClassification,

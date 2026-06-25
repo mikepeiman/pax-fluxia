@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
-    buildMetaballGridPlanKey,
+    buildCellGridPlanKey,
     computeGridInwardOffset,
-    resolveMetaballGridDisplayProgress,
-    summarizeMetaballGridFrontier,
-} from './metaballGridRuntime';
+    resolveCellGridDisplayProgress,
+    summarizeCellGridFrontier,
+} from './cellGridRuntime';
 
-describe('buildMetaballGridPlanKey', () => {
+describe('buildCellGridPlanKey', () => {
     const base = {
         transitionKey: 'steady',
         geometryVersion: 'geom:v1',
@@ -19,27 +19,27 @@ describe('buildMetaballGridPlanKey', () => {
     };
 
     it('changes when steady-state geometry-generation knobs change', () => {
-        const key = buildMetaballGridPlanKey(base);
+        const key = buildCellGridPlanKey(base);
         expect(
-            buildMetaballGridPlanKey({ ...base, spacingPx: 32 }),
+            buildCellGridPlanKey({ ...base, spacingPx: 32 }),
         ).not.toBe(key);
         expect(
-            buildMetaballGridPlanKey({ ...base, originMode: 'corner' }),
+            buildCellGridPlanKey({ ...base, originMode: 'corner' }),
         ).not.toBe(key);
         expect(
-            buildMetaballGridPlanKey({ ...base, distribution: 'hex_offset' }),
+            buildCellGridPlanKey({ ...base, distribution: 'hex_offset' }),
         ).not.toBe(key);
         expect(
-            buildMetaballGridPlanKey({ ...base, positionJitter: 0.15 }),
+            buildCellGridPlanKey({ ...base, positionJitter: 0.15 }),
         ).not.toBe(key);
         expect(
-            buildMetaballGridPlanKey({ ...base, maxCells: 60000 }),
+            buildCellGridPlanKey({ ...base, maxCells: 60000 }),
         ).not.toBe(key);
         expect(
-            buildMetaballGridPlanKey({ ...base, geometryVersion: 'geom:v2' }),
+            buildCellGridPlanKey({ ...base, geometryVersion: 'geom:v2' }),
         ).not.toBe(key);
         expect(
-            buildMetaballGridPlanKey({
+            buildCellGridPlanKey({
                 ...base,
                 geometrySource: 'resolved_vector',
             }),
@@ -47,7 +47,7 @@ describe('buildMetaballGridPlanKey', () => {
     });
 
     it('changes when transition wave-generation knobs change', () => {
-        const key = buildMetaballGridPlanKey({
+        const key = buildCellGridPlanKey({
             ...base,
             transitionKey: 'event:a',
             adjacency: '8',
@@ -55,7 +55,7 @@ describe('buildMetaballGridPlanKey', () => {
             waveSeeding: 'winner_natives',
         });
         expect(
-            buildMetaballGridPlanKey({
+            buildCellGridPlanKey({
                 ...base,
                 transitionKey: 'event:a',
                 adjacency: '4',
@@ -64,7 +64,7 @@ describe('buildMetaballGridPlanKey', () => {
             }),
         ).not.toBe(key);
         expect(
-            buildMetaballGridPlanKey({
+            buildCellGridPlanKey({
                 ...base,
                 transitionKey: 'event:a',
                 adjacency: '8',
@@ -73,7 +73,7 @@ describe('buildMetaballGridPlanKey', () => {
             }),
         ).not.toBe(key);
         expect(
-            buildMetaballGridPlanKey({
+            buildCellGridPlanKey({
                 ...base,
                 transitionKey: 'event:a',
                 adjacency: '8',
@@ -143,10 +143,10 @@ describe('computeGridInwardOffset', () => {
     });
 });
 
-describe('resolveMetaballGridDisplayProgress', () => {
+describe('resolveCellGridDisplayProgress', () => {
     it('uses scheduler progress when the requested plan is already active', () => {
         expect(
-            resolveMetaballGridDisplayProgress({
+            resolveCellGridDisplayProgress({
                 schedulerRawProgress: 0.35,
                 requestedPlanKey: 'transition:a',
                 cachedPlanKey: 'transition:a',
@@ -162,7 +162,7 @@ describe('resolveMetaballGridDisplayProgress', () => {
 
     it('freezes at t=0 while waiting for the matching plan', () => {
         expect(
-            resolveMetaballGridDisplayProgress({
+            resolveCellGridDisplayProgress({
                 schedulerRawProgress: 0.72,
                 requestedPlanKey: 'transition:b',
                 cachedPlanKey: 'steady',
@@ -178,7 +178,7 @@ describe('resolveMetaballGridDisplayProgress', () => {
 
     it('uses the family-local visual clock when a late plan becomes active', () => {
         expect(
-            resolveMetaballGridDisplayProgress({
+            resolveCellGridDisplayProgress({
                 schedulerRawProgress: 0.9,
                 requestedPlanKey: null,
                 cachedPlanKey: 'transition:c',
@@ -197,10 +197,10 @@ describe('resolveMetaballGridDisplayProgress', () => {
     });
 });
 
-describe('summarizeMetaballGridFrontier', () => {
+describe('summarizeCellGridFrontier', () => {
     it('reports empty frontier stats for transitions with no changed cells', () => {
         expect(
-            summarizeMetaballGridFrontier({
+            summarizeCellGridFrontier({
                 orderedFlipTimes: [],
                 flipWindow: 0.14,
             }),
@@ -226,7 +226,7 @@ describe('summarizeMetaballGridFrontier', () => {
     });
 
     it('summarizes percentiles, bins, and visible frontier lifetime', () => {
-        const summary = summarizeMetaballGridFrontier({
+        const summary = summarizeCellGridFrontier({
             orderedFlipTimes: [0.02, 0.08, 0.22, 0.41, 0.58, 0.73, 0.91],
             flipWindow: 0.1,
         });

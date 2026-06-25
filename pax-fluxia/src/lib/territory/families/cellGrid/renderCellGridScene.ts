@@ -28,8 +28,8 @@ import type {
     GridMetaballScene,
     GridRenderCell,
     GridVStar,
-    RenderMetaballGridSceneParams,
-} from './metaballGridTypes';
+    RenderCellGridSceneParams,
+} from './cellGridTypes';
 
 function clamp01(x: number): number {
     return x < 0 ? 0 : x > 1 ? 1 : x;
@@ -53,7 +53,7 @@ function resolveColorIdx(ownerId: string | null, ownerColorIdx: ReadonlyMap<stri
  * owner color index, alpha, strength, and a `pass` tag so the compositor can
  * route PREV/NEXT passes if needed.
  */
-export function renderMetaballGridScene(params: RenderMetaballGridSceneParams): GridMetaballScene {
+export function renderCellGridScene(params: RenderCellGridSceneParams): GridMetaballScene {
     const {
         classification,
         wavePlan,

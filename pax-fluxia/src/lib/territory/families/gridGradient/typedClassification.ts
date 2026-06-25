@@ -3,7 +3,7 @@ import type {
     ResolvedGeometrySnapshot,
     TerritoryRegionShape,
 } from '../../contracts/GeometryContracts';
-import { buildGridClassification, makeEventId } from '../metaballGrid/buildGridClassification';
+import { buildGridClassification, makeEventId } from '../cellGrid/buildGridClassification';
 import type {
     BuildGridClassificationParams,
     GridClassification,
@@ -12,7 +12,7 @@ import type {
     GridOwnedStar,
     GridVRole,
     GridVStar,
-} from '../metaballGrid/metaballGridTypes';
+} from '../cellGrid/cellGridTypes';
 
 const DEFAULT_EVENT_ID = '__default__';
 const WORLD_MIN_EPSILON = 0.000001;

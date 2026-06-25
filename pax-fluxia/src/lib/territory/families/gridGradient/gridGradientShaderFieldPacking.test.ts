@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { GridClassification, GridWavePlan } from '$lib/territory/families/metaballGrid/metaballGridTypes';
+import type { GridClassification, GridWavePlan } from '$lib/territory/families/cellGrid/cellGridTypes';
 import { buildGridGradientShaderFieldTexturePlan, resolvePackedOwnerIndexAtProgress } from '$lib/territory/families/gridGradient/shaderField';
 import { buildTypedDataFromClassification } from '$lib/territory/families/gridGradient/typedClassification';
 

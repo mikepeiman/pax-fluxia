@@ -1,5 +1,5 @@
-import type { GridVRole } from '../../metaballGrid/metaballGridTypes';
-import { renderMetaballGridScene } from '../../metaballGrid/renderMetaballGridScene';
+import type { GridVRole } from '../../cellGrid/cellGridTypes';
+import { renderCellGridScene } from '../../cellGrid/renderCellGridScene';
 import type { BuildGridGradientShaderFieldTexturePlanParams, GridGradientShaderFieldTexturePlan } from './gridGradientShaderFieldTypes';
 
 const ROLE_BYTE: Record<GridVRole, number> = {
@@ -310,4 +310,4 @@ export function resolvePackedOwnerIndexAtProgress(params: {
  * semantically paired with the existing scene builder even though it bypasses
  * per-frame scene-cell painting for production rendering.
  */
-export const __gridGradientShaderFieldSceneBuilder = renderMetaballGridScene;
+export const __gridGradientShaderFieldSceneBuilder = renderCellGridScene;

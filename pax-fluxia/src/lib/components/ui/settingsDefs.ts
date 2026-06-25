@@ -617,7 +617,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'CELL_GRID_PHASE_FIELD_SIZE_COLLAPSE_END' },
     { configKey: 'CELL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX' },
     {
-        panelKey: 'metaballGridPhaseFieldFrontierHighlight',
+        panelKey: 'cellGridPhaseFieldFrontierHighlight',
         configKey: 'CELL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT',
     },
     { configKey: 'CELL_GRID_PHASE_FIELD_FRONTIER_FADE_START' },

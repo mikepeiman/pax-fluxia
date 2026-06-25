@@ -62,19 +62,19 @@ import type {
     GridWaveGeometry,
     GridWavePlan,
     GridWaveSeeding,
-} from './metaballGridTypes';
+} from './cellGridTypes';
 import {
-    buildMetaballGridPlanKey,
-    resolveMetaballGridDisplayProgress,
-    summarizeMetaballGridFrontier,
-} from './metaballGridRuntime';
-import type { MetaballGridVisualTransitionTiming } from './metaballGridRuntime';
+    buildCellGridPlanKey,
+    resolveCellGridDisplayProgress,
+    summarizeCellGridFrontier,
+} from './cellGridRuntime';
+import type { CellGridVisualTransitionTiming } from './cellGridRuntime';
 import type {
-    MetaballGridPlanWorkerRequest,
-    MetaballGridPlanWorkerResponse,
-} from './metaballGridPlanWorkerTypes';
+    CellGridPlanWorkerRequest,
+    CellGridPlanWorkerResponse,
+} from './cellGridPlanWorkerTypes';
 import { planGridWave } from './planGridWave';
-import { renderMetaballGridScene } from './renderMetaballGridScene';
+import { renderCellGridScene } from './renderCellGridScene';
 import {
     computeBoundaryOffsetTargetPx,
     computeBoundaryInset,
@@ -83,14 +83,14 @@ import {
     trimOpenPolylineEndpoints,
 } from './edgeShaping';
 import {
-    resetMetaballGridStats,
-    updateMetaballGridStats,
-} from './metaballGridStats';
+    resetCellGridStats,
+    updateCellGridStats,
+} from './cellGridStats';
 import {
     computeDualPassBlendAlphas,
     findActiveFrontierRange,
-} from './metaballGridActiveFrontier';
-import { metaballGridPhaseEdgesModeDefaults } from './config';
+} from './cellGridActiveFrontier';
+import { cellGridPhaseEdgesModeDefaults } from './config';
 
 // ─── Tunable option unions (mirror CELL_GRID_* keys) ──────────────────────
 
@@ -248,7 +248,7 @@ const CELL_GRID_TUNABLE_KEYS = [
     ...TERRITORY_FRONTIER_FX_TUNABLE_KEYS,
 ] as const;
 
-interface MetaballGridFamilyVariant {
+interface CellGridFamilyVariant {
     readonly id: string;
     readonly label: string;
     readonly defaultWaveGeometry: GridWaveGeometry;
@@ -260,7 +260,7 @@ interface MetaballGridFamilyVariant {
     readonly defaultBorderChaikinPasses: number;
 }
 
-const DEFAULT_CELL_GRID_VARIANT: MetaballGridFamilyVariant = {
+const DEFAULT_CELL_GRID_VARIANT: CellGridFamilyVariant = {
     id: 'metaball_grid',
     label: 'Metaball Grid',
     defaultWaveGeometry: 'grid_bfs',
@@ -272,23 +272,23 @@ const DEFAULT_CELL_GRID_VARIANT: MetaballGridFamilyVariant = {
     defaultBorderChaikinPasses: 0,
 };
 
-const PHASE_EDGE_CELL_GRID_VARIANT: MetaballGridFamilyVariant = {
+const PHASE_EDGE_CELL_GRID_VARIANT: CellGridFamilyVariant = {
     id: 'metaball_grid_phase_edges',
     label: 'Phase Edges',
     defaultWaveGeometry:
-        metaballGridPhaseEdgesModeDefaults.CELL_GRID_WAVE_GEOMETRY,
+        cellGridPhaseEdgesModeDefaults.CELL_GRID_WAVE_GEOMETRY,
     defaultBorderMode:
-        metaballGridPhaseEdgesModeDefaults.CELL_GRID_BORDER_MODE,
+        cellGridPhaseEdgesModeDefaults.CELL_GRID_BORDER_MODE,
     defaultBorderBlend:
-        metaballGridPhaseEdgesModeDefaults.CELL_GRID_BORDER_BLEND,
+        cellGridPhaseEdgesModeDefaults.CELL_GRID_BORDER_BLEND,
     defaultBoundaryFillFlush:
-        metaballGridPhaseEdgesModeDefaults.CELL_GRID_BOUNDARY_FILL_FLUSH,
+        cellGridPhaseEdgesModeDefaults.CELL_GRID_BOUNDARY_FILL_FLUSH,
     defaultEdgeSmoothingPasses:
-        metaballGridPhaseEdgesModeDefaults.CELL_GRID_EDGE_SMOOTHING_PASSES,
+        cellGridPhaseEdgesModeDefaults.CELL_GRID_EDGE_SMOOTHING_PASSES,
     defaultEdgeTrimPx:
-        metaballGridPhaseEdgesModeDefaults.CELL_GRID_EDGE_TRIM_PX,
+        cellGridPhaseEdgesModeDefaults.CELL_GRID_EDGE_TRIM_PX,
     defaultBorderChaikinPasses:
-        metaballGridPhaseEdgesModeDefaults.CELL_GRID_BORDER_CHAIKIN_PASSES,
+        cellGridPhaseEdgesModeDefaults.CELL_GRID_BORDER_CHAIKIN_PASSES,
 };
 
 function readTunableNumber(input: RenderFamilyInput, key: string, fallback: number): number {
@@ -339,7 +339,7 @@ function spacingToDensityCellsPerMpx(spacingPx: number): number {
     return 1_000_000 / (spacingPx * spacingPx);
 }
 
-function shouldCaptureMetaballGridDebug(): boolean {
+function shouldCaptureCellGridDebug(): boolean {
     if (typeof window === 'undefined') return false;
     return Boolean(
         (window as unknown as Record<string, unknown>).__PAX_BENCH__
@@ -407,7 +407,7 @@ interface CachedPlan {
     readonly nextGeometryVersion: string;
 }
 
-interface MetaballGridPlanSettings {
+interface CellGridPlanSettings {
     readonly spacingPx: number;
     readonly originMode: GridOriginMode;
     readonly distribution: GridDistribution;
@@ -419,7 +419,7 @@ interface MetaballGridPlanSettings {
     readonly geometrySource: string | null;
 }
 
-interface MetaballGridPlanWorkerRequestMeta {
+interface CellGridPlanWorkerRequestMeta {
     readonly requestId: number;
     readonly sessionKey: string;
     readonly planKey: string;
@@ -427,20 +427,20 @@ interface MetaballGridPlanWorkerRequestMeta {
     readonly nextGeometryRef: ResolvedGeometrySnapshot;
 }
 
-interface PendingMetaballGridTransitionPlan {
+interface PendingCellGridTransitionPlan {
     readonly planKey: string;
     readonly durationMs: number;
 }
 
-type MetaballGridVisibleFrameState =
+type CellGridVisibleFrameState =
     | 'steady'
     | 'holding_pre'
     | 'requested_plan'
     | 'fallback_plan';
 
-interface MetaballGridPerfTransitionState {
+interface CellGridPerfTransitionState {
     readonly requestedPlanPending: boolean;
-    readonly visibleFrameState: MetaballGridVisibleFrameState;
+    readonly visibleFrameState: CellGridVisibleFrameState;
     readonly clockSource: 'none' | 'scheduler' | 'local';
 }
 
@@ -571,7 +571,7 @@ function strokeSquareBounds(
 /**
  * RenderFamily implementation for metaball-grid.
  */
-export class MetaballGridFamily implements RenderFamily {
+export class CellGridFamily implements RenderFamily {
     readonly id: string;
     readonly label: string;
     readonly tunableKeys: readonly string[] = CELL_GRID_TUNABLE_KEYS;
@@ -618,17 +618,17 @@ export class MetaballGridFamily implements RenderFamily {
     private lastDebugSnapshot: Record<string, unknown> | null = null;
     private planWorker: Worker | null = null;
     private nextPlanWorkerRequestId = 1;
-    private activePlanWorkerMeta: MetaballGridPlanWorkerRequestMeta | null = null;
+    private activePlanWorkerMeta: CellGridPlanWorkerRequestMeta | null = null;
     private queuedPlanWorker:
         | {
-              readonly request: MetaballGridPlanWorkerRequest;
-              readonly meta: MetaballGridPlanWorkerRequestMeta;
+              readonly request: CellGridPlanWorkerRequest;
+              readonly meta: CellGridPlanWorkerRequestMeta;
           }
         | null = null;
-    private latestPlanWorkerResponse: MetaballGridPlanWorkerResponse | null = null;
-    private latestPlanWorkerMeta: MetaballGridPlanWorkerRequestMeta | null = null;
-    private activeVisualTransition: MetaballGridVisualTransitionTiming | null = null;
-    private pendingTransitionPlan: PendingMetaballGridTransitionPlan | null = null;
+    private latestPlanWorkerResponse: CellGridPlanWorkerResponse | null = null;
+    private latestPlanWorkerMeta: CellGridPlanWorkerRequestMeta | null = null;
+    private activeVisualTransition: CellGridVisualTransitionTiming | null = null;
+    private pendingTransitionPlan: PendingCellGridTransitionPlan | null = null;
     private activeFrontierState: ActiveFrontierState | null = null;
     private effectiveColorIdxScratch: Int32Array | null = null;
     private visibleSquareBoundsScratch:
@@ -638,11 +638,11 @@ export class MetaballGridFamily implements RenderFamily {
         | OwnershipGridFrontierDistanceFieldBuffers
         | null = null;
     private frontierFxSampleField: TerritoryFrontierFxSampleField | null = null;
-    private readonly variant: MetaballGridFamilyVariant;
+    private readonly variant: CellGridFamilyVariant;
 
     constructor(
         colorUtils: ColorUtils,
-        variant: MetaballGridFamilyVariant = DEFAULT_CELL_GRID_VARIANT,
+        variant: CellGridFamilyVariant = DEFAULT_CELL_GRID_VARIANT,
     ) {
         this.colorUtils = colorUtils;
         this.variant = variant;
@@ -693,7 +693,7 @@ export class MetaballGridFamily implements RenderFamily {
         this.frontierDistanceFieldBuffers = null;
         this.frontierFxSampleField = null;
         this.resetActiveFrontierState();
-        resetMetaballGridStats();
+        resetCellGridStats();
     }
 
     private disableSteadyTextureCache(): void {
@@ -722,7 +722,7 @@ export class MetaballGridFamily implements RenderFamily {
         requestedPlanPending: boolean;
         holdingForPlan: boolean;
         usingVisualTransition: boolean;
-        visibleFrameState: MetaballGridVisibleFrameState;
+        visibleFrameState: CellGridVisibleFrameState;
         clockSource: 'none' | 'scheduler' | 'local';
     }): boolean {
         return (
@@ -759,7 +759,7 @@ export class MetaballGridFamily implements RenderFamily {
             holdingForPlan: boolean;
             usingVisualTransition: boolean;
         };
-    }): MetaballGridPerfTransitionState {
+    }): CellGridPerfTransitionState {
         const requestedPlanPending = this.isRequestedPlanPending(
             params.requestedPlanKey,
         );
@@ -1198,11 +1198,11 @@ export class MetaballGridFamily implements RenderFamily {
         }
         if (this.planWorker) return this.planWorker;
         const worker = new Worker(
-            new URL('./metaballGridPlan.worker.ts', import.meta.url),
+            new URL('./cellGridPlan.worker.ts', import.meta.url),
             { type: 'module' },
         );
         worker.onmessage = (
-            event: MessageEvent<MetaballGridPlanWorkerResponse>,
+            event: MessageEvent<CellGridPlanWorkerResponse>,
         ) => {
             const response = event.data;
             const activeMeta = this.activePlanWorkerMeta;
@@ -1260,8 +1260,8 @@ export class MetaballGridFamily implements RenderFamily {
     }
 
     private enqueuePlanWorkerRequest(params: {
-        request: MetaballGridPlanWorkerRequest;
-        meta: MetaballGridPlanWorkerRequestMeta;
+        request: CellGridPlanWorkerRequest;
+        meta: CellGridPlanWorkerRequestMeta;
     }): boolean {
         const worker = this.ensurePlanWorker();
         if (!worker) return false;
@@ -1283,15 +1283,15 @@ export class MetaballGridFamily implements RenderFamily {
     private buildWorkerRequest(params: {
         input: RenderFamilyInput;
         planKey: string;
-        settings: MetaballGridPlanSettings;
+        settings: CellGridPlanSettings;
         prevGeometry: ResolvedGeometrySnapshot;
         nextGeometryRef: ResolvedGeometrySnapshot;
         conquestEvents: readonly import('@pax/common').ConquestEvent[];
         prevOwnedStars: readonly GridOwnedStar[];
         nextOwnedStars: readonly GridOwnedStar[];
     }): {
-        request: MetaballGridPlanWorkerRequest;
-        meta: MetaballGridPlanWorkerRequestMeta;
+        request: CellGridPlanWorkerRequest;
+        meta: CellGridPlanWorkerRequestMeta;
     } {
         const requestId = this.nextPlanWorkerRequestId++;
         const sameSnapshot =
@@ -1343,7 +1343,7 @@ export class MetaballGridFamily implements RenderFamily {
 
     private resolvePrevGeometryForTransition(params: {
         input: RenderFamilyInput;
-        settings: MetaballGridPlanSettings;
+        settings: CellGridPlanSettings;
     }): ResolvedGeometrySnapshot {
         const { input, settings } = params;
         if (input.prevGeometry) {
@@ -1364,7 +1364,7 @@ export class MetaballGridFamily implements RenderFamily {
     private buildDebugSnapshot(params: {
         input: RenderFamilyInput;
         cached: CachedPlan;
-        settings: MetaballGridPlanSettings;
+        settings: CellGridPlanSettings;
         ownerIdByColorIdx: ReadonlyArray<string>;
         scene: GridMetaballScene;
         schedulerRawProgress: number | null;
@@ -1381,10 +1381,10 @@ export class MetaballGridFamily implements RenderFamily {
         rebuiltPlan: boolean;
         holdingForPlan: boolean;
         usingVisualTransition: boolean;
-        visibleFrameState: MetaballGridVisibleFrameState;
+        visibleFrameState: CellGridVisibleFrameState;
         clockSource: 'none' | 'scheduler' | 'local';
         requestedPlanPending: boolean;
-        frontierDiagnostics: ReturnType<typeof summarizeMetaballGridFrontier>;
+        frontierDiagnostics: ReturnType<typeof summarizeCellGridFrontier>;
     }): Record<string, unknown> {
         const {
             input,
@@ -1557,7 +1557,7 @@ export class MetaballGridFamily implements RenderFamily {
         input: RenderFamilyInput;
         currentGeometry: ResolvedGeometrySnapshot;
         planKey: string;
-        settings: MetaballGridPlanSettings;
+        settings: CellGridPlanSettings;
     }): CachedPlan {
         const { input, currentGeometry, planKey, settings } = params;
 
@@ -1634,7 +1634,7 @@ export class MetaballGridFamily implements RenderFamily {
         input: RenderFamilyInput;
         currentGeometry: ResolvedGeometrySnapshot;
         planKey: string;
-        settings: MetaballGridPlanSettings;
+        settings: CellGridPlanSettings;
     }): CachedPlan {
         const { input, currentGeometry, planKey, settings } = params;
         const ownedStars = toOwnedStars(input.stars);
@@ -1702,7 +1702,7 @@ export class MetaballGridFamily implements RenderFamily {
         if (!currentGeometry) {
             this.disableSteadyTextureCache();
             this.root.visible = false;
-            resetMetaballGridStats();
+            resetCellGridStats();
             return { container: this.root };
         }
 
@@ -1716,7 +1716,7 @@ export class MetaballGridFamily implements RenderFamily {
             this.disableSteadyTextureCache();
             this.graphics.clear();
             this.root.visible = false;
-            resetMetaballGridStats();
+            resetCellGridStats();
             return { container: this.root };
         }
         this.root.visible = true;
@@ -1766,7 +1766,7 @@ export class MetaballGridFamily implements RenderFamily {
             1,
             input.activeTransition?.durationMs ?? 1,
         );
-        const settings: MetaballGridPlanSettings = {
+        const settings: CellGridPlanSettings = {
             spacingPx: Math.max(
                 2,
                 readTunableNumber(
@@ -1841,7 +1841,7 @@ export class MetaballGridFamily implements RenderFamily {
             transitionKey && prevGeoRef
                 ? `${prevGeoRef.version}->${currentGeometry.version}`
                 : currentGeometry.version;
-        const planKey = buildMetaballGridPlanKey({
+        const planKey = buildCellGridPlanKey({
             transitionKey: transitionKey ?? 'steady',
             geometryVersion: geometryVersionForPlan,
             geometrySource: settings.geometrySource,
@@ -1943,7 +1943,7 @@ export class MetaballGridFamily implements RenderFamily {
         }
 
         const cached = this.cachedPlan;
-        const progressState = resolveMetaballGridDisplayProgress({
+        const progressState = resolveCellGridDisplayProgress({
             schedulerRawProgress: input.activeTransition?.progress ?? null,
             requestedPlanKey: transitionKey ? planKey : null,
             cachedPlanKey: cached?.planKey ?? null,
@@ -1958,7 +1958,7 @@ export class MetaballGridFamily implements RenderFamily {
         });
         if (!cached) {
             this.disableSteadyTextureCache();
-            updateMetaballGridStats({
+            updateCellGridStats({
                 planWorkerPending: perfTransitionState.requestedPlanPending,
                 holdingForPlan: progressState.holdingForPlan,
                 visualTransitionActive: progressState.usingVisualTransition,
@@ -2008,7 +2008,7 @@ export class MetaballGridFamily implements RenderFamily {
             0,
             readTunableNumber(input, 'CELL_GRID_FLIP_WINDOW', GAME_CONFIG.CELL_GRID_FLIP_WINDOW ?? 0.14),
         );
-        const frontierDiagnostics = summarizeMetaballGridFrontier({
+        const frontierDiagnostics = summarizeCellGridFrontier({
             orderedFlipTimes: cached.wavePlan.orderedFlipTimes,
             flipWindow,
         });
@@ -2276,7 +2276,7 @@ export class MetaballGridFamily implements RenderFamily {
         for (const [ownerId, idx] of ownerColorIdx.entries()) {
             ownerIdByColorIdx[idx] = ownerId;
         }
-        const captureDebug = shouldCaptureMetaballGridDebug();
+        const captureDebug = shouldCaptureCellGridDebug();
 
         // ── Dirty-flag paint gate (MG-PERF Phase A) ─────────────────────────
         // Build a signature from every input that can change the painted
@@ -2361,7 +2361,7 @@ export class MetaballGridFamily implements RenderFamily {
             this.emaUpdateMs = this.emaUpdateMs === 0
                 ? elapsed
                 : this.emaUpdateMs * 0.9 + elapsed * 0.1;
-            updateMetaballGridStats({
+            updateCellGridStats({
                 familyId: this.variant.id,
                 familyLabel: this.variant.label,
                 geometrySource: settings.geometrySource,
@@ -2593,7 +2593,7 @@ export class MetaballGridFamily implements RenderFamily {
         let sceneBuildMs = 0;
         if (!canUseActiveFrontierFastPath) {
             const sceneStartMs = performance.now();
-            scene = renderMetaballGridScene({
+            scene = renderCellGridScene({
                 classification: cached.classification,
                 wavePlan: wavePlanForScene,
                 progress,
@@ -3250,7 +3250,7 @@ export class MetaballGridFamily implements RenderFamily {
             frontierDiagnostics,
         });
         }
-        updateMetaballGridStats({
+        updateCellGridStats({
             familyId: this.variant.id,
             familyLabel: this.variant.label,
             geometrySource: settings.geometrySource,
@@ -3364,12 +3364,12 @@ export class MetaballGridFamily implements RenderFamily {
     }
 }
 
-export function createMetaballGridFamily(colorUtils: ColorUtils): MetaballGridFamily {
-    return new MetaballGridFamily(colorUtils, DEFAULT_CELL_GRID_VARIANT);
+export function createCellGridFamily(colorUtils: ColorUtils): CellGridFamily {
+    return new CellGridFamily(colorUtils, DEFAULT_CELL_GRID_VARIANT);
 }
 
-export function createMetaballGridPhaseEdgesVariantFamily(
+export function createCellGridPhaseEdgesVariantFamily(
     colorUtils: ColorUtils,
-): MetaballGridFamily {
-    return new MetaballGridFamily(colorUtils, PHASE_EDGE_CELL_GRID_VARIANT);
+): CellGridFamily {
+    return new CellGridFamily(colorUtils, PHASE_EDGE_CELL_GRID_VARIANT);
 }

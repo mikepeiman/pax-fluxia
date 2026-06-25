@@ -9,15 +9,15 @@ import type {
     GridWaveGeometry,
     GridWavePlan,
     GridWaveSeeding,
-} from './metaballGridTypes';
+} from './cellGridTypes';
 
-export interface MetaballGridPlanWorkerStarPosition {
+export interface CellGridPlanWorkerStarPosition {
     readonly id: string;
     readonly x: number;
     readonly y: number;
 }
 
-export interface MetaballGridPlanWorkerRequest {
+export interface CellGridPlanWorkerRequest {
     readonly requestId: number;
     readonly planKey: string;
     readonly world: { width: number; height: number; minX?: number; minY?: number };
@@ -35,10 +35,10 @@ export interface MetaballGridPlanWorkerRequest {
     readonly sameSnapshot: boolean;
     readonly prevOwnedStars: readonly GridOwnedStar[];
     readonly nextOwnedStars: readonly GridOwnedStar[];
-    readonly starPositions: readonly MetaballGridPlanWorkerStarPosition[];
+    readonly starPositions: readonly CellGridPlanWorkerStarPosition[];
 }
 
-export interface MetaballGridPlanWorkerResponse {
+export interface CellGridPlanWorkerResponse {
     readonly requestId: number;
     readonly planKey: string;
     readonly classification: GridClassification;

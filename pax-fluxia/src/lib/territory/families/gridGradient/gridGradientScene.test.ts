@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { GridClassification } from '../metaballGrid/metaballGridTypes';
+import type { GridClassification } from '../cellGrid/cellGridTypes';
 import {
     buildGridGradientBorderDots,
     buildGridGradientNoisePolygon,

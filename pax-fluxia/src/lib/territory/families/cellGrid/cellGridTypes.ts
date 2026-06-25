@@ -196,7 +196,7 @@ export interface GridWavePlan {
 
 /**
  * Deterministic truth payload for one metaball-grid transition. Produced by
- * the canvas upstream layer (MG5) and consumed by `MetaballGridFamily`.
+ * the canvas upstream layer (MG5) and consumed by `CellGridFamily`.
  *
  * Structurally analogous to `PerimeterFieldTransitionTruth` but with a grid
  * classification and wave plan in place of perimeter section plans.
@@ -222,7 +222,7 @@ export interface GridMetaballTransitionTruth {
 
 /**
  * One renderable contribution to the metaball field at a given `progress`.
- * Produced by `renderMetaballGridScene`.
+ * Produced by `renderCellGridScene`.
  *
  * For `dual_pass_blend`, two `GridRenderCell`s may be emitted per vstar
  * (one PREV-side, one NEXT-side) with `pass` marking which side.
@@ -347,7 +347,7 @@ export interface PlanGridWaveParams {
     readonly resolveStarPosition?: (starId: string) => { x: number; y: number } | null;
 }
 
-export interface RenderMetaballGridSceneParams {
+export interface RenderCellGridSceneParams {
     readonly classification: GridClassification;
     readonly wavePlan: GridWavePlan;
     readonly progress: number;

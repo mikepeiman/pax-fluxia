@@ -3,8 +3,8 @@ import type { ConquestEvent } from '@pax/common';
 import type { ResolvedGeometrySnapshot, TerritoryRegionShape } from '../../contracts/GeometryContracts';
 import { buildGridClassification } from './buildGridClassification';
 import { planGridWave } from './planGridWave';
-import { summarizeMetaballGridFrontier } from './metaballGridRuntime';
-import type { GridAdjacency, GridWaveGeometry, GridWaveSeeding } from './metaballGridTypes';
+import { summarizeCellGridFrontier } from './cellGridRuntime';
+import type { GridAdjacency, GridWaveGeometry, GridWaveSeeding } from './cellGridTypes';
 
 function makeSnapshot(regions: TerritoryRegionShape[]): ResolvedGeometrySnapshot {
     return {
@@ -258,7 +258,7 @@ describe('planGridWave', () => {
             geometry: 'pre_to_post_frontier',
             adjacency: '8',
         });
-        const summary = summarizeMetaballGridFrontier({
+        const summary = summarizeCellGridFrontier({
             orderedFlipTimes: plan.orderedFlipTimes,
             flipWindow: 0.08,
         });

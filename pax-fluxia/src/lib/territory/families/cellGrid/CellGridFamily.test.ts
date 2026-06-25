@@ -15,16 +15,16 @@ import type {
     RenderFamilyInput,
     RenderFamilyTunableValue,
 } from '../RenderFamilyTypes';
-import { createMetaballGridFamily } from './MetaballGridFamily';
+import { createCellGridFamily } from './CellGridFamily';
 import {
-    createMetaballGridEmberLatticeFamily,
-    createMetaballGridPhaseEdgesFamily,
-} from './MetaballGridPhaseEdgesFamily';
+    createCellGridEmberLatticeFamily,
+    createCellGridPhaseEdgesFamily,
+} from './CellGridPhaseEdgesFamily';
 import {
-    metaballGridPhaseEdgesGeometryDefaults,
-    metaballGridPhaseEdgesModeDefaults,
+    cellGridPhaseEdgesGeometryDefaults,
+    cellGridPhaseEdgesModeDefaults,
 } from './config';
-import { metaballGridStats } from './metaballGridStats';
+import { cellGridStats } from './cellGridStats';
 
 function makeSnapshot(
     regions: TerritoryRegionShape[],
@@ -331,8 +331,8 @@ function makePhaseEdgesInput(
         TERRITORY_SURFACE_SATURATION: 1,
         TERRITORY_SURFACE_LIGHTNESS: 0.5,
         ...territoryFrontierConfigDefaults,
-        ...metaballGridPhaseEdgesGeometryDefaults,
-        ...metaballGridPhaseEdgesModeDefaults,
+        ...cellGridPhaseEdgesGeometryDefaults,
+        ...cellGridPhaseEdgesModeDefaults,
         ...overrides,
     };
     return buildRenderFamilyInput({
@@ -447,16 +447,16 @@ function captureStrokeSnapshot(target: unknown): readonly string[] {
         .flatMap((instruction) => instruction.pathInstructions);
 }
 
-describe('MetaballGridFamily active frontier fast path', () => {
+describe('CellGridFamily active frontier fast path', () => {
     it('uses retained frontier layers for square dual-pass conquest frames', () => {
-        const family = createMetaballGridFamily({
+        const family = createCellGridFamily({
             getPlayerColor(ownerId: string): number {
                 return ownerId === 'A' ? 0x3366ff : 0xff6633;
             },
         } as never);
 
         family.update(makeInput(0.12));
-        const initialStats = get(metaballGridStats);
+        const initialStats = get(cellGridStats);
         expect(initialStats.fastPathUsed).toBe(true);
         expect(initialStats.transitionTotalCount).toBeGreaterThan(0);
         expect(initialStats.activeWindowCount).toBeGreaterThan(0);
@@ -465,7 +465,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
         );
 
         family.update(makeInput(0.2));
-        const nextStats = get(metaballGridStats);
+        const nextStats = get(cellGridStats);
         expect(nextStats.fastPathUsed).toBe(true);
         expect(nextStats.promotedToActiveCount).toBeGreaterThanOrEqual(0);
         expect(nextStats.demotedToSettledCount).toBeGreaterThanOrEqual(0);
@@ -477,14 +477,14 @@ describe('MetaballGridFamily active frontier fast path', () => {
     });
 
     it('forces one cleanup repaint after conquest ends so retained frontier layers do not leak', () => {
-        const family = createMetaballGridFamily({
+        const family = createCellGridFamily({
             getPlayerColor(ownerId: string): number {
                 return ownerId === 'A' ? 0x3366ff : 0xff6633;
             },
         } as never);
 
         family.update(makeInput(1));
-        const transitionStats = get(metaballGridStats);
+        const transitionStats = get(cellGridStats);
         expect(transitionStats.fastPathUsed).toBe(true);
         expect(transitionStats.lastFrameSkipped).toBe(false);
 
@@ -506,7 +506,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
         ).toBe(true);
 
         family.update(makeSteadyInput());
-        const steadyStats = get(metaballGridStats);
+        const steadyStats = get(cellGridStats);
         expect(steadyStats.lastFrameSkipped).toBe(false);
 
         const internalAfterCleanup = family as unknown as {
@@ -518,7 +518,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
     });
 
     it('reports Ember Lattice locked defaults through buildRenderFamilyInput and family stats', () => {
-        const family = createMetaballGridEmberLatticeFamily({
+        const family = createCellGridEmberLatticeFamily({
             getPlayerColor(ownerId: string): number {
                 return ownerId === 'A' ? 0x3366ff : 0xff6633;
             },
@@ -526,7 +526,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
 
         family.update(makePhaseEdgesInput(family, 0.35));
 
-        const stats = get(metaballGridStats);
+        const stats = get(cellGridStats);
         expect(stats.familyId).toBe('metaball_grid_ember_lattice');
         expect(stats.waveGeometry).toBe('pre_to_post_frontier');
         expect(stats.borderMode).toBe('territory_edge');
@@ -551,7 +551,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
     });
 
     it('keeps Phase Edges on the dedicated session-overlay family after the Ember split', () => {
-        const family = createMetaballGridPhaseEdgesFamily({
+        const family = createCellGridPhaseEdgesFamily({
             getPlayerColor(ownerId: string): number {
                 return ownerId === 'A' ? 0x3366ff : 0xff6633;
             },
@@ -559,7 +559,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
 
         family.update(makePhaseEdgesInput(family, 0.35));
 
-        const stats = get(metaballGridStats);
+        const stats = get(cellGridStats);
         expect(stats.familyId).toBe('metaball_grid_phase_edges');
         expect(stats.waveGeometry).toBe('pre_to_post_frontier');
         expect(stats.borderMode).toBe('territory_edge');
@@ -569,7 +569,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
     });
 
     it('keeps Ember Lattice wave semantics when shared live settings already match the edge defaults', () => {
-        const family = createMetaballGridEmberLatticeFamily({
+        const family = createCellGridEmberLatticeFamily({
             getPlayerColor(ownerId: string): number {
                 return ownerId === 'A' ? 0x3366ff : 0xff6633;
             },
@@ -596,7 +596,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
 
             family.update(makePhaseEdgesInput(family, 0.35));
 
-            const stats = get(metaballGridStats);
+            const stats = get(cellGridStats);
             expect(stats.familyId).toBe('metaball_grid_ember_lattice');
             expect(stats.waveGeometry).toBe('pre_to_post_frontier');
             expect(stats.borderMode).toBe('territory_edge');
@@ -625,17 +625,17 @@ describe('MetaballGridFamily active frontier fast path', () => {
     });
 
     it('materially changes visible frontier lifetime when the transition duration changes', () => {
-        const family = createMetaballGridFamily({
+        const family = createCellGridFamily({
             getPlayerColor(ownerId: string): number {
                 return ownerId === 'A' ? 0x3366ff : 0xff6633;
             },
         } as never);
 
         family.update(makeInputWithDuration(0.35, 200));
-        const shortStats = get(metaballGridStats);
+        const shortStats = get(cellGridStats);
 
         family.update(makeInputWithDuration(0.35, 1_500));
-        const longStats = get(metaballGridStats);
+        const longStats = get(cellGridStats);
 
         expect(shortStats.activeTransitionDurationMs).toBe(200);
         expect(longStats.activeTransitionDurationMs).toBe(1_500);
@@ -649,7 +649,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
     });
 
     it('allows toggling the control-path border geometry back to straight shared-edge mode', () => {
-        const family = createMetaballGridEmberLatticeFamily({
+        const family = createCellGridEmberLatticeFamily({
             getPlayerColor(ownerId: string): number {
                 return ownerId === 'A' ? 0x3366ff : 0xff6633;
             },
@@ -661,7 +661,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
             }),
         );
 
-        const stats = get(metaballGridStats);
+        const stats = get(cellGridStats);
         expect(stats.frontierTechnique).toBe('control');
         expect(stats.frontierRequestedBorderGeometryMode).toBe('shared_edge');
         expect(stats.frontierBorderGeometryMode).toBe('shared_edge');
@@ -673,7 +673,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
     });
 
     it('keeps the selected surface geometry family stable across steady and transition frames', () => {
-        const family = createMetaballGridEmberLatticeFamily({
+        const family = createCellGridEmberLatticeFamily({
             getPlayerColor(ownerId: string): number {
                 return ownerId === 'A' ? 0x3366ff : 0xff6633;
             },
@@ -690,10 +690,10 @@ describe('MetaballGridFamily active frontier fast path', () => {
         };
 
         family.update(steadyInput);
-        const steadyStats = get(metaballGridStats);
+        const steadyStats = get(cellGridStats);
 
         family.update(transitionInput);
-        const transitionStats = get(metaballGridStats);
+        const transitionStats = get(cellGridStats);
 
         expect(steadyStats.frontierSurfaceGeometryFamily).toBe('shared_edge');
         expect(steadyStats.frontierStableGeometryFamily).toBe('shared_edge');
@@ -714,7 +714,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
     });
 
     it('gates contour frontier techniques to the square distribution', () => {
-        const family = createMetaballGridEmberLatticeFamily({
+        const family = createCellGridEmberLatticeFamily({
             getPlayerColor(ownerId: string): number {
                 return ownerId === 'A' ? 0x3366ff : 0xff6633;
             },
@@ -727,7 +727,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
             }),
         );
 
-        const stats = get(metaballGridStats);
+        const stats = get(cellGridStats);
         expect(stats.frontierRequestedTechnique).toBe('marching_squares_scalar');
         expect(stats.frontierTechnique).toBe('control');
         expect(stats.frontierFallbackReason).toBe(
@@ -738,7 +738,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
     });
 
     it('falls back to control when shader frontier band has no renderer', () => {
-        const family = createMetaballGridEmberLatticeFamily({
+        const family = createCellGridEmberLatticeFamily({
             getPlayerColor(ownerId: string): number {
                 return ownerId === 'A' ? 0x3366ff : 0xff6633;
             },
@@ -751,7 +751,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
             }),
         );
 
-        const stats = get(metaballGridStats);
+        const stats = get(cellGridStats);
         expect(stats.frontierRequestedTechnique).toBe('shader_frontier_band');
         expect(stats.frontierTechnique).toBe('control');
         expect(stats.frontierFallbackReason).toBe('renderer_unavailable');
@@ -760,7 +760,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
     });
 
     it('populates frontier contour metrics for marching-squares evaluation rows', () => {
-        const family = createMetaballGridEmberLatticeFamily({
+        const family = createCellGridEmberLatticeFamily({
             getPlayerColor(ownerId: string): number {
                 return ownerId === 'A' ? 0x3366ff : 0xff6633;
             },
@@ -773,7 +773,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
             }),
         );
 
-        const stats = get(metaballGridStats);
+        const stats = get(cellGridStats);
         expect(stats.frontierTechnique).toBe('marching_squares_scalar');
         expect(stats.frontierPhaseLayerCount).toBeGreaterThanOrEqual(0);
         expect(stats.frontierPhaseGridCols).toBeGreaterThanOrEqual(0);
@@ -787,7 +787,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
     });
 
     it('keeps per-cell borders visible when a phase-derived frontier technique is selected', () => {
-        const family = createMetaballGridEmberLatticeFamily({
+        const family = createCellGridEmberLatticeFamily({
             getPlayerColor(ownerId: string): number {
                 return ownerId === 'A' ? 0x3366ff : 0xff6633;
             },
@@ -812,7 +812,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
     });
 
     it('keeps Ember Lattice fill coverage identical when centered-blended borders toggle on', () => {
-        const family = createMetaballGridEmberLatticeFamily({
+        const family = createCellGridEmberLatticeFamily({
             getPlayerColor(ownerId: string): number {
                 return ownerId === 'A' ? 0x3366ff : 0xff6633;
             },
@@ -855,7 +855,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
     });
 
     it('keeps contour-technique fill coverage identical when centered-blended borders toggle on', () => {
-        const family = createMetaballGridEmberLatticeFamily({
+        const family = createCellGridEmberLatticeFamily({
             getPlayerColor(ownerId: string): number {
                 return ownerId === 'A' ? 0x3366ff : 0xff6633;
             },
@@ -903,7 +903,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
 
     it('applies flush boundary fill in both centered-blended border states', () => {
         for (const borderBlend of [false, true]) {
-            const family = createMetaballGridEmberLatticeFamily({
+            const family = createCellGridEmberLatticeFamily({
                 getPlayerColor(ownerId: string): number {
                     return ownerId === 'A' ? 0x3366ff : 0xff6633;
                 },
@@ -944,7 +944,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
 
     it('applies inward offset in both centered-blended border states', () => {
         for (const borderBlend of [false, true]) {
-            const family = createMetaballGridEmberLatticeFamily({
+            const family = createCellGridEmberLatticeFamily({
                 getPlayerColor(ownerId: string): number {
                     return ownerId === 'A' ? 0x3366ff : 0xff6633;
                 },
@@ -982,7 +982,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
     });
 
     it('does not repaint suppressed square bands when inward offset crosses the old 24px cap', () => {
-        const family = createMetaballGridEmberLatticeFamily({
+        const family = createCellGridEmberLatticeFamily({
             getPlayerColor(ownerId: string): number {
                 return ownerId === 'A' ? 0x3366ff : 0xff6633;
             },
@@ -1021,7 +1021,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
     });
 
     it('applies soft-fade frontier FX on the live Ember Lattice fill path', () => {
-        const family = createMetaballGridEmberLatticeFamily({
+        const family = createCellGridEmberLatticeFamily({
             getPlayerColor(ownerId: string): number {
                 return ownerId === 'A' ? 0x3366ff : 0xff6633;
             },
@@ -1057,7 +1057,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
     });
 
     it('applies stepped-moat frontier FX on the live Ember Lattice fill path', () => {
-        const family = createMetaballGridEmberLatticeFamily({
+        const family = createCellGridEmberLatticeFamily({
             getPlayerColor(ownerId: string): number {
                 return ownerId === 'A' ? 0x3366ff : 0xff6633;
             },
@@ -1093,7 +1093,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
     });
 
     it('animates plasma-rim frontier FX over time on the live Ember Lattice fill path', () => {
-        const family = createMetaballGridEmberLatticeFamily({
+        const family = createCellGridEmberLatticeFamily({
             getPlayerColor(ownerId: string): number {
                 return ownerId === 'A' ? 0x3366ff : 0xff6633;
             },
@@ -1130,7 +1130,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
     });
 
     it('applies ion-drift frontier FX on the live Phase Edges fill path', () => {
-        const family = createMetaballGridPhaseEdgesFamily({
+        const family = createCellGridPhaseEdgesFamily({
             getPlayerColor(ownerId: string): number {
                 return ownerId === 'A' ? 0x3366ff : 0xff6633;
             },
@@ -1167,7 +1167,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
     });
 
     it('animates geometry-strip frontier FX over time on the live Ember Lattice fill path', () => {
-        const family = createMetaballGridEmberLatticeFamily({
+        const family = createCellGridEmberLatticeFamily({
             getPlayerColor(ownerId: string): number {
                 return ownerId === 'A' ? 0x3366ff : 0xff6633;
             },
@@ -1208,7 +1208,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
     });
 
     it('keeps the completed terminal transition frame visually identical to the next steady frame', () => {
-        const family = createMetaballGridPhaseEdgesFamily({
+        const family = createCellGridPhaseEdgesFamily({
             getPlayerColor(ownerId: string): number {
                 return ownerId === 'A' ? 0x3366ff : 0xff6633;
             },
@@ -1240,7 +1240,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
     });
 
     it('suppresses base fill only inside the explicit frontier-replacement mask', () => {
-        const family = createMetaballGridEmberLatticeFamily({
+        const family = createCellGridEmberLatticeFamily({
             getPlayerColor(ownerId: string): number {
                 return ownerId === 'A' ? 0x3366ff : 0xff6633;
             },
@@ -1298,7 +1298,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
     });
 
     it('honors shared fill and border visibility toggles in Ember Lattice presentation', () => {
-        const family = createMetaballGridEmberLatticeFamily({
+        const family = createCellGridEmberLatticeFamily({
             getPlayerColor(ownerId: string): number {
                 return ownerId === 'A' ? 0x3366ff : 0xff6633;
             },
@@ -1348,7 +1348,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
     });
 
     it('clears dormant contour and shader border layers when border mode is off', () => {
-        const family = createMetaballGridEmberLatticeFamily({
+        const family = createCellGridEmberLatticeFamily({
             getPlayerColor(ownerId: string): number {
                 return ownerId === 'A' ? 0x3366ff : 0xff6633;
             },
@@ -1380,7 +1380,7 @@ describe('MetaballGridFamily active frontier fast path', () => {
     });
 
     it('keeps shared-edge territory borders on the base border layer only', () => {
-        const family = createMetaballGridEmberLatticeFamily({
+        const family = createCellGridEmberLatticeFamily({
             getPlayerColor(ownerId: string): number {
                 return ownerId === 'A' ? 0x3366ff : 0xff6633;
             },

@@ -20,8 +20,8 @@ import type {
     GridWavePlanEvent,
     GridWaveSeeding,
     PlanGridWaveParams,
-} from './metaballGridTypes';
-import { buildOrderedTransitionFrontier } from './metaballGridActiveFrontier';
+} from './cellGridTypes';
+import { buildOrderedTransitionFrontier } from './cellGridActiveFrontier';
 
 interface GridIndex {
     readonly cols: number;

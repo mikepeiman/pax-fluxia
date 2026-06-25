@@ -4,8 +4,8 @@ import type {
     ResolvedGeometrySnapshot,
     TerritoryRegionShape,
 } from '../../contracts/GeometryContracts';
-import { buildGridClassification } from '../metaballGrid/buildGridClassification';
-import type { GridOwnedStar } from '../metaballGrid/metaballGridTypes';
+import { buildGridClassification } from '../cellGrid/buildGridClassification';
+import type { GridOwnedStar } from '../cellGrid/cellGridTypes';
 import {
     buildGridGradientTypedClassification,
     codeToRole,

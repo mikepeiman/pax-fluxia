@@ -1,8 +1,8 @@
 <script lang="ts">
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
-    import { metaballGridPhaseFieldModeDefaults } from "$lib/territory/families/metaballGrid/config";
-    import MetaballGridTuning from "./MetaballGridTuning.svelte";
+    import { cellGridPhaseFieldModeDefaults } from "$lib/territory/families/cellGrid/config";
+    import CellGridTuning from "./CellGridTuning.svelte";
     import TerritorySlaWidget from "./TerritorySlaWidget.svelte";
 
     interface Props {
@@ -44,9 +44,9 @@
 
     function currentBorderMode(): "off" | "per_cell" | "territory_edge" {
         const raw =
-            panel.metaballGridBorderMode ??
+            panel.cellGridBorderMode ??
             GAME_CONFIG.CELL_GRID_BORDER_MODE ??
-            metaballGridPhaseFieldModeDefaults.CELL_GRID_BORDER_MODE;
+            cellGridPhaseFieldModeDefaults.CELL_GRID_BORDER_MODE;
         if (raw === "per_cell") return "per_cell";
         if (raw === "territory_edge") return "territory_edge";
         return "off";
@@ -54,9 +54,9 @@
 
     function currentBorderBlend(): boolean {
         const raw =
-            panel.metaballGridBorderBlend ??
+            panel.cellGridBorderBlend ??
             GAME_CONFIG.CELL_GRID_BORDER_BLEND ??
-            metaballGridPhaseFieldModeDefaults.CELL_GRID_BORDER_BLEND;
+            cellGridPhaseFieldModeDefaults.CELL_GRID_BORDER_BLEND;
         return raw !== false;
     }
 
@@ -186,7 +186,7 @@
 
     <div class="phase-field-card">
         <h5 class="sub-heading">Shape, Propagation, Finish</h5>
-        <MetaballGridTuning {panel} {updatePanel} />
+        <CellGridTuning {panel} {updatePanel} />
     </div>
 </div>
 

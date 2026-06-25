@@ -3,8 +3,8 @@ import type { ConquestEvent } from '@pax/common';
 import type { ResolvedGeometrySnapshot, TerritoryRegionShape } from '../../contracts/GeometryContracts';
 import { buildGridClassification } from './buildGridClassification';
 import { planGridWave } from './planGridWave';
-import { renderMetaballGridScene } from './renderMetaballGridScene';
-import type { GridFlipTransition } from './metaballGridTypes';
+import { renderCellGridScene } from './renderCellGridScene';
+import type { GridFlipTransition } from './cellGridTypes';
 
 function makeSnapshot(regions: TerritoryRegionShape[]): ResolvedGeometrySnapshot {
     return {
@@ -130,10 +130,10 @@ function mixedFixture() {
     return { classification, plan };
 }
 
-describe('renderMetaballGridScene', () => {
+describe('renderCellGridScene', () => {
     it('emits exactly one cell per native vstar at NEXT color, alpha 1', () => {
         const { classification, plan } = mixedFixture();
-        const scene = renderMetaballGridScene({
+        const scene = renderCellGridScene({
             classification,
             wavePlan: plan,
             progress: 0.5,
@@ -163,7 +163,7 @@ describe('renderMetaballGridScene', () => {
         const dispossessedId = classification.byRole.dispossessed[0];
         const flipTime = plan.flipTimeByVId.get(dispossessedId)!;
 
-        const before = renderMetaballGridScene({
+        const before = renderCellGridScene({
             classification,
             wavePlan: plan,
             progress: Math.max(0, flipTime - 0.1),
@@ -173,7 +173,7 @@ describe('renderMetaballGridScene', () => {
             inwardOffsetPx: 0,
             ownerColorIdx: OWNER_COLORS,
         });
-        const after = renderMetaballGridScene({
+        const after = renderCellGridScene({
             classification,
             wavePlan: plan,
             progress: Math.min(1, flipTime + 0.1),
@@ -194,7 +194,7 @@ describe('renderMetaballGridScene', () => {
 
     it('hard: at progress=1 every dispossessed cell renders as NEXT color (terminal parity)', () => {
         const { classification, plan } = fullFlipFixture();
-        const scene = renderMetaballGridScene({
+        const scene = renderCellGridScene({
             classification,
             wavePlan: plan,
             progress: 1,
@@ -215,7 +215,7 @@ describe('renderMetaballGridScene', () => {
     it('hard: at progress=0 every dispossessed cell renders as PREV color (start parity)', () => {
         const { classification, plan } = fullFlipFixture();
         // Force flipTime > 0 by picking a star far away — conquered_star_center already does this for all but nearest cell.
-        const scene = renderMetaballGridScene({
+        const scene = renderCellGridScene({
             classification,
             wavePlan: plan,
             progress: -0.01,
@@ -240,7 +240,7 @@ describe('renderMetaballGridScene', () => {
         const id = classification.byRole.dispossessed[0];
         const flipTime = plan.flipTimeByVId.get(id)!;
         const flipWindow = 0.2;
-        const scene = renderMetaballGridScene({
+        const scene = renderCellGridScene({
             classification,
             wavePlan: plan,
             progress: flipTime, // dead center of window
@@ -267,7 +267,7 @@ describe('renderMetaballGridScene', () => {
         const id = classification.byRole.dispossessed[0];
         const flipTime = plan.flipTimeByVId.get(id)!;
         const W = 0.05;
-        const sceneBefore = renderMetaballGridScene({
+        const sceneBefore = renderCellGridScene({
             classification,
             wavePlan: plan,
             progress: Math.max(0, flipTime - W - 0.1),
@@ -284,7 +284,7 @@ describe('renderMetaballGridScene', () => {
             expect(cellsBefore[0].colorIdx).toBe(OWNER_COLORS.get('A'));
         }
 
-        const sceneAfter = renderMetaballGridScene({
+        const sceneAfter = renderCellGridScene({
             classification,
             wavePlan: plan,
             progress: Math.min(1, flipTime + W + 0.1),
@@ -304,7 +304,7 @@ describe('renderMetaballGridScene', () => {
         const { classification, plan } = fullFlipFixture();
         const progresses = [0, 0.1, 0.3, 0.5, 0.7, 0.9, 1];
         for (const p of progresses) {
-            const scene = renderMetaballGridScene({
+            const scene = renderCellGridScene({
                 classification,
                 wavePlan: plan,
                 progress: p,
@@ -343,7 +343,7 @@ describe('renderMetaballGridScene', () => {
         });
         const flips: GridFlipTransition[] = ['hard', 'lerp_per_cell', 'dual_pass_blend'];
         for (const f of flips) {
-            const scene = renderMetaballGridScene({
+            const scene = renderCellGridScene({
                 classification,
                 wavePlan: plan,
                 progress: 0.5,
@@ -362,7 +362,7 @@ describe('renderMetaballGridScene', () => {
         const nativeIds = classification.byRole.native;
         if (nativeIds.length === 0) return;
         const snapshots = [0, 0.25, 0.5, 0.75, 1].map((p) =>
-            renderMetaballGridScene({
+            renderCellGridScene({
                 classification,
                 wavePlan: plan,
                 progress: p,
@@ -386,7 +386,7 @@ describe('renderMetaballGridScene', () => {
 
     it('can suppress native cells for overlay-only transition passes', () => {
         const { classification, plan } = mixedFixture();
-        const scene = renderMetaballGridScene({
+        const scene = renderCellGridScene({
             classification,
             wavePlan: plan,
             progress: 0.5,
@@ -407,7 +407,7 @@ describe('renderMetaballGridScene', () => {
         const { classification, plan } = mixedFixture();
         const omittedId = classification.byRole.dispossessed[0];
         expect(omittedId).toBeDefined();
-        const scene = renderMetaballGridScene({
+        const scene = renderCellGridScene({
             classification,
             wavePlan: plan,
             progress: 0.5,
@@ -442,7 +442,7 @@ describe('renderMetaballGridScene', () => {
             adjacency: '4',
             conquestEvents: [],
         });
-        const scene = renderMetaballGridScene({
+        const scene = renderCellGridScene({
             classification,
             wavePlan: plan,
             progress: 0.5,
@@ -481,7 +481,7 @@ describe('renderMetaballGridScene', () => {
             adjacency: '4',
             conquestEvents: [],
         });
-        const scene = renderMetaballGridScene({
+        const scene = renderCellGridScene({
             classification,
             wavePlan: plan,
             progress: 0.5,
@@ -520,7 +520,7 @@ describe('renderMetaballGridScene', () => {
             adjacency: '4',
             conquestEvents: [makeEvent('s:1', 'A', 'B')],
         });
-        const scene = renderMetaballGridScene({
+        const scene = renderCellGridScene({
             classification,
             wavePlan: plan,
             progress: 0.25,
@@ -557,7 +557,7 @@ describe('renderMetaballGridScene', () => {
             adjacency: '4',
             conquestEvents: [makeEvent('s:1', 'A', 'B')],
         });
-        const scene = renderMetaballGridScene({
+        const scene = renderCellGridScene({
             classification,
             wavePlan: plan,
             progress: 0.25,
@@ -595,7 +595,7 @@ describe('renderMetaballGridScene', () => {
             adjacency: '4',
             conquestEvents: [],
         });
-        const scene = renderMetaballGridScene({
+        const scene = renderCellGridScene({
             classification,
             wavePlan: plan,
             progress: 0.5,
@@ -619,7 +619,7 @@ describe('renderMetaballGridScene', () => {
 
     it('is deterministic across identical calls', () => {
         const { classification, plan } = fullFlipFixture();
-        const a = renderMetaballGridScene({
+        const a = renderCellGridScene({
             classification,
             wavePlan: plan,
             progress: 0.4,
@@ -629,7 +629,7 @@ describe('renderMetaballGridScene', () => {
             inwardOffsetPx: 0,
             ownerColorIdx: OWNER_COLORS,
         });
-        const b = renderMetaballGridScene({
+        const b = renderCellGridScene({
             classification,
             wavePlan: plan,
             progress: 0.4,

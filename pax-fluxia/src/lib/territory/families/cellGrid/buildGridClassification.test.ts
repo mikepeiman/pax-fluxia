@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ConquestEvent } from '@pax/common';
 import type { ResolvedGeometrySnapshot, TerritoryRegionShape } from '../../contracts/GeometryContracts';
 import { buildGridClassification, makeEventId } from './buildGridClassification';
-import type { GridOriginMode } from './metaballGridTypes';
+import type { GridOriginMode } from './cellGridTypes';
 
 function makeSnapshot(regions: TerritoryRegionShape[]): ResolvedGeometrySnapshot {
     return {

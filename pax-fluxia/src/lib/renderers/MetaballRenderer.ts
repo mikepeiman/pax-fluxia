@@ -29,7 +29,7 @@ import type {
     MetaballWorkerResponse,
     MetaballWorkerSample,
     MetaballWorkerStar,
-} from './metaballGridWorkerTypes';
+} from './cellGridWorkerTypes';
 import { computeDisconnectVirtuals } from './territoryFeatures';
 import { buildCorridorVirtualSites } from '$lib/territory/corridor/buildCorridorVirtualSites';
 import { getLanePolyline } from '$lib/lanes/lanePolylineCache';
@@ -1239,7 +1239,7 @@ function ensureMetaballWorker(runtime: MetaballRendererRuntime): Worker | null {
     const workerState = runtime.getWorkerState();
     if (workerState.worker) return workerState.worker;
     const worker = new Worker(
-        new URL('./metaballGrid.worker.ts', import.meta.url),
+        new URL('./cellGrid.worker.ts', import.meta.url),
         { type: 'module' },
     );
     worker.onmessage = (event: MessageEvent<MetaballWorkerResponse>) => {

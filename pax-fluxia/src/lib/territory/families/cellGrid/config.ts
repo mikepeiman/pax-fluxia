@@ -1,4 +1,4 @@
-export const metaballGridFamilyConfigDefaults = {
+export const cellGridFamilyConfigDefaults = {
     CELL_GRID_ENABLED: true,
     CELL_GRID_SPACING_PX: 12,
     CELL_GRID_PATTERN_SPACING_PX: 64,
@@ -35,7 +35,7 @@ export const metaballGridFamilyConfigDefaults = {
     CELL_GRID_PHASE_FIELD_FRONTIER_FADE_END: 0.96,
 } as const;
 
-export const metaballGridPhaseEdgesModeDefaults = {
+export const cellGridPhaseEdgesModeDefaults = {
     CELL_GRID_WAVE_GEOMETRY: 'pre_to_post_frontier' as const,
     CELL_GRID_BORDER_MODE: 'territory_edge' as const,
     CELL_GRID_BORDER_BLEND: true,
@@ -47,13 +47,13 @@ export const metaballGridPhaseEdgesModeDefaults = {
     TERRITORY_FRONTIER_OUTER_BORDER_ENABLED: true,
 } as const;
 
-export const metaballGridPhaseEdgesGeometryDefaults = {
+export const cellGridPhaseEdgesGeometryDefaults = {
     MODIFIED_VORONOI_DISCONNECT_ENABLED: true,
     MODIFIED_VORONOI_DISCONNECT_DISTANCE: 295,
     TERRITORY_DX_WEIGHT: 0.3,
 } as const;
 
-export const metaballGridPhaseFieldModeDefaults = {
+export const cellGridPhaseFieldModeDefaults = {
     CELL_GRID_WAVE_GEOMETRY: 'pre_to_post_frontier' as const,
     CELL_GRID_PATTERN_SPACING_PX: 64,
     CELL_GRID_BORDER_MODE: 'territory_edge' as const,
@@ -63,7 +63,7 @@ export const metaballGridPhaseFieldModeDefaults = {
     CELL_GRID_BORDER_CHAIKIN_PASSES: 4,
 } as const;
 
-export const metaballGridPhaseFieldGeometryDefaults = {
+export const cellGridPhaseFieldGeometryDefaults = {
     MODIFIED_VORONOI_DISCONNECT_ENABLED: true,
     MODIFIED_VORONOI_DISCONNECT_DISTANCE: 295,
     TERRITORY_DX_WEIGHT: 0.3,

@@ -1,7 +1,7 @@
 import type {
     GridClassification,
     GridVStar,
-} from './metaballGridTypes';
+} from './cellGridTypes';
 
 export interface ActiveFrontierRange {
     readonly startIndex: number;

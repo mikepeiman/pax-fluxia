@@ -4,10 +4,10 @@ import type {
     GridOriginMode,
     GridWaveGeometry,
     GridWaveSeeding,
-} from './metaballGridTypes';
+} from './cellGridTypes';
 import { normalizePerimeterFieldGeometrySource } from '../../geometry/geometrySource';
 
-export interface MetaballGridPlanKeyParams {
+export interface CellGridPlanKeyParams {
     readonly transitionKey: string;
     readonly geometryVersion: string;
     readonly geometrySource: string | null;
@@ -27,8 +27,8 @@ export interface MetaballGridPlanKeyParams {
  * The family draws every frame, but the underlying grid ownership plan only
  * needs rebuilding when the geometry truth or the plan-generation knobs change.
  */
-export function buildMetaballGridPlanKey(
-    params: MetaballGridPlanKeyParams,
+export function buildCellGridPlanKey(
+    params: CellGridPlanKeyParams,
 ): string {
     return [
         params.transitionKey,
@@ -49,27 +49,27 @@ function clamp01(value: number): number {
     return value < 0 ? 0 : value > 1 ? 1 : value;
 }
 
-export interface MetaballGridVisualTransitionTiming {
+export interface CellGridVisualTransitionTiming {
     readonly planKey: string;
     readonly startedAtMs: number;
     readonly durationMs: number;
 }
 
-export interface ResolveMetaballGridDisplayProgressParams {
+export interface ResolveCellGridDisplayProgressParams {
     readonly schedulerRawProgress: number | null;
     readonly requestedPlanKey: string | null;
     readonly cachedPlanKey: string | null;
-    readonly activeVisualTransition: MetaballGridVisualTransitionTiming | null;
+    readonly activeVisualTransition: CellGridVisualTransitionTiming | null;
     readonly nowMs: number;
 }
 
-export interface MetaballGridDisplayProgress {
+export interface CellGridDisplayProgress {
     readonly rawProgress: number;
     readonly holdingForPlan: boolean;
     readonly usingVisualTransition: boolean;
 }
 
-interface MetaballGridRuntimeFlipTimeBins {
+interface CellGridRuntimeFlipTimeBins {
     '0-0.1': number;
     '0.1-0.25': number;
     '0.25-0.5': number;
@@ -77,7 +77,7 @@ interface MetaballGridRuntimeFlipTimeBins {
     '0.75-1': number;
 }
 
-export interface MetaballGridFrontierDiagnostics {
+export interface CellGridFrontierDiagnostics {
     readonly transitionTotalCount: number;
     readonly min: number | null;
     readonly p25: number | null;
@@ -85,13 +85,13 @@ export interface MetaballGridFrontierDiagnostics {
     readonly p75: number | null;
     readonly p95: number | null;
     readonly max: number | null;
-    readonly bins: MetaballGridRuntimeFlipTimeBins;
+    readonly bins: CellGridRuntimeFlipTimeBins;
     readonly visibleStartProgress: number | null;
     readonly visibleEndProgress: number | null;
     readonly visibleLifetimeProgress: number | null;
 }
 
-const EMPTY_FRONTIER_BINS: MetaballGridRuntimeFlipTimeBins = {
+const EMPTY_FRONTIER_BINS: CellGridRuntimeFlipTimeBins = {
     '0-0.1': 0,
     '0.1-0.25': 0,
     '0.25-0.5': 0,
@@ -108,9 +108,9 @@ const EMPTY_FRONTIER_BINS: MetaballGridRuntimeFlipTimeBins = {
  *   ready yet, freeze visible progress at 0 so the PRE frame stays stable.
  * - Otherwise, use the scheduler progress directly.
  */
-export function resolveMetaballGridDisplayProgress(
-    params: ResolveMetaballGridDisplayProgressParams,
-): MetaballGridDisplayProgress {
+export function resolveCellGridDisplayProgress(
+    params: ResolveCellGridDisplayProgressParams,
+): CellGridDisplayProgress {
     const schedulerRawProgress = clamp01(params.schedulerRawProgress ?? 1);
     const visualTransition = params.activeVisualTransition;
     if (
@@ -159,10 +159,10 @@ function quantile(sortedValues: readonly number[], p: number): number {
     return lowerValue + (upperValue - lowerValue) * t;
 }
 
-export function summarizeMetaballGridFrontier(params: {
+export function summarizeCellGridFrontier(params: {
     readonly orderedFlipTimes: readonly number[];
     readonly flipWindow: number;
-}): MetaballGridFrontierDiagnostics {
+}): CellGridFrontierDiagnostics {
     const values = [...params.orderedFlipTimes].sort((a, b) => a - b);
     if (values.length === 0) {
         return {
@@ -180,7 +180,7 @@ export function summarizeMetaballGridFrontier(params: {
         };
     }
 
-    const bins: MetaballGridRuntimeFlipTimeBins = { ...EMPTY_FRONTIER_BINS };
+    const bins: CellGridRuntimeFlipTimeBins = { ...EMPTY_FRONTIER_BINS };
     for (const value of values) {
         if (value < 0.1) bins['0-0.1'] += 1;
         else if (value < 0.25) bins['0.1-0.25'] += 1;

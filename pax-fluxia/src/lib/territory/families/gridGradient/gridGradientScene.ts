@@ -4,7 +4,7 @@ import type {
     GridRenderCell,
     GridVRole,
     GridVStar,
-} from '../metaballGrid/metaballGridTypes';
+} from '../cellGrid/cellGridTypes';
 import type {
     OwnershipGridFrontierDistanceField,
 } from '$lib/territory/frontier';

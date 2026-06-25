@@ -59,15 +59,15 @@ describe('resolveTerritoryArchitectureRoute', () => {
             renderMode: 'grid_gradient',
             architecturePath: 'clean',
         });
-        const metaballGridDecision = resolveTerritoryArchitectureRoute({
+        const cellGridDecision = resolveTerritoryArchitectureRoute({
             renderMode: 'metaball_grid',
             architecturePath: 'legacy',
         });
 
         expect(gridGradientDecision.route).toBe('render_family_renderer');
-        expect(metaballGridDecision.route).toBe('render_family_renderer');
+        expect(cellGridDecision.route).toBe('render_family_renderer');
         expect(gridGradientDecision.isRenderFamilySurfaceStyle).toBe(true);
-        expect(metaballGridDecision.isRenderFamilySurfaceStyle).toBe(true);
+        expect(cellGridDecision.isRenderFamilySurfaceStyle).toBe(true);
         expect(gridGradientDecision.isRuntimeSurfaceStyle).toBe(false);
     });
 

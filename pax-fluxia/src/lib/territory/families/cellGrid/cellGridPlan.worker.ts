@@ -4,9 +4,9 @@ import type { ResolvedGeometrySnapshot } from '../../contracts/GeometryContracts
 import { buildGridClassification } from './buildGridClassification';
 import { planGridWave } from './planGridWave';
 import type {
-    MetaballGridPlanWorkerRequest,
-    MetaballGridPlanWorkerResponse,
-} from './metaballGridPlanWorkerTypes';
+    CellGridPlanWorkerRequest,
+    CellGridPlanWorkerResponse,
+} from './cellGridPlanWorkerTypes';
 
 const workerScope = self as DedicatedWorkerGlobalScope;
 
@@ -21,7 +21,7 @@ function buildStarPositionResolver(
     return (starId: string) => byId.get(starId) ?? null;
 }
 
-workerScope.onmessage = (event: MessageEvent<MetaballGridPlanWorkerRequest>) => {
+workerScope.onmessage = (event: MessageEvent<CellGridPlanWorkerRequest>) => {
     const request = event.data;
     const resolveStarPosition = buildStarPositionResolver(request.starPositions);
     const prevGeometry = {
@@ -64,7 +64,7 @@ workerScope.onmessage = (event: MessageEvent<MetaballGridPlanWorkerRequest>) => 
     });
     const wavePlanBuildMs = performance.now() - wavePlanStartMs;
 
-    const response: MetaballGridPlanWorkerResponse = {
+    const response: CellGridPlanWorkerResponse = {
         requestId: request.requestId,
         planKey: request.planKey,
         classification,

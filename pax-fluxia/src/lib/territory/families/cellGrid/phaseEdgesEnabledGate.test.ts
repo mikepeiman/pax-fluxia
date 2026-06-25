@@ -2,7 +2,7 @@
  * Regression guard for the Phase Edges / Ember COMPLETE-ABSENCE blank.
  *
  * Root cause (probe: geomRegions>0 but planPresent=false): the dedicated
- * MetaballGridPhaseEdgesFamily early-returned blank (cachedPlan never built) when the
+ * CellGridPhaseEdgesFamily early-returned blank (cachedPlan never built) when the
  * legacy `CELL_GRID_ENABLED` master gate was off, because the gate default only
  * enabled the old shared 'metaball_grid' mode — never the dedicated phase modes
  * (regression from f4bc81a93). Prior family tests masked this by forcing
@@ -18,12 +18,12 @@ import { territoryFrontierConfigDefaults } from '$lib/territory/frontier/config'
 import { buildPerimeterFieldRenderFamilyGeometry } from '../buildFamilyGeometry';
 import { buildRenderFamilyInput } from '../buildRenderFamilyInput';
 import {
-    createMetaballGridPhaseEdgesFamily,
-    createMetaballGridEmberLatticeFamily,
-} from './MetaballGridPhaseEdgesFamily';
+    createCellGridPhaseEdgesFamily,
+    createCellGridEmberLatticeFamily,
+} from './CellGridPhaseEdgesFamily';
 import {
-    metaballGridPhaseEdgesGeometryDefaults,
-    metaballGridPhaseEdgesModeDefaults,
+    cellGridPhaseEdgesGeometryDefaults,
+    cellGridPhaseEdgesModeDefaults,
 } from './config';
 
 function testStar(id: string, x: number, y: number, ownerId: string): StarState {
@@ -57,8 +57,8 @@ function makeInput(family: { tunableKeys: ReadonlyArray<string> }) {
         ...(GAME_CONFIG as unknown as Record<string, unknown>),
         CELL_GRID_SPACING_PX: 24,
         ...territoryFrontierConfigDefaults,
-        ...metaballGridPhaseEdgesGeometryDefaults,
-        ...metaballGridPhaseEdgesModeDefaults,
+        ...cellGridPhaseEdgesGeometryDefaults,
+        ...cellGridPhaseEdgesModeDefaults,
     };
     return buildRenderFamilyInput({
         stars: [...STARS], lanes: [...LANES], worldWidth: 640, worldHeight: 360,
@@ -67,13 +67,13 @@ function makeInput(family: { tunableKeys: ReadonlyArray<string> }) {
     } as never);
 }
 
-describe('MetaballGridPhaseEdgesFamily legacy enabled gate', () => {
+describe('CellGridPhaseEdgesFamily legacy enabled gate', () => {
     it('renders when its own mode is active even though CELL_GRID_ENABLED is OFF', () => {
         const savedEnabled = GAME_CONFIG.CELL_GRID_ENABLED;
         const savedMode = GAME_CONFIG.TERRITORY_RENDER_MODE;
         try {
             (GAME_CONFIG as unknown as Record<string, unknown>).CELL_GRID_ENABLED = false; // live broken state
-            for (const create of [createMetaballGridPhaseEdgesFamily, createMetaballGridEmberLatticeFamily]) {
+            for (const create of [createCellGridPhaseEdgesFamily, createCellGridEmberLatticeFamily]) {
                 const family = create({
                     getPlayerColor: (o: string) => (o === 'p1' ? 0x3366ff : 0xff6633),
                 } as never);
@@ -96,7 +96,7 @@ describe('MetaballGridPhaseEdgesFamily legacy enabled gate', () => {
         try {
             (GAME_CONFIG as unknown as Record<string, unknown>).CELL_GRID_ENABLED = false;
             (GAME_CONFIG as unknown as Record<string, unknown>).TERRITORY_RENDER_MODE = 'voronoi'; // different mode
-            const family = createMetaballGridPhaseEdgesFamily({
+            const family = createCellGridPhaseEdgesFamily({
                 getPlayerColor: () => 0x3366ff,
             } as never);
             family.update(makeInput(family) as never);

@@ -7,7 +7,7 @@
  */
 import { writable } from 'svelte/store';
 
-export interface MetaballGridFlipTimeBins {
+export interface CellGridFlipTimeBins {
     readonly '0-0.1': number;
     readonly '0.1-0.25': number;
     readonly '0.25-0.5': number;
@@ -15,7 +15,7 @@ export interface MetaballGridFlipTimeBins {
     readonly '0.75-1': number;
 }
 
-export interface MetaballGridStats {
+export interface CellGridStats {
     /** Active family variant id (`metaball_grid`, `metaball_grid_phase_edges`, or `metaball_grid_ember_lattice`). */
     readonly familyId: string;
     /** Human label for the active family variant. */
@@ -193,7 +193,7 @@ export interface MetaballGridStats {
     /** Flip-time distribution maximum. */
     readonly flipTimeMax: number | null;
     /** Flip-time distribution counts in stable progress bins. */
-    readonly flipTimeBins: MetaballGridFlipTimeBins;
+    readonly flipTimeBins: CellGridFlipTimeBins;
     /** First progress value at which any frontier activity should become visible. */
     readonly frontierVisibleStartProgress: number | null;
     /** Last progress value at which frontier activity should remain visible. */
@@ -204,7 +204,7 @@ export interface MetaballGridStats {
     readonly frontierVisibleLifetimeMs: number | null;
 }
 
-const EMPTY_FLIP_TIME_BINS: MetaballGridFlipTimeBins = {
+const EMPTY_FLIP_TIME_BINS: CellGridFlipTimeBins = {
     '0-0.1': 0,
     '0.1-0.25': 0,
     '0.25-0.5': 0,
@@ -212,7 +212,7 @@ const EMPTY_FLIP_TIME_BINS: MetaballGridFlipTimeBins = {
     '0.75-1': 0,
 };
 
-const INITIAL: MetaballGridStats = {
+const INITIAL: CellGridStats = {
     familyId: 'metaball_grid',
     familyLabel: 'Metaball Grid',
     geometrySource: null,
@@ -306,14 +306,14 @@ const INITIAL: MetaballGridStats = {
     frontierVisibleLifetimeMs: null,
 };
 
-export const metaballGridStats = writable<MetaballGridStats>(INITIAL);
+export const cellGridStats = writable<CellGridStats>(INITIAL);
 
 /** Merge patch fields from the render loop into the live stats store. */
-export function updateMetaballGridStats(patch: Partial<MetaballGridStats>): void {
-    metaballGridStats.update((prev) => ({ ...prev, ...patch }));
+export function updateCellGridStats(patch: Partial<CellGridStats>): void {
+    cellGridStats.update((prev) => ({ ...prev, ...patch }));
 }
 
 /** Reset stats when the owning session or render family resets. */
-export function resetMetaballGridStats(): void {
-    metaballGridStats.set(INITIAL);
+export function resetCellGridStats(): void {
+    cellGridStats.set(INITIAL);
 }

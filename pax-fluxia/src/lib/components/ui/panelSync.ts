@@ -181,31 +181,31 @@ const PANEL_KEY_RENAMES: Record<string, string> = {
     transferAnimMs:    'transferAnimationMs',
 };
 
-function migrateLegacyMetaballGridPanelSettings(
+function migrateLegacyCellGridPanelSettings(
     stored: Record<string, any>,
 ): boolean {
     let changed = false;
-    if (stored.metaballGridSpacingPx === LEGACY_CELL_GRID_SPACING_PX) {
-        stored.metaballGridSpacingPx = SMOOTH_CELL_GRID_SPACING_PX;
+    if (stored.cellGridSpacingPx === LEGACY_CELL_GRID_SPACING_PX) {
+        stored.cellGridSpacingPx = SMOOTH_CELL_GRID_SPACING_PX;
         changed = true;
     }
     if (
-        stored.metaballGridFlipTransition ===
+        stored.cellGridFlipTransition ===
         LEGACY_CELL_GRID_FLIP_TRANSITION
     ) {
-        stored.metaballGridFlipTransition =
+        stored.cellGridFlipTransition =
             SMOOTH_CELL_GRID_FLIP_TRANSITION;
         changed = true;
     }
-    if (stored.metaballGridFlipWindow === LEGACY_CELL_GRID_FLIP_WINDOW) {
-        stored.metaballGridFlipWindow = SMOOTH_CELL_GRID_FLIP_WINDOW;
+    if (stored.cellGridFlipWindow === LEGACY_CELL_GRID_FLIP_WINDOW) {
+        stored.cellGridFlipWindow = SMOOTH_CELL_GRID_FLIP_WINDOW;
         changed = true;
     }
     if (
-        stored.metaballGridFlipWindowJitter ===
+        stored.cellGridFlipWindowJitter ===
         LEGACY_CELL_GRID_FLIP_WINDOW_JITTER
     ) {
-        stored.metaballGridFlipWindowJitter =
+        stored.cellGridFlipWindowJitter =
             SMOOTH_CELL_GRID_FLIP_WINDOW_JITTER;
         changed = true;
     }
@@ -240,11 +240,11 @@ function migrateLegacyTerritoryModeSplit(
     return changed;
 }
 
-function normalizeMetaballGridSmoothnessDefaults(
+function normalizeCellGridSmoothnessDefaults(
     panel: Record<string, any>,
 ): boolean {
     let changed = false;
-    if (migrateLegacyMetaballGridPanelSettings(panel)) {
+    if (migrateLegacyCellGridPanelSettings(panel)) {
         changed = true;
     }
     if (migrateLegacyTerritoryModeSplit(panel)) {
@@ -281,7 +281,7 @@ export function loadPanelSettings<T extends Record<string, any>>(defaults: T): T
                 }
                 delete stored.mapgenLaneBufferPx;
             }
-            if (migrateLegacyMetaballGridPanelSettings(stored)) {
+            if (migrateLegacyCellGridPanelSettings(stored)) {
                 localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify(stored));
             }
             return { ...defaults, ...stored };
@@ -349,7 +349,7 @@ export function hydrateConfigFromPersistedUiSettings(): {
     const panel = loadPanelSettings(panelDefaultsFromConfig());
     if (
         typeof window !== 'undefined' &&
-        normalizeMetaballGridSmoothnessDefaults(panel)
+        normalizeCellGridSmoothnessDefaults(panel)
     ) {
         savePanelSettings(panel);
     }

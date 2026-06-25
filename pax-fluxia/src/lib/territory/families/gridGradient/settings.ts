@@ -7,7 +7,7 @@ import type {
     GridOriginMode,
     GridWaveGeometry,
     GridWaveSeeding,
-} from '../metaballGrid/metaballGridTypes';
+} from '../cellGrid/cellGridTypes';
 import {
     gridGradientFamilyConfigDefaults,
     type GridGradientBorderDotStyle,

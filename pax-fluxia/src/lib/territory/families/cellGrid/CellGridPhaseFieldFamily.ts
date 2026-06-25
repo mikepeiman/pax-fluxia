@@ -27,16 +27,16 @@ import { buildGridClassification } from './buildGridClassification';
 import {
     computeDualPassBlendAlphas,
     findActiveFrontierRange,
-} from './metaballGridActiveFrontier';
+} from './cellGridActiveFrontier';
 import {
     computeSharedBoundaryCornerRadius,
     trimOpenPolylineEndpoints,
 } from './edgeShaping';
 import {
-    resetMetaballGridStats,
-    updateMetaballGridStats,
-} from './metaballGridStats';
-import { metaballGridPhaseFieldModeDefaults } from './config';
+    resetCellGridStats,
+    updateCellGridStats,
+} from './cellGridStats';
+import { cellGridPhaseFieldModeDefaults } from './config';
 import type {
     GridAdjacency,
     GridClassification,
@@ -49,13 +49,13 @@ import type {
     GridWaveGeometry,
     GridWavePlan,
     GridWaveSeeding,
-} from './metaballGridTypes';
+} from './cellGridTypes';
 import {
-    buildMetaballGridPlanKey,
-    summarizeMetaballGridFrontier,
-} from './metaballGridRuntime';
+    buildCellGridPlanKey,
+    summarizeCellGridFrontier,
+} from './cellGridRuntime';
 import { planGridWave } from './planGridWave';
-import { renderMetaballGridScene } from './renderMetaballGridScene';
+import { renderCellGridScene } from './renderCellGridScene';
 
 type GridCellShape = 'square' | 'circle' | 'diamond' | 'hex';
 type GridBorderMode = 'off' | 'per_cell' | 'territory_edge';
@@ -650,7 +650,7 @@ function buildTransitionCellMetrics(params: {
     };
 }
 
-export class MetaballGridPhaseFieldFamily implements RenderFamily {
+export class CellGridPhaseFieldFamily implements RenderFamily {
     readonly id = 'metaball_grid_phase_field';
     readonly label = 'Metaball Grid Phase Field';
     readonly tunableKeys: readonly string[] = CELL_GRID_PHASE_FIELD_TUNABLE_KEYS;
@@ -739,7 +739,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
         this.skippedFrameCount = 0;
         this.lastDebugSnapshot = null;
         this.destroyTextures();
-        resetMetaballGridStats();
+        resetCellGridStats();
     }
 
     private destroyTextures(): void {
@@ -921,7 +921,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             input.activeTransition?.events.length && prevGeometry !== currentGeometry
                 ? `${prevGeometry.version}->${currentGeometry.version}`
                 : currentGeometry.version;
-        const planKey = buildMetaballGridPlanKey({
+        const planKey = buildCellGridPlanKey({
             transitionKey,
             geometryVersion,
             geometrySource: settings.geometrySource,
@@ -1495,7 +1495,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
         input: RenderFamilyInput;
         cached: CachedPlan;
         settings: PhaseFieldPlanSettings;
-        frontierDiagnostics: ReturnType<typeof summarizeMetaballGridFrontier>;
+        frontierDiagnostics: ReturnType<typeof summarizeCellGridFrontier>;
         rawProgress: number;
         easedProgress: number;
         activeWindowCount: number;
@@ -1539,7 +1539,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
         const currentGeometry = input.geometry;
         if (!currentGeometry) {
             this.root.visible = false;
-            resetMetaballGridStats();
+            resetCellGridStats();
             return { container: this.root };
         }
 
@@ -1653,7 +1653,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                 'CELL_GRID_PATTERN_SPACING_PX',
                 ((GAME_CONFIG as unknown as Record<string, unknown>)
                     .CELL_GRID_PATTERN_SPACING_PX as number | undefined) ??
-                    metaballGridPhaseFieldModeDefaults.CELL_GRID_PATTERN_SPACING_PX,
+                    cellGridPhaseFieldModeDefaults.CELL_GRID_PATTERN_SPACING_PX,
             ),
         );
         const cellInsetPx = Math.max(
@@ -1684,14 +1684,14 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             input,
             'CELL_GRID_BORDER_MODE',
             (GAME_CONFIG.CELL_GRID_BORDER_MODE as GridBorderMode | undefined) ??
-                metaballGridPhaseFieldModeDefaults.CELL_GRID_BORDER_MODE,
+                cellGridPhaseFieldModeDefaults.CELL_GRID_BORDER_MODE,
             ['off', 'per_cell', 'territory_edge'],
         );
         const borderBlend = readTunableBoolean(
             input,
             'CELL_GRID_BORDER_BLEND',
             GAME_CONFIG.CELL_GRID_BORDER_BLEND ??
-                metaballGridPhaseFieldModeDefaults.CELL_GRID_BORDER_BLEND,
+                cellGridPhaseFieldModeDefaults.CELL_GRID_BORDER_BLEND,
         );
         const sharedEdgeSmoothingPasses = Math.max(
             0,
@@ -1702,7 +1702,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                         input,
                         'CELL_GRID_EDGE_SMOOTHING_PASSES',
                         GAME_CONFIG.CELL_GRID_EDGE_SMOOTHING_PASSES ??
-                            metaballGridPhaseFieldModeDefaults.CELL_GRID_EDGE_SMOOTHING_PASSES,
+                            cellGridPhaseFieldModeDefaults.CELL_GRID_EDGE_SMOOTHING_PASSES,
                     ),
                 ),
             ),
@@ -1713,7 +1713,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                 input,
                 'CELL_GRID_EDGE_TRIM_PX',
                 GAME_CONFIG.CELL_GRID_EDGE_TRIM_PX ??
-                    metaballGridPhaseFieldModeDefaults.CELL_GRID_EDGE_TRIM_PX,
+                    cellGridPhaseFieldModeDefaults.CELL_GRID_EDGE_TRIM_PX,
             ),
         );
         const borderChaikinPasses = Math.max(
@@ -1725,7 +1725,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                         input,
                         'CELL_GRID_BORDER_CHAIKIN_PASSES',
                         GAME_CONFIG.CELL_GRID_BORDER_CHAIKIN_PASSES ??
-                            metaballGridPhaseFieldModeDefaults.CELL_GRID_BORDER_CHAIKIN_PASSES,
+                            cellGridPhaseFieldModeDefaults.CELL_GRID_BORDER_CHAIKIN_PASSES,
                     ),
                 ),
             ),
@@ -1825,7 +1825,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             borderWidth > 0 &&
             borderAlpha > 0;
 
-        const frontierDiagnostics = summarizeMetaballGridFrontier({
+        const frontierDiagnostics = summarizeCellGridFrontier({
             orderedFlipTimes: cached.wavePlan.orderedFlipTimes,
             flipWindow,
         });
@@ -1947,7 +1947,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                 this.emaUpdateMs <= 0
                     ? lastUpdateMs
                     : this.emaUpdateMs * 0.85 + lastUpdateMs * 0.15;
-            updateMetaballGridStats({
+            updateCellGridStats({
                 familyId: this.id,
                 familyLabel: this.label,
                 geometrySource: settings.geometrySource,
@@ -2010,7 +2010,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
 
         if (hasTransition) {
             const sceneStartMs = performance.now();
-            const transitionScene = renderMetaballGridScene({
+            const transitionScene = renderCellGridScene({
                 classification: cached.classification,
                 wavePlan: effectiveWavePlan,
                 progress: easedProgress,
@@ -2031,7 +2031,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                 borderAlpha > 0
             ) {
                 const borderSceneStartMs = performance.now();
-                const borderScene = renderMetaballGridScene({
+                const borderScene = renderCellGridScene({
                     classification: cached.classification,
                     wavePlan: effectiveWavePlan,
                     progress: easedProgress,
@@ -2344,7 +2344,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
                 borderAlpha > 0
             ) {
                 const borderSceneStartMs = performance.now();
-                const borderScene = renderMetaballGridScene({
+                const borderScene = renderCellGridScene({
                     classification: cached.classification,
                     wavePlan: effectiveWavePlan,
                     progress: easedProgress,
@@ -2411,7 +2411,7 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
             paintedCells,
         });
 
-        updateMetaballGridStats({
+        updateCellGridStats({
             familyId: this.id,
             familyLabel: this.label,
             geometrySource: settings.geometrySource,
@@ -2513,8 +2513,8 @@ export class MetaballGridPhaseFieldFamily implements RenderFamily {
     }
 }
 
-export function createMetaballGridPhaseFieldFamily(
+export function createCellGridPhaseFieldFamily(
     colorUtils: ColorUtils,
-): MetaballGridPhaseFieldFamily {
-    return new MetaballGridPhaseFieldFamily(colorUtils);
+): CellGridPhaseFieldFamily {
+    return new CellGridPhaseFieldFamily(colorUtils);
 }

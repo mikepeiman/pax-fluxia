@@ -9,9 +9,9 @@ import {
     buildOrderedTransitionFrontier,
     computeDualPassBlendAlphas,
     findActiveFrontierRange,
-} from './metaballGridActiveFrontier';
+} from './cellGridActiveFrontier';
 import { planGridWave } from './planGridWave';
-import { renderMetaballGridScene } from './renderMetaballGridScene';
+import { renderCellGridScene } from './renderCellGridScene';
 
 function makeSnapshot(
     regions: TerritoryRegionShape[],
@@ -92,7 +92,7 @@ function makeEvent(params: {
     };
 }
 
-describe('metaballGridActiveFrontier', () => {
+describe('cellGridActiveFrontier', () => {
     it('builds a deterministic ordered transition frontier including emergent cells', () => {
         const world = { width: 40, height: 20 };
         const prev = makeSnapshot([rect('A', 'prev-left', 0, 0, 20, 20)]);
@@ -177,7 +177,7 @@ describe('metaballGridActiveFrontier', () => {
         });
         const id = classification.byRole.dispossessed[0];
         const flipTime = plan.flipTimeByVId.get(id)!;
-        const scene = renderMetaballGridScene({
+        const scene = renderCellGridScene({
             classification,
             wavePlan: plan,
             progress: flipTime,

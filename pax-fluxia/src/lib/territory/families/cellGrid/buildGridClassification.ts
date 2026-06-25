@@ -26,7 +26,7 @@ import type {
     GridOwnedStar,
     GridVRole,
     GridVStar,
-} from './metaballGridTypes';
+} from './cellGridTypes';
 
 const DEFAULT_EVENT_ID = '__default__';
 const WORLD_MIN_EPSILON = 0.000001;

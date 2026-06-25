@@ -1,5 +1,5 @@
 import type * as PIXI from 'pixi.js';
-import type { GridClassification, GridWavePlan } from '../../metaballGrid/metaballGridTypes';
+import type { GridClassification, GridWavePlan } from '../../cellGrid/cellGridTypes';
 import type { GridGradientTypedClassification } from '../typedClassification';
 import type { GridGradientSettings } from '../settings';
 import type { GridGradientPalette } from '../paint';

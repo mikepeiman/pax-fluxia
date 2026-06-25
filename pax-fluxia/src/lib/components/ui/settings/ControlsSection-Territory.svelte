@@ -12,12 +12,12 @@
   import CategoryThemeBar from "./CategoryThemeBar.svelte";
   import TerritoryTransitionTuning from "./TerritoryTransitionTuning.svelte";
   import PerimeterFieldTuning from "./PerimeterFieldTuning.svelte";
-  import MetaballGridTuning from "./MetaballGridTuning.svelte";
+  import CellGridTuning from "./CellGridTuning.svelte";
   import GridGradientTuning from "./GridGradientTuning.svelte";
   import {
-    metaballGridFamilyConfigDefaults,
-    metaballGridPhaseEdgesModeDefaults,
-  } from "$lib/territory/families/metaballGrid/config";
+    cellGridFamilyConfigDefaults,
+    cellGridPhaseEdgesModeDefaults,
+  } from "$lib/territory/families/cellGrid/config";
   import TerritoryGeometrySourceTuning from "./TerritoryGeometrySourceTuning.svelte";
   import TerritorySurfaceStyleTuning from "./TerritorySurfaceStyleTuning.svelte";
   import { untrack } from 'svelte';
@@ -225,7 +225,7 @@
 
   function supportsSharedSurfaceStyleCard(): boolean {
     const activeStyle = resolveActiveStyleId();
-    return activeStyle === "perimeter_field" || isMetaballGridStyle();
+    return activeStyle === "perimeter_field" || isCellGridStyle();
   }
 
   function supportsGridGradientStyleCard(): boolean {
@@ -245,7 +245,7 @@
     | "fill"
     | "border"
     | "finish" {
-    if (isEdgeForwardMetaballGridStyle() && activeSubsection === "finish") {
+    if (isEdgeForwardCellGridStyle() && activeSubsection === "finish") {
       return "all";
     }
     return activeSubsection === "fill" ||
@@ -264,10 +264,10 @@
     if (isEmberLatticeStyle()) {
       return "Ember Lattice Surface";
     }
-    if (isMetaballGridPhaseEdgesStyle()) {
+    if (isCellGridPhaseEdgesStyle()) {
       return "Phase Edges Surface";
     }
-    if (isMetaballGridStyle()) {
+    if (isCellGridStyle()) {
       return "Metaball Grid Surface";
     }
     return "Perimeter Field Surface";
@@ -277,10 +277,10 @@
     if (isEmberLatticeStyle()) {
       return "Visible fill, border, and inward seam presentation for Ember Lattice. The contour-derived frontier technique, border-geometry path, and seam FX stay local to this mode; the shared surface shape knobs live here.";
     }
-    if (isMetaballGridPhaseEdgesStyle()) {
+    if (isCellGridPhaseEdgesStyle()) {
       return "Visible fill and border presentation for the simpler Phase Edges mode. It keeps the edge-forward conquest read without Ember Lattice's contour/frontier comparison surface.";
     }
-    if (isMetaballGridStyle()) {
+    if (isCellGridStyle()) {
       return "Visible fill and border presentation for Metaball Grid. Source geometry and topology live in Territory Tuning & Constraints; cell paint and border rendering live here.";
     }
     return "Visible fill, border, and finish presentation for Perimeter Field. Source geometry and topology live in Territory Tuning & Constraints.";
@@ -463,55 +463,55 @@
       panelKey: "territoryFrontierBorderGeometryMode",
       familyDefault: "shared_edge",
       phaseEdgesDefault:
-        metaballGridPhaseEdgesModeDefaults.TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE,
+        cellGridPhaseEdgesModeDefaults.TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE,
     },
     {
       configKey: "CELL_GRID_WAVE_GEOMETRY",
-      panelKey: "metaballGridWaveGeometry",
-      familyDefault: metaballGridFamilyConfigDefaults.CELL_GRID_WAVE_GEOMETRY,
+      panelKey: "cellGridWaveGeometry",
+      familyDefault: cellGridFamilyConfigDefaults.CELL_GRID_WAVE_GEOMETRY,
       phaseEdgesDefault:
-        metaballGridPhaseEdgesModeDefaults.CELL_GRID_WAVE_GEOMETRY,
+        cellGridPhaseEdgesModeDefaults.CELL_GRID_WAVE_GEOMETRY,
     },
     {
       configKey: "CELL_GRID_BORDER_MODE",
-      panelKey: "metaballGridBorderMode",
-      familyDefault: metaballGridFamilyConfigDefaults.CELL_GRID_BORDER_MODE,
+      panelKey: "cellGridBorderMode",
+      familyDefault: cellGridFamilyConfigDefaults.CELL_GRID_BORDER_MODE,
       phaseEdgesDefault:
-        metaballGridPhaseEdgesModeDefaults.CELL_GRID_BORDER_MODE,
+        cellGridPhaseEdgesModeDefaults.CELL_GRID_BORDER_MODE,
     },
     {
       configKey: "CELL_GRID_BORDER_BLEND",
-      panelKey: "metaballGridBorderBlend",
-      familyDefault: metaballGridFamilyConfigDefaults.CELL_GRID_BORDER_BLEND,
+      panelKey: "cellGridBorderBlend",
+      familyDefault: cellGridFamilyConfigDefaults.CELL_GRID_BORDER_BLEND,
       phaseEdgesDefault:
-        metaballGridPhaseEdgesModeDefaults.CELL_GRID_BORDER_BLEND,
+        cellGridPhaseEdgesModeDefaults.CELL_GRID_BORDER_BLEND,
     },
     {
       configKey: "CELL_GRID_EDGE_SMOOTHING_PASSES",
-      panelKey: "metaballGridEdgeSmoothingPasses",
+      panelKey: "cellGridEdgeSmoothingPasses",
       familyDefault:
-        metaballGridFamilyConfigDefaults.CELL_GRID_EDGE_SMOOTHING_PASSES,
+        cellGridFamilyConfigDefaults.CELL_GRID_EDGE_SMOOTHING_PASSES,
       phaseEdgesDefault:
-        metaballGridPhaseEdgesModeDefaults.CELL_GRID_EDGE_SMOOTHING_PASSES,
+        cellGridPhaseEdgesModeDefaults.CELL_GRID_EDGE_SMOOTHING_PASSES,
     },
     {
       configKey: "CELL_GRID_EDGE_TRIM_PX",
-      panelKey: "metaballGridEdgeTrimPx",
-      familyDefault: metaballGridFamilyConfigDefaults.CELL_GRID_EDGE_TRIM_PX,
+      panelKey: "cellGridEdgeTrimPx",
+      familyDefault: cellGridFamilyConfigDefaults.CELL_GRID_EDGE_TRIM_PX,
       phaseEdgesDefault:
-        metaballGridPhaseEdgesModeDefaults.CELL_GRID_EDGE_TRIM_PX,
+        cellGridPhaseEdgesModeDefaults.CELL_GRID_EDGE_TRIM_PX,
     },
     {
       configKey: "CELL_GRID_BORDER_CHAIKIN_PASSES",
-      panelKey: "metaballGridBorderChaikinPasses",
+      panelKey: "cellGridBorderChaikinPasses",
       familyDefault:
-        metaballGridFamilyConfigDefaults.CELL_GRID_BORDER_CHAIKIN_PASSES,
+        cellGridFamilyConfigDefaults.CELL_GRID_BORDER_CHAIKIN_PASSES,
       phaseEdgesDefault:
-        metaballGridPhaseEdgesModeDefaults.CELL_GRID_BORDER_CHAIKIN_PASSES,
+        cellGridPhaseEdgesModeDefaults.CELL_GRID_BORDER_CHAIKIN_PASSES,
     },
   ] as const;
 
-  function primeMetaballGridPhaseEdgesTunables(): void {
+  function primeCellGridPhaseEdgesTunables(): void {
     for (const entry of PHASE_EDGES_PRIMED_TUNABLES) {
       const panelValue = panel[entry.panelKey];
       const configValue = (GAME_CONFIG as any)[entry.configKey];
@@ -541,7 +541,7 @@
       selectFrontierTransition("active_front");
     }
     if (styleId === "metaball_grid_ember_lattice") {
-      primeMetaballGridPhaseEdgesTunables();
+      primeCellGridPhaseEdgesTunables();
     }
     setActiveRendererModule("all");
     // Reset diagnostic so it logs on next render frame
@@ -614,7 +614,7 @@
     return resolveActiveStyleId() === "power_voronoi_runtime";
   }
 
-  function isMetaballGridStyle(): boolean {
+  function isCellGridStyle(): boolean {
     const activeStyle = resolveActiveStyleId();
     return (
       activeStyle === "metaball_grid" ||
@@ -628,7 +628,7 @@
     return resolveActiveStyleId() === "grid_gradient";
   }
 
-  function isMetaballGridPhaseEdgesStyle(): boolean {
+  function isCellGridPhaseEdgesStyle(): boolean {
     return resolveActiveStyleId() === "metaball_grid_phase_edges";
   }
 
@@ -636,18 +636,18 @@
     return resolveActiveStyleId() === "metaball_grid_ember_lattice";
   }
 
-  function isEdgeForwardMetaballGridStyle(): boolean {
-    return isMetaballGridPhaseEdgesStyle() || isEmberLatticeStyle();
+  function isEdgeForwardCellGridStyle(): boolean {
+    return isCellGridPhaseEdgesStyle() || isEmberLatticeStyle();
   }
 
   $effect(() => {
     if (isEmberLatticeStyle()) {
-      untrack(() => primeMetaballGridPhaseEdgesTunables());
+      untrack(() => primeCellGridPhaseEdgesTunables());
     }
   });
 
   function showsDerivedGeometryInput(): boolean {
-    return isMetaballGridStyle();
+    return isCellGridStyle();
   }
   function resolveActiveTransitionModeId(): string {
     return coerceVsTransitionModeForRenderMode(
@@ -686,7 +686,7 @@
       });
     }
 
-    if (isMetaballGridStyle()) {
+    if (isCellGridStyle()) {
       modules.unshift({
         id: "metaball-grid",
         label: "Grid",
@@ -1612,18 +1612,18 @@
   </div>
 {/if}
 
-{#if showStylesView && showRendererModule("metaball-grid") && isMetaballGridStyle()}
+{#if showStylesView && showRendererModule("metaball-grid") && isCellGridStyle()}
   <div class="engine-control-group territory-module-card">
     <div class="territory-card__header">
       <h4 class="axis-card-title">
         {isEmberLatticeStyle()
           ? "Ember Lattice"
-          : isMetaballGridPhaseEdgesStyle()
+          : isCellGridPhaseEdgesStyle()
             ? "Phase Edges"
           : "Metaball Grid (Experimental)"}
       </h4>
     </div>
-    <MetaballGridTuning {panel} {updatePanel} />
+    <CellGridTuning {panel} {updatePanel} />
     <TerritorySurfaceStyleTuning
       {panel}
       onUpdate={debouncedConfigUpdate}
@@ -1633,7 +1633,7 @@
       activeSection={resolveActiveStyleSubsection()}
       styleFamily={isEmberLatticeStyle()
         ? "metaball_grid_ember_lattice"
-        : isMetaballGridPhaseEdgesStyle()
+        : isCellGridPhaseEdgesStyle()
           ? "metaball_grid_phase_edges"
           : "metaball_grid"} />
   </div>
@@ -1826,8 +1826,8 @@
         <div class="territory-card__header">
           <h4 class="axis-card-title">{sharedSurfaceStyleHeading()}</h4>
         </div>
-        {#if isMetaballGridStyle()}
-          <MetaballGridTuning {panel} {updatePanel} />
+        {#if isCellGridStyle()}
+          <CellGridTuning {panel} {updatePanel} />
         {:else if resolveActiveStyleId() === "perimeter_field"}
           <PerimeterFieldTuning {panel} {updatePanel} />
         {/if}
@@ -1839,22 +1839,22 @@
           showFinishSection={resolveActiveStyleId() === "perimeter_field"}
           styleFamily={isEmberLatticeStyle()
             ? "metaball_grid_ember_lattice"
-            : isMetaballGridPhaseEdgesStyle()
+            : isCellGridPhaseEdgesStyle()
               ? "metaball_grid_phase_edges"
-              : isMetaballGridStyle()
+              : isCellGridStyle()
                 ? "metaball_grid"
                 : "perimeter_field"}
-          fillHelp={isMetaballGridStyle()
+          fillHelp={isCellGridStyle()
             ? isEmberLatticeStyle()
               ? "Fill visibility, color energy, cell paint, and boundary inset for the Ember Lattice surface."
-              : isMetaballGridPhaseEdgesStyle()
+              : isCellGridPhaseEdgesStyle()
                 ? "Fill visibility, color energy, cell paint, and boundary inset for the Phase Edges surface."
                 : "Fill visibility, color energy, cell paint, and boundary inset for the Metaball Grid surface."
             : "Fill visibility, color energy, and perimeter placement for the Perimeter Field surface."}
-          borderHelp={isMetaballGridStyle()
+          borderHelp={isCellGridStyle()
             ? isEmberLatticeStyle()
               ? "Border visibility, width, color energy, geometry family, contour seam, smoothing, and trim for the Ember Lattice surface."
-              : isMetaballGridPhaseEdgesStyle()
+              : isCellGridPhaseEdgesStyle()
                 ? "Border visibility, width, color energy, and paint strategy for the Phase Edges surface."
                 : "Border visibility, width, color energy, and paint strategy for the Metaball Grid surface."
             : "Border visibility, width, color energy, and finish for the Perimeter Field surface."} />
