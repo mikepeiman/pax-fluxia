@@ -357,6 +357,7 @@ export class GridGradientFamily implements RenderFamily {
         this.latestPlanWorkerResponse = null;
         this.latestPlanWorkerMeta = null;
         if (response.planKey !== meta.planKey) return false;
+        if (!this.canCommitWorkerPlan(response.plan, response.planKey)) return false;
         this.cachedPlan = response.plan;
         this.cachedShaderTexturePlan = null;
         this.borderDotSignature = null;
@@ -366,6 +367,49 @@ export class GridGradientFamily implements RenderFamily {
                 meta.startedAtMs ?? nowMs,
                 meta.durationMs ?? response.plan.planBuildMs,
             );
+        }
+        return true;
+    }
+
+    private canCommitWorkerPlan(
+        plan: CachedGridGradientPlan,
+        responsePlanKey: string,
+    ): boolean {
+        if (plan.planKey !== responsePlanKey) return false;
+        const cellCount = this.resolvePlanCellCount(plan);
+        if (cellCount <= 0) return false;
+        if (plan.classification.vstars.length !== cellCount) return false;
+        if (plan.flipTimeByteByCell.length !== cellCount) return false;
+        if (plan.typed.prevOwnerIndexByCell.length !== cellCount) return false;
+        if (plan.typed.nextOwnerIndexByCell.length !== cellCount) return false;
+        if (plan.typed.roleCodeByCell.length !== cellCount) return false;
+        if (!this.areCellIndicesInRange(plan.typed.emittableCellIndices, cellCount)) return false;
+        if (!this.areCellIndicesInRange(plan.typed.transitionCellIndices, cellCount)) return false;
+
+        const cachedEmittableCells =
+            this.cachedPlan?.classification.emittableVstars.length ?? 0;
+        if (cachedEmittableCells > 0 && plan.classification.emittableVstars.length <= 0) {
+            return false;
+        }
+        return true;
+    }
+
+    private resolvePlanCellCount(plan: CachedGridGradientPlan): number {
+        const { cols, rows } = plan.classification;
+        if (
+            !Number.isInteger(cols) ||
+            !Number.isInteger(rows) ||
+            cols <= 0 ||
+            rows <= 0
+        ) {
+            return 0;
+        }
+        return cols * rows;
+    }
+
+    private areCellIndicesInRange(indices: Uint32Array, cellCount: number): boolean {
+        for (let i = 0; i < indices.length; i += 1) {
+            if (indices[i] >= cellCount) return false;
         }
         return true;
     }
