@@ -786,6 +786,13 @@
         orderDispatchScheduled = true;
         lastOrderQueueScheduleAtMs = performance.now();
 
+        if (typeof queueMicrotask === "function") {
+            lastOrderQueueScheduleMode = "microtask";
+            queueMicrotask(() => {
+                flushQueuedOrderMutations();
+            });
+            return;
+        }
         const scheduler = getTaskScheduler();
         if (scheduler?.postTask) {
             lastOrderQueueScheduleMode = "scheduler-user-blocking";
