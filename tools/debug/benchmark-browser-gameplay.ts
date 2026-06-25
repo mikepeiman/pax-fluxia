@@ -9,6 +9,7 @@ import {
 import net from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { validateTransitionDiagnosticBundleForBenchmark } from "./transition-diagnostic-benchmark-validation";
 
 type JsonValue =
     | null
@@ -128,8 +129,19 @@ const DEFAULT_SCENARIO_TIMEOUT_MS = resolvePositiveMs(
     90_000,
 );
 const BUN_EXECUTABLE = process.execPath;
+const TERRITORY_MODE_ALIASES: Readonly<Record<string, string>> = {
+    metaball_grid_phase_field: "phase_field",
+    metaball_grid_phase_edges: "phase_edges",
+    metaball_grid_ember_lattice: "ember_lattice",
+    metaball_grid: "cell_grid",
+};
+
+function normalizeBenchmarkTerritoryModeId(mode: string): string {
+    return TERRITORY_MODE_ALIASES[mode] ?? mode;
+}
+
 const DEFAULT_TERRITORY_SCENARIO_SPECS = [
-    { scenarioKey: "metaball", mode: "metaball_grid" },
+    { scenarioKey: "metaball", mode: "cell_grid" },
     { scenarioKey: "distanceField", mode: "distance_field" },
     { scenarioKey: "vsPvv3", mode: "vs_pvv3" },
     { scenarioKey: "pixel", mode: "pixel" },
@@ -141,7 +153,7 @@ const TERRITORY_SCENARIO_SPECS = BENCH_TERRITORY_MODE
     ? [
           {
               scenarioKey: sanitizeLabelForPath(BENCH_TERRITORY_MODE),
-              mode: BENCH_TERRITORY_MODE,
+              mode: normalizeBenchmarkTerritoryModeId(BENCH_TERRITORY_MODE),
           },
       ]
     : DEFAULT_TERRITORY_SCENARIO_SPECS;
@@ -1973,6 +1985,8 @@ function summarizeScenarioCollection(
 ): Record<string, JsonValue> {
     const summaryEntries = Object.entries(scenarios).map(([name, scenario]) => ({
         name,
+        ok: scenario?.ok ?? null,
+        failureReason: scenario?.failureReason ?? null,
         requestedMode: scenario?.requestedMode ?? null,
         elapsedMs: round(Number(scenario?.elapsedMs ?? 0)),
         frames: scenario?.actionResult?.frames ?? null,
@@ -2004,8 +2018,16 @@ function summarizeScenarioCollection(
         screenshotPath: scenario?.screenshotPath ?? null,
         perfEventTail: scenario?.perfEventTail ?? [],
     }));
+    const failedScenarios = summaryEntries
+        .filter((entry) => entry.ok === false)
+        .map((entry) => ({
+            name: entry.name,
+            failureReason: entry.failureReason,
+        }));
     return {
         scenarios: summaryEntries,
+        failedScenarioCount: failedScenarios.length,
+        failedScenarios,
         largestPointerVsDirectIssueGapMs: summaryEntries
             .map((entry) =>
                 Number(entry.orderLatency?.pointerVsDirectIssueGapMs ?? Number.NaN),
@@ -3543,9 +3565,16 @@ async function captureTransitionDiagnosticScenario(
         await client.evaluate<Record<string, JsonValue> | null>(
             "window.__PAX_BENCH__.getLatestTransitionDiagnosticBundle()",
         );
+    const diagnosticValidation =
+        validateTransitionDiagnosticBundleForBenchmark(diagnosticBundle);
     await client.evaluate("window.__PAX_BENCH__.setTransitionRecorderEnabled(false)");
     return {
-        ok: Boolean(bundleWait.matched),
+        ok: Boolean(bundleWait.matched) && diagnosticValidation.ok,
+        reason: !bundleWait.matched
+            ? "transition_bundle_not_matched"
+            : diagnosticValidation.ok
+              ? undefined
+              : "transition_diagnostic_validation_failed",
         issued,
         sampleOrder,
         bundleWait,
@@ -3557,6 +3586,7 @@ async function captureTransitionDiagnosticScenario(
         captureStateAfterWait,
         canvasApiAfterWait,
         diagnosticBundle,
+        diagnosticValidation: diagnosticValidation as unknown as JsonValue,
         diagnosticStepSummary: Array.isArray(diagnosticBundle?.steps)
             ? (diagnosticBundle?.steps as Array<Record<string, JsonValue>>).map(
                   (step) => ({
@@ -3819,7 +3849,18 @@ async function profileScenario(
         );
     }
 
+    const actionResultRecord =
+        typeof traced.actionResult === "object" &&
+        traced.actionResult !== null &&
+        !Array.isArray(traced.actionResult)
+            ? (traced.actionResult as Record<string, JsonValue>)
+            : null;
+    const actionFailed = actionResultRecord?.ok === false;
     const result = {
+        ok: !actionFailed,
+        failureReason: actionFailed
+            ? String(actionResultRecord?.reason ?? "action_result_failed")
+            : null,
         label,
         startedAt: new Date(scenarioStartedAt).toISOString(),
         elapsedMs: Date.now() - scenarioStartedAt,
@@ -4190,6 +4231,8 @@ async function main(): Promise<void> {
             }
         }
 
+        const analysis = summarizeScenarioCollection(scenarios);
+        const overallOk = Number(analysis.failedScenarioCount ?? 0) === 0;
         const results = {
             generatedAt: new Date().toISOString(),
             browserPath,
@@ -4213,7 +4256,7 @@ async function main(): Promise<void> {
             },
             scenarioScreenshotDir: activeScenarioScreenshotDir,
             scenarios,
-            analysis: summarizeScenarioCollection(scenarios),
+            analysis,
         };
 
         mkdirSync(METRICS_DIR, { recursive: true });
@@ -4231,7 +4274,7 @@ async function main(): Promise<void> {
         console.log(
             JSON.stringify(
                 {
-                    ok: true,
+                    ok: overallOk,
                     outputPath,
                     timestampedOutputPath,
                     results,
@@ -4240,6 +4283,9 @@ async function main(): Promise<void> {
                 2,
             ),
         );
+        if (!overallOk) {
+            process.exitCode = 1;
+        }
         client.close();
     } finally {
         activeScenarioScreenshotDir = null;

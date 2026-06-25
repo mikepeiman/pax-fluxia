@@ -8,6 +8,7 @@ import {
 } from "$lib/perf/perfProbe";
 import { buildDiagnosticBundleForInspection } from "$lib/territory/devtools/TransitionBundleSerializer";
 import { transitionSnapshotRecorder } from "$lib/territory/devtools/TransitionSnapshotRecorder";
+import { normalizeTerritoryRenderModeId } from "$lib/territory/ui/territoryRenderModeCatalog";
 import { logFlags } from "$lib/utils/logger";
 
 interface FrameStats {
@@ -451,19 +452,20 @@ async function waitForRenderMode(
     mode: string,
     timeoutMs = 5000,
 ): Promise<Record<string, unknown>> {
+    const expectedMode = String(normalizeTerritoryRenderModeId(mode));
     const deadline = performance.now() + timeoutMs;
     let attempts = 0;
     let state = await getStateSummary();
     while (performance.now() < deadline) {
-        if (state.renderMode === mode) {
-            return { matches: true, attempts, state };
+        if (state.renderMode === expectedMode) {
+            return { matches: true, attempts, state, expectedMode };
         }
         attempts += 1;
         await settleFrames(2);
         await waitMs(40);
         state = await getStateSummary();
     }
-    return { matches: state.renderMode === mode, attempts, state };
+    return { matches: state.renderMode === expectedMode, attempts, state, expectedMode };
 }
 
 export function installBenchmarkBridge(params: {
@@ -737,20 +739,24 @@ export function installBenchmarkBridge(params: {
         collectFrameStats,
         setTerritoryMode: async (mode) => {
             const { GAME_CONFIG } = await loadRuntimeDeps();
-            GAME_CONFIG.TERRITORY_RENDER_MODE = mode as never;
+            const expectedMode = String(normalizeTerritoryRenderModeId(mode));
+            GAME_CONFIG.TERRITORY_RENDER_MODE = expectedMode as never;
             await settleFrames();
             return GAME_CONFIG.TERRITORY_RENDER_MODE;
         },
         waitForRenderMode,
         ensureTerritoryMode: async (mode) => {
+            const expectedMode = String(normalizeTerritoryRenderModeId(mode));
             const actualMode = await window.__PAX_BENCH__!.setTerritoryMode(mode);
             const waitResult = await waitForRenderMode(mode);
             const state = (waitResult.state as Record<string, unknown>) ?? (await getStateSummary());
             return {
                 requestedMode: mode,
+                expectedMode,
                 actualMode,
                 state,
-                matches: waitResult.matches === true && state.renderMode === mode,
+                matches:
+                    waitResult.matches === true && state.renderMode === expectedMode,
                 attempts: waitResult.attempts ?? 0,
             };
         },
