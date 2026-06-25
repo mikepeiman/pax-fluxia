@@ -68,6 +68,12 @@ interface DisplaySegmentBucket {
     readonly endKey: string;
 }
 
+interface EndpointOwnerBucket {
+    ownerA: string | null;
+    ownerB: string | null;
+    hasExtraOwner: boolean;
+}
+
 interface EndpointOwners {
     x: number;
     y: number;
@@ -743,20 +749,6 @@ function polylineLength(points: ReadonlyArray<[number, number]>): number {
     return total;
 }
 
-function directionAtStart(points: ReadonlyArray<[number, number]>): number {
-    if (points.length < 2) return 0;
-    const [ax, ay] = points[0]!;
-    const [bx, by] = points[1]!;
-    return Math.atan2(by - ay, bx - ax);
-}
-
-function directionAtEnd(points: ReadonlyArray<[number, number]>): number {
-    if (points.length < 2) return 0;
-    const [ax, ay] = points[points.length - 2]!;
-    const [bx, by] = points[points.length - 1]!;
-    return Math.atan2(by - ay, bx - ax);
-}
-
 function normalizeAngleDelta(a: number, b: number): number {
     let delta = Math.abs(a - b);
     while (delta > Math.PI) delta = Math.abs(delta - Math.PI * 2);
@@ -799,6 +791,56 @@ function addDisplaySegmentOwner(
         return;
     }
     bucket.hasExtraOwner = true;
+}
+
+function addOwnerToEndpointBucket(
+    bucket: EndpointOwnerBucket,
+    ownerId: string,
+): void {
+    if (ownerId === bucket.ownerA || ownerId === bucket.ownerB) return;
+    if (bucket.ownerB === null) {
+        bucket.ownerB = ownerId;
+        return;
+    }
+    bucket.hasExtraOwner = true;
+}
+
+function addEndpointSegmentOwners(
+    ownerBuckets: Map<string, EndpointOwnerBucket>,
+    pointKey: string,
+    ownerA: string,
+    ownerB: string,
+): void {
+    const hasOwnerA = !isWorldOwner(ownerA);
+    const hasOwnerB = !isWorldOwner(ownerB) && ownerB !== ownerA;
+    if (!hasOwnerA && !hasOwnerB) return;
+
+    let bucket = ownerBuckets.get(pointKey);
+    if (!bucket) {
+        bucket = {
+            ownerA: hasOwnerA ? ownerA : ownerB,
+            ownerB: null,
+            hasExtraOwner: false,
+        };
+        ownerBuckets.set(pointKey, bucket);
+        if (hasOwnerA && hasOwnerB) {
+            addOwnerToEndpointBucket(bucket, ownerB);
+        }
+        return;
+    }
+
+    if (hasOwnerA) addOwnerToEndpointBucket(bucket, ownerA);
+    if (hasOwnerB) addOwnerToEndpointBucket(bucket, ownerB);
+}
+
+function endpointOwnerCount(
+    ownerBuckets: ReadonlyMap<string, EndpointOwnerBucket>,
+    pointKey: string,
+): number {
+    const bucket = ownerBuckets.get(pointKey);
+    if (!bucket) return 0;
+    if (bucket.hasExtraOwner) return 3;
+    return bucket.ownerB === null ? 1 : 2;
 }
 
 function buildDisplayGeometryFromResolvedRegions(
@@ -924,21 +966,20 @@ function buildDisplayPolylinesFromSegments(
         }
     }
 
-    const ownerCountByPoint = new Map<string, Set<string>>();
+    const ownerCountByPoint = new Map<string, EndpointOwnerBucket>();
     for (const segment of segments) {
-        const owners = [segment.ownerA, segment.ownerB].filter(
-            (ownerId) => !isWorldOwner(ownerId),
+        addEndpointSegmentOwners(
+            ownerCountByPoint,
+            segment.startKey,
+            segment.ownerA,
+            segment.ownerB,
         );
-        const startOwners =
-            ownerCountByPoint.get(segment.startKey) ?? new Set<string>();
-        const endOwners =
-            ownerCountByPoint.get(segment.endKey) ?? new Set<string>();
-        for (const ownerId of owners) {
-            startOwners.add(ownerId);
-            endOwners.add(ownerId);
-        }
-        ownerCountByPoint.set(segment.startKey, startOwners);
-        ownerCountByPoint.set(segment.endKey, endOwners);
+        addEndpointSegmentOwners(
+            ownerCountByPoint,
+            segment.endKey,
+            segment.ownerA,
+            segment.ownerB,
+        );
     }
 
     const result: ConstraintAlignedFrontierPolyline[] = [];
@@ -966,7 +1007,7 @@ function buildDisplayPolylinesFromSegments(
             }
         }
 
-        const used = new Set<number>();
+        const used = new Uint8Array(group.length);
         const startCandidates = group
             .map((segment, index) => {
                 const startDegree = endpointMap.get(segment.startKey)?.length ?? 0;
@@ -1000,21 +1041,27 @@ function buildDisplayPolylinesFromSegments(
                       [segment.start[0], segment.start[1]],
                   ];
 
+        const directionForSegment = (
+            segment: DisplayBoundarySegment,
+            startAt: 'start' | 'end',
+        ): number => {
+            const start = startAt === 'start' ? segment.start : segment.end;
+            const end = startAt === 'start' ? segment.end : segment.start;
+            return Math.atan2(end[1] - start[1], end[0] - start[0]);
+        };
+
         const pickNextRef = (
             currentEndKey: string,
             currentDirection: number,
         ): { segmentIndex: number; at: 'start' | 'end' } | null => {
-            const candidates =
-                endpointMap.get(currentEndKey)?.filter(
-                    (candidate) => !used.has(candidate.segmentIndex),
-                ) ?? [];
-            if (candidates.length === 0) return null;
+            const candidates = endpointMap.get(currentEndKey);
+            if (!candidates) return null;
             let best: { segmentIndex: number; at: 'start' | 'end' } | null = null;
             let bestDelta = Infinity;
             for (const candidate of candidates) {
+                if (used[candidate.segmentIndex] === 1) continue;
                 const segment = group[candidate.segmentIndex]!;
-                const oriented = orientSegment(segment, candidate.at);
-                const nextDirection = directionAtStart(oriented);
+                const nextDirection = directionForSegment(segment, candidate.at);
                 const delta = normalizeAngleDelta(currentDirection, nextDirection);
                 if (delta < bestDelta) {
                     best = candidate;
@@ -1035,8 +1082,8 @@ function buildDisplayPolylinesFromSegments(
         } => {
             const first = group[startIndex]!;
             const points = [...orientSegment(first, startAt)];
-            used.add(startIndex);
-            let currentDirection = directionAtEnd(points);
+            used[startIndex] = 1;
+            let currentDirection = directionForSegment(first, startAt);
             let currentEndKey =
                 startAt === 'start' ? first.endKey : first.startKey;
             const startKey =
@@ -1048,9 +1095,9 @@ function buildDisplayPolylinesFromSegments(
                 if (!nextRef) break;
                 const next = group[nextRef.segmentIndex]!;
                 const oriented = orientSegment(next, nextRef.at);
-                used.add(nextRef.segmentIndex);
+                used[nextRef.segmentIndex] = 1;
                 points.push(oriented[1]);
-                currentDirection = directionAtEnd(oriented);
+                currentDirection = directionForSegment(next, nextRef.at);
                 currentEndKey =
                     nextRef.at === 'start' ? next.endKey : next.startKey;
                 if (currentEndKey === startKey) {
@@ -1063,13 +1110,17 @@ function buildDisplayPolylinesFromSegments(
         };
 
         for (const candidate of startCandidates) {
-            if (used.has(candidate.index)) continue;
+            if (used[candidate.index] === 1) continue;
             const chain = buildChainFrom(candidate.index, candidate.endpoint);
             const length = polylineLength(chain.points);
-            const startOwnerCount =
-                ownerCountByPoint.get(chain.startKey)?.size ?? 0;
-            const endOwnerCount =
-                ownerCountByPoint.get(chain.endKey)?.size ?? 0;
+            const startOwnerCount = endpointOwnerCount(
+                ownerCountByPoint,
+                chain.startKey,
+            );
+            const endOwnerCount = endpointOwnerCount(
+                ownerCountByPoint,
+                chain.endKey,
+            );
             const looksLikeJunctionSpur =
                 group[0]?.kind === 'inter_owner' &&
                 length < minDisplayLengthPx &&
