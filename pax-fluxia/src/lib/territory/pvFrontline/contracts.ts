@@ -71,6 +71,24 @@ export interface TransientTransitionFrontline {
     points: readonly [number, number][];
 }
 
+export interface PowerVoronoiSharedJunctionSample {
+    frontId: string;
+    ownerPairKey: string;
+    anchorRole: 'start' | 'end';
+    point: [number, number];
+}
+
+export interface PowerVoronoiSharedJunctionConsistency {
+    vertexId: string;
+    kind: FrontierVertexKind;
+    sampleCount: number;
+    referencePoint: [number, number];
+    maxDistance: number;
+    finite: boolean;
+    consistent: boolean;
+    samples: readonly PowerVoronoiSharedJunctionSample[];
+}
+
 export interface PowerVoronoiTransitionPlan {
     kind: 'power_voronoi_runtime';
     planId: string;
@@ -143,6 +161,7 @@ export interface PowerVoronoiFrameSampleDiagnostics {
     progress: number;
     regions: number;
     transientFrontlines: readonly TransientTransitionFrontline[];
+    sharedJunctionConsistency: readonly PowerVoronoiSharedJunctionConsistency[];
     matchesPreGeometry: boolean;
     matchesPostGeometry: boolean;
 }
