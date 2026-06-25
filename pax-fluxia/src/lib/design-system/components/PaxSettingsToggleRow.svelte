@@ -1,4 +1,6 @@
 <script lang="ts">
+  import PaxInfoHint from "./PaxInfoHint.svelte";
+
   interface Props {
     label: string;
     checked: boolean;
@@ -53,7 +55,7 @@
       {label}
     </strong>
     {#if description}
-      <small class="pax-settings-toggle-row__description">{description}</small>
+      <PaxInfoHint text={description} class="pax-settings-toggle-row__hint" />
     {/if}
   </span>
   {#if meta}
@@ -139,8 +141,9 @@
 
   .pax-settings-toggle-row__copy {
     min-width: 0;
-    display: grid;
-    gap: 2px;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--pax-gap-xs);
   }
 
   .pax-settings-toggle-row__label {
@@ -152,17 +155,6 @@
     letter-spacing: 0.05em;
     text-overflow: ellipsis;
     text-transform: uppercase;
-    white-space: nowrap;
-  }
-
-  .pax-settings-toggle-row__description {
-    min-width: 0;
-    overflow: hidden;
-    color: var(--pax-ui-text-dim);
-    font-family: var(--pax-ui-font-copy);
-    font-size: calc(0.66rem * var(--pax-ui-type-scale, 1));
-    line-height: 1.25;
-    text-overflow: ellipsis;
     white-space: nowrap;
   }
 
