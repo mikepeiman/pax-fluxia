@@ -621,23 +621,35 @@ export function mergeSameOwnerCells(
     clusterSplit: boolean,
     clusterMap: Map<string, number>,
 ): MergedTerritory[] {
-    const clusterKeyOf = (cell: TerritoryCell) => {
-        const cIdx = clusterMap.get(cell.siteId) ?? 0;
-        return clusterSplit ? `${cell.ownerId}:${cIdx}` : cell.ownerId;
-    };
+    const clusterKeyOf = clusterSplit
+        ? (cell: TerritoryCell) => {
+              const cIdx = clusterMap.get(cell.siteId) ?? 0;
+              return `${cell.ownerId}:${cIdx}`;
+          }
+        : (cell: TerritoryCell) => cell.ownerId;
 
     // Pass 1: count how many times each edge appears, and which clusters see it
-    const edgeCount = new Map<string, number>();
-    const edgeClusters = new Map<string, Set<string>>();
+    const edgeInfo = new Map<
+        string,
+        { count: number; firstCluster: string; multiCluster: boolean }
+    >();
 
     for (const cell of cells) {
         const ck = clusterKeyOf(cell);
         const pts = cell.points;
         for (let j = 0; j < pts.length - 1; j++) {
             const key = edgeKey(pts[j][0], pts[j][1], pts[j + 1][0], pts[j + 1][1]);
-            edgeCount.set(key, (edgeCount.get(key) ?? 0) + 1);
-            if (!edgeClusters.has(key)) edgeClusters.set(key, new Set());
-            edgeClusters.get(key)!.add(ck);
+            const info = edgeInfo.get(key);
+            if (info) {
+                info.count += 1;
+                if (info.firstCluster !== ck) info.multiCluster = true;
+            } else {
+                edgeInfo.set(key, {
+                    count: 1,
+                    firstCluster: ck,
+                    multiCluster: false,
+                });
+            }
         }
     }
 
@@ -660,10 +672,9 @@ export function mergeSameOwnerCells(
         const pts = cell.points;
         for (let j = 0; j < pts.length - 1; j++) {
             const key = edgeKey(pts[j][0], pts[j][1], pts[j + 1][0], pts[j + 1][1]);
-            const cnt = edgeCount.get(key) ?? 0;
-            const clusters = edgeClusters.get(key)!;
+            const info = edgeInfo.get(key);
             // Internal edge: shared by 2+ cells all belonging to this same cluster → skip
-            if (cnt >= 2 && clusters.size === 1) continue;
+            if (info && info.count >= 2 && !info.multiCluster) continue;
             clusterEdges.get(ck)!.push({
                 x1: pts[j][0], y1: pts[j][1],
                 x2: pts[j + 1][0], y2: pts[j + 1][1],
