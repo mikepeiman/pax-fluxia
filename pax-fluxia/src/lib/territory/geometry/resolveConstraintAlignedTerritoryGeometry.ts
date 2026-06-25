@@ -409,7 +409,8 @@ function buildReversedOpenDirectedSegmentIds(
 }
 
 interface RingSegmentMatcher {
-    readonly firstSegments: ReadonlySet<number>;
+    readonly matcherId: number;
+    readonly firstSegments: readonly number[];
     matches(
         polylineSegments: readonly number[],
         reversedSegments: readonly number[],
@@ -419,6 +420,7 @@ interface RingSegmentMatcher {
 function createRingSegmentMatcher(
     ringPoints: ReadonlyArray<[number, number]>,
     internPoint: (x: number, y: number) => number,
+    matcherId = 0,
 ): RingSegmentMatcher {
     const normalizedRing = normalizeClosedRing(ringPoints);
     const ringSegments = buildDirectedSegmentIds(normalizedRing, true, internPoint);
@@ -454,7 +456,8 @@ function createRingSegmentMatcher(
     };
 
     return {
-        firstSegments: new Set(startsBySegment.keys()),
+        matcherId,
+        firstSegments: [...startsBySegment.keys()],
         matches(polylineSegments, reversedSegments) {
             if (ringSegments.length === 0) return false;
             if (polylineSegments.length === 0) return false;
@@ -498,6 +501,16 @@ export function ringContainsPolyline(
     return createRingContainmentMatcher(ringPoints)(polylinePoints);
 }
 
+function firstReversedOpenDirectedSegmentId(
+    points: ReadonlyArray<[number, number]>,
+    internPoint: (x: number, y: number) => number,
+): number | undefined {
+    if (points.length < 2) return undefined;
+    const [ax, ay] = points[points.length - 1]!;
+    const [bx, by] = points[points.length - 2]!;
+    return internPoint(ax, ay) * SEGMENT_ID_STRIDE + internPoint(bx, by);
+}
+
 function filterPolylinesByResolvedRegions(params: {
     frontierPolylines: ReadonlyArray<ConstraintAlignedFrontierPolyline>;
     worldBorderPolylines: ReadonlyArray<ConstraintAlignedFrontierPolyline>;
@@ -513,8 +526,8 @@ function filterPolylinesByResolvedRegions(params: {
         'territory.constraintAlign.filter.buildMatchers',
         () => {
             const byFirstSegment = new Map<number, RingSegmentMatcher[]>();
-            const matchers = params.territoryRegions.map((region) =>
-                createRingSegmentMatcher(region.points, internPoint),
+            const matchers = params.territoryRegions.map((region, index) =>
+                createRingSegmentMatcher(region.points, internPoint, index),
             );
             for (const matcher of matchers) {
                 for (const segment of matcher.firstSegments) {
@@ -526,7 +539,7 @@ function filterPolylinesByResolvedRegions(params: {
                     }
                 }
             }
-            return { byFirstSegment };
+            return { byFirstSegment, matcherCount: matchers.length };
         },
         {
             regions: params.territoryRegions.length,
@@ -534,6 +547,20 @@ function filterPolylinesByResolvedRegions(params: {
             world: params.worldBorderPolylines.length,
         },
     );
+    const candidateMarks = new Uint32Array(matcherIndex.matcherCount);
+    const candidates: RingSegmentMatcher[] = [];
+    let candidateStamp = 0;
+    const pushCandidatesForFirstSegment = (segmentId: number | undefined): void => {
+        if (segmentId === undefined) return;
+        const bucket = matcherIndex.byFirstSegment.get(segmentId);
+        if (!bucket) return;
+        for (const matcher of bucket) {
+            const matcherId = matcher.matcherId;
+            if (candidateMarks[matcherId] === candidateStamp) continue;
+            candidateMarks[matcherId] = candidateStamp;
+            candidates.push(matcher);
+        }
+    };
     const keepPolyline = (
         polyline: ConstraintAlignedFrontierPolyline,
     ): boolean => {
@@ -543,23 +570,21 @@ function filterPolylinesByResolvedRegions(params: {
             internPoint,
         );
         if (polylineSegments.length === 0) return false;
+        candidateStamp += 1;
+        if (candidateStamp === 0xffffffff) {
+            candidateMarks.fill(0);
+            candidateStamp = 1;
+        }
+        candidates.length = 0;
+        pushCandidatesForFirstSegment(polylineSegments[0]);
+        pushCandidatesForFirstSegment(
+            firstReversedOpenDirectedSegmentId(polyline.points, internPoint),
+        );
+        if (candidates.length === 0) return false;
         const reversedSegments = buildReversedOpenDirectedSegmentIds(
             polyline.points,
             internPoint,
         );
-        const candidates = new Set<RingSegmentMatcher>();
-        const firstSegment = polylineSegments[0];
-        if (firstSegment !== undefined) {
-            for (const matcher of matcherIndex.byFirstSegment.get(firstSegment) ?? []) {
-                candidates.add(matcher);
-            }
-        }
-        const reversedFirstSegment = reversedSegments[0];
-        if (reversedFirstSegment !== undefined) {
-            for (const matcher of matcherIndex.byFirstSegment.get(reversedFirstSegment) ?? []) {
-                candidates.add(matcher);
-            }
-        }
         for (const matcher of candidates) {
             if (matcher.matches(polylineSegments, reversedSegments)) return true;
         }
