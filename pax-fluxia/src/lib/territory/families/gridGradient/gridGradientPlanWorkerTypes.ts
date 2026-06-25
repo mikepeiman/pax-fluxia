@@ -60,12 +60,15 @@ export function inflateGridGradientWorkerGeometry(
         },
         shells: [],
         shellLoops: [],
-        provenance: { derivedFromField: false, notes: ['grid-gradient-worker-minimal'] },
+        provenance: {
+            derivedFromField: false,
+            notes: ['grid-gradient-worker-minimal'],
+        },
         diagnostics: {
-            topologyReliable: true,
-            identityReliable: true,
-            closureReliable: true,
-            notes: [],
+            topologyReliable: false,
+            identityReliable: false,
+            closureReliable: false,
+            notes: ['grid-gradient-worker-minimal-topology-omitted'],
         },
     };
 }
