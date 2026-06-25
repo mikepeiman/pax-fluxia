@@ -816,6 +816,10 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
 
     let activeSectionId = $state<ActiveSectionId | null>(loadActiveSection());
     let activeToolHasPanel = $derived(activeSectionId !== null);
+    // "All" view: stack every section of the active category in one scroll.
+    // activeSectionId is kept (so the category + chips stay resolved); this just
+    // overlays the all-sections render.
+    let showAllSections = $state(false);
 
     function persistActiveSection() {
         if (typeof window === "undefined") return;
@@ -827,6 +831,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     function selectSection(id: ActiveSectionId | null) {
+        // Selecting or closing any single section always exits the "All" view.
+        showAllSections = false;
         activeSectionId = activeSectionId === id ? null : id;
         persistActiveSection();
     }
@@ -1301,10 +1307,19 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 </PaxHudButton>
                 {#if activeCategoryChips.length > 1}
                     <div class="section-subnav">
+                        <PaxHudButton
+                            class="subsection-chip"
+                            active={showAllSections}
+                            onclick={() => (showAllSections = true)}
+                            title="Show all sections in this category"
+                        >
+                            <span class="subsection-chip__icon"><HudIcon name="phase-field" size={14} /></span>
+                            <span>All</span>
+                        </PaxHudButton>
                         {#each activeCategoryChips as chip}
                             <PaxHudButton
                                 class="subsection-chip"
-                                active={activeSectionId === chip.id}
+                                active={!showAllSections && activeSectionId === chip.id}
                                 onclick={() => selectSection(chip.id)}
                                 title={chip.label}
                             >
@@ -1314,7 +1329,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         {/each}
                     </div>
                 {/if}
-                {#if !isUtilityPanelId(sec.id) && (sectionSubsections[sec.id]?.length ?? 0) > 0}
+                {#if !showAllSections && !isUtilityPanelId(sec.id) && (sectionSubsections[sec.id]?.length ?? 0) > 0}
                     <div class="section-subnav section-subnav--secondary">
                         <PaxHudButton
                             class="subsection-chip"
@@ -1340,16 +1355,45 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 {/if}
             </div>
 
-            <div
-                class="section-body"
-                use:registerSectionBody={{
-                    sectionId: sec.id,
-                    activeSubsection: activeSubsections[sec.id] ?? "all",
-                }}
-                use:enhanceSettingMetadata={{
-                    scope: isUtilityPanelId(sec.id) ? null : getSectionDefinition(sec.id).scope,
-                }}
-            >
+            {#if showAllSections}
+                <div class="section-body section-body--all">
+                    {#each activeCategoryChips as chip (chip.id)}
+                        <div
+                            class="section-all-group"
+                            use:registerSectionBody={{
+                                sectionId: chip.id,
+                                activeSubsection: "all",
+                            }}
+                            use:enhanceSettingMetadata={{
+                                scope: isUtilityPanelId(chip.id) ? null : getSectionDefinition(chip.id).scope,
+                            }}
+                        >
+                            <div class="section-all-group__title">
+                                <span class="subsection-chip__icon"><HudIcon name={chip.icon} size={13} /></span>
+                                <span>{chip.label}</span>
+                            </div>
+                            {@render sectionContent(chip)}
+                        </div>
+                    {/each}
+                </div>
+            {:else}
+                <div
+                    class="section-body"
+                    use:registerSectionBody={{
+                        sectionId: sec.id,
+                        activeSubsection: activeSubsections[sec.id] ?? "all",
+                    }}
+                    use:enhanceSettingMetadata={{
+                        scope: isUtilityPanelId(sec.id) ? null : getSectionDefinition(sec.id).scope,
+                    }}
+                >
+                    {@render sectionContent(sec)}
+                </div>
+            {/if}
+        </div>
+    {/if}
+
+{#snippet sectionContent(sec: NavChip)}
                 {#if sec.id === "ui_appearance"}
                     <HudThemePanel />
                     <ControlsSectionVisuals
@@ -1564,9 +1608,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         syncFromConfig={syncAllFromConfig}
                     />
                 {/if}
-            </div>
-        </div>
-    {/if}
+{/snippet}
     </div>
     </div>
 </div>
@@ -1944,6 +1986,28 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         flex: 1;
         overflow-y: auto;
         min-height: 0;
+    }
+    /* "All" view: one scroll surface; each section becomes a labelled group. */
+    .section-body--all {
+        gap: var(--pax-space-4);
+    }
+    .section-all-group {
+        display: flex;
+        flex-direction: column;
+        gap: var(--pax-gap-sm);
+    }
+    .section-all-group__title {
+        display: flex;
+        align-items: center;
+        gap: var(--pax-space-2);
+        padding-bottom: var(--pax-gap-xs);
+        border-bottom: 1px solid var(--pax-ui-divider);
+        color: color-mix(in srgb, var(--accent, var(--pax-ui-accent)) 86%, var(--pax-ui-text-strong));
+        font-family: var(--pax-ui-font-display);
+        font-size: var(--pax-type-label);
+        font-weight: var(--pax-weight-bold);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
     }
     .section-subnav {
         display: flex;
