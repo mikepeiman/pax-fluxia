@@ -11,6 +11,11 @@ import type {
     RenderFamilyInput,
     RenderFamilyTunableValue,
 } from '../RenderFamilyTypes';
+import {
+    disablePerfCapture,
+    enablePerfCapture,
+    snapshotPerfCapture,
+} from '$lib/perf/perfProbe';
 import { createGridGradientFamily } from './GridGradientFamily';
 import { gridGradientStats } from './gridGradientStats';
 
@@ -216,5 +221,25 @@ describe('GridGradientFamily transitions', () => {
         expect(stats.fillStyle).toBe('pointillist');
 
         family.dispose();
+    });
+
+    it('emits stage-level perf measures when capture is enabled', () => {
+        const family = createGridGradientFamily({
+            getPlayerColor(ownerId: string): number {
+                return ownerId === 'A' ? 0x3366ff : 0xff6633;
+            },
+        } as never);
+
+        enablePerfCapture();
+        try {
+            family.update(makeInput(0));
+            const snapshot = snapshotPerfCapture();
+            expect(snapshot?.measures['territory.gridGradient.planResolve']?.count).toBe(1);
+            expect(snapshot?.measures['territory.gridGradient.graphicsPaint']?.count).toBe(1);
+            expect(snapshot?.measures['territory.gridGradient.vectorBorders']?.count).toBe(1);
+        } finally {
+            disablePerfCapture();
+            family.dispose();
+        }
     });
 });
