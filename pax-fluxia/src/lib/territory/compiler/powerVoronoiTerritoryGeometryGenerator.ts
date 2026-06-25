@@ -573,7 +573,11 @@ export function extractWorldBorderPolylines(
 
 export function extractSharedEdges(cells: TerritoryCell[]): SharedBorderEdge[] {
     const edgeOwners = new Map<string, {
-        sides: { ownerId: string; siteId: string }[];
+        ownerA: string;
+        siteIdA: string;
+        ownerB: string | null;
+        siteIdB: string | null;
+        hasExtraSide: boolean;
         pts: [number, number, number, number];
     }>();
 
@@ -581,35 +585,49 @@ export function extractSharedEdges(cells: TerritoryCell[]): SharedBorderEdge[] {
         const pts = cell.points;
         for (let j = 0; j < pts.length - 1; j++) {
             const key = edgeKey(pts[j][0], pts[j][1], pts[j + 1][0], pts[j + 1][1]);
-            if (!edgeOwners.has(key)) {
+            const entry = edgeOwners.get(key);
+            if (!entry) {
                 edgeOwners.set(key, {
-                    sides: [{ ownerId: cell.ownerId, siteId: cell.siteId }],
+                    ownerA: cell.ownerId,
+                    siteIdA: cell.siteId,
+                    ownerB: null,
+                    siteIdB: null,
+                    hasExtraSide: false,
                     pts: [pts[j][0], pts[j][1], pts[j + 1][0], pts[j + 1][1]],
                 });
+                continue;
+            }
+            if (entry.siteIdA === cell.siteId || entry.siteIdB === cell.siteId) {
+                continue;
+            }
+            if (entry.siteIdB === null) {
+                entry.ownerB = cell.ownerId;
+                entry.siteIdB = cell.siteId;
             } else {
-                const entry = edgeOwners.get(key)!;
-                if (!entry.sides.some(s => s.siteId === cell.siteId)) {
-                    entry.sides.push({ ownerId: cell.ownerId, siteId: cell.siteId });
-                }
+                entry.hasExtraSide = true;
             }
         }
     }
 
     const shared: SharedBorderEdge[] = [];
     for (const [, entry] of edgeOwners) {
-        if (entry.sides.length === 2 &&
-            entry.sides[0].ownerId !== entry.sides[1].ownerId &&
-            entry.sides[0].ownerId !== DISCONNECT_OWNER_ID &&
-            entry.sides[1].ownerId !== DISCONNECT_OWNER_ID) {
+        if (
+            !entry.hasExtraSide &&
+            entry.ownerB !== null &&
+            entry.siteIdB !== null &&
+            entry.ownerA !== entry.ownerB &&
+            entry.ownerA !== DISCONNECT_OWNER_ID &&
+            entry.ownerB !== DISCONNECT_OWNER_ID
+        ) {
             shared.push({
                 x1: entry.pts[0], y1: entry.pts[1],
                 x2: entry.pts[2], y2: entry.pts[3],
-                ownerA: entry.sides[0].ownerId,
-                ownerB: entry.sides[1].ownerId,
+                ownerA: entry.ownerA,
+                ownerB: entry.ownerB,
                 colorA: 0,
                 colorB: 0,
-                siteIdA: entry.sides[0].siteId,
-                siteIdB: entry.sides[1].siteId,
+                siteIdA: entry.siteIdA,
+                siteIdB: entry.siteIdB,
             });
         }
     }
