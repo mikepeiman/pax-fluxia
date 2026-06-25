@@ -6,9 +6,9 @@
         cellGridPhaseEdgesModeDefaults,
     } from "$lib/territory/families/cellGrid/config";
     import {
-        PaxHudSelect,
         PaxInfoHint,
         PaxSettingsRangeRow,
+        PaxSettingsSegmentedRow,
         PaxSettingsToggleRow,
     } from "$lib/design-system";
     import TerritorySlaWidget from "./TerritorySlaWidget.svelte";
@@ -46,13 +46,13 @@
 
     const BORDER_MODE_OPTIONS = [
         { value: "off", label: "Off" },
-        { value: "territory_edge", label: "Territory edge" },
+        { value: "territory_edge", label: "Edge" },
         { value: "per_cell", label: "Per cell" },
     ];
 
     const FRONTIER_BORDER_GEOMETRY_OPTIONS = [
-        { value: "contour_matched", label: "Rounded contour-matched" },
-        { value: "shared_edge", label: "Straight shared edge" },
+        { value: "contour_matched", label: "Contour" },
+        { value: "shared_edge", label: "Shared edge" },
     ];
 
     const JUNCTION_RENDER_OPTIONS = [
@@ -328,10 +328,12 @@
                     <PaxInfoHint text="Paint-time surface controls. They affect the visible cell primitive and boundary inset, not ownership topology." />
                 </div>
 
-                <PaxHudSelect
+                <PaxSettingsSegmentedRow
                     label="Cell Shape"
+                    hint="Visual primitive drawn per cell: Square, Circle, Diamond, or Hex."
                     value={currentCellShape()}
                     options={CELL_SHAPE_OPTIONS}
+                    settingConfigKey="CELL_GRID_CELL_SHAPE"
                     onValueChange={(value) => {
                         onUpdate(
                             "CELL_GRID_CELL_SHAPE",
@@ -469,10 +471,12 @@
                     <PaxInfoHint text="These controls own the visible border strategy for Cell Grid surfaces. Note: Inward Offset lives in the Fill subsection because it changes the visible fill frontier rather than the stroke itself." />
                 </div>
 
-                <PaxHudSelect
+                <PaxSettingsSegmentedRow
                     label="Border Mode"
+                    hint="Where to draw the Territory border stroke: Off, Edge (ownership boundaries only), or Per cell (full grid outline)."
                     value={currentBorderMode()}
                     options={BORDER_MODE_OPTIONS}
+                    settingConfigKey="CELL_GRID_BORDER_MODE"
                     onValueChange={(value) => {
                         onUpdate(
                             "CELL_GRID_BORDER_MODE",
@@ -537,11 +541,13 @@
             {#if isEmberLatticeFamily()}
                 <div class="sub-heading territory-style-subheading">Ember Lattice Border Geometry</div>
 
-                <PaxHudSelect
+                <PaxSettingsSegmentedRow
                     label="Frontier Border Geometry"
+                    hint="Border path for the Ember Lattice frontier: Contour (rounded, contour-matched) or Shared edge (straight)."
                     value={currentFrontierBorderGeometryMode()}
                     options={FRONTIER_BORDER_GEOMETRY_OPTIONS}
                     disabled={!canEditFrontierBorderGeometry()}
+                    settingConfigKey="TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE"
                     onValueChange={(value) => {
                         onUpdate(
                             "TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE",
@@ -570,11 +576,13 @@
                     }}
                 />
 
-                <PaxHudSelect
+                <PaxSettingsSegmentedRow
                     label="Junction Render"
+                    hint="How shared-edge junctions are drawn: Gap trim or Bubble."
                     value={currentFrontierJunctionRenderMode()}
                     options={JUNCTION_RENDER_OPTIONS}
                     disabled={!canEditSharedEdgeJunctionControls()}
+                    settingConfigKey="TERRITORY_FRONTIER_JUNCTION_RENDER_MODE"
                     onValueChange={(value) => {
                         onUpdate(
                             "TERRITORY_FRONTIER_JUNCTION_RENDER_MODE",
