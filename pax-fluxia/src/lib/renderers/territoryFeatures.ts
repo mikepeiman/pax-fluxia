@@ -24,26 +24,28 @@ export const DISCONNECT_OWNER_ID = '__disconnect__';
 function normalizeVirtualSites(sites: VirtualSite[]): VirtualSite[] {
     if (sites.length <= 1) return [...sites];
 
+    const buildSortKey = (site: VirtualSite): string =>
+        `${site.id ?? ''}|${site.kind}|${site.ownerId}|${site.sourceStarA}|${site.sourceStarB}|${site.anchorStarId ?? ''}|${site.pairSide ?? ''}|${Math.round(site.x * 100)}|${Math.round(site.y * 100)}|${Math.round(site.weight * 1000)}`;
+
     const normalized = sites.map((site) => {
         const sourceStarA = site.sourceStarA <= site.sourceStarB ? site.sourceStarA : site.sourceStarB;
         const sourceStarB = site.sourceStarA <= site.sourceStarB ? site.sourceStarB : site.sourceStarA;
-        return {
+        const normalizedSite = {
             ...site,
             sourceStarA,
             sourceStarB,
         };
+        return {
+            site: normalizedSite,
+            key: buildSortKey(normalizedSite),
+        };
     });
 
-    normalized.sort((a, b) => {
-        const keyA = `${a.id ?? ''}|${a.kind}|${a.ownerId}|${a.sourceStarA}|${a.sourceStarB}|${a.anchorStarId ?? ''}|${a.pairSide ?? ''}|${Math.round(a.x * 100)}|${Math.round(a.y * 100)}|${Math.round(a.weight * 1000)}`;
-        const keyB = `${b.id ?? ''}|${b.kind}|${b.ownerId}|${b.sourceStarA}|${b.sourceStarB}|${b.anchorStarId ?? ''}|${b.pairSide ?? ''}|${Math.round(b.x * 100)}|${Math.round(b.y * 100)}|${Math.round(b.weight * 1000)}`;
-        return keyA.localeCompare(keyB);
-    });
+    normalized.sort((a, b) => a.key.localeCompare(b.key));
 
     const deduped: VirtualSite[] = [];
     let prevKey = '';
-    for (const site of normalized) {
-        const key = `${site.id ?? ''}|${site.kind}|${site.ownerId}|${site.sourceStarA}|${site.sourceStarB}|${site.anchorStarId ?? ''}|${site.pairSide ?? ''}|${Math.round(site.x * 100)}|${Math.round(site.y * 100)}|${Math.round(site.weight * 1000)}`;
+    for (const { site, key } of normalized) {
         if (key === prevKey) continue;
         deduped.push(site);
         prevKey = key;
