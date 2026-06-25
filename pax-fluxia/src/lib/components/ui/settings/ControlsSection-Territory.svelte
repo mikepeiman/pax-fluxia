@@ -1179,6 +1179,28 @@
         )} />
   </div>
 
+  <h5 class="territory-inline-heading">World Boundary</h5>
+
+  <div
+    class="var-row territory-range-note"
+    title="How far the territory fill AND its world-edge border extend past the map rectangle. Fill and border share this boundary, so they extend together. 0 = territory stops exactly at the map edge.">
+    <PaxSettingsRangeRow
+      label="Extent Beyond Map"
+      value={panel.worldExtentPx ?? GAME_CONFIG.CHAIKIN_BOUNDARY_PAD ?? 50}
+      min={0}
+      max={300}
+      step={5}
+      suffix="px"
+      settingConfigKey="CHAIKIN_BOUNDARY_PAD"
+      onInput={(value) =>
+        queueTopologySliderUpdate(
+          "CHAIKIN_BOUNDARY_PAD",
+          "worldExtentPx",
+          value,
+          "Extent Beyond Map",
+        )} />
+  </div>
+
   <h5 class="territory-inline-heading">Corridors</h5>
 
   <!-- CX — Corridor Connection -->
