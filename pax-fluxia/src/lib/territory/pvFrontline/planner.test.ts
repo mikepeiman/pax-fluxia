@@ -416,6 +416,124 @@ describe('buildPowerVoronoiFrontlineRuntime', () => {
         }
     });
 
+    it('walks angular continuation through an internal branch instead of the first sorted spur', () => {
+        const previousGeometry = buildMinimalGeometry(
+            buildMinimalTopology(
+                'branch-pre',
+                {
+                    'a-start': [0, 0],
+                    'b-end': [0, 5],
+                    'c-spur': [10, 0],
+                    'm-junction': [5, 0],
+                },
+                [
+                    {
+                        id: 'm-in',
+                        startVertexId: 'a-start',
+                        endVertexId: 'm-junction',
+                        ownerPairKey: 'blue|red',
+                        points: [[0, 0], [5, 0]],
+                    },
+                    {
+                        id: 'a-spur',
+                        startVertexId: 'm-junction',
+                        endVertexId: 'c-spur',
+                        ownerPairKey: 'blue|green',
+                        points: [[5, 0], [10, 0]],
+                    },
+                    {
+                        id: 'z-out',
+                        startVertexId: 'm-junction',
+                        endVertexId: 'b-end',
+                        ownerPairKey: 'blue|red',
+                        points: [[5, 0], [2, 3], [0, 5]],
+                    },
+                ],
+                { 'm-junction': 'lane_anchor' },
+            ),
+        );
+        const nextGeometry = buildMinimalGeometry(
+            buildMinimalTopology(
+                'branch-post',
+                {
+                    'a-start': [0, 0],
+                    'b-end': [0, 5],
+                    'c-spur': [10, 0],
+                    'm-junction': [5, 0],
+                },
+                [
+                    {
+                        id: 'm-in',
+                        startVertexId: 'a-start',
+                        endVertexId: 'm-junction',
+                        ownerPairKey: 'blue|red',
+                        points: [[0, 0], [5, 0]],
+                    },
+                    {
+                        id: 'a-spur',
+                        startVertexId: 'm-junction',
+                        endVertexId: 'c-spur',
+                        ownerPairKey: 'blue|green',
+                        points: [[5, 0], [10, 0]],
+                    },
+                    {
+                        id: 'z-out',
+                        startVertexId: 'm-junction',
+                        endVertexId: 'b-end',
+                        ownerPairKey: 'blue|red',
+                        points: [[5, 0], [3, 4], [0, 5]],
+                    },
+                ],
+                { 'm-junction': 'lane_anchor' },
+            ),
+        );
+
+        const runtime = buildPowerVoronoiFrontlineRuntime({
+            preGeometry: previousGeometry,
+            postGeometry: nextGeometry,
+            previousOwnership: buildTestOwnership('ownership:pre'),
+            nextOwnership: buildTestOwnership('ownership:post'),
+            tunables: TEST_TUNABLES,
+        });
+        const front = runtime.plan.fronts[0];
+        const preChain = front?.preConquestFront[0];
+        const postChain = front?.postConquestFront[0];
+
+        expect(runtime.plan.fronts).toHaveLength(1);
+        expect(front).toMatchObject({
+            ownerPairKey: 'blue|red',
+            splitMode: '1to1',
+            changeAnchorStart: { vertexId: 'a-start' },
+            changeAnchorEnd: { vertexId: 'b-end' },
+        });
+        expect(preChain?.sectionIds).toEqual(['m-in', 'z-out']);
+        expect(postChain?.sectionIds).toEqual(['m-in', 'z-out']);
+        expect(preChain?.points).toEqual([[0, 0], [5, 0], [2, 3], [0, 5]]);
+        expect(postChain?.points).toEqual([[0, 0], [5, 0], [3, 4], [0, 5]]);
+        expect(front?.transitionPairs).toEqual([
+            {
+                pairId: 'blue|red:pair:0',
+                splitMode: '1to1',
+                preChainId: preChain?.chainId,
+                postChainId: postChain?.chainId,
+            },
+        ]);
+        expect(front?.transitionVertices).toHaveLength(4);
+        expectPointCloseTo(front!.transitionVertices[0]!.prePoint, [0, 0]);
+        expectPointCloseTo(front!.transitionVertices[0]!.postPoint, [0, 0]);
+        expectPointCloseTo(front!.transitionVertices[3]!.prePoint, [0, 5]);
+        expectPointCloseTo(front!.transitionVertices[3]!.postPoint, [0, 5]);
+        expect(front?.transitionVertices.map((vertex) => vertex.postPoint)).toEqual(
+            postChain?.points,
+        );
+        expect(runtime.diagnostics.transitionPlanningStage.unsupportedFronts).toEqual([]);
+        expect(runtime.diagnostics.transitionPlanningStage.summary).toMatchObject({
+            transitionFrontCount: 1,
+            unsupportedFrontCount: 0,
+            splitModes: ['1to1'],
+        });
+    });
+
     it('records explicit 1to2 and 2to1 split modes for local frontier-chain changes', () => {
         const oneChain = buildMinimalGeometry(
             buildMinimalTopology(
