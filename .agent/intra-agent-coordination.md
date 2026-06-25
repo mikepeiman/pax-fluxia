@@ -23,7 +23,8 @@ Pick a short stable handle: `model-lane`, e.g. `opus-web`, `sonnet-territory`.
 
 | Handle | Paths / globs | Task | Started |
 | ------ | ------------- | ---- | ------- |
-| _(none active)_ | | | |
+| `sonnet-hud` | `pax-fluxia/src/lib/design-system/**`, `pax-fluxia/src/lib/components/ui/GameSettingsPanel.svelte`, `panelSync.ts`, `TypographyTokenPanel.svelte` | Settings bug-fix round: tooltip typography, dropdown contrast, deselect→hide subpanel + transitions, stale-key cleanup, value persistence | 2026-06-25 |
+| `opus-settings` | `pax-fluxia/src/lib/components/game/GameCanvas.svelte` (ONLY the `build*RenderFamilyConfigSource` spread order, ~L2000-2044) | Fix value-persistence root cause: phase_edges + grid_gradient spread `cellGridPhaseEdgesModeDefaults` LAST → clobbers user-saved presentation settings every frame. Reorder to GAME_CONFIG-last, matching phase_field/ember (mode look preserved by `primeCellGridPhaseEdgesTunables`). @opus-territory: reconciles your 2026-06-21 "presentation mode-defaults win last" toward user-values-win. | 2026-06-25 |
 
 ## Log (newest first)
 

@@ -1999,13 +1999,16 @@
 
     function buildEdgeForwardRenderFamilyConfigSource(): Record<string, unknown> {
         return {
-            // Geometry constraints (disconnect/DX/MSR/CX) come from live GAME_CONFIG so they
-            // are UNIFORM across every render mode and honour the user's tuning — the geometry
-            // defaults are a fallback only (spread FIRST so GAME_CONFIG overrides them). Mode
-            // defaults (presentation: border/fill/wave) win LAST to keep this mode's look.
+            // BOTH geometry AND presentation mode-defaults are FALLBACKS only — live
+            // GAME_CONFIG wins LAST so the user's saved/tuned values persist (border/
+            // fill/wave/spacing). Entering this mode primes its look into GAME_CONFIG
+            // via primeCellGridPhaseEdgesTunables (which only writes keys the user
+            // hasn't overridden), so the mode look is preserved while user edits stick.
+            // (Previously mode-defaults spread LAST and clobbered user values every
+            // frame — the long-standing "settings don't persist" bug.)
             ...cellGridPhaseEdgesGeometryDefaults,
-            ...(GAME_CONFIG as unknown as Record<string, unknown>),
             ...cellGridPhaseEdgesModeDefaults,
+            ...(GAME_CONFIG as unknown as Record<string, unknown>),
         };
     }
 
@@ -2026,11 +2029,13 @@
 
     function buildGridGradientRenderFamilyConfigSource(): Record<string, unknown> {
         return {
-            // Geometry from live GAME_CONFIG (uniform across modes); geometry defaults are a
-            // fallback only. Mode defaults (presentation) win last.
+            // Geometry + presentation mode-defaults are FALLBACKS only; live GAME_CONFIG
+            // wins LAST so user-saved values persist (matches phase_field/ember and the
+            // edge-forward builder above). PERIMETER_FIELD_GEOMETRY_SOURCE stays pinned
+            // after GAME_CONFIG because this mode requires the 0319 source specifically.
             ...cellGridPhaseEdgesGeometryDefaults,
-            ...(GAME_CONFIG as unknown as Record<string, unknown>),
             ...cellGridPhaseEdgesModeDefaults,
+            ...(GAME_CONFIG as unknown as Record<string, unknown>),
             PERIMETER_FIELD_GEOMETRY_SOURCE: "power_voronoi_0319",
         };
     }
