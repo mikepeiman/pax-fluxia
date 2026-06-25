@@ -800,6 +800,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     ] as const;
 
     const ACTIVE_SECTION_KEY = "pax-fluxia-active-section";
+    const SHOW_ALL_KEY = "pax-fluxia-settings-show-all";
+    const ACTIVE_SUBSECTIONS_KEY = "pax-fluxia-settings-subsections";
 
     function isUtilityPanelId(value: string | null): value is UtilityPanelId {
         return UTILITY_PANELS.some((panel) => panel.id === value);
@@ -814,12 +816,29 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             : normalizeSettingsSectionId(value);
     }
 
+    function loadShowAllSections(): boolean {
+        if (typeof window === "undefined") return false;
+        return localStorage.getItem(SHOW_ALL_KEY) === "1";
+    }
+
+    function loadActiveSubsections(): Record<string, string> {
+        if (typeof window === "undefined") return {};
+        try {
+            const parsed = JSON.parse(
+                localStorage.getItem(ACTIVE_SUBSECTIONS_KEY) ?? "{}",
+            );
+            return parsed && typeof parsed === "object" ? parsed : {};
+        } catch {
+            return {};
+        }
+    }
+
     let activeSectionId = $state<ActiveSectionId | null>(loadActiveSection());
     let activeToolHasPanel = $derived(activeSectionId !== null);
     // "All" view: stack every section of the active category in one scroll.
     // activeSectionId is kept (so the category + chips stay resolved); this just
-    // overlays the all-sections render.
-    let showAllSections = $state(false);
+    // overlays the all-sections render. Persisted so the chosen view survives reload.
+    let showAllSections = $state(loadShowAllSections());
 
     function persistActiveSection() {
         if (typeof window === "undefined") return;
@@ -829,6 +848,20 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             localStorage.removeItem(ACTIVE_SECTION_KEY);
         }
     }
+
+    // Persist the "All" toggle + per-section subsection chip selection so the
+    // whole settings view (which section/subsection/All) is restored on reload.
+    $effect(() => {
+        if (typeof window === "undefined") return;
+        localStorage.setItem(SHOW_ALL_KEY, showAllSections ? "1" : "0");
+    });
+    $effect(() => {
+        if (typeof window === "undefined") return;
+        localStorage.setItem(
+            ACTIVE_SUBSECTIONS_KEY,
+            JSON.stringify(activeSubsections),
+        );
+    });
 
     function selectSection(id: ActiveSectionId | null) {
         // Selecting or closing any single section always exits the "All" view.
@@ -1026,7 +1059,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             ]),
         ) as Record<string, SubsectionChip[]>,
     );
-    let activeSubsections = $state<Record<string, string>>({});
+    let activeSubsections = $state<Record<string, string>>(loadActiveSubsections());
     let settingsSearchQuery = $state("");
     const sectionBodyNodes = new Map<ActiveSectionId, HTMLElement>();
     let settingsSearchResults = $derived.by(() =>
