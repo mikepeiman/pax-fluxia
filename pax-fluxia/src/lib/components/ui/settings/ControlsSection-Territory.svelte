@@ -34,6 +34,7 @@
     PaxHudSegmentedControl,
     PaxHudSelect,
     PaxSettingsRangeRow,
+    PaxSettingsSegmentedRow,
     PaxSettingsToggleRow,
     type PaxHudSegmentedOption,
   } from "$lib/design-system";
@@ -297,17 +298,24 @@
   const METABALL_FALLOFF_OPTIONS = [
     {
       id: "inverse-square" as const,
-      label: "Inverse square — organic, lower CPU",
+      label: "Inverse sq",
+      description: "organic, lower CPU",
     },
     {
       id: "gaussian" as const,
-      label: "Gaussian — fluid look, heavier CPU",
+      label: "Gaussian",
+      description: "fluid look, heavier CPU",
     },
     {
       id: "smoothstep" as const,
-      label: "Smoothstep — crisp falloff band",
+      label: "Smoothstep",
+      description: "crisp falloff band",
     },
   ];
+
+  const METABALL_FALLOFF_HINT = METABALL_FALLOFF_OPTIONS.map(
+    (o) => `${o.label}: ${o.description}.`,
+  ).join(" ");
 
   function resolveMetaballFalloffId():
     | "inverse-square"
@@ -892,11 +900,12 @@
           "metaballInfluenceRadius",
           value,
         )} />
-    <PaxHudSelect
+    <PaxSettingsSegmentedRow
       label="Influence falloff"
+      hint={METABALL_FALLOFF_HINT}
+      settingConfigKey="METABALL_FALLOFF"
       value={resolveMetaballFalloffId()}
       options={metaballFalloffSelectOptions()}
-      ariaLabel="Metaball influence falloff"
       onValueChange={(value) =>
         debouncedConfigUpdate("METABALL_FALLOFF", "metaballFalloff", value)} />
     <div

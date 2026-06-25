@@ -10,18 +10,28 @@
     import {
         PaxHudButton,
         PaxHudRange,
-        PaxHudSelect,
+        PaxSettingsSegmentedRow,
         PaxSettingsToggleRow,
     } from "$lib/design-system";
 
     const VS_SLIDERS = ANIM_SLIDERS.filter(
         (slider) => slider.group === "VS Transition",
     );
+    const BURST_BASIS_SHORT_LABELS: Record<string, string> = {
+        t0_region_contour: "T0 Contour",
+        per_ray_contour_hits: "Per-Ray",
+        approximate_radius: "Radius",
+    };
     const BURST_BOUNDARY_BASIS_OPTIONS =
         METABALL_BURST_BOUNDARY_BASIS_OPTIONS.map((option) => ({
             value: option.id,
-            label: option.label,
+            label: BURST_BASIS_SHORT_LABELS[option.id] ?? option.label,
         }));
+    const BURST_BOUNDARY_BASIS_HINT =
+        METABALL_BURST_BOUNDARY_BASIS_OPTIONS.map(
+            (option) =>
+                `${BURST_BASIS_SHORT_LABELS[option.id] ?? option.label}: ${option.description}`,
+        ).join(" ");
 
     interface Props {
         panel: Record<string, any>;
@@ -326,8 +336,10 @@
 {/each}
 
 {#if showMetaballBurstBoundaryBasis}
-    <PaxHudSelect
+    <PaxSettingsSegmentedRow
         label="Burst Boundary Basis"
+        hint={BURST_BOUNDARY_BASIS_HINT}
+        settingConfigKey="METABALL_BURST_BOUNDARY_BASIS"
         value={panel.metaballBurstBoundaryBasis ??
             GAME_CONFIG.METABALL_BURST_BOUNDARY_BASIS ??
             "t0_region_contour"}
