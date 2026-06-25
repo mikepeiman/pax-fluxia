@@ -662,6 +662,159 @@
             <div><span>Flip Pcts</span><span>{formatFlipPercentiles()}</span></div>
             <div><span>Flip Bins</span><span>{formatFlipBins()}</span></div>
         </div>
+        <div class="perf-grid">
+            <div class="perf-label">Cells (painted / emittable / total)</div>
+            <div class="perf-value">
+                {$cellGridStats.paintedCells.toLocaleString()}
+                <span class="perf-sub">/ {$cellGridStats.emittableCells.toLocaleString()} / {$cellGridStats.totalCells.toLocaleString()}</span>
+            </div>
+
+            <div class="perf-label">Spacing (requested / effective)</div>
+            <div class="perf-value">
+                {$cellGridStats.requestedSpacingPx.toFixed(1)} px
+                <span class="perf-sub">
+                    / {$cellGridStats.effectiveSpacingPx.toFixed(1)} px
+                    {#if $cellGridStats.effectiveSpacingPx > $cellGridStats.requestedSpacingPx + 0.01}
+                        <span class="perf-coarsen">(coarsened)</span>
+                    {/if}
+                </span>
+            </div>
+
+            <div class="perf-label">Density (requested / effective)</div>
+            <div class="perf-value">
+                {$cellGridStats.requestedDensityCellsPerMpx.toFixed(0)} cells/Mpx
+                <span class="perf-sub">
+                    / {$cellGridStats.effectiveDensityCellsPerMpx.toFixed(0)} cells/Mpx
+                    {#if $cellGridStats.effectiveDensityCellsPerMpx + 0.5 < $cellGridStats.requestedDensityCellsPerMpx}
+                        <span class="perf-coarsen">(reduced)</span>
+                    {/if}
+                </span>
+            </div>
+
+            <div class="perf-label">Frame time (last / EMA)</div>
+            <div class="perf-value">
+                {$cellGridStats.lastUpdateMs.toFixed(2)} ms
+                <span class="perf-sub">/ {$cellGridStats.emaUpdateMs.toFixed(2)} ms</span>
+            </div>
+
+            <div class="perf-label">Frontier technique</div>
+            <div class="perf-value">
+                {$cellGridStats.frontierTechnique}
+                {#if $cellGridStats.frontierTechnique !== $cellGridStats.frontierRequestedTechnique}
+                    <span class="perf-sub">
+                        requested {$cellGridStats.frontierRequestedTechnique}
+                        {#if $cellGridStats.frontierFallbackReason}
+                            ({$cellGridStats.frontierFallbackReason})
+                        {/if}
+                    </span>
+                {/if}
+            </div>
+
+            <div class="perf-label">Border geometry</div>
+            <div class="perf-value">
+                {$cellGridStats.frontierBorderGeometryMode}
+                {#if $cellGridStats.frontierBorderGeometryMode !== $cellGridStats.frontierRequestedBorderGeometryMode}
+                    <span class="perf-sub">
+                        requested {$cellGridStats.frontierRequestedBorderGeometryMode}
+                        {#if $cellGridStats.frontierBorderGeometryFallbackReason}
+                            ({$cellGridStats.frontierBorderGeometryFallbackReason})
+                        {/if}
+                    </span>
+                {:else if $cellGridStats.frontierBorderGeometryFallbackReason}
+                    <span class="perf-sub">
+                        ({$cellGridStats.frontierBorderGeometryFallbackReason})
+                    </span>
+                {/if}
+            </div>
+
+            <div class="perf-label">Surface family</div>
+            <div class="perf-value">
+                {$cellGridStats.frontierSurfaceGeometryFamily}
+                <span class="perf-sub">
+                    steady {$cellGridStats.frontierStableGeometryFamily}
+                    / transition {$cellGridStats.frontierTransitionGeometryFamily}
+                    {#if $cellGridStats.frontierSurfaceInvariantViolation}
+                        ({$cellGridStats.frontierSurfaceInvariantViolation})
+                    {/if}
+                </span>
+            </div>
+
+            <div class="perf-label">Phase grid (layers / max dims)</div>
+            <div class="perf-value">
+                {$cellGridStats.frontierPhaseLayerCount}
+                <span class="perf-sub">
+                    / {$cellGridStats.frontierPhaseGridCols} × {$cellGridStats.frontierPhaseGridRows}
+                </span>
+            </div>
+
+            <div class="perf-label">Frontier timings</div>
+            <div class="perf-value">
+                blur {$cellGridStats.frontierBlurMs.toFixed(2)} ms
+                <span class="perf-sub">
+                    contour {$cellGridStats.frontierContourExtractionMs.toFixed(2)} ms
+                    / smooth {$cellGridStats.frontierSmoothingMs.toFixed(2)} ms
+                </span>
+            </div>
+
+            <div class="perf-label">Frontier geometry</div>
+            <div class="perf-value">
+                {$cellGridStats.frontierPolylineCount.toLocaleString()} polylines
+                <span class="perf-sub">
+                    / {$cellGridStats.frontierEmittedVertexCount.toLocaleString()} vertices
+                </span>
+            </div>
+
+            <div class="perf-label">Plan build (classify / wave / total)</div>
+            <div class="perf-value">
+                {$cellGridStats.lastClassificationBuildMs.toFixed(2)} ms
+                <span class="perf-sub">
+                    / {$cellGridStats.lastWavePlanBuildMs.toFixed(2)} ms
+                    / {$cellGridStats.lastPlanBuildMs.toFixed(2)} ms
+                </span>
+            </div>
+
+            <div class="perf-label">Frames</div>
+            <div class="perf-value">
+                {$cellGridStats.frameCount.toLocaleString()}
+                <span class="perf-sub">skipped {$cellGridStats.skippedFrameCount.toLocaleString()}</span>
+            </div>
+
+            <div class="perf-label">Render cache</div>
+            <div class="perf-value">
+                {$cellGridStats.renderCacheMode === 'steady_texture'
+                    ? 'steady texture'
+                    : 'live vectors'}
+            </div>
+
+            <div class="perf-label">Requested plan</div>
+            <div class="perf-value">
+                {$cellGridStats.planWorkerPending ? 'worker build pending' : 'worker ready'}
+            </div>
+
+            <div class="perf-label">Visible frame</div>
+            <div class="perf-value">
+                {#if $cellGridStats.visibleFrameState === 'holding_pre'}
+                    holding PRE
+                {:else if $cellGridStats.visibleFrameState === 'requested_plan'}
+                    requested transition plan
+                {:else if $cellGridStats.visibleFrameState === 'fallback_plan'}
+                    fallback plan
+                {:else}
+                    steady-state plan
+                {/if}
+            </div>
+
+            <div class="perf-label">Transition clock</div>
+            <div class="perf-value">
+                {#if $cellGridStats.clockSource === 'local'}
+                    local visual clock
+                {:else if $cellGridStats.clockSource === 'scheduler'}
+                    scheduler clock
+                {:else}
+                    none
+                {/if}
+            </div>
+        </div>
         {#if liveRenderMode === "ember_lattice"}
             <div class="readout">
                 {formatEmberLatticeSemanticsNote()}
@@ -841,5 +994,42 @@
 
     .status-grid__failure {
         color: color-mix(in srgb, var(--pax-ui-danger) 92%, transparent);
+    }
+
+    /* Live cell-grid planner/perf readout (relocated here from the Cell Grid
+       tuning panel — diagnostics belong in Developer → Diagnostics). */
+    .perf-grid {
+        display: grid;
+        grid-template-columns: max-content 1fr;
+        gap: var(--pax-gap-xs) var(--pax-gap-md);
+        align-items: baseline;
+        margin-top: var(--pax-space-1);
+        padding: var(--pax-gap-sm) var(--pax-space-3);
+        border-radius: 8px;
+        border: 1px solid color-mix(in srgb, var(--pax-ui-text-strong) 8%, transparent);
+        background: color-mix(in srgb, var(--pax-color-void) 40%, transparent);
+        font-size: var(--pax-type-2xs);
+    }
+
+    .perf-label {
+        color: color-mix(in srgb, var(--pax-ui-text-soft) 70%, transparent);
+        letter-spacing: 0.04em;
+    }
+
+    .perf-value {
+        color: color-mix(in srgb, var(--pax-ui-text-strong) 95%, transparent);
+        font-variant-numeric: tabular-nums;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .perf-sub {
+        color: color-mix(in srgb, var(--pax-ui-text-soft) 55%, transparent);
+        margin-left: var(--pax-gap-xs);
+    }
+
+    .perf-coarsen {
+        color: color-mix(in srgb, var(--pax-ui-accent-warm) 90%, transparent);
+        margin-left: var(--pax-space-1);
+        font-size: var(--pax-type-3xs);
     }
 </style>

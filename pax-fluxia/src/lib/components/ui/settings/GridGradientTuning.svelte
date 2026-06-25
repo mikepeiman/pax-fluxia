@@ -394,26 +394,6 @@
     </select>
 </div>
 
-<div class="sub-heading">Live Stats</div>
-<div class="perf-grid">
-    <div class="perf-label">Backend</div>
-    <div class="perf-value">{$gridGradientStats.drawBackend}{#if $gridGradientStats.backendFallbackReason} / {$gridGradientStats.backendFallbackReason}{/if}</div>
-    <div class="perf-label">Fill</div>
-    <div class="perf-value">{$gridGradientStats.fillStyle}</div>
-    <div class="perf-label">Cells</div>
-    <div class="perf-value">{$gridGradientStats.paintedCells.toLocaleString()} / {$gridGradientStats.emittableCells.toLocaleString()} / {$gridGradientStats.totalCells.toLocaleString()}</div>
-    <div class="perf-label">Active/Drawable/Mix/Offset</div>
-    <div class="perf-value">{$gridGradientStats.activeTransitionCells.toLocaleString()} / {$gridGradientStats.activeDrawableTransitionCells.toLocaleString()} / {$gridGradientStats.activeMixingTransitionCells.toLocaleString()} / {$gridGradientStats.activeOffsetZoneTransitionCells.toLocaleString()}</div>
-    <div class="perf-label">Spacing</div>
-    <div class="perf-value">{$gridGradientStats.requestedSpacingPx.toFixed(1)} / {$gridGradientStats.effectiveSpacingPx.toFixed(1)} px</div>
-    <div class="perf-label">Borders</div>
-    <div class="perf-value">{$gridGradientStats.vectorBorderCount} vector / {$gridGradientStats.borderDotCount} dots</div>
-    <div class="perf-label">Texture</div>
-    <div class="perf-value">{$gridGradientStats.textureUploaded ? 'upload' : 'cached'} / {($gridGradientStats.textureBytes / 1024).toFixed(1)} KB</div>
-    <div class="perf-label">Frame</div>
-    <div class="perf-value">{$gridGradientStats.clockSource} / {$gridGradientStats.visibleFrameState} / {$gridGradientStats.lastUpdateMs.toFixed(2)} ms</div>
-</div>
-
 <style>
 
     .sub-heading {
@@ -427,28 +407,5 @@
 
     .var-row.disabled {
         opacity: 0.55;
-    }
-
-    .perf-grid {
-        display: grid;
-        grid-template-columns: max-content 1fr;
-        gap: var(--pax-gap-xs) var(--pax-gap-md);
-        align-items: baseline;
-        padding: var(--pax-gap-sm) var(--pax-space-3);
-        border-radius: 8px;
-        border: 1px solid color-mix(in srgb, var(--pax-ui-text-strong) 8%, transparent);
-        background: color-mix(in srgb, var(--pax-color-void) 40%, transparent);
-        font-size: var(--pax-type-2xs);
-    }
-
-    .perf-label {
-        color: color-mix(in srgb, var(--pax-ui-text-soft) 70%, transparent);
-        letter-spacing: 0;
-    }
-
-    .perf-value {
-        color: color-mix(in srgb, var(--pax-ui-text-strong) 95%, transparent);
-        font-variant-numeric: tabular-nums;
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     }
 </style>
