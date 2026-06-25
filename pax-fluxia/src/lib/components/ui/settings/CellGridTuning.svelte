@@ -88,32 +88,32 @@
 
     const FRONTIER_TRIANGLE_DIAGONAL_OPTIONS = [
         { value: 'fixed', label: 'Fixed' },
-        { value: 'checkerboard', label: 'Checkerboard' },
-        { value: 'gradient', label: 'Gradient chosen' },
+        { value: 'checkerboard', label: 'Checker' },
+        { value: 'gradient', label: 'Gradient' },
     ];
 
     const ADJACENCY_OPTIONS = [
-        { value: '8', label: '8-connected (diagonals)' },
-        { value: '4', label: '4-connected (orthogonal only)' },
+        { value: '8', label: '8-way' },
+        { value: '4', label: '4-way' },
     ];
 
     const WAVE_GEOMETRY_OPTIONS = [
-        { value: 'grid_bfs', label: 'Grid BFS (step-by-step)' },
-        { value: 'euclidean_band', label: 'Euclidean band (distance buckets)' },
-        { value: 'conquered_star_radial', label: 'Conquered star radial' },
-        { value: 'pre_to_post_frontier', label: 'Pre to post frontier' },
+        { value: 'grid_bfs', label: 'Grid BFS' },
+        { value: 'euclidean_band', label: 'Euclidean' },
+        { value: 'conquered_star_radial', label: 'Radial' },
+        { value: 'pre_to_post_frontier', label: 'Frontier' },
     ];
 
     const WAVE_SEEDING_OPTIONS = [
-        { value: 'winner_natives', label: 'Winner natives (multi-source)' },
-        { value: 'conquered_star_center', label: 'Conquered star center' },
-        { value: 'winner_nearest_edge', label: 'Winner nearest edge (4-adj)' },
+        { value: 'winner_natives', label: 'Natives' },
+        { value: 'conquered_star_center', label: 'Center' },
+        { value: 'winner_nearest_edge', label: 'Edge' },
     ];
 
     const FLIP_TRANSITION_OPTIONS = [
-        { value: 'hard', label: 'Hard (instant)' },
-        { value: 'lerp_per_cell', label: 'Lerp per cell (local window)' },
-        { value: 'dual_pass_blend', label: 'Dual pass blend (always two)' },
+        { value: 'hard', label: 'Hard' },
+        { value: 'lerp_per_cell', label: 'Lerp' },
+        { value: 'dual_pass_blend', label: 'Dual-pass' },
     ];
 
     const WAVE_EASE_OPTIONS = [
@@ -1004,11 +1004,13 @@
     }}
 />
 
-<PaxHudSelect
+<PaxSettingsSegmentedRow
     label="Phase Sampling"
+    hint="How the phase field is sampled for the shader frontier band: Nearest (crisp) or Linear (smoothed)."
     value={currentFrontierPhaseSampling()}
     options={FRONTIER_PHASE_SAMPLING_OPTIONS}
     disabled={!canUseEmberFrontierTechnique() || !isShaderFrontierTechnique()}
+    settingConfigKey="TERRITORY_FRONTIER_PHASE_SAMPLING"
     onValueChange={(value) => {
         writeConfig('TERRITORY_FRONTIER_PHASE_SAMPLING', 'territoryFrontierPhaseSampling', value);
     }}
@@ -1029,11 +1031,13 @@
     }}
 />
 
-<PaxHudSelect
+<PaxSettingsSegmentedRow
     label="Triangle Diagonal"
+    hint="Diagonal split policy for marching-triangles contouring: Fixed, Checkerboard (alternating), or Gradient-chosen."
     value={currentFrontierTriangleDiagonalPolicy()}
     options={FRONTIER_TRIANGLE_DIAGONAL_OPTIONS}
     disabled={!canUseEmberFrontierTechnique() || !isTriangleFrontierTechnique()}
+    settingConfigKey="TERRITORY_FRONTIER_TRIANGLE_DIAGONAL_POLICY"
     onValueChange={(value) => {
         writeConfig(
             'TERRITORY_FRONTIER_TRIANGLE_DIAGONAL_POLICY',
@@ -1096,30 +1100,34 @@
 
 {#if showModule('wave')}
 <div class="module-block">
-<PaxHudSelect
+<PaxSettingsSegmentedRow
     label="Adjacency"
+    hint="Grid connectivity for wave propagation: 8-way includes diagonals; 4-way is orthogonal only."
     value={currentAdjacency()}
     options={ADJACENCY_OPTIONS}
+    settingConfigKey="CELL_GRID_ADJACENCY"
     onValueChange={(value) => {
         writeConfig('CELL_GRID_ADJACENCY', 'cellGridAdjacency', value);
     }}
 />
 
-<PaxHudSelect
+<PaxSettingsSegmentedRow
     label="Wave Geometry"
-    hint="How the wave's rank (ordering) is derived. Grid BFS follows grid neighbors step-by-step; Euclidean band bins cells by distance to the nearest seed; the phase-edge geometries derive flip time directly from conquest-local frontier relationships."
+    hint="How the wave's rank (ordering) is derived. Grid BFS follows grid neighbors step-by-step; Euclidean bins cells by distance to the nearest seed; Radial/Frontier derive flip time directly from conquest-local frontier relationships."
     value={currentWaveGeometry()}
     options={WAVE_GEOMETRY_OPTIONS}
+    settingConfigKey="CELL_GRID_WAVE_GEOMETRY"
     onValueChange={(value) => {
         writeConfig('CELL_GRID_WAVE_GEOMETRY', 'cellGridWaveGeometry', value);
     }}
 />
 
-<PaxHudSelect
+<PaxSettingsSegmentedRow
     label="Wave Seeding"
-    hint="Where the wave starts. Winner natives spreads from the entire winner footprint; conquered star center is a single point source at the conquered star; winner nearest edge picks the winner-owned cell(s) closest to the conquered star (forces 4-adjacency)."
+    hint="Where the wave starts. Natives spreads from the entire winner footprint; Center is a single point source at the conquered star; Edge picks the winner-owned cell(s) closest to the conquered star (forces 4-adjacency)."
     value={currentWaveSeeding()}
     options={WAVE_SEEDING_OPTIONS}
+    settingConfigKey="CELL_GRID_WAVE_SEEDING"
     onValueChange={(value) => {
         writeConfig('CELL_GRID_WAVE_SEEDING', 'cellGridWaveSeeding', value);
     }}
@@ -1129,11 +1137,12 @@
 
 {#if showModule('flip')}
 <div class="module-block">
-<PaxHudSelect
+<PaxSettingsSegmentedRow
     label="Flip Transition"
-    hint="How each cell visually transitions at its flip time. Hard looks like an instant pixel-flip; lerp per cell crossfades within ±window; dual pass blend always emits both passes with complementary alphas."
+    hint="How each cell visually transitions at its flip time. Hard looks like an instant pixel-flip; Lerp crossfades within ±window; Dual-pass always emits both passes with complementary alphas."
     value={currentFlipTransition()}
     options={FLIP_TRANSITION_OPTIONS}
+    settingConfigKey="CELL_GRID_FLIP_TRANSITION"
     onValueChange={(value) => {
         writeConfig('CELL_GRID_FLIP_TRANSITION', 'cellGridFlipTransition', value);
     }}
