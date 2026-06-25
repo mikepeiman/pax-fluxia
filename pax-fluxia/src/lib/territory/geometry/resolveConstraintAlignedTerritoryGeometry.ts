@@ -507,6 +507,7 @@ function alignGeometry(params: {
     worldBorderPolylines: ReadonlyArray<ResolvedFrontierPolyline>;
     ownerStars: ReadonlyMap<string, readonly StarState[]>;
     appliedMarginPx: number;
+    includeDisplayGeometry?: boolean;
 }): ConstraintAlignedTerritoryGeometry {
     const endpointOwners = measurePerf(
         'territory.constraintAlign.align.collectEndpoints',
@@ -570,15 +571,13 @@ function alignGeometry(params: {
             world: worldBorderPolylines.length,
         },
     );
-    const displayGeometry = measurePerf(
-        'territory.constraintAlign.align.displayGeometry',
-        () =>
-            buildDisplayGeometryFromResolvedRegions(
-                territoryRegions,
-                params.appliedMarginPx,
-            ),
-        { regions: territoryRegions.length },
-    );
+    const displayGeometry =
+        params.includeDisplayGeometry === false
+            ? {
+                  displayFrontierPolylines: [],
+                  displayWorldBorderPolylines: [],
+              }
+            : buildMeasuredDisplayGeometry(territoryRegions, params.appliedMarginPx);
     return {
         territoryRegions,
         frontierPolylines,
@@ -587,6 +586,38 @@ function alignGeometry(params: {
         displayWorldBorderPolylines: displayGeometry.displayWorldBorderPolylines,
         junctions,
         appliedMarginPx: params.appliedMarginPx,
+    };
+}
+
+function buildMeasuredDisplayGeometry(
+    territoryRegions: ReadonlyArray<TerritoryRegionShape>,
+    appliedMarginPx: number,
+): {
+    readonly displayFrontierPolylines: readonly ConstraintAlignedFrontierPolyline[];
+    readonly displayWorldBorderPolylines: readonly ConstraintAlignedFrontierPolyline[];
+} {
+    return measurePerf(
+        'territory.constraintAlign.align.displayGeometry',
+        () =>
+            buildDisplayGeometryFromResolvedRegions(
+                territoryRegions,
+                appliedMarginPx,
+            ),
+        { regions: territoryRegions.length },
+    );
+}
+
+function withMeasuredDisplayGeometry(
+    geometry: ConstraintAlignedTerritoryGeometry,
+): ConstraintAlignedTerritoryGeometry {
+    const displayGeometry = buildMeasuredDisplayGeometry(
+        geometry.territoryRegions,
+        geometry.appliedMarginPx,
+    );
+    return {
+        ...geometry,
+        displayFrontierPolylines: displayGeometry.displayFrontierPolylines,
+        displayWorldBorderPolylines: displayGeometry.displayWorldBorderPolylines,
     };
 }
 
@@ -1045,6 +1076,7 @@ export function resolveConstraintAlignedTerritoryGeometry(
                 worldBorderPolylines: params.geometry.worldBorderPolylines,
                 ownerStars,
                 appliedMarginPx,
+                includeDisplayGeometry: false,
             }),
         {
             frontiers: params.geometry.frontierPolylines.length,
@@ -1070,7 +1102,7 @@ export function resolveConstraintAlignedTerritoryGeometry(
     const provisionalCount =
         provisional.frontierPolylines.length + provisional.worldBorderPolylines.length;
     if (filteredCount === 0 || filteredCount === provisionalCount) {
-        return provisional;
+        return withMeasuredDisplayGeometry(provisional);
     }
 
     const keptFrontierIds = new Set(
