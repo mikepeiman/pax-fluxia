@@ -63,6 +63,80 @@ function previousNonEmptyReliability(topology: FrontierTopology): boolean {
     );
 }
 
+function buildDegenerateSelfLoopTopology(): FrontierTopology {
+    return {
+        version: 'degenerate:self-loop',
+        ownershipVersion: 'test',
+        worldBounds: { width: 100, height: 100 },
+        vertices: new Map([
+            [
+                '0,0',
+                {
+                    id: '0,0',
+                    kind: 'world_corner',
+                    point: [0, 0],
+                    incidentSectionIds: ['section:red|world:0,0:0,0'],
+                    ownerIds: ['red', 'world'],
+                    semanticKey: 'world:corner:top-left',
+                },
+            ],
+        ]),
+        sections: new Map([
+            [
+                'section:red|world:0,0:0,0',
+                {
+                    id: 'section:red|world:0,0:0,0',
+                    kind: 'world_border',
+                    startVertexId: '0,0',
+                    endVertexId: '0,0',
+                    leftOwnerId: 'red',
+                    rightOwnerId: 'world',
+                    points: [
+                        [0, 0],
+                        [0, 0],
+                    ],
+                    length: 0,
+                    ownerPairKey: 'red|world',
+                    leftInfluence: {
+                        ownerId: 'red',
+                        primaryStarId: 'red',
+                        primaryScore: 1,
+                    },
+                    rightInfluence: {
+                        ownerId: 'world',
+                        primaryStarId: 'world',
+                        primaryScore: 1,
+                    },
+                },
+            ],
+        ]),
+        loops: [
+            {
+                id: 'loop:red:degenerate',
+                ownerId: 'red',
+                componentId: 'comp:red:degenerate',
+                sectionRefs: [
+                    {
+                        sectionId: 'section:red|world:0,0:0,0',
+                        direction: 'forward',
+                    },
+                ],
+                signedArea: 0,
+            },
+        ],
+        sectionsByOwnerPair: new Map([
+            ['red|world', ['section:red|world:0,0:0,0']],
+        ]),
+        sectionsByVertex: new Map([
+            ['0,0', ['section:red|world:0,0:0,0']],
+        ]),
+        sectionsByOwner: new Map([
+            ['red', ['section:red|world:0,0:0,0']],
+            ['world', ['section:red|world:0,0:0,0']],
+        ]),
+    };
+}
+
 describe('validateFrontierTopologyInvariants', () => {
     it('accepts a healthy closed topology emitted by the Power Voronoi builder', () => {
         const topology = buildHealthyTopology();
@@ -74,6 +148,21 @@ describe('validateFrontierTopologyInvariants', () => {
             failureCount: 0,
             failures: [],
         });
+    });
+
+    it('rejects closed but degenerate self-loop sections that non-empty reliability would accept', () => {
+        const topology = buildDegenerateSelfLoopTopology();
+
+        expect(previousNonEmptyReliability(topology)).toBe(true);
+        const report = validateFrontierTopologyInvariants(topology);
+
+        expect(report.ok).toBe(false);
+        expect(report.failures).toContain(
+            'section section:red|world:0,0:0,0: degenerate section start and end vertex are identical',
+        );
+        expect(report.failures).toContain(
+            'section section:red|world:0,0:0,0: non-positive length 0',
+        );
     });
 
     it('detects stale endpoint indexes that non-empty reliability would accept', () => {

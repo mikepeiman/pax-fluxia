@@ -116,6 +116,18 @@ export function validateFrontierTopologyInvariants(
         const startVertex = topology.vertices.get(section.startVertexId);
         const endVertex = topology.vertices.get(section.endVertexId);
 
+        if (section.startVertexId === section.endVertexId) {
+            fail(
+                `section ${section.id}: degenerate section start and end vertex are identical`,
+            );
+        }
+        if (section.points.length < 2) {
+            fail(`section ${section.id}: fewer than two points`);
+        }
+        if (!Number.isFinite(section.length) || section.length <= 0) {
+            fail(`section ${section.id}: non-positive length ${section.length}`);
+        }
+
         if (!startVertex) {
             fail(`section ${section.id}: missing start vertex ${section.startVertexId}`);
         }
