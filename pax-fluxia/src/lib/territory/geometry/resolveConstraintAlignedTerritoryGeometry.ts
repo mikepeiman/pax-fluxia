@@ -392,10 +392,18 @@ function buildReversedOpenDirectedSegmentIds(
     return ids;
 }
 
+interface RingSegmentMatcher {
+    readonly firstSegments: ReadonlySet<number>;
+    matches(
+        polylineSegments: readonly number[],
+        reversedSegments: readonly number[],
+    ): boolean;
+}
+
 function createRingSegmentMatcher(
     ringPoints: ReadonlyArray<[number, number]>,
     internPoint: (x: number, y: number) => number,
-): (polylineSegments: readonly number[], reversedSegments: readonly number[]) => boolean {
+): RingSegmentMatcher {
     const normalizedRing = normalizeClosedRing(ringPoints);
     const ringSegments = buildDirectedSegmentIds(normalizedRing, true, internPoint);
     const doubledRing =
@@ -429,14 +437,17 @@ function createRingSegmentMatcher(
         return false;
     };
 
-    return (polylineSegments, reversedSegments) => {
-        if (ringSegments.length === 0) return false;
-        if (polylineSegments.length === 0) return false;
-        if (ringSegments.length < polylineSegments.length) return false;
-        return (
-            matchesCandidate(polylineSegments) ||
-            matchesCandidate(reversedSegments)
-        );
+    return {
+        firstSegments: new Set(startsBySegment.keys()),
+        matches(polylineSegments, reversedSegments) {
+            if (ringSegments.length === 0) return false;
+            if (polylineSegments.length === 0) return false;
+            if (ringSegments.length < polylineSegments.length) return false;
+            return (
+                matchesCandidate(polylineSegments) ||
+                matchesCandidate(reversedSegments)
+            );
+        },
     };
 }
 
@@ -459,7 +470,7 @@ function createRingContainmentMatcher(
             polylinePoints,
             internPoint,
         );
-        return containsSegments(polylineSegments, reversedSegments);
+        return containsSegments.matches(polylineSegments, reversedSegments);
     };
 }
 
@@ -482,12 +493,25 @@ function filterPolylinesByResolvedRegions(params: {
     // Precompute each region ring's matcher once, then reuse across all polylines
     // (previously every polyline rebuilt every region ring's segment keys).
     const internPoint = createPointInterner();
-    const matchers = measurePerf(
+    const matcherIndex = measurePerf(
         'territory.constraintAlign.filter.buildMatchers',
-        () =>
-            params.territoryRegions.map((region) =>
+        () => {
+            const byFirstSegment = new Map<number, RingSegmentMatcher[]>();
+            const matchers = params.territoryRegions.map((region) =>
                 createRingSegmentMatcher(region.points, internPoint),
-            ),
+            );
+            for (const matcher of matchers) {
+                for (const segment of matcher.firstSegments) {
+                    const bucket = byFirstSegment.get(segment);
+                    if (bucket) {
+                        bucket.push(matcher);
+                    } else {
+                        byFirstSegment.set(segment, [matcher]);
+                    }
+                }
+            }
+            return { byFirstSegment };
+        },
         {
             regions: params.territoryRegions.length,
             frontiers: params.frontierPolylines.length,
@@ -507,7 +531,23 @@ function filterPolylinesByResolvedRegions(params: {
             polyline.points,
             internPoint,
         );
-        return matchers.some((match) => match(polylineSegments, reversedSegments));
+        const candidates = new Set<RingSegmentMatcher>();
+        const firstSegment = polylineSegments[0];
+        if (firstSegment !== undefined) {
+            for (const matcher of matcherIndex.byFirstSegment.get(firstSegment) ?? []) {
+                candidates.add(matcher);
+            }
+        }
+        const reversedFirstSegment = reversedSegments[0];
+        if (reversedFirstSegment !== undefined) {
+            for (const matcher of matcherIndex.byFirstSegment.get(reversedFirstSegment) ?? []) {
+                candidates.add(matcher);
+            }
+        }
+        for (const matcher of candidates) {
+            if (matcher.matches(polylineSegments, reversedSegments)) return true;
+        }
+        return false;
     };
 
     return measurePerf(
