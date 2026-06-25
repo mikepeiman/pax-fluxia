@@ -682,6 +682,63 @@ const frontierFillBitGl = {
             uniform float uSoftness;
             uniform float uFillAlpha;
             uniform vec3 uFillColor;
+            // Frontier FX applied per-pixel from the smooth phase field, so the
+            // effect co-registers with the fill and is smooth (not cell-quantized).
+            // uFxMode: 0=off 1=soft_fade 2=stepped_moat 3=plasma_rim 4=ion_drift 5=geometry_strip
+            uniform float uFxMode;
+            uniform float uFxWidthPhase;
+            uniform float uFxStrength;
+            uniform float uFxSteps;
+            uniform float uFxSoftness;
+            uniform float uFxEmissive;
+            uniform float uFxParticleDensity;
+            uniform float uFxTime;
+            uniform vec3 uFxHotColor;
+
+            vec3 rgb2hsl(vec3 c) {
+                float mx = max(max(c.r, c.g), c.b);
+                float mn = min(min(c.r, c.g), c.b);
+                float l = (mx + mn) * 0.5;
+                float h = 0.0;
+                float s = 0.0;
+                float d = mx - mn;
+                if (d > 1e-5) {
+                    s = l > 0.5 ? d / (2.0 - mx - mn) : d / (mx + mn);
+                    if (mx == c.r) h = (c.g - c.b) / d + (c.g < c.b ? 6.0 : 0.0);
+                    else if (mx == c.g) h = (c.b - c.r) / d + 2.0;
+                    else h = (c.r - c.g) / d + 4.0;
+                    h /= 6.0;
+                }
+                return vec3(h, s, l);
+            }
+            float hue2rgb(float p, float q, float t) {
+                if (t < 0.0) t += 1.0;
+                if (t > 1.0) t -= 1.0;
+                if (t < 1.0 / 6.0) return p + (q - p) * 6.0 * t;
+                if (t < 0.5) return q;
+                if (t < 2.0 / 3.0) return p + (q - p) * (2.0 / 3.0 - t) * 6.0;
+                return p;
+            }
+            vec3 hsl2rgb(vec3 hsl) {
+                float h = hsl.x;
+                float s = hsl.y;
+                float l = hsl.z;
+                if (s < 1e-5) return vec3(l);
+                float q = l < 0.5 ? l * (1.0 + s) : l + s - l * s;
+                float p = 2.0 * l - q;
+                return vec3(hue2rgb(p, q, h + 1.0 / 3.0), hue2rgb(p, q, h), hue2rgb(p, q, h - 1.0 / 3.0));
+            }
+            vec3 adjustSL(vec3 rgb, float satMul, float lightMul) {
+                vec3 hsl = rgb2hsl(rgb);
+                hsl.y = clamp(hsl.y * satMul, 0.0, 1.0);
+                hsl.z = clamp(hsl.z * lightMul, 0.0, 1.0);
+                return hsl2rgb(hsl);
+            }
+            float hash21(vec2 p) {
+                p = fract(p * vec2(123.34, 456.21));
+                p += dot(p, p + 45.32);
+                return fract(p.x * p.y);
+            }
         `,
         main: /* glsl */ `
             vec4 sampleColor = texture(uPhaseTexture, vUV);
@@ -696,7 +753,78 @@ const frontierFillBitGl = {
             if (alpha <= 0.001) {
                 discard;
             }
-            outColor = vec4(uFillColor * alpha, alpha);
+            vec3 color = uFillColor;
+            if (uFxMode > 0.5) {
+                float widthPhase = max(1e-4, uFxWidthPhase);
+                // n: 0 at the frontier, 1 at the FX width (inward).
+                float n = clamp((phase - uThreshold) / widthPhase, 0.0, 1.0);
+                float soft = max(0.35, uFxSoftness);
+                float e = pow(1.0 - n, soft);
+                if (e > 0.0) {
+                    float s = clamp(uFxStrength, 0.0, 1.0);
+                    float em = max(0.0, uFxEmissive);
+                    float pd = clamp(uFxParticleDensity, 0.0, 1.0);
+                    float satMul = 1.0;
+                    float lightMul = 1.0;
+                    float alphaMul = 1.0;
+                    float hot = 0.0;
+                    if (uFxMode < 1.5) {
+                        // soft_fade
+                        alphaMul = max(0.0, 1.0 - 0.42 * s * e);
+                        satMul = 1.0 + 0.08 * s * e;
+                        lightMul = 1.0 + 0.22 * s * e;
+                    } else if (uFxMode < 2.5) {
+                        // stepped_moat
+                        float steps = max(1.0, floor(uFxSteps + 0.5));
+                        float q = ceil(e * steps) / steps;
+                        alphaMul = max(0.0, 1.0 - 0.55 * s * q);
+                        satMul = 1.0 + 0.08 * s * q;
+                        lightMul = max(0.05, 1.0 - 0.32 * s * q);
+                    } else if (uFxMode < 3.5) {
+                        // plasma_rim
+                        float ph = uFxTime * 0.004 - n * 3.14159265 * 3.0;
+                        float pulse = 0.5 + 0.5 * sin(ph);
+                        float wave = e * (0.45 + 0.55 * pulse);
+                        alphaMul = max(0.0, 1.0 - 0.18 * s * e);
+                        satMul = 1.0 + 0.26 * s * e;
+                        lightMul = 1.0 + 0.28 * s * e * (0.5 + 0.5 * em);
+                        hot = clamp((0.18 * s * e + 0.42 * s * wave) * em, 0.0, 1.0);
+                    } else if (uFxMode < 4.5) {
+                        // ion_drift
+                        float nz = hash21(floor(vUV * 256.0));
+                        float ph = uFxTime * 0.0035 + nz * 6.2831853;
+                        float drift = 0.5 + 0.5 * sin(ph);
+                        float thr = 1.0 - pd * 0.9;
+                        float spark = drift > thr ? (drift - thr) / max(0.001, 1.0 - thr) : 0.0;
+                        alphaMul = max(0.0, 1.0 - (0.08 * e + 0.12 * spark) * s);
+                        satMul = 1.0 + 0.1 * s * e + 0.34 * s * spark;
+                        lightMul = 1.0 + 0.08 * s * e + 0.5 * s * spark * (0.4 + 0.6 * em);
+                        hot = clamp(0.08 * s * e + 0.55 * s * spark * em, 0.0, 1.0);
+                    } else {
+                        // geometry_strip
+                        float steps = max(2.0, floor(uFxSteps + 0.5));
+                        float nz = hash21(floor(vUV * 256.0));
+                        float bandPos = clamp(n, 0.0, 1.0) * (steps - 1.0);
+                        float travel = mod(uFxTime * 0.0018 + nz * 0.65, steps);
+                        float dd = abs(bandPos - travel);
+                        float wd = min(dd, abs(dd - steps));
+                        float strip = max(0.0, 1.0 - wd / max(0.8, uFxSoftness + 0.35));
+                        float q = ceil(e * steps) / steps;
+                        float sw = max(q, strip);
+                        alphaMul = max(0.0, 1.0 - 0.38 * s * sw);
+                        satMul = 1.0 + 0.12 * s * q + 0.24 * s * strip;
+                        lightMul = 1.0 + 0.08 * s * q + 0.3 * s * strip * (0.5 + 0.5 * em);
+                        hot = clamp(0.08 * s * q + 0.32 * s * strip * em, 0.0, 1.0);
+                    }
+                    color = adjustSL(color, satMul, lightMul);
+                    if (hot > 0.0) color = mix(color, uFxHotColor, hot);
+                    alpha *= alphaMul;
+                }
+            }
+            if (alpha <= 0.001) {
+                discard;
+            }
+            outColor = vec4(color * alpha, alpha);
         `,
     },
 };
@@ -738,6 +866,16 @@ const frontierBandBitGl = {
             outColor = vec4(uFrontierColor * alpha, alpha);
         `,
     },
+};
+
+/** Frontier FX mode string → shader uFxMode index (matches fx.ts modes). */
+const FRONTIER_FX_MODE_TO_INDEX: Record<string, number> = {
+    off: 0,
+    soft_fade: 1,
+    stepped_moat: 2,
+    plasma_rim: 3,
+    ion_drift: 4,
+    geometry_strip: 5,
 };
 
 let cachedFrontierFillProgram: ReturnType<typeof compileHighShaderGlProgram> | null = null;
@@ -1256,6 +1394,18 @@ export class CellGridPhaseEdgesFamily implements RenderFamily {
                         uFillAlpha: { value: 1, type: 'f32' },
                         uFillColor: {
                             value: new Float32Array([1, 1, 1]),
+                            type: 'vec3<f32>',
+                        },
+                        uFxMode: { value: 0, type: 'f32' },
+                        uFxWidthPhase: { value: 1, type: 'f32' },
+                        uFxStrength: { value: 0, type: 'f32' },
+                        uFxSteps: { value: 4, type: 'f32' },
+                        uFxSoftness: { value: 1.2, type: 'f32' },
+                        uFxEmissive: { value: 1, type: 'f32' },
+                        uFxParticleDensity: { value: 0.45, type: 'f32' },
+                        uFxTime: { value: 0, type: 'f32' },
+                        uFxHotColor: {
+                            value: new Float32Array([1, 0.784, 0.42]),
                             type: 'vec3<f32>',
                         },
                     },
@@ -2496,6 +2646,16 @@ export class CellGridPhaseEdgesFamily implements RenderFamily {
         fillAlpha: number;
         softnessPx: number;
         thresholdOffsetPx: number;
+        frontierFx: {
+            mode: number;
+            widthPx: number;
+            strength: number;
+            steps: number;
+            softness: number;
+            emissive: number;
+            particleDensity: number;
+            timeScaled: number;
+        } | null;
     }): void {
         if (params.fillAlpha <= 0) {
             this.hideUnusedFrontierFillShaderLayers(0);
@@ -2537,6 +2697,20 @@ export class CellGridPhaseEdgesFamily implements RenderFamily {
             );
             uniforms.uFillAlpha = params.fillAlpha;
             uniforms.uFillColor = colorHexToVec3(fillHex);
+            const fx = params.frontierFx;
+            uniforms.uFxMode = fx ? fx.mode : 0;
+            if (fx) {
+                uniforms.uFxWidthPhase = Math.max(
+                    0.0001,
+                    fx.widthPx / Math.max(1, phaseLayer.cellSizePx),
+                );
+                uniforms.uFxStrength = fx.strength;
+                uniforms.uFxSteps = fx.steps;
+                uniforms.uFxSoftness = fx.softness;
+                uniforms.uFxEmissive = fx.emissive;
+                uniforms.uFxParticleDensity = fx.particleDensity;
+                uniforms.uFxTime = fx.timeScaled;
+            }
             state.mesh.visible = true;
             writeIndex += 1;
         }
@@ -4801,6 +4975,24 @@ export class CellGridPhaseEdgesFamily implements RenderFamily {
                 fillAlpha: effectiveFillAlphaMult,
                 softnessPx: fillSoftnessPx,
                 thresholdOffsetPx: Math.max(0, inwardOffsetPx),
+                // Apply Frontier FX inside the smooth fill shader so it co-registers
+                // with the fill and is smooth (the per-cell path produces jagged
+                // step edges). Suppressed scene cells already skip the per-cell FX.
+                frontierFx: frontierFxActiveForFrame
+                    ? {
+                          mode:
+                              FRONTIER_FX_MODE_TO_INDEX[frontierFxTuning.mode] ?? 0,
+                          widthPx: frontierFxTuning.widthPx,
+                          strength: frontierFxTuning.strength,
+                          steps: frontierFxTuning.steps,
+                          softness: frontierFxTuning.softness,
+                          emissive: frontierFxTuning.emissive,
+                          particleDensity: frontierFxTuning.particleDensity,
+                          timeScaled:
+                              (input.nowMs % 1_000_000) *
+                              Math.max(0.1, frontierFxTuning.pulseSpeed),
+                      }
+                    : null,
             });
         } else {
             this.frontierFillMeshLayer.visible = false;
