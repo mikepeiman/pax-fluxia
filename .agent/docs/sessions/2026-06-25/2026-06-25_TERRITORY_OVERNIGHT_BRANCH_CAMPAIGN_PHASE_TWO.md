@@ -435,6 +435,31 @@ Sprint cadence:
 - Every sprint must end with one of: pushed commit, reverted local attempt, or blocker report.
 - Do not keep half-proven behavior sitting unstaged or unreported across sprint boundaries.
 
+Timekeeping, estimates, and goal revision:
+
+- At every sprint start, read the system clock and record a timezone-aware local timestamp plus UTC if available.
+- If system time appears inconsistent with commit timestamps, remote logs, or another agent report, verify against a web clock or network time source and record which clock was used.
+- Every sprint-start note must include:
+  - current branch and commit;
+  - sprint goal;
+  - estimated duration;
+  - confidence level;
+  - expected validation gate;
+  - explicit "abort or realign if..." condition.
+- Every sprint-close note must include:
+  - actual elapsed time;
+  - whether the estimate was accurate, high, or low;
+  - what changed the estimate;
+  - revised next-sprint goal;
+  - revised next-sprint estimate and confidence;
+  - commit hash, artifact path, blocker, or revert note.
+- Every 2-3 hours, compare cumulative progress against the primary end goal and revise the overnight forecast:
+  - what is likely to become default tonight;
+  - what is likely to remain candidate-only;
+  - what should be demoted or stopped;
+  - what needs more research, adversarial review, or validation.
+- Do not continue following an obsolete estimate. When evidence changes the forecast, write the revised forecast before starting the next sprint.
+
 Sprint opening checklist:
 
 - Restate the end goal in one sentence.
