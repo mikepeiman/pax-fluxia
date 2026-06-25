@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildPowerVoronoi0319AuthoritySnapshot } from './buildPowerVoronoi0319AuthoritySnapshot';
 import type { TerritoryGeometryData } from '../compiler/powerVoronoiTerritoryGeometryGenerator';
+import type { FrontierTopology } from '../contracts/FrontierTopologyContracts';
 
 function makeGeometryData(): TerritoryGeometryData {
     return {
@@ -106,20 +107,80 @@ function makeGeometryData(): TerritoryGeometryData {
     };
 }
 
+function makeReorderedGeometryData(): TerritoryGeometryData {
+    const geometry = makeGeometryData();
+    return {
+        ...geometry,
+        rawSharedPolylines: [geometry.rawSharedPolylines[0]!],
+        sharedPolylines: [geometry.sharedPolylines[0]!],
+        worldBorderPolylines: [
+            geometry.worldBorderPolylines[5]!,
+            geometry.worldBorderPolylines[2]!,
+            geometry.worldBorderPolylines[0]!,
+            geometry.worldBorderPolylines[4]!,
+            geometry.worldBorderPolylines[1]!,
+            geometry.worldBorderPolylines[3]!,
+        ],
+    };
+}
+
+function makeStars() {
+    return [
+        { id: 'red-star', x: 2, y: 5, ownerId: 'red' } as any,
+        { id: 'blue-star', x: 8, y: 5, ownerId: 'blue' } as any,
+    ];
+}
+
+function buildSnapshot(geometry: TerritoryGeometryData) {
+    return buildPowerVoronoi0319AuthoritySnapshot({
+        geometry,
+        stars: makeStars(),
+        ownershipVersion: 'own:test',
+        sourceStyle: 'vector',
+        worldWidth: 10,
+        worldHeight: 10,
+        requestedMarginPx: 0,
+    });
+}
+
+function serializeIndexMap(map: ReadonlyMap<string, readonly string[]>): unknown {
+    return [...map.entries()];
+}
+
+function serializeTopologyIdentity(topology: FrontierTopology): unknown {
+    return {
+        vertices: [...topology.vertices.values()].map((vertex) => ({
+            id: vertex.id,
+            kind: vertex.kind,
+            incidentSectionIds: vertex.incidentSectionIds,
+            ownerIds: vertex.ownerIds,
+            semanticKey: vertex.semanticKey,
+        })),
+        sections: [...topology.sections.values()].map((section) => ({
+            id: section.id,
+            kind: section.kind,
+            startVertexId: section.startVertexId,
+            endVertexId: section.endVertexId,
+            leftOwnerId: section.leftOwnerId,
+            rightOwnerId: section.rightOwnerId,
+            ownerPairKey: section.ownerPairKey,
+            pointKey: section.points.map(([x, y]) => `${x},${y}`).join('>'),
+        })),
+        loops: topology.loops.map((loop) => ({
+            id: loop.id,
+            ownerId: loop.ownerId,
+            componentId: loop.componentId,
+            sectionRefs: loop.sectionRefs,
+        })),
+        sectionsByOwnerPair: serializeIndexMap(topology.sectionsByOwnerPair),
+        sectionsByVertex: serializeIndexMap(topology.sectionsByVertex),
+        sectionsByOwner: serializeIndexMap(topology.sectionsByOwner),
+    };
+}
+
 describe('buildPowerVoronoi0319AuthoritySnapshot', () => {
     it('promotes one resolved shared-boundary seam into the live snapshot', () => {
-        const snapshot = buildPowerVoronoi0319AuthoritySnapshot({
-            geometry: makeGeometryData(),
-            stars: [
-                { id: 'red-star', x: 2, y: 5, ownerId: 'red' } as any,
-                { id: 'blue-star', x: 8, y: 5, ownerId: 'blue' } as any,
-            ],
-            ownershipVersion: 'own:test',
-            sourceStyle: 'vector',
-            worldWidth: 10,
-            worldHeight: 10,
-            requestedMarginPx: 0,
-        });
+        const snapshot = buildSnapshot(makeGeometryData());
 
         expect(snapshot.diagnostics.stageLadder).toBeDefined();
         expect(snapshot.diagnostics.stageLadder?.authoritativeSeamFingerprint).toContain(
@@ -141,5 +202,18 @@ describe('buildPowerVoronoi0319AuthoritySnapshot', () => {
         expect(blueRegion?.points.some(([x]) => x === 5)).toBe(true);
         expect(redRegion?.points.some(([x]) => x === 4)).toBe(false);
         expect(blueRegion?.points.some(([x]) => x === 6)).toBe(false);
+    });
+
+    it('keeps frontier topology identity stable when 0319 boundary inputs reorder', () => {
+        const ordered = buildSnapshot(makeGeometryData());
+        const reordered = buildSnapshot(makeReorderedGeometryData());
+
+        expect(reordered.diagnostics.topologyReliable).toBe(
+            ordered.diagnostics.topologyReliable,
+        );
+        expect(reordered.diagnostics.notes).toEqual(ordered.diagnostics.notes);
+        expect(serializeTopologyIdentity(reordered.frontierTopology)).toEqual(
+            serializeTopologyIdentity(ordered.frontierTopology),
+        );
     });
 });

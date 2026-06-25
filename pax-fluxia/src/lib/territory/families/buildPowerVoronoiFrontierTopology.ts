@@ -12,6 +12,7 @@ import type { SharedPolyline } from '../compiler/powerVoronoiTerritoryGeometryGe
 import {
     executeChainWalk,
     type ChainWalkSegment,
+    type PolylineInfo,
 } from '../compiler/chainWalkCore';
 import { validateFrontierTopologyInvariants } from '../geometry/frontierTopologyOracle';
 
@@ -50,6 +51,68 @@ function signedArea(points: ReadonlyArray<[number, number]>): number {
 function makeSectionId(ownerPairKey: string, startKey: string, endKey: string): string {
     const [a, b] = startKey < endKey ? [startKey, endKey] : [endKey, startKey];
     return `section:${ownerPairKey}:${a}:${b}`;
+}
+
+function pointKey(point: readonly [number, number]): string {
+    return `${+point[0].toFixed(2)},${+point[1].toFixed(2)}`;
+}
+
+function pointsKey(points: ReadonlyArray<[number, number]>): string {
+    return points.map(pointKey).join(';');
+}
+
+function canonicalPointsKey(points: ReadonlyArray<[number, number]>): string {
+    const forward = pointsKey(points);
+    const reverse = pointsKey([...points].reverse());
+    return forward <= reverse ? forward : reverse;
+}
+
+function canonicalPolylineSortKey(info: PolylineInfo): string {
+    return [
+        info.ownerPairKey,
+        canonicalPointsKey(info.points),
+        info.startKey < info.endKey ? info.startKey : info.endKey,
+        info.startKey < info.endKey ? info.endKey : info.startKey,
+    ].join('|');
+}
+
+function assignCanonicalSectionIds(
+    polylineInfos: ReadonlyArray<PolylineInfo>,
+): {
+    readonly sectionIdByPolylineIdx: ReadonlyMap<number, string>;
+    readonly duplicateSectionIdCount: number;
+} {
+    const buckets = new Map<string, PolylineInfo[]>();
+    for (const info of polylineInfos) {
+        if (info.points.length < 2) continue;
+        const baseId = makeSectionId(info.ownerPairKey, info.startKey, info.endKey);
+        const bucket = buckets.get(baseId);
+        if (bucket) {
+            bucket.push(info);
+        } else {
+            buckets.set(baseId, [info]);
+        }
+    }
+
+    const sectionIdByPolylineIdx = new Map<number, string>();
+    let duplicateSectionIdCount = 0;
+    for (const baseId of [...buckets.keys()].sort()) {
+        const infos = buckets.get(baseId)!.slice().sort((a, b) => {
+            const keyCompare = canonicalPolylineSortKey(a).localeCompare(
+                canonicalPolylineSortKey(b),
+            );
+            return keyCompare || a.globalIdx - b.globalIdx;
+        });
+        duplicateSectionIdCount += Math.max(0, infos.length - 1);
+        infos.forEach((info, index) => {
+            sectionIdByPolylineIdx.set(
+                info.globalIdx,
+                index === 0 ? baseId : `${baseId}#${index + 1}`,
+            );
+        });
+    }
+
+    return { sectionIdByPolylineIdx, duplicateSectionIdCount };
 }
 
 function classifyVertexKind(
@@ -119,6 +182,14 @@ function pushInto(map: Map<string, string[]>, key: string, value: string): void 
     map.set(key, [value]);
 }
 
+function sortIndexMap(map: ReadonlyMap<string, readonly string[]>): Map<string, string[]> {
+    return new Map(
+        [...map.entries()]
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([key, value]) => [key, [...value].sort()]),
+    );
+}
+
 function hashStringList(items: ReadonlyArray<string>): string {
     let h = 0x811c9dc5 >>> 0;
     const FNV_PRIME = 0x01000193;
@@ -131,6 +202,43 @@ function hashStringList(items: ReadonlyArray<string>): string {
         h = Math.imul(h, FNV_PRIME) >>> 0;
     }
     return h.toString(16).padStart(8, '0');
+}
+
+function sectionRefKey(ref: SectionRef): string {
+    return `${ref.sectionId}:${ref.direction}`;
+}
+
+function rotatedSectionRefKey(
+    refs: ReadonlyArray<SectionRef>,
+    startIndex: number,
+): string {
+    const keys: string[] = [];
+    for (let offset = 0; offset < refs.length; offset++) {
+        keys.push(sectionRefKey(refs[(startIndex + offset) % refs.length]!));
+    }
+    return keys.join('|');
+}
+
+function rotateClosedSectionRefsToCanonicalStart(
+    refs: ReadonlyArray<SectionRef>,
+): SectionRef[] {
+    if (refs.length <= 1) return [...refs];
+
+    let bestIndex = 0;
+    let bestKey = rotatedSectionRefKey(refs, 0);
+    for (let index = 1; index < refs.length; index++) {
+        const key = rotatedSectionRefKey(refs, index);
+        if (key < bestKey) {
+            bestIndex = index;
+            bestKey = key;
+        }
+    }
+
+    const rotated: SectionRef[] = [];
+    for (let offset = 0; offset < refs.length; offset++) {
+        rotated.push(refs[(bestIndex + offset) % refs.length]!);
+    }
+    return rotated;
 }
 
 export interface BuildPowerVoronoiFrontierTopologyParams {
@@ -160,17 +268,16 @@ export function buildPowerVoronoiFrontierTopology(
 
     const sectionByPolylineIdx = new Map<number, FrontierSection>();
     const sections = new Map<string, FrontierSection>();
-    const sectionIdCollisions: string[] = [];
+    const sectionRecords: FrontierSection[] = [];
+    const { sectionIdByPolylineIdx, duplicateSectionIdCount } =
+        assignCanonicalSectionIds(walk.polylineInfos);
 
     for (const info of walk.polylineInfos) {
         if (info.points.length < 2) continue;
         const kind: FrontierSectionKind =
             info.ownerB === WORLD_OWNER ? 'world_border' : 'owner_border';
-        const baseId = makeSectionId(info.ownerPairKey, info.startKey, info.endKey);
-        const sectionId = sections.has(baseId) ? `${baseId}#${info.globalIdx}` : baseId;
-        if (sectionId !== baseId) {
-            sectionIdCollisions.push(`${baseId} -> ${sectionId}`);
-        }
+        const sectionId = sectionIdByPolylineIdx.get(info.globalIdx);
+        if (!sectionId) continue;
         const section: FrontierSection = {
             id: sectionId,
             kind,
@@ -186,15 +293,20 @@ export function buildPowerVoronoiFrontierTopology(
                 info.ownerB === WORLD_OWNER ? WORLD_OWNER : info.ownerB,
             ),
         };
-        sections.set(sectionId, section);
+        sectionRecords.push(section);
         sectionByPolylineIdx.set(info.globalIdx, section);
     }
 
-    if (sectionIdCollisions.length > 0) {
-        notes.push(`section-id collisions disambiguated: ${sectionIdCollisions.length}`);
+    sectionRecords
+        .sort((a, b) => a.id.localeCompare(b.id))
+        .forEach((section) => sections.set(section.id, section));
+
+    if (duplicateSectionIdCount > 0) {
+        notes.push(`section-id collisions disambiguated: ${duplicateSectionIdCount}`);
     }
 
     const vertices = new Map<string, FrontierVertex>();
+    const vertexRecords: [string, FrontierVertex][] = [];
     for (const [key, entries] of walk.junctionMap.entries()) {
         const point = parsePtKey(key);
         const incidentSectionIds: string[] = [];
@@ -212,15 +324,18 @@ export function buildPowerVoronoiFrontierTopology(
         const ownerIdsSorted = [...ownerIds].sort();
         const kind = classifyVertexKind(point, worldWidth, worldHeight);
         const semanticKey = deriveSemanticKey(kind, point, worldWidth, worldHeight);
-        vertices.set(key, {
+        vertexRecords.push([key, {
             id: key,
             kind,
             point,
             incidentSectionIds,
             ownerIds: ownerIdsSorted,
             ...(semanticKey ? { semanticKey } : {}),
-        });
+        }]);
     }
+    vertexRecords
+        .sort(([a], [b]) => a.localeCompare(b))
+        .forEach(([key, vertex]) => vertices.set(key, vertex));
 
     const loops: RegionLoop[] = [];
     let openLoopCount = 0;
@@ -243,33 +358,51 @@ export function buildPowerVoronoiFrontierTopology(
         }
         if (sectionRefs.length === 0) continue;
         if (!walkLoop.closed) openLoopCount += 1;
+        const canonicalSectionRefs = walkLoop.closed
+            ? rotateClosedSectionRefsToCanonicalStart(sectionRefs)
+            : sectionRefs;
         const sectionKey = hashStringList(
-            sectionRefs.map((entry) => entry.sectionId).sort(),
+            canonicalSectionRefs.map((entry) => entry.sectionId).sort(),
         );
         loops.push({
             id: `loop:${walkLoop.ownerId}:${sectionKey}`,
             ownerId: walkLoop.ownerId,
             componentId: `comp:${walkLoop.ownerId}:${sectionKey}`,
-            sectionRefs,
+            sectionRefs: canonicalSectionRefs,
             signedArea: signedArea(loopPoints),
         });
     }
+    loops.sort((a, b) => {
+        const idCompare = a.id.localeCompare(b.id);
+        if (idCompare) return idCompare;
+        const ownerCompare = a.ownerId.localeCompare(b.ownerId);
+        if (ownerCompare) return ownerCompare;
+        return a.sectionRefs
+            .map(sectionRefKey)
+            .join('|')
+            .localeCompare(
+                b.sectionRefs.map(sectionRefKey).join('|'),
+            );
+    });
 
-    const sectionsByOwnerPair = new Map<string, string[]>();
-    const sectionsByVertex = new Map<string, string[]>();
-    const sectionsByOwner = new Map<string, string[]>();
+    const unsortedSectionsByOwnerPair = new Map<string, string[]>();
+    const unsortedSectionsByVertex = new Map<string, string[]>();
+    const unsortedSectionsByOwner = new Map<string, string[]>();
 
     for (const section of sections.values()) {
-        pushInto(sectionsByOwnerPair, section.ownerPairKey, section.id);
-        pushInto(sectionsByVertex, section.startVertexId, section.id);
+        pushInto(unsortedSectionsByOwnerPair, section.ownerPairKey, section.id);
+        pushInto(unsortedSectionsByVertex, section.startVertexId, section.id);
         if (section.endVertexId !== section.startVertexId) {
-            pushInto(sectionsByVertex, section.endVertexId, section.id);
+            pushInto(unsortedSectionsByVertex, section.endVertexId, section.id);
         }
-        pushInto(sectionsByOwner, section.leftOwnerId, section.id);
+        pushInto(unsortedSectionsByOwner, section.leftOwnerId, section.id);
         if (section.rightOwnerId !== section.leftOwnerId) {
-            pushInto(sectionsByOwner, section.rightOwnerId, section.id);
+            pushInto(unsortedSectionsByOwner, section.rightOwnerId, section.id);
         }
     }
+    const sectionsByOwnerPair = sortIndexMap(unsortedSectionsByOwnerPair);
+    const sectionsByVertex = sortIndexMap(unsortedSectionsByVertex);
+    const sectionsByOwner = sortIndexMap(unsortedSectionsByOwner);
 
     const topology: FrontierTopology = {
         version: `${params.fingerprint}:pfield-topology`,
@@ -291,7 +424,7 @@ export function buildPowerVoronoiFrontierTopology(
         vertices.size > 0 &&
         loops.length > 0 &&
         openLoopCount === 0 &&
-        sectionIdCollisions.length === 0;
+        duplicateSectionIdCount === 0;
 
     if (openLoopCount > 0) {
         notes.push(`chain-walk produced ${openLoopCount} open loop(s)`);
