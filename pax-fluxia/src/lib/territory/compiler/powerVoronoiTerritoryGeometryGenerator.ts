@@ -830,12 +830,19 @@ export function constructFillsFromFrontierChain(
             ownerFillIndices.set(result[fi].ownerId, arr);
         }
 
-        // Build map: ownerId → list of cells
+        // Build map: ownerId → list/map of cells
         const ownerCells = new Map<string, TerritoryCell[]>();
+        const ownerCellBySiteId = new Map<string, Map<string, TerritoryCell>>();
         for (const cell of cells) {
             const arr = ownerCells.get(cell.ownerId) ?? [];
             arr.push(cell);
             ownerCells.set(cell.ownerId, arr);
+            let bySiteId = ownerCellBySiteId.get(cell.ownerId);
+            if (!bySiteId) {
+                bySiteId = new Map();
+                ownerCellBySiteId.set(cell.ownerId, bySiteId);
+            }
+            bySiteId.set(cell.siteId, cell);
         }
 
         // Build cell adjacency graph from shared polygon edges (graph-native).
@@ -871,6 +878,7 @@ export function constructFillsFromFrontierChain(
 
         for (const [ownerId, fillIndices] of ownerFillIndices) {
             const oCells = ownerCells.get(ownerId) ?? [];
+            const oCellBySiteId = ownerCellBySiteId.get(ownerId) ?? new Map();
             if (fillIndices.length === 1) {
                 // Single territory for this owner — all cells belong here
                 result[fillIndices[0]].starIds = oCells.map(c => c.siteId);
@@ -883,14 +891,15 @@ export function constructFillsFromFrontierChain(
                     // BFS from this cell, only following same-owner neighbors
                     const component: string[] = [];
                     const queue = [cell.siteId];
+                    let queueIndex = 0;
                     visited.add(cell.siteId);
-                    while (queue.length > 0) {
-                        const cur = queue.shift()!;
+                    while (queueIndex < queue.length) {
+                        const cur = queue[queueIndex++]!;
                         component.push(cur);
                         for (const nbr of cellNeighbors.get(cur) ?? []) {
                             if (visited.has(nbr)) continue;
                             // Only follow neighbors with the same owner
-                            const nbrCell = oCells.find(c => c.siteId === nbr);
+                            const nbrCell = oCellBySiteId.get(nbr);
                             if (!nbrCell) continue;
                             visited.add(nbr);
                             queue.push(nbr);
