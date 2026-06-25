@@ -35,9 +35,9 @@
     const edgeSizePx = $derived(valueOf<number>('gridGradientEdgeSizePx', 1.5));
     const curvePower = $derived(valueOf<number>('gridGradientCurvePower', 1.6));
     const fillHueShiftDeg = $derived(valueOf<number>('gridGradientFillHueShiftDeg', configNumber('GRID_GRADIENT_FILL_HUE_SHIFT_DEG', 0)));
-    const fillSaturation = $derived(valueOf<number>('metaballSaturation', configNumber('TERRITORY_SURFACE_SATURATION', 1)));
-    const fillLightness = $derived(valueOf<number>('metaballLightness', configNumber('TERRITORY_SURFACE_LIGHTNESS', 1)));
-    const fillAlpha = $derived(valueOf<number>('metaballAlpha', configNumber('TERRITORY_SURFACE_ALPHA', 0.52)));
+    const fillSaturation = $derived(valueOf<number>('territorySurfaceSaturation', configNumber('TERRITORY_SURFACE_SATURATION', 1)));
+    const fillLightness = $derived(valueOf<number>('territorySurfaceLightness', configNumber('TERRITORY_SURFACE_LIGHTNESS', 1)));
+    const fillAlpha = $derived(valueOf<number>('territorySurfaceAlpha', configNumber('TERRITORY_SURFACE_ALPHA', 0.52)));
     const borderOffsetPx = $derived(valueOf<number>('gridGradientBorderOffsetPx', 0));
     const positionJitter = $derived(valueOf<number>('gridGradientPositionJitter', 0));
     const cellShape = $derived(valueOf<string>('gridGradientCellShape', 'circle'));
@@ -158,7 +158,7 @@
     step={0.01}
     output={fillSaturation.toFixed(2)}
     settingConfigKey="TERRITORY_SURFACE_SATURATION"
-    onInput={(value) => writeConfig('TERRITORY_SURFACE_SATURATION', 'metaballSaturation', value)} />
+    onInput={(value) => writeConfig('TERRITORY_SURFACE_SATURATION', 'territorySurfaceSaturation', value)} />
 
 <PaxSettingsRangeRow
     label="Lightness"
@@ -168,7 +168,7 @@
     step={0.01}
     output={fillLightness.toFixed(2)}
     settingConfigKey="TERRITORY_SURFACE_LIGHTNESS"
-    onInput={(value) => writeConfig('TERRITORY_SURFACE_LIGHTNESS', 'metaballLightness', value)} />
+    onInput={(value) => writeConfig('TERRITORY_SURFACE_LIGHTNESS', 'territorySurfaceLightness', value)} />
 
 <PaxSettingsRangeRow
     label="Alpha"
@@ -178,7 +178,7 @@
     step={0.01}
     output={fillAlpha.toFixed(2)}
     settingConfigKey="TERRITORY_SURFACE_ALPHA"
-    onInput={(value) => writeConfig('TERRITORY_SURFACE_ALPHA', 'metaballAlpha', value)} />
+    onInput={(value) => writeConfig('TERRITORY_SURFACE_ALPHA', 'territorySurfaceAlpha', value)} />
 
 <div class="sub-heading">Gradient Shape</div>
 

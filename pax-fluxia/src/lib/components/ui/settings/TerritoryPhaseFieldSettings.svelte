@@ -69,21 +69,21 @@
     }
 
     function borderState(): { tone: "live" | "blocked"; summary: string; detail: string } {
-        if (!boolVal("metaballBorderEnabled", "TERRITORY_SURFACE_BORDER_ENABLED", true)) {
+        if (!boolVal("territorySurfaceBorderEnabled", "TERRITORY_SURFACE_BORDER_ENABLED", true)) {
             return {
                 tone: "blocked",
                 summary: "Borders blocked",
                 detail: "Territory border is disabled.",
             };
         }
-        if (numVal("metaballBorderWidth", "TERRITORY_SURFACE_BORDER_WIDTH", 3) <= 0) {
+        if (numVal("territorySurfaceBorderWidth", "TERRITORY_SURFACE_BORDER_WIDTH", 3) <= 0) {
             return {
                 tone: "blocked",
                 summary: "Borders blocked",
                 detail: "Territory border width is 0px.",
             };
         }
-        if (numVal("metaballBorderAlpha", "TERRITORY_SURFACE_BORDER_ALPHA", 1) <= 0) {
+        if (numVal("territorySurfaceBorderAlpha", "TERRITORY_SURFACE_BORDER_ALPHA", 1) <= 0) {
             return {
                 tone: "blocked",
                 summary: "Borders blocked",
@@ -139,17 +139,17 @@
             {panel}
             onUpdate={writeConfig}
             configEnabled="TERRITORY_SURFACE_FILL_ENABLED"
-            panelEnabled="metaballFillEnabled"
+            panelEnabled="territorySurfaceFillEnabled"
             defaultEnabled={true}
             enabledLabel="Show fill"
             configSat="TERRITORY_SURFACE_SATURATION"
-            panelSat="metaballSaturation"
+            panelSat="territorySurfaceSaturation"
             defaultSat={1.05}
             configLight="TERRITORY_SURFACE_LIGHTNESS"
-            panelLight="metaballLightness"
+            panelLight="territorySurfaceLightness"
             defaultLight={0.65}
             configAlpha="TERRITORY_SURFACE_ALPHA"
-            panelAlpha="metaballAlpha"
+            panelAlpha="territorySurfaceAlpha"
             defaultAlpha={0.5}
         />
 
@@ -158,23 +158,23 @@
             {panel}
             onUpdate={writeConfig}
             configEnabled="TERRITORY_SURFACE_BORDER_ENABLED"
-            panelEnabled="metaballBorderEnabled"
+            panelEnabled="territorySurfaceBorderEnabled"
             defaultEnabled={true}
             enabledLabel="Show border"
             configWidth="TERRITORY_SURFACE_BORDER_WIDTH"
-            panelWidth="metaballBorderWidth"
+            panelWidth="territorySurfaceBorderWidth"
             defaultWidth={3}
             widthMin={0.5}
             widthMax={12}
             widthStep={0.5}
             configSat="TERRITORY_SURFACE_BORDER_SATURATION"
-            panelSat="metaballBorderSaturation"
+            panelSat="territorySurfaceBorderSaturation"
             defaultSat={1}
             configLight="TERRITORY_SURFACE_BORDER_LIGHTNESS"
-            panelLight="metaballBorderLightness"
+            panelLight="territorySurfaceBorderLightness"
             defaultLight={1}
             configAlpha="TERRITORY_SURFACE_BORDER_ALPHA"
-            panelAlpha="metaballBorderAlpha"
+            panelAlpha="territorySurfaceBorderAlpha"
             defaultAlpha={1}
         />
 

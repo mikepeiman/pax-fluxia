@@ -216,6 +216,19 @@ function migrateLegacyCellGridPanelSettings(
     return changed;
 }
 
+/** Old→new panel-key handles for the 9 shared surface controls (2026-06-24 rename). */
+const LEGACY_SURFACE_PANEL_KEY_RENAMES: Readonly<Record<string, string>> = {
+    metaballSaturation: 'territorySurfaceSaturation',
+    metaballLightness: 'territorySurfaceLightness',
+    metaballAlpha: 'territorySurfaceAlpha',
+    metaballFillEnabled: 'territorySurfaceFillEnabled',
+    metaballBorderEnabled: 'territorySurfaceBorderEnabled',
+    metaballBorderWidth: 'territorySurfaceBorderWidth',
+    metaballBorderAlpha: 'territorySurfaceBorderAlpha',
+    metaballBorderSaturation: 'territorySurfaceBorderSaturation',
+    metaballBorderLightness: 'territorySurfaceBorderLightness',
+};
+
 function migrateLegacyTerritoryModeSplit(
     stored: Record<string, any>,
 ): boolean {
@@ -227,6 +240,17 @@ function migrateLegacyTerritoryModeSplit(
         const normalized = normalizeTerritoryRenderModeId(stored.territoryRenderMode);
         if (normalized !== stored.territoryRenderMode) {
             stored.territoryRenderMode = normalized;
+            changed = true;
+        }
+    }
+
+    // 2026-06-24 semantic rename: the 9 shared surface panel-key handles dropped
+    // their (misnomer) `metaball` prefix for `territorySurface`. Migrate any saved
+    // panel value to the new key so existing setups keep their fill/border tuning.
+    for (const [oldKey, newKey] of Object.entries(LEGACY_SURFACE_PANEL_KEY_RENAMES)) {
+        if (oldKey in stored) {
+            if (!(newKey in stored)) stored[newKey] = stored[oldKey];
+            delete stored[oldKey];
             changed = true;
         }
     }
