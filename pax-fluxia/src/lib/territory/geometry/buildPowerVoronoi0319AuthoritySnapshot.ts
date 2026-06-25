@@ -37,6 +37,13 @@ interface BuildPowerVoronoi0319AuthoritySnapshotParams {
 
 type RawMergedTerritory = TerritoryGeometryData['mergedTerritories'][number];
 
+interface Bounds {
+    readonly minX: number;
+    readonly minY: number;
+    readonly maxX: number;
+    readonly maxY: number;
+}
+
 function computePolygonArea(points: ReadonlyArray<[number, number]>): number {
     let area = 0;
     for (let i = 0; i < points.length; i++) {
@@ -45,6 +52,29 @@ function computePolygonArea(points: ReadonlyArray<[number, number]>): number {
         area += ax * by - bx * ay;
     }
     return area * 0.5;
+}
+
+function computeBounds(points: ReadonlyArray<[number, number]>): Bounds {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const [x, y] of points) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+    }
+    return { minX, minY, maxX, maxY };
+}
+
+function isPointInBounds(x: number, y: number, bounds: Bounds): boolean {
+    return (
+        x >= bounds.minX &&
+        x <= bounds.maxX &&
+        y >= bounds.minY &&
+        y <= bounds.maxY
+    );
 }
 
 function buildSharedFrontierMapFromPolylines(
@@ -139,14 +169,11 @@ function buildOwnerStars(
 }
 
 function matchRawTerritoryCandidate(params: {
-    ownerId: string;
     anchorStarIds: readonly string[];
     points: ReadonlyArray<[number, number]>;
     rawTerritories: ReadonlyArray<RawMergedTerritory>;
 }): RawMergedTerritory | null {
-    const candidates = params.rawTerritories.filter(
-        (territory) => territory.ownerId === params.ownerId,
-    );
+    const candidates = params.rawTerritories;
     if (candidates.length === 0) return null;
     if (candidates.length === 1) return candidates[0]!;
 
@@ -192,17 +219,30 @@ function hydrateResolvedRegions(params: {
     stars: ReadonlyArray<StarState>;
 }): TerritoryRegionShape[] {
     const ownerStars = buildOwnerStars(params.stars);
+    const rawTerritoriesByOwner = new Map<string, RawMergedTerritory[]>();
+    for (const territory of params.rawTerritories) {
+        const bucket = rawTerritoriesByOwner.get(territory.ownerId);
+        if (bucket) {
+            bucket.push(territory);
+        } else {
+            rawTerritoriesByOwner.set(territory.ownerId, [territory]);
+        }
+    }
     return params.resolvedRegions.map((region) => {
         const ownedStars = ownerStars.get(region.ownerId) ?? [];
+        const regionBounds = computeBounds(region.points);
         const insideAnchorStarIds = ownedStars
-            .filter((star) => pointInPolygon(star.x, star.y, region.points))
+            .filter(
+                (star) =>
+                    isPointInBounds(star.x, star.y, regionBounds) &&
+                    pointInPolygon(star.x, star.y, region.points),
+            )
             .map((star) => star.id)
             .sort();
         const rawMatch = matchRawTerritoryCandidate({
-            ownerId: region.ownerId,
             anchorStarIds: insideAnchorStarIds,
             points: region.points,
-            rawTerritories: params.rawTerritories,
+            rawTerritories: rawTerritoriesByOwner.get(region.ownerId) ?? [],
         });
         const rawAnchorStarIds = rawMatch
             ? rawMatch.starIds.filter((starId) => !isVirtualSiteId(starId)).sort()
