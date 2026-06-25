@@ -255,6 +255,19 @@ function migrateLegacyTerritoryModeSplit(
         }
     }
 
+    // 2026-06-24 rename: the cell-grid family panel handles dropped the `metaballGrid`
+    // misnomer prefix for `cellGrid` (e.g. metaballGridPatternSpacingPx ->
+    // cellGridPatternSpacingPx). Migrate any saved value forward and ALWAYS drop the
+    // stale key so obsolete `metaballGrid*` entries don't linger in localStorage.
+    // (Genuine metaball-compositor keys start with `metaball` but never `metaballGrid`.)
+    for (const oldKey of Object.keys(stored)) {
+        if (!oldKey.startsWith('metaballGrid')) continue;
+        const newKey = `cellGrid${oldKey.slice('metaballGrid'.length)}`;
+        if (!(newKey in stored)) stored[newKey] = stored[oldKey];
+        delete stored[oldKey];
+        changed = true;
+    }
+
     const splitPolicyUnversioned =
         stored.territoryModeSplitPolicyVersion !==
         TERRITORY_MODE_SPLIT_POLICY_VERSION;
@@ -317,7 +330,11 @@ export function loadPanelSettings<T extends Record<string, any>>(defaults: T): T
                 }
                 delete stored.mapgenLaneBufferPx;
             }
-            if (migrateLegacyCellGridPanelSettings(stored)) {
+            // Run the FULL legacy migration (cell-grid smoothness + territory
+            // mode-split + surface/metaballGrid key renames) on every load path,
+            // not just the cell-grid subset — otherwise stale `metaballGrid*` /
+            // surface keys linger when the panel is opened without a full hydrate.
+            if (normalizeCellGridSmoothnessDefaults(stored)) {
                 localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify(stored));
             }
             return { ...defaults, ...stored };

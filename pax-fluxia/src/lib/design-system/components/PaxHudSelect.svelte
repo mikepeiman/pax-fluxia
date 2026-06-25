@@ -46,7 +46,7 @@
     </span>
   {/if}
   <select
-    class={styles.input()}
+    class={`${styles.input()} pax-hud-select__input`}
     {value}
     {disabled}
     aria-label={ariaLabel ?? label}
@@ -62,6 +62,17 @@
 </label>
 
 <style>
+  /* Native dropdown popup: force dark chrome + explicit option colors so the
+     OS-rendered option list isn't light-text-on-light-popup (it inherits the
+     dark select's light text but the browser default popup bg is light). */
+  .pax-hud-select__input {
+    color-scheme: dark;
+  }
+  .pax-hud-select__input option {
+    background-color: var(--pax-ui-panel-bg-strong, #0b1220);
+    color: var(--pax-ui-text, rgba(224, 232, 232, 0.95));
+  }
+
   /* Hover `?` — keeps explanatory text out of the layout until wanted. */
   .pax-hud-select__hint {
     display: inline-flex;
