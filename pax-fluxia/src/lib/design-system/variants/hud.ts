@@ -87,10 +87,13 @@ export const hudButton = tv({
 export type HudButtonVariants = VariantProps<typeof hudButton>;
 
 export const hudTooltip = tv({
+  // Readable help text — body/copy font, sentence case, ~13px, comfortable
+  // line-height, high-contrast near-white on a solid dark panel, width-capped.
+  // (Was a HUD mini-label: tiny ALL-CAPS bold gold — unreadable for sentences.)
   base: [
-    "z-50 rounded-pax-xs border border-pax-gold/55 bg-pax-panel-strong",
-    "px-2.5 py-1.5 font-pax-ui text-[0.64rem] font-bold uppercase tracking-[0.1em]",
-    "text-pax-gold-strong shadow-pax-panel-soft backdrop-blur-[14px]",
+    "z-50 max-w-[300px] rounded-pax-sm border border-pax-gold/25 bg-pax-panel-strong",
+    "px-3 py-2 font-pax-copy text-[0.8rem] font-normal normal-case tracking-normal leading-normal",
+    "text-left text-pax-text-strong shadow-pax-panel-soft backdrop-blur-[16px]",
   ],
 });
 
