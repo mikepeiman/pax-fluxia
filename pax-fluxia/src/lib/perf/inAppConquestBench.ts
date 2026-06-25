@@ -2,8 +2,8 @@ import { GAME_CONFIG } from "$lib/config/game.config";
 import conquestFixtureMap from "../../../../common/resources/fixture-maps/metaball_conquest_lane_push.json";
 
 export type InAppConquestBenchmarkMode =
-    | "metaball_grid"
-    | "metaball_grid_phase_field"
+    | "cell_grid"
+    | "phase_field"
     | "grid_gradient"
     | "distance_field"
     | "vs_pvv3"
@@ -28,8 +28,8 @@ export const IN_APP_CONQUEST_BENCHMARK_MODES: Array<{
     id: InAppConquestBenchmarkMode;
     label: string;
 }> = [
-    { id: "metaball_grid", label: "Metaball Grid" },
-    { id: "metaball_grid_phase_field", label: "Metaball Grid Phase Field" },
+    { id: "cell_grid", label: "Metaball Grid" },
+    { id: "phase_field", label: "Metaball Grid Phase Field" },
     { id: "grid_gradient", label: "Grid Gradient" },
     { id: "distance_field", label: "Distance Field" },
     { id: "vs_pvv3", label: "VS PVV3" },

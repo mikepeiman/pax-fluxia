@@ -63,10 +63,10 @@
         liveRenderMode === "perimeter_field",
     );
     const showCellGridDiagnostics = $derived(
-        liveRenderMode === "metaball_grid" ||
-            liveRenderMode === "metaball_grid_phase_edges" ||
-            liveRenderMode === "metaball_grid_ember_lattice" ||
-            liveRenderMode === "metaball_grid_phase_field",
+        liveRenderMode === "cell_grid" ||
+            liveRenderMode === "phase_edges" ||
+            liveRenderMode === "ember_lattice" ||
+            liveRenderMode === "phase_field",
     );
     const showGridGradientDiagnostics = $derived(
         liveRenderMode === "grid_gradient",
@@ -78,10 +78,10 @@
     const showUnderlyingGeometrySupported = $derived(
         liveRenderMode === "perimeter_field" ||
             liveRenderMode === "metaball" ||
-            liveRenderMode === "metaball_grid" ||
-            liveRenderMode === "metaball_grid_phase_edges" ||
-            liveRenderMode === "metaball_grid_ember_lattice" ||
-            liveRenderMode === "metaball_grid_phase_field" ||
+            liveRenderMode === "cell_grid" ||
+            liveRenderMode === "phase_edges" ||
+            liveRenderMode === "ember_lattice" ||
+            liveRenderMode === "phase_field" ||
             liveRenderMode === "grid_gradient",
     );
     const bundleList = $derived(
@@ -662,14 +662,14 @@
             <div><span>Flip Pcts</span><span>{formatFlipPercentiles()}</span></div>
             <div><span>Flip Bins</span><span>{formatFlipBins()}</span></div>
         </div>
-        {#if liveRenderMode === "metaball_grid_ember_lattice"}
+        {#if liveRenderMode === "ember_lattice"}
             <div class="readout">
                 {formatEmberLatticeSemanticsNote()}
                 Default visual starting point: <code>pre_to_post_frontier</code>,
                 <code>territory_edge</code>, blended borders on, Chaikin 4, and DX on at 295px with weight 0.30. Propagation shape is now a real tuning choice.
             </div>
         {/if}
-        {#if liveRenderMode === "metaball_grid_phase_field"}
+        {#if liveRenderMode === "phase_field"}
             <div class="readout">
                 {formatPhaseFieldSemanticsNote()}
                 Recommended starter: <code>pre_to_post_frontier</code> propagation, <code>territory_edge</code> borders, <code>Frontier Highlight</code> on, and the new finish-tail controls in <code>Flip</code> for fade timing, cell collapse, and frontier cleanup. DX defaults stay on at 295px with weight 0.30.

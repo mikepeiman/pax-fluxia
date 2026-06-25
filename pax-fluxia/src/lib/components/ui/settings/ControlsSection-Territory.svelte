@@ -3,6 +3,7 @@
   import { GAME_CONFIG } from "$lib/config/game.config";
   import {
     isTerritoryRenderModeUiHidden,
+    normalizeTerritoryRenderModeId,
     resolveTerritoryRenderModeOptions,
   } from "$lib/territory/ui/territoryRenderModeCatalog";
   import {
@@ -540,7 +541,7 @@
     } else if (resolveActiveFillTransitionId() === "pv_frontline") {
       selectFrontierTransition("active_front");
     }
-    if (styleId === "metaball_grid_ember_lattice") {
+    if (styleId === "ember_lattice") {
       primeCellGridPhaseEdgesTunables();
     }
     setActiveRendererModule("all");
@@ -553,11 +554,11 @@
   }
 
   function resolveActiveStyleId(): string {
-    return (
+    return normalizeTerritoryRenderModeId(
       panel.territoryRenderMode ??
-      GAME_CONFIG.TERRITORY_RENDER_MODE ??
-      "territory_runtime"
-    );
+        GAME_CONFIG.TERRITORY_RENDER_MODE ??
+        "territory_runtime",
+    ) as string;
   }
 
   function resolveSelectedGeometryModeId(): string {
@@ -617,10 +618,10 @@
   function isCellGridStyle(): boolean {
     const activeStyle = resolveActiveStyleId();
     return (
-      activeStyle === "metaball_grid" ||
-      activeStyle === "metaball_grid_phase_edges" ||
-      activeStyle === "metaball_grid_ember_lattice" ||
-      activeStyle === "metaball_grid_phase_field"
+      activeStyle === "cell_grid" ||
+      activeStyle === "phase_edges" ||
+      activeStyle === "ember_lattice" ||
+      activeStyle === "phase_field"
     );
   }
 
@@ -629,11 +630,11 @@
   }
 
   function isCellGridPhaseEdgesStyle(): boolean {
-    return resolveActiveStyleId() === "metaball_grid_phase_edges";
+    return resolveActiveStyleId() === "phase_edges";
   }
 
   function isEmberLatticeStyle(): boolean {
-    return resolveActiveStyleId() === "metaball_grid_ember_lattice";
+    return resolveActiveStyleId() === "ember_lattice";
   }
 
   function isEdgeForwardCellGridStyle(): boolean {
@@ -1632,10 +1633,10 @@
       borderHelp="Metaball Grid borders are rendered through the shared territory border surface. Use this for width, saturation, lightness, alpha, or disable borders entirely."
       activeSection={resolveActiveStyleSubsection()}
       styleFamily={isEmberLatticeStyle()
-        ? "metaball_grid_ember_lattice"
+        ? "ember_lattice"
         : isCellGridPhaseEdgesStyle()
-          ? "metaball_grid_phase_edges"
-          : "metaball_grid"} />
+          ? "phase_edges"
+          : "cell_grid"} />
   </div>
 {/if}
 
@@ -1838,11 +1839,11 @@
           activeSection={resolvedStyleSubsection()}
           showFinishSection={resolveActiveStyleId() === "perimeter_field"}
           styleFamily={isEmberLatticeStyle()
-            ? "metaball_grid_ember_lattice"
+            ? "ember_lattice"
             : isCellGridPhaseEdgesStyle()
-              ? "metaball_grid_phase_edges"
+              ? "phase_edges"
               : isCellGridStyle()
-                ? "metaball_grid"
+                ? "cell_grid"
                 : "perimeter_field"}
           fillHelp={isCellGridStyle()
             ? isEmberLatticeStyle()

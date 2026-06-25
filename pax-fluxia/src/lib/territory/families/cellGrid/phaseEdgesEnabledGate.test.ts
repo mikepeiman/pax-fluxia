@@ -4,7 +4,7 @@
  * Root cause (probe: geomRegions>0 but planPresent=false): the dedicated
  * CellGridPhaseEdgesFamily early-returned blank (cachedPlan never built) when the
  * legacy `CELL_GRID_ENABLED` master gate was off, because the gate default only
- * enabled the old shared 'metaball_grid' mode — never the dedicated phase modes
+ * enabled the old shared 'cell_grid' mode — never the dedicated phase modes
  * (regression from f4bc81a93). Prior family tests masked this by forcing
  * CELL_GRID_ENABLED:true in their config.
  *

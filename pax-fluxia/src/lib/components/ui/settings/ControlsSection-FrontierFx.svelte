@@ -79,8 +79,8 @@
     function supportsFrontierFx(): boolean {
         const mode = currentRenderMode();
         return (
-            mode === "metaball_grid_phase_edges" ||
-            mode === "metaball_grid_ember_lattice"
+            mode === "phase_edges" ||
+            mode === "ember_lattice"
         );
     }
 

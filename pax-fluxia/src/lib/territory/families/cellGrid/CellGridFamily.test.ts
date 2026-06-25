@@ -527,7 +527,7 @@ describe('CellGridFamily active frontier fast path', () => {
         family.update(makePhaseEdgesInput(family, 0.35));
 
         const stats = get(cellGridStats);
-        expect(stats.familyId).toBe('metaball_grid_ember_lattice');
+        expect(stats.familyId).toBe('ember_lattice');
         expect(stats.waveGeometry).toBe('pre_to_post_frontier');
         expect(stats.borderMode).toBe('territory_edge');
         expect(stats.borderBlend).toBe(true);
@@ -560,7 +560,7 @@ describe('CellGridFamily active frontier fast path', () => {
         family.update(makePhaseEdgesInput(family, 0.35));
 
         const stats = get(cellGridStats);
-        expect(stats.familyId).toBe('metaball_grid_phase_edges');
+        expect(stats.familyId).toBe('phase_edges');
         expect(stats.waveGeometry).toBe('pre_to_post_frontier');
         expect(stats.borderMode).toBe('territory_edge');
         expect(stats.borderBlend).toBe(true);
@@ -597,7 +597,7 @@ describe('CellGridFamily active frontier fast path', () => {
             family.update(makePhaseEdgesInput(family, 0.35));
 
             const stats = get(cellGridStats);
-            expect(stats.familyId).toBe('metaball_grid_ember_lattice');
+            expect(stats.familyId).toBe('ember_lattice');
             expect(stats.waveGeometry).toBe('pre_to_post_frontier');
             expect(stats.borderMode).toBe('territory_edge');
             expect(stats.borderBlend).toBe(true);

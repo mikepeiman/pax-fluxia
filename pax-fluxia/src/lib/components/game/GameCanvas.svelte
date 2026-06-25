@@ -104,6 +104,7 @@
     } from "$lib/territory/orchestrator";
     // ── Runtime territory layer (Phase 2: new architecture) ──────────────────
     import { GameCanvasBridge } from "$lib/territory/integration/GameCanvasBridge";
+    import { normalizeTerritoryRenderModeId } from "$lib/territory/ui/territoryRenderModeCatalog";
     import type { TerritoryModeSelection } from "$lib/territory/contracts/TerritoryModeSelection";
     import { readTerritoryRuntimeSettings } from "$lib/territory/integration/TerritorySettingsBridge";
     import {
@@ -2045,13 +2046,13 @@
     function buildRenderFamilyModeConfigSourceUncached(
         mode: string,
     ): Record<string, unknown> | undefined {
-        if (mode === "metaball_grid_phase_edges") {
+        if (mode === "phase_edges") {
             return buildEdgeForwardRenderFamilyConfigSource();
         }
-        if (mode === "metaball_grid_ember_lattice") {
+        if (mode === "ember_lattice") {
             return buildEmberLatticeRenderFamilyConfigSource();
         }
-        if (mode === "metaball_grid_phase_field") {
+        if (mode === "phase_field") {
             return buildPhaseFieldRenderFamilyConfigSource();
         }
         if (mode === "grid_gradient") {
@@ -2094,10 +2095,10 @@
         return (
             mode === "perimeter_field" ||
             mode === "metaball" ||
-            mode === "metaball_grid" ||
-            mode === "metaball_grid_phase_edges" ||
-            mode === "metaball_grid_ember_lattice" ||
-            mode === "metaball_grid_phase_field" ||
+            mode === "cell_grid" ||
+            mode === "phase_edges" ||
+            mode === "ember_lattice" ||
+            mode === "phase_field" ||
             mode === "grid_gradient"
         );
     }
@@ -2734,6 +2735,14 @@
     }
 
     function resolveActiveTerritoryMode(): string {
+        // Migrate any persisted legacy render-mode id (e.g. metaball_grid_phase_edges)
+        // to its canonical name in place, so all downstream reads see the new id.
+        const normalizedMode = normalizeTerritoryRenderModeId(
+            GAME_CONFIG.TERRITORY_RENDER_MODE,
+        );
+        if (normalizedMode !== GAME_CONFIG.TERRITORY_RENDER_MODE) {
+            GAME_CONFIG.TERRITORY_RENDER_MODE = normalizedMode as typeof GAME_CONFIG.TERRITORY_RENDER_MODE;
+        }
         let activeMode = GAME_CONFIG.TERRITORY_RENDER_MODE;
         if (!activeMode) {
             if (GAME_CONFIG.TERRITORY_PVV3) activeMode = "vs_pvv3";
@@ -3096,10 +3105,10 @@
         mode: string,
     ): Record<string, unknown> | null {
         if (
-            mode === "metaball_grid" ||
-            mode === "metaball_grid_phase_edges" ||
-            mode === "metaball_grid_ember_lattice" ||
-            mode === "metaball_grid_phase_field" ||
+            mode === "cell_grid" ||
+            mode === "phase_edges" ||
+            mode === "ember_lattice" ||
+            mode === "phase_field" ||
             mode === "grid_gradient"
         ) {
             const family = getRenderFamily(mode);
@@ -4149,7 +4158,7 @@
             // TERRITORY_COORD_AND_WORLD_BORDER_UNIFICATION_2026-05-08.
             const resizeActiveMode = resolveActiveTerritoryMode();
             const containerAtMapOrigin =
-                resizeActiveMode === "metaball_grid_phase_field" ||
+                resizeActiveMode === "phase_field" ||
                 resizeActiveMode === "grid_gradient";
             const nextContainerX = containerAtMapOrigin ? 0 : territoryWorldMinX;
             const nextContainerY = containerAtMapOrigin ? 0 : territoryWorldMinY;
@@ -5482,10 +5491,10 @@
                 const activeMode = activeTerritoryMode;
                 const activeModeNeedsGeometry =
                     activeMode === "metaball" ||
-                    activeMode === "metaball_grid" ||
-                    activeMode === "metaball_grid_phase_edges" ||
-                    activeMode === "metaball_grid_ember_lattice" ||
-                    activeMode === "metaball_grid_phase_field" ||
+                    activeMode === "cell_grid" ||
+                    activeMode === "phase_edges" ||
+                    activeMode === "ember_lattice" ||
+                    activeMode === "phase_field" ||
                     activeMode === "grid_gradient" ||
                     activeMode === "perimeter_field";
                 let geometryReady: boolean | null = activeModeNeedsGeometry
@@ -5580,9 +5589,9 @@
                     );
                 }
                 const cellGridFamily =
-                    getRenderFamily("metaball_grid");
+                    getRenderFamily("cell_grid");
                 if (
-                    activeMode !== "metaball_grid" &&
+                    activeMode !== "cell_grid" &&
                     cellGridFamily instanceof CellGridFamily &&
                     cellGridFamily.displayRoot.parent ===
                         activeVoronoiContainer
@@ -5592,9 +5601,9 @@
                     );
                 }
                 const cellGridPhaseEdgesFamily =
-                    getRenderFamily("metaball_grid_phase_edges");
+                    getRenderFamily("phase_edges");
                 if (
-                    activeMode !== "metaball_grid_phase_edges" &&
+                    activeMode !== "phase_edges" &&
                     cellGridPhaseEdgesFamily instanceof
                         CellGridPhaseEdgesFamily &&
                     cellGridPhaseEdgesFamily.displayRoot.parent ===
@@ -5605,10 +5614,10 @@
                     );
                 }
                 const emberLatticeFamily = getRenderFamily(
-                    "metaball_grid_ember_lattice",
+                    "ember_lattice",
                 );
                 if (
-                    activeMode !== "metaball_grid_ember_lattice" &&
+                    activeMode !== "ember_lattice" &&
                     emberLatticeFamily instanceof CellGridPhaseEdgesFamily &&
                     emberLatticeFamily.displayRoot.parent === activeVoronoiContainer
                 ) {
@@ -5617,9 +5626,9 @@
                     );
                 }
                 const cellGridPhaseFieldFamily =
-                    getRenderFamily("metaball_grid_phase_field");
+                    getRenderFamily("phase_field");
                 if (
-                    activeMode !== "metaball_grid_phase_field" &&
+                    activeMode !== "phase_field" &&
                     cellGridPhaseFieldFamily instanceof
                         CellGridPhaseFieldFamily &&
                     cellGridPhaseFieldFamily.displayRoot.parent ===
@@ -5849,18 +5858,18 @@
                         }
                         break;
                     }
-                    case "metaball_grid": {
-                        let fam = getRenderFamily("metaball_grid");
+                    case "cell_grid": {
+                        let fam = getRenderFamily("cell_grid");
                         if (!fam) {
                             registerRenderFamily(
                                 createCellGridFamily(colorUtils),
                             );
-                            fam = getRenderFamily("metaball_grid")!;
+                            fam = getRenderFamily("cell_grid")!;
                         }
                         const mg = fam as CellGridFamily;
                         const activeTransition = activeRenderFamilyTransition;
                         const ownership = measurePerf(
-                            "game.renderFrame.ownership.metaball_grid",
+                            "game.renderFrame.ownership.cell_grid",
                             () =>
                                 buildRenderFamilyOwnershipSnapshot(
                                     territoryPresentationStars,
@@ -5878,7 +5887,7 @@
                                   })
                                 : null;
                         const mgInput = measurePerf(
-                            "game.renderFrame.renderFamilyInput.metaball_grid",
+                            "game.renderFrame.renderFamilyInput.cell_grid",
                             () =>
                                 buildRenderFamilyInput({
                                     stars: territoryPresentationStars,
@@ -5931,18 +5940,18 @@
                         }
                         break;
                     }
-                    case "metaball_grid_phase_edges": {
-                        let fam = getRenderFamily("metaball_grid_phase_edges");
+                    case "phase_edges": {
+                        let fam = getRenderFamily("phase_edges");
                         if (!fam) {
                             registerRenderFamily(
                                 createCellGridPhaseEdgesFamily(colorUtils),
                             );
-                            fam = getRenderFamily("metaball_grid_phase_edges")!;
+                            fam = getRenderFamily("phase_edges")!;
                         }
                         const mg = fam as CellGridPhaseEdgesFamily;
                         const activeTransition = activeRenderFamilyTransition;
                         const ownership = measurePerf(
-                            "game.renderFrame.ownership.metaball_grid_phase_edges",
+                            "game.renderFrame.ownership.phase_edges",
                             () =>
                                 buildRenderFamilyOwnershipSnapshot(
                                     territoryPresentationStars,
@@ -5960,7 +5969,7 @@
                                   })
                                 : null;
                         const mgInput = measurePerf(
-                            "game.renderFrame.renderFamilyInput.metaball_grid_phase_edges",
+                            "game.renderFrame.renderFamilyInput.phase_edges",
                             () =>
                                 buildRenderFamilyInput({
                                     stars: territoryPresentationStars,
@@ -6014,20 +6023,20 @@
                         }
                         break;
                     }
-                    case "metaball_grid_ember_lattice": {
-                        let fam = getRenderFamily("metaball_grid_ember_lattice");
+                    case "ember_lattice": {
+                        let fam = getRenderFamily("ember_lattice");
                         if (!fam) {
                             registerRenderFamily(
                                 createCellGridEmberLatticeFamily(
                                     colorUtils,
                                 ),
                             );
-                            fam = getRenderFamily("metaball_grid_ember_lattice")!;
+                            fam = getRenderFamily("ember_lattice")!;
                         }
                         const mg = fam as CellGridPhaseEdgesFamily;
                         const activeTransition = activeRenderFamilyTransition;
                         const ownership = measurePerf(
-                            "game.renderFrame.ownership.metaball_grid_ember_lattice",
+                            "game.renderFrame.ownership.ember_lattice",
                             () =>
                                 buildRenderFamilyOwnershipSnapshot(
                                     territoryPresentationStars,
@@ -6045,7 +6054,7 @@
                                   })
                                 : null;
                         const mgInput = measurePerf(
-                            "game.renderFrame.renderFamilyInput.metaball_grid_ember_lattice",
+                            "game.renderFrame.renderFamilyInput.ember_lattice",
                             () =>
                                 buildRenderFamilyInput({
                                     stars: territoryPresentationStars,
@@ -6099,20 +6108,20 @@
                         }
                         break;
                     }
-                    case "metaball_grid_phase_field": {
+                    case "phase_field": {
                         activeVoronoiContainer.x = 0;
                         activeVoronoiContainer.y = 0;
-                        let fam = getRenderFamily("metaball_grid_phase_field");
+                        let fam = getRenderFamily("phase_field");
                         if (!fam) {
                             registerRenderFamily(
                                 createCellGridPhaseFieldFamily(colorUtils),
                             );
-                            fam = getRenderFamily("metaball_grid_phase_field")!;
+                            fam = getRenderFamily("phase_field")!;
                         }
                         const mg = fam as CellGridPhaseFieldFamily;
                         const activeTransition = activeRenderFamilyTransition;
                         const ownership = measurePerf(
-                            "game.renderFrame.ownership.metaball_grid_phase_field",
+                            "game.renderFrame.ownership.phase_field",
                             () =>
                                 buildRenderFamilyOwnershipSnapshot(
                                     stars,
@@ -6128,7 +6137,7 @@
                                 lanes,
                             });
                         const mgInput = measurePerf(
-                            "game.renderFrame.renderFamilyInput.metaball_grid_phase_field",
+                            "game.renderFrame.renderFamilyInput.phase_field",
                             () =>
                                 buildRenderFamilyInput({
                                     stars,
@@ -7235,11 +7244,11 @@
             ownerStarCounts[ownerId] = (ownerStarCounts[ownerId] ?? 0) + 1;
         }
         const benchmarkCellGridMode =
-            GAME_CONFIG.TERRITORY_RENDER_MODE === "metaball_grid_phase_edges" ||
-            GAME_CONFIG.TERRITORY_RENDER_MODE === "metaball_grid_ember_lattice" ||
-            GAME_CONFIG.TERRITORY_RENDER_MODE === "metaball_grid_phase_field"
+            GAME_CONFIG.TERRITORY_RENDER_MODE === "phase_edges" ||
+            GAME_CONFIG.TERRITORY_RENDER_MODE === "ember_lattice" ||
+            GAME_CONFIG.TERRITORY_RENDER_MODE === "phase_field"
                 ? GAME_CONFIG.TERRITORY_RENDER_MODE
-                : "metaball_grid";
+                : "cell_grid";
         const cellGridFamily = getRenderFamily(benchmarkCellGridMode);
         const cellGridDebug =
             cellGridFamily instanceof CellGridFamily ||

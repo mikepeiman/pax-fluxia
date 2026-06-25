@@ -76,29 +76,29 @@ export const TERRITORY_RENDER_MODE_CATALOG: readonly TerritoryRenderModeDefiniti
     },
     { id: 'metaball', label: 'Metaball', shortDescription: 'CPU influence field', legacyDispatch: true },
     {
-        id: 'metaball_grid',
-        label: 'Metaball grid',
+        id: 'cell_grid',
+        label: 'Cell Grid',
         shortDescription:
-            'Ownership geometry underlayer + world-anchored grid of metaball cells; conquest waves flip cells cell-by-cell',
+            'Ownership geometry underlayer + world-anchored grid of ownership cells; conquest waves flip cells cell-by-cell',
         legacyDispatch: true,
     },
     {
-        id: 'metaball_grid_phase_edges',
+        id: 'phase_edges',
         label: 'Phase Edges',
         shortDescription:
             'Edge-forward square-lattice conquest mode with blended owner boundaries and shared grid-driven wave controls',
         legacyDispatch: true,
     },
     {
-        id: 'metaball_grid_ember_lattice',
+        id: 'ember_lattice',
         label: 'Ember Lattice',
         shortDescription:
             'Dense square-lattice territory renderer with contour-derived blended frontiers and inward heat grading',
         legacyDispatch: true,
     },
     {
-        id: 'metaball_grid_phase_field',
-        label: 'Metaball grid phase field',
+        id: 'phase_field',
+        label: 'Phase Field',
         shortDescription:
             'Fill-first conquest mode with conquest-local PRE/POST compositing, frontier emphasis, and finish-tail controls',
         legacyDispatch: true,
@@ -118,6 +118,27 @@ export const TERRITORY_RENDER_MODE_CATALOG: readonly TerritoryRenderModeDefiniti
 export interface ResolvedTerritoryRenderModeOption extends TerritoryRenderModeDefinition {
     selectable: boolean;
     disabledReason?: string;
+}
+
+/**
+ * Migration aliases for the 2026-06-24 semantic rename: the cell-grid family
+ * dropped its (misnomer) `metaball_grid` prefix. Persisted render-mode ids
+ * (saved panel state, imported themes) are mapped old → new on read so saved
+ * setups keep resolving. Safe to keep indefinitely.
+ */
+const TERRITORY_RENDER_MODE_ALIASES: Readonly<Record<string, string>> = {
+    metaball_grid_phase_field: 'phase_field',
+    metaball_grid_phase_edges: 'phase_edges',
+    metaball_grid_ember_lattice: 'ember_lattice',
+    metaball_grid: 'cell_grid',
+};
+
+/** Resolve a possibly-legacy render-mode id to its current canonical id. */
+export function normalizeTerritoryRenderModeId<T extends string | null | undefined>(
+    modeId: T,
+): T | string {
+    if (!modeId) return modeId;
+    return TERRITORY_RENDER_MODE_ALIASES[modeId] ?? modeId;
 }
 
 /** True if this mode id is omitted from the settings Render mode row (may still run from config). */

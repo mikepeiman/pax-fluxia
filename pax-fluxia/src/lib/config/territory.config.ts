@@ -51,7 +51,7 @@ export const territoryConfigDefaults = {
     TERRITORY_PIXEL: false,
     TERRITORY_CLUSTER_SPLIT: false,
     TERRITORY_MODE: 'metaball' as const,
-    TERRITORY_RENDER_MODE: 'metaball_grid_ember_lattice',
+    TERRITORY_RENDER_MODE: 'ember_lattice',
     USE_RENDER_FAMILIES: false,
     TERRITORY_ARCHITECTURE_PATH: 'clean' as const,
     SHOW_VORONOI: false,

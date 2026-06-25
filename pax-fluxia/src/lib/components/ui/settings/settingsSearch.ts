@@ -176,7 +176,7 @@ function resolveSectionTarget(
                 return { sectionId: "render" };
             }
             if (
-                activeTerritoryRenderMode === "metaball_grid_ember_lattice" &&
+                activeTerritoryRenderMode === "ember_lattice" &&
                 (record.key.startsWith("CELL_GRID_") ||
                     record.key.startsWith("METABALL_") ||
                     record.key.startsWith("VORONOI_"))
@@ -184,7 +184,7 @@ function resolveSectionTarget(
                 return { sectionId: "territory_ember_lattice" };
             }
             if (
-                activeTerritoryRenderMode === "metaball_grid_phase_edges" &&
+                activeTerritoryRenderMode === "phase_edges" &&
                 (record.key.startsWith("CELL_GRID_") ||
                     record.key.startsWith("METABALL_") ||
                     record.key.startsWith("VORONOI_"))
@@ -192,7 +192,7 @@ function resolveSectionTarget(
                 return { sectionId: "territory_phase_edges" };
             }
             if (
-                activeTerritoryRenderMode === "metaball_grid_phase_field" &&
+                activeTerritoryRenderMode === "phase_field" &&
                 (record.key.startsWith("CELL_GRID_") ||
                     record.key.startsWith("METABALL_"))
             ) {
@@ -288,34 +288,34 @@ function buildSectionEntries(
     return SETTINGS_SECTIONS.flatMap((section) => {
         if (
             section.id === "territory_phase_field" &&
-            activeTerritoryRenderMode !== "metaball_grid_phase_field"
+            activeTerritoryRenderMode !== "phase_field"
         ) {
             return [];
         }
         if (
             section.id === "territory_phase_edges" &&
-            activeTerritoryRenderMode !== "metaball_grid_phase_edges"
+            activeTerritoryRenderMode !== "phase_edges"
         ) {
             return [];
         }
         if (
             section.id === "territory_ember_lattice" &&
-            activeTerritoryRenderMode !== "metaball_grid_ember_lattice"
+            activeTerritoryRenderMode !== "ember_lattice"
         ) {
             return [];
         }
         if (
             section.id === "territory_styles" &&
-            (activeTerritoryRenderMode === "metaball_grid_phase_field" ||
-                activeTerritoryRenderMode === "metaball_grid_phase_edges" ||
-                activeTerritoryRenderMode === "metaball_grid_ember_lattice")
+            (activeTerritoryRenderMode === "phase_field" ||
+                activeTerritoryRenderMode === "phase_edges" ||
+                activeTerritoryRenderMode === "ember_lattice")
         ) {
             return [];
         }
         if (
             section.id === "frontier_fx" &&
-            activeTerritoryRenderMode !== "metaball_grid_ember_lattice" &&
-            activeTerritoryRenderMode !== "metaball_grid"
+            activeTerritoryRenderMode !== "ember_lattice" &&
+            activeTerritoryRenderMode !== "cell_grid"
         ) {
             return [];
         }

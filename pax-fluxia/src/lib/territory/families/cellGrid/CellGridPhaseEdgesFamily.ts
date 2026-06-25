@@ -980,7 +980,7 @@ export class CellGridPhaseEdgesFamily implements RenderFamily {
     constructor(
         colorUtils: ColorUtils,
         mode: { id: string; label: string } = {
-            id: 'metaball_grid_phase_edges',
+            id: 'phase_edges',
             label: 'Phase Edges',
         },
     ) {
@@ -2808,10 +2808,10 @@ export class CellGridPhaseEdgesFamily implements RenderFamily {
             input,
             'CELL_GRID_ENABLED',
             GAME_CONFIG.CELL_GRID_ENABLED ??
-                (GAME_CONFIG.TERRITORY_RENDER_MODE === 'metaball_grid'),
+                (GAME_CONFIG.TERRITORY_RENDER_MODE === 'cell_grid'),
         );
         // The legacy CELL_GRID_ENABLED master gate belongs to the old shared
-        // 'metaball_grid' mode. This is a DEDICATED family (Phase Edges / Ember),
+        // 'cell_grid' mode. This is a DEDICATED family (Phase Edges / Ember),
         // dispatched ONLY when its own mode is the active render mode — so the user
         // selecting it MUST render regardless of that legacy toggle. Regression from
         // f4bc81a93: the gate default never accounted for the dedicated phase modes,
@@ -4928,7 +4928,7 @@ export function createCellGridPhaseEdgesFamily(
     colorUtils: ColorUtils,
 ): CellGridPhaseEdgesFamily {
     return new CellGridPhaseEdgesFamily(colorUtils, {
-        id: 'metaball_grid_phase_edges',
+        id: 'phase_edges',
         label: 'Phase Edges',
     });
 }
@@ -4937,7 +4937,7 @@ export function createCellGridEmberLatticeFamily(
     colorUtils: ColorUtils,
 ): CellGridPhaseEdgesFamily {
     return new CellGridPhaseEdgesFamily(colorUtils, {
-        id: 'metaball_grid_ember_lattice',
+        id: 'ember_lattice',
         label: 'Ember Lattice',
     });
 }

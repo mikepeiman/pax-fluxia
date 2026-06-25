@@ -261,7 +261,7 @@ interface CellGridFamilyVariant {
 }
 
 const DEFAULT_CELL_GRID_VARIANT: CellGridFamilyVariant = {
-    id: 'metaball_grid',
+    id: 'cell_grid',
     label: 'Metaball Grid',
     defaultWaveGeometry: 'grid_bfs',
     defaultBorderMode: 'off',
@@ -273,7 +273,7 @@ const DEFAULT_CELL_GRID_VARIANT: CellGridFamilyVariant = {
 };
 
 const PHASE_EDGE_CELL_GRID_VARIANT: CellGridFamilyVariant = {
-    id: 'metaball_grid_phase_edges',
+    id: 'phase_edges',
     label: 'Phase Edges',
     defaultWaveGeometry:
         cellGridPhaseEdgesModeDefaults.CELL_GRID_WAVE_GEOMETRY,

@@ -15,9 +15,9 @@
     type StyleSectionId = "fill" | "border" | "finish";
     type TerritoryStyleFamily =
         | "shared"
-        | "metaball_grid"
-        | "metaball_grid_phase_edges"
-        | "metaball_grid_ember_lattice"
+        | "cell_grid"
+        | "phase_edges"
+        | "ember_lattice"
         | "perimeter_field";
 
     interface Props {
@@ -108,18 +108,18 @@
 
     function isCellGridFamily(): boolean {
         return (
-            styleFamily === "metaball_grid" ||
-            styleFamily === "metaball_grid_phase_edges" ||
-            styleFamily === "metaball_grid_ember_lattice"
+            styleFamily === "cell_grid" ||
+            styleFamily === "phase_edges" ||
+            styleFamily === "ember_lattice"
         );
     }
 
     function isPhaseEdgesFamily(): boolean {
-        return styleFamily === "metaball_grid_phase_edges";
+        return styleFamily === "phase_edges";
     }
 
     function isEmberLatticeFamily(): boolean {
-        return styleFamily === "metaball_grid_ember_lattice";
+        return styleFamily === "ember_lattice";
     }
 
     function usesEdgeForwardDefaults(): boolean {

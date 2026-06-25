@@ -11,7 +11,7 @@
     } from "$lib/perf/inAppConquestBench";
     import { PaxHudButton, PaxHudSelect } from "$lib/design-system";
 
-    let selectedMode = $state<InAppConquestBenchmarkMode>("metaball_grid");
+    let selectedMode = $state<InAppConquestBenchmarkMode>("cell_grid");
     let runningScenario = $state<"conquest_animation" | "conquest_diagnostic" | null>(
         null,
     );

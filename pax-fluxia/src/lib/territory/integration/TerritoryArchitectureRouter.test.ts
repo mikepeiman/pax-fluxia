@@ -60,7 +60,7 @@ describe('resolveTerritoryArchitectureRoute', () => {
             architecturePath: 'clean',
         });
         const cellGridDecision = resolveTerritoryArchitectureRoute({
-            renderMode: 'metaball_grid',
+            renderMode: 'cell_grid',
             architecturePath: 'legacy',
         });
 

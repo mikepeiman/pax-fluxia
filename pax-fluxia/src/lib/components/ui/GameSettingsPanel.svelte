@@ -847,9 +847,9 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     const TERRITORY_MODE_SECTION_BY_RENDER_MODE: Partial<
         Record<string, SectionId>
     > = {
-        metaball_grid_phase_field: "territory_phase_field",
-        metaball_grid_phase_edges: "territory_phase_edges",
-        metaball_grid_ember_lattice: "territory_ember_lattice",
+        phase_field: "territory_phase_field",
+        phase_edges: "territory_phase_edges",
+        ember_lattice: "territory_ember_lattice",
     };
 
     const TERRITORY_MODE_SECTION_IDS = new Set<SectionId>([
@@ -873,8 +873,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         }
         if (section.id === "frontier_fx") {
             return (
-                activeTerritoryRenderMode === "metaball_grid_phase_edges" ||
-                activeTerritoryRenderMode === "metaball_grid_ember_lattice"
+                activeTerritoryRenderMode === "phase_edges" ||
+                activeTerritoryRenderMode === "ember_lattice"
             );
         }
         return true;
@@ -1004,8 +1004,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         const subsections = [...((section.subsections ?? []) as SubsectionChip[])];
         if (section.id !== "territory_styles") return subsections;
         if (
-            activeTerritoryRenderMode === "metaball_grid" ||
-            activeTerritoryRenderMode === "metaball_grid_phase_edges"
+            activeTerritoryRenderMode === "cell_grid" ||
+            activeTerritoryRenderMode === "phase_edges"
         ) {
             return subsections.filter((subsection) => subsection.id !== "finish");
         }

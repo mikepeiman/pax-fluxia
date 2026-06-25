@@ -651,7 +651,7 @@ function buildTransitionCellMetrics(params: {
 }
 
 export class CellGridPhaseFieldFamily implements RenderFamily {
-    readonly id = 'metaball_grid_phase_field';
+    readonly id = 'phase_field';
     readonly label = 'Metaball Grid Phase Field';
     readonly tunableKeys: readonly string[] = CELL_GRID_PHASE_FIELD_TUNABLE_KEYS;
 

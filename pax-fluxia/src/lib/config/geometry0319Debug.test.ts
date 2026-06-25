@@ -8,7 +8,7 @@ describe('geometry0319Debug', () => {
     it('captures the runtime geometry tuple from config-like input', () => {
         expect(
             snapshotGeometry0319DebugConfig({
-                TERRITORY_RENDER_MODE: 'metaball_grid',
+                TERRITORY_RENDER_MODE: 'cell_grid',
                 PERIMETER_FIELD_GEOMETRY_SOURCE: 'power_voronoi_0319',
                 FRONTIER_RESOLUTION: 5,
                 MODIFIED_VORONOI_STAR_MARGIN: 65,
@@ -30,7 +30,7 @@ describe('geometry0319Debug', () => {
                 CHAIKIN_BOUNDARY_EPS: 6,
             }),
         ).toEqual({
-            territoryRenderMode: 'metaball_grid',
+            territoryRenderMode: 'cell_grid',
             geometrySource: 'power_voronoi_0319',
             frontierResolution: 5,
             starMargin: 65,

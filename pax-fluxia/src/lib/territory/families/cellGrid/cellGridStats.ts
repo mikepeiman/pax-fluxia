@@ -16,7 +16,7 @@ export interface CellGridFlipTimeBins {
 }
 
 export interface CellGridStats {
-    /** Active family variant id (`metaball_grid`, `metaball_grid_phase_edges`, or `metaball_grid_ember_lattice`). */
+    /** Active family variant id (`cell_grid`, `phase_edges`, or `ember_lattice`). */
     readonly familyId: string;
     /** Human label for the active family variant. */
     readonly familyLabel: string;
@@ -213,7 +213,7 @@ const EMPTY_FLIP_TIME_BINS: CellGridFlipTimeBins = {
 };
 
 const INITIAL: CellGridStats = {
-    familyId: 'metaball_grid',
+    familyId: 'cell_grid',
     familyLabel: 'Metaball Grid',
     geometrySource: null,
     waveGeometry: 'grid_bfs',

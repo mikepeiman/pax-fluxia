@@ -145,15 +145,15 @@
     }
 
     function isPhaseEdgesMode(): boolean {
-        return currentRenderMode() === 'metaball_grid_phase_edges';
+        return currentRenderMode() === 'phase_edges';
     }
 
     function isEmberLatticeMode(): boolean {
-        return currentRenderMode() === 'metaball_grid_ember_lattice';
+        return currentRenderMode() === 'ember_lattice';
     }
 
     function isPhaseFieldMode(): boolean {
-        return currentRenderMode() === 'metaball_grid_phase_field';
+        return currentRenderMode() === 'phase_field';
     }
 
     function isEdgeForwardMode(): boolean {

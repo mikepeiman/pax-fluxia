@@ -9,6 +9,7 @@
 import { GAME_CONFIG } from '$lib/config/game.config';
 import { gameplayConfigDefaults } from '$lib/config/gameplay.config';
 import { normalizeBgImagePath } from '$lib/config/bgManifest';
+import { normalizeTerritoryRenderModeId } from '$lib/territory/ui/territoryRenderModeCatalog';
 import { RESOLVED_PANEL_CONFIG_MAP, CONFIG_TO_PANEL_KEY, type AnimSliderDef } from './settingsDefs';
 import { dumpSettings } from '$lib/utils/settingsDump';
 
@@ -219,15 +220,26 @@ function migrateLegacyTerritoryModeSplit(
     stored: Record<string, any>,
 ): boolean {
     let changed = false;
+
+    // 2026-06-24 semantic rename: migrate persisted legacy render-mode ids
+    // (metaball_grid_*) to their canonical prefix-less names.
+    if (typeof stored.territoryRenderMode === 'string') {
+        const normalized = normalizeTerritoryRenderModeId(stored.territoryRenderMode);
+        if (normalized !== stored.territoryRenderMode) {
+            stored.territoryRenderMode = normalized;
+            changed = true;
+        }
+    }
+
     const splitPolicyUnversioned =
         stored.territoryModeSplitPolicyVersion !==
         TERRITORY_MODE_SPLIT_POLICY_VERSION;
 
     if (
         splitPolicyUnversioned &&
-        stored.territoryRenderMode === 'metaball_grid_phase_edges'
+        stored.territoryRenderMode === 'phase_edges'
     ) {
-        stored.territoryRenderMode = 'metaball_grid_ember_lattice';
+        stored.territoryRenderMode = 'ember_lattice';
         changed = true;
     }
 

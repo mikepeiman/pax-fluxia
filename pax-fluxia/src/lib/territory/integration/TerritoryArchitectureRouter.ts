@@ -33,10 +33,10 @@ export function resolveTerritoryArchitectureRoute(
         renderMode === 'power_voronoi_runtime';
     const isRenderFamilySurfaceStyle =
         renderMode === 'metaball' ||
-        renderMode === 'metaball_grid' ||
-        renderMode === 'metaball_grid_phase_edges' ||
-        renderMode === 'metaball_grid_ember_lattice' ||
-        renderMode === 'metaball_grid_phase_field' ||
+        renderMode === 'cell_grid' ||
+        renderMode === 'phase_edges' ||
+        renderMode === 'ember_lattice' ||
+        renderMode === 'phase_field' ||
         renderMode === 'perimeter_field' ||
         renderMode === 'grid_gradient';
 
