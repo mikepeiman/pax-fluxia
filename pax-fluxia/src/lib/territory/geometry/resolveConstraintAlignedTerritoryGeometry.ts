@@ -58,6 +58,16 @@ interface DisplayBoundarySegment {
     readonly endKey: string;
 }
 
+interface DisplaySegmentBucket {
+    ownerA: string;
+    ownerB: string | null;
+    hasExtraOwner: boolean;
+    readonly start: [number, number];
+    readonly end: [number, number];
+    readonly startKey: string;
+    readonly endKey: string;
+}
+
 interface EndpointOwners {
     x: number;
     y: number;
@@ -774,6 +784,23 @@ function createDisplayPolyline(params: {
     };
 }
 
+function addDisplaySegmentOwner(
+    bucket: DisplaySegmentBucket,
+    ownerId: string,
+): void {
+    if (ownerId === bucket.ownerA || ownerId === bucket.ownerB) return;
+    if (bucket.ownerB === null) {
+        if (ownerId < bucket.ownerA) {
+            bucket.ownerB = bucket.ownerA;
+            bucket.ownerA = ownerId;
+        } else {
+            bucket.ownerB = ownerId;
+        }
+        return;
+    }
+    bucket.hasExtraOwner = true;
+}
+
 function buildDisplayGeometryFromResolvedRegions(
     territoryRegions: ReadonlyArray<TerritoryRegionShape>,
     appliedMarginPx: number,
@@ -784,16 +811,7 @@ function buildDisplayGeometryFromResolvedRegions(
     const segmentOccurrences = measurePerf(
         'territory.constraintAlign.display.collectSegments',
         () => {
-            const collected = new Map<
-                string,
-                {
-                    ownerId: string;
-                    start: [number, number];
-                    end: [number, number];
-                    startKey: string;
-                    endKey: string;
-                }[]
-            >();
+            const collected = new Map<string, DisplaySegmentBucket>();
 
             for (const region of territoryRegions) {
                 const points = normalizeClosedRing(region.points);
@@ -809,17 +827,18 @@ function buildDisplayGeometryFromResolvedRegions(
                             ? `${startKey}|${endKey}`
                             : `${endKey}|${startKey}`;
                     const bucket = collected.get(segmentKey);
-                    const occurrence = {
-                        ownerId: region.ownerId,
-                        start: [start[0], start[1]] as [number, number],
-                        end: [end[0], end[1]] as [number, number],
-                        startKey,
-                        endKey,
-                    };
                     if (bucket) {
-                        bucket.push(occurrence);
+                        addDisplaySegmentOwner(bucket, region.ownerId);
                     } else {
-                        collected.set(segmentKey, [occurrence]);
+                        collected.set(segmentKey, {
+                            ownerA: region.ownerId,
+                            ownerB: null,
+                            hasExtraOwner: false,
+                            start: [start[0], start[1]],
+                            end: [end[0], end[1]],
+                            startKey,
+                            endKey,
+                        });
                     }
                 }
             }
@@ -834,37 +853,31 @@ function buildDisplayGeometryFromResolvedRegions(
             const frontierSegments: DisplayBoundarySegment[] = [];
             const worldSegments: DisplayBoundarySegment[] = [];
 
-            for (const occurrences of segmentOccurrences.values()) {
-                const uniqueOwners = [
-                    ...new Set(occurrences.map((entry) => entry.ownerId)),
-                ].sort();
-                const first = occurrences[0];
-                if (!first) continue;
-                if (uniqueOwners.length === 1) {
-                    const ownerA = uniqueOwners[0]!;
+            for (const segment of segmentOccurrences.values()) {
+                if (segment.ownerB === null) {
+                    const ownerA = segment.ownerA;
                     worldSegments.push({
                         ownerA,
                         ownerB: 'world',
                         ownerPairKey: `${ownerA}|world`,
                         kind: 'world',
-                        start: first.start,
-                        end: first.end,
-                        startKey: first.startKey,
-                        endKey: first.endKey,
+                        start: segment.start,
+                        end: segment.end,
+                        startKey: segment.startKey,
+                        endKey: segment.endKey,
                     });
                     continue;
                 }
-                if (uniqueOwners.length !== 2) continue;
-                const [ownerA, ownerB] = uniqueOwners;
+                if (segment.hasExtraOwner) continue;
                 frontierSegments.push({
-                    ownerA: ownerA!,
-                    ownerB: ownerB!,
-                    ownerPairKey: `${ownerA}|${ownerB}`,
+                    ownerA: segment.ownerA,
+                    ownerB: segment.ownerB,
+                    ownerPairKey: `${segment.ownerA}|${segment.ownerB}`,
                     kind: 'inter_owner',
-                    start: first.start,
-                    end: first.end,
-                    startKey: first.startKey,
-                    endKey: first.endKey,
+                    start: segment.start,
+                    end: segment.end,
+                    startKey: segment.startKey,
+                    endKey: segment.endKey,
                 });
             }
             return { frontierSegments, worldSegments };
