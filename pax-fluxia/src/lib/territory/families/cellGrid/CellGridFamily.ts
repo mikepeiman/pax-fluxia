@@ -1,5 +1,5 @@
 /**
- * metaball-grid — RenderFamily adapter (MG5, MG-PERF v3)
+ * cell-grid — RenderFamily adapter (MG5, MG-PERF v3)
  *
  * Wires the pure functions (classification → wave plan → scene) into the live
  * render loop and paints the per-frame `GridRenderCell[]` as direct PIXI
@@ -19,7 +19,7 @@
  *   same Power-Voronoi 0319 underlayer. This mirrors the approach taken by
  *   `PerimeterFieldFamily`; it is a known-simplification of the upstream-
  *   capture ideal described in the 2026-04-16 revised perimeter_field plan.
- *   For metaball-grid the simplification is defensible because the grid layer
+ *   For cell-grid the simplification is defensible because the grid layer
  *   is a pure function of `(prev, next)` geometry and our generator is
  *   deterministic — but a future MG checkpoint can move truth capture
  *   upstream into `GameCanvas` if parity demands it.
@@ -262,7 +262,7 @@ interface CellGridFamilyVariant {
 
 const DEFAULT_CELL_GRID_VARIANT: CellGridFamilyVariant = {
     id: 'cell_grid',
-    label: 'Metaball Grid',
+    label: 'Cell Grid',
     defaultWaveGeometry: 'grid_bfs',
     defaultBorderMode: 'off',
     defaultBorderBlend: false,
@@ -569,7 +569,7 @@ function strokeSquareBounds(
 }
 
 /**
- * RenderFamily implementation for metaball-grid.
+ * RenderFamily implementation for cell-grid.
  */
 export class CellGridFamily implements RenderFamily {
     readonly id: string;

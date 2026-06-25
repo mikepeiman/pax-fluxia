@@ -1,5 +1,5 @@
 /**
- * metaball-grid — per-frame scene builder (MG4)
+ * cell-grid — per-frame scene builder (MG4)
  *
  * Given a classification, a wave plan, the current `progress ∈ [0, 1]`, and a
  * flip-style/window, emit the set of `GridRenderCell` contributions for the

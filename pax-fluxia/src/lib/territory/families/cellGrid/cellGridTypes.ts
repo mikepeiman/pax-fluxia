@@ -1,5 +1,5 @@
 /**
- * metaball-grid — type contracts (MG1)
+ * cell-grid — type contracts (MG1)
  *
  * Additive render family. Not a replacement for perimeter_field.
  *
@@ -195,7 +195,7 @@ export interface GridWavePlan {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Deterministic truth payload for one metaball-grid transition. Produced by
+ * Deterministic truth payload for one cell-grid transition. Produced by
  * the canvas upstream layer (MG5) and consumed by `CellGridFamily`.
  *
  * Structurally analogous to `PerimeterFieldTransitionTruth` but with a grid

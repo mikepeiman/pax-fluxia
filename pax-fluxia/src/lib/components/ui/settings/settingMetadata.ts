@@ -397,7 +397,7 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Transition Scrub': {
             key: 'PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX',
         },
-        'Metaball Grid Enabled': { key: 'CELL_GRID_ENABLED' },
+        'Cell Grid Enabled': { key: 'CELL_GRID_ENABLED' },
         'Cell Spacing': { key: 'CELL_GRID_SPACING_PX' },
         'Base Resolution': {
             key: 'CELL_GRID_SPACING_PX',

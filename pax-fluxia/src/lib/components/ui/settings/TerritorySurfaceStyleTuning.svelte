@@ -465,7 +465,7 @@
             {#if isCellGridFamily()}
                 <div class="sub-heading territory-style-subheading">Border Paint</div>
                 <div class="var-desc">
-                    These controls own the visible border strategy for Metaball Grid surfaces. They no longer live in the tuning cards.
+                    These controls own the visible border strategy for Cell Grid surfaces. They no longer live in the tuning cards.
                 </div>
                 {#if usesEdgeForwardDefaults()}
                     <div class="var-desc">

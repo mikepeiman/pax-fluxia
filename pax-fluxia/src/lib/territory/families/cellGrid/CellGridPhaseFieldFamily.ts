@@ -652,7 +652,7 @@ function buildTransitionCellMetrics(params: {
 
 export class CellGridPhaseFieldFamily implements RenderFamily {
     readonly id = 'phase_field';
-    readonly label = 'Metaball Grid Phase Field';
+    readonly label = 'Cell Grid Phase Field';
     readonly tunableKeys: readonly string[] = CELL_GRID_PHASE_FIELD_TUNABLE_KEYS;
 
     private readonly root = new PIXI.Container();

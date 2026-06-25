@@ -299,7 +299,7 @@
     }
 
     function formatPhaseFieldSemanticsNote(): string {
-        return "Phase Field runs as its own metaball-grid family variant. It keeps the shared deterministic cell classifier and frontier timing, but replaces metaball presentation with conquest-local PRE/POST territory compositing plus a highlighted frontier pass.";
+        return "Phase Field runs as its own cell-grid family variant. It keeps the shared deterministic cell classifier and frontier timing, but replaces metaball presentation with conquest-local PRE/POST territory compositing plus a highlighted frontier pass.";
     }
 
 </script>

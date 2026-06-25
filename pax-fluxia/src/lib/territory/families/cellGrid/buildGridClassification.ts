@@ -1,5 +1,5 @@
 /**
- * metaball-grid — classification builder (MG2)
+ * cell-grid — classification builder (MG2)
  *
  * Builds a world-anchored grid of vstars and resolves PREV/NEXT ownership for
  * each cell via point-in-polygon against `territoryRegions`. Classifies each
@@ -385,7 +385,7 @@ export function makeEventId(event: ConquestEvent): string {
 
 /**
  * Deterministic 32-bit integer hash of two ints. Mirrors the simple mix used
- * elsewhere in metaball-grid for flip-time jitter; kept here to avoid an
+ * elsewhere in cell-grid for flip-time jitter; kept here to avoid an
  * import cycle. Result is in [0, 2^32).
  */
 function hash2Int(a: number, b: number): number {

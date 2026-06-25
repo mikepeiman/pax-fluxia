@@ -28,8 +28,8 @@ export const IN_APP_CONQUEST_BENCHMARK_MODES: Array<{
     id: InAppConquestBenchmarkMode;
     label: string;
 }> = [
-    { id: "cell_grid", label: "Metaball Grid" },
-    { id: "phase_field", label: "Metaball Grid Phase Field" },
+    { id: "cell_grid", label: "Cell Grid" },
+    { id: "phase_field", label: "Cell Grid Phase Field" },
     { id: "grid_gradient", label: "Grid Gradient" },
     { id: "distance_field", label: "Distance Field" },
     { id: "vs_pvv3", label: "VS PVV3" },

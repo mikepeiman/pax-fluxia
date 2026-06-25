@@ -55,7 +55,7 @@ const TOPBAR_MODE_DEFS: ReadonlyArray<{
     {
         id: 'cell_grid',
         shortLabel: 'Grid',
-        displayLabel: 'Metaball Grid',
+        displayLabel: 'Cell Grid',
         appearance: 'grid',
     },
     {

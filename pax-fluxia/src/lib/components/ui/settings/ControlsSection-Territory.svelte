@@ -116,7 +116,7 @@
     | "none"
     | "metaball"
     | "perimeter-field"
-    | "metaball-grid"
+    | "cell-grid"
     | "grid-gradient"
     | "topology"
     | "surface";
@@ -269,7 +269,7 @@
       return "Phase Edges Surface";
     }
     if (isCellGridStyle()) {
-      return "Metaball Grid Surface";
+      return "Cell Grid Surface";
     }
     return "Perimeter Field Surface";
   }
@@ -282,7 +282,7 @@
       return "Visible fill and border presentation for the simpler Phase Edges mode. It keeps the edge-forward conquest read without Ember Lattice's contour/frontier comparison surface.";
     }
     if (isCellGridStyle()) {
-      return "Visible fill and border presentation for Metaball Grid. Source geometry and topology live in Territory Tuning & Constraints; cell paint and border rendering live here.";
+      return "Visible fill and border presentation for Cell Grid. Source geometry and topology live in Territory Tuning & Constraints; cell paint and border rendering live here.";
     }
     return "Visible fill, border, and finish presentation for Perimeter Field. Source geometry and topology live in Territory Tuning & Constraints.";
   }
@@ -689,7 +689,7 @@
 
     if (isCellGridStyle()) {
       modules.unshift({
-        id: "metaball-grid",
+        id: "cell-grid",
         label: "Grid",
         icon: "quick-access",
       });
@@ -1613,7 +1613,7 @@
   </div>
 {/if}
 
-{#if showStylesView && showRendererModule("metaball-grid") && isCellGridStyle()}
+{#if showStylesView && showRendererModule("cell-grid") && isCellGridStyle()}
   <div class="engine-control-group territory-module-card">
     <div class="territory-card__header">
       <h4 class="axis-card-title">
@@ -1621,7 +1621,7 @@
           ? "Ember Lattice"
           : isCellGridPhaseEdgesStyle()
             ? "Phase Edges"
-          : "Metaball Grid (Experimental)"}
+          : "Cell Grid (Experimental)"}
       </h4>
     </div>
     <CellGridTuning {panel} {updatePanel} />
@@ -1629,8 +1629,8 @@
       {panel}
       onUpdate={debouncedConfigUpdate}
       sectionHeading="Style"
-      fillHelp="Metaball Grid uses the shared territory surface controls for fill color energy. Hue stays player-owned; adjust saturation, lightness, alpha, or disable fill entirely."
-      borderHelp="Metaball Grid borders are rendered through the shared territory border surface. Use this for width, saturation, lightness, alpha, or disable borders entirely."
+      fillHelp="Cell Grid uses the shared territory surface controls for fill color energy. Hue stays player-owned; adjust saturation, lightness, alpha, or disable fill entirely."
+      borderHelp="Cell Grid borders are rendered through the shared territory border surface. Use this for width, saturation, lightness, alpha, or disable borders entirely."
       activeSection={resolveActiveStyleSubsection()}
       styleFamily={isEmberLatticeStyle()
         ? "ember_lattice"
@@ -1663,7 +1663,7 @@
       <div class="axis-note">
         Finish controls are not exposed for this runtime surface mode. Use
         `Fill` or `Border`, or switch to a shared-surface family such as
-        Metaball Grid or Perimeter Field for finish controls.
+        Cell Grid or Perimeter Field for finish controls.
       </div>
     {/if}
 
@@ -1850,14 +1850,14 @@
               ? "Fill visibility, color energy, cell paint, and boundary inset for the Ember Lattice surface."
               : isCellGridPhaseEdgesStyle()
                 ? "Fill visibility, color energy, cell paint, and boundary inset for the Phase Edges surface."
-                : "Fill visibility, color energy, cell paint, and boundary inset for the Metaball Grid surface."
+                : "Fill visibility, color energy, cell paint, and boundary inset for the Cell Grid surface."
             : "Fill visibility, color energy, and perimeter placement for the Perimeter Field surface."}
           borderHelp={isCellGridStyle()
             ? isEmberLatticeStyle()
               ? "Border visibility, width, color energy, geometry family, contour seam, smoothing, and trim for the Ember Lattice surface."
               : isCellGridPhaseEdgesStyle()
                 ? "Border visibility, width, color energy, and paint strategy for the Phase Edges surface."
-                : "Border visibility, width, color energy, and paint strategy for the Metaball Grid surface."
+                : "Border visibility, width, color energy, and paint strategy for the Cell Grid surface."
             : "Border visibility, width, color energy, and finish for the Perimeter Field surface."} />
       </div>
     {/if}

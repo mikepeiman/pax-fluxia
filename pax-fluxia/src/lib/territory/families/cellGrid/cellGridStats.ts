@@ -1,5 +1,5 @@
 /**
- * metaball-grid live stats store (MG-PERF Phase A).
+ * cell-grid live stats store (MG-PERF Phase A).
  *
  * This is a small Svelte side-channel between the render family and the
  * settings UI. The family writes on update; the tuning panel reads the latest
@@ -132,7 +132,7 @@ export interface CellGridStats {
     readonly holdingForPlan: boolean;
     /** True when the visible transition is driven by the family's local clock. */
     readonly visualTransitionActive: boolean;
-    /** Human-meaningful state of the currently visible metaball-grid frame. */
+    /** Human-meaningful state of the currently visible cell-grid frame. */
     readonly visibleFrameState:
         | 'steady'
         | 'holding_pre'
@@ -214,7 +214,7 @@ const EMPTY_FLIP_TIME_BINS: CellGridFlipTimeBins = {
 
 const INITIAL: CellGridStats = {
     familyId: 'cell_grid',
-    familyLabel: 'Metaball Grid',
+    familyLabel: 'Cell Grid',
     geometrySource: null,
     waveGeometry: 'grid_bfs',
     waveSeeding: 'winner_natives',

@@ -408,7 +408,7 @@ interface GameConfigType {
     PERIMETER_FIELD_DEBUG_REPLAY_SLOT: number; // 0 = live, 1..3 = replay one of the last captured conquests
     PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX: number; // Exact captured frame index used for paused scrub/replay
     PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS: number; // 0..1 scrub position used when paused and scrub is enabled
-    CELL_GRID_ENABLED: boolean; // Master gate for the metaball-grid render family
+    CELL_GRID_ENABLED: boolean; // Master gate for the cell-grid render family
     CELL_GRID_SPACING_PX: number; // Requested world-space spacing between grid cell centers
     CELL_GRID_PATTERN_SPACING_PX: number; // Visible fill-pattern spacing for phase-field presentation
     CELL_GRID_ORIGIN_MODE: 'centered' | 'corner'; // Grid anchor mode in world space

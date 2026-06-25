@@ -676,7 +676,7 @@
         value={activeModule}
         options={moduleVisibilityOptions}
         density="compact"
-        ariaLabel="Metaball grid subsection visibility"
+        ariaLabel="Cell grid subsection visibility"
         onValueChange={(value) => setActiveModule(value as CellGridModuleId)}
     />
 </div>
@@ -700,9 +700,9 @@
 {#if showModule('grid')}
 <div class="module-block">
 <PaxSettingsToggleRow
-    label="Metaball Grid Enabled"
+    label="Cell Grid Enabled"
     checked={panel.cellGridEnabled ?? GAME_CONFIG.CELL_GRID_ENABLED ?? false}
-    description="Master enable flag for the metaball-grid mode."
+    description="Master enable flag for the cell-grid mode."
     meta={(panel.cellGridEnabled ?? GAME_CONFIG.CELL_GRID_ENABLED ?? false) ? 'On' : 'Off'}
     settingConfigKey="CELL_GRID_ENABLED"
     onChange={(value) => {
@@ -710,7 +710,7 @@
     }}
 />
 <div class="var-desc">
-    Master switch for the metaball-grid conquest family. Leave on to preview; the render mode selector in "Mode" must also be set to "Metaball grid".
+    Master switch for the cell-grid conquest family. Leave on to preview; the render mode selector in "Mode" must also be set to "Cell grid".
 </div>
 
 <PaxSettingsRangeRow
@@ -1374,7 +1374,7 @@
 {#if showModule('perf')}
 <div class="module-block">
 <div class="var-desc perf-intro">
-    Live planner/readout surface for metaball-grid. Requested spacing is the knob value; effective spacing is what the planner actually used after max-cell coarsening. Painted cells are the cells that survived the current frame’s alpha/scene cull.
+    Live planner/readout surface for cell-grid. Requested spacing is the knob value; effective spacing is what the planner actually used after max-cell coarsening. Painted cells are the cells that survived the current frame’s alpha/scene cull.
 </div>
 
 <div class="perf-grid">

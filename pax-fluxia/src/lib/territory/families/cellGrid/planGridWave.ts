@@ -1,5 +1,5 @@
 /**
- * metaball-grid - wave planner (MG3)
+ * cell-grid - wave planner (MG3)
  *
  * For each conquest event, compute a `flipTime in [0, 1]` for every changed
  * grid vstar attributed to that event. Legacy modes build the field from seed
