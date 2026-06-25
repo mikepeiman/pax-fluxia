@@ -2233,16 +2233,22 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
        a real command ribbon plus drawer instead of a text-heavy empty panel. */
     .controls-panel {
         gap: var(--pax-space-3);
-        height: auto;
-        max-height: 100%;
-        overflow: visible;
+        /* Fill the allocated column with a DEFINITE height so the section body
+           scrolls internally — content-sizing here makes the whole panel shrink
+           to its content (the ~25% "collapse" on toggles). */
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
     }
 
     .settings-shell {
         grid-template-columns: var(--settings-ribbon-width) minmax(0, 1fr);
         gap: var(--pax-gap-sm);
-        flex: 0 1 auto;
-        align-items: start;
+        flex: 1;
+        min-height: 0;
+        /* Stretch the content column to full height; the rail stays compact via
+           its own align-self below. */
+        align-items: stretch;
     }
 
     .icon-toolbar {
@@ -2255,6 +2261,9 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         clip-path: var(--pax-ui-cut-corner-sm);
         box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pax-ui-accent-warm-strong) 5%, transparent);
         overflow-x: hidden;
+        /* Keep the category rail compact (top-aligned) now that the shell
+           stretches its items to full height. */
+        align-self: start;
         max-height: min(52vh, calc(100vh - var(--pax-ui-topbar-height) - 330px));
     }
 
@@ -2349,7 +2358,10 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .settings-content {
         gap: var(--pax-gap-sm);
         padding: 0 2px 0 0;
-        max-height: calc(100vh - var(--pax-ui-topbar-height) - 24px);
+        /* Fill the stretched shell column; the open section-panel (flex:1) then
+           owns a definite height and its body scrolls internally. */
+        min-height: 0;
+        height: 100%;
     }
 
     .section-panel {
