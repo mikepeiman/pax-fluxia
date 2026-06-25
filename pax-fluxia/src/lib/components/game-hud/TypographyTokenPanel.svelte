@@ -3,6 +3,7 @@
   import {
     PaxHudIconButton,
     PaxHudRange,
+    PaxHudSegmentedControl,
     PaxHudSelect,
   } from "$lib/design-system";
   import {
@@ -434,10 +435,11 @@
       <strong>Icon Collection</strong>
       <small>app-wide icon set</small>
     </span>
-    <PaxHudSelect
+    <PaxHudSegmentedControl
       value={iconSetState.current}
       ariaLabel="Icon collection"
       options={iconSetOptions}
+      density="compact"
       onValueChange={(value) => setIconSet(value as IconSet)}
     />
   </div>
