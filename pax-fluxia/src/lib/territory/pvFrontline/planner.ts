@@ -7,6 +7,12 @@ import type {
     FrontierVertex,
 } from '../contracts/FrontierTopologyContracts';
 import {
+    buildSortedOutgoingArcMap,
+    normalizePlanarAngle,
+    pickClockwiseAdjacentArc,
+    type DirectedPlanarArc,
+} from '../compiler/planarWalk';
+import {
     planActiveFrontTransition,
     type ActiveFrontTransitionPlan,
 } from '../layers/transition/ActiveFrontTransition';
@@ -31,6 +37,13 @@ interface ChainPath {
     ownerPairKey: string;
     sectionIds: string[];
     points: Vec2[];
+}
+
+type TraversalDirection = 'forward' | 'reverse';
+
+interface SectionTraversalArc extends DirectedPlanarArc {
+    sectionId: string;
+    direction: TraversalDirection;
 }
 
 const ANCHOR_EPSILON = 2;
@@ -99,9 +112,92 @@ function normalizeChainOrder(
     };
 }
 
+function traversalKey(sectionId: string, direction: TraversalDirection): string {
+    return `${sectionId}:${direction}`;
+}
+
+function traversalDirectionFromVertex(
+    section: FrontierSection,
+    fromVertexId: string,
+): TraversalDirection | null {
+    if (section.startVertexId === fromVertexId) return 'forward';
+    if (section.endVertexId === fromVertexId) return 'reverse';
+    return null;
+}
+
+function endpointTangentAngle(
+    points: readonly Vec2[],
+    direction: TraversalDirection,
+): number {
+    if (points.length < 2) return 0;
+    if (direction === 'forward') {
+        const [fromX, fromY] = points[0]!;
+        for (let index = 1; index < points.length; index += 1) {
+            const [toX, toY] = points[index]!;
+            if (toX !== fromX || toY !== fromY) {
+                return normalizePlanarAngle(Math.atan2(toY - fromY, toX - fromX));
+            }
+        }
+    } else {
+        const [fromX, fromY] = points[points.length - 1]!;
+        for (let index = points.length - 2; index >= 0; index -= 1) {
+            const [toX, toY] = points[index]!;
+            if (toX !== fromX || toY !== fromY) {
+                return normalizePlanarAngle(Math.atan2(toY - fromY, toX - fromX));
+            }
+        }
+    }
+
+    return 0;
+}
+
+function buildSectionTraversalArcIndexes(topo: FrontierTopology): {
+    outgoingArcMap: Map<string, SectionTraversalArc[]>;
+    arcByTraversal: Map<string, SectionTraversalArc>;
+} {
+    const directedArcs: SectionTraversalArc[] = [];
+    const arcByTraversal = new Map<string, SectionTraversalArc>();
+    const sortedSections = [...topo.sections.entries()].sort(([a], [b]) =>
+        a.localeCompare(b),
+    );
+
+    for (let index = 0; index < sortedSections.length; index += 1) {
+        const [sectionId, section] = sortedSections[index]!;
+        if (section.points.length < 2) continue;
+
+        const forwardArc: SectionTraversalArc = {
+            physicalIdx: index,
+            sectionId,
+            fromKey: section.startVertexId,
+            toKey: section.endVertexId,
+            angle: endpointTangentAngle(section.points as Vec2[], 'forward'),
+            direction: 'forward',
+        };
+        const reverseArc: SectionTraversalArc = {
+            physicalIdx: index,
+            sectionId,
+            fromKey: section.endVertexId,
+            toKey: section.startVertexId,
+            angle: endpointTangentAngle(section.points as Vec2[], 'reverse'),
+            direction: 'reverse',
+        };
+
+        directedArcs.push(forwardArc, reverseArc);
+        arcByTraversal.set(traversalKey(sectionId, 'forward'), forwardArc);
+        arcByTraversal.set(traversalKey(sectionId, 'reverse'), reverseArc);
+    }
+
+    return {
+        outgoingArcMap: buildSortedOutgoingArcMap(directedArcs),
+        arcByTraversal,
+    };
+}
+
 function buildChainsBetweenAnchors(topo: FrontierTopology, anchors: Set<string>): ChainPath[] {
     const unusedSections = new Set<string>([...topo.sections.keys()]);
     const chains: ChainPath[] = [];
+    const { outgoingArcMap, arcByTraversal } =
+        buildSectionTraversalArcIndexes(topo);
 
     for (const anchorId of [...anchors].sort()) {
         const incident = [...(topo.sectionsByVertex.get(anchorId) ?? [])].sort();
@@ -111,6 +207,7 @@ function buildChainsBetweenAnchors(topo: FrontierTopology, anchors: Set<string>)
             const chainSectionIds: string[] = [];
             let currentVertex = anchorId;
             let previousSectionId: string | null = null;
+            let currentArc: SectionTraversalArc | null = null;
 
             while (true) {
                 const candidates = (topo.sectionsByVertex.get(currentVertex) ?? [])
@@ -118,14 +215,28 @@ function buildChainsBetweenAnchors(topo: FrontierTopology, anchors: Set<string>)
                     .sort();
                 if (candidates.length === 0) break;
 
-                const nextSectionId = candidates[0];
+                const candidateSet = new Set<string>(candidates);
+                const nextArc: SectionTraversalArc | null = currentArc
+                    ? pickClockwiseAdjacentArc({
+                          adjacency: outgoingArcMap,
+                          current: currentArc,
+                          isAvailable: (arc) => candidateSet.has(arc.sectionId),
+                      })
+                    : null;
+                const nextSectionId: string = nextArc?.sectionId ?? candidates[0]!;
                 const section = topo.sections.get(nextSectionId);
                 if (!section) break;
+                const direction = traversalDirectionFromVertex(section, currentVertex);
+                if (!direction) break;
 
                 unusedSections.delete(nextSectionId);
                 chainSectionIds.push(nextSectionId);
                 previousSectionId = nextSectionId;
                 currentVertex = otherVertex(section, currentVertex);
+                currentArc =
+                    nextArc ??
+                    arcByTraversal.get(traversalKey(nextSectionId, direction)) ??
+                    null;
                 if (anchors.has(currentVertex)) break;
             }
 
