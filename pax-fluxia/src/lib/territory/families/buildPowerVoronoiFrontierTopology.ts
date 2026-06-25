@@ -13,6 +13,7 @@ import {
     executeChainWalk,
     type ChainWalkSegment,
 } from '../compiler/chainWalkCore';
+import { validateFrontierTopologyInvariants } from '../geometry/frontierTopologyOracle';
 
 const WORLD_OWNER = 'world';
 const WORLD_CORNER_EPS_PX = 1.5;
@@ -285,7 +286,7 @@ export function buildPowerVoronoiFrontierTopology(
         sectionsByOwner,
     };
 
-    const topologyReliable =
+    const baselineTopologyReliable =
         sections.size > 0 &&
         vertices.size > 0 &&
         loops.length > 0 &&
@@ -295,6 +296,18 @@ export function buildPowerVoronoiFrontierTopology(
     if (openLoopCount > 0) {
         notes.push(`chain-walk produced ${openLoopCount} open loop(s)`);
     }
+
+    const invariantReport = validateFrontierTopologyInvariants(topology);
+    if (!invariantReport.ok) {
+        notes.push(
+            `frontier topology oracle failed ${invariantReport.failureCount} invariant(s)`,
+        );
+        for (const failure of invariantReport.failures) {
+            notes.push(`frontier topology invariant: ${failure}`);
+        }
+    }
+
+    const topologyReliable = baselineTopologyReliable && invariantReport.ok;
 
     return { topology, topologyReliable, notes };
 }
