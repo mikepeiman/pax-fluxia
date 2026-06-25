@@ -159,22 +159,34 @@ function collectEndpointOwners(
     worldBorderPolylines: ReadonlyArray<ResolvedFrontierPolyline>,
 ): ReadonlyMap<string, EndpointOwners> {
     const endpointOwners = new Map<string, EndpointOwners>();
-    const allPolylines = [...frontierPolylines, ...worldBorderPolylines];
-    for (const polyline of allPolylines) {
-        if (polyline.points.length === 0) continue;
-        const owners = resolveOwnersForPolyline(polyline);
-        const endpoints = [polyline.points[0], polyline.points[polyline.points.length - 1]];
-        for (const [x, y] of endpoints) {
-            const key = pointKey(x, y);
-            let entry = endpointOwners.get(key);
-            if (!entry) {
-                entry = { x, y, ownerIds: new Set<string>() };
-                endpointOwners.set(key, entry);
-            }
-            for (const ownerId of owners) {
-                entry.ownerIds.add(ownerId);
-            }
+    const addEndpoint = (
+        x: number,
+        y: number,
+        owners: readonly string[],
+    ): void => {
+        const key = pointKey(x, y);
+        let entry = endpointOwners.get(key);
+        if (!entry) {
+            entry = { x, y, ownerIds: new Set<string>() };
+            endpointOwners.set(key, entry);
         }
+        for (const ownerId of owners) {
+            entry.ownerIds.add(ownerId);
+        }
+    };
+    const collectPolyline = (polyline: ResolvedFrontierPolyline): void => {
+        if (polyline.points.length === 0) return;
+        const owners = resolveOwnersForPolyline(polyline);
+        const [startX, startY] = polyline.points[0]!;
+        const [endX, endY] = polyline.points[polyline.points.length - 1]!;
+        addEndpoint(startX, startY, owners);
+        addEndpoint(endX, endY, owners);
+    };
+    for (const polyline of frontierPolylines) {
+        collectPolyline(polyline);
+    }
+    for (const polyline of worldBorderPolylines) {
+        collectPolyline(polyline);
     }
     return endpointOwners;
 }
@@ -231,13 +243,12 @@ function resolveEndpointPositions(params: {
 }
 
 function resolveInteriorPoint(
-    polyline: ResolvedFrontierPolyline,
     x: number,
     y: number,
+    owners: readonly string[],
     ownerStars: ReadonlyMap<string, readonly StarState[]>,
     appliedMarginPx: number,
 ): [number, number] {
-    const owners = resolveOwnersForPolyline(polyline);
     return averageOwnerDisplacements(x, y, owners, ownerStars, appliedMarginPx);
 }
 
@@ -251,6 +262,7 @@ function alignPolyline(params: {
     const { polyline, kind, endpointPositions, ownerStars, appliedMarginPx } =
         params;
     const lastIndex = polyline.points.length - 1;
+    const owners = resolveOwnersForPolyline(polyline);
     const points = polyline.points.map(([x, y], index) => {
         if (index === 0 || index === lastIndex) {
             const resolved =
@@ -258,9 +270,9 @@ function alignPolyline(params: {
             if (resolved) return resolved;
         }
         return resolveInteriorPoint(
-            polyline,
             x,
             y,
+            owners,
             ownerStars,
             appliedMarginPx,
         );
