@@ -813,6 +813,7 @@
                 value={resolveActiveTransitionModeId()}
                 options={transitionSelectOptions()}
                 ariaLabel="Territory transition mode"
+                hint="Conquest transition mode for the active render family."
                 onValueChange={(value) => {
                   debouncedConfigUpdate(
                     "VS_TRANSITION_MODE",
@@ -821,9 +822,6 @@
                   );
                 }}
               />
-              <div class="axis-note">
-                Conquest transition mode for the active render family.
-              </div>
             </div>
           </div>
           <TerritoryTransitionTuning

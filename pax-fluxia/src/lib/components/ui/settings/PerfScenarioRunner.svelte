@@ -9,7 +9,7 @@
         type InAppConquestBenchmarkMode,
         type InAppConquestBenchmarkSummary,
     } from "$lib/perf/inAppConquestBench";
-    import { PaxHudButton, PaxHudSelect } from "$lib/design-system";
+    import { PaxHudButton, PaxHudSelect, PaxInfoHint } from "$lib/design-system";
 
     let selectedMode = $state<InAppConquestBenchmarkMode>("cell_grid");
     let runningScenario = $state<"conquest_animation" | "conquest_diagnostic" | null>(
@@ -77,12 +77,10 @@
     }
 </script>
 
-<h4 class="sub-heading">Perf Scenarios</h4>
-
-<div class="readout">
-    Runs the real conquest fixture through the in-app perf bridge. Animation uses the shipping path.
-    Diagnostic keeps the recorder on for bundle validation.
-</div>
+<h4 class="sub-heading sub-heading--with-hint">
+    Perf Scenarios
+    <PaxInfoHint text="Runs the real conquest fixture through the in-app perf bridge. Animation uses the shipping path; Diagnostic keeps the recorder on for bundle validation." />
+</h4>
 
 <div class="row-hint">
     Current conquest timing: {transitionTargets.effectiveTransitionMs}ms - target {transitionTargets.targetFrames60fps}
@@ -150,6 +148,12 @@
 {/if}
 
 <style>
+
+    .sub-heading--with-hint {
+        display: flex;
+        align-items: center;
+        gap: var(--pax-space-2);
+    }
 
     .snapshot-actions {
         display: flex;
