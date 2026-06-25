@@ -1,4 +1,5 @@
 import type { StarState } from '$lib/types/game.types';
+import { measurePerf } from '$lib/perf/perfProbe';
 import {
     constructFillsFromFrontierChain,
     type SharedPolyline,
@@ -375,14 +376,24 @@ function buildDirectedSegmentIds(
     return ids;
 }
 
-// Build one region ring's directed-segment sequence once, then test many
-// polylines against it without rebuilding the ring. The interner is shared with
-// each tested polyline so coincident points map to the same id (a polyline
-// point not on the ring simply gets an id that can never match a ring segment).
-function createRingContainmentMatcher(
+function buildReversedOpenDirectedSegmentIds(
+    points: ReadonlyArray<[number, number]>,
+    internPoint: (x: number, y: number) => number,
+): number[] {
+    if (points.length < 2) return [];
+    const ids: number[] = [];
+    for (let index = points.length - 1; index > 0; index--) {
+        const [ax, ay] = points[index]!;
+        const [bx, by] = points[index - 1]!;
+        ids.push(internPoint(ax, ay) * SEGMENT_ID_STRIDE + internPoint(bx, by));
+    }
+    return ids;
+}
+
+function createRingSegmentMatcher(
     ringPoints: ReadonlyArray<[number, number]>,
-): (polylinePoints: ReadonlyArray<[number, number]>) => boolean {
-    const internPoint = createPointInterner();
+    internPoint: (x: number, y: number) => number,
+): (polylineSegments: readonly number[], reversedSegments: readonly number[]) => boolean {
     const normalizedRing = normalizeClosedRing(ringPoints);
     const ringSegments = buildDirectedSegmentIds(normalizedRing, true, internPoint);
     const doubledRing =
@@ -395,25 +406,38 @@ function createRingContainmentMatcher(
         return true;
     };
 
-    return (polylinePoints) => {
+    return (polylineSegments, reversedSegments) => {
         if (ringSegments.length === 0) return false;
-        const polylineSegments = buildDirectedSegmentIds(
-            polylinePoints,
-            false,
-            internPoint,
-        );
         if (polylineSegments.length === 0) return false;
         if (ringSegments.length < polylineSegments.length) return false;
-        const reversedSegments = buildDirectedSegmentIds(
-            [...polylinePoints].reverse(),
-            false,
-            internPoint,
-        );
         for (let start = 0; start < ringSegments.length; start++) {
             if (matchesAt(polylineSegments, start)) return true;
             if (matchesAt(reversedSegments, start)) return true;
         }
         return false;
+    };
+}
+
+// Build one region ring's directed-segment sequence once, then test many
+// polylines against it without rebuilding the ring. The interner is shared with
+// each tested polyline so coincident points map to the same id (a polyline
+// point not on the ring simply gets an id that can never match a ring segment).
+function createRingContainmentMatcher(
+    ringPoints: ReadonlyArray<[number, number]>,
+): (polylinePoints: ReadonlyArray<[number, number]>) => boolean {
+    const internPoint = createPointInterner();
+    const containsSegments = createRingSegmentMatcher(ringPoints, internPoint);
+    return (polylinePoints) => {
+        const polylineSegments = buildDirectedSegmentIds(
+            polylinePoints,
+            false,
+            internPoint,
+        );
+        const reversedSegments = buildReversedOpenDirectedSegmentIds(
+            polylinePoints,
+            internPoint,
+        );
+        return containsSegments(polylineSegments, reversedSegments);
     };
 }
 
@@ -435,17 +459,47 @@ function filterPolylinesByResolvedRegions(params: {
 } {
     // Precompute each region ring's matcher once, then reuse across all polylines
     // (previously every polyline rebuilt every region ring's segment keys).
-    const matchers = params.territoryRegions.map((region) =>
-        createRingContainmentMatcher(region.points),
+    const internPoint = createPointInterner();
+    const matchers = measurePerf(
+        'territory.constraintAlign.filter.buildMatchers',
+        () =>
+            params.territoryRegions.map((region) =>
+                createRingSegmentMatcher(region.points, internPoint),
+            ),
+        {
+            regions: params.territoryRegions.length,
+            frontiers: params.frontierPolylines.length,
+            world: params.worldBorderPolylines.length,
+        },
     );
     const keepPolyline = (
         polyline: ConstraintAlignedFrontierPolyline,
-    ): boolean => matchers.some((match) => match(polyline.points));
-
-    return {
-        frontierPolylines: params.frontierPolylines.filter(keepPolyline),
-        worldBorderPolylines: params.worldBorderPolylines.filter(keepPolyline),
+    ): boolean => {
+        const polylineSegments = buildDirectedSegmentIds(
+            polyline.points,
+            false,
+            internPoint,
+        );
+        if (polylineSegments.length === 0) return false;
+        const reversedSegments = buildReversedOpenDirectedSegmentIds(
+            polyline.points,
+            internPoint,
+        );
+        return matchers.some((match) => match(polylineSegments, reversedSegments));
     };
+
+    return measurePerf(
+        'territory.constraintAlign.filter.apply',
+        () => ({
+            frontierPolylines: params.frontierPolylines.filter(keepPolyline),
+            worldBorderPolylines: params.worldBorderPolylines.filter(keepPolyline),
+        }),
+        {
+            regions: params.territoryRegions.length,
+            frontiers: params.frontierPolylines.length,
+            world: params.worldBorderPolylines.length,
+        },
+    );
 }
 
 function alignGeometry(params: {
@@ -454,40 +508,76 @@ function alignGeometry(params: {
     ownerStars: ReadonlyMap<string, readonly StarState[]>;
     appliedMarginPx: number;
 }): ConstraintAlignedTerritoryGeometry {
-    const endpointOwners = collectEndpointOwners(
-        params.frontierPolylines,
-        params.worldBorderPolylines,
-    );
-    const { positions: endpointPositions, junctions } = resolveEndpointPositions(
+    const endpointOwners = measurePerf(
+        'territory.constraintAlign.align.collectEndpoints',
+        () =>
+            collectEndpointOwners(
+                params.frontierPolylines,
+                params.worldBorderPolylines,
+            ),
         {
-            endpointOwners,
-            ownerStars: params.ownerStars,
+            frontiers: params.frontierPolylines.length,
+            world: params.worldBorderPolylines.length,
+        },
+    );
+    const { positions: endpointPositions, junctions } = measurePerf(
+        'territory.constraintAlign.align.resolveEndpoints',
+        () =>
+            resolveEndpointPositions({
+                endpointOwners,
+                ownerStars: params.ownerStars,
+                appliedMarginPx: params.appliedMarginPx,
+            }),
+        {
+            endpoints: endpointOwners.size,
             appliedMarginPx: params.appliedMarginPx,
         },
     );
 
-    const frontierPolylines = params.frontierPolylines.map((polyline) =>
-        alignPolyline({
-            polyline,
-            kind: 'inter_owner',
-            endpointPositions,
-            ownerStars: params.ownerStars,
-            appliedMarginPx: params.appliedMarginPx,
-        }),
+    const frontierPolylines = measurePerf(
+        'territory.constraintAlign.align.frontiers',
+        () =>
+            params.frontierPolylines.map((polyline) =>
+                alignPolyline({
+                    polyline,
+                    kind: 'inter_owner',
+                    endpointPositions,
+                    ownerStars: params.ownerStars,
+                    appliedMarginPx: params.appliedMarginPx,
+                }),
+            ),
+        { frontiers: params.frontierPolylines.length },
     );
-    const worldBorderPolylines = params.worldBorderPolylines.map((polyline) =>
-        alignPolyline({
-            polyline,
-            kind: 'world',
-            endpointPositions,
-            ownerStars: params.ownerStars,
-            appliedMarginPx: params.appliedMarginPx,
-        }),
+    const worldBorderPolylines = measurePerf(
+        'territory.constraintAlign.align.world',
+        () =>
+            params.worldBorderPolylines.map((polyline) =>
+                alignPolyline({
+                    polyline,
+                    kind: 'world',
+                    endpointPositions,
+                    ownerStars: params.ownerStars,
+                    appliedMarginPx: params.appliedMarginPx,
+                }),
+            ),
+        { world: params.worldBorderPolylines.length },
     );
-    const territoryRegions = buildResolvedRegions(frontierPolylines, worldBorderPolylines);
-    const displayGeometry = buildDisplayGeometryFromResolvedRegions(
-        territoryRegions,
-        params.appliedMarginPx,
+    const territoryRegions = measurePerf(
+        'territory.constraintAlign.align.resolvedRegions',
+        () => buildResolvedRegions(frontierPolylines, worldBorderPolylines),
+        {
+            frontiers: frontierPolylines.length,
+            world: worldBorderPolylines.length,
+        },
+    );
+    const displayGeometry = measurePerf(
+        'territory.constraintAlign.align.displayGeometry',
+        () =>
+            buildDisplayGeometryFromResolvedRegions(
+                territoryRegions,
+                params.appliedMarginPx,
+            ),
+        { regions: territoryRegions.length },
     );
     return {
         territoryRegions,
@@ -504,16 +594,40 @@ function buildResolvedRegions(
     frontierPolylines: ReadonlyArray<ConstraintAlignedFrontierPolyline>,
     worldBorderPolylines: ReadonlyArray<ConstraintAlignedFrontierPolyline>,
 ): readonly TerritoryRegionShape[] {
-    const fills = constructFillsFromFrontierChain(
-        frontierPolylines.map(toSharedPolyline),
-        worldBorderPolylines.map(toSharedPolyline),
+    const fillInput = measurePerf(
+        'territory.constraintAlign.resolvedRegions.inputs',
+        () => ({
+            frontiers: frontierPolylines.map(toSharedPolyline),
+            worldBorders: worldBorderPolylines.map(toSharedPolyline),
+        }),
+        {
+            frontiers: frontierPolylines.length,
+            world: worldBorderPolylines.length,
+        },
     );
-    return fills.map((territory, index) => ({
-        regionId: `constraint:${territory.ownerId}:${index}`,
-        ownerId: territory.ownerId,
-        points: territory.points.map(([x, y]) => [x, y] as [number, number]),
-        confidence: 1,
-    }));
+    const fills = measurePerf(
+        'territory.constraintAlign.resolvedRegions.constructFills',
+        () =>
+            constructFillsFromFrontierChain(
+                fillInput.frontiers,
+                fillInput.worldBorders,
+            ),
+        {
+            frontiers: fillInput.frontiers.length,
+            world: fillInput.worldBorders.length,
+        },
+    );
+    return measurePerf(
+        'territory.constraintAlign.resolvedRegions.adaptFills',
+        () =>
+            fills.map((territory, index) => ({
+                regionId: `constraint:${territory.ownerId}:${index}`,
+                ownerId: territory.ownerId,
+                points: territory.points.map(([x, y]) => [x, y] as [number, number]),
+                confidence: 1,
+            })),
+        { fills: fills.length },
+    );
 }
 
 function polylineLength(points: ReadonlyArray<[number, number]>): number {
@@ -574,81 +688,107 @@ function buildDisplayGeometryFromResolvedRegions(
     readonly displayFrontierPolylines: readonly ConstraintAlignedFrontierPolyline[];
     readonly displayWorldBorderPolylines: readonly ConstraintAlignedFrontierPolyline[];
 } {
-    const segmentOccurrences = new Map<
-        string,
-        {
-            ownerId: string;
-            start: [number, number];
-            end: [number, number];
-        }[]
-    >();
+    const segmentOccurrences = measurePerf(
+        'territory.constraintAlign.display.collectSegments',
+        () => {
+            const collected = new Map<
+                string,
+                {
+                    ownerId: string;
+                    start: [number, number];
+                    end: [number, number];
+                }[]
+            >();
 
-    for (const region of territoryRegions) {
-        const points = normalizeClosedRing(region.points);
-        if (points.length < 2) continue;
-        for (let index = 0; index < points.length; index++) {
-            const start = points[index]!;
-            const end = points[(index + 1) % points.length]!;
-            const startKey = pointKey(start[0], start[1]);
-            const endKey = pointKey(end[0], end[1]);
-            if (startKey === endKey) continue;
-            const segmentKey =
-                startKey < endKey
-                    ? `${startKey}|${endKey}`
-                    : `${endKey}|${startKey}`;
-            const bucket = segmentOccurrences.get(segmentKey);
-            const occurrence = {
-                ownerId: region.ownerId,
-                start: [start[0], start[1]] as [number, number],
-                end: [end[0], end[1]] as [number, number],
-            };
-            if (bucket) {
-                bucket.push(occurrence);
-            } else {
-                segmentOccurrences.set(segmentKey, [occurrence]);
+            for (const region of territoryRegions) {
+                const points = normalizeClosedRing(region.points);
+                if (points.length < 2) continue;
+                for (let index = 0; index < points.length; index++) {
+                    const start = points[index]!;
+                    const end = points[(index + 1) % points.length]!;
+                    const startKey = pointKey(start[0], start[1]);
+                    const endKey = pointKey(end[0], end[1]);
+                    if (startKey === endKey) continue;
+                    const segmentKey =
+                        startKey < endKey
+                            ? `${startKey}|${endKey}`
+                            : `${endKey}|${startKey}`;
+                    const bucket = collected.get(segmentKey);
+                    const occurrence = {
+                        ownerId: region.ownerId,
+                        start: [start[0], start[1]] as [number, number],
+                        end: [end[0], end[1]] as [number, number],
+                    };
+                    if (bucket) {
+                        bucket.push(occurrence);
+                    } else {
+                        collected.set(segmentKey, [occurrence]);
+                    }
+                }
             }
-        }
-    }
+            return collected;
+        },
+        { regions: territoryRegions.length },
+    );
 
-    const frontierSegments: DisplayBoundarySegment[] = [];
-    const worldSegments: DisplayBoundarySegment[] = [];
+    const { frontierSegments, worldSegments } = measurePerf(
+        'territory.constraintAlign.display.classifySegments',
+        () => {
+            const frontierSegments: DisplayBoundarySegment[] = [];
+            const worldSegments: DisplayBoundarySegment[] = [];
 
-    for (const occurrences of segmentOccurrences.values()) {
-        const uniqueOwners = [...new Set(occurrences.map((entry) => entry.ownerId))].sort();
-        const first = occurrences[0];
-        if (!first) continue;
-        if (uniqueOwners.length === 1) {
-            const ownerA = uniqueOwners[0]!;
-            worldSegments.push({
-                ownerA,
-                ownerB: 'world',
-                ownerPairKey: `${ownerA}|world`,
-                kind: 'world',
-                start: first.start,
-                end: first.end,
-            });
-            continue;
-        }
-        if (uniqueOwners.length !== 2) continue;
-        const [ownerA, ownerB] = uniqueOwners;
-        frontierSegments.push({
-            ownerA: ownerA!,
-            ownerB: ownerB!,
-            ownerPairKey: `${ownerA}|${ownerB}`,
-            kind: 'inter_owner',
-            start: first.start,
-            end: first.end,
-        });
-    }
+            for (const occurrences of segmentOccurrences.values()) {
+                const uniqueOwners = [
+                    ...new Set(occurrences.map((entry) => entry.ownerId)),
+                ].sort();
+                const first = occurrences[0];
+                if (!first) continue;
+                if (uniqueOwners.length === 1) {
+                    const ownerA = uniqueOwners[0]!;
+                    worldSegments.push({
+                        ownerA,
+                        ownerB: 'world',
+                        ownerPairKey: `${ownerA}|world`,
+                        kind: 'world',
+                        start: first.start,
+                        end: first.end,
+                    });
+                    continue;
+                }
+                if (uniqueOwners.length !== 2) continue;
+                const [ownerA, ownerB] = uniqueOwners;
+                frontierSegments.push({
+                    ownerA: ownerA!,
+                    ownerB: ownerB!,
+                    ownerPairKey: `${ownerA}|${ownerB}`,
+                    kind: 'inter_owner',
+                    start: first.start,
+                    end: first.end,
+                });
+            }
+            return { frontierSegments, worldSegments };
+        },
+        { segments: segmentOccurrences.size },
+    );
 
     return {
-        displayFrontierPolylines: buildDisplayPolylinesFromSegments(
-            frontierSegments,
-            appliedMarginPx,
+        displayFrontierPolylines: measurePerf(
+            'territory.constraintAlign.display.frontierPolylines',
+            () =>
+                buildDisplayPolylinesFromSegments(
+                    frontierSegments,
+                    appliedMarginPx,
+                ),
+            { segments: frontierSegments.length },
         ),
-        displayWorldBorderPolylines: buildDisplayPolylinesFromSegments(
-            worldSegments,
-            appliedMarginPx,
+        displayWorldBorderPolylines: measurePerf(
+            'territory.constraintAlign.display.worldPolylines',
+            () =>
+                buildDisplayPolylinesFromSegments(
+                    worldSegments,
+                    appliedMarginPx,
+                ),
+            { segments: worldSegments.length },
         ),
     };
 }
@@ -845,20 +985,31 @@ function buildDisplayPolylinesFromSegments(
 export function resolveConstraintAlignedTerritoryGeometry(
     params: ResolveConstraintAlignedTerritoryGeometryParams,
 ): ConstraintAlignedTerritoryGeometry {
-    const appliedMarginPx = resolveAppliedMinStarMarginPx(
-        params.stars,
-        params.requestedMarginPx,
+    const appliedMarginPx = measurePerf(
+        'territory.constraintAlign.appliedMargin',
+        () => resolveAppliedMinStarMarginPx(params.stars, params.requestedMarginPx),
+        {
+            stars: params.stars.length,
+            requestedMarginPx: params.requestedMarginPx,
+        },
     );
     if (
         params.geometry.territoryRegions.length > 0 &&
         !params.preferSharedBoundaryResolution
     ) {
-        const territoryRegions = cloneTerritoryRegions(
-            params.geometry.territoryRegions,
+        const territoryRegions = measurePerf(
+            'territory.constraintAlign.regions.clone',
+            () => cloneTerritoryRegions(params.geometry.territoryRegions),
+            { regions: params.geometry.territoryRegions.length },
         );
-        const displayGeometry = buildDisplayGeometryFromResolvedRegions(
-            territoryRegions,
-            appliedMarginPx,
+        const displayGeometry = measurePerf(
+            'territory.constraintAlign.regions.displayGeometry',
+            () =>
+                buildDisplayGeometryFromResolvedRegions(
+                    territoryRegions,
+                    appliedMarginPx,
+                ),
+            { regions: territoryRegions.length },
         );
         return {
             territoryRegions,
@@ -881,18 +1032,39 @@ export function resolveConstraintAlignedTerritoryGeometry(
             appliedMarginPx,
         };
     }
-    const ownerStars = buildOwnerStars(params.stars);
-    const provisional = alignGeometry({
-        frontierPolylines: params.geometry.frontierPolylines,
-        worldBorderPolylines: params.geometry.worldBorderPolylines,
-        ownerStars,
-        appliedMarginPx,
-    });
-    const filtered = filterPolylinesByResolvedRegions({
-        frontierPolylines: provisional.frontierPolylines,
-        worldBorderPolylines: provisional.worldBorderPolylines,
-        territoryRegions: provisional.territoryRegions,
-    });
+    const ownerStars = measurePerf(
+        'territory.constraintAlign.ownerStars',
+        () => buildOwnerStars(params.stars),
+        { stars: params.stars.length },
+    );
+    const provisional = measurePerf(
+        'territory.constraintAlign.provisionalAlign',
+        () =>
+            alignGeometry({
+                frontierPolylines: params.geometry.frontierPolylines,
+                worldBorderPolylines: params.geometry.worldBorderPolylines,
+                ownerStars,
+                appliedMarginPx,
+            }),
+        {
+            frontiers: params.geometry.frontierPolylines.length,
+            world: params.geometry.worldBorderPolylines.length,
+        },
+    );
+    const filtered = measurePerf(
+        'territory.constraintAlign.filter',
+        () =>
+            filterPolylinesByResolvedRegions({
+                frontierPolylines: provisional.frontierPolylines,
+                worldBorderPolylines: provisional.worldBorderPolylines,
+                territoryRegions: provisional.territoryRegions,
+            }),
+        {
+            regions: provisional.territoryRegions.length,
+            frontiers: provisional.frontierPolylines.length,
+            world: provisional.worldBorderPolylines.length,
+        },
+    );
     const filteredCount =
         filtered.frontierPolylines.length + filtered.worldBorderPolylines.length;
     const provisionalCount =
@@ -907,16 +1079,24 @@ export function resolveConstraintAlignedTerritoryGeometry(
     const keptWorldIds = new Set(
         filtered.worldBorderPolylines.map((polyline) => polyline.frontierId),
     );
-    return alignGeometry({
-        frontierPolylines: params.geometry.frontierPolylines.filter((polyline) =>
-            keptFrontierIds.has(polyline.frontierId),
-        ),
-        worldBorderPolylines: params.geometry.worldBorderPolylines.filter(
-            (polyline) => keptWorldIds.has(polyline.frontierId),
-        ),
-        ownerStars,
-        appliedMarginPx,
-    });
+    return measurePerf(
+        'territory.constraintAlign.filteredRealign',
+        () =>
+            alignGeometry({
+                frontierPolylines: params.geometry.frontierPolylines.filter(
+                    (polyline) => keptFrontierIds.has(polyline.frontierId),
+                ),
+                worldBorderPolylines: params.geometry.worldBorderPolylines.filter(
+                    (polyline) => keptWorldIds.has(polyline.frontierId),
+                ),
+                ownerStars,
+                appliedMarginPx,
+            }),
+        {
+            keptFrontiers: keptFrontierIds.size,
+            keptWorld: keptWorldIds.size,
+        },
+    );
 }
 
 export function readConstraintAlignedTerritoryGeometryFromSnapshot(
