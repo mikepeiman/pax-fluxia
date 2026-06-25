@@ -33,6 +33,7 @@
     import { getTerritoryRenderModeLabel } from "$lib/territory/ui/territoryRenderModeCatalog";
     import {
         PaxHudButton,
+        PaxInfoHint,
         PaxSettingsRangeRow,
         PaxSettingsToggleRow,
     } from "$lib/design-system";
@@ -816,16 +817,21 @@
             </div>
         </div>
         {#if liveRenderMode === "ember_lattice"}
-            <div class="readout">
-                {formatEmberLatticeSemanticsNote()}
-                Default visual starting point: <code>pre_to_post_frontier</code>,
-                <code>territory_edge</code>, blended borders on, Chaikin 4, and DX on at 295px with weight 0.30. Propagation shape is now a real tuning choice.
+            <div class="diag-guide">
+                <PaxInfoHint
+                    placement="left"
+                    text={`${formatEmberLatticeSemanticsNote()} Default visual starting point: pre_to_post_frontier, territory_edge, blended borders on, Chaikin 4, and DX on at 295px with weight 0.30. Propagation shape is now a real tuning choice.`}
+                />
+                <span>Ember Lattice mode guide</span>
             </div>
         {/if}
         {#if liveRenderMode === "phase_field"}
-            <div class="readout">
-                {formatPhaseFieldSemanticsNote()}
-                Recommended starter: <code>pre_to_post_frontier</code> propagation, <code>territory_edge</code> borders, <code>Frontier Highlight</code> on, and the new finish-tail controls in <code>Flip</code> for fade timing, cell collapse, and frontier cleanup. DX defaults stay on at 295px with weight 0.30.
+            <div class="diag-guide">
+                <PaxInfoHint
+                    placement="left"
+                    text={`${formatPhaseFieldSemanticsNote()} Recommended starter: pre_to_post_frontier propagation, territory_edge borders, Frontier Highlight on, and the finish-tail controls in Finish for fade timing, cell collapse, and frontier cleanup. DX defaults stay on at 295px with weight 0.30.`}
+                />
+                <span>Phase Field mode guide</span>
             </div>
         {/if}
     {/if}
@@ -994,6 +1000,17 @@
 
     .status-grid__failure {
         color: color-mix(in srgb, var(--pax-ui-danger) 92%, transparent);
+    }
+
+    .diag-guide {
+        display: flex;
+        align-items: center;
+        gap: var(--pax-space-2);
+        margin-top: var(--pax-space-1);
+        color: color-mix(in srgb, var(--pax-ui-text-soft) 70%, transparent);
+        font-size: var(--pax-type-2xs);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
     }
 
     /* Live cell-grid planner/perf readout (relocated here from the Cell Grid
