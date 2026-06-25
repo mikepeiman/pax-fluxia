@@ -71,7 +71,8 @@ import { buildMainMenuPreview } from '$lib/utils/mainMenuPreview';
 import { resolveEffectiveLaneMarginPx } from '$lib/lanes/laneMargin';
 import {
     measurePerf,
-    measurePerfAsync
+    measurePerfAsync,
+    recordPerfEvent
 } from '$lib/perf/perfProbe';
 import { log } from '$lib/utils/logger';
 
@@ -1884,6 +1885,17 @@ function issueOrder(sourceId: StarId, targetId: StarId, persistAfterConquest?: b
             accepted,
         },
     });
+    if (accepted) {
+        recordPerfEvent('game.order.issued', {
+            from: `Star ${sourceId}`,
+            to: `Star ${targetId}`,
+            sourceId,
+            targetId,
+            persistAfterConquest: Boolean(persistAfterConquest),
+            publishMode: publishResult.mode,
+            publishChanged: publishResult.changed,
+        });
+    }
 
     return accepted;
 }
@@ -1919,7 +1931,14 @@ function cancelOrder(starId: StarId): void {
             accepted,
         },
     });
-
+    if (accepted) {
+        recordPerfEvent('game.order.cancelled', {
+            from: `Star ${starId}`,
+            starId,
+            publishMode: publishResult.mode,
+            publishChanged: publishResult.changed,
+        });
+    }
 }
 
 function setDeferredOrder(enemyStarId: StarId, nextTargetId: StarId, persistAfterConquest?: boolean): boolean {
@@ -1955,6 +1974,17 @@ function setDeferredOrder(enemyStarId: StarId, nextTargetId: StarId, persistAfte
             accepted,
         },
     });
+    if (accepted) {
+        recordPerfEvent('game.order.deferred', {
+            from: `Star ${enemyStarId}`,
+            to: `Star ${nextTargetId}`,
+            sourceId: enemyStarId,
+            targetId: nextTargetId,
+            persistAfterConquest: Boolean(persistAfterConquest),
+            publishMode: publishResult.mode,
+            publishChanged: publishResult.changed,
+        });
+    }
 
     return accepted;
 }

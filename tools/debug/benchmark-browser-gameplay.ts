@@ -2390,15 +2390,26 @@ async function resolveLiveStarClientPoint(
     starId: string,
     fallbackX: number,
     fallbackY: number,
-): Promise<{ clientX: number; clientY: number }> {
+): Promise<{
+    clientX: number;
+    clientY: number;
+    hitStarId: string | null;
+    hitMatches: boolean | null;
+}> {
     const point = await client.evaluate<Record<string, JsonValue> | null>(
         `window.__PAX_BENCH__.getStarClientPoint(${JSON.stringify(starId)})`,
     );
     const clientX = Number(point?.clientX ?? fallbackX);
     const clientY = Number(point?.clientY ?? fallbackY);
+    const hitStarId =
+        point?.hitStarId == null ? null : String(point.hitStarId);
+    const hitMatches =
+        typeof point?.hitMatches === "boolean" ? point.hitMatches : null;
     return {
         clientX: Number.isFinite(clientX) ? clientX : fallbackX,
         clientY: Number.isFinite(clientY) ? clientY : fallbackY,
+        hitStarId,
+        hitMatches,
     };
 }
 
@@ -2564,6 +2575,9 @@ async function executePointerOrderLoop(
 ): Promise<JsonValue> {
     const samples: Array<Record<string, JsonValue>> = [];
     for (let i = 0; i < iterations; i += 1) {
+        await client.evaluate<void>(
+            "window.__PAX_BENCH__.resetInteractionState()",
+        );
         const path = await client.evaluate<any>(
             "window.__PAX_BENCH__.getOrderPointerPath()",
         );
@@ -2578,6 +2592,40 @@ async function executePointerOrderLoop(
             Number(path.sourceClientX ?? 0),
             Number(path.sourceClientY ?? 0),
         );
+        if (sourcePoint.hitMatches === false) {
+            samples.push({
+                ok: false,
+                reason: "source-hit-miss",
+                sourceId: path.sourceId ?? null,
+                targetId: path.targetId ?? null,
+                expectedHitStarId: path.sourceId ?? null,
+                actualHitStarId: sourcePoint.hitStarId,
+                clientX: sourcePoint.clientX,
+                clientY: sourcePoint.clientY,
+            });
+            await sleep(80);
+            continue;
+        }
+        const initialTargetPoint = await resolveLiveStarClientPoint(
+            client,
+            String(path.targetId),
+            Number(path.targetClientX ?? 0),
+            Number(path.targetClientY ?? 0),
+        );
+        if (initialTargetPoint.hitMatches === false) {
+            samples.push({
+                ok: false,
+                reason: "target-hit-miss",
+                sourceId: path.sourceId ?? null,
+                targetId: path.targetId ?? null,
+                expectedHitStarId: path.targetId ?? null,
+                actualHitStarId: initialTargetPoint.hitStarId,
+                clientX: initialTargetPoint.clientX,
+                clientY: initialTargetPoint.clientY,
+            });
+            await sleep(80);
+            continue;
+        }
         const issueStartedAt = await client.evaluate<number>("performance.now()");
         const issueEventStartIndex = await client.evaluate<number>(
             "window.__PAX_BENCH__.getPerfEventCursor()",
@@ -2623,21 +2671,38 @@ async function executePointerOrderLoop(
             1500,
         );
         await sleep(24);
-        if (options?.hoverStress === true) {
-            const stressTargetPoint = await resolveLiveStarClientPoint(
-                client,
-                String(path.targetId),
-                Number(path.targetClientX ?? 0),
-                Number(path.targetClientY ?? 0),
+        const targetPoint = await resolveLiveStarClientPoint(
+            client,
+            String(path.targetId),
+            Number(path.targetClientX ?? 0),
+            Number(path.targetClientY ?? 0),
+        );
+        if (targetPoint.hitMatches === false) {
+            await client.evaluate<void>(
+                "window.__PAX_BENCH__.resetInteractionState()",
             );
+            samples.push({
+                ok: false,
+                reason: "target-hit-miss-after-select",
+                sourceId: path.sourceId ?? null,
+                targetId: path.targetId ?? null,
+                expectedHitStarId: path.targetId ?? null,
+                actualHitStarId: targetPoint.hitStarId,
+                clientX: targetPoint.clientX,
+                clientY: targetPoint.clientY,
+            });
+            await sleep(80);
+            continue;
+        }
+        if (options?.hoverStress === true) {
             stressLoop = runHoverSweepStressLoop(
                 client,
                 {
                     ...path,
                     sourceClientX: sourcePoint.clientX,
                     sourceClientY: sourcePoint.clientY,
-                    targetClientX: stressTargetPoint.clientX,
-                    targetClientY: stressTargetPoint.clientY,
+                    targetClientX: targetPoint.clientX,
+                    targetClientY: targetPoint.clientY,
                 },
                 stressSignal,
             );
@@ -2646,12 +2711,6 @@ async function executePointerOrderLoop(
             await stressLoop;
             stressLoop = null;
         }
-        const targetPoint = await resolveLiveStarClientPoint(
-            client,
-            String(path.targetId),
-            Number(path.targetClientX ?? 0),
-            Number(path.targetClientY ?? 0),
-        );
         const targetClickStartedAt = await client.evaluate<number>(
             "performance.now()",
         );

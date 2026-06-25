@@ -58,6 +58,12 @@ interface BenchmarkStarClientPoint {
     starId: string;
     clientX: number;
     clientY: number;
+    localX?: number;
+    localY?: number;
+    worldX?: number;
+    worldY?: number;
+    hitStarId?: string | null;
+    hitMatches?: boolean;
 }
 
 interface BenchmarkCanvasApi {
@@ -65,6 +71,7 @@ interface BenchmarkCanvasApi {
     getBenchmarkStarClientPoint?: (
         starId: string,
     ) => BenchmarkStarClientPoint | null;
+    resetBenchmarkInteractionState?: () => Record<string, unknown> | null;
     getBenchmarkTerritorySchedulerSnapshot?: () => Record<string, unknown> | null;
     getTransitionDiagnosticCaptureState?: () => Record<string, unknown> | null;
     resetTransitionDiagnosticCapture?: () => void;
@@ -145,6 +152,7 @@ interface BenchmarkBridgeApi {
     getStarClientPoint: (
         starId: string,
     ) => Promise<BenchmarkStarClientPoint | null>;
+    resetInteractionState: () => Promise<Record<string, unknown> | null>;
     getStarState: (starId: string) => Promise<Record<string, unknown> | null>;
     getOrderStatus: (sourceId: string) => Promise<Record<string, unknown> | null>;
     getTerritorySchedulerSnapshot: () => Promise<Record<string, unknown> | null>;
@@ -759,6 +767,13 @@ export function installBenchmarkBridge(params: {
             const canvasApi =
                 params.getCanvasApi?.() ?? window.__PAX_GAME_CANVAS__ ?? null;
             return canvasApi?.getBenchmarkStarClientPoint?.(starId) ?? null;
+        },
+        resetInteractionState: async () => {
+            await openGameShell();
+            await settleFrames();
+            const canvasApi =
+                params.getCanvasApi?.() ?? window.__PAX_GAME_CANVAS__ ?? null;
+            return canvasApi?.resetBenchmarkInteractionState?.() ?? null;
         },
         getStarState: async (starId) => {
             const { activeGameStore } = await loadRuntimeDeps();

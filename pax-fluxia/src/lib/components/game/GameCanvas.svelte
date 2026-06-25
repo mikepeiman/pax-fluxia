@@ -462,7 +462,16 @@
     ): number {
         const queueDelayMs = Math.max(0, performance.now() - event.timeStamp);
         if (queueDelayMs < thresholdMs) return queueDelayMs;
-
+        recordPerfEvent(`input.${kind}.handled`, {
+            kind,
+            button: "button" in event ? event.button : null,
+            buttons: "buttons" in event ? event.buttons : null,
+            pointerType: "pointerType" in event ? event.pointerType : null,
+            queueDelayMs,
+            eventTimeStampMs: event.timeStamp,
+            clientX: "clientX" in event ? event.clientX : null,
+            clientY: "clientY" in event ? event.clientY : null,
+        });
         return queueDelayMs;
     }
 
@@ -470,7 +479,14 @@
         step: string,
         detail: Record<string, unknown> = {},
     ): void {
-
+        recordPerfEvent(`input.orderPath.${step}`, {
+            step,
+            activeStarId,
+            pendingOrders: pendingOrders.size,
+            deferredOrders: deferredOrders.size,
+            queuedOrderMutations: queuedOrderMutations.length,
+            ...detail,
+        });
     }
 
     function nextOrderMutationRequestId(): number {
@@ -606,7 +622,7 @@
             atMs: nowMs,
             ...detail,
         };
-
+        recordPerfEvent("input.interaction.visualAcknowledgment", detail);
 
     }
 
@@ -675,6 +691,7 @@
             atMs: performance.now(),
             ...detail,
         };
+        recordPerfEvent("input.interaction.localAcknowledgment", detail);
         noteInteractivePressure(
             "interactionLocalAcknowledgment",
             ORDER_MUTATION_PRIORITY_WINDOW_MS,
@@ -753,7 +770,15 @@
         );
         lastOrderQueueFlushFinishedAtMs = performance.now();
         lastOrderQueueFlushMutationCount = mutations.length;
-
+        recordPerfEvent("input.orderQueue.flushed", {
+            mutationCount: mutations.length,
+            kinds: mutations.map((mutation) => mutation.kind),
+            requestIds: mutations.map((mutation) => mutation.requestId),
+            queueDelayMs: lastOrderMutationQueueDelayMs,
+            durationMs:
+                lastOrderQueueFlushFinishedAtMs - lastOrderQueueFlushStartedAtMs,
+            scheduleMode: lastOrderQueueScheduleMode,
+        });
     }
 
     function scheduleQueuedOrderMutations(): void {
@@ -7191,6 +7216,12 @@
               starId: string;
               clientX: number;
               clientY: number;
+              localX: number;
+              localY: number;
+              worldX: number;
+              worldY: number;
+              hitStarId: string | null;
+              hitMatches: boolean;
           }
         | null {
         if (!app || !canvasContainer) return null;
@@ -7202,10 +7233,42 @@
             mapTranspose.x(star),
             mapTranspose.y(star),
         );
+        const hitStar = hitTestStar(point.x, point.y);
         return {
             starId: star.id,
             clientX: rect.left + point.x,
             clientY: rect.top + point.y,
+            localX: point.x,
+            localY: point.y,
+            worldX: mapTranspose.x(star),
+            worldY: mapTranspose.y(star),
+            hitStarId: hitStar?.id ?? null,
+            hitMatches: hitStar?.id === star.id,
+        };
+    }
+
+    export function resetBenchmarkInteractionState():
+        | {
+              previousActiveStarId: string | null;
+              activeStarId: string | null;
+              pendingInteractionVisualAcknowledgmentCount: number;
+          }
+        | null {
+        if (!app || !canvasContainer) return null;
+        const previousActiveStarId = activeStarId;
+        activeStarId = null;
+        cancelDrag();
+        pendingInteractionVisualAcknowledgments.length = 0;
+        renderInteractionOverlayNow();
+        recordOrderPathEvent("clear", {
+            reason: "benchmark_reset",
+            previousActiveStarId,
+        });
+        return {
+            previousActiveStarId,
+            activeStarId,
+            pendingInteractionVisualAcknowledgmentCount:
+                pendingInteractionVisualAcknowledgments.length,
         };
     }
 
