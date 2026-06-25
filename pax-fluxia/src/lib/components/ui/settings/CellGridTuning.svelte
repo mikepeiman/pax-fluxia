@@ -162,10 +162,11 @@
     }
 
     function visibleModules() {
+        // Frontier module is available to every cell-grid mode now (Phase Edges,
+        // Ember, Phase Field) so the Frontier Technique / smooth-fill controls are
+        // exposed uniformly. Finish stays Phase-Field-only.
         return CELL_GRID_MODULES.filter(
-            (module) =>
-                (module.id !== 'frontier' || isEmberLatticeMode()) &&
-                (module.id !== 'finish' || isPhaseFieldMode()),
+            (module) => module.id !== 'finish' || isPhaseFieldMode(),
         );
     }
 
@@ -181,7 +182,7 @@
     }
 
     function showFrontierControls(): boolean {
-        return isEmberLatticeMode() && showModule('frontier');
+        return showModule('frontier');
     }
 
     function setActiveModule(value: CellGridModuleId): void {
@@ -601,7 +602,10 @@
     }
 
     function canUseEmberFrontierTechnique(): boolean {
-        return isEmberLatticeMode() && currentDistribution() === 'square';
+        // Frontier Technique applies to ANY square-lattice cell-grid mode
+        // (Phase Edges, Ember, Phase Field) — not Ember-only. The only real
+        // requirement is the square distribution the shader-band/contour paths need.
+        return currentDistribution() === 'square';
     }
 
     function isControlFrontierTechnique(): boolean {
@@ -610,7 +614,6 @@
 
     function canUseControlFrontierBorderGeometry(): boolean {
         return (
-            isEmberLatticeMode() &&
             isControlFrontierTechnique() &&
             currentDistribution() === 'square' &&
             currentBorderMode() === 'territory_edge' &&
@@ -834,7 +837,7 @@
     hint="Where to draw the Territory border stroke. Off = none. Per cell draws a full grid outline. Edge outlines only ownership boundaries (or the world edge) — cheap and distinctive. Width/alpha/HSL come from the Territory border SLA widget below."
     value={currentBorderMode()}
     options={BORDER_MODE_OPTIONS}
-    disabled={isEmberLatticeMode() && currentFrontierTechnique() !== 'control'}
+    disabled={currentFrontierTechnique() !== 'control'}
     settingConfigKey="CELL_GRID_BORDER_MODE"
     onValueChange={(value) => {
         writeConfig('CELL_GRID_BORDER_MODE', 'cellGridBorderMode', value);
@@ -844,7 +847,7 @@
 <PaxSettingsToggleRow
     label={currentBorderBlendLabel()}
     checked={currentBorderBlend()}
-    disabled={(isEmberLatticeMode() && currentFrontierTechnique() !== 'control') || currentBorderMode() !== 'territory_edge'}
+    disabled={currentFrontierTechnique() !== 'control' || currentBorderMode() !== 'territory_edge'}
     description={currentBorderBlendDescription()}
     meta={currentBorderBlend() ? 'On' : 'Off'}
     settingConfigKey="CELL_GRID_BORDER_BLEND"
@@ -967,15 +970,14 @@
 
 {#if showFrontierControls()}
 <div class="module-block">
-<div class="var-row" class:disabled={!isEmberLatticeMode()}>
+<div class="var-row" class:disabled={!canUseEmberFrontierTechnique()}>
     <div class="row-top">
         <span class="var-name">
             Preset Rows
             <PaxInfoHint text="Benchmark comparison rows matching the frontier technique matrix. Each applies a planned preset directly so effect and performance can be compared without dialing every knob by hand." />
         </span>
         <span class="val">
-            {#if !isEmberLatticeMode()}Ember Lattice only
-            {:else if !canUseEmberFrontierTechnique()}Square lattice required
+            {#if !canUseEmberFrontierTechnique()}Square lattice required
             {:else}Tap to apply{/if}
         </span>
     </div>
@@ -986,7 +988,7 @@
                 size="sm"
                 active={isFrontierPresetSelected(preset)}
                 title={preset.description}
-                disabled={!isEmberLatticeMode()}
+                disabled={!canUseEmberFrontierTechnique()}
                 onclick={() => applyFrontierPreset(preset)}
             />
         {/each}
@@ -995,10 +997,10 @@
 
 <PaxHudSelect
     label="Frontier Technique"
-    hint="Ember Lattice compares the control path against shader-band and contour-extraction variants without changing the underlying ownership truth. These options only apply cleanly on the square lattice; surface styling and border-geometry controls live in Territory Styles."
+    hint="Selects how the territory FILL surface is built: Current control keeps crisp scene cells (raster fill edge), while shader-band produces a smooth phase-fill that matches the border. Applies to every square-lattice cell-grid mode (Phase Edges, Ember, Phase Field). Surface styling and border-geometry controls live in Territory Styles."
     value={currentFrontierTechnique()}
     options={FRONTIER_TECHNIQUE_OPTIONS}
-    disabled={!isEmberLatticeMode()}
+    disabled={!canUseEmberFrontierTechnique()}
     onValueChange={(value) => {
         writeConfig('TERRITORY_FRONTIER_TECHNIQUE', 'territoryFrontierTechnique', value);
     }}
