@@ -652,9 +652,12 @@ export function mergeSameOwnerCells(
         string,
         { count: number; firstCluster: string; multiCluster: boolean }
     >();
+    const cellClusterKeys = new Array<string>(cells.length);
 
-    for (const cell of cells) {
+    for (let cellIndex = 0; cellIndex < cells.length; cellIndex++) {
+        const cell = cells[cellIndex];
         const ck = clusterKeyOf(cell);
+        cellClusterKeys[cellIndex] = ck;
         const pts = cell.points;
         for (let j = 0; j < pts.length - 1; j++) {
             const key = edgeKey(pts[j][0], pts[j][1], pts[j + 1][0], pts[j + 1][1]);
@@ -681,12 +684,21 @@ export function mergeSameOwnerCells(
     const clusterOwnerMap = new Map<string, string>();
     const clusterStarIds = new Map<string, Set<string>>();
 
-    for (const cell of cells) {
-        const ck = clusterKeyOf(cell);
-        if (!clusterEdges.has(ck)) clusterEdges.set(ck, []);
+    for (let cellIndex = 0; cellIndex < cells.length; cellIndex++) {
+        const cell = cells[cellIndex];
+        const ck = cellClusterKeys[cellIndex];
+        let edgeBucket = clusterEdges.get(ck);
+        if (!edgeBucket) {
+            edgeBucket = [];
+            clusterEdges.set(ck, edgeBucket);
+        }
         if (!clusterOwnerMap.has(ck)) clusterOwnerMap.set(ck, cell.ownerId);
-        if (!clusterStarIds.has(ck)) clusterStarIds.set(ck, new Set());
-        clusterStarIds.get(ck)!.add(cell.siteId);
+        let starIdBucket = clusterStarIds.get(ck);
+        if (!starIdBucket) {
+            starIdBucket = new Set();
+            clusterStarIds.set(ck, starIdBucket);
+        }
+        starIdBucket.add(cell.siteId);
 
         const pts = cell.points;
         for (let j = 0; j < pts.length - 1; j++) {
@@ -694,7 +706,7 @@ export function mergeSameOwnerCells(
             const info = edgeInfo.get(key);
             // Internal edge: shared by 2+ cells all belonging to this same cluster → skip
             if (info && info.count >= 2 && !info.multiCluster) continue;
-            clusterEdges.get(ck)!.push({
+            edgeBucket.push({
                 x1: pts[j][0], y1: pts[j][1],
                 x2: pts[j + 1][0], y2: pts[j + 1][1],
             });
@@ -713,11 +725,11 @@ export function mergeSameOwnerCells(
 
         const adjacency = buildSortedOutgoingArcMap(buildDirectedEdgeArcs(edges));
 
-        const used = new Set<number>();
+        const used = new Uint8Array(edges.length);
         for (let start = 0; start < edges.length; start++) {
-            if (used.has(start)) continue;
+            if (used[start] !== 0) continue;
             const e0 = edges[start];
-            used.add(start);
+            used[start] = 1;
             const chain: [number, number][] = [[e0.x1, e0.y1], [e0.x2, e0.y2]];
             const startPt = ptKey(e0.x1, e0.y1);
             let curEnd = ptKey(e0.x2, e0.y2);
@@ -738,10 +750,10 @@ export function mergeSameOwnerCells(
                 const nextArc = pickClockwiseAdjacentArc({
                     adjacency,
                     current: currentArc,
-                    isAvailable: (arc) => !used.has(arc.idx),
+                    isAvailable: (arc) => used[arc.idx] === 0,
                 });
                 if (!nextArc) break;
-                used.add(nextArc.idx);
+                used[nextArc.idx] = 1;
                 curEnd = nextArc.toKey;
                 chain.push([nextArc.x2, nextArc.y2]);
                 currentArc = nextArc;
