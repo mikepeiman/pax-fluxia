@@ -1987,6 +1987,7 @@ function summarizeScenarioCollection(
         inputLatency: scenario?.perf?.inputLatency ?? null,
         shipDiagnostics: scenario?.perf?.shipDiagnostics ?? null,
         renderLineItems: scenario?.perf?.renderLineItems ?? [],
+        orderLoopPerf: scenario?.actionResult?.orderLoopPerf ?? null,
         interactionEvents: scenario?.perf?.interactionEvents ?? [],
         pipelineEvents: scenario?.perf?.pipelineEvents ?? [],
         browserEvents: scenario?.perf?.browserEvents ?? [],
@@ -3379,6 +3380,25 @@ async function executeDirectOrderLoop(
     return { samples };
 }
 
+async function collectFrameStatsWithFreshPerfWindow(
+    client: CdpClient,
+    durationMs: number,
+    warmupMs: number,
+): Promise<{
+    frames: JsonValue;
+    orderLoopPerf: Record<string, JsonValue>;
+}> {
+    const orderLoopSnapshot = await client.evaluate<any>(
+        "window.__PAX_BENCH__.snapshotPerfCapture()",
+    );
+    const orderLoopPerf = summarizePerfSnapshot(orderLoopSnapshot, null);
+    await client.evaluate<void>("window.__PAX_BENCH__.resetPerfCapture()");
+    const frames = await client.evaluate<JsonValue>(
+        `window.__PAX_BENCH__.collectFrameStats(${durationMs}, ${warmupMs})`,
+    );
+    return { frames, orderLoopPerf };
+}
+
 async function captureTransitionDiagnosticScenario(
     client: CdpClient,
     mode: string,
@@ -4113,10 +4133,12 @@ async function main(): Promise<void> {
                             scenarioClient,
                             4,
                         );
-                        const frames = await scenarioClient.evaluate<JsonValue>(
-                            `window.__PAX_BENCH__.collectFrameStats(${ORDERS_FRAME_MS}, ${FRAME_WARMUP_MS})`,
+                        const frameWindow = await collectFrameStatsWithFreshPerfWindow(
+                            scenarioClient,
+                            ORDERS_FRAME_MS,
+                            FRAME_WARMUP_MS,
                         );
-                        return { pointerSamples, directSamples, frames };
+                        return { pointerSamples, directSamples, ...frameWindow };
                     },
                     {
                         expectedMode: spec.mode,
@@ -4149,10 +4171,12 @@ async function main(): Promise<void> {
                             scenarioClient,
                             4,
                         );
-                        const frames = await scenarioClient.evaluate<JsonValue>(
-                            `window.__PAX_BENCH__.collectFrameStats(${ORDERS_FRAME_MS}, ${FRAME_WARMUP_MS})`,
+                        const frameWindow = await collectFrameStatsWithFreshPerfWindow(
+                            scenarioClient,
+                            ORDERS_FRAME_MS,
+                            FRAME_WARMUP_MS,
                         );
-                        return { pointerSamples, directSamples, frames };
+                        return { pointerSamples, directSamples, ...frameWindow };
                     },
                     {
                         expectedMode: spec.mode,
