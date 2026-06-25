@@ -369,7 +369,7 @@ async function collectFrameStats(
             const total = frameDurations.reduce((sum, value) => sum + value, 0);
             const measuredStartedAtMs =
                 measured[0]?.startAtMs ?? warmupDeadlineAt;
-            const perfEvents = snapshotPerfCapture()?.events ?? [];
+            const perfEvents = globalThis.__PAX_PERF_STATE__?.events ?? [];
             resolve({
                 frameCount: measured.length,
                 avgFrameMs: measured.length > 0 ? total / measured.length : 0,
