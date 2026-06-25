@@ -171,11 +171,24 @@ export function clampVirtualSiteWeightForRealStarOwnership(params: {
     for (const realSite of params.realSites) {
         const dx = params.x - realSite.x;
         const dy = params.y - realSite.y;
-        const centerDistance = Math.hypot(dx, dy);
         const clearanceRadius = Math.max(
             0,
             clampFiniteNumber(realSite.clearanceRadiusPx ?? 0, 0),
         );
+
+        const currentClampGapSq = clampedWeight - realSite.weight + epsilon;
+        if (currentClampGapSq <= 0) {
+            continue;
+        }
+
+        const maxNonClampingDistance =
+            clearanceRadius + Math.sqrt(currentClampGapSq);
+        const distanceSq = dx * dx + dy * dy;
+        if (distanceSq >= maxNonClampingDistance * maxNonClampingDistance) {
+            continue;
+        }
+
+        const centerDistance = Math.sqrt(distanceSq);
         const clearanceGap = Math.max(0, centerDistance - clearanceRadius);
         const maxAllowedWeight =
             clearanceGap * clearanceGap + realSite.weight - epsilon;

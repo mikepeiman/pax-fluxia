@@ -23,6 +23,7 @@ import {
     formatGeometry0319DebugConfig,
     snapshotGeometry0319DebugConfig,
 } from '../../config/geometry0319Debug';
+import { measurePerf } from '$lib/perf/perfProbe';
 import { log } from '../../utils/logger';
 import { geometryTrace } from '$lib/territory/devtools/geometryPipelineTrace';
 import type { CompileError } from './types';
@@ -248,36 +249,60 @@ export function computeGeometry0319(
         geometryTrace.step('0', 'input', { stars: stars.length, lanes: connections.length, owned: ownedStars.length, owners: new Set(ownedStars.map((s) => s.ownerId)).size, world: `${worldWidth}x${worldHeight}` });
 
         // ── Stage 0: Build site array ───────────────────────────────────────
-        const localStarMargins = resolvePerStarMinStarMarginPx({
-            stars: ownedStars,
-            requestedMarginPx: starMargin,
-            worldWidth,
-            worldHeight,
-        });
-        const sites: PowerSite[] = ownedStars.map(s => ({
-            x: s.x,
-            y: s.y,
-            weight:
-                weightOverrides?.get(s.id) ??
-                buildRealSiteWeight(
-                    localStarMargins.get(s.id) ?? starMargin,
-                    config.msrStarBias,
-                ),
-            ownerId: s.ownerId!,
-            starId: s.id,
-        }));
-        const realOwnershipGuardSites = sites.map((site) => ({
-            x: site.x,
-            y: site.y,
-            weight: site.weight,
-            clearanceRadiusPx: 0,
-        }));
-        const realDisconnectGuardSites = sites.map((site) => ({
-            x: site.x,
-            y: site.y,
-            weight: site.weight,
-            clearanceRadiusPx: config.starCoreGuardRadius,
-        }));
+        const localStarMargins = measurePerf(
+            'territory.geometry0319.compute.localMargins',
+            () =>
+                resolvePerStarMinStarMarginPx({
+                    stars: ownedStars,
+                    requestedMarginPx: starMargin,
+                    worldWidth,
+                    worldHeight,
+                }),
+            { ownedStars: ownedStars.length, requestedMarginPx: starMargin },
+        );
+        const realSiteState = measurePerf(
+            'territory.geometry0319.compute.sites.real',
+            () => {
+                const sites: PowerSite[] = ownedStars.map(s => ({
+                    x: s.x,
+                    y: s.y,
+                    weight:
+                        weightOverrides?.get(s.id) ??
+                        buildRealSiteWeight(
+                            localStarMargins.get(s.id) ?? starMargin,
+                            config.msrStarBias,
+                        ),
+                    ownerId: s.ownerId!,
+                    starId: s.id,
+                }));
+                const ownerByStarId = new Map(
+                    ownedStars.map((star) => [star.id, star.ownerId!] as const),
+                );
+                return {
+                    sites,
+                    ownerByStarId,
+                    realOwnershipGuardSites: sites.map((site) => ({
+                        x: site.x,
+                        y: site.y,
+                        weight: site.weight,
+                        clearanceRadiusPx: 0,
+                    })),
+                    realDisconnectGuardSites: sites.map((site) => ({
+                        x: site.x,
+                        y: site.y,
+                        weight: site.weight,
+                        clearanceRadiusPx: config.starCoreGuardRadius,
+                    })),
+                };
+            },
+            { ownedStars: ownedStars.length },
+        );
+        const {
+            sites,
+            ownerByStarId,
+            realOwnershipGuardSites,
+            realDisconnectGuardSites,
+        } = realSiteState;
 
         // Inject ghost/extra sites (used for transition ghost old-owner duplicates)
         if (extraSites) {
@@ -287,60 +312,82 @@ export function computeGeometry0319(
         let traceCorridorVirtualCount = 0;
         let traceDisconnectVirtualCount = 0;
         if (config.corridorEnabled) {
-            const corridorVirtuals = computeCorridorVirtuals(
-                ownedStars,
-                connections,
-                config.corridorSpacing,
-                config.cxWeight,
-                config.cxCount || undefined,
-                // Use authored/cache lane paths only; territory geometry must not reroute lanes.
-                undefined,
-                config.cxContestMidpointVstars,
-                true,
-                true,
-                config.cxContestPairWeight,
-                config.cxContestPairCount,
-                config.cxContestPairSpacing,
-                config.starCoreGuardRadius,
+            traceCorridorVirtualCount = measurePerf(
+                'territory.geometry0319.compute.sites.corridor',
+                () => {
+                    const corridorVirtuals = computeCorridorVirtuals(
+                        ownedStars,
+                        connections,
+                        config.corridorSpacing,
+                        config.cxWeight,
+                        config.cxCount || undefined,
+                        // Use authored/cache lane paths only; territory geometry must not reroute lanes.
+                        undefined,
+                        config.cxContestMidpointVstars,
+                        true,
+                        true,
+                        config.cxContestPairWeight,
+                        config.cxContestPairCount,
+                        config.cxContestPairSpacing,
+                        config.starCoreGuardRadius,
+                    );
+                    let accepted = 0;
+                    for (const cv of corridorVirtuals) {
+                        const clampedWeight =
+                            clampVirtualSiteWeightForRealStarOwnership({
+                                x: cv.x,
+                                y: cv.y,
+                                weight: buildVirtualSiteWeight(cv.weight),
+                                realSites: realOwnershipGuardSites,
+                            });
+                        if (clampedWeight <= 0) continue;
+                        sites.push({
+                            x: cv.x, y: cv.y,
+                            weight: clampedWeight,
+                            ownerId: cv.ownerId,
+                            starId: `corridor_${cv.sourceStarA}_${cv.sourceStarB}`,
+                            virtual: 'corridor',
+                        });
+                        accepted++;
+                    }
+                    return accepted;
+                },
+                { lanes: connections.length, ownedStars: ownedStars.length },
             );
-            for (const cv of corridorVirtuals) {
-                const clampedWeight = clampVirtualSiteWeightForRealStarOwnership({
-                    x: cv.x,
-                    y: cv.y,
-                    weight: buildVirtualSiteWeight(cv.weight),
-                    realSites: realOwnershipGuardSites,
-                });
-                if (clampedWeight <= 0) continue;
-                sites.push({
-                    x: cv.x, y: cv.y,
-                    weight: clampedWeight,
-                    ownerId: cv.ownerId,
-                    starId: `corridor_${cv.sourceStarA}_${cv.sourceStarB}`,
-                    virtual: 'corridor',
-                });
-                traceCorridorVirtualCount++;
-            }
         }
 
         if (config.disconnectEnabled) {
-            const disconnectVirtuals = computeDisconnectVirtuals(ownedStars, stars, connections, config.disconnectDistance, config.dxWeight);
-            for (const dv of disconnectVirtuals) {
-                const clampedWeight = clampVirtualSiteWeightForRealStarOwnership({
-                    x: dv.x,
-                    y: dv.y,
-                    weight: buildVirtualSiteWeight(dv.weight),
-                    realSites: realDisconnectGuardSites,
-                });
-                if (clampedWeight <= 0) continue;
-                sites.push({
-                    x: dv.x, y: dv.y,
-                    weight: clampedWeight,
-                    ownerId: DISCONNECT_OWNER_ID,
-                    starId: `disconnect_${dv.sourceStarA}_${dv.sourceStarB}`,
-                    virtual: 'disconnect',
-                });
-                traceDisconnectVirtualCount++;
-            }
+            traceDisconnectVirtualCount = measurePerf(
+                'territory.geometry0319.compute.sites.disconnect',
+                () => {
+                    const disconnectVirtuals = computeDisconnectVirtuals(ownedStars, stars, connections, config.disconnectDistance, config.dxWeight);
+                    let accepted = 0;
+                    for (const dv of disconnectVirtuals) {
+                        const clampedWeight =
+                            clampVirtualSiteWeightForRealStarOwnership({
+                                x: dv.x,
+                                y: dv.y,
+                                weight: buildVirtualSiteWeight(dv.weight),
+                                realSites: realDisconnectGuardSites,
+                            });
+                        if (clampedWeight <= 0) continue;
+                        sites.push({
+                            x: dv.x, y: dv.y,
+                            weight: clampedWeight,
+                            ownerId: DISCONNECT_OWNER_ID,
+                            starId: `disconnect_${dv.sourceStarA}_${dv.sourceStarB}`,
+                            virtual: 'disconnect',
+                        });
+                        accepted++;
+                    }
+                    return accepted;
+                },
+                {
+                    lanes: connections.length,
+                    ownedStars: ownedStars.length,
+                    allStars: stars.length,
+                },
+            );
         }
 
         geometryTrace.step('1', 'sites', { total: sites.length, cx: traceCorridorVirtualCount, dx: traceDisconnectVirtualCount });
@@ -360,12 +407,18 @@ export function computeGeometry0319(
 
         let polygons: any[];
         try {
-            const wv = weightedVoronoi()
-                .x((d: PowerSite) => d.x)
-                .y((d: PowerSite) => d.y)
-                .weight((d: PowerSite) => d.weight)
-                .clip(clip);
-            polygons = wv(sites);
+            polygons = measurePerf(
+                'territory.geometry0319.compute.weightedVoronoi',
+                () => {
+                    const wv = weightedVoronoi()
+                        .x((d: PowerSite) => d.x)
+                        .y((d: PowerSite) => d.y)
+                        .weight((d: PowerSite) => d.weight)
+                        .clip(clip);
+                    return wv(sites);
+                },
+                { sites: sites.length },
+            );
         } catch (e) {
             return {
                 kind: 'error',
@@ -376,69 +429,94 @@ export function computeGeometry0319(
         }
 
         // ── Stage 2: Convert to TerritoryCell[] ─────────────────────────────
-        const cells: TerritoryCell[] = [];
-        for (let i = 0; i < polygons.length; i++) {
-            const poly = polygons[i];
-            if (!poly || poly.length < 3) continue;
-            const site = (poly as any).site?.originalObject as PowerSite | undefined;
-            if (!site) continue;
+        const cells: TerritoryCell[] = measurePerf(
+            'territory.geometry0319.compute.cells',
+            () => {
+                const cells: TerritoryCell[] = [];
+                for (let i = 0; i < polygons.length; i++) {
+                    const poly = polygons[i];
+                    if (!poly || poly.length < 3) continue;
+                    const site = (poly as any).site?.originalObject as PowerSite | undefined;
+                    if (!site) continue;
 
-            let effectiveOwner = site.ownerId;
-            if (site.ownerId === DISCONNECT_OWNER_ID) {
-                const parts = site.starId.split('_');
-                const sourceStarA = parts[1];
-                const sourceOwner = ownedStars.find(s => s.id === sourceStarA)?.ownerId;
-                let nearestDist = Infinity;
-                let nearestOwner = '';
-                for (const s of ownedStars) {
-                    if (s.ownerId === sourceOwner) continue;
-                    const d = (s.x - site.x) ** 2 + (s.y - site.y) ** 2;
-                    if (d < nearestDist) { nearestDist = d; nearestOwner = s.ownerId!; }
-                }
-                if (!nearestOwner) {
-                    effectiveOwner = sourceOwner ?? '';
-                    if (!effectiveOwner) continue;
-                } else {
-                    effectiveOwner = nearestOwner;
-                }
-            }
+                    let effectiveOwner = site.ownerId;
+                    if (site.ownerId === DISCONNECT_OWNER_ID) {
+                        const parts = site.starId.split('_');
+                        const sourceStarA = parts[1];
+                        const sourceOwner =
+                            sourceStarA !== undefined
+                                ? ownerByStarId.get(sourceStarA)
+                                : undefined;
+                        let nearestDist = Infinity;
+                        let nearestOwner = '';
+                        for (const s of ownedStars) {
+                            if (s.ownerId === sourceOwner) continue;
+                            const d = (s.x - site.x) ** 2 + (s.y - site.y) ** 2;
+                            if (d < nearestDist) { nearestDist = d; nearestOwner = s.ownerId!; }
+                        }
+                        if (!nearestOwner) {
+                            effectiveOwner = sourceOwner ?? '';
+                            if (!effectiveOwner) continue;
+                        } else {
+                            effectiveOwner = nearestOwner;
+                        }
+                    }
 
-            const pts: [number, number][] = poly.map((p: number[]) => [p[0], p[1]] as [number, number]);
-            if (pts.length > 0 && (pts[0][0] !== pts[pts.length - 1][0] || pts[0][1] !== pts[pts.length - 1][1])) {
-                pts.push([pts[0][0], pts[0][1]]);
-            }
-            cells.push({ points: pts, ownerId: effectiveOwner, siteId: site.starId });
-        }
+                    const pts: [number, number][] = poly.map((p: number[]) => [p[0], p[1]] as [number, number]);
+                    if (pts.length > 0 && (pts[0][0] !== pts[pts.length - 1][0] || pts[0][1] !== pts[pts.length - 1][1])) {
+                        pts.push([pts[0][0], pts[0][1]]);
+                    }
+                    cells.push({ points: pts, ownerId: effectiveOwner, siteId: site.starId });
+                }
+                return cells;
+            },
+            { polygons: polygons.length },
+        );
 
         // Individual stage logs consolidated into single summary below (see Stage 10)
         geometryTrace.step('2', 'cells', { rawPolys: polygons.length, cells: cells.length });
 
         // ── Stage 3: Extract inter-owner shared edges ───────────────────────
-        const sharedEdges = extractSharedEdges(cells);
+        const sharedEdges = measurePerf(
+            'territory.geometry0319.compute.sharedEdges',
+            () => extractSharedEdges(cells),
+            { cells: cells.length },
+        );
 
         // ── Stage 4: Build cluster map + merge cells ────────────────────────
-        const clusterMap = new Map<string, number>();
-        if (config.clusterSplit) {
-            const starById = new Map(ownedStars.map(s => [s.id, s]));
-            const clusters = findConnectedClustersOptimized(ownedStars, connections, starById);
-            for (const [starId, info] of clusters) {
-                clusterMap.set(starId, info.clusterIdx);
-            }
-            for (const site of sites) {
-                if (site.virtual === 'corridor' || site.virtual === 'msr_support') {
-                    const sourceId =
-                        site.sourceStarId ??
-                        (site.virtual === 'corridor'
-                            ? site.starId.split('_')[1]
-                            : undefined);
-                    const srcCluster =
-                        sourceId !== undefined ? clusterMap.get(sourceId) : undefined;
-                    if (srcCluster !== undefined) clusterMap.set(site.starId, srcCluster);
+        const clusterMap = measurePerf(
+            'territory.geometry0319.compute.clusters',
+            () => {
+                const clusterMap = new Map<string, number>();
+                if (config.clusterSplit) {
+                    const starById = new Map(ownedStars.map(s => [s.id, s]));
+                    const clusters = findConnectedClustersOptimized(ownedStars, connections, starById);
+                    for (const [starId, info] of clusters) {
+                        clusterMap.set(starId, info.clusterIdx);
+                    }
+                    for (const site of sites) {
+                        if (site.virtual === 'corridor' || site.virtual === 'msr_support') {
+                            const sourceId =
+                                site.sourceStarId ??
+                                (site.virtual === 'corridor'
+                                    ? site.starId.split('_')[1]
+                                    : undefined);
+                            const srcCluster =
+                                sourceId !== undefined ? clusterMap.get(sourceId) : undefined;
+                            if (srcCluster !== undefined) clusterMap.set(site.starId, srcCluster);
+                        }
+                    }
                 }
-            }
-        }
+                return clusterMap;
+            },
+            { clusterSplit: config.clusterSplit, sites: sites.length },
+        );
 
-        const mergedRaw = mergeSameOwnerCells(cells, config.clusterSplit, clusterMap);
+        const mergedRaw = measurePerf(
+            'territory.geometry0319.compute.merge',
+            () => mergeSameOwnerCells(cells, config.clusterSplit, clusterMap),
+            { cells: cells.length, clusterSplit: config.clusterSplit },
+        );
 
         // ── Stage 5: Build inter-owner edge key set ─────────────────────────
         const interOwnerEdgeKeys = new Set<string>();
@@ -449,14 +527,26 @@ export function computeGeometry0319(
         // ── Stage 6: Extract ALL world-boundary edges ───────────────────────
         // This is the KEY FIX: captures corner-crossing edges that the old
         // extractWorldBorderPolylines misses.
-        const worldBoundaryEdges = extractAllWorldBoundaryEdges(mergedRaw, interOwnerEdgeKeys);
+        const worldBoundaryEdges = measurePerf(
+            'territory.geometry0319.compute.worldEdges',
+            () => extractAllWorldBoundaryEdges(mergedRaw, interOwnerEdgeKeys),
+            { merged: mergedRaw.length, sharedEdges: sharedEdges.length },
+        );
         geometryTrace.step('3', 'edges', { shared: sharedEdges.length, merged: mergedRaw.length, world: worldBoundaryEdges.length });
 
         // ── Stage 7: Chain ALL edges into polylines ─────────────────────────
         // Concatenate inter-owner + owner-world edges and chain together.
         const allFrontierEdges: SharedBorderEdge[] = [...sharedEdges, ...worldBoundaryEdges];
-        const rawAllPolylines = chainSharedEdgesIntoPolylines(allFrontierEdges, 0);
-        const allPolylines = chainSharedEdgesIntoPolylines(allFrontierEdges, config.chaikinPasses);
+        const rawAllPolylines = measurePerf(
+            'territory.geometry0319.compute.chain.raw',
+            () => chainSharedEdgesIntoPolylines(allFrontierEdges, 0),
+            { edges: allFrontierEdges.length },
+        );
+        const allPolylines = measurePerf(
+            'territory.geometry0319.compute.chain.smooth',
+            () => chainSharedEdgesIntoPolylines(allFrontierEdges, config.chaikinPasses),
+            { edges: allFrontierEdges.length, chaikin: config.chaikinPasses },
+        );
 
         // ── Stage 8: Separate into inter-owner and world-border ─────────────
         let sharedPolylines: SharedPolyline[] = [];
@@ -490,59 +580,89 @@ export function computeGeometry0319(
         // ── Stage 10: Build fill regions ────────────────────────────────────
         // constructFillsFromFrontierChain now receives COMPLETE data
         // (including corner-crossing world boundary edges)
-        const rawMinStarMarginValidator = buildMinStarMarginValidator({
-            cells,
-            baselineSharedPolylines: rawSharedPolylines,
-            baselineWorldBorderPolylines: rawWorldBorderPolylines,
-            stars: ownedStars,
-        });
-        const adjustedRawGeometry = applyExplicitMinStarMargin({
-            sharedPolylines: rawSharedPolylines,
-            worldBorderPolylines: rawWorldBorderPolylines,
-            stars: ownedStars,
-            requestedMarginPx: starMargin,
-            worldWidth,
-            worldHeight,
-            validateRepair: (candidate) =>
-                rawMinStarMarginValidator({
-                    sharedPolylines: candidate.sharedPolylines,
-                    worldBorderPolylines: candidate.worldBorderPolylines,
+        const rawMinStarMarginValidator = measurePerf(
+            'territory.geometry0319.compute.margin.rawValidator',
+            () =>
+                buildMinStarMarginValidator({
+                    cells,
+                    baselineSharedPolylines: rawSharedPolylines,
+                    baselineWorldBorderPolylines: rawWorldBorderPolylines,
+                    stars: ownedStars,
                 }),
-        });
+            { shared: rawSharedPolylines.length, world: rawWorldBorderPolylines.length },
+        );
+        const adjustedRawGeometry = measurePerf(
+            'territory.geometry0319.compute.margin.rawApply',
+            () =>
+                applyExplicitMinStarMargin({
+                    sharedPolylines: rawSharedPolylines,
+                    worldBorderPolylines: rawWorldBorderPolylines,
+                    stars: ownedStars,
+                    requestedMarginPx: starMargin,
+                    worldWidth,
+                    worldHeight,
+                    validateRepair: (candidate) =>
+                        rawMinStarMarginValidator({
+                            sharedPolylines: candidate.sharedPolylines,
+                            worldBorderPolylines: candidate.worldBorderPolylines,
+                        }),
+                }),
+            { shared: rawSharedPolylines.length, world: rawWorldBorderPolylines.length },
+        );
         rawSharedPolylines = adjustedRawGeometry.sharedPolylines;
         rawWorldBorderPolylines = adjustedRawGeometry.worldBorderPolylines;
-        const minStarMarginValidator = buildMinStarMarginValidator({
-            cells,
-            baselineSharedPolylines: sharedPolylines,
-            baselineWorldBorderPolylines: worldBorderPolylines,
-            stars: ownedStars,
-        });
-        const adjustedGeometry = applyExplicitMinStarMargin({
-            sharedPolylines,
-            worldBorderPolylines,
-            stars: ownedStars,
-            requestedMarginPx: starMargin,
-            worldWidth,
-            worldHeight,
-            validateRepair: (candidate) =>
-                minStarMarginValidator({
-                    sharedPolylines: candidate.sharedPolylines,
-                    worldBorderPolylines: candidate.worldBorderPolylines,
+        const minStarMarginValidator = measurePerf(
+            'territory.geometry0319.compute.margin.displayValidator',
+            () =>
+                buildMinStarMarginValidator({
+                    cells,
+                    baselineSharedPolylines: sharedPolylines,
+                    baselineWorldBorderPolylines: worldBorderPolylines,
+                    stars: ownedStars,
                 }),
-        });
+            { shared: sharedPolylines.length, world: worldBorderPolylines.length },
+        );
+        const adjustedGeometry = measurePerf(
+            'territory.geometry0319.compute.margin.displayApply',
+            () =>
+                applyExplicitMinStarMargin({
+                    sharedPolylines,
+                    worldBorderPolylines,
+                    stars: ownedStars,
+                    requestedMarginPx: starMargin,
+                    worldWidth,
+                    worldHeight,
+                    validateRepair: (candidate) =>
+                        minStarMarginValidator({
+                            sharedPolylines: candidate.sharedPolylines,
+                            worldBorderPolylines: candidate.worldBorderPolylines,
+                        }),
+                }),
+            { shared: sharedPolylines.length, world: worldBorderPolylines.length },
+        );
         sharedPolylines = adjustedGeometry.sharedPolylines;
         worldBorderPolylines = adjustedGeometry.worldBorderPolylines;
         // Compute the chain walk once and share it across fill reconstruction
         // and the frontier map below (each previously re-walked the same data).
-        const sharedWalkResult = executeChainWalk(
-            sharedPolylines,
-            worldBorderPolylines,
+        const sharedWalkResult = measurePerf(
+            'territory.geometry0319.compute.chain.walk',
+            () =>
+                executeChainWalk(
+                    sharedPolylines,
+                    worldBorderPolylines,
+                ),
+            { shared: sharedPolylines.length, world: worldBorderPolylines.length },
         );
-        const mergedTerritories = constructFillsFromFrontierChain(
-            sharedPolylines,
-            worldBorderPolylines,
-            cells,
-            sharedWalkResult,
+        const mergedTerritories = measurePerf(
+            'territory.geometry0319.compute.fills',
+            () =>
+                constructFillsFromFrontierChain(
+                    sharedPolylines,
+                    worldBorderPolylines,
+                    cells,
+                    sharedWalkResult,
+                ),
+            { shared: sharedPolylines.length, world: worldBorderPolylines.length, cells: cells.length },
         );
         geometryTrace.step('5', 'fills', { regions: mergedTerritories.length });
         if (
@@ -562,11 +682,25 @@ export function computeGeometry0319(
 
         // Stage 10b: Build vector frontier map (identity annotation — Phase 1)
         // Junction vertices are needed to classify decisive vertices in the TMAP.
-        const junctionPts = extractJunctionVertices(cells);
-        const frontierMap = buildFrontierMap(sharedPolylines, worldBorderPolylines, junctionPts, fingerprint, sharedWalkResult);
+        const frontierMapResult = measurePerf(
+            'territory.geometry0319.compute.frontierMap',
+            () => {
+                const junctionPts = extractJunctionVertices(cells);
+                return {
+                    junctionPts,
+                    frontierMap: buildFrontierMap(sharedPolylines, worldBorderPolylines, junctionPts, fingerprint, sharedWalkResult),
+                };
+            },
+            { cells: cells.length, shared: sharedPolylines.length, world: worldBorderPolylines.length },
+        );
+        const { junctionPts, frontierMap } = frontierMapResult;
 
         // Now detect enclaves on the actual fill output
-        const enclaveMap = detectEnclaves(mergedTerritories);
+        const enclaveMap = measurePerf(
+            'territory.geometry0319.compute.enclaves',
+            () => detectEnclaves(mergedTerritories),
+            { regions: mergedTerritories.length },
+        );
 
         // Diagnostic: check fill closure (only warn on failures)
         let closedCount = 0;
