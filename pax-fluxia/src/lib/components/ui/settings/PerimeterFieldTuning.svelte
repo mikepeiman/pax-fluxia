@@ -4,8 +4,8 @@
     import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
     import {
         PaxHudButton,
-        PaxHudSelect,
         PaxSettingsRangeRow,
+        PaxSettingsSegmentedRow,
         PaxSettingsToggleRow,
     } from "$lib/design-system";
 
@@ -30,8 +30,8 @@
     const PERIMETER_FIELD_MODULE_PANEL_KEY = "perimeterFieldModuleVisibility";
 
     const TRANSITION_ENGINE_OPTIONS = [
-        { value: "plan", label: "Topology Plan" },
-        { value: "legacy", label: "Synthetic Reference" },
+        { value: "plan", label: "Plan" },
+        { value: "legacy", label: "Reference" },
     ];
 
     let activeModule = $derived(
@@ -60,12 +60,6 @@
             GAME_CONFIG.PERIMETER_FIELD_TRANSITION_ENGINE ??
             "plan";
         return value === "legacy" ? "legacy" : "plan";
-    }
-
-    function transitionEngineLabel(): string {
-        return currentTransitionEngine() === "legacy"
-            ? "Synthetic Reference"
-            : "Topology Plan";
     }
 
     function freezeBaseDuringTransition(): boolean {
@@ -162,8 +156,10 @@
             data-setting-config-key="PERIMETER_FIELD_TRANSITION_ENGINE"
             data-setting-description="Choose between the synthetic conquest samples and the topology-driven transition plan."
         >
-            <PaxHudSelect
-                label={`Transition Engine - ${transitionEngineLabel()}`}
+            <PaxSettingsSegmentedRow
+                label="Transition Engine"
+                hint="Plan = deterministic, section-aware topology path. Reference = the previous synthetic transition implementation, kept for A/B comparison."
+                settingConfigKey="PERIMETER_FIELD_TRANSITION_ENGINE"
                 value={currentTransitionEngine()}
                 options={TRANSITION_ENGINE_OPTIONS}
                 onValueChange={(value) => {
@@ -174,9 +170,6 @@
                     );
                 }}
             />
-            <p>
-                Topology Plan is the deterministic section-aware path. Synthetic keeps the previous transition implementation available for A/B comparison.
-            </p>
         </div>
 
         <PaxSettingsRangeRow
@@ -289,11 +282,4 @@
             var(--pax-ui-control-border-gradient) border-box;
     }
 
-    .perimeter-field-select p {
-        margin: 0;
-        color: var(--pax-ui-text-dim);
-        font-family: var(--pax-ui-font-copy);
-        font-size: calc(0.66rem * var(--pax-ui-type-scale, 1));
-        line-height: 1.35;
-    }
 </style>

@@ -6,8 +6,8 @@
     import {
         PaxHudButton,
         PaxHudRange,
-        PaxHudSelect,
         PaxInfoHint,
+        PaxSettingsSegmentedRow,
         PaxSettingsToggleRow,
     } from "$lib/design-system";
 
@@ -20,9 +20,9 @@
 
     const REPLAY_SOURCE_OPTIONS = [
         { value: "0", label: "Live" },
-        { value: "1", label: "Replay 1 (most recent)" },
-        { value: "2", label: "Replay 2" },
-        { value: "3", label: "Replay 3" },
+        { value: "1", label: "R1" },
+        { value: "2", label: "R2" },
+        { value: "3", label: "R3" },
     ];
 
     function writeConfig(configKey: string, panelKey: string, value: unknown): void {
@@ -149,9 +149,10 @@
             )}
     />
 
-    <PaxHudSelect
+    <PaxSettingsSegmentedRow
         label="Replay Source"
-        hint="Live uses the currently active conquest. Replay 1 is the most recent captured conquest, then Replay 2 and Replay 3."
+        hint="Live uses the currently active conquest. R1 is the most recent captured conquest, then R2 and R3."
+        settingConfigKey="PERIMETER_FIELD_DEBUG_REPLAY_SLOT"
         value={(panel.perimeterFieldDebugReplaySlot ??
             GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT ??
             0).toString()}
