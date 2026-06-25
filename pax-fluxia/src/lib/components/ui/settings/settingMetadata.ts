@@ -326,6 +326,11 @@ const SCOPE_LABEL_META: LabelScopeMap = {
     territory: {
         'Transition Mode': { key: 'VS_TRANSITION_MODE' },
         'Frontier Resolution': { key: 'FRONTIER_RESOLUTION' },
+        'Extent Beyond Map': {
+            key: 'CHAIKIN_BOUNDARY_PAD',
+            description:
+                'How far territory fill and world-edge border extend past the map rectangle (they share one boundary, so they extend together). 0 = stop at the map edge.',
+        },
         'Resample Points': { key: 'BORDER_TRANS_RESAMPLE_N' },
         'Back Overshoot': { key: 'BORDER_TRANS_OVERSHOOT' },
         'Burst Boundary Basis': { key: 'METABALL_BURST_BOUNDARY_BASIS' },
