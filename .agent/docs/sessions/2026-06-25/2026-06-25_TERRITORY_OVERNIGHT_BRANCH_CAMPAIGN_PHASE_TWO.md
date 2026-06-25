@@ -411,7 +411,109 @@ Promote a new path to default only when:
 
 Do not promote by mixing engine work, UI settings, and fallback changes in one commit.
 
-## 11. Stop Conditions
+## 11. Adaptive Multi-Sprint Control
+
+The campaign should run as a sequence of bounded sprints, not as one long uninterrupted implementation. End-goal primacy beats checklist completion.
+
+Primary end goal:
+
+> Make territory geometry and transitions consistently correct, deterministic, performant, and default-safe, with every ambitious change preserved in clear reversible branch history.
+
+Priority order when tradeoffs collide:
+
+1. No broken default path.
+2. Deterministic geometry truth and honest reliability flags.
+3. Exact transition endpoints and closed sampled frames.
+4. Provenance preserved across render families.
+5. Measured performance improvements with no blanking.
+6. Broader mode exposure and UI polish.
+
+Sprint cadence:
+
+- Each sprint is 60-120 minutes or one coherent commit, whichever comes first.
+- A lane may run at most 3 consecutive implementation sprints without an integration realignment check.
+- Every sprint must end with one of: pushed commit, reverted local attempt, or blocker report.
+- Do not keep half-proven behavior sitting unstaged or unreported across sprint boundaries.
+
+Sprint opening checklist:
+
+- Restate the end goal in one sentence.
+- State the current lane objective.
+- Name the validation gate this sprint is trying to unlock.
+- Name the most likely way the sprint could damage correctness, determinism, performance, or branch clarity.
+- Confirm whether the work is default-path, candidate-path, diagnostic-only, or research-only.
+
+Sprint closing checklist:
+
+- Did this move the end goal, or only complete a local task?
+- Did evidence disprove any assumption from the prior sprint?
+- Should the feature remain candidate-only, become default-eligible, or be demoted?
+- Is the next step still the highest-leverage step?
+- Is branch history clean enough to cherry-pick or revert?
+- Are there new docs, fixtures, screenshots, or benchmark artifacts that must be committed?
+
+Realignment triggers:
+
+- geometry reliability remains false after a geometry sprint;
+- transition endpoint exactness fails after a transition sprint;
+- Grid Gradient or cell-grid performance regresses after an optimization sprint;
+- a lane starts editing broad shared surfaces without a narrow commit boundary;
+- a council role finds a blocker;
+- a sprint completes work that does not improve the primary end goal;
+- a new failure suggests the current lane is building on untrusted geometry or topology.
+
+Realignment actions:
+
+- If geometry is not trustworthy, pause transition promotion and invest in oracle/candidate geometry first.
+- If transition V2 cannot prove exact endpoints, keep it candidate-only and improve deterministic fallback.
+- If performance cannot be measured, add instrumentation before optimizing.
+- If provenance transport destabilizes worker behavior, keep topology-seeded wave as A/B and preserve the old path.
+- If default promotion becomes risky, split promotion into its own commit or defer it.
+- If two lanes conflict, merge neither blindly; create an integration commit that states the chosen behavior.
+
+Integration owner cadence:
+
+- Every 2-3 hours, inspect pushed lane branches, validation status, and blocker reports.
+- Merge only branches that have a coherent sprint-close state.
+- Prefer preserving useful candidate work over forcing it into default behavior.
+- Keep an integration note listing: defaulted, candidate, blocked, reverted, next best action.
+
+## 12. Friction Budget
+
+The plan should create useful pressure, not ceremony. Treat the following as hard constraints:
+
+- reversible git history;
+- no destructive local filesystem actions outside the intended worktree;
+- deterministic geometry and transition gates before default promotion;
+- evidence for correctness and performance claims;
+- named fallback instead of silent failure;
+- explicit report when a lane is blocked or demoted.
+
+Treat the following as soft guidance, not mandatory process:
+
+- exact branch names;
+- exact sprint duration;
+- number of active lanes;
+- adversarial council for non-default candidate work;
+- full benchmark matrix after every small commit;
+- web research before local docs, source, and git history are exhausted;
+- long written reports when a commit message plus validation output already captures the sprint result.
+
+Tier validation to reduce drag:
+
+- Micro-check: focused unit test or fixture for the code just changed.
+- Lane-check: relevant territory/render-family tests plus `bun run check` when types/contracts changed.
+- Promotion-check: full territory tests, build, graphify rebuild when needed, screenshots, and benchmark matrix.
+
+Remove or defer work that becomes friction:
+
+- Do not build UI exposure before the engine path is trustworthy.
+- Do not require perfect transition coverage before landing diagnostic/fallback infrastructure.
+- Do not optimize unmeasured performance paths.
+- Do not keep polishing candidate APIs if invariant tests still fail.
+- Do not block useful candidate commits because default promotion is not yet safe.
+
+## 13. Stop Conditions
 
 Stop coding and write a report when any of these happen:
 
@@ -430,7 +532,7 @@ The report must include:
 - blockers;
 - exact next action.
 
-## 12. Overnight Success Definition
+## 14. Overnight Success Definition
 
 A successful overnight run does not need every ambitious feature fully defaulted. It must leave the repo better in durable, selectable, validated pieces:
 
