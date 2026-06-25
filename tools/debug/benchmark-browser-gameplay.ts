@@ -1890,6 +1890,82 @@ function summarizeOrderPathGap(
     };
 }
 
+function summarizeFramePacing(
+    frames: Record<string, any> | null | undefined,
+    perf: Record<string, any> | null | undefined,
+): Record<string, JsonValue> | null {
+    if (!frames) return null;
+    const frameCount = Number(frames.frameCount ?? 0);
+    if (!Number.isFinite(frameCount) || frameCount <= 0) return null;
+
+    const avgFrameMs = Number(frames.avgFrameMs ?? 0);
+    const p95FrameMs = Number(frames.p95FrameMs ?? 0);
+    const maxFrameMs = Number(frames.maxFrameMs ?? 0);
+    const observedFps = Number(frames.observedFps ?? 0);
+    const over20MsCount = Number(frames.over20MsCount ?? 0);
+    const over33MsCount = Number(frames.over33MsCount ?? 0);
+    const cadenceBuckets = frames.cadenceBuckets ?? null;
+    const renderLineItems = Array.isArray(perf?.renderLineItems)
+        ? perf?.renderLineItems
+        : [];
+    const renderMaxMs = renderLineItems.reduce(
+        (max: number, item: Record<string, any>) =>
+            Math.max(max, Number(item.maxMs ?? 0)),
+        0,
+    );
+    const renderAvgSumMs = renderLineItems.reduce(
+        (sum: number, item: Record<string, any>) =>
+            sum + Number(item.avgMs ?? 0),
+        0,
+    );
+    const longTaskCount = Number(perf?.longTasks?.count ?? 0);
+    const longAnimationFrameCount = Number(perf?.longAnimationFrames?.count ?? 0);
+
+    let classification = "nominal";
+    const reasons: string[] = [];
+    if (p95FrameMs > 33 || avgFrameMs > 25 || over33MsCount > 0) {
+        if (renderMaxMs > Math.max(12, p95FrameMs * 0.5)) {
+            if (renderAvgSumMs < Math.max(8, avgFrameMs * 0.33)) {
+                classification = "render_spike_or_unattributed_pacing";
+                reasons.push("isolated_render_spike_but_average_render_work_low");
+            } else {
+                classification = "render_bound";
+                reasons.push("render_measure_near_frame_interval");
+            }
+        } else if (longTaskCount > 0 || longAnimationFrameCount > 0) {
+            classification = "browser_main_thread_bound";
+            reasons.push("browser_long_task_or_long_animation_frame");
+        } else {
+            classification = "frame_pacing_or_unattributed";
+            reasons.push("slow_frame_intervals_without_matching_render_measures");
+        }
+    } else if (over20MsCount > 0) {
+        classification = "minor_frame_jitter";
+        reasons.push("some_frames_over_20ms");
+    }
+
+    if (observedFps > 0 && observedFps < 45 && renderMaxMs <= 8) {
+        classification = "frame_pacing_or_unattributed";
+        if (!reasons.includes("low_observed_fps_with_low_render_cost")) {
+            reasons.push("low_observed_fps_with_low_render_cost");
+        }
+    }
+
+    return {
+        classification,
+        reasons,
+        observedFps: round(observedFps),
+        avgFrameMs: round(avgFrameMs),
+        p95FrameMs: round(p95FrameMs),
+        maxFrameMs: round(maxFrameMs),
+        renderMaxMs: round(renderMaxMs),
+        renderAvgSumMs: round(renderAvgSumMs),
+        longTaskCount,
+        longAnimationFrameCount,
+        cadenceBuckets,
+    };
+}
+
 function summarizeScenarioCollection(
     scenarios: Record<string, any>,
 ): Record<string, JsonValue> {
@@ -1902,6 +1978,10 @@ function summarizeScenarioCollection(
         longAnimationFrames: scenario?.perf?.longAnimationFrames ?? null,
         frameSpikeDiagnostics: scenario?.perf?.frameSpikeDiagnostics ?? null,
         frameMeasures: scenario?.perf?.frameMeasures ?? [],
+        framePacing: summarizeFramePacing(
+            scenario?.actionResult?.frames,
+            scenario?.perf,
+        ),
         focusMeasures: scenario?.perf?.focusMeasures ?? [],
         highlightMeasures: scenario?.perf?.highlightMeasures ?? [],
         inputLatency: scenario?.perf?.inputLatency ?? null,

@@ -13,7 +13,10 @@ import { logFlags } from "$lib/utils/logger";
 interface FrameStats {
     frameCount: number;
     avgFrameMs: number;
+    medianFrameMs: number;
     p95FrameMs: number;
+    p99FrameMs: number;
+    minFrameMs: number;
     maxFrameMs: number;
     durationMs: number;
     startedAtMs: number;
@@ -22,6 +25,14 @@ interface FrameStats {
     overBudgetCount: number;
     over20MsCount: number;
     over33MsCount: number;
+    observedFps: number;
+    cadenceBuckets: {
+        under12Ms: number;
+        under18Ms: number;
+        under25Ms: number;
+        under40Ms: number;
+        over40Ms: number;
+    };
     warmupDurationMs: number;
     warmupFrameCount: number;
     warmupMaxFrameMs: number;
@@ -370,7 +381,11 @@ async function collectFrameStats(
             resolve({
                 frameCount: measured.length,
                 avgFrameMs: measured.length > 0 ? total / measured.length : 0,
+                medianFrameMs: sampleQuantile(frameDurations, 0.5),
                 p95FrameMs: sampleQuantile(frameDurations, 0.95),
+                p99FrameMs: sampleQuantile(frameDurations, 0.99),
+                minFrameMs:
+                    frameDurations.length > 0 ? Math.min(...frameDurations) : 0,
                 maxFrameMs:
                     frameDurations.length > 0 ? Math.max(...frameDurations) : 0,
                 durationMs: previousFrameAt - measuredStartedAtMs,
@@ -382,6 +397,23 @@ async function collectFrameStats(
                 ).length,
                 over20MsCount: measured.filter((sample) => sample.frameMs > 20).length,
                 over33MsCount: measured.filter((sample) => sample.frameMs > 33).length,
+                observedFps:
+                    total > 0 && measured.length > 0
+                        ? (measured.length * 1000) / total
+                        : 0,
+                cadenceBuckets: {
+                    under12Ms: measured.filter((sample) => sample.frameMs < 12).length,
+                    under18Ms: measured.filter(
+                        (sample) => sample.frameMs >= 12 && sample.frameMs < 18,
+                    ).length,
+                    under25Ms: measured.filter(
+                        (sample) => sample.frameMs >= 18 && sample.frameMs < 25,
+                    ).length,
+                    under40Ms: measured.filter(
+                        (sample) => sample.frameMs >= 25 && sample.frameMs < 40,
+                    ).length,
+                    over40Ms: measured.filter((sample) => sample.frameMs >= 40).length,
+                },
                 warmupDurationMs: Math.max(0, measuredStartedAtMs - startedAt),
                 warmupFrameCount: warmupSamples.length,
                 warmupMaxFrameMs:
