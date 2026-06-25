@@ -3,6 +3,7 @@ import type { FillTransitionFrame } from '../contracts/TransitionContracts';
 import { sampleActiveFrontTransition } from '../layers/transition/ActiveFrontTransition';
 import type {
     PowerVoronoiFrontlineRuntime,
+    PowerVoronoiSharedJunctionConsistency,
     PowerVoronoiTransitionFront,
     TransientTransitionFrontline,
 } from './contracts';
@@ -34,6 +35,85 @@ function buildTransientTransitionFrontline(
         progress,
         points,
     };
+}
+
+function isFinitePoint(point: Vec2): boolean {
+    return Number.isFinite(point[0]) && Number.isFinite(point[1]);
+}
+
+function buildSharedJunctionConsistency(
+    fronts: readonly PowerVoronoiTransitionFront[],
+    transientFrontlines: readonly TransientTransitionFrontline[],
+): PowerVoronoiSharedJunctionConsistency[] {
+    const samplesByVertex = new Map<
+        string,
+        {
+            kind: PowerVoronoiTransitionFront['changeAnchorStart']['kind'];
+            samples: {
+                frontId: string;
+                ownerPairKey: string;
+                anchorRole: 'start' | 'end';
+                point: Vec2;
+            }[];
+        }
+    >();
+
+    for (let index = 0; index < fronts.length; index += 1) {
+        const front = fronts[index];
+        const transientFrontline = transientFrontlines[index];
+        if (!transientFrontline || transientFrontline.points.length === 0) continue;
+
+        const endpoints = [
+            {
+                anchor: front.changeAnchorStart,
+                anchorRole: 'start' as const,
+                point: transientFrontline.points[0] as Vec2,
+            },
+            {
+                anchor: front.changeAnchorEnd,
+                anchorRole: 'end' as const,
+                point: transientFrontline.points[transientFrontline.points.length - 1] as Vec2,
+            },
+        ];
+
+        for (const endpoint of endpoints) {
+            if (endpoint.anchor.kind !== 'junction_3way') continue;
+            const bucket =
+                samplesByVertex.get(endpoint.anchor.vertexId) ??
+                {
+                    kind: endpoint.anchor.kind,
+                    samples: [],
+                };
+            bucket.samples.push({
+                frontId: front.frontId,
+                ownerPairKey: front.ownerPairKey,
+                anchorRole: endpoint.anchorRole,
+                point: endpoint.point,
+            });
+            samplesByVertex.set(endpoint.anchor.vertexId, bucket);
+        }
+    }
+
+    return [...samplesByVertex.entries()]
+        .filter(([, bucket]) => bucket.samples.length > 1)
+        .map(([vertexId, bucket]) => {
+            const referencePoint = bucket.samples[0]?.point ?? [0, 0];
+            const finite = bucket.samples.every((sample) => isFinitePoint(sample.point));
+            const maxDistance = bucket.samples.reduce(
+                (max, sample) => Math.max(max, distance(referencePoint, sample.point)),
+                0,
+            );
+            return {
+                vertexId,
+                kind: bucket.kind,
+                sampleCount: bucket.samples.length,
+                referencePoint,
+                maxDistance,
+                finite,
+                consistent: finite && maxDistance <= 1e-6,
+                samples: bucket.samples,
+            };
+        });
 }
 
 function pointsEqual(a: readonly Vec2[], b: readonly Vec2[]): boolean {
@@ -110,6 +190,10 @@ export function samplePowerVoronoiFrontlineTransition(
     const transientFrontlines = runtime.plan.fronts.map((front) =>
         buildTransientTransitionFrontline(front, t),
     );
+    const sharedJunctionConsistency = buildSharedJunctionConsistency(
+        runtime.plan.fronts,
+        transientFrontlines,
+    );
     const sampledFrame = {
         sampleId: `${runtime.plan.planId}:sample:${String(
             runtime.diagnostics.frameEvaluationStage.sampledFrames.length,
@@ -117,6 +201,7 @@ export function samplePowerVoronoiFrontlineTransition(
         progress: t,
         regions: fillFrame.regions.length,
         transientFrontlines,
+        sharedJunctionConsistency,
         matchesPreGeometry: frameMatchesGeometry(fillFrame, runtime.preGeometry),
         matchesPostGeometry: frameMatchesGeometry(fillFrame, runtime.postGeometry),
     };
