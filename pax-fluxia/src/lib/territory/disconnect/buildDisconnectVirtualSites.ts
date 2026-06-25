@@ -29,6 +29,11 @@ interface EnemyCandidate {
     starId: string;
 }
 
+interface EnemyPairCandidates {
+    negative: EnemyCandidate | null;
+    positive: EnemyCandidate | null;
+}
+
 function clampWeight(weight: number, fallback: number): number {
     if (!Number.isFinite(weight)) return fallback;
     return Math.max(0, weight);
@@ -71,17 +76,42 @@ function normalizePair(
     return { sourceStarA: starB, sourceStarB: starA };
 }
 
-function resolveEnemyForSide(params: {
-    side: DisconnectPairSide;
+function isBetterEnemy(
+    candidate: StarState,
+    distance: number,
+    current: StarState | null,
+    currentDistance: number,
+): boolean {
+    return (
+        distance < currentDistance - EPSILON ||
+        (Math.abs(distance - currentDistance) <= EPSILON &&
+            (current == null ||
+                candidate.ownerId! < current.ownerId! ||
+                (candidate.ownerId === current.ownerId &&
+                    candidate.id < current.id)))
+    );
+}
+
+function toEnemyCandidate(chosen: StarState | null): EnemyCandidate | null {
+    if (!chosen?.ownerId) return null;
+
+    return {
+        ownerId: chosen.ownerId,
+        starId: chosen.id,
+    };
+}
+
+function resolveEnemiesForPair(params: {
     midpointX: number;
     midpointY: number;
     nx: number;
     ny: number;
     enemies: readonly StarState[];
-}): EnemyCandidate | null {
-    let bestSideStar: StarState | null = null;
-    let bestSideDist = Infinity;
-
+}): EnemyPairCandidates {
+    let bestNegativeStar: StarState | null = null;
+    let bestNegativeDist = Infinity;
+    let bestPositiveStar: StarState | null = null;
+    let bestPositiveDist = Infinity;
     let bestFallbackStar: StarState | null = null;
     let bestFallbackDist = Infinity;
 
@@ -93,46 +123,29 @@ function resolveEnemyForSide(params: {
         const projPerp = relX * params.nx + relY * params.ny;
         const dist = Math.hypot(relX, relY);
 
-        const isRequestedSide =
-            params.side === 'positive'
-                ? projPerp > EPSILON
-                : projPerp < -EPSILON;
-
-        const betterFallback =
-            dist < bestFallbackDist - EPSILON ||
-            (Math.abs(dist - bestFallbackDist) <= EPSILON &&
-                (bestFallbackStar == null ||
-                    enemy.ownerId < bestFallbackStar.ownerId ||
-                    (enemy.ownerId === bestFallbackStar.ownerId &&
-                        enemy.id < bestFallbackStar.id)));
-
-        if (betterFallback) {
+        if (isBetterEnemy(enemy, dist, bestFallbackStar, bestFallbackDist)) {
             bestFallbackStar = enemy;
             bestFallbackDist = dist;
         }
 
-        if (!isRequestedSide) continue;
-
-        const betterSide =
-            dist < bestSideDist - EPSILON ||
-            (Math.abs(dist - bestSideDist) <= EPSILON &&
-                (bestSideStar == null ||
-                    enemy.ownerId < bestSideStar.ownerId ||
-                    (enemy.ownerId === bestSideStar.ownerId &&
-                        enemy.id < bestSideStar.id)));
-
-        if (betterSide) {
-            bestSideStar = enemy;
-            bestSideDist = dist;
+        if (
+            projPerp < -EPSILON &&
+            isBetterEnemy(enemy, dist, bestNegativeStar, bestNegativeDist)
+        ) {
+            bestNegativeStar = enemy;
+            bestNegativeDist = dist;
+        } else if (
+            projPerp > EPSILON &&
+            isBetterEnemy(enemy, dist, bestPositiveStar, bestPositiveDist)
+        ) {
+            bestPositiveStar = enemy;
+            bestPositiveDist = dist;
         }
     }
 
-    const chosen = bestSideStar ?? bestFallbackStar;
-    if (!chosen?.ownerId) return null;
-
     return {
-        ownerId: chosen.ownerId,
-        starId: chosen.id,
+        negative: toEnemyCandidate(bestNegativeStar ?? bestFallbackStar),
+        positive: toEnemyCandidate(bestPositiveStar ?? bestFallbackStar),
     };
 }
 
@@ -251,22 +264,15 @@ export function buildDisconnectVirtualSites(
                         const midpointY = (starA.y + starB.y) / 2;
                         const offset = disconnectPerpendicularOffset(dist);
 
-                        const negativeEnemy = resolveEnemyForSide({
-                            side: 'negative',
+                        const enemies = resolveEnemiesForPair({
                             midpointX,
                             midpointY,
                             nx,
                             ny,
                             enemies: enemyStars,
                         });
-                        const positiveEnemy = resolveEnemyForSide({
-                            side: 'positive',
-                            midpointX,
-                            midpointY,
-                            nx,
-                            ny,
-                            enemies: enemyStars,
-                        });
+                        const negativeEnemy = enemies.negative;
+                        const positiveEnemy = enemies.positive;
 
                         if (!negativeEnemy || !positiveEnemy) continue;
 

@@ -181,10 +181,15 @@ export function clampVirtualSiteWeightForRealStarOwnership(params: {
             continue;
         }
 
-        const maxNonClampingDistance =
-            clearanceRadius + Math.sqrt(currentClampGapSq);
         const distanceSq = dx * dx + dy * dy;
-        if (distanceSq >= maxNonClampingDistance * maxNonClampingDistance) {
+        let maxNonClampingDistanceSq = currentClampGapSq;
+        if (clearanceRadius > 0) {
+            const maxNonClampingDistance =
+                clearanceRadius + Math.sqrt(currentClampGapSq);
+            maxNonClampingDistanceSq =
+                maxNonClampingDistance * maxNonClampingDistance;
+        }
+        if (distanceSq >= maxNonClampingDistanceSq) {
             continue;
         }
 
