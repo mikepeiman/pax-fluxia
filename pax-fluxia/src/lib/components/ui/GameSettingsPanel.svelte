@@ -2591,7 +2591,11 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         width: 100%;
         height: 100%;
         display: grid;
-        grid-template-columns: var(--settings-ribbon-width);
+        /* Rail fills the available content-box rather than demanding exactly
+           var(--settings-ribbon-width). At an exact fit any border/scrollbar/
+           sub-pixel rounding overflowed by ~1px and got clipped on the right
+           ("menu slightly cut off"). minmax(0,1fr) can never overflow. */
+        grid-template-columns: minmax(0, 1fr);
         grid-template-areas: "rail";
         gap: var(--pax-gap-sm);
         align-items: stretch;
@@ -2616,7 +2620,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     .icon-toolbar {
-        width: var(--settings-ribbon-width);
+        width: 100%;
         height: 100%;
         max-height: none;
         padding: var(--pax-space-2);

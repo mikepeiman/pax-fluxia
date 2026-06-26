@@ -109,10 +109,7 @@
     return value === "true";
   }
 
-  function loadDockSidePreference(
-    key: string,
-    fallback: DockSide,
-  ): DockSide {
+  function loadDockSidePreference(key: string, fallback: DockSide): DockSide {
     if (typeof localStorage === "undefined") return fallback;
     const value = localStorage.getItem(key);
     return value === "left" || value === "right" ? value : fallback;
@@ -248,6 +245,8 @@
   const SETTINGS_PANEL_DEFAULT = 520;
   const SETTINGS_CHROME_COMPACT_WIDTH = 68;
   const SETTINGS_CHROME_EXPANDED_WIDTH = 216;
+  // Matches .pf-settings-ribbon's 12px horizontal padding on each side.
+  const SETTINGS_CHROME_OUTER_PADDING_X = 24;
   const SETTINGS_PANEL_SECTION_DEFAULT = 640;
 
   function loadSidebarWidth(): number {
@@ -281,22 +280,26 @@
   let forceOpenSettingsSectionNonce = $state(0);
 
   const settingsChromeWidth = $derived(
-    settingsRibbonExpanded
+    (settingsRibbonExpanded
       ? SETTINGS_CHROME_EXPANDED_WIDTH
-      : SETTINGS_CHROME_COMPACT_WIDTH,
+      : SETTINGS_CHROME_COMPACT_WIDTH) + SETTINGS_CHROME_OUTER_PADDING_X,
   );
   const settingsEffectiveWidth = $derived(
-    settingsHasOpenSections
-      ? settingsPanelWidth
-      : settingsChromeWidth,
+    settingsHasOpenSections ? settingsPanelWidth : settingsChromeWidth,
   );
 
   function setSettingsSectionActivity(hasOpenSections: boolean) {
     settingsHasOpenSections = hasOpenSections;
-    if (hasOpenSections && settingsPanelWidth < SETTINGS_PANEL_SECTION_DEFAULT) {
+    if (
+      hasOpenSections &&
+      settingsPanelWidth < SETTINGS_PANEL_SECTION_DEFAULT
+    ) {
       settingsPanelWidth = SETTINGS_PANEL_SECTION_DEFAULT;
       if (typeof localStorage !== "undefined") {
-        localStorage.setItem(SETTINGS_PANEL_STORAGE_KEY, String(settingsPanelWidth));
+        localStorage.setItem(
+          SETTINGS_PANEL_STORAGE_KEY,
+          String(settingsPanelWidth),
+        );
       }
     }
   }
@@ -311,7 +314,10 @@
     if (settingsPanelWidth < SETTINGS_PANEL_SECTION_DEFAULT) {
       settingsPanelWidth = SETTINGS_PANEL_SECTION_DEFAULT;
       if (typeof localStorage !== "undefined") {
-        localStorage.setItem(SETTINGS_PANEL_STORAGE_KEY, String(settingsPanelWidth));
+        localStorage.setItem(
+          SETTINGS_PANEL_STORAGE_KEY,
+          String(settingsPanelWidth),
+        );
       }
     }
     revealSettingsSection(section);
@@ -329,9 +335,7 @@
 
     function onMove(ev: PointerEvent) {
       const delta =
-        sidebarSide === "right"
-          ? startX - ev.clientX
-          : ev.clientX - startX;
+        sidebarSide === "right" ? startX - ev.clientX : ev.clientX - startX;
       sidebarWidth = Math.max(
         SIDEBAR_MIN,
         Math.min(SIDEBAR_MAX, startWidth + delta),
@@ -357,9 +361,7 @@
 
     function onMove(ev: PointerEvent) {
       const delta =
-        controlsSide === "right"
-          ? startX - ev.clientX
-          : ev.clientX - startX;
+        controlsSide === "right" ? startX - ev.clientX : ev.clientX - startX;
       settingsPanelWidth = Math.max(
         SETTINGS_PANEL_MIN,
         Math.min(SETTINGS_PANEL_MAX, startWidth + delta),
@@ -411,10 +413,13 @@
 
   const localPlayerForHud = $derived.by(() => {
     const localId = activeGameStore.localPlayerId;
-    return (activeGameStore.players as PlayerState[]).find((player) => {
-      const sessionId = (player as PlayerState & { sessionId?: string }).sessionId;
-      return player.id === localId || sessionId === localId;
-    }) ?? null;
+    return (
+      (activeGameStore.players as PlayerState[]).find((player) => {
+        const sessionId = (player as PlayerState & { sessionId?: string })
+          .sessionId;
+        return player.id === localId || sessionId === localId;
+      }) ?? null
+    );
   });
 
   const ownedStarIds = $derived.by(() => {
@@ -439,9 +444,10 @@
       ? ownedStarIds.indexOf(selectedStarStore.id)
       : -1;
     const fallbackIndex = direction > 0 ? 0 : ownedStarIds.length - 1;
-    const nextIndex = currentIndex >= 0
-      ? (currentIndex + direction + ownedStarIds.length) % ownedStarIds.length
-      : fallbackIndex;
+    const nextIndex =
+      currentIndex >= 0
+        ? (currentIndex + direction + ownedStarIds.length) % ownedStarIds.length
+        : fallbackIndex;
     const nextStarId = ownedStarIds[nextIndex];
     selectedStarStore.select(nextStarId);
     gameCanvasRef?.navigateToStar?.(nextStarId);
@@ -484,7 +490,9 @@
       id: "players",
       icon: "ranking-star",
       label: "Players",
-      title: leaderboardCollapsed ? "Show player standings" : "Collapse player standings",
+      title: leaderboardCollapsed
+        ? "Show player standings"
+        : "Collapse player standings",
       active: !leaderboardCollapsed,
       onClick: toggleLeaderboardCollapsed,
     },
@@ -500,7 +508,9 @@
       id: "settings",
       icon: "settings",
       label: "Settings",
-      title: showSettingsPanel ? "Collapse settings rail" : "Open settings rail",
+      title: showSettingsPanel
+        ? "Collapse settings rail"
+        : "Open settings rail",
       active: showSettingsPanel,
       onClick: toggleSettingsPanel,
     },
@@ -662,8 +672,9 @@
 
   $effect(() => {
     if (typeof window === "undefined") return;
-    (window as typeof window & { __PAX_GAME_CANVAS__?: unknown }).__PAX_GAME_CANVAS__ =
-      gameCanvasRef ?? null;
+    (
+      window as typeof window & { __PAX_GAME_CANVAS__?: unknown }
+    ).__PAX_GAME_CANVAS__ = gameCanvasRef ?? null;
   });
 
   // Lock body scroll when in game view (landing page needs scroll)
@@ -727,9 +738,8 @@
     <!-- Audio Settings Modal -->
     <AudioSettings
       visible={showAudioSettings}
-      menuTheme={menuTheme}
-      onClose={() => (showAudioSettings = false)}
-    />
+      {menuTheme}
+      onClose={() => (showAudioSettings = false)} />
 
     <div
       class="game-layout"
@@ -754,8 +764,7 @@
           onMenuClick={() => gameStore.setView("menu")}
           onSettingsClick={toggleSettingsPanel}
           onToggleStandings={toggleLeaderboardCollapsed}
-          onModeSelect={handleTopbarTerritoryModeSelect}
-        />
+          onModeSelect={handleTopbarTerritoryModeSelect} />
       </div>
       <!-- STATUSBAR (info display) -->
       <StatusBar
@@ -763,8 +772,7 @@
         localPlayerId={activeGameStore.localPlayerId ?? undefined}
         isMuted={audioManager.muted}
         onToggleMute={() => audioManager.toggleMute()}
-        onToggleSettings={() => (showSettingsFab = !showSettingsFab)}
-      />
+        onToggleSettings={() => (showSettingsFab = !showSettingsFab)} />
       <!-- CANVAS AREA -->
       <div class="area-canvas">
         <GameCanvas bind:this={gameCanvasRef} />
@@ -775,8 +783,7 @@
             <PaxHudButton
               class="room-id-badge glass-panel w-full h-full"
               onclick={copyRoomId}
-              title="Click to copy Room ID"
-            >
+              title="Click to copy Room ID">
               <span class="room-id-label">ROOM</span>
               <code class="room-id-code">{multiplayerStore.roomId}</code>
               <span class="room-id-icon">
@@ -795,7 +802,9 @@
 
         <!-- F-62: Results overlay -->
         {#if showResults}
-          <div class="modal-overlay" use:modalDismiss={() => (resultsDismissed = true)}>
+          <div
+            class="modal-overlay"
+            use:modalDismiss={() => (resultsDismissed = true)}>
             <ResultsModal onClose={() => (resultsDismissed = true)} />
           </div>
         {/if}
@@ -814,16 +823,14 @@
             onSpeedChange={(speed) => activeGameStore.setSpeed(speed)}
             onPause={() => activeGameStore.pauseGame()}
             onResume={() => activeGameStore.resumeGame()}
-            onStart={() => activeGameStore.startGame()}
-          />
+            onStart={() => activeGameStore.startGame()} />
         </section>
         <StarNav
           stars={activeGameStore.stars ?? []}
           players={activeGameStore.players ?? []}
           localPlayerId={activeGameStore.localPlayerId ?? undefined}
           onNavigateToStar={(starId) => gameCanvasRef?.navigateToStar?.(starId)}
-          onCenterFit={() => gameCanvasRef?.centerAndFit?.()}
-        />
+          onCenterFit={() => gameCanvasRef?.centerAndFit?.()} />
       </div>
 
       <!-- SECONDARY CONTROLS COLUMN (toggled by gear icon) -->
@@ -831,8 +838,7 @@
         <div
           class="area-controls"
           class:area-controls--dock-left={controlsSide === "left"}
-          style:width={`${settingsEffectiveWidth}px`}
-        >
+          style:width={`${settingsEffectiveWidth}px`}>
           <SettingsRibbon
             width={settingsEffectiveWidth}
             dockSide={controlsSide}
@@ -852,8 +858,7 @@
             onQuitGame={() => {
               audioManager.play("click");
               showSurrenderModal = true;
-            }}
-          />
+            }} />
         </div>
       {/if}
 
@@ -868,8 +873,8 @@
           onpointerdown={startResize}
           role="separator"
           aria-orientation="vertical"
-          title="Drag to resize"
-        ></div>
+          title="Drag to resize">
+        </div>
 
         {#if !leaderboardCollapsed}
           <div class="sidebar-leaderboard">
@@ -878,8 +883,7 @@
               dockSide={sidebarSide}
               onToggleDockSide={toggleSidebarSide}
               onCollapse={toggleLeaderboardCollapsed}
-              currentTick={activeGameStore.currentTick ?? 0}
-            />
+              currentTick={activeGameStore.currentTick ?? 0} />
           </div>
         {/if}
 
@@ -892,8 +896,7 @@
               onSpeedChange={(speed) => activeGameStore.setSpeed(speed)}
               onPause={() => activeGameStore.pauseGame()}
               onResume={() => activeGameStore.resumeGame()}
-              onStart={() => activeGameStore.startGame()}
-            />
+              onStart={() => activeGameStore.startGame()} />
           </div>
 
           <div class="sidebar-starnav">
@@ -904,18 +907,15 @@
               onPreviousOwnedStar={() => focusOwnedStar(-1)}
               onNextOwnedStar={() => focusOwnedStar(1)}
               onCancelOrder={(starId) => activeGameStore.cancelOrder(starId)}
-              canCycleOwnedStars={ownedStarIds.length > 0}
-            />
+              canCycleOwnedStars={ownedStarIds.length > 0} />
           </div>
         </div>
-
 
         {#if quickAccessActions.length > 0}
           <div class="sidebar-quick-access">
             <QuickAccessDock actions={quickAccessActions} />
           </div>
         {/if}
-
       </div>
     </div>
 
@@ -925,8 +925,7 @@
         class="modal-overlay modal-overlay--fixed"
         role="dialog"
         aria-modal="true"
-        use:modalDismiss={() => (showSurrenderModal = false)}
-      >
+        use:modalDismiss={() => (showSurrenderModal = false)}>
         <div class="surrender-modal glass-panel">
           <h3 class="surrender-modal__title">Surrender?</h3>
           <p class="surrender-modal__desc">Choose how to end your campaign.</p>
@@ -937,8 +936,7 @@
                 onclick={() => {
                   showSurrenderModal = false;
                   activeGameStore.surrender();
-                }}
-              >
+                }}>
                 End Game
               </PaxHudButton>
               <span class="modal-action__sub">View results & graphs</span>
@@ -949,8 +947,7 @@
                 onclick={() => {
                   showSurrenderModal = false;
                   activeGameStore.returnToMenu();
-                }}
-              >
+                }}>
                 Abandon
               </PaxHudButton>
               <span class="modal-action__sub">Return to main menu</span>
@@ -958,8 +955,7 @@
           </div>
           <PaxHudButton
             class="btn btn--ghost btn--sm surrender-modal__cancel"
-            onclick={() => (showSurrenderModal = false)}
-          >
+            onclick={() => (showSurrenderModal = false)}>
             Cancel
           </PaxHudButton>
         </div>
@@ -972,8 +968,7 @@
         class="modal-overlay modal-overlay--fixed"
         role="dialog"
         aria-modal="true"
-        use:modalDismiss={() => (showRestartConfirm = false)}
-      >
+        use:modalDismiss={() => (showRestartConfirm = false)}>
         <div class="surrender-modal glass-panel">
           <h3 class="surrender-modal__title">Restart match?</h3>
           <p class="surrender-modal__desc">
@@ -987,8 +982,7 @@
                 onclick={() => {
                   showRestartConfirm = false;
                   activeGameStore.playAgain();
-                }}
-              >
+                }}>
                 Restart
               </PaxHudButton>
               <span class="modal-action__sub">Discard & start a new match</span>
@@ -996,8 +990,7 @@
           </div>
           <PaxHudButton
             class="btn btn--ghost btn--sm surrender-modal__cancel"
-            onclick={() => (showRestartConfirm = false)}
-          >
+            onclick={() => (showRestartConfirm = false)}>
             Cancel
           </PaxHudButton>
         </div>
@@ -1010,8 +1003,7 @@
         class="modal-overlay modal-overlay--fixed"
         role="dialog"
         aria-modal="true"
-        use:modalDismiss={() => (showExitConfirm = false)}
-      >
+        use:modalDismiss={() => (showExitConfirm = false)}>
         <div class="surrender-modal glass-panel">
           <h3 class="surrender-modal__title">Leave Game?</h3>
           <p class="surrender-modal__desc">
@@ -1019,7 +1011,9 @@
           </p>
           <div class="surrender-modal__actions">
             <div class="modal-action">
-              <PaxHudButton class="btn btn--ghost btn--md" onclick={confirmExit}>
+              <PaxHudButton
+                class="btn btn--ghost btn--md"
+                onclick={confirmExit}>
                 Leave
               </PaxHudButton>
               <span class="modal-action__sub">Return to main menu</span>
@@ -1027,8 +1021,7 @@
           </div>
           <PaxHudButton
             class="btn btn--ghost btn--sm surrender-modal__cancel"
-            onclick={cancelExit}
-          >
+            onclick={cancelExit}>
             Continue Playing
           </PaxHudButton>
         </div>
@@ -1050,8 +1043,7 @@
             audioManager.play("click");
             openAudioSettings();
             showSettingsFab = false;
-          }}
-        >
+          }}>
           <span class="fab-icon"><HudIcon name="audio" size={14} /></span>
           <span>Audio Settings</span>
         </PaxHudButton>
@@ -1061,8 +1053,7 @@
             audioManager.play("click");
             toggleSettingsPanel();
             showSettingsFab = false;
-          }}
-        >
+          }}>
           <span class="fab-icon"><HudIcon name="settings" size={14} /></span>
           <span>{showSettingsPanel ? "Hide" : "Show"} Settings</span>
         </PaxHudButton>
@@ -1072,8 +1063,7 @@
             audioManager.play("click");
             openDiagnostics();
             showSettingsFab = false;
-          }}
-        >
+          }}>
           <span class="fab-icon"><HudIcon name="diagnostics" size={14} /></span>
           <span>Diagnostics</span>
         </PaxHudButton>
@@ -1083,8 +1073,7 @@
             audioManager.play("click");
             mobileDrawerOpen = !mobileDrawerOpen;
             showSettingsFab = false;
-          }}
-        >
+          }}>
           <span class="fab-icon"><HudIcon name="leaderboard" size={14} /></span>
           <span>Leaderboard</span>
         </PaxHudButton>
@@ -1094,8 +1083,7 @@
             audioManager.play("click");
             activeGameStore.playAgain();
             showSettingsFab = false;
-          }}
-        >
+          }}>
           <span class="fab-icon"><HudIcon name="restart" size={14} /></span>
           <span>Restart</span>
         </PaxHudButton>
@@ -1105,8 +1093,7 @@
             audioManager.play("click");
             showSurrenderModal = true;
             showSettingsFab = false;
-          }}
-        >
+          }}>
           <span class="fab-icon"><HudIcon name="quit" size={14} /></span>
           <span>Quit Game</span>
         </PaxHudButton>
@@ -1117,18 +1104,15 @@
     {#if mobileDrawerOpen}
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="mobile-scrim"
-        onclick={() => (mobileDrawerOpen = false)}
-      ></div>
+      <div class="mobile-scrim" onclick={() => (mobileDrawerOpen = false)}>
+      </div>
       <div class="mobile-drawer open">
         <PaxHudIconButton
           class="drawer-close"
           icon="close"
           title="Close"
           size={14}
-          onclick={() => (mobileDrawerOpen = false)}
-        />
+          onclick={() => (mobileDrawerOpen = false)} />
         <div class="mobile-drawer-content">
           <div class="drawer-leaderboard">
             <Leaderboard players={leaderboardPlayers} />
@@ -1286,7 +1270,11 @@
       z-index: 200 !important;
       display: flex !important;
       flex-direction: column !important;
-      background: color-mix(in srgb, var(--pax-color-void) 95%, transparent) !important;
+      background: color-mix(
+        in srgb,
+        var(--pax-color-void) 95%,
+        transparent
+      ) !important;
       backdrop-filter: blur(12px) !important;
       overflow-y: auto !important;
       padding: var(--pax-space-3) !important;
@@ -1305,7 +1293,8 @@
       padding-bottom: 4rem;
       background: color-mix(in srgb, var(--pax-color-void) 92%, transparent);
       backdrop-filter: blur(8px);
-      border-top: 1px solid color-mix(in srgb, var(--pax-ui-text-strong) 8%, transparent);
+      border-top: 1px solid
+        color-mix(in srgb, var(--pax-ui-text-strong) 8%, transparent);
     }
     .speed-card {
       flex-direction: row !important;
@@ -1337,7 +1326,8 @@
       flex-direction: column !important;
       padding: 2px 2px;
       border-top: none;
-      border-left: 1px solid color-mix(in srgb, var(--pax-ui-text-strong) 8%, transparent);
+      border-left: 1px solid
+        color-mix(in srgb, var(--pax-ui-text-strong) 8%, transparent);
       gap: var(--pax-space-1);
       overflow: visible;
       max-height: 100dvh;
@@ -1383,7 +1373,11 @@
       overflow-y: auto !important;
       display: flex !important;
       flex-direction: column !important;
-      background: color-mix(in srgb, var(--pax-color-void) 95%, transparent) !important;
+      background: color-mix(
+        in srgb,
+        var(--pax-color-void) 95%,
+        transparent
+      ) !important;
       backdrop-filter: blur(12px) !important;
       padding: var(--pax-space-3) !important;
       padding-top: var(--pax-space-12) !important;
@@ -1471,7 +1465,8 @@
       align-items: center;
       justify-content: center;
       background: color-mix(in srgb, var(--pax-ui-text-strong) 6%, transparent);
-      border: 1px solid color-mix(in srgb, var(--pax-ui-text-strong) 15%, transparent);
+      border: 1px solid
+        color-mix(in srgb, var(--pax-ui-text-strong) 15%, transparent);
       border-radius: 50%;
       color: color-mix(in srgb, var(--pax-ui-text-strong) 80%, transparent);
       font-size: var(--pax-type-md);
@@ -1654,28 +1649,41 @@
     flex-direction: column;
     z-index: 20;
     overflow: hidden;
-    min-width: 280px;
+    /* min-width: 280px; */
     flex-shrink: 0;
+    /* Width is set via inline style:width (settingsEffectiveWidth) and changes on
+       every state transition — ribbon expand/collapse, section open/close, dock
+       switch. Animate it so those changes glide instead of snapping. */
+    transition: width 0.22s ease;
   }
 
   .area-controls--dock-left {
-    box-shadow: 5px 0 20px color-mix(in srgb, var(--pax-color-void) 32%, transparent);
+    box-shadow: 5px 0 20px
+      color-mix(in srgb, var(--pax-color-void) 32%, transparent);
   }
 
   /* ═══ RIGHT SIDEBAR ═══ */
   .area-right {
     grid-area: tactical;
     position: relative;
-    background:
-      linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 98%, transparent), color-mix(in srgb, var(--pax-color-void) 94%, transparent)),
-      radial-gradient(circle at top, color-mix(in srgb, var(--pax-ui-accent-warm) 7%, transparent), transparent 50%);
+    background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--pax-color-void) 98%, transparent),
+        color-mix(in srgb, var(--pax-color-void) 94%, transparent)
+      ),
+      radial-gradient(
+        circle at top,
+        color-mix(in srgb, var(--pax-ui-accent-warm) 7%, transparent),
+        transparent 50%
+      );
     border-left: 1px solid var(--pax-ui-divider);
     display: flex;
     flex-direction: column;
     padding: var(--pax-space-3) var(--pax-space-3) var(--pax-gap-sm);
     gap: 0;
     z-index: 20;
-    box-shadow: -12px 0 32px color-mix(in srgb, var(--pax-color-void) 42%, transparent);
+    box-shadow: -12px 0 32px
+      color-mix(in srgb, var(--pax-color-void) 42%, transparent);
     overflow: hidden;
     flex-shrink: 0;
   }
@@ -1683,7 +1691,8 @@
   .area-right--dock-left {
     border-left: none;
     border-right: 1px solid var(--pax-ui-divider);
-    box-shadow: 12px 0 32px color-mix(in srgb, var(--pax-color-void) 42%, transparent);
+    box-shadow: 12px 0 32px
+      color-mix(in srgb, var(--pax-color-void) 42%, transparent);
   }
 
   .resize-handle {
@@ -1839,7 +1848,8 @@
   }
   :global(.room-id-badge:hover) {
     border-color: color-mix(in srgb, var(--pax-ui-accent) 50%, transparent);
-    box-shadow: 0 0 12px color-mix(in srgb, var(--pax-ui-accent) 15%, transparent);
+    box-shadow: 0 0 12px
+      color-mix(in srgb, var(--pax-ui-accent) 15%, transparent);
   }
   .room-id-label {
     font-size: var(--pax-type-3xs);
@@ -1910,9 +1920,11 @@
   .glass-panel {
     background: color-mix(in srgb, var(--pax-color-void) 80%, transparent);
     backdrop-filter: blur(8px);
-    border: 1px solid color-mix(in srgb, var(--pax-ui-text-strong) 10%, transparent);
+    border: 1px solid
+      color-mix(in srgb, var(--pax-ui-text-strong) 10%, transparent);
     border-radius: 8px;
-    box-shadow: 0 4px 20px color-mix(in srgb, var(--pax-color-void) 40%, transparent);
+    box-shadow: 0 4px 20px
+      color-mix(in srgb, var(--pax-color-void) 40%, transparent);
   }
 
   /* Scoped to .surrender-modal — these used to be global :global(.btn*) and
@@ -1942,12 +1954,21 @@
   }
 
   .surrender-modal :global(.btn--primary) {
-    background: color-mix(in srgb, var(--pax-color-player-blue) 30%, transparent);
-    border: 1px solid color-mix(in srgb, var(--pax-color-player-blue) 60%, transparent);
+    background: color-mix(
+      in srgb,
+      var(--pax-color-player-blue) 30%,
+      transparent
+    );
+    border: 1px solid
+      color-mix(in srgb, var(--pax-color-player-blue) 60%, transparent);
     color: var(--pax-color-player-blue);
   }
   .surrender-modal :global(.btn--primary:hover) {
-    background: color-mix(in srgb, var(--pax-color-player-blue) 50%, transparent);
+    background: color-mix(
+      in srgb,
+      var(--pax-color-player-blue) 50%,
+      transparent
+    );
     color: var(--pax-ui-text-strong);
   }
 
@@ -2021,7 +2042,8 @@
     border-radius: 12px;
     padding: var(--pax-gap-xs);
     backdrop-filter: blur(16px);
-    box-shadow: 0 8px 32px color-mix(in srgb, var(--pax-color-void) 60%, transparent);
+    box-shadow: 0 8px 32px
+      color-mix(in srgb, var(--pax-color-void) 60%, transparent);
     animation: fab-pop-in 0.15s ease-out;
     min-width: 170px;
   }
