@@ -2601,12 +2601,17 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     .settings-shell--with-panel {
-        grid-template-columns: minmax(360px, 1fr) var(--settings-ribbon-width);
+        /* Content column must be minmax(0, 1fr), NOT minmax(360px, …): a hard
+           360px floor + the rail (68–216px) + padding exceeds the panel at/near
+           its min width (420px), so the grid overflowed and .area-controls
+           (overflow:hidden) clipped the right edge in both ribbon states. With
+           min 0 the content column shrinks to fit; its inner body scrolls. */
+        grid-template-columns: minmax(0, 1fr) var(--settings-ribbon-width);
         grid-template-areas: "content rail";
     }
 
     .controls-panel--dock-left .settings-shell--with-panel {
-        grid-template-columns: var(--settings-ribbon-width) minmax(360px, 1fr);
+        grid-template-columns: var(--settings-ribbon-width) minmax(0, 1fr);
         grid-template-areas: "rail content";
     }
 
