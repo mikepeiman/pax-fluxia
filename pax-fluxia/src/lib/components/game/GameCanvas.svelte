@@ -154,6 +154,7 @@
         setPerimeterFieldDebugPlaybackState,
     } from "$lib/territory/families/perimeterField/perimeterFieldDebugPlaybackStore";
     import { buildRenderFamilyInput } from "$lib/territory/families/buildRenderFamilyInput";
+    import { RenderFamilyGeometryCacheKeyBuilder } from "$lib/territory/families/renderFamilyGeometryCacheKey";
     import {
         buildPerimeterFieldRenderFamilyGeometry,
         buildOwnershipSnapshotFromStars,
@@ -2809,6 +2810,8 @@
     let runtimeControllerTransitionDurationMs: number | null = null;
     let runtimeRenderer: TerritoryRenderer | null = null;
     let pipelineTraceFrame = 0;
+    const renderFamilyGeometryCacheKeyBuilder =
+        new RenderFamilyGeometryCacheKeyBuilder();
     let renderFamilyGeometryCacheKey: string | null = null;
     let renderFamilyGeometryCache: ResolvedGeometrySnapshot | null = null;
     let renderFamilyStableGeometryKey: string | null = null;
@@ -2862,20 +2865,14 @@
         const source =
             configSource ??
             (GAME_CONFIG as unknown as Record<string, unknown>);
-        const geometryTunables =
-            readNormalizedTerritoryGeometryTunables(source);
-        let key = `${getTerritoryVisualEpoch()}:${GAME_WIDTH}:${GAME_HEIGHT}:`;
-        key += `${normalizePerimeterFieldGeometrySource(source.PERIMETER_FIELD_GEOMETRY_SOURCE)}:${source.TERRITORY_GEOMETRY_MODE ?? ""}:`;
-        key += `${source.TERRITORY_ENGINE_METHOD ?? ""}:${(source as any).__GEOMETRY_REFRESH_TOKEN ?? 0}:`;
-        key += `${buildTerritoryGeometryCacheKeyParts(geometryTunables).join(":")}:`;
-        for (const star of stars) {
-            key += `${star.id}:${star.ownerId ?? ""}:${star.x}:${star.y}|`;
-        }
-        key += "::";
-        for (const lane of lanes) {
-            key += `${lane.sourceId}->${lane.targetId}|`;
-        }
-        return key;
+        return renderFamilyGeometryCacheKeyBuilder.build({
+            stars,
+            lanes,
+            source,
+            worldWidth: GAME_WIDTH,
+            worldHeight: GAME_HEIGHT,
+            visualEpoch: getTerritoryVisualEpoch(),
+        });
     }
 
     function getCurrentRenderFamilyGeometry(
@@ -7386,6 +7383,8 @@
             gridGradientDebug,
             runtimeBridgeDiagnostics:
                 runtimeBridge?.getBenchmarkDiagnostics() ?? null,
+            renderFamilyGeometryKeyCache:
+                renderFamilyGeometryCacheKeyBuilder.getStats(),
             rendererDiagnostics,
             fxGameNowMs: Number(fxOrchestrator.gameTime.toFixed(2)),
             effectiveTickMs: activeGameStore.effectiveTickMs,

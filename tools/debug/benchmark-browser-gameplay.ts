@@ -1135,6 +1135,8 @@ function summarizeTerritorySchedulerSnapshot(
         transitionReliability: summarizeTransitionReliability(
             runtimeBridgeDiagnostics,
         ),
+        renderFamilyGeometryKeyCache:
+            (scheduler.renderFamilyGeometryKeyCache as JsonValue) ?? null,
     };
 }
 

@@ -202,6 +202,20 @@ Passed during benchmark transition fallback reporting slice at 2026-06-27 17:37 
 - `bun run build` from `pax-fluxia/`
 - `git diff --check`
 
+Passed during render-family geometry key cache slice at 2026-06-27 17:48 -04:00:
+
+- Added a tested `RenderFamilyGeometryCacheKeyBuilder` that reuses the previous geometry key on stable star/lane arrays and unchanged geometry settings.
+- Wired `GameCanvas` render-family geometry cache checks through the builder while preserving the existing full key contents on misses.
+- Exposed geometry key cache hit/miss stats through benchmark scheduler snapshots and text summaries.
+- `bun x vitest run src/lib/territory/families/renderFamilyGeometryCacheKey.test.ts` (1 file, 4 tests)
+- `bun x vitest run src/lib/territory/families` (24 files, 175 tests)
+- `bun x vitest run src/lib/territory` (55 files, 348 tests)
+- `bun run check` from `pax-fluxia/` (0 errors, 1 existing warning)
+- `bun build tools/debug/benchmark-browser-gameplay.ts tools/debug/summarize-browser-gameplay-benchmark.ts --target bun --outdir .agent-harness/tmp-bun-build-check-cache`
+- `bun run build` from `pax-fluxia/`
+- `bun run agentic:graphify:build` from repo root
+- `git diff --check`
+
 Known recurring non-blocking warning:
 
 - `GameThemeManager.svelte`: unused CSS selector `.game-theme-manager--menu .theme-chip-name`

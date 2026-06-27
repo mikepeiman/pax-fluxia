@@ -229,6 +229,12 @@ function printScenario(name: string, scenario: any): void {
         console.log(
             `  - territoryAsync scheduleMode=${String(scheduler?.territoryAsync?.scheduleMode ?? "n/a")} yields=${Number(scheduler?.territoryAsync?.yieldCount ?? 0)} forced=${Number(scheduler?.territoryAsync?.forcedCount ?? 0)} lastYield=${String(scheduler?.territoryAsync?.lastYieldReason ?? "n/a")} age=${round(Number(scheduler?.territoryAsync?.lastYieldAgeMs ?? 0))}ms`,
         );
+        const geometryKeyCache = scheduler?.renderFamilyGeometryKeyCache;
+        if (geometryKeyCache) {
+            console.log(
+                `  - geometry key cache hits=${Number(geometryKeyCache?.hitCount ?? 0)} misses=${Number(geometryKeyCache?.missCount ?? 0)} lastStars=${Number(geometryKeyCache?.lastStarCount ?? 0)} lastLanes=${Number(geometryKeyCache?.lastLaneCount ?? 0)}`,
+            );
+        }
         console.log(
             `  - orderQueue scheduleMode=${String(scheduler?.orders?.scheduleMode ?? "n/a")} queueDelay=${round(Number(scheduler?.orders?.lastQueueDelayMs ?? 0))}ms flushCount=${Number(scheduler?.orders?.lastQueueFlushMutationCount ?? 0)}`,
         );
