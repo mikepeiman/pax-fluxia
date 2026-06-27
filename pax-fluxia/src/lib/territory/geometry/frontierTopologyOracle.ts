@@ -55,6 +55,85 @@ function signedArea(points: ReadonlyArray<[number, number]>): number {
     return area * 0.5;
 }
 
+function physicalPointKey(point: readonly [number, number]): string {
+    return `${Math.round(point[0] / POINT_EPSILON_PX)}:${Math.round(point[1] / POINT_EPSILON_PX)}`;
+}
+
+function sectionPhysicalKey(section: FrontierSection): string {
+    const forward = section.points.map(physicalPointKey).join('>');
+    const reverse = [...section.points].reverse().map(physicalPointKey).join('>');
+    return `${section.kind}:${section.ownerPairKey}:${
+        forward < reverse ? forward : reverse
+    }`;
+}
+
+function cross(
+    origin: readonly [number, number],
+    a: readonly [number, number],
+    b: readonly [number, number],
+): number {
+    return (a[0] - origin[0]) * (b[1] - origin[1]) -
+        (a[1] - origin[1]) * (b[0] - origin[0]);
+}
+
+function pointOnSegment(
+    point: readonly [number, number],
+    a: readonly [number, number],
+    b: readonly [number, number],
+): boolean {
+    return (
+        Math.min(a[0], b[0]) - POINT_EPSILON_PX <= point[0] &&
+        point[0] <= Math.max(a[0], b[0]) + POINT_EPSILON_PX &&
+        Math.min(a[1], b[1]) - POINT_EPSILON_PX <= point[1] &&
+        point[1] <= Math.max(a[1], b[1]) + POINT_EPSILON_PX
+    );
+}
+
+function segmentsIntersect(
+    a: readonly [number, number],
+    b: readonly [number, number],
+    c: readonly [number, number],
+    d: readonly [number, number],
+): boolean {
+    const d1 = cross(c, d, a);
+    const d2 = cross(c, d, b);
+    const d3 = cross(a, b, c);
+    const d4 = cross(a, b, d);
+    if (
+        ((d1 > POINT_EPSILON_PX && d2 < -POINT_EPSILON_PX) ||
+            (d1 < -POINT_EPSILON_PX && d2 > POINT_EPSILON_PX)) &&
+        ((d3 > POINT_EPSILON_PX && d4 < -POINT_EPSILON_PX) ||
+            (d3 < -POINT_EPSILON_PX && d4 > POINT_EPSILON_PX))
+    ) {
+        return true;
+    }
+    if (Math.abs(d1) <= POINT_EPSILON_PX && pointOnSegment(a, c, d)) return true;
+    if (Math.abs(d2) <= POINT_EPSILON_PX && pointOnSegment(b, c, d)) return true;
+    if (Math.abs(d3) <= POINT_EPSILON_PX && pointOnSegment(c, a, b)) return true;
+    if (Math.abs(d4) <= POINT_EPSILON_PX && pointOnSegment(d, a, b)) return true;
+    return false;
+}
+
+function hasSelfIntersection(points: ReadonlyArray<[number, number]>): boolean {
+    const ring =
+        points.length >= 2 && pointsMatch(points[0]!, points[points.length - 1]!)
+            ? points.slice(0, -1)
+            : points;
+    const n = ring.length;
+    if (n < 4) return false;
+    for (let i = 0; i < n; i++) {
+        const a = ring[i]!;
+        const b = ring[(i + 1) % n]!;
+        for (let j = i + 1; j < n; j++) {
+            if (j === i + 1 || (i === 0 && j === n - 1)) continue;
+            const c = ring[j]!;
+            const d = ring[(j + 1) % n]!;
+            if (segmentsIntersect(a, b, c, d)) return true;
+        }
+    }
+    return false;
+}
+
 function segmentStartVertex(section: FrontierSection, ref: SectionRef): string {
     return ref.direction === 'forward' ? section.startVertexId : section.endVertexId;
 }
@@ -103,6 +182,7 @@ export function validateFrontierTopologyInvariants(
     }
 
     const loopCoverageBySection = new Map<string, Map<string, number>>();
+    const sectionByPhysicalKey = new Map<string, string>();
 
     function recordLoopCoverage(sectionId: string, ownerId: string): void {
         const byOwner = loopCoverageBySection.get(sectionId);
@@ -141,6 +221,16 @@ export function validateFrontierTopologyInvariants(
     }
 
     for (const section of topology.sections.values()) {
+        const physicalKey = sectionPhysicalKey(section);
+        const existingSectionId = sectionByPhysicalKey.get(physicalKey);
+        if (existingSectionId) {
+            fail(
+                `section ${section.id}: duplicates physical frontier ${existingSectionId}`,
+            );
+        } else {
+            sectionByPhysicalKey.set(physicalKey, section.id);
+        }
+
         const startVertex = topology.vertices.get(section.startVertexId);
         const endVertex = topology.vertices.get(section.endVertexId);
 
@@ -352,6 +442,9 @@ export function validateFrontierTopologyInvariants(
             }
             if (Math.abs(reconstructedSignedArea) <= MIN_LOOP_ABS_AREA_PX2) {
                 fail(`loop ${key}: near-zero reconstructed area ${reconstructedSignedArea}`);
+            }
+            if (hasSelfIntersection(loopPoints)) {
+                fail(`loop ${key}: reconstructed point chain self-intersects`);
             }
         }
     });

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { FrontierTopology } from '../contracts/FrontierTopologyContracts';
+import type {
+    FrontierSection,
+    FrontierTopology,
+} from '../contracts/FrontierTopologyContracts';
 import type { SharedPolyline } from '../compiler/powerVoronoiTerritoryGeometryGenerator';
 import { buildPowerVoronoiFrontierTopology } from '../families/buildPowerVoronoiFrontierTopology';
 import { validateFrontierTopologyInvariants } from './frontierTopologyOracle';
@@ -217,6 +220,186 @@ function buildDegenerateSelfLoopTopology(): FrontierTopology {
     };
 }
 
+function appendIndexValue(
+    index: ReadonlyMap<string, readonly string[]>,
+    key: string,
+    value: string,
+): Map<string, string[]> {
+    const next = new Map<string, string[]>(
+        [...index.entries()].map(([entryKey, values]) => [
+            entryKey,
+            [...values],
+        ]),
+    );
+    next.set(key, [...(next.get(key) ?? []), value]);
+    return next;
+}
+
+function duplicateFirstSection(topology: FrontierTopology): FrontierTopology {
+    const section = [...topology.sections.values()][0]!;
+    const duplicateId = `${section.id}:duplicate-physical`;
+    const duplicateSection = {
+        ...section,
+        id: duplicateId,
+    };
+    const vertices = new Map(topology.vertices);
+    for (const vertexId of [section.startVertexId, section.endVertexId]) {
+        const vertex = vertices.get(vertexId)!;
+        vertices.set(vertexId, {
+            ...vertex,
+            incidentSectionIds: [...vertex.incidentSectionIds, duplicateId],
+        });
+    }
+    return {
+        ...topology,
+        vertices,
+        sections: new Map([...topology.sections, [duplicateId, duplicateSection]]),
+        sectionsByVertex: [section.startVertexId, section.endVertexId].reduce(
+            (index, vertexId) => appendIndexValue(index, vertexId, duplicateId),
+            topology.sectionsByVertex,
+        ),
+        sectionsByOwnerPair: appendIndexValue(
+            topology.sectionsByOwnerPair,
+            section.ownerPairKey,
+            duplicateId,
+        ),
+        sectionsByOwner:
+            section.leftOwnerId === section.rightOwnerId
+                ? appendIndexValue(
+                      topology.sectionsByOwner,
+                      section.leftOwnerId,
+                      duplicateId,
+                  )
+                : appendIndexValue(
+                      appendIndexValue(
+                          topology.sectionsByOwner,
+                          section.leftOwnerId,
+                          duplicateId,
+                      ),
+                      section.rightOwnerId,
+                      duplicateId,
+                  ),
+    };
+}
+
+function makeSection(params: {
+    readonly id: string;
+    readonly start: string;
+    readonly end: string;
+    readonly points: [number, number][];
+}): FrontierSection {
+    return {
+        id: params.id,
+        kind: 'world_border',
+        startVertexId: params.start,
+        endVertexId: params.end,
+        leftOwnerId: 'red',
+        rightOwnerId: 'world',
+        points: params.points,
+        length: Math.hypot(
+            params.points.at(-1)![0] - params.points[0]![0],
+            params.points.at(-1)![1] - params.points[0]![1],
+        ),
+        ownerPairKey: 'red|world',
+        leftInfluence: {
+            ownerId: 'red',
+            primaryStarId: 'red',
+            primaryScore: 1,
+        },
+        rightInfluence: {
+            ownerId: 'world',
+            primaryStarId: 'world',
+            primaryScore: 1,
+        },
+    };
+}
+
+function buildSelfIntersectingLoopTopology(): FrontierTopology {
+    const vertices = new Map([
+        [
+            'a',
+            {
+                id: 'a',
+                kind: 'world_corner' as const,
+                point: [0, 0] as [number, number],
+                incidentSectionIds: ['ab', 'da'],
+                ownerIds: ['red', 'world'],
+                semanticKey: 'a',
+            },
+        ],
+        [
+            'b',
+            {
+                id: 'b',
+                kind: 'world_intersection' as const,
+                point: [100, 100] as [number, number],
+                incidentSectionIds: ['ab', 'bc'],
+                ownerIds: ['red', 'world'],
+                semanticKey: 'b',
+            },
+        ],
+        [
+            'c',
+            {
+                id: 'c',
+                kind: 'world_corner' as const,
+                point: [20, 100] as [number, number],
+                incidentSectionIds: ['bc', 'cd'],
+                ownerIds: ['red', 'world'],
+                semanticKey: 'c',
+            },
+        ],
+        [
+            'd',
+            {
+                id: 'd',
+                kind: 'world_corner' as const,
+                point: [100, 0] as [number, number],
+                incidentSectionIds: ['cd', 'da'],
+                ownerIds: ['red', 'world'],
+                semanticKey: 'd',
+            },
+        ],
+    ]);
+    return {
+        version: 'self-intersecting-loop',
+        ownershipVersion: 'test',
+        worldBounds: { width: 100, height: 100 },
+        vertices,
+        sections: new Map([
+            ['ab', makeSection({ id: 'ab', start: 'a', end: 'b', points: [[0, 0], [100, 100]] })],
+            ['bc', makeSection({ id: 'bc', start: 'b', end: 'c', points: [[100, 100], [20, 100]] })],
+            ['cd', makeSection({ id: 'cd', start: 'c', end: 'd', points: [[20, 100], [100, 0]] })],
+            ['da', makeSection({ id: 'da', start: 'd', end: 'a', points: [[100, 0], [0, 0]] })],
+        ]),
+        loops: [
+            {
+                id: 'loop:red:self-intersecting',
+                ownerId: 'red',
+                componentId: 'comp:red:self-intersecting',
+                sectionRefs: [
+                    { sectionId: 'ab', direction: 'forward' },
+                    { sectionId: 'bc', direction: 'forward' },
+                    { sectionId: 'cd', direction: 'forward' },
+                    { sectionId: 'da', direction: 'forward' },
+                ],
+                signedArea: -1000,
+            },
+        ],
+        sectionsByOwnerPair: new Map([['red|world', ['ab', 'bc', 'cd', 'da']]]),
+        sectionsByVertex: new Map([
+            ['a', ['ab', 'da']],
+            ['b', ['ab', 'bc']],
+            ['c', ['bc', 'cd']],
+            ['d', ['cd', 'da']],
+        ]),
+        sectionsByOwner: new Map([
+            ['red', ['ab', 'bc', 'cd', 'da']],
+            ['world', ['ab', 'bc', 'cd', 'da']],
+        ]),
+    };
+}
+
 describe('validateFrontierTopologyInvariants', () => {
     it('accepts a healthy closed topology emitted by the Power Voronoi builder', () => {
         const topology = buildHealthyTopology();
@@ -339,6 +522,32 @@ describe('validateFrontierTopologyInvariants', () => {
         expect(report.ok).toBe(false);
         expect(report.failures).toContain(
             `section ${section.id}: loop coverage for owner red is 2, expected 1`,
+        );
+    });
+
+    it('detects duplicated physical frontier sections even when ids differ', () => {
+        const topology = buildHealthyTopology();
+        const section = [...topology.sections.values()][0]!;
+        const invalidTopology = duplicateFirstSection(topology);
+
+        expect(previousNonEmptyReliability(invalidTopology)).toBe(true);
+        const report = validateFrontierTopologyInvariants(invalidTopology);
+
+        expect(report.ok).toBe(false);
+        expect(report.failures).toContain(
+            `section ${section.id}:duplicate-physical: duplicates physical frontier ${section.id}`,
+        );
+    });
+
+    it('detects closed loops whose reconstructed point chain self-intersects', () => {
+        const topology = buildSelfIntersectingLoopTopology();
+
+        expect(previousNonEmptyReliability(topology)).toBe(true);
+        const report = validateFrontierTopologyInvariants(topology);
+
+        expect(report.ok).toBe(false);
+        expect(report.failures).toContain(
+            'loop loop:red:self-intersecting: reconstructed point chain self-intersects',
         );
     });
 

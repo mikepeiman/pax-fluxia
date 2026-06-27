@@ -80,6 +80,12 @@ Safety checkpoint:
    - Added generated 0319 two-owner geometry coverage with no virtual sites.
    - Added generated corridor-virtual coverage where 0319 emits duplicate source site ids; the candidate audit normalizes those ids and still verifies owner-area agreement.
 
+10. Stronger physical-frontier topology oracle
+    - Timestamp: 2026-06-27T17:06:51-04:00
+    - The topology oracle now rejects duplicate physical sections even when their section ids differ.
+    - The oracle now detects reconstructed territory loops that self-intersect while still appearing closed and having finite area.
+    - Added tests for both failure classes using deliberately invalid topology fixtures.
+
 ## Validation So Far
 
 Passed before the first pushed implementation checkpoint:
@@ -135,6 +141,14 @@ Passed during generated power-core fixture slice:
 
 - `bun x vitest run src/lib/territory/geometry/powerCoreCandidateAudit.test.ts` (1 file, 4 tests)
 - `bun run check` (0 errors, 1 existing warning)
+- `bun run agentic:graphify:build` from repo root
+
+Passed during physical-frontier oracle slice:
+
+- `bun x vitest run src/lib/territory/geometry/frontierTopologyOracle.test.ts` (1 file, 10 tests)
+- `bun x vitest run src/lib/territory` (53 files, 337 tests)
+- `bun run check` (0 errors, 1 existing warning)
+- `bun run build`
 - `bun run agentic:graphify:build` from repo root
 
 Known recurring non-blocking warning:
