@@ -7384,6 +7384,8 @@
             ownerStarCounts,
             cellGridDebug,
             gridGradientDebug,
+            runtimeBridgeDiagnostics:
+                runtimeBridge?.getBenchmarkDiagnostics() ?? null,
             rendererDiagnostics,
             fxGameNowMs: Number(fxOrchestrator.gameTime.toFixed(2)),
             effectiveTickMs: activeGameStore.effectiveTickMs,

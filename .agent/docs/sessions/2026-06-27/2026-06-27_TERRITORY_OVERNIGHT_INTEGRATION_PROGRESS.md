@@ -183,6 +183,14 @@ Passed during Grid Gradient oracle transport slice at 2026-06-27 17:26 -04:00:
 - `bun run build` from `pax-fluxia/`
 - `bun run agentic:graphify:build` from repo root
 
+Passed during benchmark diagnostics exposure slice at 2026-06-27 17:32 -04:00:
+
+- Retained compact runtime diagnostics in `GameCanvasTerritoryBridge` after each territory update.
+- Exposed transition fallback reason, diagnostic messages, and compact PV diagnostic identity through `getBenchmarkTerritorySchedulerSnapshot()`.
+- `bun run check` from `pax-fluxia/` (0 errors, 1 existing warning)
+- `bun run build` from `pax-fluxia/`
+- `bun run agentic:graphify:build` from repo root
+
 Known recurring non-blocking warning:
 
 - `GameThemeManager.svelte`: unused CSS selector `.game-theme-manager--menu .theme-chip-name`
