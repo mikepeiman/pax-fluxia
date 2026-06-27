@@ -3462,6 +3462,13 @@
     let animationFrameId: number | null = null;
     const emptyStarsMap = new Map<string, StarState>(); // Cached empty map — avoid per-frame allocation
     let resizeObserver: ResizeObserver | null = null;
+    // Coalesce ResizeObserver bursts. A settings-menu open/close animates the CSS
+    // grid every frame, which would otherwise run a full handleResize (backbuffer
+    // realloc + updateTerritoryViewportFrame + render) ~13x in 220ms → jank. The
+    // canvas is width:100%!important so it CSS-stretches for free between runs; we
+    // run the full (atomic) handleResize once the size settles.
+    let resizeSettleTimer: ReturnType<typeof setTimeout> | null = null;
+    const RESIZE_SETTLE_MS = 90;
     let lastTickGameTimeMs = 0; // Game-clock time at last tick (for tickProgress)
     let lastRenderedTickProgress = 0;
     type CanvasClientRectSnapshot = {
@@ -3888,9 +3895,17 @@
             handleCanvasViewportGeometryChange,
         );
 
-        // Use ResizeObserver for more accurate container resize detection
+        // Use ResizeObserver for more accurate container resize detection.
+        // Debounced: during a rapid resize burst (e.g. the settings-menu slide
+        // animating the grid every frame) the canvas CSS-stretches and we defer
+        // the expensive full handleResize until the size settles, so the
+        // animation stays smooth instead of recomputing the map every frame.
         resizeObserver = new ResizeObserver(() => {
-            handleResize();
+            if (resizeSettleTimer) clearTimeout(resizeSettleTimer);
+            resizeSettleTimer = setTimeout(() => {
+                resizeSettleTimer = null;
+                handleResize();
+            }, RESIZE_SETTLE_MS);
         });
         resizeObserver.observe(canvasContainer);
     });
@@ -3925,6 +3940,10 @@
         if (resizeObserver) {
             resizeObserver.disconnect();
             resizeObserver = null;
+        }
+        if (resizeSettleTimer) {
+            clearTimeout(resizeSettleTimer);
+            resizeSettleTimer = null;
         }
 
         if (animationFrameId) {
