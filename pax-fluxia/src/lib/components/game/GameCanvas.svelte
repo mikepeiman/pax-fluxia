@@ -918,6 +918,15 @@
         return PRESENTATION_SMOOTHNESS_FIRST && !shouldHoldPresentationForInput(nowMs);
     }
 
+    function shouldBypassTerritoryPresentationQueue(
+        request: TerritoryPresentationRequest,
+        nowMs = performance.now(),
+    ): boolean {
+        if (!shouldBypassPresentationThrottling(nowMs)) return false;
+        if (request.pendingConquests.length > 0) return false;
+        return lastTerritoryUpdateCostMs < TERRITORY_HEAVY_UPDATE_MS;
+    }
+
     function hasBrowserInputPending(): boolean {
         const scheduling = (navigator as Navigator & {
             scheduling?: { isInputPending?: () => boolean };
@@ -4865,7 +4874,11 @@
     function scheduleTerritoryPresentationQueue(): void {
         if (territoryPresentationScheduled || territoryPresentationRunning) return;
         if (!territoryPresentationPendingRequest) return;
-        if (shouldBypassPresentationThrottling()) {
+        if (
+            shouldBypassTerritoryPresentationQueue(
+                territoryPresentationPendingRequest,
+            )
+        ) {
             territoryPresentationLastScheduleMode = "immediate";
             void flushTerritoryPresentationQueue();
             return;
@@ -4910,7 +4923,11 @@
         if (territoryPresentationDelayTimer || !territoryPresentationPendingRequest) {
             return;
         }
-        if (shouldBypassPresentationThrottling()) {
+        if (
+            shouldBypassTerritoryPresentationQueue(
+                territoryPresentationPendingRequest,
+            )
+        ) {
             territoryPresentationLastScheduleMode = "immediate-delay-bypass";
             void flushTerritoryPresentationQueue();
             return;
@@ -4958,7 +4975,7 @@
         forced: boolean;
     } {
         const requestAgeMs = nowMs - request.enqueuedAtMs;
-        if (shouldBypassPresentationThrottling(nowMs)) {
+        if (shouldBypassTerritoryPresentationQueue(request, nowMs)) {
             return {
                 yield: false,
                 requestAgeMs,

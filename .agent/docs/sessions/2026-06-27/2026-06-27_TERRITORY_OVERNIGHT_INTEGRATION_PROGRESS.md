@@ -225,6 +225,21 @@ Passed during narrow browser benchmark verification slice at 2026-06-27 17:53 -0
 - Observed Grid Gradient geometry key cache `hits=447 misses=6 lastStars=172 lastLanes=428`.
 - Observed Grid Gradient gameplay frames `count=68 avg=39.215ms p95=50.1ms max=100.1ms`; this confirms the cache instrumentation works and that frame pacing still needs follow-up performance work.
 
+Passed during async conquest presentation queue slice at 2026-06-27 18:01 -04:00:
+
+- Kept light territory presentation updates eligible for immediate smoothness-first flushing.
+- Kept conquest requests and previously-heavy territory updates on the asynchronous presentation queue instead of forcing them into the current render-frame call stack.
+- Before this change, the narrow Grid Gradient gameplay benchmark showed `max=100.1ms` with a visible heavy territory rebuild in the sampled path.
+- After this change, the same narrow benchmark showed `count=69 avg=38.162ms p95=50ms max=50.1ms`, `transitionFallbacks scenarios=0 reasons=none`, `territory last=0.5ms`, and `territoryAsync scheduleMode=scheduler-background`.
+- Observed Grid Gradient geometry key cache `hits=442 misses=5 lastStars=172 lastLanes=428`.
+- `bun run check` from `pax-fluxia/` (0 errors, 1 existing warning)
+- `PAX_BENCH_TERRITORY_MODE=grid_gradient PAX_BENCH_ONLY=grid_gradientGameplay PAX_BENCH_CAPTURE_TRACE=0 PAX_BENCH_CAPTURE_CPU=0 bun tools/debug/benchmark-browser-gameplay.ts`
+- `bun tools/debug/summarize-browser-gameplay-benchmark.ts` against the fresh benchmark artifact
+- `bun x vitest run src/lib/territory` (55 files, 348 tests)
+- `bun run build` from `pax-fluxia/`
+- `bun run agentic:graphify:build` from repo root
+- `git diff --check`
+
 Known recurring non-blocking warning:
 
 - `GameThemeManager.svelte`: unused CSS selector `.game-theme-manager--menu .theme-chip-name`
