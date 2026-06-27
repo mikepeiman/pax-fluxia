@@ -184,13 +184,13 @@ function printScenario(name: string, scenario: any): void {
             `  - target handled down=${round(Number(orderLatency?.pointerTargetPointerDownHandled?.avgMs ?? 0))}ms up=${round(Number(orderLatency?.pointerTargetPointerUpHandled?.avgMs ?? 0))}ms`,
         );
         console.log(
-            `  - target synthetic dispatch=${round(Number(orderLatency?.pointerTargetPointerDownDispatchLead?.avgMs ?? 0))}ms browser-queue=${round(Number(orderLatency?.pointerTargetPointerDownQueueDelay?.avgMs ?? 0))}ms handled->localAcknowledgment=${round(Number(orderLatency?.pointerIssueHandledToLocalAcknowledgmentAfterTargetClick?.avgMs ?? 0))}ms`,
+            `  - target synthetic dispatch=${round(Number(orderLatency?.pointerTargetPointerDownDispatchLead?.avgMs ?? 0))}ms browser-queue=${round(Number(orderLatency?.pointerTargetPointerDownQueueDelay?.avgMs ?? 0))}ms handled->local-confirmation=${round(Number(orderLatency?.pointerIssueHandledToLocalAcknowledgmentAfterTargetClick?.avgMs ?? 0))}ms`,
         );
         console.log(
-            `  - target handled->visualAcknowledgment=${round(Number(orderLatency?.pointerIssueHandledToVisualAcknowledgmentAfterTargetClick?.avgMs ?? 0))}ms handled->commit=${round(Number(orderLatency?.pointerIssueHandledToCommitAfterTargetClick?.avgMs ?? 0))}ms`,
+            `  - target handled->visual-confirmation=${round(Number(orderLatency?.pointerIssueHandledToVisualAcknowledgmentAfterTargetClick?.avgMs ?? 0))}ms handled->commit=${round(Number(orderLatency?.pointerIssueHandledToCommitAfterTargetClick?.avgMs ?? 0))}ms`,
         );
         console.log(
-            `  - issue local-acknowledgment=${round(Number(orderLatency?.pointerIssueLocalAcknowledgmentAfterTargetClick?.avgMs ?? 0))}ms visual-acknowledgment=${round(Number(orderLatency?.pointerIssueVisualAcknowledgmentAfterTargetClick?.avgMs ?? 0))}ms visual-gap=${round(Number(orderLatency?.pointerIssueLocalToVisualGapMs ?? 0))}ms`,
+            `  - issue local-confirmation=${round(Number(orderLatency?.pointerIssueLocalAcknowledgmentAfterTargetClick?.avgMs ?? 0))}ms visual-confirmation=${round(Number(orderLatency?.pointerIssueVisualAcknowledgmentAfterTargetClick?.avgMs ?? 0))}ms visual-gap=${round(Number(orderLatency?.pointerIssueLocalToVisualGapMs ?? 0))}ms`,
         );
         console.log(
             `  - pointer issue=${round(Number(orderLatency?.pointerIssueCommit?.avgMs ?? 0))}ms direct issue=${round(Number(orderLatency?.directIssueCommit?.avgMs ?? 0))}ms gap=${round(Number(orderLatency?.pointerVsDirectIssueGapMs ?? 0))}ms`,
@@ -199,16 +199,16 @@ function printScenario(name: string, scenario: any): void {
             `  - target-click issue=${round(Number(orderLatency?.pointerIssueAfterTargetClick?.avgMs ?? 0))}ms direct issue=${round(Number(orderLatency?.directIssueCommit?.avgMs ?? 0))}ms gap=${round(Number(orderLatency?.pointerTargetClickVsDirectIssueGapMs ?? 0))}ms`,
         );
         console.log(
-            `  - cancel local-acknowledgment=${round(Number(orderLatency?.pointerCancelLocalAcknowledgment?.avgMs ?? 0))}ms visual-acknowledgment=${round(Number(orderLatency?.pointerCancelVisualAcknowledgment?.avgMs ?? 0))}ms visual-gap=${round(Number(orderLatency?.pointerCancelLocalToVisualGapMs ?? 0))}ms`,
+            `  - cancel local-confirmation=${round(Number(orderLatency?.pointerCancelLocalAcknowledgment?.avgMs ?? 0))}ms visual-confirmation=${round(Number(orderLatency?.pointerCancelVisualAcknowledgment?.avgMs ?? 0))}ms visual-gap=${round(Number(orderLatency?.pointerCancelLocalToVisualGapMs ?? 0))}ms`,
         );
         console.log(
             `  - cancel handled down=${round(Number(orderLatency?.pointerCancelPointerDownHandled?.avgMs ?? 0))}ms up=${round(Number(orderLatency?.pointerCancelPointerUpHandled?.avgMs ?? 0))}ms rightclick=${round(Number(orderLatency?.pointerCancelContextMenuHandled?.avgMs ?? 0))}ms`,
         );
         console.log(
-            `  - cancel synthetic dispatch=${round(Number(orderLatency?.pointerCancelPointerDownDispatchLead?.avgMs ?? 0))}ms browser-queue=${round(Number(orderLatency?.pointerCancelPointerDownQueueDelay?.avgMs ?? 0))}ms rightclick-dispatch=${round(Number(orderLatency?.pointerCancelContextMenuDispatchLead?.avgMs ?? 0))}ms rightclick-queue=${round(Number(orderLatency?.pointerCancelContextMenuQueueDelay?.avgMs ?? 0))}ms handled->localAcknowledgment=${round(Number(orderLatency?.pointerCancelHandledToLocalAcknowledgment?.avgMs ?? 0))}ms`,
+            `  - cancel synthetic dispatch=${round(Number(orderLatency?.pointerCancelPointerDownDispatchLead?.avgMs ?? 0))}ms browser-queue=${round(Number(orderLatency?.pointerCancelPointerDownQueueDelay?.avgMs ?? 0))}ms rightclick-dispatch=${round(Number(orderLatency?.pointerCancelContextMenuDispatchLead?.avgMs ?? 0))}ms rightclick-queue=${round(Number(orderLatency?.pointerCancelContextMenuQueueDelay?.avgMs ?? 0))}ms handled->local-confirmation=${round(Number(orderLatency?.pointerCancelHandledToLocalAcknowledgment?.avgMs ?? 0))}ms`,
         );
         console.log(
-            `  - cancel handled->visualAcknowledgment=${round(Number(orderLatency?.pointerCancelHandledToVisualAcknowledgment?.avgMs ?? 0))}ms handled->commit=${round(Number(orderLatency?.pointerCancelHandledToCommit?.avgMs ?? 0))}ms`,
+            `  - cancel handled->visual-confirmation=${round(Number(orderLatency?.pointerCancelHandledToVisualAcknowledgment?.avgMs ?? 0))}ms handled->commit=${round(Number(orderLatency?.pointerCancelHandledToCommit?.avgMs ?? 0))}ms`,
         );
         console.log(
             `  - pointer cancel=${round(Number(orderLatency?.pointerCancelCommit?.avgMs ?? 0))}ms cancel-event=${round(Number(orderLatency?.pointerCancelOrderPathEvent?.avgMs ?? 0))}ms direct cancel=${round(Number(orderLatency?.directCancelCommit?.avgMs ?? 0))}ms gap=${round(Number(orderLatency?.pointerVsDirectCancelGapMs ?? 0))}ms`,
@@ -233,8 +233,22 @@ function printScenario(name: string, scenario: any): void {
             `  - orderQueue scheduleMode=${String(scheduler?.orders?.scheduleMode ?? "n/a")} queueDelay=${round(Number(scheduler?.orders?.lastQueueDelayMs ?? 0))}ms flushCount=${Number(scheduler?.orders?.lastQueueFlushMutationCount ?? 0)}`,
         );
         console.log(
-            `  - interaction pendingAcknowledgments=${Number(scheduler?.interactions?.pendingVisualAcknowledgmentCount ?? 0)} lastLocal=${String(scheduler?.interactions?.lastLocalAcknowledgment?.path ?? "n/a")} lastVisual=${String(scheduler?.interactions?.lastVisualAcknowledgment?.path ?? "n/a")}`,
+            `  - interaction pendingVisualConfirmations=${Number(scheduler?.interactions?.pendingVisualAcknowledgmentCount ?? 0)} lastLocal=${String(scheduler?.interactions?.lastLocalAcknowledgment?.path ?? "n/a")} lastVisual=${String(scheduler?.interactions?.lastVisualAcknowledgment?.path ?? "n/a")}`,
         );
+        const transitionReliability = scheduler?.transitionReliability;
+        if (transitionReliability) {
+            const fallbackReason =
+                typeof transitionReliability?.fallbackReason === "string" &&
+                transitionReliability.fallbackReason.length > 0
+                    ? transitionReliability.fallbackReason
+                    : "none";
+            const messages = Array.isArray(transitionReliability?.messages)
+                ? transitionReliability.messages.slice(0, 2).join(" | ")
+                : "";
+            console.log(
+                `  - transition fallback=${fallbackReason} runtime=${round(Number(transitionReliability?.runtimeDurationMs ?? 0))}ms mode=${String(transitionReliability?.modeDiagnosticsKind ?? "n/a")} messages=${messages || "none"}`,
+            );
+        }
     }
     const interactionEvents = (scenario?.perf?.interactionEvents ?? []).slice(0, 8);
     if (interactionEvents.length > 0) {
@@ -383,6 +397,20 @@ function main(): void {
     if (report?.captureConfig) {
         console.log(
             `captureConfig trace=${String(report.captureConfig?.trace ?? false)} cpu=${String(report.captureConfig?.cpu ?? false)} warmupMs=${round(Number(report.captureConfig?.frameWarmupMs ?? 0))} gameplayFrameMs=${round(Number(report.captureConfig?.gameplayFrameMs ?? 0))}`,
+        );
+    }
+    if (report?.analysis) {
+        const transitionFallbackReasonCounts = Array.isArray(
+            report.analysis?.transitionFallbackReasonCounts,
+        )
+            ? report.analysis.transitionFallbackReasonCounts
+            : [];
+        const reasons =
+            transitionFallbackReasonCounts
+                .map(formatInvalidReason)
+                .join(", ") || "none";
+        console.log(
+            `transitionFallbacks scenarios=${Number(report.analysis?.transitionFallbackScenarioCount ?? 0)} reasons=${reasons}`,
         );
     }
     if (typeof report?.scenarioScreenshotDir === "string" && report.scenarioScreenshotDir.length > 0) {

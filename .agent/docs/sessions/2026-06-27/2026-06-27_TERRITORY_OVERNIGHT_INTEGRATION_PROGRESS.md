@@ -191,6 +191,17 @@ Passed during benchmark diagnostics exposure slice at 2026-06-27 17:32 -04:00:
 - `bun run build` from `pax-fluxia/`
 - `bun run agentic:graphify:build` from repo root
 
+Passed during benchmark transition fallback reporting slice at 2026-06-27 17:37 -04:00:
+
+- Added `transitionReliability` to browser benchmark scenario scheduler summaries, fed by runtime bridge fallback diagnostics.
+- Added top-level benchmark analysis counts for transition fallback scenarios and fallback reasons.
+- Updated the text summary to print transition fallback status in plain terms and to avoid report-facing "ack" wording.
+- `bun run check` from `pax-fluxia/` (0 errors, 1 existing warning)
+- `bun build tools/debug/benchmark-browser-gameplay.ts tools/debug/summarize-browser-gameplay-benchmark.ts --target bun --outdir .agent-harness/tmp-bun-build-check`
+- `bun tools/debug/summarize-browser-gameplay-benchmark.ts` redirected to a temporary output file inside `.agent-harness/` (279 summary lines)
+- `bun run build` from `pax-fluxia/`
+- `git diff --check`
+
 Known recurring non-blocking warning:
 
 - `GameThemeManager.svelte`: unused CSS selector `.game-theme-manager--menu .theme-chip-name`

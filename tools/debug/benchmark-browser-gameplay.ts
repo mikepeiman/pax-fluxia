@@ -1013,6 +1013,9 @@ function summarizeTerritorySchedulerSnapshot(
     scheduler: Record<string, JsonValue> | null,
 ): Record<string, JsonValue> | null {
     if (!scheduler) return null;
+    const runtimeBridgeDiagnostics = toJsonRecord(
+        scheduler.runtimeBridgeDiagnostics,
+    );
     return {
         territory: {
             lastUpdateMs: round(Number(scheduler.lastTerritoryUpdateCostMs ?? 0)),
@@ -1125,7 +1128,75 @@ function summarizeTerritorySchedulerSnapshot(
         transitionDiagnostics: {
             captureState:
                 (scheduler.transitionDiagnosticCaptureState as JsonValue) ?? null,
+            runtimeBridge: summarizeRuntimeBridgeDiagnostics(
+                runtimeBridgeDiagnostics,
+            ),
         },
+        transitionReliability: summarizeTransitionReliability(
+            runtimeBridgeDiagnostics,
+        ),
+    };
+}
+
+function toJsonRecord(value: JsonValue | undefined): Record<string, JsonValue> | null {
+    if (value === null || value === undefined) return null;
+    if (typeof value !== "object" || Array.isArray(value)) return null;
+    return value as Record<string, JsonValue>;
+}
+
+function stringOrNull(value: JsonValue | undefined): string | null {
+    return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function summarizeRuntimeBridgeDiagnostics(
+    diagnostics: Record<string, JsonValue> | null,
+): Record<string, JsonValue> | null {
+    if (!diagnostics) return null;
+    return {
+        startedAtMs: round(Number(diagnostics.startedAtMs ?? 0)),
+        finishedAtMs: round(Number(diagnostics.finishedAtMs ?? 0)),
+        durationMs: round(Number(diagnostics.durationMs ?? 0)),
+        transitionFallbackReason: stringOrNull(
+            diagnostics.transitionFallbackReason,
+        ),
+        messages: Array.isArray(diagnostics.messages)
+            ? diagnostics.messages.slice(0, 12)
+            : [],
+        modeDiagnosticsKind: stringOrNull(diagnostics.modeDiagnosticsKind),
+        modeDiagnosticsPlanId: stringOrNull(diagnostics.modeDiagnosticsPlanId),
+        modeDiagnosticsBundleId: stringOrNull(
+            diagnostics.modeDiagnosticsBundleId,
+        ),
+    };
+}
+
+function summarizeTransitionReliability(
+    diagnostics: Record<string, JsonValue> | null,
+): Record<string, JsonValue> {
+    const fallbackReason = stringOrNull(
+        diagnostics?.transitionFallbackReason,
+    );
+    const messages = Array.isArray(diagnostics?.messages)
+        ? diagnostics.messages
+        : [];
+    return {
+        hasRuntimeDiagnostics: diagnostics !== null,
+        hasFallback: fallbackReason !== null,
+        fallbackReason,
+        runtimeDurationMs: diagnostics
+            ? round(Number(diagnostics.durationMs ?? 0))
+            : null,
+        modeDiagnosticsKind: diagnostics
+            ? stringOrNull(diagnostics.modeDiagnosticsKind)
+            : null,
+        modeDiagnosticsPlanId: diagnostics
+            ? stringOrNull(diagnostics.modeDiagnosticsPlanId)
+            : null,
+        modeDiagnosticsBundleId: diagnostics
+            ? stringOrNull(diagnostics.modeDiagnosticsBundleId)
+            : null,
+        messageCount: messages.length,
+        messages: messages.slice(0, 8),
     };
 }
 
@@ -1980,6 +2051,46 @@ function summarizeFramePacing(
     };
 }
 
+function countTransitionFallbacks(
+    summaryEntries: Array<Record<string, any>>,
+): {
+    fallbackScenarios: Array<Record<string, JsonValue>>;
+    fallbackReasonCounts: Array<Record<string, JsonValue>>;
+} {
+    const reasonCounts = new Map<string, number>();
+    const fallbackScenarios = summaryEntries.flatMap((entry) => {
+        const transitionReliability =
+            entry.territoryScheduler?.transitionReliability ?? null;
+        const fallbackReason =
+            typeof transitionReliability?.fallbackReason === "string" &&
+            transitionReliability.fallbackReason.length > 0
+                ? transitionReliability.fallbackReason
+                : null;
+        if (!fallbackReason) return [];
+        reasonCounts.set(
+            fallbackReason,
+            (reasonCounts.get(fallbackReason) ?? 0) + 1,
+        );
+        return [
+            {
+                name: String(entry.name ?? "unknown"),
+                requestedMode:
+                    typeof entry.requestedMode === "string"
+                        ? entry.requestedMode
+                        : null,
+                fallbackReason,
+            },
+        ];
+    });
+    const fallbackReasonCounts = [...reasonCounts.entries()]
+        .map(([reason, count]) => ({ reason, count }))
+        .sort((left, right) => Number(right.count) - Number(left.count));
+    return {
+        fallbackScenarios,
+        fallbackReasonCounts,
+    };
+}
+
 function summarizeScenarioCollection(
     scenarios: Record<string, any>,
 ): Record<string, JsonValue> {
@@ -2024,10 +2135,16 @@ function summarizeScenarioCollection(
             name: entry.name,
             failureReason: entry.failureReason,
         }));
+    const transitionFallbacks = countTransitionFallbacks(summaryEntries);
     return {
         scenarios: summaryEntries,
         failedScenarioCount: failedScenarios.length,
         failedScenarios,
+        transitionFallbackScenarioCount:
+            transitionFallbacks.fallbackScenarios.length,
+        transitionFallbackScenarios: transitionFallbacks.fallbackScenarios,
+        transitionFallbackReasonCounts:
+            transitionFallbacks.fallbackReasonCounts,
         largestPointerVsDirectIssueGapMs: summaryEntries
             .map((entry) =>
                 Number(entry.orderLatency?.pointerVsDirectIssueGapMs ?? Number.NaN),
