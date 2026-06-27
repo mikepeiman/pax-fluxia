@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import { slide } from "svelte/transition";
+  import { cubicOut } from "svelte/easing";
   import { pushStateCompat as pushState } from "$lib/utils/navigationCompat";
   import { goto } from "$app/navigation";
   import { gameStore } from "$lib/stores/gameStore.svelte";
@@ -838,7 +840,8 @@
         <div
           class="area-controls"
           class:area-controls--dock-left={controlsSide === "left"}
-          style:width={`${settingsEffectiveWidth}px`}>
+          style:width={`${settingsEffectiveWidth}px`}
+          transition:slide={{ axis: "x", duration: 220, easing: cubicOut }}>
           <SettingsRibbon
             width={settingsEffectiveWidth}
             dockSide={controlsSide}
