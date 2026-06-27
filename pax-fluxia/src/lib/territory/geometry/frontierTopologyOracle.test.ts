@@ -41,6 +41,72 @@ function squareWorldBorderPolylines(): SharedPolyline[] {
     ];
 }
 
+function splitWorldSharedPolylines(): SharedPolyline[] {
+    return [
+        {
+            ownerPairKey: 'blue|red',
+            color: 0,
+            points: [
+                [50, 0],
+                [50, 100],
+            ],
+        },
+    ];
+}
+
+function splitWorldBorderPolylines(): SharedPolyline[] {
+    return [
+        {
+            ownerPairKey: 'red|world',
+            color: 0,
+            points: [
+                [0, 0],
+                [50, 0],
+            ],
+        },
+        {
+            ownerPairKey: 'blue|world',
+            color: 0,
+            points: [
+                [50, 0],
+                [100, 0],
+            ],
+        },
+        {
+            ownerPairKey: 'blue|world',
+            color: 0,
+            points: [
+                [100, 0],
+                [100, 100],
+            ],
+        },
+        {
+            ownerPairKey: 'blue|world',
+            color: 0,
+            points: [
+                [100, 100],
+                [50, 100],
+            ],
+        },
+        {
+            ownerPairKey: 'red|world',
+            color: 0,
+            points: [
+                [50, 100],
+                [0, 100],
+            ],
+        },
+        {
+            ownerPairKey: 'red|world',
+            color: 0,
+            points: [
+                [0, 100],
+                [0, 0],
+            ],
+        },
+    ];
+}
+
 function buildHealthyTopology(): FrontierTopology {
     const result = buildPowerVoronoiFrontierTopology({
         sharedPolylines: [],
@@ -49,6 +115,20 @@ function buildHealthyTopology(): FrontierTopology {
         worldWidth: 100,
         worldHeight: 100,
         fingerprint: 'oracle-square-world-border',
+    });
+
+    expect(result.topologyReliable).toBe(true);
+    return result.topology;
+}
+
+function buildSplitTopology(): FrontierTopology {
+    const result = buildPowerVoronoiFrontierTopology({
+        sharedPolylines: splitWorldSharedPolylines(),
+        worldBorderPolylines: splitWorldBorderPolylines(),
+        ownershipVersion: 'test',
+        worldWidth: 100,
+        worldHeight: 100,
+        fingerprint: 'oracle-split-world',
     });
 
     expect(result.topologyReliable).toBe(true);
@@ -211,6 +291,74 @@ describe('validateFrontierTopologyInvariants', () => {
                 failure.includes('reconstructed point chain is open'),
             ),
         ).toBe(true);
+    });
+
+    it('detects stale loop signedArea values that no longer match the section chain', () => {
+        const topology = buildHealthyTopology();
+        const loop = topology.loops[0]!;
+        const invalidTopology: FrontierTopology = {
+            ...topology,
+            loops: [
+                {
+                    ...loop,
+                    signedArea: 0,
+                },
+            ],
+        };
+
+        expect(previousNonEmptyReliability(invalidTopology)).toBe(true);
+        const report = validateFrontierTopologyInvariants(invalidTopology);
+
+        expect(report.ok).toBe(false);
+        expect(
+            report.failures.some((failure) =>
+                failure.includes('signedArea 0 does not match reconstructed'),
+            ),
+        ).toBe(true);
+    });
+
+    it('detects duplicated loop coverage for sections that should belong to one loop per owner', () => {
+        const topology = buildHealthyTopology();
+        const loop = topology.loops[0]!;
+        const section = topology.sections.get(loop.sectionRefs[0]!.sectionId)!;
+        const invalidTopology: FrontierTopology = {
+            ...topology,
+            loops: [
+                loop,
+                {
+                    ...loop,
+                    id: `${loop.id}:duplicate`,
+                    componentId: `${loop.componentId}:duplicate`,
+                },
+            ],
+        };
+
+        expect(previousNonEmptyReliability(invalidTopology)).toBe(true);
+        const report = validateFrontierTopologyInvariants(invalidTopology);
+
+        expect(report.ok).toBe(false);
+        expect(report.failures).toContain(
+            `section ${section.id}: loop coverage for owner red is 2, expected 1`,
+        );
+    });
+
+    it('detects a shared section missing one owner-side loop', () => {
+        const topology = buildSplitTopology();
+        const ownerBorder = [...topology.sections.values()].find(
+            (section) => section.kind === 'owner_border',
+        )!;
+        const invalidTopology: FrontierTopology = {
+            ...topology,
+            loops: topology.loops.filter((loop) => loop.ownerId !== 'blue'),
+        };
+
+        expect(previousNonEmptyReliability(invalidTopology)).toBe(true);
+        const report = validateFrontierTopologyInvariants(invalidTopology);
+
+        expect(report.ok).toBe(false);
+        expect(report.failures).toContain(
+            `section ${ownerBorder.id}: loop coverage for owner blue is 0, expected 1`,
+        );
     });
 
     it('detects owner and owner-pair index entries that point at the wrong section', () => {

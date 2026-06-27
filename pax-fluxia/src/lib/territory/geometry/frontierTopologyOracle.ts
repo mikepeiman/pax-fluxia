@@ -7,6 +7,9 @@ import type {
 
 const DEFAULT_MAX_FAILURES = 50;
 const POINT_EPSILON_PX = 0.02;
+const SIGNED_AREA_EPSILON_PX2 = 0.5;
+const MIN_LOOP_ABS_AREA_PX2 = 0.25;
+const WORLD_OWNER_ID = 'world';
 
 export interface FrontierTopologyOracleOptions {
     readonly maxFailures?: number;
@@ -36,6 +39,20 @@ function uniqueOwners(section: FrontierSection): readonly string[] {
     return section.leftOwnerId === section.rightOwnerId
         ? [section.leftOwnerId]
         : [section.leftOwnerId, section.rightOwnerId];
+}
+
+function expectedLoopOwners(section: FrontierSection): readonly string[] {
+    return uniqueOwners(section).filter((ownerId) => ownerId !== WORLD_OWNER_ID);
+}
+
+function signedArea(points: ReadonlyArray<[number, number]>): number {
+    let area = 0;
+    for (let i = 0; i < points.length; i++) {
+        const [ax, ay] = points[i]!;
+        const [bx, by] = points[(i + 1) % points.length]!;
+        area += ax * by - bx * ay;
+    }
+    return area * 0.5;
 }
 
 function segmentStartVertex(section: FrontierSection, ref: SectionRef): string {
@@ -83,6 +100,17 @@ export function validateFrontierTopologyInvariants(
             }
             seen.add(id);
         }
+    }
+
+    const loopCoverageBySection = new Map<string, Map<string, number>>();
+
+    function recordLoopCoverage(sectionId: string, ownerId: string): void {
+        const byOwner = loopCoverageBySection.get(sectionId);
+        if (byOwner) {
+            byOwner.set(ownerId, (byOwner.get(ownerId) ?? 0) + 1);
+            return;
+        }
+        loopCoverageBySection.set(sectionId, new Map([[ownerId, 1]]));
     }
 
     for (const vertex of topology.vertices.values()) {
@@ -247,6 +275,9 @@ export function validateFrontierTopologyInvariants(
             fail(`loop ${key}: empty sectionRefs`);
             return;
         }
+        if (loop.ownerId === WORLD_OWNER_ID) {
+            fail(`loop ${key}: world owner cannot have a territory loop`);
+        }
 
         for (let refIndex = 0; refIndex < loop.sectionRefs.length; refIndex++) {
             const ref = loop.sectionRefs[refIndex]!;
@@ -264,6 +295,9 @@ export function validateFrontierTopologyInvariants(
                 fail(
                     `loop ${key}: section ${ref.sectionId} does not include owner ${loop.ownerId}`,
                 );
+            }
+            if (loop.ownerId !== WORLD_OWNER_ID) {
+                recordLoopCoverage(ref.sectionId, loop.ownerId);
             }
 
             const currentStartVertexId = segmentStartVertex(section, ref);
@@ -302,7 +336,45 @@ export function validateFrontierTopologyInvariants(
         if (!firstPoint || !lastPoint || !pointsMatch(firstPoint, lastPoint)) {
             fail(`loop ${key}: reconstructed point chain is open`);
         }
+        if (loopPoints.length < 4) {
+            fail(`loop ${key}: fewer than three reconstructed boundary segments`);
+        } else {
+            const reconstructedSignedArea = signedArea(loopPoints);
+            if (!Number.isFinite(loop.signedArea)) {
+                fail(`loop ${key}: non-finite signedArea ${loop.signedArea}`);
+            } else if (
+                Math.abs(reconstructedSignedArea - loop.signedArea) >
+                SIGNED_AREA_EPSILON_PX2
+            ) {
+                fail(
+                    `loop ${key}: signedArea ${loop.signedArea} does not match reconstructed ${reconstructedSignedArea}`,
+                );
+            }
+            if (Math.abs(reconstructedSignedArea) <= MIN_LOOP_ABS_AREA_PX2) {
+                fail(`loop ${key}: near-zero reconstructed area ${reconstructedSignedArea}`);
+            }
+        }
     });
+
+    for (const section of topology.sections.values()) {
+        const coverageByOwner = loopCoverageBySection.get(section.id) ?? new Map();
+        const expectedOwners = expectedLoopOwners(section);
+        for (const ownerId of expectedOwners) {
+            const count = coverageByOwner.get(ownerId) ?? 0;
+            if (count !== 1) {
+                fail(
+                    `section ${section.id}: loop coverage for owner ${ownerId} is ${count}, expected 1`,
+                );
+            }
+        }
+        for (const ownerId of coverageByOwner.keys()) {
+            if (!expectedOwners.includes(ownerId)) {
+                fail(
+                    `section ${section.id}: unexpected loop coverage for owner ${ownerId}`,
+                );
+            }
+        }
+    }
 
     if (failureCount > failures.length) {
         failures.push(

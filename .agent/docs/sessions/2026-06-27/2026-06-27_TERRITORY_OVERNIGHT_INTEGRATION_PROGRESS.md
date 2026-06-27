@@ -56,6 +56,12 @@ Safety checkpoint:
    - Render-family terminal-frame retirement now marks exact transition keys, so a finished capture of a star no longer retires a newer recapture of that same star.
    - Legacy star-id retirement calls still work for older consumers, but the main render-family path uses exact transition keys.
 
+6. Stronger frontier topology consistency oracle
+   - Timestamp: 2026-06-27T16:38:48-04:00
+   - The topology oracle now verifies loop coverage for every section owner: owner-world sections must appear in exactly one loop for the owner, and owner-owner sections must appear in exactly one loop for each owner.
+   - Loops now reject `world` as a territory owner, near-zero reconstructed area, and stale/non-finite signed-area data that disagrees with the section chain.
+   - Tests now cover stale signed area, duplicate section coverage, and a missing owner-side loop on a shared frontier.
+
 ## Validation So Far
 
 Passed before the first pushed implementation checkpoint:
@@ -82,6 +88,14 @@ Passed during exact transition identity slice:
 - `bun run agentic:graphify:build` from repo root
 - `bun run build`
 
+Passed during topology consistency slice:
+
+- `bun x vitest run src/lib/territory/geometry/frontierTopologyOracle.test.ts src/lib/territory/families/buildPowerVoronoiFrontierTopology.test.ts src/lib/territory/geometry/buildPowerVoronoi0319AuthoritySnapshot.test.ts` (3 files, 13 tests)
+- `bun x vitest run src/lib/territory` (51 files, 328 tests)
+- `bun run check` (0 errors, 1 existing warning)
+- `bun run agentic:graphify:build` from repo root
+- `bun run build`
+
 Known recurring non-blocking warning:
 
 - `GameThemeManager.svelte`: unused CSS selector `.game-theme-manager--menu .theme-chip-name`
@@ -96,7 +110,7 @@ Known recurring build warnings:
 
 Next implementation targets:
 
-- Add topology-to-region consistency checks beyond internal topology structure: loop-to-region agreement, owner/star containment, duplicate physical frontier detection, and self-intersection checks.
+- Continue topology-to-region consistency checks beyond internal topology structure: owner/star containment, duplicate physical frontier detection, and targeted self-intersection checks.
 - Add Grid Gradient owner-grid cache size diagnostics or bounded eviction for long sessions.
 - Wire `powerCore` as a selectable candidate authority with fixture comparison against 0319, not as a default.
 - Build a final integration report with selectable/default/blocked status and validation evidence before any default promotion.
