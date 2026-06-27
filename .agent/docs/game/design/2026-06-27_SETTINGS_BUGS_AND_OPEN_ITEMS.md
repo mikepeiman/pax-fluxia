@@ -61,8 +61,25 @@ User-reported issues + items held in context. Keep updated as they're fixed.
 7. **Frontier FX + smooth fill** (task #11): FX is per-cell (jagged); the smooth
    shader ignores it. Re-do FX IN the fill shader — but VERIFY GLSL compiles
    (runtime) before shipping (the revert above is why).
-8. **Smooth cell-fill edges to match borders** (task #10): EDGES/FIELD fill is the
-   raw cell staircase. Partly addressed by exposing Frontier Technique=shader-band.
+8. **Smooth cell-fill edges to match borders** (task #10): ROOT-CAUSED + EDGES/EMBER
+   FIXED (`f181ac68d`). The smooth phase-surface fill that meets the border exists
+   ONLY for `TERRITORY_FRONTIER_TECHNIQUE='shader_frontier_band'` (surface.ts recipe:
+   `usesPhaseFill ⇔ geometryFamily 'phase_band'`; every other technique = raster
+   scene-cell staircase). It lives ONLY in CellGridPhaseEdgesFamily (EDGES + EMBER,
+   same family). The default was `'control'` so neither was smooth out of the box —
+   EMBER only looked smooth from a manual, non-durable setting (the "regression").
+   Flipped the default to shader-band (frontier/config.ts) → EDGES + EMBER smooth-by-
+   default; only that family reads the technique so nothing else is touched; auto-
+   falls back to control with no renderer / non-square; user choices persist.
+   **FIELD (phase_field) STILL OPEN — different family, no phase-band path.**
+   CellGridPhaseFieldFamily paints raster cells (`drawFilledGridCell`) MASKED by the
+   smooth boundary geometry (`drawGeometryFill` of region rings), so its OUTER edge
+   is already smooth + border-flush (resolveFillMaskGeometry no-op), but INTERNAL
+   faction frontiers are cell-staircase and it has NO shader-band fill. Making FIELD
+   fully smooth = real port of the phase-surface path into its family (riskier; its
+   mask/texture/transition pipeline is complex) OR a design decision to keep FIELD's
+   distinct field-of-cells identity. Pending user steer — NOT rushing a shader port
+   (that's what broke smooth fill last time).
 9. **World-border / fill-border alignment**: EDGES/FIELD not aligned; `appliedMarginPx`
    vertex displacement residual; Grid/Edges/Ember use ad-hoc `drawOuterPerimeterIntervals`
    instead of the shared geometry world border (Phase C).
