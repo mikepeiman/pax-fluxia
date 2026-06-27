@@ -2,7 +2,8 @@ export type OwnershipModeId = 'star_ownership_snapshot';
 
 export type GeometryModeId =
     | 'unified_vector' // Unified Vector Geometry
-    | 'resolved_power_voronoi'; // Resolved Power Voronoi
+    | 'resolved_power_voronoi' // Resolved Power Voronoi
+    | 'power_core_candidate'; // Power-core comparison candidate, not default authority
 
 export type FillTransitionModeId =
     | 'frontier_morph' // Frontier Topology Morph Fill (legacy OT — broken)

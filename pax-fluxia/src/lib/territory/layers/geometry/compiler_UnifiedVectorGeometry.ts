@@ -24,6 +24,7 @@
 
 import { computeGeometry0319 } from '../../compiler/Geometry_0319';
 import { buildFrontierTopology } from '../../compiler/buildFrontierTopology';
+import { measurePerf } from '$lib/perf/perfProbe';
 import type { TerritoryGeometryData, MergedTerritory } from '../../compiler/powerVoronoiTerritoryGeometryGenerator';
 import type {
     ResolvedGeometrySnapshot,
@@ -48,6 +49,7 @@ import {
     isCompileError,
 } from './modes/geometryModeUtils';
 import { log } from '../../../utils/logger';
+import { auditPowerCoreCandidateGeometry } from '../../geometry/powerCoreCandidateAudit';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -196,6 +198,36 @@ export function compileVectorGeometry(
         `${shells.length} shells, ` +
         `topology: ${frontierTopology ? `${frontierTopology.vertices.size}v/${frontierTopology.sections.size}s/${frontierTopology.loops.length}l` : 'MISSING'}`,
     );
+
+    if (sourceMode === 'power_core_candidate') {
+        const powerCoreCandidate = measurePerf(
+            'territory.powerCoreCandidate.audit',
+            () => auditPowerCoreCandidateGeometry(geometry),
+            {
+                cells: geometry.cells.length,
+                sharedEdges0319: geometry.sharedEdges.length,
+                mergedRegions0319: geometry.mergedTerritories.length,
+            },
+        );
+        return {
+            ...snapshot,
+            provenance: {
+                ...snapshot.provenance,
+                notes: [
+                    ...snapshot.provenance.notes,
+                    'power_core_candidate emits the maintained 0319 snapshot and attaches a pure power-core shared-edge comparison audit.',
+                ],
+            },
+            diagnostics: {
+                ...snapshot.diagnostics,
+                powerCoreCandidate,
+                notes: [
+                    ...snapshot.diagnostics.notes,
+                    ...powerCoreCandidate.notes.map((note) => `powerCore: ${note}`),
+                ],
+            },
+        };
+    }
 
     return snapshot;
 }

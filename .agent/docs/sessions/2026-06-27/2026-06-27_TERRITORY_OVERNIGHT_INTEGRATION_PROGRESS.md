@@ -68,6 +68,13 @@ Safety checkpoint:
    - Cache diagnostics now report entries, max entries, byte estimate, and evictions through debug snapshots, the stats store, and `territory.gridGradient.update` perf details.
    - Worker plan responses now include worker-side owner-grid cache stats so warm worker rebuilds are measurable.
 
+8. Power-core candidate geometry audit mode
+   - Timestamp: 2026-06-27T16:57:55-04:00
+   - Added `power_core_candidate` as a real geometry mode id, registry entry, catalog descriptor, and settings-bridge value. The default remains `resolved_power_voronoi`.
+   - Candidate mode still emits the maintained 0319 compiler snapshot; it does not replace the live authority.
+   - When selected, it runs a pure `powerCore` shared-edge audit over 0319 cell geometry and attaches diagnostics for cell count, loop count, shared/world edges, owner area agreement, duplicate source site ids, and a deterministic topology fingerprint.
+   - Added a 0319-style split-cell fixture test proving power-core owner loops match 0319 cell areas and that the candidate topology fingerprint is stable when cell input order changes.
+
 ## Validation So Far
 
 Passed before the first pushed implementation checkpoint:
@@ -110,6 +117,15 @@ Passed during Grid Gradient cache bounding slice:
 - `bun run agentic:graphify:build` from repo root
 - `bun run build`
 
+Passed during power-core candidate audit slice:
+
+- `bun x vitest run src/lib/territory/geometry/powerCoreCandidateAudit.test.ts src/lib/territory/layers/geometry/registry.test.ts src/lib/territory/integration/TerritorySettingsBridge.test.ts` (3 files, 13 tests)
+- `bun x vitest run src/lib/territory/geometry src/lib/territory/layers/geometry src/lib/territory/integration/TerritorySettingsBridge.test.ts` (11 files, 68 tests)
+- `bun run check` (0 errors, 1 existing warning)
+- `bun x vitest run src/lib/territory` (53 files, 333 tests)
+- `bun run build`
+- `bun run agentic:graphify:build` from repo root
+
 Known recurring non-blocking warning:
 
 - `GameThemeManager.svelte`: unused CSS selector `.game-theme-manager--menu .theme-chip-name`
@@ -125,5 +141,5 @@ Known recurring build warnings:
 Next implementation targets:
 
 - Continue topology-to-region consistency checks beyond internal topology structure: owner/star containment, duplicate physical frontier detection, and targeted self-intersection checks.
-- Wire `powerCore` as a selectable candidate authority with fixture comparison against 0319, not as a default.
+- Exercise `power_core_candidate` against generated live-map fixtures and decide which failures are power-core defects versus unsupported 0319 cell-input edge cases.
 - Build a final integration report with selectable/default/blocked status and validation evidence before any default promotion.

@@ -160,8 +160,34 @@ export interface GeometryDiagnostics {
     stageLadder?: GeometryStageLadder;
     /** Local MSR repair diagnostics from the universal geometry layer. */
     minStarMargin?: MinStarMarginDiagnostics;
+    /** Candidate-only comparison of 0319 cells against the pure power-core graph. */
+    powerCoreCandidate?: PowerCoreCandidateDiagnostics;
     /** Free-form diagnostic notes. */
     notes: string[];
+}
+
+export interface PowerCoreCandidateOwnerComparison {
+    readonly ownerId: string;
+    readonly cellCount: number;
+    readonly loopCount: number;
+    readonly cellAreaPx2: number;
+    readonly loopAreaPx2: number;
+    readonly areaDeltaPx2: number;
+}
+
+export interface PowerCoreCandidateDiagnostics {
+    readonly ok: boolean;
+    readonly cellCount: number;
+    readonly loopCount: number;
+    readonly sharedEdgeCount: number;
+    readonly worldEdgeCount: number;
+    readonly raw0319SharedEdgeCount: number;
+    readonly raw0319MergedRegionCount: number;
+    readonly maxOwnerAreaDeltaPx2: number | null;
+    readonly ownerComparisons: readonly PowerCoreCandidateOwnerComparison[];
+    readonly topologyFingerprint: string;
+    readonly duplicateSourceSiteIdCount: number;
+    readonly notes: readonly string[];
 }
 
 export type GeometryDebugStageId =

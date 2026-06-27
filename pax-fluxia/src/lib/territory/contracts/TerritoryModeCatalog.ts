@@ -36,6 +36,12 @@ export const GEOMETRY_MODE_CATALOG: Readonly<Record<GeometryModeId, ModeDescript
         summary:
             'Exact Power Voronoi geometry path compiled from paired ownership snapshots for PVV4 transitions.',
     },
+    power_core_candidate: {
+        id: 'power_core_candidate',
+        name: 'Power Core Candidate',
+        summary:
+            'Non-default comparison mode that keeps the maintained 0319 output while auditing the pure shared-edge power-core graph.',
+    },
 };
 
 export const FILL_TRANSITION_MODE_CATALOG: Readonly<

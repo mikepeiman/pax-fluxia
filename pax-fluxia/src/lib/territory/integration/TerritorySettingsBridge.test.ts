@@ -29,6 +29,14 @@ describe('readTerritoryRuntimeSettings', () => {
         expect(settings.selection.fillTransitionMode).toBe('pv_frontline');
     });
 
+    it('preserves the power-core candidate mode when configured directly', () => {
+        const settings = readTerritoryRuntimeSettings({
+            TERRITORY_GEOMETRY_MODE: 'power_core_candidate',
+        });
+
+        expect(settings.selection.geometryMode).toBe('power_core_candidate');
+    });
+
     it('maps render-mode aliases to clean style ids', () => {
         const vector = readTerritoryRuntimeSettings({
             TERRITORY_RENDER_MODE: 'territory_runtime',

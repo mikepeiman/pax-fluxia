@@ -21,6 +21,7 @@ function asString(value: unknown, fallback: string): string {
 function resolveGeometryMode(_rawValue: unknown): TerritoryModeSelection['geometryMode'] {
     const raw = asString(_rawValue, DEFAULT_TERRITORY_MODE_SELECTION.geometryMode);
     if (raw === 'resolved_power_voronoi') return 'resolved_power_voronoi';
+    if (raw === 'power_core_candidate') return 'power_core_candidate';
     // All other geometry modes are normalized onto the maintained unified compiler path.
     return 'unified_vector';
 }
