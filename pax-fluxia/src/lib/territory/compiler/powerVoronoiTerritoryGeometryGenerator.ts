@@ -1026,7 +1026,17 @@ export function chainSharedEdgesIntoPolylines(
             }
 
             if (chain.length >= 2) {
-                const smoothed = passes > 0 ? chaikinSmoothPolyline(chain, passes) : chain;
+                // World-border polylines are the structural map-rectangle edges
+                // (ownerPairKey `owner|world`). They must stay rectilinear with
+                // sharp corners — Chaikin smoothing would round the map corners
+                // (the PVV4 "angular-rounded corners" symptom) and would diverge
+                // from the fill, whose world-boundary vertices are already pinned
+                // by chaikinSmoothPolygon. Only inter-owner frontiers are smoothed.
+                const isWorldPair = pairKey.includes('world');
+                const smoothed =
+                    passes > 0 && !isWorldPair
+                        ? chaikinSmoothPolyline(chain, passes)
+                        : chain;
                 result.push({
                     points: smoothed,
                     ownerPairKey: pairKey,

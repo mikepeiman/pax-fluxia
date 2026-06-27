@@ -2,8 +2,8 @@
   import "./panel-shared.css";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import {
-        PaxHudSelect,
         PaxSettingsRangeRow,
+        PaxSettingsSegmentedRow,
         PaxSettingsToggleRow,
     } from "$lib/design-system";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
@@ -24,8 +24,8 @@
     ];
 
     const ARROW_EASING_OPTIONS = [
-        { value: "easeIn", label: "Ease In" },
-        { value: "easeInOut", label: "Ease In / Out" },
+        { value: "easeIn", label: "In" },
+        { value: "easeInOut", label: "In-out" },
         { value: "linear", label: "Linear" },
     ];
 
@@ -40,8 +40,10 @@
 <CategoryThemeBar category="conquest" onApply={() => syncFromConfig?.()} />
 
 <h4 class="sub-heading">Animation Mode</h4>
-<PaxHudSelect
+<PaxSettingsSegmentedRow
     label="Conquest Mode"
+    hint="How conquest is animated: Immediate, Surge, Travel, or Arrowhead."
+    settingConfigKey="CONQUEST_ANIMATION_MODE"
     value={panel.conquestAnimMode}
     options={CONQUEST_MODE_OPTIONS}
     onValueChange={(value) => {
@@ -212,8 +214,10 @@
         }}
     />
 
-    <PaxHudSelect
+    <PaxSettingsSegmentedRow
         label="Arrowhead Easing"
+        hint="Easing for the arrowhead conquest animation: ease In, In-out, or Linear."
+        settingConfigKey="ARROW_EASING"
         value={panel.arrowEasing}
         options={ARROW_EASING_OPTIONS}
         onValueChange={(value) => {
@@ -252,8 +256,10 @@
     />
 
     <h4 class="sub-heading">Arrival Pattern</h4>
-    <PaxHudSelect
+    <PaxSettingsSegmentedRow
         label="Engulf Mode"
+        hint="Arrival pattern when ships engulf a star: Fan, Collapse, Ring, or Swarm."
+        settingConfigKey="ARROW_ENGULF_MODE"
         value={panel.arrowEngulfMode}
         options={ENGULF_MODE_OPTIONS}
         onValueChange={(value) => {

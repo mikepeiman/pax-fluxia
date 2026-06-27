@@ -34,6 +34,7 @@
     PaxHudSegmentedControl,
     PaxHudSelect,
     PaxSettingsRangeRow,
+    PaxSettingsSegmentedRow,
     PaxSettingsToggleRow,
     type PaxHudSegmentedOption,
   } from "$lib/design-system";
@@ -297,17 +298,24 @@
   const METABALL_FALLOFF_OPTIONS = [
     {
       id: "inverse-square" as const,
-      label: "Inverse square — organic, lower CPU",
+      label: "Inverse sq",
+      description: "organic, lower CPU",
     },
     {
       id: "gaussian" as const,
-      label: "Gaussian — fluid look, heavier CPU",
+      label: "Gaussian",
+      description: "fluid look, heavier CPU",
     },
     {
       id: "smoothstep" as const,
-      label: "Smoothstep — crisp falloff band",
+      label: "Smoothstep",
+      description: "crisp falloff band",
     },
   ];
+
+  const METABALL_FALLOFF_HINT = METABALL_FALLOFF_OPTIONS.map(
+    (o) => `${o.label}: ${o.description}.`,
+  ).join(" ");
 
   function resolveMetaballFalloffId():
     | "inverse-square"
@@ -813,6 +821,7 @@
                 value={resolveActiveTransitionModeId()}
                 options={transitionSelectOptions()}
                 ariaLabel="Territory transition mode"
+                hint="Conquest transition mode for the active render family."
                 onValueChange={(value) => {
                   debouncedConfigUpdate(
                     "VS_TRANSITION_MODE",
@@ -821,9 +830,6 @@
                   );
                 }}
               />
-              <div class="axis-note">
-                Conquest transition mode for the active render family.
-              </div>
             </div>
           </div>
           <TerritoryTransitionTuning
@@ -894,11 +900,12 @@
           "metaballInfluenceRadius",
           value,
         )} />
-    <PaxHudSelect
+    <PaxSettingsSegmentedRow
       label="Influence falloff"
+      hint={METABALL_FALLOFF_HINT}
+      settingConfigKey="METABALL_FALLOFF"
       value={resolveMetaballFalloffId()}
       options={metaballFalloffSelectOptions()}
-      ariaLabel="Metaball influence falloff"
       onValueChange={(value) =>
         debouncedConfigUpdate("METABALL_FALLOFF", "metaballFalloff", value)} />
     <div
@@ -1178,6 +1185,28 @@
           "frontierResolution",
           value,
           "Frontier Resolution",
+        )} />
+  </div>
+
+  <h5 class="territory-inline-heading">World Boundary</h5>
+
+  <div
+    class="var-row territory-range-note"
+    title="How far the territory fill AND its world-edge border extend past the map rectangle. Fill and border share this boundary, so they extend together. 0 = territory stops exactly at the map edge.">
+    <PaxSettingsRangeRow
+      label="Extent Beyond Map"
+      value={panel.worldExtentPx ?? GAME_CONFIG.CHAIKIN_BOUNDARY_PAD ?? 50}
+      min={0}
+      max={300}
+      step={5}
+      suffix="px"
+      settingConfigKey="CHAIKIN_BOUNDARY_PAD"
+      onInput={(value) =>
+        queueTopologySliderUpdate(
+          "CHAIKIN_BOUNDARY_PAD",
+          "worldExtentPx",
+          value,
+          "Extent Beyond Map",
         )} />
   </div>
 

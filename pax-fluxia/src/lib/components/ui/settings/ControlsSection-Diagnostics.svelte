@@ -8,6 +8,10 @@
     import { territoryTuningStatus } from "$lib/stores/territoryTuningStatusStore";
     import { cellGridStats } from "$lib/territory/families/cellGrid/cellGridStats";
     import { gridGradientStats } from "$lib/territory/families/gridGradient/gridGradientStats";
+    import {
+        TERRITORY_FRONTIER_BENCHMARK_PRESETS,
+        type TerritoryFrontierBenchmarkPreset,
+    } from "$lib/territory/frontier";
     import PerimeterFieldDiagnosticsPanel from "$lib/components/ui/PerimeterFieldDiagnosticsPanel.svelte";
     import { overlayConfig } from "$lib/territory/devtools/overlayConfig";
     import {
@@ -33,6 +37,7 @@
     import { getTerritoryRenderModeLabel } from "$lib/territory/ui/territoryRenderModeCatalog";
     import {
         PaxHudButton,
+        PaxInfoHint,
         PaxSettingsRangeRow,
         PaxSettingsToggleRow,
     } from "$lib/design-system";
@@ -125,6 +130,50 @@
         GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY = value;
         updatePanel("perimeterFieldDebugShowGeometry", value);
         bumpTerritoryVisualConfig();
+    }
+
+    function panelKeyFromConfig(configKey: string): string {
+        return configKey
+            .toLowerCase()
+            .replace(/_([a-z0-9])/g, (_, value: string) => value.toUpperCase());
+    }
+
+    function writeConfig(configKey: string, value: unknown): void {
+        (GAME_CONFIG as unknown as Record<string, unknown>)[configKey] = value;
+        updatePanel(panelKeyFromConfig(configKey), value);
+        bumpTerritoryVisualConfig();
+    }
+
+    function currentCellGridDistribution(): string {
+        return String(
+            panel.cellGridDistribution ??
+                GAME_CONFIG.CELL_GRID_DISTRIBUTION ??
+                "square",
+        );
+    }
+
+    function canApplyFrontierBenchmarkPreset(): boolean {
+        return currentCellGridDistribution() === "square";
+    }
+
+    function applyFrontierBenchmarkPreset(
+        preset: TerritoryFrontierBenchmarkPreset,
+    ): void {
+        if (!canApplyFrontierBenchmarkPreset()) return;
+        for (const [configKey, value] of Object.entries(preset.values)) {
+            writeConfig(configKey, value);
+        }
+    }
+
+    function isFrontierBenchmarkPresetSelected(
+        preset: TerritoryFrontierBenchmarkPreset,
+    ): boolean {
+        return Object.entries(preset.values).every(([configKey, value]) => {
+            const panelValue = panel[panelKeyFromConfig(configKey)];
+            const configValue =
+                (GAME_CONFIG as unknown as Record<string, unknown>)[configKey];
+            return (panelValue ?? configValue) === value;
+        });
     }
 
     function toggleAuthoredMeasurements(): void {
@@ -662,17 +711,203 @@
             <div><span>Flip Pcts</span><span>{formatFlipPercentiles()}</span></div>
             <div><span>Flip Bins</span><span>{formatFlipBins()}</span></div>
         </div>
+        <div class="perf-grid">
+            <div class="perf-label">Cells (painted / emittable / total)</div>
+            <div class="perf-value">
+                {$cellGridStats.paintedCells.toLocaleString()}
+                <span class="perf-sub">/ {$cellGridStats.emittableCells.toLocaleString()} / {$cellGridStats.totalCells.toLocaleString()}</span>
+            </div>
+
+            <div class="perf-label">Spacing (requested / effective)</div>
+            <div class="perf-value">
+                {$cellGridStats.requestedSpacingPx.toFixed(1)} px
+                <span class="perf-sub">
+                    / {$cellGridStats.effectiveSpacingPx.toFixed(1)} px
+                    {#if $cellGridStats.effectiveSpacingPx > $cellGridStats.requestedSpacingPx + 0.01}
+                        <span class="perf-coarsen">(coarsened)</span>
+                    {/if}
+                </span>
+            </div>
+
+            <div class="perf-label">Density (requested / effective)</div>
+            <div class="perf-value">
+                {$cellGridStats.requestedDensityCellsPerMpx.toFixed(0)} cells/Mpx
+                <span class="perf-sub">
+                    / {$cellGridStats.effectiveDensityCellsPerMpx.toFixed(0)} cells/Mpx
+                    {#if $cellGridStats.effectiveDensityCellsPerMpx + 0.5 < $cellGridStats.requestedDensityCellsPerMpx}
+                        <span class="perf-coarsen">(reduced)</span>
+                    {/if}
+                </span>
+            </div>
+
+            <div class="perf-label">Frame time (last / EMA)</div>
+            <div class="perf-value">
+                {$cellGridStats.lastUpdateMs.toFixed(2)} ms
+                <span class="perf-sub">/ {$cellGridStats.emaUpdateMs.toFixed(2)} ms</span>
+            </div>
+
+            <div class="perf-label">Frontier technique</div>
+            <div class="perf-value">
+                {$cellGridStats.frontierTechnique}
+                {#if $cellGridStats.frontierTechnique !== $cellGridStats.frontierRequestedTechnique}
+                    <span class="perf-sub">
+                        requested {$cellGridStats.frontierRequestedTechnique}
+                        {#if $cellGridStats.frontierFallbackReason}
+                            ({$cellGridStats.frontierFallbackReason})
+                        {/if}
+                    </span>
+                {/if}
+            </div>
+
+            <div class="perf-label">Border geometry</div>
+            <div class="perf-value">
+                {$cellGridStats.frontierBorderGeometryMode}
+                {#if $cellGridStats.frontierBorderGeometryMode !== $cellGridStats.frontierRequestedBorderGeometryMode}
+                    <span class="perf-sub">
+                        requested {$cellGridStats.frontierRequestedBorderGeometryMode}
+                        {#if $cellGridStats.frontierBorderGeometryFallbackReason}
+                            ({$cellGridStats.frontierBorderGeometryFallbackReason})
+                        {/if}
+                    </span>
+                {:else if $cellGridStats.frontierBorderGeometryFallbackReason}
+                    <span class="perf-sub">
+                        ({$cellGridStats.frontierBorderGeometryFallbackReason})
+                    </span>
+                {/if}
+            </div>
+
+            <div class="perf-label">Surface family</div>
+            <div class="perf-value">
+                {$cellGridStats.frontierSurfaceGeometryFamily}
+                <span class="perf-sub">
+                    steady {$cellGridStats.frontierStableGeometryFamily}
+                    / transition {$cellGridStats.frontierTransitionGeometryFamily}
+                    {#if $cellGridStats.frontierSurfaceInvariantViolation}
+                        ({$cellGridStats.frontierSurfaceInvariantViolation})
+                    {/if}
+                </span>
+            </div>
+
+            <div class="perf-label">Phase grid (layers / max dims)</div>
+            <div class="perf-value">
+                {$cellGridStats.frontierPhaseLayerCount}
+                <span class="perf-sub">
+                    / {$cellGridStats.frontierPhaseGridCols} × {$cellGridStats.frontierPhaseGridRows}
+                </span>
+            </div>
+
+            <div class="perf-label">Frontier timings</div>
+            <div class="perf-value">
+                blur {$cellGridStats.frontierBlurMs.toFixed(2)} ms
+                <span class="perf-sub">
+                    contour {$cellGridStats.frontierContourExtractionMs.toFixed(2)} ms
+                    / smooth {$cellGridStats.frontierSmoothingMs.toFixed(2)} ms
+                </span>
+            </div>
+
+            <div class="perf-label">Frontier geometry</div>
+            <div class="perf-value">
+                {$cellGridStats.frontierPolylineCount.toLocaleString()} polylines
+                <span class="perf-sub">
+                    / {$cellGridStats.frontierEmittedVertexCount.toLocaleString()} vertices
+                </span>
+            </div>
+
+            <div class="perf-label">Plan build (classify / wave / total)</div>
+            <div class="perf-value">
+                {$cellGridStats.lastClassificationBuildMs.toFixed(2)} ms
+                <span class="perf-sub">
+                    / {$cellGridStats.lastWavePlanBuildMs.toFixed(2)} ms
+                    / {$cellGridStats.lastPlanBuildMs.toFixed(2)} ms
+                </span>
+            </div>
+
+            <div class="perf-label">Frames</div>
+            <div class="perf-value">
+                {$cellGridStats.frameCount.toLocaleString()}
+                <span class="perf-sub">skipped {$cellGridStats.skippedFrameCount.toLocaleString()}</span>
+            </div>
+
+            <div class="perf-label">Render cache</div>
+            <div class="perf-value">
+                {$cellGridStats.renderCacheMode === 'steady_texture'
+                    ? 'steady texture'
+                    : 'live vectors'}
+            </div>
+
+            <div class="perf-label">Requested plan</div>
+            <div class="perf-value">
+                {$cellGridStats.planWorkerPending ? 'worker build pending' : 'worker ready'}
+            </div>
+
+            <div class="perf-label">Visible frame</div>
+            <div class="perf-value">
+                {#if $cellGridStats.visibleFrameState === 'holding_pre'}
+                    holding PRE
+                {:else if $cellGridStats.visibleFrameState === 'requested_plan'}
+                    requested transition plan
+                {:else if $cellGridStats.visibleFrameState === 'fallback_plan'}
+                    fallback plan
+                {:else}
+                    steady-state plan
+                {/if}
+            </div>
+
+            <div class="perf-label">Transition clock</div>
+            <div class="perf-value">
+                {#if $cellGridStats.clockSource === 'local'}
+                    local visual clock
+                {:else if $cellGridStats.clockSource === 'scheduler'}
+                    scheduler clock
+                {:else}
+                    none
+                {/if}
+            </div>
+        </div>
+        <div class="frontier-matrix">
+            <div class="frontier-matrix__head">
+                <span>Frontier Matrix</span>
+                <PaxInfoHint
+                    placement="left"
+                    text="Developer comparison rows for the full frontier technique matrix. These are intentionally broader than the public Frontier Recipe selector."
+                />
+            </div>
+            <div class="row-hint">
+                Applies the original benchmark rows for visual and performance comparison.
+                {#if !canApplyFrontierBenchmarkPreset()}
+                    Square distribution required.
+                {/if}
+            </div>
+            <div class="frontier-matrix__grid">
+                {#each TERRITORY_FRONTIER_BENCHMARK_PRESETS as preset}
+                    <PaxHudButton
+                        class="frontier-matrix-button"
+                        label={preset.label}
+                        size="sm"
+                        active={isFrontierBenchmarkPresetSelected(preset)}
+                        title={preset.description}
+                        disabled={!canApplyFrontierBenchmarkPreset()}
+                        onclick={() => applyFrontierBenchmarkPreset(preset)}
+                    />
+                {/each}
+            </div>
+        </div>
         {#if liveRenderMode === "ember_lattice"}
-            <div class="readout">
-                {formatEmberLatticeSemanticsNote()}
-                Default visual starting point: <code>pre_to_post_frontier</code>,
-                <code>territory_edge</code>, blended borders on, Chaikin 4, and DX on at 295px with weight 0.30. Propagation shape is now a real tuning choice.
+            <div class="diag-guide">
+                <PaxInfoHint
+                    placement="left"
+                    text={`${formatEmberLatticeSemanticsNote()} Default visual starting point: pre_to_post_frontier, territory_edge, blended borders on, Chaikin 4, and DX on at 295px with weight 0.30. Propagation shape is now a real tuning choice.`}
+                />
+                <span>Ember Lattice mode guide</span>
             </div>
         {/if}
         {#if liveRenderMode === "phase_field"}
-            <div class="readout">
-                {formatPhaseFieldSemanticsNote()}
-                Recommended starter: <code>pre_to_post_frontier</code> propagation, <code>territory_edge</code> borders, <code>Frontier Highlight</code> on, and the new finish-tail controls in <code>Flip</code> for fade timing, cell collapse, and frontier cleanup. DX defaults stay on at 295px with weight 0.30.
+            <div class="diag-guide">
+                <PaxInfoHint
+                    placement="left"
+                    text={`${formatPhaseFieldSemanticsNote()} Recommended starter: pre_to_post_frontier propagation, territory_edge borders, Frontier Highlight on, and the finish-tail controls in Finish for fade timing, cell collapse, and frontier cleanup. DX defaults stay on at 295px with weight 0.30.`}
+                />
+                <span>Phase Field mode guide</span>
             </div>
         {/if}
     {/if}
@@ -738,6 +973,13 @@
         margin-left: auto;
         font-size: var(--pax-type-3xs);
         color: var(--pax-ui-text-dim);
+    }
+
+    .row-hint {
+        margin-top: var(--pax-space-1);
+        color: color-mix(in srgb, var(--pax-ui-text-soft) 70%, transparent);
+        font-size: var(--pax-type-2xs);
+        line-height: 1.4;
     }
 
     .ruler-readout {
@@ -841,5 +1083,89 @@
 
     .status-grid__failure {
         color: color-mix(in srgb, var(--pax-ui-danger) 92%, transparent);
+    }
+
+    .diag-guide {
+        display: flex;
+        align-items: center;
+        gap: var(--pax-space-2);
+        margin-top: var(--pax-space-1);
+        color: color-mix(in srgb, var(--pax-ui-text-soft) 70%, transparent);
+        font-size: var(--pax-type-2xs);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    /* Live cell-grid planner/perf readout (relocated here from the Cell Grid
+       tuning panel — diagnostics belong in Developer → Diagnostics). */
+    .perf-grid {
+        display: grid;
+        grid-template-columns: max-content 1fr;
+        gap: var(--pax-gap-xs) var(--pax-gap-md);
+        align-items: baseline;
+        margin-top: var(--pax-space-1);
+        padding: var(--pax-gap-sm) var(--pax-space-3);
+        border-radius: 8px;
+        border: 1px solid color-mix(in srgb, var(--pax-ui-text-strong) 8%, transparent);
+        background: color-mix(in srgb, var(--pax-color-void) 40%, transparent);
+        font-size: var(--pax-type-2xs);
+    }
+
+    .perf-label {
+        color: color-mix(in srgb, var(--pax-ui-text-soft) 70%, transparent);
+        letter-spacing: 0.04em;
+    }
+
+    .perf-value {
+        color: color-mix(in srgb, var(--pax-ui-text-strong) 95%, transparent);
+        font-variant-numeric: tabular-nums;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    .perf-sub {
+        color: color-mix(in srgb, var(--pax-ui-text-soft) 55%, transparent);
+        margin-left: var(--pax-gap-xs);
+    }
+
+    .perf-coarsen {
+        color: color-mix(in srgb, var(--pax-ui-accent-warm) 90%, transparent);
+        margin-left: var(--pax-space-1);
+        font-size: var(--pax-type-3xs);
+    }
+
+    .frontier-matrix {
+        margin-top: var(--pax-space-2);
+    }
+
+    .frontier-matrix__head {
+        display: flex;
+        align-items: center;
+        gap: var(--pax-space-2);
+        color: color-mix(in srgb, var(--pax-ui-text-strong) 90%, transparent);
+        font-size: var(--pax-type-2xs);
+        font-weight: var(--pax-weight-bold);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .frontier-matrix__grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: var(--pax-space-2);
+        margin-top: var(--pax-space-2);
+    }
+
+    :global(.frontier-matrix-button) {
+        height: auto;
+        min-height: 2rem;
+        padding-block: var(--pax-space-2);
+        white-space: normal;
+        text-align: center;
+    }
+
+    :global(.frontier-matrix-button span) {
+        white-space: normal;
+        line-height: 1.2;
+        overflow-wrap: anywhere;
     }
 </style>

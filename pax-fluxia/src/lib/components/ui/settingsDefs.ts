@@ -334,6 +334,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'DEBUG_DY4_FORCE_TRANSITION_START' },
     // Territory invariants (MSR / CX / DX)
     { configKey: 'FRONTIER_RESOLUTION' },
+    { panelKey: 'worldExtentPx', configKey: 'CHAIKIN_BOUNDARY_PAD' },
     { panelKey: 'starMargin', configKey: 'MODIFIED_VORONOI_STAR_MARGIN' },
     {
         panelKey: 'msrStarBias',

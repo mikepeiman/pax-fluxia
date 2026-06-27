@@ -6,6 +6,7 @@
      */
     import { GAME_CONFIG } from "$lib/config/game.config";
     import {
+        PaxInfoHint,
         PaxSettingsRangeRow,
         PaxSettingsToggleRow,
     } from "$lib/design-system";
@@ -97,7 +98,10 @@
 </script>
 
 <div class="territory-sla-widget" class:territory-sla-widget--disabled={!enabled}>
-    <h4 class="sub-heading">{title}</h4>
+    <h4 class="sub-heading">
+        {title}
+        {#if help}<PaxInfoHint text={help} />{/if}
+    </h4>
     {#if configEnabled && panelEnabled}
         <PaxSettingsToggleRow
             label={enabledLabel}
@@ -106,9 +110,6 @@
             settingConfigKey={configEnabled}
             onChange={(value) => onUpdate(configEnabled, panelEnabled, value)}
         />
-    {/if}
-    {#if help}
-        <div class="territory-sla-widget__help">{help}</div>
     {/if}
 
     {#if configWidth && panelWidth && defaultWidth !== undefined}
@@ -176,10 +177,4 @@
         opacity: 0.82;
     }
 
-    .territory-sla-widget__help {
-        color: var(--pax-ui-text-dim);
-        font-family: var(--pax-ui-font-copy);
-        font-size: calc(0.68rem * var(--pax-ui-type-scale, 1));
-        line-height: 1.35;
-    }
 </style>

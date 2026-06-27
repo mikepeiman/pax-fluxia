@@ -6,7 +6,8 @@
     import {
         PaxHudButton,
         PaxHudRange,
-        PaxHudSelect,
+        PaxInfoHint,
+        PaxSettingsSegmentedRow,
         PaxSettingsToggleRow,
     } from "$lib/design-system";
 
@@ -19,9 +20,9 @@
 
     const REPLAY_SOURCE_OPTIONS = [
         { value: "0", label: "Live" },
-        { value: "1", label: "Replay 1 (most recent)" },
-        { value: "2", label: "Replay 2" },
-        { value: "3", label: "Replay 3" },
+        { value: "1", label: "R1" },
+        { value: "2", label: "R2" },
+        { value: "3", label: "R3" },
     ];
 
     function writeConfig(configKey: string, panelKey: string, value: unknown): void {
@@ -114,7 +115,7 @@
         checked={panel.perimeterFieldDebugShowVstars ??
             GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_VSTARS ??
             false}
-        description="Draw the derived perimeter vstars and conquest-local override points."
+        description="Draw the derived perimeter vstars and conquest-local override points. Vstars use owner/player color; the halo shows debug state — cyan = current/base, magenta = next-state, yellow = moving transition override."
         meta={(panel.perimeterFieldDebugShowVstars ??
             GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_VSTARS ??
             false)
@@ -128,12 +129,6 @@
                 value,
             )}
     />
-    <div class="var-desc">
-        Vstars are filled with owner/player color. The surrounding halo shows
-        debug state: cyan = current/base, magenta = next-state, yellow = moving
-        transition override.
-    </div>
-
     <PaxSettingsToggleRow
         label="Enable Transition Preview"
         checked={panel.perimeterFieldDebugScrubEnabled ??
@@ -153,14 +148,11 @@
                 value,
             )}
     />
-    <div class="var-desc">
-        Turn this on to replace the live perimeter-field view with captured
-        frames for scrub/replay inspection. Turn it off for normal gameplay;
-        pause alone will no longer switch views.
-    </div>
 
-    <PaxHudSelect
+    <PaxSettingsSegmentedRow
         label="Replay Source"
+        hint="Live uses the currently active conquest. R1 is the most recent captured conquest, then R2 and R3."
+        settingConfigKey="PERIMETER_FIELD_DEBUG_REPLAY_SLOT"
         value={(panel.perimeterFieldDebugReplaySlot ??
             GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT ??
             0).toString()}
@@ -172,20 +164,14 @@
                 parseFloat(value),
             )}
     />
-    <div class="var-desc">
-        Live uses the currently active conquest. Replay 1 is the most recent
-        captured conquest, then Replay 2 and Replay 3.
-    </div>
 
     <div class="scrub-card">
         <div class="scrub-card__header">
-            <span class="scrub-card__label">Transition Scrub</span>
+            <span class="scrub-card__label">
+                Transition Scrub
+                <PaxInfoHint text="In explicit preview mode, this steps through exact captured gameplay frames for the live conquest or selected replay. Each step moves exactly one conquest frame." />
+            </span>
             <span class="scrub-card__value">{scrubOutput()}</span>
-        </div>
-        <div class="var-desc">
-            In explicit preview mode, this steps through exact captured gameplay
-            frames for the live conquest or selected replay. Each step moves
-            exactly one conquest frame.
         </div>
         <div class="scrub-controls">
             <PaxHudButton
@@ -254,13 +240,14 @@
     }
 
     .scrub-card__label {
-        overflow: hidden;
+        display: inline-flex;
+        align-items: center;
+        gap: var(--pax-space-2);
         color: var(--pax-ui-text-soft);
         font-family: var(--pax-ui-font-ui);
         font-size: calc(0.72rem * var(--pax-ui-type-scale, 1));
         font-weight: var(--pax-weight-extrabold);
         letter-spacing: 0.06em;
-        text-overflow: ellipsis;
         text-transform: uppercase;
         white-space: nowrap;
     }
@@ -271,14 +258,6 @@
         font-size: calc(0.72rem * var(--pax-ui-data-scale, 1));
         font-weight: var(--pax-weight-extrabold);
         white-space: nowrap;
-    }
-
-    .var-desc {
-        margin: 0 0 2px;
-        color: var(--pax-ui-text-dim);
-        font-family: var(--pax-ui-font-copy);
-        font-size: calc(0.68rem * var(--pax-ui-type-scale, 1));
-        line-height: 1.35;
     }
 
     .sub-heading {

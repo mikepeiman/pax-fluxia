@@ -17,7 +17,6 @@ import {
     type ConstraintAlignedTerritoryGeometry,
     type ConstraintAlignedFrontierPolyline,
 } from '../../geometry/resolveConstraintAlignedTerritoryGeometry';
-import { buildInsetTerritoryRegions } from '../../geometry/buildInsetTerritoryRegions';
 import type {
     RenderFamily,
     RenderFamilyInput,
@@ -673,10 +672,6 @@ export class CellGridPhaseFieldFamily implements RenderFamily {
     private readonly nextSprite = new PIXI.Sprite(PIXI.Texture.EMPTY);
     private readonly maskSprite = new PIXI.Sprite(PIXI.Texture.EMPTY);
     private readonly colorUtils: ColorUtils;
-    private readonly fillMaskGeometryCache = new WeakMap<
-        ConstraintAlignedTerritoryGeometry,
-        Map<string, GeometryFillSource>
-    >();
 
     private prevTexture: PIXI.RenderTexture | null = null;
     private nextTexture: PIXI.RenderTexture | null = null;
@@ -1043,32 +1038,15 @@ export class CellGridPhaseFieldFamily implements RenderFamily {
 
     private resolveFillMaskGeometry(
         geometry: ConstraintAlignedTerritoryGeometry,
-        inwardOffsetPx: number,
+        _inwardOffsetPx: number,
     ): GeometryFillSource {
-        if (inwardOffsetPx <= 0) {
-            return geometry;
-        }
-
-        let cache = this.fillMaskGeometryCache.get(geometry);
-        if (!cache) {
-            cache = new Map<string, GeometryFillSource>();
-            this.fillMaskGeometryCache.set(geometry, cache);
-        }
-
-        const key = inwardOffsetPx.toFixed(2);
-        const cached = cache.get(key);
-        if (cached) {
-            return cached;
-        }
-
-        const fillGeometry = {
-            territoryRegions: buildInsetTerritoryRegions({
-                territoryRegions: geometry.territoryRegions,
-                insetPx: inwardOffsetPx,
-            }),
-        } satisfies GeometryFillSource;
-        cache.set(key, fillGeometry);
-        return fillGeometry;
+        // The fill mask must reach the territory boundary so the fill meets its
+        // border (border + fill both derive from these region rings). CELL_GRID_
+        // INWARD_OFFSET_PX is a per-cell / in-transition inset applied inside
+        // renderCellGridScene — NOT a whole-territory mask inset. Insetting the
+        // mask here left a uniform gap between the fill and the world/owner
+        // borders (fill "did not extend to meet" them).
+        return geometry;
     }
 
     private renderPatternTexture(params: {

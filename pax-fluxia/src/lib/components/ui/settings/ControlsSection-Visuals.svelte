@@ -6,9 +6,9 @@
     import { gameStore } from "$lib/stores/gameStore.svelte";
     import {
         PaxHudButton,
-        PaxHudSelect,
         PaxHudSegmentedControl,
         PaxSettingsRangeRow,
+        PaxSettingsSegmentedRow,
         PaxSettingsToggleRow,
         type PaxHudSegmentedOption,
     } from "$lib/design-system";
@@ -39,8 +39,8 @@
     };
 
     const LABEL_ANIM_OPTIONS = [
-        { value: "rolling", label: "Rolling (lerp)" },
-        { value: "fade", label: "Fade (snap + flash)" },
+        { value: "rolling", label: "Rolling" },
+        { value: "fade", label: "Fade" },
         { value: "instant", label: "Instant" },
     ];
 
@@ -284,8 +284,10 @@
     <h4 class="sub-heading">Labels &amp; Inspector</h4>
 
     <div class="visuals-control-card">
-        <PaxHudSelect
+        <PaxSettingsSegmentedRow
             label="Label Anim Mode"
+            hint="How star labels update: Rolling (lerp), Fade (snap + flash), or Instant."
+            settingConfigKey="LABEL_ANIM_MODE"
             value={panel.labelAnimMode ?? GAME_CONFIG.LABEL_ANIM_MODE ?? "rolling"}
             options={LABEL_ANIM_OPTIONS}
             onValueChange={updateLabelAnimMode}

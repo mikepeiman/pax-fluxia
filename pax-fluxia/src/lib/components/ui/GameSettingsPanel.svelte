@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount, tick } from "svelte";
+    import { fade } from "svelte/transition";
     import { DEFAULT_GAME_CONFIG, GAME_CONFIG } from "$lib/config/game.config";
     import type { MapDefinition } from "$lib/types/map.types";
     import {
@@ -800,6 +801,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     ] as const;
 
     const ACTIVE_SECTION_KEY = "pax-fluxia-active-section";
+    const SHOW_ALL_KEY = "pax-fluxia-settings-show-all";
+    const ACTIVE_SUBSECTIONS_KEY = "pax-fluxia-settings-subsections";
 
     function isUtilityPanelId(value: string | null): value is UtilityPanelId {
         return UTILITY_PANELS.some((panel) => panel.id === value);
@@ -814,8 +817,57 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             : normalizeSettingsSectionId(value);
     }
 
+    function loadShowAllSections(): boolean {
+        if (typeof window === "undefined") return false;
+        return localStorage.getItem(SHOW_ALL_KEY) === "1";
+    }
+
+    function loadActiveSubsections(): Record<string, string> {
+        if (typeof window === "undefined") return {};
+        try {
+            const parsed = JSON.parse(
+                localStorage.getItem(ACTIVE_SUBSECTIONS_KEY) ?? "{}",
+            );
+            return parsed && typeof parsed === "object" ? parsed : {};
+        } catch {
+            return {};
+        }
+    }
+
     let activeSectionId = $state<ActiveSectionId | null>(loadActiveSection());
-    let activeToolHasPanel = $derived(activeSectionId !== null);
+
+    // Which category panel is open — tracked INDEPENDENTLY of the selected
+    // section so that deselecting a section just hides its sub-content (body)
+    // while the category chrome + section chips stay visible. Persisted.
+    const OPEN_CATEGORY_KEY = "pax-fluxia-settings-open-category";
+
+    function categoryOf(id: ActiveSectionId | null): SettingsCategoryId | null {
+        if (id === null) return null;
+        return isUtilityPanelId(id)
+            ? UTILITY_PANEL_CATEGORY[id]
+            : (CATEGORY_BY_SECTION[id] ?? null);
+    }
+
+    function loadOpenCategory(): SettingsCategoryId | null {
+        if (typeof window === "undefined") return categoryOf(loadActiveSection());
+        const stored = localStorage.getItem(
+            OPEN_CATEGORY_KEY,
+        ) as SettingsCategoryId | null;
+        if (stored && SETTINGS_CATEGORIES.some((c) => c.id === stored)) {
+            return stored;
+        }
+        return categoryOf(loadActiveSection());
+    }
+
+    let openCategoryId = $state<SettingsCategoryId | null>(loadOpenCategory());
+
+    // The panel chrome is open whenever a category is open (even with no section
+    // selected), so layout/activity tracks the category, not the section.
+    let activeToolHasPanel = $derived(openCategoryId !== null);
+    // "All" view: stack every section of the active category in one scroll.
+    // activeSectionId is kept (so the category + chips stay resolved); this just
+    // overlays the all-sections render. Persisted so the chosen view survives reload.
+    let showAllSections = $state(loadShowAllSections());
 
     function persistActiveSection() {
         if (typeof window === "undefined") return;
@@ -826,8 +878,50 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         }
     }
 
+    // Persist the "All" toggle + per-section subsection chip selection so the
+    // whole settings view (which section/subsection/All) is restored on reload.
+    $effect(() => {
+        if (typeof window === "undefined") return;
+        localStorage.setItem(SHOW_ALL_KEY, showAllSections ? "1" : "0");
+    });
+    $effect(() => {
+        if (typeof window === "undefined") return;
+        localStorage.setItem(
+            ACTIVE_SUBSECTIONS_KEY,
+            JSON.stringify(activeSubsections),
+        );
+    });
+
+    $effect(() => {
+        if (typeof window === "undefined") return;
+        if (openCategoryId) {
+            localStorage.setItem(OPEN_CATEGORY_KEY, openCategoryId);
+        } else {
+            localStorage.removeItem(OPEN_CATEGORY_KEY);
+        }
+    });
+
     function selectSection(id: ActiveSectionId | null) {
-        activeSectionId = activeSectionId === id ? null : id;
+        // Selecting or closing any single section always exits the "All" view.
+        showAllSections = false;
+        if (id === null) {
+            // Deselect: hide the sub-content only — keep the category panel +
+            // chips open (do NOT clear openCategoryId).
+            activeSectionId = null;
+        } else {
+            // Toggling the active chip deselects it (hides body); otherwise open it.
+            activeSectionId = activeSectionId === id ? null : id;
+            const category = categoryOf(id);
+            if (category) openCategoryId = category;
+        }
+        persistActiveSection();
+    }
+
+    /** Fully close the open category panel (chrome + body). */
+    function closeCategoryPanel() {
+        showAllSections = false;
+        activeSectionId = null;
+        openCategoryId = null;
         persistActiveSection();
     }
 
@@ -916,13 +1010,9 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         SETTINGS_CATEGORIES.filter((cat) => chipsForCategory(cat.id).length > 0),
     );
 
-    let activeCategoryId = $derived<SettingsCategoryId | null>(
-        activeSectionId === null
-            ? null
-            : isUtilityPanelId(activeSectionId)
-              ? UTILITY_PANEL_CATEGORY[activeSectionId]
-              : (CATEGORY_BY_SECTION[activeSectionId] ?? null),
-    );
+    // The open category is its own state now (see openCategoryId) so the panel
+    // chrome persists when no section is selected.
+    let activeCategoryId = $derived<SettingsCategoryId | null>(openCategoryId);
     let activeCategory = $derived(
         SETTINGS_CATEGORIES.find((c) => c.id === activeCategoryId) ?? null,
     );
@@ -944,10 +1034,12 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     });
 
     function selectCategory(catId: SettingsCategoryId) {
-        if (activeCategoryId === catId) {
-            selectSection(null);
+        if (openCategoryId === catId) {
+            // Clicking the open category again closes the whole panel.
+            closeCategoryPanel();
             return;
         }
+        openCategoryId = catId;
         selectSection(chipsForCategory(catId)[0]?.id ?? null);
     }
 
@@ -981,6 +1073,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             setTier("developer");
         }
         activeSectionId = normalizeSettingsSectionId(forceOpenSection) ?? forceOpenSection;
+        const category = categoryOf(activeSectionId);
+        if (category) openCategoryId = category;
         persistActiveSection();
     });
 
@@ -1020,7 +1114,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             ]),
         ) as Record<string, SubsectionChip[]>,
     );
-    let activeSubsections = $state<Record<string, string>>({});
+    let activeSubsections = $state<Record<string, string>>(loadActiveSubsections());
     let settingsSearchQuery = $state("");
     const sectionBodyNodes = new Map<ActiveSectionId, HTMLElement>();
     let settingsSearchResults = $derived.by(() =>
@@ -1193,12 +1287,62 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             [sectionId]: current === subsectionId ? "all" : subsectionId,
         };
     }
+
+    // TEMP DIAGNOSTIC (panel-collapse hunt): logs the pixel height of every link
+    // in the settings height chain whenever it changes, so a toggle that shrinks
+    // the panel reveals exactly which element resized and by how much. Visible in
+    // the log panel under the "canvas" channel. Remove once the cause is found.
+    function probePanelHeights(node: HTMLElement) {
+        const selectors = [
+            ".controls-panel",
+            ".settings-shell",
+            ".settings-content",
+            ".section-panel",
+            ".section-body",
+            ".icon-toolbar",
+        ];
+        const observed = new WeakSet<Element>();
+        const ro = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                const el = entry.target as HTMLElement;
+                const label =
+                    selectors.find((s) => el.matches(s)) ?? el.className;
+                log.canvas(
+                    "settings-probe",
+                    `${label} h=${Math.round(entry.contentRect.height)}`,
+                );
+            }
+        });
+        const scan = () => {
+            for (const sel of selectors) {
+                const els = node.matches(sel)
+                    ? [node]
+                    : Array.from(node.querySelectorAll<HTMLElement>(sel));
+                for (const el of els) {
+                    if (!observed.has(el)) {
+                        observed.add(el);
+                        ro.observe(el);
+                    }
+                }
+            }
+        };
+        scan();
+        const mo = new MutationObserver(() => scan());
+        mo.observe(node, { childList: true, subtree: true });
+        return {
+            destroy() {
+                ro.disconnect();
+                mo.disconnect();
+            },
+        };
+    }
 </script>
 
 <div
     class="controls-panel"
     class:controls-panel--ribbon-expanded={ribbonExpanded}
-    class:controls-panel--dock-left={dockSide === "left"}>
+    class:controls-panel--dock-left={dockSide === "left"}
+    use:probePanelHeights>
 
     <div class="settings-shell" class:settings-shell--with-panel={activeToolHasPanel}>
     <!-- Icon Toolbar -->
@@ -1290,21 +1434,29 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             </div>
         {/if}
     </div>
-    {#if activePanel}
-        {@const sec = activePanel}
-        <div class="section-panel" data-accent-id={activeCategoryId}>
+    {#if openCategoryId}
+        <div class="section-panel" data-accent-id={activeCategoryId} transition:fade={{ duration: 120 }}>
             <div class="section-head-wrap">
-                <PaxHudButton class="section-head" onclick={() => selectSection(null)} title={`Close ${activeCategory?.label ?? sec.label}`}>
-                    <span class="head-icon"><HudIcon name={activeCategory?.icon ?? sec.icon} /></span>
-                    <span class="head-label">{activeCategory?.label ?? sec.label}</span>
+                <PaxHudButton class="section-head" onclick={closeCategoryPanel} title={`Close ${activeCategory?.label ?? "settings"}`}>
+                    <span class="head-icon"><HudIcon name={activeCategory?.icon ?? "settings"} /></span>
+                    <span class="head-label">{activeCategory?.label ?? ""}</span>
                     <span class="head-close"><HudIcon name="close" size={14} /></span>
                 </PaxHudButton>
                 {#if activeCategoryChips.length > 1}
                     <div class="section-subnav">
+                        <PaxHudButton
+                            class="subsection-chip"
+                            active={showAllSections}
+                            onclick={() => (showAllSections = true)}
+                            title="Show all sections in this category"
+                        >
+                            <span class="subsection-chip__icon"><HudIcon name="phase-field" size={14} /></span>
+                            <span>All</span>
+                        </PaxHudButton>
                         {#each activeCategoryChips as chip}
                             <PaxHudButton
                                 class="subsection-chip"
-                                active={activeSectionId === chip.id}
+                                active={!showAllSections && activeSectionId === chip.id}
                                 onclick={() => selectSection(chip.id)}
                                 title={chip.label}
                             >
@@ -1314,7 +1466,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         {/each}
                     </div>
                 {/if}
-                {#if !isUtilityPanelId(sec.id) && (sectionSubsections[sec.id]?.length ?? 0) > 0}
+                {#if !showAllSections && activePanel && !isUtilityPanelId(activePanel.id) && (sectionSubsections[activePanel.id]?.length ?? 0) > 0}
+                    {@const sec = activePanel}
                     <div class="section-subnav section-subnav--secondary">
                         <PaxHudButton
                             class="subsection-chip"
@@ -1340,16 +1493,54 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 {/if}
             </div>
 
-            <div
-                class="section-body"
-                use:registerSectionBody={{
-                    sectionId: sec.id,
-                    activeSubsection: activeSubsections[sec.id] ?? "all",
-                }}
-                use:enhanceSettingMetadata={{
-                    scope: isUtilityPanelId(sec.id) ? null : getSectionDefinition(sec.id).scope,
-                }}
-            >
+            {#if showAllSections}
+                <div class="section-body section-body--all">
+                    {#each activeCategoryChips as chip (chip.id)}
+                        <div
+                            class="section-all-group"
+                            use:registerSectionBody={{
+                                sectionId: chip.id,
+                                activeSubsection: "all",
+                            }}
+                            use:enhanceSettingMetadata={{
+                                scope: isUtilityPanelId(chip.id) ? null : getSectionDefinition(chip.id).scope,
+                            }}
+                        >
+                            <div class="section-all-group__title">
+                                <span class="subsection-chip__icon"><HudIcon name={chip.icon} size={13} /></span>
+                                <span>{chip.label}</span>
+                            </div>
+                            {@render sectionContent(chip)}
+                        </div>
+                    {/each}
+                </div>
+            {:else if activePanel}
+                {@const sec = activePanel}
+                <div
+                    class="section-body"
+                    use:registerSectionBody={{
+                        sectionId: sec.id,
+                        activeSubsection: activeSubsections[sec.id] ?? "all",
+                    }}
+                    use:enhanceSettingMetadata={{
+                        scope: isUtilityPanelId(sec.id) ? null : getSectionDefinition(sec.id).scope,
+                    }}
+                >
+                    {@render sectionContent(sec)}
+                </div>
+            {:else}
+                <!-- Category open but no section selected (deselected). Keep the
+                     panel + chips; show a quiet hint instead of collapsing. -->
+                <div class="section-body section-body--empty">
+                    <p class="section-empty-hint">
+                        Select a section above to edit its settings.
+                    </p>
+                </div>
+            {/if}
+        </div>
+    {/if}
+
+{#snippet sectionContent(sec: NavChip)}
                 {#if sec.id === "ui_appearance"}
                     <HudThemePanel />
                     <ControlsSectionVisuals
@@ -1564,9 +1755,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         syncFromConfig={syncAllFromConfig}
                     />
                 {/if}
-            </div>
-        </div>
-    {/if}
+{/snippet}
     </div>
     </div>
 </div>
@@ -1592,6 +1781,12 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         min-height: 0;
         display: grid;
         grid-template-columns: var(--settings-ribbon-width) minmax(0, 1fr);
+        /* Definite single row that fills the shell (min 0 so it never grows with
+           content). Without this the implicit row is `auto` = content-sized, and
+           .settings-content's height:100% resolves against a content-sized track
+           — a feedback loop the browser re-resolves on reflow, which is the
+           intermittent ~25% "collapse" seen when certain toggles force a relayout. */
+        grid-template-rows: minmax(0, 1fr);
         grid-template-areas: "rail content";
         gap: var(--pax-gap-md);
         align-items: stretch;
@@ -1945,6 +2140,41 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         overflow-y: auto;
         min-height: 0;
     }
+    /* "All" view: one scroll surface; each section becomes a labelled group. */
+    .section-body--all {
+        gap: var(--pax-space-4);
+    }
+    /* Category open but no section selected — quiet placeholder. */
+    .section-body--empty {
+        align-items: center;
+        justify-content: center;
+    }
+    .section-empty-hint {
+        margin: 0;
+        padding: var(--pax-space-4);
+        color: var(--pax-ui-text-dim);
+        font-family: var(--pax-ui-font-copy);
+        font-size: var(--pax-type-2xs);
+        text-align: center;
+    }
+    .section-all-group {
+        display: flex;
+        flex-direction: column;
+        gap: var(--pax-gap-sm);
+    }
+    .section-all-group__title {
+        display: flex;
+        align-items: center;
+        gap: var(--pax-space-2);
+        padding-bottom: var(--pax-gap-xs);
+        border-bottom: 1px solid var(--pax-ui-divider);
+        color: color-mix(in srgb, var(--accent, var(--pax-ui-accent)) 86%, var(--pax-ui-text-strong));
+        font-family: var(--pax-ui-font-display);
+        font-size: var(--pax-type-label);
+        font-weight: var(--pax-weight-bold);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
     .section-subnav {
         display: flex;
         flex-wrap: wrap;
@@ -1952,15 +2182,18 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         padding: 0 var(--pax-space-3) var(--pax-space-3);
     }
     :global(.subsection-chip) {
+        /* Per-chip hue (assigned by position below) gives each chip in a row its
+           own colour; active state fills with that hue. */
+        --chip-hue: 200;
         display: inline-flex;
         align-items: center;
         gap: var(--pax-gap-xs);
         min-height: 24px;
-        padding: 0 9px;
-        border-radius: 7px;
-        border: 1px solid var(--pax-ui-border);
-        background: color-mix(in srgb, var(--pax-color-void) 62%, transparent);
-        color: var(--pax-ui-text);
+        padding: 0 10px;
+        border-radius: 999px;
+        border: 1px solid hsl(var(--chip-hue) 55% 60% / 0.4);
+        background: hsl(var(--chip-hue) 45% 14% / 0.45);
+        color: hsl(var(--chip-hue) 35% 82%);
         font-family: var(--pax-ui-font-ui);
         font-size: var(--pax-type-3xs);
         font-weight: var(--pax-weight-bold);
@@ -1968,31 +2201,43 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         text-transform: uppercase;
         cursor: pointer;
         transition:
-            border-color 0.15s,
-            background 0.15s,
-            color 0.15s,
-            transform 0.15s;
+            border-color 0.15s ease,
+            background 0.15s ease,
+            color 0.15s ease,
+            box-shadow 0.15s ease,
+            transform 0.15s ease;
     }
     :global(.subsection-chip:hover) {
-        border-color: color-mix(
-            in srgb,
-            var(--accent) 60%,
-            rgba(255, 255, 255, 0.12)
-        );
-        background: color-mix(in srgb, var(--accent) 10%, rgba(7, 12, 24, 0.5));
-        color: color-mix(in srgb, var(--pax-ui-text-strong) 96%, transparent);
+        border-color: hsl(var(--chip-hue) 75% 62% / 0.85);
+        background: hsl(var(--chip-hue) 55% 22% / 0.7);
+        color: hsl(var(--chip-hue) 60% 92%);
         transform: translateY(-1px);
     }
     :global(.subsection-chip.active) {
-        border-color: color-mix(
-            in srgb,
-            var(--accent) 76%,
-            rgba(255, 255, 255, 0.12)
+        border-color: hsl(var(--chip-hue) 85% 64%);
+        /* Vivid active fill in the chip's own hue. */
+        background: linear-gradient(
+            180deg,
+            hsl(var(--chip-hue) 72% 52%),
+            hsl(var(--chip-hue) 70% 44%)
         );
-        background: color-mix(in srgb, var(--accent) 18%, rgba(7, 12, 24, 0.6));
-        color: color-mix(in srgb, var(--pax-ui-text-strong) 98%, transparent);
-        box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent);
+        color: hsl(var(--chip-hue) 95% 97%);
+        box-shadow:
+            0 0 0 1px hsl(var(--chip-hue) 80% 60% / 0.5),
+            0 2px 12px hsl(var(--chip-hue) 75% 50% / 0.45);
     }
+    :global(.subsection-chip.active:hover) {
+        transform: translateY(-1px);
+    }
+    /* Spread the row across a colour range by chip position. */
+    :global(.section-subnav .subsection-chip:nth-child(1)) { --chip-hue: 190; }
+    :global(.section-subnav .subsection-chip:nth-child(2)) { --chip-hue: 235; }
+    :global(.section-subnav .subsection-chip:nth-child(3)) { --chip-hue: 280; }
+    :global(.section-subnav .subsection-chip:nth-child(4)) { --chip-hue: 325; }
+    :global(.section-subnav .subsection-chip:nth-child(5)) { --chip-hue: 18; }
+    :global(.section-subnav .subsection-chip:nth-child(6)) { --chip-hue: 48; }
+    :global(.section-subnav .subsection-chip:nth-child(7)) { --chip-hue: 90; }
+    :global(.section-subnav .subsection-chip:nth-child(8)) { --chip-hue: 150; }
     .subsection-chip__icon {
         display: inline-grid;
         place-items: center;
@@ -2044,16 +2289,25 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
        a real command ribbon plus drawer instead of a text-heavy empty panel. */
     .controls-panel {
         gap: var(--pax-space-3);
-        height: auto;
-        max-height: 100%;
-        overflow: visible;
+        /* Fill the allocated column with a DEFINITE height so the section body
+           scrolls internally — content-sizing here makes the whole panel shrink
+           to its content (the ~25% "collapse" on toggles). */
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
     }
 
     .settings-shell {
         grid-template-columns: var(--settings-ribbon-width) minmax(0, 1fr);
+        /* Definite single row (see base rule) so the content column has a real
+           height to scroll inside, independent of how tall its content is. */
+        grid-template-rows: minmax(0, 1fr);
         gap: var(--pax-gap-sm);
-        flex: 0 1 auto;
-        align-items: start;
+        flex: 1;
+        min-height: 0;
+        /* Stretch the content column to full height; the rail stays compact via
+           its own align-self below. */
+        align-items: stretch;
     }
 
     .icon-toolbar {
@@ -2066,6 +2320,9 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         clip-path: var(--pax-ui-cut-corner-sm);
         box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pax-ui-accent-warm-strong) 5%, transparent);
         overflow-x: hidden;
+        /* Keep the category rail compact (top-aligned) now that the shell
+           stretches its items to full height. */
+        align-self: start;
         max-height: min(52vh, calc(100vh - var(--pax-ui-topbar-height) - 330px));
     }
 
@@ -2160,7 +2417,10 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .settings-content {
         gap: var(--pax-gap-sm);
         padding: 0 2px 0 0;
-        max-height: calc(100vh - var(--pax-ui-topbar-height) - 24px);
+        /* Fill the stretched shell column; the open section-panel (flex:1) then
+           owns a definite height and its body scrolls internally. */
+        min-height: 0;
+        height: 100%;
     }
 
     .section-panel {

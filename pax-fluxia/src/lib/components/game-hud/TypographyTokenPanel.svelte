@@ -3,6 +3,7 @@
   import {
     PaxHudIconButton,
     PaxHudRange,
+    PaxHudSegmentedControl,
     PaxHudSelect,
   } from "$lib/design-system";
   import {
@@ -240,8 +241,8 @@
       id: "ui",
       label: "UI Scale",
       cssVar: "--pax-ui-type-scale",
-      min: 0.9,
-      max: 1.35,
+      min: 0.5,
+      max: 2,
       step: 0.01,
       defaultValue: 1.08,
       note: "baseline HUD prose and controls",
@@ -250,8 +251,8 @@
       id: "title",
       label: "Titles",
       cssVar: "--pax-ui-title-scale",
-      min: 0.9,
-      max: 1.35,
+      min: 0.5,
+      max: 2,
       step: 0.01,
       defaultValue: 1.08,
       note: "panel titles and topbar identity",
@@ -260,8 +261,8 @@
       id: "label",
       label: "Labels",
       cssVar: "--pax-ui-label-scale",
-      min: 0.9,
-      max: 1.4,
+      min: 0.5,
+      max: 2,
       step: 0.01,
       defaultValue: 1.12,
       note: "eyebrows, table headings, button labels",
@@ -270,8 +271,8 @@
       id: "data",
       label: "Data",
       cssVar: "--pax-ui-data-scale",
-      min: 0.9,
-      max: 1.35,
+      min: 0.5,
+      max: 2,
       step: 0.01,
       defaultValue: 1.08,
       note: "numbers, timers, ship counts",
@@ -280,8 +281,8 @@
       id: "icon",
       label: "Icons",
       cssVar: "--pax-ui-icon-scale",
-      min: 0.9,
-      max: 1.55,
+      min: 0.5,
+      max: 2,
       step: 0.01,
       defaultValue: 1.18,
       note: "HUD icon glyph size",
@@ -434,10 +435,11 @@
       <strong>Icon Collection</strong>
       <small>app-wide icon set</small>
     </span>
-    <PaxHudSelect
+    <PaxHudSegmentedControl
       value={iconSetState.current}
       ariaLabel="Icon collection"
       options={iconSetOptions}
+      density="compact"
       onValueChange={(value) => setIconSet(value as IconSet)}
     />
   </div>

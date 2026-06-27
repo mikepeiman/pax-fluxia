@@ -9,6 +9,49 @@ import {
     type TerritoryCell,
 } from './powerVoronoiTerritoryGeometryGenerator';
 
+describe('chainSharedEdgesIntoPolylines world borders', () => {
+    const edge = (
+        x1: number,
+        y1: number,
+        x2: number,
+        y2: number,
+        ownerB: string,
+    ): SharedBorderEdge => ({
+        x1, y1, x2, y2,
+        ownerA: 'red', ownerB,
+        colorA: 0, colorB: 0,
+        siteIdA: 'red', siteIdB: ownerB,
+    });
+
+    it('keeps world-border corners sharp (no Chaikin) while smoothing frontiers', () => {
+        // World border around a map corner: two axis-aligned segments meeting at (10, 0).
+        const worldOut = chainSharedEdgesIntoPolylines(
+            [edge(0, 0, 10, 0, 'world'), edge(10, 0, 10, 10, 'world')],
+            3,
+        );
+        expect(worldOut).toHaveLength(1);
+        // The corner (10, 0) is preserved exactly — no Chaikin midpoints inserted.
+        expect(worldOut[0]!.points).toEqual([
+            [0, 0],
+            [10, 0],
+            [10, 10],
+        ]);
+
+        // The same shape as an inter-owner frontier IS smoothed (corner cut).
+        const frontierOut = chainSharedEdgesIntoPolylines(
+            [edge(0, 0, 10, 0, 'blue'), edge(10, 0, 10, 10, 'blue')],
+            3,
+        );
+        expect(frontierOut).toHaveLength(1);
+        expect(frontierOut[0]!.points).not.toEqual([
+            [0, 0],
+            [10, 0],
+            [10, 10],
+        ]);
+        expect(frontierOut[0]!.points.length).toBeGreaterThan(3);
+    });
+});
+
 describe('constructFillsFromFrontierChain', () => {
     it('drops clearly open chain-walk loops instead of emitting bogus fill chords', () => {
         const sharedPolylines: SharedPolyline[] = [

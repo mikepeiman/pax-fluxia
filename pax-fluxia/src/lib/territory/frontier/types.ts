@@ -126,3 +126,9 @@ export type TerritoryFrontierBenchmarkPresetId =
     | 'marching_triangles_fixed'
     | 'marching_triangles_checkerboard'
     | 'marching_triangles_gradient';
+
+export type TerritoryFrontierRecipePresetId =
+    | 'current'
+    | 'smooth_contour'
+    | 'softened_contour'
+    | 'adaptive_triangles';

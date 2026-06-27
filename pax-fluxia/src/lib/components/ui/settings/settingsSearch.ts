@@ -59,6 +59,7 @@ function isTerritoryTopologyRecord(record: SearchableSettingRecord): boolean {
     const label = record.label.toLowerCase();
     return (
         key === "FRONTIER_RESOLUTION" ||
+        key === "CHAIKIN_BOUNDARY_PAD" ||
         key.startsWith("MODIFIED_VORONOI_") ||
         key.startsWith("TERRITORY_CX_") ||
         key.startsWith("TERRITORY_DX_") ||
@@ -66,7 +67,8 @@ function isTerritoryTopologyRecord(record: SearchableSettingRecord): boolean {
         label.includes("corridor") ||
         label.includes("disconnect") ||
         label.includes("midpoint") ||
-        label.includes("frontier resolution")
+        label.includes("frontier resolution") ||
+        label.includes("extent")
     );
 }
 

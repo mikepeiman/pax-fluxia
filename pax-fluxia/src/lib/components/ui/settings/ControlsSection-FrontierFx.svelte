@@ -1,6 +1,7 @@
 <script lang="ts">
   import "./panel-shared.css";
     import { GAME_CONFIG } from "$lib/config/game.config";
+    import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
     import {
         PaxHudSelect,
         PaxSettingsRangeRow,
@@ -66,6 +67,11 @@
     ): void {
         (GAME_CONFIG as unknown as Record<string, unknown>)[configKey] = value;
         updatePanel(panelKey, value);
+        // Bump the territory visual epoch so the render family repaints
+        // immediately — without this, Frontier FX edits sat in GAME_CONFIG but
+        // never applied until some OTHER setting (e.g. cell spacing) triggered a
+        // repaint. Every other territory settings writer does this.
+        bumpTerritoryVisualConfig();
     }
 
     function currentRenderMode(): string {

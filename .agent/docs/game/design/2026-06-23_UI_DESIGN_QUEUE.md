@@ -34,6 +34,12 @@ Visual fixes are "implemented — needs your visual sign-off", never "works".
 - **Bottom-bar "View" button** now fits the map like the Star View fit button (`2c4c703f7`).
 - **Settings panel no longer auto-unpauses** the game on close (`91ba5d799`).
 - **Stray main-menu TopBar buttons** (fixed Settings/"?" floating over the menu) removed (`07bf44664`).
+- **Settings overhaul (2026-06-25)** — full investigational audit + 4 fixes:
+  - **Typography is now a top-level Settings category** (own rail item, out of Interface→Appearance) (`ed036a713`).
+  - **`PaxInfoHint`** added — a reusable, **portal-safe** "i" tooltip trigger (composes `PaxHudTooltip`, so it is never clipped by a card's clip-path — also de-risks **C1**) (`ed550091e`). All settings-toggle descriptions are tooltips now (no inline clutter).
+  - **All live diagnostics readouts moved to Developer→Diagnostics** (Cell Grid perf-grid relocated; Grid Gradient perf-grid was a duplicate, deleted) (`dde6a93d7`).
+  - **"All" chip** on category section-chip rows — stacks every section of a category in one scroll (`31844e158`).
+  - **Descriptions → tooltips/info-hints** across CellGridTuning, Diagnostics, TerritorySurfaceStyleTuning, Perimeter/Ships/Transition, PerfScenarioRunner (`235a4f40c`, `6e8a3ee9a`, `fb8a95c21`, `533b25c93`, `f30ee1eaa`). Dynamic status/warning/result readouts kept.
 
 > ⚠️ All of the above (and everything below marked "implemented") still want the
 > user's **in-game visual sign-off** — the agent cannot verify appearance headlessly.

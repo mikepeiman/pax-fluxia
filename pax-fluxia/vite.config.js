@@ -4,6 +4,67 @@ import tailwindcss from "@tailwindcss/vite";
 import fs from "node:fs";
 import path from "node:path";
 
+/** @param {string} id */
+function isSvelteVirtualStyleModule(id) {
+  return id.includes(".svelte?") && id.includes("type=style") && id.includes("lang.css");
+}
+
+// Tailwind directives live in app.css and imported theme CSS. Svelte component
+// style blocks are plain CSS, so do not run Tailwind over Svelte's virtual CSS
+// modules; in dev, those requests can briefly contain raw .svelte source.
+function tailwindcssForGlobalCss() {
+  return tailwindcss().map((plugin) => {
+    if (!plugin.name?.startsWith("@tailwindcss/vite:generate")) {
+      return plugin;
+    }
+
+    const transform = plugin.transform;
+
+    if (typeof transform === "function") {
+      return {
+        ...plugin,
+        /**
+         * @this {any}
+         * @param {string} code
+         * @param {string} id
+         * @param {any} options
+         */
+        transform(code, id, options) {
+          if (isSvelteVirtualStyleModule(id)) {
+            return null;
+          }
+
+          return Reflect.apply(transform, this, [code, id, options]);
+        },
+      };
+    }
+
+    if (!transform?.handler) {
+      return plugin;
+    }
+
+    return {
+      ...plugin,
+      transform: {
+        ...transform,
+        /**
+         * @this {any}
+         * @param {string} code
+         * @param {string} id
+         * @param {any} options
+         */
+        handler(code, id, options) {
+          if (isSvelteVirtualStyleModule(id)) {
+            return null;
+          }
+
+          return Reflect.apply(transform.handler, this, [code, id, options]);
+        },
+      },
+    };
+  });
+}
+
 // Dev-only plugin: writes GAME_CONFIG snapshot on POST /__settings-dump
 function settingsDumpPlugin() {
   return {
@@ -153,7 +214,7 @@ const extraFsAllow = [
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [tailwindcss(), browserBenchPlugin(), sveltekit(), settingsDumpPlugin(), mapPersistPlugin()],
+  plugins: [tailwindcssForGlobalCss(), browserBenchPlugin(), sveltekit(), settingsDumpPlugin(), mapPersistPlugin()],
   optimizeDeps: {
     include: [
       "pixi.js",

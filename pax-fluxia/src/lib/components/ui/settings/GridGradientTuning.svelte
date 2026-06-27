@@ -2,6 +2,7 @@
   import "./panel-shared.css";
     import { GAME_CONFIG } from '$lib/config/game.config';
     import PaxSettingsRangeRow from '$lib/design-system/components/PaxSettingsRangeRow.svelte';
+    import PaxSettingsSegmentedRow from '$lib/design-system/components/PaxSettingsSegmentedRow.svelte';
     import PaxSettingsToggleRow from '$lib/design-system/components/PaxSettingsToggleRow.svelte';
     import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
     import { gridGradientStats } from '$lib/territory/families/gridGradient/gridGradientStats';
@@ -12,6 +13,25 @@
     }
 
     let { panel, updatePanel }: Props = $props();
+
+    const SHADER_NEIGHBOR_OPTIONS = [
+        { value: 'center', label: 'Center' },
+        { value: 'cross', label: 'Cross' },
+        { value: 'eight', label: 'Eight' },
+    ];
+    const FILL_STYLE_OPTIONS = [
+        { value: 'pointillist', label: 'Pointillist' },
+        { value: 'solid', label: 'Solid' },
+    ];
+    const GRID_CELL_SHAPE_OPTIONS = [
+        { value: 'circle', label: 'Circle' },
+        { value: 'square', label: 'Square' },
+        { value: 'noise', label: 'Noise' },
+    ];
+    const BORDER_DOT_STYLE_OPTIONS = [
+        { value: 'blended', label: 'Blended' },
+        { value: 'butted', label: 'Butted' },
+    ];
 
     function writeConfig(configKey: string, panelKey: string, value: unknown): void {
         (GAME_CONFIG as unknown as Record<string, unknown>)[configKey] = value;
@@ -62,41 +82,30 @@
     const shaderNoiseActive = $derived(shaderFieldFxActive && cellShape === 'noise');
 </script>
 
-<div class="var-row" class:disabled={!shaderFieldFxActive}>
-    <div class="row-top">
-        <span class="var-name">Shader Neighbor Mode</span>
-        <span class="val">{shaderFieldFxActive ? shaderNeighborMode : 'inactive'}</span>
-    </div>
-    <select
-        class="mode-select"
-        disabled={!shaderFieldFxActive}
-        value={shaderNeighborMode}
-        onchange={(event) => {
-            writeConfig('GRID_GRADIENT_SHADER_NEIGHBOR_MODE', 'gridGradientShaderNeighborMode', (event.target as HTMLSelectElement).value);
-        }}>
-        <option value="center">Center</option>
-        <option value="cross">Cross</option>
-        <option value="eight">Eight</option>
-    </select>
-</div>
+<PaxSettingsSegmentedRow
+    label="Shader Neighbor Mode"
+    hint="How many neighbor cells the shader samples for the gradient field: Center (1), Cross (4-way), or Eight (8-way)."
+    value={shaderNeighborMode}
+    options={SHADER_NEIGHBOR_OPTIONS}
+    disabled={!shaderFieldFxActive}
+    settingConfigKey="GRID_GRADIENT_SHADER_NEIGHBOR_MODE"
+    onValueChange={(value) => {
+        writeConfig('GRID_GRADIENT_SHADER_NEIGHBOR_MODE', 'gridGradientShaderNeighborMode', value);
+    }}
+/>
 
 <div class="sub-heading">Grid Fill</div>
 
-<div class="var-row">
-    <div class="row-top">
-        <span class="var-name">Fill Style</span>
-        <span class="val">{fillStyle === 'solid' ? 'solid' : 'pointillist'}</span>
-    </div>
-    <select
-        class="mode-select"
-        value={fillStyle}
-        onchange={(event) => {
-            writeConfig('GRID_GRADIENT_FILL_STYLE', 'gridGradientFillStyle', (event.target as HTMLSelectElement).value);
-        }}>
-        <option value="pointillist">Pointillist</option>
-        <option value="solid">Solid Fill</option>
-    </select>
-</div>
+<PaxSettingsSegmentedRow
+    label="Fill Style"
+    hint="Grid Gradient fill: Pointillist (per-cell shapes) or Solid (filled cells)."
+    value={fillStyle}
+    options={FILL_STYLE_OPTIONS}
+    settingConfigKey="GRID_GRADIENT_FILL_STYLE"
+    onValueChange={(value) => {
+        writeConfig('GRID_GRADIENT_FILL_STYLE', 'gridGradientFillStyle', value);
+    }}
+/>
 
 <PaxSettingsRangeRow
     label="Grid Spacing"
@@ -120,23 +129,17 @@
     settingConfigKey="GRID_GRADIENT_MAX_CELLS"
     onInput={(value) => writeConfig('GRID_GRADIENT_MAX_CELLS', 'gridGradientMaxCells', value)} />
 
-<div class="var-row" class:disabled={!pointillistFillActive}>
-    <div class="row-top">
-        <span class="var-name">Shape</span>
-        <span class="val">{pointillistFillActive ? cellShape : 'inactive'}</span>
-    </div>
-    <select
-        class="mode-select"
-        disabled={!pointillistFillActive}
-        value={cellShape}
-        onchange={(event) => {
-            writeConfig('GRID_GRADIENT_CELL_SHAPE', 'gridGradientCellShape', (event.target as HTMLSelectElement).value);
-        }}>
-        <option value="circle">Circle</option>
-        <option value="square">Square</option>
-        <option value="noise">Noise</option>
-    </select>
-</div>
+<PaxSettingsSegmentedRow
+    label="Shape"
+    hint="Pointillist cell shape: Circle, Square, or Noise."
+    value={cellShape}
+    options={GRID_CELL_SHAPE_OPTIONS}
+    disabled={!pointillistFillActive}
+    settingConfigKey="GRID_GRADIENT_CELL_SHAPE"
+    onValueChange={(value) => {
+        writeConfig('GRID_GRADIENT_CELL_SHAPE', 'gridGradientCellShape', value);
+    }}
+/>
 
 <div class="sub-heading">Fill HSLA</div>
 
@@ -377,42 +380,17 @@
     settingConfigKey="GRID_GRADIENT_BORDER_DOT_SIZE_PX"
     onInput={(value) => writeConfig('GRID_GRADIENT_BORDER_DOT_SIZE_PX', 'gridGradientBorderDotSizePx', value)} />
 
-<div class="var-row" class:disabled={!borderDotsEnabled}>
-    <div class="row-top">
-        <span class="var-name">Dot Style</span>
-        <span class="val">{borderDotStyle}</span>
-    </div>
-    <select
-        class="mode-select"
-        disabled={!borderDotsEnabled}
-        value={borderDotStyle}
-        onchange={(event) => {
-            writeConfig('GRID_GRADIENT_BORDER_DOT_STYLE', 'gridGradientBorderDotStyle', (event.target as HTMLSelectElement).value);
-        }}>
-        <option value="blended">Blended</option>
-        <option value="butted">Butted</option>
-    </select>
-</div>
-
-<div class="sub-heading">Live Stats</div>
-<div class="perf-grid">
-    <div class="perf-label">Backend</div>
-    <div class="perf-value">{$gridGradientStats.drawBackend}{#if $gridGradientStats.backendFallbackReason} / {$gridGradientStats.backendFallbackReason}{/if}</div>
-    <div class="perf-label">Fill</div>
-    <div class="perf-value">{$gridGradientStats.fillStyle}</div>
-    <div class="perf-label">Cells</div>
-    <div class="perf-value">{$gridGradientStats.paintedCells.toLocaleString()} / {$gridGradientStats.emittableCells.toLocaleString()} / {$gridGradientStats.totalCells.toLocaleString()}</div>
-    <div class="perf-label">Active/Drawable/Mix/Offset</div>
-    <div class="perf-value">{$gridGradientStats.activeTransitionCells.toLocaleString()} / {$gridGradientStats.activeDrawableTransitionCells.toLocaleString()} / {$gridGradientStats.activeMixingTransitionCells.toLocaleString()} / {$gridGradientStats.activeOffsetZoneTransitionCells.toLocaleString()}</div>
-    <div class="perf-label">Spacing</div>
-    <div class="perf-value">{$gridGradientStats.requestedSpacingPx.toFixed(1)} / {$gridGradientStats.effectiveSpacingPx.toFixed(1)} px</div>
-    <div class="perf-label">Borders</div>
-    <div class="perf-value">{$gridGradientStats.vectorBorderCount} vector / {$gridGradientStats.borderDotCount} dots</div>
-    <div class="perf-label">Texture</div>
-    <div class="perf-value">{$gridGradientStats.textureUploaded ? 'upload' : 'cached'} / {($gridGradientStats.textureBytes / 1024).toFixed(1)} KB</div>
-    <div class="perf-label">Frame</div>
-    <div class="perf-value">{$gridGradientStats.clockSource} / {$gridGradientStats.visibleFrameState} / {$gridGradientStats.lastUpdateMs.toFixed(2)} ms</div>
-</div>
+<PaxSettingsSegmentedRow
+    label="Dot Style"
+    hint="Border dot rendering: Blended (soft) or Butted (hard-edged)."
+    value={borderDotStyle}
+    options={BORDER_DOT_STYLE_OPTIONS}
+    disabled={!borderDotsEnabled}
+    settingConfigKey="GRID_GRADIENT_BORDER_DOT_STYLE"
+    onValueChange={(value) => {
+        writeConfig('GRID_GRADIENT_BORDER_DOT_STYLE', 'gridGradientBorderDotStyle', value);
+    }}
+/>
 
 <style>
 
@@ -425,30 +403,4 @@
         text-transform: uppercase;
     }
 
-    .var-row.disabled {
-        opacity: 0.55;
-    }
-
-    .perf-grid {
-        display: grid;
-        grid-template-columns: max-content 1fr;
-        gap: var(--pax-gap-xs) var(--pax-gap-md);
-        align-items: baseline;
-        padding: var(--pax-gap-sm) var(--pax-space-3);
-        border-radius: 8px;
-        border: 1px solid color-mix(in srgb, var(--pax-ui-text-strong) 8%, transparent);
-        background: color-mix(in srgb, var(--pax-color-void) 40%, transparent);
-        font-size: var(--pax-type-2xs);
-    }
-
-    .perf-label {
-        color: color-mix(in srgb, var(--pax-ui-text-soft) 70%, transparent);
-        letter-spacing: 0;
-    }
-
-    .perf-value {
-        color: color-mix(in srgb, var(--pax-ui-text-strong) 95%, transparent);
-        font-variant-numeric: tabular-nums;
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    }
 </style>

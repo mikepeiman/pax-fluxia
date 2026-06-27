@@ -2,8 +2,8 @@
   import "./panel-shared.css";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import {
-        PaxHudSelect,
         PaxSettingsRangeRow,
+        PaxSettingsSegmentedRow,
         PaxSettingsToggleRow,
     } from "$lib/design-system";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
@@ -23,35 +23,39 @@
 
     const TRAVEL_EASING_OPTIONS = [
         { value: "linear", label: "Linear" },
-        { value: "easeIn", label: "Ease In" },
-        { value: "easeOut", label: "Ease Out" },
-        { value: "easeInOut", label: "Ease In-Out" },
+        { value: "easeIn", label: "In" },
+        { value: "easeOut", label: "Out" },
+        { value: "easeInOut", label: "In-out" },
     ];
 
     const DEPART_MODE_OPTIONS = [
         { value: "nearside", label: "Nearside" },
-        { value: "lifo", label: "LIFO (newest)" },
-        { value: "fifo", label: "FIFO (oldest)" },
+        { value: "lifo", label: "LIFO" },
+        { value: "fifo", label: "FIFO" },
     ];
 </script>
 
 <CategoryThemeBar category="travel" onApply={() => syncFromConfig?.()} />
 
 <h4 class="sub-heading">Travel Model</h4>
-<PaxHudSelect
+<PaxSettingsSegmentedRow
     label="Travel Mode"
+    hint="Ship travel path: Bezier Arc (curved) or Lane Spine (follows lane geometry)."
     value={panel.travelMode}
     options={TRAVEL_MODE_OPTIONS}
+    settingConfigKey="TRAVEL_MODE"
     onValueChange={(value) => {
         GAME_CONFIG.TRAVEL_MODE = value as any;
         updatePanel("travelMode", value);
     }}
 />
 
-<PaxHudSelect
+<PaxSettingsSegmentedRow
     label="Travel Easing"
+    hint="Easing curve applied to ship travel: Linear, ease In, ease Out, or In-out."
     value={panel.travelEasing}
     options={TRAVEL_EASING_OPTIONS}
+    settingConfigKey="TRAVEL_EASING"
     onValueChange={(value) => {
         GAME_CONFIG.TRAVEL_EASING = value as any;
         updatePanel("travelEasing", value);
@@ -115,10 +119,12 @@
 />
 
 <h4 class="sub-heading">Departure</h4>
-<PaxHudSelect
+<PaxSettingsSegmentedRow
     label="Depart Mode"
+    hint="Departure order: Nearside, LIFO (newest ships leave first), or FIFO (oldest first)."
     value={panel.departMode}
     options={DEPART_MODE_OPTIONS}
+    settingConfigKey="DEPART_MODE"
     onValueChange={(value) => {
         GAME_CONFIG.DEPART_MODE = value as "lifo" | "fifo" | "nearside";
         updatePanel("departMode", value);

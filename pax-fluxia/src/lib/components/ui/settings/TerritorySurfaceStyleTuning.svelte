@@ -6,8 +6,9 @@
         cellGridPhaseEdgesModeDefaults,
     } from "$lib/territory/families/cellGrid/config";
     import {
-        PaxHudSelect,
+        PaxInfoHint,
         PaxSettingsRangeRow,
+        PaxSettingsSegmentedRow,
         PaxSettingsToggleRow,
     } from "$lib/design-system";
     import TerritorySlaWidget from "./TerritorySlaWidget.svelte";
@@ -45,13 +46,13 @@
 
     const BORDER_MODE_OPTIONS = [
         { value: "off", label: "Off" },
-        { value: "territory_edge", label: "Territory edge" },
+        { value: "territory_edge", label: "Edge" },
         { value: "per_cell", label: "Per cell" },
     ];
 
     const FRONTIER_BORDER_GEOMETRY_OPTIONS = [
-        { value: "contour_matched", label: "Rounded contour-matched" },
-        { value: "shared_edge", label: "Straight shared edge" },
+        { value: "contour_matched", label: "Contour" },
+        { value: "shared_edge", label: "Shared edge" },
     ];
 
     const JUNCTION_RENDER_OPTIONS = [
@@ -290,11 +291,12 @@
 </script>
 
 {#if sectionHeading}
-    <div class="sub-heading">{sectionHeading}</div>
-{/if}
-
-{#if intro}
-    <div class="var-desc">{intro}</div>
+    <div class="sub-heading">
+        {sectionHeading}
+        {#if intro}<PaxInfoHint text={intro} />{/if}
+    </div>
+{:else if intro}
+    <PaxInfoHint text={intro} />
 {/if}
 
 <div class="territory-style-stack">
@@ -321,16 +323,17 @@
             />
 
             {#if isCellGridFamily()}
-                <div class="sub-heading territory-style-subheading">Cell Paint</div>
-                <div class="var-desc">
-                    These are paint-time surface controls. They affect the visible cell
-                    primitive and boundary inset, not ownership topology.
+                <div class="sub-heading territory-style-subheading">
+                    Cell Paint
+                    <PaxInfoHint text="Paint-time surface controls. They affect the visible cell primitive and boundary inset, not ownership topology." />
                 </div>
 
-                <PaxHudSelect
+                <PaxSettingsSegmentedRow
                     label="Cell Shape"
+                    hint="Visual primitive drawn per cell: Square, Circle, Diamond, or Hex."
                     value={currentCellShape()}
                     options={CELL_SHAPE_OPTIONS}
+                    settingConfigKey="CELL_GRID_CELL_SHAPE"
                     onValueChange={(value) => {
                         onUpdate(
                             "CELL_GRID_CELL_SHAPE",
@@ -463,20 +466,17 @@
             />
 
             {#if isCellGridFamily()}
-                <div class="sub-heading territory-style-subheading">Border Paint</div>
-                <div class="var-desc">
-                    These controls own the visible border strategy for Cell Grid surfaces. They no longer live in the tuning cards.
+                <div class="sub-heading territory-style-subheading">
+                    Border Paint
+                    <PaxInfoHint text="These controls own the visible border strategy for Cell Grid surfaces. Note: Inward Offset lives in the Fill subsection because it changes the visible fill frontier rather than the stroke itself." />
                 </div>
-                {#if usesEdgeForwardDefaults()}
-                    <div class="var-desc">
-                        Related fill control: <strong>Inward Offset</strong> lives in the <strong>Fill</strong> subsection because it changes the visible fill frontier rather than the stroke itself.
-                    </div>
-                {/if}
 
-                <PaxHudSelect
+                <PaxSettingsSegmentedRow
                     label="Border Mode"
+                    hint="Where to draw the Territory border stroke: Off, Edge (ownership boundaries only), or Per cell (full grid outline)."
                     value={currentBorderMode()}
                     options={BORDER_MODE_OPTIONS}
+                    settingConfigKey="CELL_GRID_BORDER_MODE"
                     onValueChange={(value) => {
                         onUpdate(
                             "CELL_GRID_BORDER_MODE",
@@ -501,16 +501,13 @@
                         );
                     }}
                 />
-                <div class="var-desc">
-                    When enabled on a Square grid, opposing-owner boundaries are drawn once as a shared blended stroke. The fill surface stays on the same geometry either way; this toggle only changes how the frontier stroke is presented.
-                </div>
 
                 {#if usesEdgeForwardDefaults()}
                     <PaxSettingsToggleRow
                         label="Outer perimeter border"
                         checked={currentFrontierOuterBorderEnabled()}
                         disabled={currentBorderMode() === "off"}
-                        description="Draw the owner-vs-world perimeter around the filled map area."
+                        description="Draw the owner-vs-world perimeter around the filled map area — a first-class perimeter, not the same as the internal faction frontiers."
                         meta={currentFrontierOuterBorderEnabled() ? "On" : "Off"}
                         settingConfigKey="TERRITORY_FRONTIER_OUTER_BORDER_ENABLED"
                         onChange={(value) => {
@@ -521,9 +518,6 @@
                             );
                         }}
                     />
-                    <div class="var-desc">
-                        First-class owner-vs-world perimeter toggle. This is not the same as the internal faction frontiers.
-                    </div>
                 {/if}
 
                 <PaxSettingsRangeRow
@@ -547,11 +541,13 @@
             {#if isEmberLatticeFamily()}
                 <div class="sub-heading territory-style-subheading">Ember Lattice Border Geometry</div>
 
-                <PaxHudSelect
+                <PaxSettingsSegmentedRow
                     label="Frontier Border Geometry"
+                    hint="Border path for the Ember Lattice frontier: Contour (rounded, contour-matched) or Shared edge (straight)."
                     value={currentFrontierBorderGeometryMode()}
                     options={FRONTIER_BORDER_GEOMETRY_OPTIONS}
                     disabled={!canEditFrontierBorderGeometry()}
+                    settingConfigKey="TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE"
                     onValueChange={(value) => {
                         onUpdate(
                             "TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE",
@@ -580,11 +576,13 @@
                     }}
                 />
 
-                <PaxHudSelect
+                <PaxSettingsSegmentedRow
                     label="Junction Render"
+                    hint="How shared-edge junctions are drawn: Gap trim or Bubble."
                     value={currentFrontierJunctionRenderMode()}
                     options={JUNCTION_RENDER_OPTIONS}
                     disabled={!canEditSharedEdgeJunctionControls()}
+                    settingConfigKey="TERRITORY_FRONTIER_JUNCTION_RENDER_MODE"
                     onValueChange={(value) => {
                         onUpdate(
                             "TERRITORY_FRONTIER_JUNCTION_RENDER_MODE",
@@ -638,10 +636,9 @@
 
     {#if showSection("finish")}
         <section data-subsection-id="finish">
-            <div class="sub-heading territory-style-finish-heading">Finish</div>
-            <div class="var-desc">
-                Shared post and edge finish for the visible territory surface.
-                These affect presentation, not ownership geometry.
+            <div class="sub-heading territory-style-finish-heading">
+                Finish
+                <PaxInfoHint text="Shared post and edge finish for the visible territory surface. These affect presentation, not ownership geometry." />
             </div>
 
             <PaxSettingsRangeRow
@@ -720,14 +717,10 @@
         margin-top: var(--pax-space-3);
     }
 
-    .var-desc {
-        margin: var(--pax-space-1) 0 var(--pax-gap-sm);
-        color: color-mix(in srgb, var(--pax-ui-text-soft) 72%, transparent);
-        font-size: var(--pax-type-3xs);
-        line-height: 1.35;
-    }
-
     .sub-heading {
+        display: flex;
+        align-items: center;
+        gap: var(--pax-space-2);
         margin: var(--pax-space-3) 0 var(--pax-gap-xs);
         color: color-mix(in srgb, var(--pax-ui-accent) 92%, transparent);
         font-size: var(--pax-type-3xs);

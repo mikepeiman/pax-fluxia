@@ -41,6 +41,10 @@ fix the system to be good.
 
 Never assume that something already in the code/design/architecture SHOULD be there. Look with fresh eyes and ask "should this exist at all?" first — for every element, card, section, control, abstraction, and description. AI agents reify the existing (treat what's there as intentional and load-bearing) and preserve/route-around cruft instead of deleting it; that bias is wrong by default. A card wrapping a single control, a toggle that controls nothing, prose under a heading, a whole section the user didn't ask for — all suspect, all removable. "A previous agent added it" is not a reason to keep it. (This licenses removing cruft/wrappers/noise/dead options — NOT deleting real user-facing controls without instruction; when unsure which, search and ask.)
 
+## ⭐ RULE 0.4 — READ IMAGES LITERALLY; DON'T TRUST YOUR GLANCE.
+
+My image perception is unreliable and I have misread screenshots with false confidence (claimed a fill met its border when a gap was visible; "confirmed" a mode looked correct while glancing). When an image carries information I will act on, follow `.agent/rules/image-comprehension-protocol.md`: **DESCRIBE the relevant region literally — region by region — BEFORE interpreting**; answer precise spatial questions (gap / alignment / overlap / what-occludes-what) at the exact location, never from gestalt; treat "I see what my code predicted" as a RED FLAG, not confirmation; hedge visual claims and prefer **measured numbers** (logs / DOM / computed geometry) over eyeballing for anything precise; and when my read conflicts with the user's live view, **MY READ IS WRONG by default** (they have full resolution; I have a compressed downscale). This is DISTINCT from `visual-bug-protocol.md` (trust the user's *words*) — this is the technical act of reading the *image*. Never confirm/deny a claim "from the screenshot" without the literal description first.
+
 ## 1. Project
 
 **Pax Fluxia** is a real-time multiplayer galactic strategy game.

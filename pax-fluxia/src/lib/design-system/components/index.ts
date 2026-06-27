@@ -16,4 +16,5 @@ export { default as PaxSettingsInfoRow } from "./PaxSettingsInfoRow.svelte";
 export { default as PaxSettingsPickerRow } from "./PaxSettingsPickerRow.svelte";
 export type { PaxSettingsPickerOption } from "./PaxSettingsPickerRow.svelte";
 export { default as PaxSettingsRangeRow } from "./PaxSettingsRangeRow.svelte";
+export { default as PaxSettingsSegmentedRow } from "./PaxSettingsSegmentedRow.svelte";
 export { default as PaxSettingsToggleRow } from "./PaxSettingsToggleRow.svelte";
