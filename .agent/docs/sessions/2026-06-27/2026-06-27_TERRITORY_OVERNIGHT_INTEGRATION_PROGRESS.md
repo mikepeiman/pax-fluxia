@@ -216,6 +216,15 @@ Passed during render-family geometry key cache slice at 2026-06-27 17:48 -04:00:
 - `bun run agentic:graphify:build` from repo root
 - `git diff --check`
 
+Passed during narrow browser benchmark verification slice at 2026-06-27 17:53 -04:00:
+
+- Improved benchmark `Runtime.evaluate` failures to include browser exception descriptions and top stack frames.
+- Ran `PAX_BENCH_TERRITORY_MODE=grid_gradient PAX_BENCH_ONLY=grid_gradientGameplay PAX_BENCH_CAPTURE_TRACE=0 PAX_BENCH_CAPTURE_CPU=0 bun tools/debug/benchmark-browser-gameplay.ts`.
+- Summarized the fresh artifact with `bun tools/debug/summarize-browser-gameplay-benchmark.ts`.
+- Observed `transitionFallbacks scenarios=0 reasons=none`.
+- Observed Grid Gradient geometry key cache `hits=447 misses=6 lastStars=172 lastLanes=428`.
+- Observed Grid Gradient gameplay frames `count=68 avg=39.215ms p95=50.1ms max=100.1ms`; this confirms the cache instrumentation works and that frame pacing still needs follow-up performance work.
+
 Known recurring non-blocking warning:
 
 - `GameThemeManager.svelte`: unused CSS selector `.game-theme-manager--menu .theme-chip-name`

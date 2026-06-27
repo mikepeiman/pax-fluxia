@@ -614,10 +614,38 @@ class CdpClient {
             returnByValue: true,
         });
         const exception = result.exceptionDetails as
-            | { text?: string }
+            | {
+                  text?: string;
+                  exception?: { description?: string; value?: string };
+                  stackTrace?: {
+                      callFrames?: Array<{
+                          functionName?: string;
+                          url?: string;
+                          lineNumber?: number;
+                          columnNumber?: number;
+                      }>;
+                  };
+              }
             | undefined;
         if (exception) {
-            throw new Error(`Runtime.evaluate failed: ${exception.text ?? "unknown"}`);
+            const stack = exception.stackTrace?.callFrames
+                ?.slice(0, 8)
+                .map((frame) => {
+                    const location =
+                        frame.url && frame.lineNumber !== undefined
+                            ? `${frame.url}:${Number(frame.lineNumber) + 1}:${Number(frame.columnNumber ?? 0) + 1}`
+                            : 'unknown';
+                    return `${frame.functionName || '<anonymous>'} (${location})`;
+                })
+                .join('\n');
+            const description =
+                exception.exception?.description ??
+                exception.exception?.value ??
+                exception.text ??
+                'unknown';
+            throw new Error(
+                `Runtime.evaluate failed: ${description}${stack ? `\n${stack}` : ''}`,
+            );
         }
         return (result.result as { value?: T } | undefined)?.value as T;
     }
