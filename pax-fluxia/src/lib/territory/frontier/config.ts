@@ -9,7 +9,14 @@ import type {
 } from './types';
 
 export const territoryFrontierConfigDefaults = {
-    TERRITORY_FRONTIER_TECHNIQUE: 'control' as TerritoryFrontierTechniqueId,
+    // Default = shader_frontier_band so Phase Edges + Ember render the SMOOTH
+    // phase-surface fill that meets the border by default (the recipe gives
+    // usesPhaseFill ONLY for 'shader_frontier_band' — every other technique
+    // falls back to the raster scene-cell staircase). Only CellGridPhaseEdgesFamily
+    // reads this at render time, so this is effectively the EDGES/EMBER default;
+    // it falls back to 'control' automatically when there's no renderer or the
+    // distribution isn't square. Explicit user selections still win + persist.
+    TERRITORY_FRONTIER_TECHNIQUE: 'shader_frontier_band' as TerritoryFrontierTechniqueId,
     TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE:
         'shared_edge' as TerritoryFrontierBorderGeometryMode,
     TERRITORY_FRONTIER_PHASE_SAMPLING: 'nearest' as const,
