@@ -22,6 +22,7 @@
   import TerritoryGeometrySourceTuning from "./TerritoryGeometrySourceTuning.svelte";
   import TerritorySurfaceStyleTuning from "./TerritorySurfaceStyleTuning.svelte";
   import { untrack } from 'svelte';
+  import { log } from "$lib/utils/logger";
   import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
   import { territoryRenderStatus } from "$lib/stores/territoryRenderStatusStore";
   import {
@@ -341,9 +342,15 @@
     value: any,
     _delayMs = 100,
   ) {
+    const prev = (GAME_CONFIG as any)[configKey];
     (GAME_CONFIG as any)[configKey] = value;
     updatePanel(panelKey, value);
     bumpTerritoryVisualConfig();
+    // PAUSE-EXEMPT so it surfaces even though the open settings panel pauses the game.
+    log.ui(
+      "territory",
+      `${configKey} = ${JSON.stringify(value)} (was ${JSON.stringify(prev)}) [mode=${(GAME_CONFIG as any).TERRITORY_RENDER_MODE}]`,
+    );
   }
 
   const topologyCommitFrames = new Map<string, number>();
@@ -375,6 +382,10 @@
     clearScheduledTopologyCommit(configKey);
     updatePanel(panelKey, value);
     beginTerritoryTuningCompile(label);
+    log.ui(
+      "territory",
+      `${configKey} = ${JSON.stringify(value)} (topology, deferred) [mode=${(GAME_CONFIG as any).TERRITORY_RENDER_MODE}]`,
+    );
 
     if (typeof requestAnimationFrame === "function") {
       const frameId = requestAnimationFrame(() => {
@@ -404,6 +415,10 @@
     clearScheduledTopologyCommit(configKey);
     updatePanel(panelKey, value);
     beginTerritoryTuningCompile(label);
+    log.ui(
+      "territory",
+      `${configKey} = ${JSON.stringify(value)} (topology slider) [mode=${(GAME_CONFIG as any).TERRITORY_RENDER_MODE}]`,
+    );
 
     const timeoutId = window.setTimeout(() => {
       topologyCommitTimeouts.delete(configKey);

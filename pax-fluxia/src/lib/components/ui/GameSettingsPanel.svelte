@@ -1045,7 +1045,11 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
 
     // Selecting a render mode (or any reactive change) can hide the open
     // section; if so, fall back to the first chip of its category so the panel
-    // never blanks out.
+    // never blanks out. This is a DISPLAY fallback only — it must NOT call
+    // persistActiveSection(), or a transient mount-time mismatch (e.g. the
+    // restored section belongs to a render mode that isn't the active one yet)
+    // would permanently erase the user's saved section choice. We leave the
+    // persisted preference intact so it restores the next time it's visible.
     $effect(() => {
         if (
             activeSectionId !== null &&
@@ -1055,8 +1059,14 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             const fallback = activeCategoryId
                 ? chipsForCategory(activeCategoryId)[0]?.id ?? null
                 : null;
+            // PAUSE-EXEMPT collapse trace: if a setting toggle (e.g. Show fill)
+            // makes the active section leave visibleSections, the panel jumps/
+            // collapses. This logs the exact section + render-mode that triggered it.
+            log.ui(
+                "settings-fallback",
+                `section "${activeSectionId}" left visibleSections -> "${fallback}" [mode=${activeTerritoryRenderMode}]`,
+            );
             activeSectionId = fallback;
-            persistActiveSection();
         }
     });
 
@@ -1307,7 +1317,9 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 const el = entry.target as HTMLElement;
                 const label =
                     selectors.find((s) => el.matches(s)) ?? el.className;
-                log.canvas(
+                // log.ui = PAUSE-EXEMPT: the panel pauses the game, which mutes
+                // log.canvas — so this probe never surfaced before. See logger.ts.
+                log.ui(
                     "settings-probe",
                     `${label} h=${Math.round(entry.contentRect.height)}`,
                 );
@@ -2588,7 +2600,11 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         width: 100%;
         height: 100%;
         display: grid;
-        grid-template-columns: var(--settings-ribbon-width);
+        /* Rail fills the available content-box rather than demanding exactly
+           var(--settings-ribbon-width). At an exact fit any border/scrollbar/
+           sub-pixel rounding overflowed by ~1px and got clipped on the right
+           ("menu slightly cut off"). minmax(0,1fr) can never overflow. */
+        grid-template-columns: minmax(0, 1fr);
         grid-template-areas: "rail";
         gap: var(--pax-gap-sm);
         align-items: stretch;
@@ -2598,17 +2614,22 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     .settings-shell--with-panel {
-        grid-template-columns: minmax(360px, 1fr) var(--settings-ribbon-width);
+        /* Content column must be minmax(0, 1fr), NOT minmax(360px, …): a hard
+           360px floor + the rail (68–216px) + padding exceeds the panel at/near
+           its min width (420px), so the grid overflowed and .area-controls
+           (overflow:hidden) clipped the right edge in both ribbon states. With
+           min 0 the content column shrinks to fit; its inner body scrolls. */
+        grid-template-columns: minmax(0, 1fr) var(--settings-ribbon-width);
         grid-template-areas: "content rail";
     }
 
     .controls-panel--dock-left .settings-shell--with-panel {
-        grid-template-columns: var(--settings-ribbon-width) minmax(360px, 1fr);
+        grid-template-columns: var(--settings-ribbon-width) minmax(0, 1fr);
         grid-template-areas: "rail content";
     }
 
     .icon-toolbar {
-        width: var(--settings-ribbon-width);
+        width: 100%;
         height: 100%;
         max-height: none;
         padding: var(--pax-space-2);
