@@ -1,4 +1,5 @@
 import type {
+    ResolvedGeometryOracleResult,
     ResolvedGeometrySnapshot,
     TerritoryRegionShape,
 } from '../../contracts/GeometryContracts';
@@ -20,6 +21,7 @@ export interface GridGradientPlanWorkerDiagnostics {
     readonly topologyReliable: boolean;
     readonly identityReliable: boolean;
     readonly closureReliable: boolean;
+    readonly resolvedGeometryOracle?: ResolvedGeometryOracleResult;
     readonly notes: readonly string[];
 }
 
@@ -236,12 +238,14 @@ export function dehydrateGridGradientWorkerGeometry(
         topologyReliable: geometry.diagnostics.topologyReliable,
         identityReliable: geometry.diagnostics.identityReliable,
         closureReliable: geometry.diagnostics.closureReliable,
+        resolvedGeometryOracle: geometry.diagnostics.resolvedGeometryOracle,
         notes: [...geometry.diagnostics.notes],
     };
     const canTransportTopology =
         diagnostics.topologyReliable &&
         diagnostics.identityReliable &&
-        diagnostics.closureReliable;
+        diagnostics.closureReliable &&
+        diagnostics.resolvedGeometryOracle?.ok !== false;
 
     return {
         version: geometry.version,
@@ -269,7 +273,8 @@ export function inflateGridGradientWorkerGeometry(
         transportedTopology &&
             diagnostics.topologyReliable &&
             diagnostics.identityReliable &&
-            diagnostics.closureReliable,
+            diagnostics.closureReliable &&
+            diagnostics.resolvedGeometryOracle?.ok !== false,
     );
     const notes = topologyReliable
         ? ['grid-gradient-worker-topology-transported', ...diagnostics.notes]
@@ -302,6 +307,7 @@ export function inflateGridGradientWorkerGeometry(
             topologyReliable,
             identityReliable: topologyReliable,
             closureReliable: topologyReliable,
+            resolvedGeometryOracle: diagnostics.resolvedGeometryOracle,
             notes,
         },
     };

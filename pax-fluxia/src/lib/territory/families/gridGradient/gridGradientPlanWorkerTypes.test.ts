@@ -334,4 +334,40 @@ describe('inflateGridGradientWorkerGeometry', () => {
             'grid-gradient-worker-minimal-topology-omitted',
         );
     });
+
+    it('omits topology and preserves the resolved-geometry oracle when the oracle fails', () => {
+        const source = makeReliableSnapshot();
+        const workerGeometry = dehydrateGridGradientWorkerGeometry({
+            ...source,
+            diagnostics: {
+                ...source.diagnostics,
+                resolvedGeometryOracle: {
+                    ok: false,
+                    failureCount: 1,
+                    failures: ['duplicate physical frontier'],
+                },
+            },
+        });
+
+        expect(workerGeometry.frontierTopology).toBeNull();
+        expect(workerGeometry.diagnostics?.resolvedGeometryOracle).toMatchObject({
+            ok: false,
+            failureCount: 1,
+            failures: ['duplicate physical frontier'],
+        });
+
+        const inflated = inflateGridGradientWorkerGeometry(workerGeometry);
+
+        expect(inflated.frontierTopology.sections.size).toBe(0);
+        expect(inflated.diagnostics.topologyReliable).toBe(false);
+        expect(inflated.diagnostics.identityReliable).toBe(false);
+        expect(inflated.diagnostics.closureReliable).toBe(false);
+        expect(inflated.diagnostics.resolvedGeometryOracle).toMatchObject({
+            ok: false,
+            failures: ['duplicate physical frontier'],
+        });
+        expect(inflated.diagnostics.notes).toContain(
+            'grid-gradient-worker-minimal-topology-omitted',
+        );
+    });
 });

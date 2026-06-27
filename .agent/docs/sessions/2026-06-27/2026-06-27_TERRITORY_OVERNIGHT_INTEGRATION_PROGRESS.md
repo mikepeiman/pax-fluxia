@@ -173,6 +173,16 @@ Passed during transition reliability fallback slice at 2026-06-27 17:22 -04:00:
 - `bun run build` from `pax-fluxia/`
 - `bun run agentic:graphify:build` from repo root
 
+Passed during Grid Gradient oracle transport slice at 2026-06-27 17:26 -04:00:
+
+- Preserved `resolvedGeometryOracle` diagnostics across Grid Gradient worker geometry transport.
+- Blocked topology transport/inflation reliability when the source oracle reports unsafe geometry, even if the older reliability flags are true.
+- `bun x vitest run src/lib/territory/families/gridGradient/gridGradientPlanWorkerTypes.test.ts` (1 file, 4 tests)
+- `bun x vitest run src/lib/territory/families/gridGradient src/lib/territory` (54 files, 344 tests)
+- `bun run check` from `pax-fluxia/` (0 errors, 1 existing warning)
+- `bun run build` from `pax-fluxia/`
+- `bun run agentic:graphify:build` from repo root
+
 Known recurring non-blocking warning:
 
 - `GameThemeManager.svelte`: unused CSS selector `.game-theme-manager--menu .theme-chip-name`
