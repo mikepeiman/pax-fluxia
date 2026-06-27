@@ -162,6 +162,17 @@ Passed during resolved-geometry snapshot oracle slice at 2026-06-27 17:14 -04:00
 - `bun run build` from `pax-fluxia/`
 - `bun run agentic:graphify:build` from repo root
 
+Passed during transition reliability fallback slice at 2026-06-27 17:22 -04:00:
+
+- Gated `pv_frontline` and `unified_topology` planning on topology, identity, closure, and resolved-geometry oracle reliability.
+- Added stable transition fallback reasons for unreliable PRE/POST/NEXT geometry, missing paired geometry, incompatible active plans, and geometry changes without conquest events.
+- Surfaced transition fallback reason through runtime diagnostics so benchmark and playtest output can report the named fallback.
+- `bun x vitest run src/lib/territory/layers/transition/TransitionLayerCoordinator.test.ts src/lib/territory/runtime/TerritoryRuntimeCoordinator.test.ts` (2 files, 6 tests)
+- `bun x vitest run src/lib/territory` (54 files, 343 tests)
+- `bun run check` from `pax-fluxia/` (0 errors, 1 existing warning)
+- `bun run build` from `pax-fluxia/`
+- `bun run agentic:graphify:build` from repo root
+
 Known recurring non-blocking warning:
 
 - `GameThemeManager.svelte`: unused CSS selector `.game-theme-manager--menu .theme-chip-name`

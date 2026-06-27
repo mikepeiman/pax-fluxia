@@ -5,6 +5,16 @@ import type {
 import type { GeometrySnapshot } from './GeometryContracts';
 import type { OwnershipSnapshot, TerritoryConquestEvent } from './OwnershipContracts';
 
+export type TransitionFallbackReason =
+    | 'geometry_delta_without_conquest'
+    | 'active_transition_incompatible'
+    | 'pv_frontline_missing_geometry_pair'
+    | 'pv_frontline_unreliable_pre_geometry'
+    | 'pv_frontline_unreliable_post_geometry'
+    | 'unified_topology_missing_topology'
+    | 'unified_topology_unreliable_previous_geometry'
+    | 'unified_topology_unreliable_next_geometry';
+
 export interface TransitionEnvelope {
     transitionId: string;
     startedAtMs: number;

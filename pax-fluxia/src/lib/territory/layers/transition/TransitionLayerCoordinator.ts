@@ -6,6 +6,7 @@ import type {
     BorderTransitionFrame,
     FillTransitionFrame,
     FillTransitionPlan,
+    TransitionFallbackReason,
     TransitionSnapshot,
 } from '../../contracts/TransitionContracts';
 import type { PowerVoronoiFrontlineRuntime } from '../../pvFrontline/contracts';
@@ -51,6 +52,7 @@ export interface TransitionCoordinatorResult {
     activeFrontPlan?: ActiveFrontTransitionPlan | null;
     activePvFrontlineTransition?: PowerVoronoiFrontlineRuntime | null;
     transitionPrevTopology?: FrontierTopology | null;
+    fallbackReason?: TransitionFallbackReason | null;
 }
 
 function buildFillFrameFromGeometry(geometry: GeometrySnapshot): FillTransitionFrame {
@@ -66,6 +68,19 @@ function buildEmptyBorderFrame(): BorderTransitionFrame {
     return { frontiers: [] };
 }
 
+function isTransitionGeometryReliable(
+    geometry: GeometrySnapshot | null | undefined,
+): boolean {
+    if (!geometry) return false;
+    const diagnostics = geometry.diagnostics;
+    return (
+        diagnostics.topologyReliable &&
+        diagnostics.identityReliable &&
+        diagnostics.closureReliable &&
+        diagnostics.resolvedGeometryOracle?.ok !== false
+    );
+}
+
 export class TransitionLayerCoordinator {
     private readonly clock = new SharedTransitionClock();
 
@@ -74,6 +89,7 @@ export class TransitionLayerCoordinator {
         let activeFrontPlan = input.activeFrontPlan ?? null;
         let activePvFrontlineTransition =
             input.activePvFrontlineTransition ?? null;
+        let fallbackReason: TransitionFallbackReason | null = null;
 
         const hasNewConquests = input.ownership.conquestEvents.length > 0;
         const hasGeometryDelta =
@@ -88,7 +104,15 @@ export class TransitionLayerCoordinator {
         const planPrevTopo = input.previousGeometry?.frontierTopology;
         let transitionPrevTopology = input.transitionPrevTopology ?? null;
         const samplePrevTopo = transitionPrevTopology ?? planPrevTopo;
-        const canPlanTopologyPath = topologyPathEnabled && !!(planPrevTopo && nextTopo);
+        const previousGeometryReliable = isTransitionGeometryReliable(
+            input.previousGeometry,
+        );
+        const nextGeometryReliable = isTransitionGeometryReliable(input.geometry);
+        const canPlanTopologyPath =
+            topologyPathEnabled &&
+            !!(planPrevTopo && nextTopo) &&
+            previousGeometryReliable &&
+            nextGeometryReliable;
 
         if (hasNewConquests && hasGeometryDelta) {
             envelope = this.clock.buildEnvelope(
@@ -101,26 +125,47 @@ export class TransitionLayerCoordinator {
             if (pvFrontlinePathEnabled) {
                 activeFillPlan = null;
                 if (input.resolvedPowerVoronoiPair) {
-                    activePvFrontlineTransition =
-                        buildPowerVoronoiFrontlineRuntime({
-                            preGeometry: input.resolvedPowerVoronoiPair.preGeometry,
-                            postGeometry:
-                                input.resolvedPowerVoronoiPair.postGeometry,
-                            previousOwnership:
-                                input.resolvedPowerVoronoiPair.previousOwnership,
-                            nextOwnership:
-                                input.resolvedPowerVoronoiPair.nextOwnership,
-                            tunables: input.tunables,
-                        });
-                    activeFrontPlan =
-                        activePvFrontlineTransition.activeFrontPlan;
-                    transitionPrevTopology =
-                        input.resolvedPowerVoronoiPair.preGeometry.frontierTopology;
-                    log.renderer(
-                        'TransitionCoordinator',
-                        `Using PV frontline path: ${activePvFrontlineTransition.plan.fronts.length} fronts`,
+                    const preReliable = isTransitionGeometryReliable(
+                        input.resolvedPowerVoronoiPair.preGeometry,
                     );
+                    const postReliable = isTransitionGeometryReliable(
+                        input.resolvedPowerVoronoiPair.postGeometry,
+                    );
+                    if (preReliable && postReliable) {
+                        activePvFrontlineTransition =
+                            buildPowerVoronoiFrontlineRuntime({
+                                preGeometry:
+                                    input.resolvedPowerVoronoiPair.preGeometry,
+                                postGeometry:
+                                    input.resolvedPowerVoronoiPair.postGeometry,
+                                previousOwnership:
+                                    input.resolvedPowerVoronoiPair.previousOwnership,
+                                nextOwnership:
+                                    input.resolvedPowerVoronoiPair.nextOwnership,
+                                tunables: input.tunables,
+                            });
+                        activeFrontPlan =
+                            activePvFrontlineTransition.activeFrontPlan;
+                        transitionPrevTopology =
+                            input.resolvedPowerVoronoiPair.preGeometry.frontierTopology;
+                        log.renderer(
+                            'TransitionCoordinator',
+                            `Using PV frontline path: ${activePvFrontlineTransition.plan.fronts.length} fronts`,
+                        );
+                    } else {
+                        fallbackReason = preReliable
+                            ? 'pv_frontline_unreliable_post_geometry'
+                            : 'pv_frontline_unreliable_pre_geometry';
+                        activePvFrontlineTransition = null;
+                        activeFrontPlan = null;
+                        transitionPrevTopology = null;
+                        log.renderer(
+                            'TransitionCoordinator',
+                            `PV frontline selected but geometry is unreliable (${fallbackReason}); snapping to steady geometry.`,
+                        );
+                    }
                 } else {
+                    fallbackReason = 'pv_frontline_missing_geometry_pair';
                     activePvFrontlineTransition = null;
                     activeFrontPlan = null;
                     transitionPrevTopology = null;
@@ -148,6 +193,12 @@ export class TransitionLayerCoordinator {
                 transitionPrevTopology = null;
 
                 if (topologyPathEnabled) {
+                    fallbackReason =
+                        !planPrevTopo || !nextTopo
+                            ? 'unified_topology_missing_topology'
+                            : !previousGeometryReliable
+                              ? 'unified_topology_unreliable_previous_geometry'
+                              : 'unified_topology_unreliable_next_geometry';
                     log.renderer(
                         'TransitionCoordinator',
                         `Unified topology selected but topology data unavailable ` +
@@ -183,10 +234,14 @@ export class TransitionLayerCoordinator {
             activeFrontPlan = null;
             activePvFrontlineTransition = null;
             transitionPrevTopology = null;
+            fallbackReason = 'geometry_delta_without_conquest';
         }
 
         const activePlanIncompatibleWithSelection =
             (activePvFrontlineTransition !== null && !pvFrontlinePathEnabled) ||
+            (activePvFrontlineTransition !== null &&
+                pvFrontlinePathEnabled &&
+                !nextGeometryReliable) ||
             (activeFrontPlan !== null &&
                 activePvFrontlineTransition === null &&
                 !topologyPathEnabled) ||
@@ -195,7 +250,7 @@ export class TransitionLayerCoordinator {
             (activeFrontPlan !== null &&
                 activePvFrontlineTransition === null &&
                 topologyPathEnabled &&
-                (!samplePrevTopo || !nextTopo));
+                (!samplePrevTopo || !nextTopo || !nextGeometryReliable));
 
         if (activePlanIncompatibleWithSelection) {
             envelope = null;
@@ -203,6 +258,7 @@ export class TransitionLayerCoordinator {
             activeFrontPlan = null;
             activePvFrontlineTransition = null;
             transitionPrevTopology = null;
+            fallbackReason = 'active_transition_incompatible';
             log.renderer(
                 'TransitionCoordinator',
                 'Active transition no longer matches selected mode/topology; snapping to steady geometry.',
@@ -287,6 +343,7 @@ export class TransitionLayerCoordinator {
             activeFrontPlan,
             activePvFrontlineTransition,
             transitionPrevTopology,
+            fallbackReason,
         };
     }
 }

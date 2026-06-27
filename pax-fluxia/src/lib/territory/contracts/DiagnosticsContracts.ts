@@ -1,4 +1,5 @@
 import type { PowerVoronoiDiagnosticBundle } from '../pvFrontline/contracts';
+import type { TransitionFallbackReason } from './TransitionContracts';
 
 export interface TerritoryDiagnosticMessage {
     level: 'info' | 'warn' | 'error';
@@ -11,4 +12,5 @@ export interface TerritoryRuntimeDiagnostics {
     finishedAtMs: number;
     messages: TerritoryDiagnosticMessage[];
     modeDiagnostics?: PowerVoronoiDiagnosticBundle | null;
+    transitionFallbackReason?: TransitionFallbackReason | null;
 }

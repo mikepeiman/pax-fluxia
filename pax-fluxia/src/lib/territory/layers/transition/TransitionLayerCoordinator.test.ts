@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { GeometrySnapshot } from '../../contracts/GeometryContracts';
 import type { TransitionSnapshot } from '../../contracts/TransitionContracts';
 import { TransitionLayerCoordinator } from './TransitionLayerCoordinator';
 import {
@@ -14,6 +15,22 @@ function buildStaticSnapshot(geometryVersion: string): TransitionSnapshot {
         envelope: null,
         fillFrame: { regions: [] },
         borderFrame: { frontiers: [] },
+    };
+}
+
+function withUnreliableResolvedOracle(
+    geometry: GeometrySnapshot,
+): GeometrySnapshot {
+    return {
+        ...geometry,
+        diagnostics: {
+            ...geometry.diagnostics,
+            resolvedGeometryOracle: {
+                ok: false,
+                failureCount: 1,
+                failures: ['test geometry is unsafe for transition planning'],
+            },
+        },
     };
 }
 
@@ -183,6 +200,92 @@ describe('TransitionLayerCoordinator', () => {
         expect(cancelled.activePvFrontlineTransition).toBeNull();
         expect(cancelled.transitionPrevTopology).toBeNull();
         expect(cancelled.snapshot.fillFrame.regions).toEqual(
+            postGeometry.territoryRegions.map((region) => ({
+                ownerId: region.ownerId,
+                points: region.points,
+            })),
+        );
+    });
+
+    it('falls back by name when PV frontline POST geometry fails the resolved oracle', () => {
+        const coordinator = new TransitionLayerCoordinator();
+        const preGeometry = buildTestGeometry('pre', [[0, 0], [5, 5], [10, 10]]);
+        const postGeometry = withUnreliableResolvedOracle(
+            buildTestGeometry('post', [[0, 0], [4, 6], [10, 10]]),
+        );
+        const previousOwnership = buildTestOwnership('ownership:pre');
+        const nextOwnership = buildTestOwnership('ownership:post');
+
+        const result = coordinator.compute({
+            nowMs: 100,
+            tunables: TEST_TUNABLES,
+            selection: TEST_PV_FRONTLINE_SELECTION,
+            ownership: nextOwnership,
+            previousOwnership,
+            geometry: postGeometry,
+            previousGeometry: preGeometry,
+            previousTransition: buildStaticSnapshot(preGeometry.version),
+            activeFillPlan: null,
+            activeFrontPlan: null,
+            activePvFrontlineTransition: null,
+            resolvedPowerVoronoiPair: {
+                preGeometry,
+                postGeometry,
+                previousOwnership,
+                nextOwnership,
+            },
+            transitionPrevTopology: null,
+        });
+
+        expect(result.fallbackReason).toBe(
+            'pv_frontline_unreliable_post_geometry',
+        );
+        expect(result.activePvFrontlineTransition).toBeNull();
+        expect(result.activeFrontPlan).toBeNull();
+        expect(result.transitionPrevTopology).toBeNull();
+        expect(result.snapshot.fillFrame.regions).toEqual(
+            postGeometry.territoryRegions.map((region) => ({
+                ownerId: region.ownerId,
+                points: region.points,
+            })),
+        );
+    });
+
+    it('falls back by name when unified topology NEXT geometry fails the resolved oracle', () => {
+        const coordinator = new TransitionLayerCoordinator();
+        const preGeometry = buildTestGeometry('pre', [[0, 0], [5, 5], [10, 10]]);
+        const postGeometry = withUnreliableResolvedOracle(
+            buildTestGeometry('post', [[0, 0], [4, 6], [10, 10]]),
+        );
+        const previousOwnership = buildTestOwnership('ownership:pre');
+        const nextOwnership = buildTestOwnership('ownership:post');
+
+        const result = coordinator.compute({
+            nowMs: 100,
+            tunables: TEST_TUNABLES,
+            selection: {
+                ...TEST_PV_FRONTLINE_SELECTION,
+                fillTransitionMode: 'unified_topology',
+            },
+            ownership: nextOwnership,
+            previousOwnership,
+            geometry: postGeometry,
+            previousGeometry: preGeometry,
+            previousTransition: buildStaticSnapshot(preGeometry.version),
+            activeFillPlan: null,
+            activeFrontPlan: null,
+            activePvFrontlineTransition: null,
+            resolvedPowerVoronoiPair: null,
+            transitionPrevTopology: null,
+        });
+
+        expect(result.fallbackReason).toBe(
+            'unified_topology_unreliable_next_geometry',
+        );
+        expect(result.activePvFrontlineTransition).toBeNull();
+        expect(result.activeFrontPlan).toBeNull();
+        expect(result.transitionPrevTopology).toBeNull();
+        expect(result.snapshot.fillFrame.regions).toEqual(
             postGeometry.territoryRegions.map((region) => ({
                 ownerId: region.ownerId,
                 points: region.points,

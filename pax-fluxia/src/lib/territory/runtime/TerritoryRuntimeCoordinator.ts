@@ -134,6 +134,15 @@ export class TerritoryRuntimeCoordinator {
         });
         diagnostics.modeDiagnostics =
             transition.activePvFrontlineTransition?.diagnostics ?? null;
+        diagnostics.transitionFallbackReason =
+            transition.fallbackReason ?? null;
+        if (transition.fallbackReason) {
+            diagnostics.messages.push({
+                level: 'warn',
+                source: 'TransitionLayerCoordinator',
+                message: `Transition fallback: ${transition.fallbackReason}`,
+            });
+        }
 
         const presentation = this.presentationLayer.compute({
             nowMs: input.nowMs,
