@@ -777,7 +777,20 @@ export class GridGradientFamily implements RenderFamily {
                 curvePower: settings.curvePower,
             },
         });
+        const planResolveStartMs = performance.now();
         const planResult = this.resolvePlan({ input, geometry, settings });
+        recordPerfDuration(
+            'territory.gridGradient.planResolve',
+            performance.now() - planResolveStartMs,
+            {
+                cacheHit: planResult.cacheHit,
+                rebuildReason: planResult.rebuildReason,
+                requestedPlanPending: planResult.requestedPlanPending,
+                workerScheduled: planResult.workerScheduled,
+                workerWaitMs: planResult.workerWaitMs,
+            },
+            planResolveStartMs,
+        );
         const { plan } = planResult;
         const progressState = this.resolveProgressState({
             input,
@@ -795,12 +808,21 @@ export class GridGradientFamily implements RenderFamily {
             plan: this.summarizePlanRoles(plan),
             progressState,
         });
+        const paletteStartMs = performance.now();
         const palette = buildGridGradientPalette({
             colorUtils: this.colorUtils,
             input,
             geometry,
             settings,
         });
+        recordPerfDuration(
+            'territory.gridGradient.palette',
+            performance.now() - paletteStartMs,
+            {
+                ownerCount: palette.colorByOwnerId.size,
+            },
+            paletteStartMs,
+        );
         const progress = progressState.progress;
 
         let requestedDrawBackend = settings.drawBackend;
@@ -862,12 +884,25 @@ export class GridGradientFamily implements RenderFamily {
                     progress,
                     plan: this.summarizePlanRoles(plan),
                 });
+                const shaderTexturePlanStartMs = performance.now();
                 shaderTextureResult = this.resolveShaderTexturePlan({
                     input,
                     plan,
                     palette,
                     settings,
                 });
+                recordPerfDuration(
+                    'territory.gridGradient.shaderTexturePlan',
+                    performance.now() - shaderTexturePlanStartMs,
+                    {
+                        cacheHit: shaderTextureResult.cacheHit,
+                        rebuildReason: shaderTextureResult.rebuildReason,
+                        textureBytes: shaderTextureResult.texturePlan.textureBytes,
+                        activeTransitionCells:
+                            shaderTextureResult.texturePlan.activeTransitionCells,
+                    },
+                    shaderTexturePlanStartMs,
+                );
                 this.logTransitionDebug(settings, 'shader_path.texture_plan', {
                     cacheHit: shaderTextureResult.cacheHit,
                     rebuildReason: shaderTextureResult.rebuildReason,
@@ -883,6 +918,7 @@ export class GridGradientFamily implements RenderFamily {
                     texturePackMs:
                         shaderTextureResult.texturePlan.texturePackMs,
                 });
+                const shaderRendererStartMs = performance.now();
                 shaderStats = this.shaderFieldRenderer.update({
                     plan: shaderTextureResult.texturePlan,
                     settings,
@@ -904,6 +940,17 @@ export class GridGradientFamily implements RenderFamily {
                     nowMs: input.nowMs,
                     renderer: input.renderer,
                 });
+                recordPerfDuration(
+                    'territory.gridGradient.shaderRendererUpdate',
+                    performance.now() - shaderRendererStartMs,
+                    {
+                        textureUploaded: shaderStats.textureUploaded,
+                        textureUploadMs: shaderStats.textureUploadMs,
+                        uniformUpdateMs: shaderStats.uniformUpdateMs,
+                        textureBytes: shaderStats.textureBytes,
+                    },
+                    shaderRendererStartMs,
+                );
                 this.logTransitionDebug(settings, 'shader_path.after_update', {
                     progress,
                     shaderStats,
@@ -970,14 +1017,26 @@ export class GridGradientFamily implements RenderFamily {
                 progress,
                 plan: this.summarizePlanRoles(plan),
             });
+            const distanceStartMs = performance.now();
             const distanceInputs = this.buildDistanceInputs({
                 plan,
                 palette,
             });
+            recordPerfDuration(
+                'territory.gridGradient.graphicsDistanceInputs',
+                performance.now() - distanceStartMs,
+                {
+                    cells: plan.classification.vstars.length,
+                    distanceBuildMs: distanceInputs.distanceBuildMs,
+                    ownerSummaryBuildMs: distanceInputs.ownerSummaryBuildMs,
+                },
+                distanceStartMs,
+            );
             distanceTimings = {
                 distanceBuildMs: distanceInputs.distanceBuildMs,
                 ownerSummaryBuildMs: distanceInputs.ownerSummaryBuildMs,
             };
+            const graphicsPaintStartMs = performance.now();
             graphicsPaint = this.paintGraphicsFill({
                 plan,
                 palette,
@@ -985,6 +1044,16 @@ export class GridGradientFamily implements RenderFamily {
                 progress,
                 distanceInputs,
             });
+            recordPerfDuration(
+                'territory.gridGradient.graphicsPaint',
+                performance.now() - graphicsPaintStartMs,
+                {
+                    paintedCells: graphicsPaint.paintedCells,
+                    activeDrawableTransitionCells:
+                        graphicsPaint.activeDrawableTransitionCells,
+                },
+                graphicsPaintStartMs,
+            );
             this.fillGraphics.visible = true;
             shaderStats = {
                 ...shaderStats,
@@ -995,21 +1064,51 @@ export class GridGradientFamily implements RenderFamily {
             };
         }
 
+        const borderDotsStartMs = performance.now();
         const borderDotCount = this.paintBorderDots({
             plan,
             palette,
             settings,
         });
+        recordPerfDuration(
+            'territory.gridGradient.borderDots',
+            performance.now() - borderDotsStartMs,
+            {
+                count: borderDotCount,
+                enabled: settings.borderDotsEnabled,
+            },
+            borderDotsStartMs,
+        );
+        const vectorBordersStartMs = performance.now();
         const vectorBorderCount = this.paintVectorBorders({
             geometry,
             palette,
             settings,
         });
+        recordPerfDuration(
+            'territory.gridGradient.vectorBorders',
+            performance.now() - vectorBordersStartMs,
+            {
+                count: vectorBorderCount,
+                enabled: settings.vectorBordersEnabled,
+            },
+            vectorBordersStartMs,
+        );
+        const roleCountStartMs = performance.now();
         const roleCounts = this.countRoles({
             plan,
             settings,
             progress,
         });
+        recordPerfDuration(
+            'territory.gridGradient.roleCounts',
+            performance.now() - roleCountStartMs,
+            {
+                activeTransitionCells: roleCounts.activeTransitionCells,
+                activeMixingTransitionCells: roleCounts.activeMixingTransitionCells,
+            },
+            roleCountStartMs,
+        );
         this.logTransitionDebug(settings, 'update.role_counts', {
             progress,
             roleCounts,

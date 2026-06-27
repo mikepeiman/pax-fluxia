@@ -6,6 +6,7 @@ import {
     setPerfUserTimingEnabled,
     snapshotPerfCapture,
 } from "$lib/perf/perfProbe";
+import { summarizeFramePerfAttribution } from "$lib/perf/frameAttribution";
 import { buildDiagnosticBundleForInspection } from "$lib/territory/devtools/TransitionBundleSerializer";
 import { transitionSnapshotRecorder } from "$lib/territory/devtools/TransitionSnapshotRecorder";
 import { normalizeTerritoryRenderModeId } from "$lib/territory/ui/territoryRenderModeCatalog";
@@ -43,6 +44,7 @@ interface FrameStats {
         frameMs: number;
         startAtMs: number;
         endAtMs: number;
+        perfAttribution: ReturnType<typeof summarizeFramePerfAttribution>;
     }>;
 }
 
@@ -387,6 +389,7 @@ async function collectFrameStats(
             const total = frameDurations.reduce((sum, value) => sum + value, 0);
             const measuredStartedAtMs =
                 measured[0]?.startAtMs ?? warmupDeadlineAt;
+            const perfEvents = snapshotPerfCapture()?.events ?? [];
             resolve({
                 frameCount: measured.length,
                 avgFrameMs: measured.length > 0 ? total / measured.length : 0,
@@ -440,6 +443,10 @@ async function collectFrameStats(
                         frameMs: Number(sample.frameMs.toFixed(3)),
                         startAtMs: Number(sample.startAtMs.toFixed(3)),
                         endAtMs: Number(sample.endAtMs.toFixed(3)),
+                        perfAttribution: summarizeFramePerfAttribution(
+                            perfEvents,
+                            sample,
+                        ),
                     })),
             });
         };
