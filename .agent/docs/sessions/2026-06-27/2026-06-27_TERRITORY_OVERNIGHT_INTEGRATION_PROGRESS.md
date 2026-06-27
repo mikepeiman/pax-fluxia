@@ -240,6 +240,17 @@ Passed during async conquest presentation queue slice at 2026-06-27 18:01 -04:00
 - `bun run agentic:graphify:build` from repo root
 - `git diff --check`
 
+Reconciled integration branch at 2026-06-27 18:11 -04:00:
+
+- Merged current `master` into `codex/territory-overnight-integration`, including the latest settings/right-edge resize work and smooth-fill default notes.
+- Verified these related territory/grid-gradient worktrees are clean and their branch heads are already ancestors of the integration branch: `codex/preset-rows-frontier-recipes`, `codex/geometry-invariant-oracle`, `codex/grid-gradient-cold-load-performance-worker-f`, `codex/grid-gradient-worker-parity-guard`, `codex/grid-gradient-worker-provenance`, `codex/pv-frontline-angular-chain-walk`, `codex/pv-frontline-transition-correctness`, `codex/pv-frontline-transition-diagnostics`, `codex/territory-geometry-authority`, and `codex/topology-stable-identity`.
+- Post-merge `bun run check` from `pax-fluxia/` passed with 0 errors and the 1 existing warning.
+- Post-merge `bun x vitest run src/lib/territory` passed 55 files / 348 tests.
+- Post-merge `bun run build` from `pax-fluxia/` passed with the known recurring build warnings.
+- Post-merge `bun run agentic:graphify:build` from repo root passed.
+- Post-merge narrow Grid Gradient browser benchmark passed with `transitionFallbacks scenarios=0 reasons=none`, `geometry key cache hits=340 misses=5 lastStars=172 lastLanes=428`, and scheduler `scheduleMode=scheduler-background`.
+- Current merged-branch benchmark frame pacing was `count=54 avg=49.689ms p95=66.7ms max=66.7ms`; measured render work stayed small (`game.renderFrame.territory.grid_gradient avg=0.537ms max=5.2ms`, `game.renderFrame.stars avg=0.713ms max=1.7ms`) while the summary reported large unattributed frame gaps. Next performance work should measure the browser/frame-delivery gap rather than assuming geometry is still the sampled bottleneck.
+
 Known recurring non-blocking warning:
 
 - `GameThemeManager.svelte`: unused CSS selector `.game-theme-manager--menu .theme-chip-name`
