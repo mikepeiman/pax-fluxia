@@ -162,6 +162,8 @@ export interface GeometryDiagnostics {
     minStarMargin?: MinStarMarginDiagnostics;
     /** Candidate-only comparison of 0319 cells against the pure power-core graph. */
     powerCoreCandidate?: PowerCoreCandidateDiagnostics;
+    /** Resolved snapshot checks for duplicate geometry, region shape, and star containment. */
+    resolvedGeometryOracle?: ResolvedGeometryOracleResult;
     /** Free-form diagnostic notes. */
     notes: string[];
 }
@@ -188,6 +190,12 @@ export interface PowerCoreCandidateDiagnostics {
     readonly topologyFingerprint: string;
     readonly duplicateSourceSiteIdCount: number;
     readonly notes: readonly string[];
+}
+
+export interface ResolvedGeometryOracleResult {
+    readonly ok: boolean;
+    readonly failureCount: number;
+    readonly failures: readonly string[];
 }
 
 export type GeometryDebugStageId =

@@ -24,6 +24,7 @@ import {
     isVirtualSiteId,
     hashString32,
 } from './regionIdentity';
+import { validateResolvedGeometrySnapshotInvariants } from './resolvedGeometryOracle';
 
 interface BuildPowerVoronoi0319AuthoritySnapshotParams {
     readonly geometry: TerritoryGeometryData;
@@ -475,7 +476,7 @@ export function buildPowerVoronoi0319AuthoritySnapshot(
         { regions: resolvedRegions.length },
     );
 
-    return {
+    const snapshot: ResolvedGeometrySnapshot = {
         version: `${resolvedBoundaryFingerprint}:pfield`,
         sourceMode: 'unified_vector',
         sourceStyle: params.sourceStyle,
@@ -522,6 +523,27 @@ export function buildPowerVoronoi0319AuthoritySnapshot(
                 'Power-Voronoi 0319 live consumers use one resolved shared-boundary authority seam.',
                 'Diagnostics stages expose raw, resolved, and display geometry without changing the live seam.',
                 ...topologyResult.notes,
+            ],
+        },
+    };
+
+    const resolvedGeometryOracle = validateResolvedGeometrySnapshotInvariants(
+        snapshot,
+        { stars: params.stars },
+    );
+
+    return {
+        ...snapshot,
+        diagnostics: {
+            ...snapshot.diagnostics,
+            resolvedGeometryOracle,
+            notes: [
+                ...snapshot.diagnostics.notes,
+                ...(resolvedGeometryOracle.ok
+                    ? ['resolvedGeometryOracle: ok']
+                    : resolvedGeometryOracle.failures.map(
+                          (failure) => `resolvedGeometryOracle: ${failure}`,
+                      )),
             ],
         },
     };

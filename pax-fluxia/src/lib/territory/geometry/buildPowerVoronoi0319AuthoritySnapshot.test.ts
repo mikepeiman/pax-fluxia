@@ -183,6 +183,11 @@ describe('buildPowerVoronoi0319AuthoritySnapshot', () => {
         const snapshot = buildSnapshot(makeGeometryData());
 
         expect(snapshot.diagnostics.stageLadder).toBeDefined();
+        expect(snapshot.diagnostics.resolvedGeometryOracle).toMatchObject({
+            ok: true,
+            failureCount: 0,
+            failures: [],
+        });
         expect(snapshot.diagnostics.stageLadder?.authoritativeSeamFingerprint).toContain(
             'geo:test:resolved:0.00',
         );

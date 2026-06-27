@@ -151,6 +151,17 @@ Passed during physical-frontier oracle slice:
 - `bun run build`
 - `bun run agentic:graphify:build` from repo root
 
+Passed during resolved-geometry snapshot oracle slice at 2026-06-27 17:14 -04:00:
+
+- Added a resolved snapshot oracle that checks duplicate region/frontier/world-border IDs, duplicate physical chains, region self-intersections, duplicate anchors, anchor ownership/containment, and owned-star containment.
+- Attached the oracle to 0319 authority snapshots as `diagnostics.resolvedGeometryOracle`, with deterministic diagnostic notes.
+- `bun x vitest run src/lib/territory/geometry/resolvedGeometryOracle.test.ts` (1 file, 4 tests)
+- `bun x vitest run src/lib/territory/geometry/resolvedGeometryOracle.test.ts src/lib/territory/geometry/buildPowerVoronoi0319AuthoritySnapshot.test.ts src/lib/territory/geometry/frontierTopologyOracle.test.ts` (3 files, 16 tests)
+- `bun x vitest run src/lib/territory` (54 files, 341 tests)
+- `bun run check` from `pax-fluxia/` (0 errors, 1 existing warning)
+- `bun run build` from `pax-fluxia/`
+- `bun run agentic:graphify:build` from repo root
+
 Known recurring non-blocking warning:
 
 - `GameThemeManager.svelte`: unused CSS selector `.game-theme-manager--menu .theme-chip-name`
