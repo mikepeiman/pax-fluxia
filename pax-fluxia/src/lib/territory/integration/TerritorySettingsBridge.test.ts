@@ -55,6 +55,7 @@ describe('readTerritoryRuntimeSettings', () => {
             FRONTIER_RESOLUTION: 12,
             CHAIKIN_BOUNDARY_PAD: 44,
             CHAIKIN_BOUNDARY_EPS: 8,
+            MODIFIED_VORONOI_STAR_MARGIN: 75,
         });
 
         expect(configured.tunables).toEqual({
