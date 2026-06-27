@@ -62,6 +62,12 @@ Safety checkpoint:
    - Loops now reject `world` as a territory owner, near-zero reconstructed area, and stale/non-finite signed-area data that disagrees with the section chain.
    - Tests now cover stale signed area, duplicate section coverage, and a missing owner-side loop on a shared frontier.
 
+7. Bounded Grid Gradient owner-grid cache
+   - Timestamp: 2026-06-27T16:44:20-04:00
+   - Replaced unbounded Grid Gradient owner-grid `Map` instances with a small LRU cache for both main-thread fallback planning and the plan worker.
+   - Cache diagnostics now report entries, max entries, byte estimate, and evictions through debug snapshots, the stats store, and `territory.gridGradient.update` perf details.
+   - Worker plan responses now include worker-side owner-grid cache stats so warm worker rebuilds are measurable.
+
 ## Validation So Far
 
 Passed before the first pushed implementation checkpoint:
@@ -96,6 +102,14 @@ Passed during topology consistency slice:
 - `bun run agentic:graphify:build` from repo root
 - `bun run build`
 
+Passed during Grid Gradient cache bounding slice:
+
+- `bun x vitest run src/lib/territory/families/gridGradient` (9 files, 37 tests)
+- `bun x vitest run src/lib/territory` (51 files, 329 tests)
+- `bun run check` (0 errors, 1 existing warning)
+- `bun run agentic:graphify:build` from repo root
+- `bun run build`
+
 Known recurring non-blocking warning:
 
 - `GameThemeManager.svelte`: unused CSS selector `.game-theme-manager--menu .theme-chip-name`
@@ -111,6 +125,5 @@ Known recurring build warnings:
 Next implementation targets:
 
 - Continue topology-to-region consistency checks beyond internal topology structure: owner/star containment, duplicate physical frontier detection, and targeted self-intersection checks.
-- Add Grid Gradient owner-grid cache size diagnostics or bounded eviction for long sessions.
 - Wire `powerCore` as a selectable candidate authority with fixture comparison against 0319, not as a default.
 - Build a final integration report with selectable/default/blocked status and validation evidence before any default promotion.

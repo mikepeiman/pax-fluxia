@@ -12,6 +12,7 @@ import type {
 import type { RenderFamilyActiveTransition, RenderFamilyInput } from '../RenderFamilyTypes';
 import type { CachedGridGradientPlan } from './plan';
 import type { GridGradientSettings } from './settings';
+import type { GridGradientOwnerGridCacheStats } from './typedClassification';
 
 export type WorkerIndexEntries = readonly (readonly [string, readonly string[]])[];
 
@@ -95,6 +96,7 @@ export interface GridGradientPlanWorkerResponse {
     readonly planKey: string;
     readonly plan: CachedGridGradientPlan;
     readonly workerBuildMs: number;
+    readonly ownerGridCacheStats?: GridGradientOwnerGridCacheStats;
 }
 
 function clonePoint(point: readonly [number, number]): [number, number] {

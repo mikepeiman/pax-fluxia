@@ -23,6 +23,14 @@ export interface GridGradientStats {
     readonly classificationAlgorithm: string;
     readonly prevOwnerGridCacheHit: boolean;
     readonly nextOwnerGridCacheHit: boolean;
+    readonly ownerGridCacheEntries: number;
+    readonly ownerGridCacheMaxEntries: number;
+    readonly ownerGridCacheBytes: number;
+    readonly ownerGridCacheEvictions: number;
+    readonly workerOwnerGridCacheEntries: number;
+    readonly workerOwnerGridCacheMaxEntries: number;
+    readonly workerOwnerGridCacheBytes: number;
+    readonly workerOwnerGridCacheEvictions: number;
     readonly requestedSpacingPx: number;
     readonly effectiveSpacingPx: number;
     readonly totalCells: number;
@@ -109,6 +117,14 @@ const INITIAL: GridGradientStats = {
     classificationAlgorithm: 'unknown',
     prevOwnerGridCacheHit: false,
     nextOwnerGridCacheHit: false,
+    ownerGridCacheEntries: 0,
+    ownerGridCacheMaxEntries: 0,
+    ownerGridCacheBytes: 0,
+    ownerGridCacheEvictions: 0,
+    workerOwnerGridCacheEntries: 0,
+    workerOwnerGridCacheMaxEntries: 0,
+    workerOwnerGridCacheBytes: 0,
+    workerOwnerGridCacheEvictions: 0,
     requestedSpacingPx: 0,
     effectiveSpacingPx: 0,
     totalCells: 0,

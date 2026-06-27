@@ -8,10 +8,10 @@ import {
     type GridGradientPlanWorkerRequest,
     type GridGradientPlanWorkerResponse,
 } from './gridGradientPlanWorkerTypes';
-import type { GridGradientOwnerGrid } from './typedClassification';
+import { GridGradientOwnerGridLruCache } from './typedClassification';
 
 const workerScope = self as DedicatedWorkerGlobalScope;
-const ownerGridCache = new Map<string, GridGradientOwnerGrid>();
+const ownerGridCache = new GridGradientOwnerGridLruCache();
 
 workerScope.onmessage = (event: MessageEvent<GridGradientPlanWorkerRequest>) => {
     const request = event.data;
@@ -36,6 +36,7 @@ workerScope.onmessage = (event: MessageEvent<GridGradientPlanWorkerRequest>) => 
         planKey: request.planKey,
         plan,
         workerBuildMs: performance.now() - startMs,
+        ownerGridCacheStats: ownerGridCache.snapshot(),
     };
     workerScope.postMessage(response);
 };

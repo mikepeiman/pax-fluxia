@@ -9,6 +9,7 @@ import type { GridOwnedStar } from '../cellGrid/cellGridTypes';
 import {
     buildGridGradientTypedClassification,
     codeToRole,
+    GridGradientOwnerGridLruCache,
     type GridGradientOwnerGrid,
 } from './typedClassification';
 
@@ -161,6 +162,30 @@ function compareToReference(params: {
 }
 
 describe('Grid Gradient typed classification', () => {
+    it('bounds owner-grid cache entries and refreshes recently used grids', () => {
+        const cache = new GridGradientOwnerGridLruCache(2);
+        const makeGrid = (key: string): GridGradientOwnerGrid => ({
+            key,
+            algorithm: 'raster_scanline',
+            ownerIndexByCell: new Int16Array(4),
+        });
+
+        cache.set('a', makeGrid('a'));
+        cache.set('b', makeGrid('b'));
+        expect(cache.get('a')?.key).toBe('a');
+        cache.set('c', makeGrid('c'));
+
+        expect(cache.get('b')).toBeUndefined();
+        expect(cache.get('a')?.key).toBe('a');
+        expect(cache.get('c')?.key).toBe('c');
+        expect(cache.snapshot()).toEqual({
+            entries: 2,
+            maxEntries: 2,
+            byteLength: 16,
+            evictions: 1,
+        });
+    });
+
     it('matches the existing classifier for square grids', () => {
         compareToReference({ distribution: 'square', positionJitter: 0 });
     });

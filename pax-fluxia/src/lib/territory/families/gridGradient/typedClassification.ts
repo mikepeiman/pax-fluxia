@@ -17,6 +17,7 @@ import type {
 const DEFAULT_EVENT_ID = '__default__';
 const WORLD_MIN_EPSILON = 0.000001;
 const NULL_OWNER_INDEX = -1;
+export const GRID_GRADIENT_OWNER_GRID_CACHE_MAX_ENTRIES = 8;
 
 export type GridGradientClassificationAlgorithm = 'raster_scanline' | 'point_polygon';
 
@@ -38,6 +39,71 @@ export interface GridGradientOwnerGrid {
 export interface GridGradientOwnerGridCache {
     get(key: string): GridGradientOwnerGrid | undefined;
     set(key: string, value: GridGradientOwnerGrid): void;
+    clear?(): void;
+    snapshot?(): GridGradientOwnerGridCacheStats;
+}
+
+export interface GridGradientOwnerGridCacheStats {
+    readonly entries: number;
+    readonly maxEntries: number;
+    readonly byteLength: number;
+    readonly evictions: number;
+}
+
+function ownerGridByteLength(grid: GridGradientOwnerGrid): number {
+    return grid.ownerIndexByCell.byteLength;
+}
+
+export class GridGradientOwnerGridLruCache implements GridGradientOwnerGridCache {
+    private readonly entries = new Map<string, GridGradientOwnerGrid>();
+    private byteLength = 0;
+    private evictionCount = 0;
+
+    constructor(
+        private readonly maxEntries = GRID_GRADIENT_OWNER_GRID_CACHE_MAX_ENTRIES,
+    ) {}
+
+    get(key: string): GridGradientOwnerGrid | undefined {
+        const value = this.entries.get(key);
+        if (!value) return undefined;
+        this.entries.delete(key);
+        this.entries.set(key, value);
+        return value;
+    }
+
+    set(key: string, value: GridGradientOwnerGrid): void {
+        const previous = this.entries.get(key);
+        if (previous) {
+            this.byteLength -= ownerGridByteLength(previous);
+            this.entries.delete(key);
+        }
+        this.entries.set(key, value);
+        this.byteLength += ownerGridByteLength(value);
+
+        while (this.entries.size > this.maxEntries) {
+            const oldestKey = this.entries.keys().next().value as string | undefined;
+            if (oldestKey === undefined) break;
+            const oldest = this.entries.get(oldestKey);
+            if (oldest) this.byteLength -= ownerGridByteLength(oldest);
+            this.entries.delete(oldestKey);
+            this.evictionCount += 1;
+        }
+    }
+
+    clear(): void {
+        this.entries.clear();
+        this.byteLength = 0;
+        this.evictionCount = 0;
+    }
+
+    snapshot(): GridGradientOwnerGridCacheStats {
+        return {
+            entries: this.entries.size,
+            maxEntries: this.maxEntries,
+            byteLength: this.byteLength,
+            evictions: this.evictionCount,
+        };
+    }
 }
 
 export interface GridGradientTypedClassificationResult {

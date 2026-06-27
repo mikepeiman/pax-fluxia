@@ -63,7 +63,10 @@ import {
     type GridGradientPlanWorkerRequest,
     type GridGradientPlanWorkerResponse,
 } from './gridGradientPlanWorkerTypes';
-import type { GridGradientOwnerGrid } from './typedClassification';
+import {
+    GridGradientOwnerGridLruCache,
+    type GridGradientOwnerGridCacheStats,
+} from './typedClassification';
 
 interface PlanResolveResult {
     readonly plan: CachedGridGradientPlan;
@@ -189,10 +192,12 @@ export class GridGradientFamily implements RenderFamily {
         | null = null;
     private latestPlanWorkerResponse: GridGradientPlanWorkerResponse | null = null;
     private latestPlanWorkerMeta: GridGradientPlanWorkerRequestMeta | null = null;
-    private readonly ownerGridCache = new Map<string, GridGradientOwnerGrid>();
+    private readonly ownerGridCache = new GridGradientOwnerGridLruCache();
     private planWorkerFailed = false;
     private loggedPlanWorkerFailure = false;
     private lastDebugSnapshot: Record<string, unknown> | null = null;
+    private lastWorkerOwnerGridCacheStats: GridGradientOwnerGridCacheStats | null =
+        null;
     private emaUpdateMs = 0;
     private loggedShaderFailure = false;
     private readonly transitionTraceState =
@@ -313,6 +318,9 @@ export class GridGradientFamily implements RenderFamily {
             if (activeMeta && activeMeta.requestId === response.requestId) {
                 this.latestPlanWorkerResponse = response;
                 this.latestPlanWorkerMeta = activeMeta;
+                this.lastWorkerOwnerGridCacheStats =
+                    response.ownerGridCacheStats ??
+                    this.lastWorkerOwnerGridCacheStats;
                 this.activePlanWorkerMeta = null;
             }
             if (this.queuedPlanWorker) {
@@ -1117,6 +1125,8 @@ export class GridGradientFamily implements RenderFamily {
         const updateMs = performance.now() - updateStartMs;
         this.emaUpdateMs =
             this.emaUpdateMs === 0 ? updateMs : this.emaUpdateMs * 0.85 + updateMs * 0.15;
+        const ownerGridCacheStats = this.ownerGridCache.snapshot();
+        const workerOwnerGridCacheStats = this.lastWorkerOwnerGridCacheStats;
 
         this.recordStats({
             input,
@@ -1173,6 +1183,8 @@ export class GridGradientFamily implements RenderFamily {
             paintMs: graphicsPaint.paintMs,
             updateMs,
             rendererDiagnostics,
+            ownerGridCacheStats,
+            workerOwnerGridCacheStats,
         });
         this.logTransitionDebug(settings, 'update.exit', {
             updateMs,
@@ -1201,6 +1213,15 @@ export class GridGradientFamily implements RenderFamily {
                 textureUploadMs: shaderStats.textureUploadMs,
                 uniformUpdateMs: shaderStats.uniformUpdateMs,
                 textureBytes: shaderStats.textureBytes,
+                ownerGridCacheEntries: ownerGridCacheStats.entries,
+                ownerGridCacheBytes: ownerGridCacheStats.byteLength,
+                ownerGridCacheEvictions: ownerGridCacheStats.evictions,
+                workerOwnerGridCacheEntries:
+                    workerOwnerGridCacheStats?.entries ?? 0,
+                workerOwnerGridCacheBytes:
+                    workerOwnerGridCacheStats?.byteLength ?? 0,
+                workerOwnerGridCacheEvictions:
+                    workerOwnerGridCacheStats?.evictions ?? 0,
             },
             updateStartMs,
         );
@@ -1220,6 +1241,7 @@ export class GridGradientFamily implements RenderFamily {
         this.latestPlanWorkerResponse = null;
         this.latestPlanWorkerMeta = null;
         this.ownerGridCache.clear();
+        this.lastWorkerOwnerGridCacheStats = null;
         this.root.visible = false;
         this.cachedPlan = null;
         this.cachedShaderTexturePlan = null;
@@ -1689,7 +1711,10 @@ export class GridGradientFamily implements RenderFamily {
         readonly paintMs: number;
         readonly updateMs: number;
         readonly rendererDiagnostics: ReturnType<typeof resolvePixiRendererDiagnostics>;
+        readonly ownerGridCacheStats: GridGradientOwnerGridCacheStats;
+        readonly workerOwnerGridCacheStats: GridGradientOwnerGridCacheStats | null;
     }): void {
+        const workerOwnerGridCacheStats = params.workerOwnerGridCacheStats;
         const debugSnapshot = {
             familyId: this.id,
             familyLabel: this.label,
@@ -1706,6 +1731,18 @@ export class GridGradientFamily implements RenderFamily {
             planWorkerWaitMs: params.planWorkerWaitMs,
             committedWorkerPlan: params.committedWorkerPlan,
             classificationAlgorithm: params.plan.classificationAlgorithm,
+            ownerGridCacheEntries: params.ownerGridCacheStats.entries,
+            ownerGridCacheMaxEntries: params.ownerGridCacheStats.maxEntries,
+            ownerGridCacheBytes: params.ownerGridCacheStats.byteLength,
+            ownerGridCacheEvictions: params.ownerGridCacheStats.evictions,
+            workerOwnerGridCacheEntries:
+                workerOwnerGridCacheStats?.entries ?? 0,
+            workerOwnerGridCacheMaxEntries:
+                workerOwnerGridCacheStats?.maxEntries ?? 0,
+            workerOwnerGridCacheBytes:
+                workerOwnerGridCacheStats?.byteLength ?? 0,
+            workerOwnerGridCacheEvictions:
+                workerOwnerGridCacheStats?.evictions ?? 0,
             geometryVersion: params.geometry.version,
             requestedSpacingPx: params.plan.classification.requestedSpacingPx,
             effectiveSpacingPx: params.plan.classification.spacingPx,
@@ -1757,6 +1794,18 @@ export class GridGradientFamily implements RenderFamily {
             classificationAlgorithm: params.plan.classificationAlgorithm,
             prevOwnerGridCacheHit: params.plan.prevOwnerGridCacheHit,
             nextOwnerGridCacheHit: params.plan.nextOwnerGridCacheHit,
+            ownerGridCacheEntries: params.ownerGridCacheStats.entries,
+            ownerGridCacheMaxEntries: params.ownerGridCacheStats.maxEntries,
+            ownerGridCacheBytes: params.ownerGridCacheStats.byteLength,
+            ownerGridCacheEvictions: params.ownerGridCacheStats.evictions,
+            workerOwnerGridCacheEntries:
+                workerOwnerGridCacheStats?.entries ?? 0,
+            workerOwnerGridCacheMaxEntries:
+                workerOwnerGridCacheStats?.maxEntries ?? 0,
+            workerOwnerGridCacheBytes:
+                workerOwnerGridCacheStats?.byteLength ?? 0,
+            workerOwnerGridCacheEvictions:
+                workerOwnerGridCacheStats?.evictions ?? 0,
             requestedSpacingPx: params.plan.classification.requestedSpacingPx,
             effectiveSpacingPx: params.plan.classification.spacingPx,
             totalCells: params.plan.classification.vstars.length,
@@ -1839,6 +1888,7 @@ export class GridGradientFamily implements RenderFamily {
         this.latestPlanWorkerResponse = null;
         this.latestPlanWorkerMeta = null;
         this.ownerGridCache.clear();
+        this.lastWorkerOwnerGridCacheStats = null;
         this.shaderFieldRenderer.dispose();
         this.fillGraphics.destroy();
         this.borderDotGraphics.destroy();
