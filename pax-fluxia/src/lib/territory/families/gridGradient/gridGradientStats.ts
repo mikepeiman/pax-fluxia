@@ -14,6 +14,9 @@ export interface GridGradientStats {
     readonly planCacheHit: boolean;
     readonly planRebuildReason: string | null;
     readonly requestedPlanKey: string | null;
+    readonly requestedPlanKeyHash: string | null;
+    readonly requestedPlanKeySuffix: string | null;
+    readonly requestedPlanKeyLength: number;
     readonly requestedPlanPending: boolean;
     readonly planWorkerScheduled: boolean;
     readonly planWorkerWaitMs: number | null;
@@ -108,6 +111,9 @@ const INITIAL: GridGradientStats = {
     planCacheHit: false,
     planRebuildReason: null,
     requestedPlanKey: null,
+    requestedPlanKeyHash: null,
+    requestedPlanKeySuffix: null,
+    requestedPlanKeyLength: 0,
     requestedPlanPending: false,
     planWorkerScheduled: false,
     planWorkerWaitMs: null,

@@ -2,6 +2,7 @@ import {
     disablePerfCapture,
     enablePerfCapture,
     isPerfUserTimingEnabled,
+    recordPerfEvent,
     resetPerfCapture,
     setPerfUserTimingEnabled,
     snapshotPerfCapture,
@@ -35,6 +36,15 @@ interface FrameStats {
         under40Ms: number;
         over40Ms: number;
     };
+    intervalHistogram: Array<{
+        bucketMs: number;
+        count: number;
+        share: number;
+    }>;
+    dominantIntervalMs: number;
+    dominantIntervalCount: number;
+    dominantIntervalShare: number;
+    browserPerformance: BrowserPerformanceCaptureStats;
     warmupDurationMs: number;
     warmupFrameCount: number;
     warmupMaxFrameMs: number;
@@ -46,6 +56,13 @@ interface FrameStats {
         endAtMs: number;
         perfAttribution: ReturnType<typeof summarizeFramePerfAttribution>;
     }>;
+}
+
+interface BrowserPerformanceCaptureStats {
+    supportedEntryTypes: string[];
+    activeEntryTypes: string[];
+    observerFailures: string[];
+    observedEntryCounts: Record<string, number>;
 }
 
 interface BenchmarkOrderPointerPath {
@@ -212,6 +229,218 @@ function waitMs(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const BROWSER_PERFORMANCE_ENTRY_TYPES = [
+    "longtask",
+    "long-animation-frame",
+    "event",
+] as const;
+
+function roundFrameMs(value: number): number {
+    return Number(value.toFixed(3));
+}
+
+function browserPerformanceEventName(entryType: string): string {
+    switch (entryType) {
+        case "longtask":
+            return "browser.longtask";
+        case "long-animation-frame":
+            return "browser.longAnimationFrame";
+        case "event":
+            return "browser.eventTiming";
+        default:
+            return `browser.${entryType}`;
+    }
+}
+
+function readEntryNumber(
+    entry: PerformanceEntry,
+    key: string,
+): number | null {
+    const value = (entry as unknown as Record<string, unknown>)[key];
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function readTopLongFrameScriptUrl(entry: PerformanceEntry): string | null {
+    const scripts = (entry as unknown as { scripts?: unknown }).scripts;
+    if (!Array.isArray(scripts) || scripts.length === 0) return null;
+    const firstScript = scripts[0] as Record<string, unknown>;
+    const sourceUrl = firstScript.sourceURL ?? firstScript.sourceUrl;
+    return typeof sourceUrl === "string" && sourceUrl.length > 0
+        ? sourceUrl
+        : null;
+}
+
+function summarizeLongFrameScripts(
+    entry: PerformanceEntry,
+): Array<Record<string, unknown>> {
+    const scripts = (entry as unknown as { scripts?: unknown }).scripts;
+    if (!Array.isArray(scripts)) return [];
+    return scripts.slice(0, 5).map((script) => {
+        const record = script as Record<string, unknown>;
+        return {
+            sourceURL: record.sourceURL ?? record.sourceUrl ?? null,
+            invoker: record.invoker ?? null,
+            invokerType: record.invokerType ?? null,
+            durationMs: record.duration ?? null,
+            pauseDurationMs: record.pauseDuration ?? null,
+            forcedStyleAndLayoutDurationMs:
+                record.forcedStyleAndLayoutDuration ?? null,
+        };
+    });
+}
+
+function summarizeLongTaskAttribution(
+    entry: PerformanceEntry,
+): Array<Record<string, unknown>> {
+    const attribution = (entry as unknown as { attribution?: unknown }).attribution;
+    if (!Array.isArray(attribution)) return [];
+    return attribution.slice(0, 5).map((item) => {
+        const record = item as Record<string, unknown>;
+        return {
+            name: record.name ?? null,
+            entryType: record.entryType ?? null,
+            containerType: record.containerType ?? null,
+            containerName: record.containerName ?? null,
+            containerId: record.containerId ?? null,
+            containerSrc: record.containerSrc ?? null,
+        };
+    });
+}
+
+function summarizeBrowserPerformanceEntry(
+    entry: PerformanceEntry,
+): Record<string, unknown> {
+    const durationMs = Number.isFinite(entry.duration) ? entry.duration : 0;
+    const startTimeMs = Number.isFinite(entry.startTime) ? entry.startTime : 0;
+    return {
+        kind: "browser-entry",
+        entryType: entry.entryType,
+        browserEntryName: entry.name,
+        durationMs,
+        startTimeMs,
+        endTimeMs: startTimeMs + Math.max(0, durationMs),
+        blockingDurationMs:
+            readEntryNumber(entry, "blockingDuration") ??
+            readEntryNumber(entry, "renderBlockingDuration") ??
+            0,
+        processingStartMs: readEntryNumber(entry, "processingStart"),
+        processingEndMs: readEntryNumber(entry, "processingEnd"),
+        interactionId: readEntryNumber(entry, "interactionId"),
+        topScriptUrl: readTopLongFrameScriptUrl(entry),
+        scripts: summarizeLongFrameScripts(entry),
+        attribution: summarizeLongTaskAttribution(entry),
+    };
+}
+
+function startBrowserPerformanceEntryCapture(): {
+    stop: () => BrowserPerformanceCaptureStats;
+} {
+    const observerCtor =
+        typeof PerformanceObserver === "function"
+            ? PerformanceObserver
+            : null;
+    const supportedEntryTypes = observerCtor
+        ? [
+              ...((observerCtor as unknown as {
+                  supportedEntryTypes?: readonly string[];
+              }).supportedEntryTypes ?? []),
+          ]
+        : [];
+    const supported = new Set(supportedEntryTypes);
+    const activeEntryTypes: string[] = [];
+    const observerFailures: string[] = [];
+    const observedEntryCounts: Record<string, number> = {};
+    const observers: PerformanceObserver[] = [];
+
+    const recordEntries = (entries: PerformanceEntry[]): void => {
+        for (const entry of entries) {
+            const eventName = browserPerformanceEventName(entry.entryType);
+            observedEntryCounts[eventName] =
+                (observedEntryCounts[eventName] ?? 0) + 1;
+            recordPerfEvent(eventName, summarizeBrowserPerformanceEntry(entry));
+        }
+    };
+
+    if (!observerCtor) {
+        return {
+            stop: () => ({
+                supportedEntryTypes,
+                activeEntryTypes,
+                observerFailures: ["PerformanceObserver unavailable"],
+                observedEntryCounts,
+            }),
+        };
+    }
+
+    for (const entryType of BROWSER_PERFORMANCE_ENTRY_TYPES) {
+        if (!supported.has(entryType)) continue;
+        try {
+            const observer = new observerCtor((list) => {
+                recordEntries(list.getEntries());
+            });
+            observer.observe({ type: entryType });
+            observers.push(observer);
+            activeEntryTypes.push(entryType);
+        } catch (error) {
+            observerFailures.push(
+                `${entryType}: ${error instanceof Error ? error.message : String(error)}`,
+            );
+        }
+    }
+
+    return {
+        stop: () => {
+            for (const observer of observers) {
+                recordEntries(observer.takeRecords());
+                observer.disconnect();
+            }
+            return {
+                supportedEntryTypes,
+                activeEntryTypes,
+                observerFailures,
+                observedEntryCounts,
+            };
+        },
+    };
+}
+
+function summarizeIntervalHistogram(
+    samples: Array<{ frameMs: number }>,
+): {
+    intervalHistogram: FrameStats["intervalHistogram"];
+    dominantIntervalMs: number;
+    dominantIntervalCount: number;
+    dominantIntervalShare: number;
+} {
+    const counts = new Map<number, number>();
+    for (const sample of samples) {
+        const bucketMs = Math.round(sample.frameMs / 5) * 5;
+        counts.set(bucketMs, (counts.get(bucketMs) ?? 0) + 1);
+    }
+    const intervalHistogram = [...counts.entries()]
+        .map(([bucketMs, count]) => ({
+            bucketMs,
+            count,
+            share:
+                samples.length > 0
+                    ? roundFrameMs(count / samples.length)
+                    : 0,
+        }))
+        .sort((left, right) => right.count - left.count || left.bucketMs - right.bucketMs)
+        .slice(0, 8);
+    const dominant = intervalHistogram[0] ?? {
+        bucketMs: 0,
+        count: 0,
+        share: 0,
+    };
+    return {
+        intervalHistogram,
+        dominantIntervalMs: dominant.bucketMs,
+        dominantIntervalCount: dominant.count,
+        dominantIntervalShare: dominant.share,
+    };
+}
+
 function summarizeTransitionRecorder(): Record<string, unknown> {
     const bundles = transitionSnapshotRecorder.getBundles();
     const latest = bundles[bundles.length - 1] ?? null;
@@ -363,6 +592,7 @@ async function collectFrameStats(
     const frameBudgetMs = 1000 / 60;
     const warmupDeadlineAt = startedAt + Math.max(0, warmupMs);
     const measuredDeadlineAt = warmupDeadlineAt + Math.max(0, durationMs);
+    const browserPerformanceCapture = startBrowserPerformanceEntryCapture();
 
     return await new Promise<FrameStats>((resolve) => {
         const step = (now: number) => {
@@ -389,6 +619,8 @@ async function collectFrameStats(
             const total = frameDurations.reduce((sum, value) => sum + value, 0);
             const measuredStartedAtMs =
                 measured[0]?.startAtMs ?? warmupDeadlineAt;
+            const intervalSummary = summarizeIntervalHistogram(measured);
+            const browserPerformance = browserPerformanceCapture.stop();
             const perfEvents = snapshotPerfCapture()?.events ?? [];
             resolve({
                 frameCount: measured.length,
@@ -426,6 +658,11 @@ async function collectFrameStats(
                     ).length,
                     over40Ms: measured.filter((sample) => sample.frameMs >= 40).length,
                 },
+                intervalHistogram: intervalSummary.intervalHistogram,
+                dominantIntervalMs: intervalSummary.dominantIntervalMs,
+                dominantIntervalCount: intervalSummary.dominantIntervalCount,
+                dominantIntervalShare: intervalSummary.dominantIntervalShare,
+                browserPerformance,
                 warmupDurationMs: Math.max(0, measuredStartedAtMs - startedAt),
                 warmupFrameCount: warmupSamples.length,
                 warmupMaxFrameMs:

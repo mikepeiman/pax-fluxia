@@ -251,6 +251,18 @@ Reconciled integration branch at 2026-06-27 18:11 -04:00:
 - Post-merge narrow Grid Gradient browser benchmark passed with `transitionFallbacks scenarios=0 reasons=none`, `geometry key cache hits=340 misses=5 lastStars=172 lastLanes=428`, and scheduler `scheduleMode=scheduler-background`.
 - Current merged-branch benchmark frame pacing was `count=54 avg=49.689ms p95=66.7ms max=66.7ms`; measured render work stayed small (`game.renderFrame.territory.grid_gradient avg=0.537ms max=5.2ms`, `game.renderFrame.stars avg=0.713ms max=1.7ms`) while the summary reported large unattributed frame gaps. Next performance work should measure the browser/frame-delivery gap rather than assuming geometry is still the sampled bottleneck.
 
+Passed during browser frame-cadence instrumentation slice at 2026-06-27 18:37 -04:00:
+
+- Added benchmark capture for browser `PerformanceObserver` entries during the active frame sampling window: long tasks, long animation frames where supported, and event timing where emitted.
+- Added frame interval histograms and dominant-frame-interval classification to separate slow render work from browser cadence limits or unmeasured waits.
+- Added long-task attribution grouping, long-animation-frame script summaries, and star visual redraw reason aggregation to the text summary.
+- Added `StarRenderer` visual redraw reasons; the latest narrow Grid Gradient run observed `star visual redraws events=1 redraws=3 reasons=flash:3`, so steady-state star cache churn was not the measured pacing cause.
+- Compacted Grid Gradient diagnostic plan-key exposure. Internal cache and worker matching still use the full deterministic keys, but benchmark/debug snapshots now expose compact key identity instead of full plan strings.
+- Fresh narrow Grid Gradient browser benchmark passed with `transitionFallbacks scenarios=0 reasons=none`, `frame cadence dominant=50ms count=38 share=0.731`, `browser.longtask:25`, and low measured render work (`game.renderFrame.territory.grid_gradient avg=0.636ms max=1.4ms`, `game.renderFrame.stars avg=0.862ms max=4ms`).
+- Direct search of the fresh benchmark artifact found no `planKey` or `requestedPlanKey` fields; the artifact was about 479 KB instead of carrying full diagnostic plan strings.
+- Focused validation passed: `bun run check` from `pax-fluxia/` (0 errors, 1 existing warning), `bun x vitest run src/lib/territory/families/gridGradient` (9 files / 38 tests), `bun build tools/debug/benchmark-browser-gameplay.ts tools/debug/summarize-browser-gameplay-benchmark.ts --target bun --outdir .agent-harness/tmp-bun-build-check-frame-probe-final`, and the narrow browser benchmark command above.
+- Broader validation passed: `bun run build` from `pax-fluxia/`, `bun run agentic:graphify:build` from repo root, and `git diff --check`.
+
 Known recurring non-blocking warning:
 
 - `GameThemeManager.svelte`: unused CSS selector `.game-theme-manager--menu .theme-chip-name`

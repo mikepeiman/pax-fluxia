@@ -67,6 +67,7 @@ import {
     GridGradientOwnerGridLruCache,
     type GridGradientOwnerGridCacheStats,
 } from './typedClassification';
+import { hashString32 } from '../../geometry/regionIdentity';
 
 interface PlanResolveResult {
     readonly plan: CachedGridGradientPlan;
@@ -158,6 +159,22 @@ function clamp01(value: number): number {
     if (!Number.isFinite(value) || value <= 0) return 0;
     if (value >= 1) return 1;
     return value;
+}
+
+function compactDiagnosticKey(key: string): {
+    readonly label: string;
+    readonly hash: string;
+    readonly suffix: string;
+    readonly length: number;
+} {
+    const suffix = key.slice(-24);
+    const hash = hashString32(key);
+    return {
+        label: `${hash}:${key.length}:${suffix}`,
+        hash,
+        suffix,
+        length: key.length,
+    };
 }
 
 export class GridGradientFamily implements RenderFamily {
@@ -1715,6 +1732,8 @@ export class GridGradientFamily implements RenderFamily {
         readonly workerOwnerGridCacheStats: GridGradientOwnerGridCacheStats | null;
     }): void {
         const workerOwnerGridCacheStats = params.workerOwnerGridCacheStats;
+        const planKeySummary = compactDiagnosticKey(params.plan.planKey);
+        const requestedPlanKeySummary = compactDiagnosticKey(params.requestedPlanKey);
         const debugSnapshot = {
             familyId: this.id,
             familyLabel: this.label,
@@ -1724,8 +1743,16 @@ export class GridGradientFamily implements RenderFamily {
             backendFallbackReason: params.backendFallbackReason,
             planCacheHit: params.planCacheHit,
             presentationCacheHit: params.presentationCacheHit,
-            planKey: params.plan.planKey,
-            requestedPlanKey: params.requestedPlanKey,
+            planKey: planKeySummary.label,
+            planKeyHash: planKeySummary.hash,
+            planKeySuffix: planKeySummary.suffix,
+            planKeyLength: planKeySummary.length,
+            requestedPlanKey: requestedPlanKeySummary.label,
+            requestedPlanKeyHash: requestedPlanKeySummary.hash,
+            requestedPlanKeySuffix: requestedPlanKeySummary.suffix,
+            requestedPlanKeyLength: requestedPlanKeySummary.length,
+            requestedPlanMatchesCommitted:
+                params.plan.planKey === params.requestedPlanKey,
             requestedPlanPending: params.requestedPlanPending,
             planWorkerScheduled: params.planWorkerScheduled,
             planWorkerWaitMs: params.planWorkerWaitMs,
@@ -1784,7 +1811,10 @@ export class GridGradientFamily implements RenderFamily {
             backendFallbackReason: params.backendFallbackReason,
             planCacheHit: params.planCacheHit,
             planRebuildReason: params.planRebuildReason,
-            requestedPlanKey: params.requestedPlanKey,
+            requestedPlanKey: requestedPlanKeySummary.label,
+            requestedPlanKeyHash: requestedPlanKeySummary.hash,
+            requestedPlanKeySuffix: requestedPlanKeySummary.suffix,
+            requestedPlanKeyLength: requestedPlanKeySummary.length,
             requestedPlanPending: params.requestedPlanPending,
             planWorkerScheduled: params.planWorkerScheduled,
             planWorkerWaitMs: params.planWorkerWaitMs,

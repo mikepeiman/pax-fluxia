@@ -43,18 +43,68 @@ function printScenario(name: string, scenario: any): void {
         console.log(
             `frameBudget=${round(Number(frames.frameBudgetMs ?? 0))}ms overBudget=${Number(frames.overBudgetCount ?? 0)} over20=${Number(frames.over20MsCount ?? 0)} over33=${Number(frames.over33MsCount ?? 0)}`,
         );
+        const histogram = Array.isArray(frames.intervalHistogram)
+            ? frames.intervalHistogram
+            : [];
+        if (histogram.length > 0) {
+            console.log(
+                `frame cadence dominant=${round(Number(frames.dominantIntervalMs ?? 0))}ms count=${Number(frames.dominantIntervalCount ?? 0)} share=${round(Number(frames.dominantIntervalShare ?? 0))} histogram=${histogram.map((entry: any) => `${round(Number(entry?.bucketMs ?? 0))}ms:${Number(entry?.count ?? 0)}`).join(",")}`,
+            );
+        }
+        const framePacing = scenario?.analysis?.framePacing;
+        if (framePacing) {
+            const reasons = Array.isArray(framePacing?.reasons)
+                ? framePacing.reasons.join(",")
+                : "";
+            console.log(
+                `frame pacing=${String(framePacing?.classification ?? "unknown")} reasons=${reasons || "none"}`,
+            );
+        }
+        const browserPerformance = frames.browserPerformance;
+        if (browserPerformance) {
+            const counts = Object.entries(
+                browserPerformance?.observedEntryCounts ?? {},
+            )
+                .map(([name, count]) => `${name}:${Number(count ?? 0)}`)
+                .join(",");
+            console.log(
+                `browser perf entries active=${Array.isArray(browserPerformance?.activeEntryTypes) ? browserPerformance.activeEntryTypes.join(",") || "none" : "none"} supported=${Array.isArray(browserPerformance?.supportedEntryTypes) ? browserPerformance.supportedEntryTypes.join(",") || "none" : "none"} counts=${counts || "none"}`,
+            );
+            const failures = Array.isArray(browserPerformance?.observerFailures)
+                ? browserPerformance.observerFailures
+                : [];
+            if (failures.length > 0) {
+                console.log(`browser perf observer failures=${failures.join(" | ")}`);
+            }
+        }
     }
     const longTasks = scenario?.perf?.longTasks;
     if (longTasks) {
         console.log(
             `longTasks count=${Number(longTasks.count ?? 0)} total=${round(Number(longTasks.totalMs ?? 0))}ms max=${round(Number(longTasks.maxMs ?? 0))}ms`,
         );
+        const attributionGroups = Array.isArray(longTasks?.attributionGroups)
+            ? longTasks.attributionGroups.slice(0, 4)
+            : [];
+        for (const group of attributionGroups) {
+            console.log(
+                `  - longTask ${String(group?.name ?? "unknown")} count=${Number(group?.count ?? 0)} total=${round(Number(group?.totalMs ?? 0))}ms max=${round(Number(group?.maxMs ?? 0))}ms`,
+            );
+        }
     }
     const longAnimationFrames = scenario?.perf?.longAnimationFrames;
     if (Number(longAnimationFrames?.count ?? 0) > 0) {
         console.log(
             `longAnimationFrames count=${Number(longAnimationFrames.count ?? 0)} blockingMax=${round(Number(longAnimationFrames?.blockingDuration?.maxMs ?? 0))}ms durationMax=${round(Number(longAnimationFrames?.duration?.maxMs ?? 0))}ms`,
         );
+        const topScripts = Array.isArray(longAnimationFrames?.topScripts)
+            ? longAnimationFrames.topScripts.slice(0, 4)
+            : [];
+        for (const script of topScripts) {
+            console.log(
+                `  - longFrameScript ${String(script?.scriptUrl ?? "unknown")} count=${Number(script?.count ?? 0)} total=${round(Number(script?.totalMs ?? 0))}ms max=${round(Number(script?.maxMs ?? 0))}ms`,
+            );
+        }
     }
     const frameSpikeDiagnostics =
         scenario?.perf?.frameSpikeDiagnostics
@@ -121,6 +171,17 @@ function printScenario(name: string, scenario: any): void {
         for (const measure of renderLineItems) {
             console.log(`  - ${formatMeasure(measure)}`);
         }
+    }
+    const starVisualRedraws = scenario?.perf?.starVisualRedraws;
+    if (starVisualRedraws) {
+        const reasons = Array.isArray(starVisualRedraws?.reasons)
+            ? starVisualRedraws.reasons
+                  .map((entry: any) => `${String(entry?.reason ?? "unknown")}:${Number(entry?.count ?? 0)}`)
+                  .join(",")
+            : "";
+        console.log(
+            `star visual redraws events=${Number(starVisualRedraws?.eventCount ?? 0)} redraws=${Number(starVisualRedraws?.redrawCount ?? 0)} reasons=${reasons || "none"}`,
+        );
     }
     const shipDiagnostics = scenario?.perf?.shipDiagnostics ?? scenario?.shipDiagnostics ?? null;
     if (shipDiagnostics) {

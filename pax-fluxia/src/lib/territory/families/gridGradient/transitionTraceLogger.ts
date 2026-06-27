@@ -1,4 +1,5 @@
 import { log } from '$lib/utils/logger';
+import { hashString32 } from '../../geometry/regionIdentity';
 
 export type GridGradientTransitionTraceState = Map<string, string>;
 
@@ -81,6 +82,11 @@ function progressBucket(value: number): string {
     return (Math.round(clamped * 4) / 4).toFixed(2);
 }
 
+function compactIdentityValue(value: string): string {
+    if (value.length <= 96) return value;
+    return `${hashString32(value)}:${value.length}:${value.slice(-24)}`;
+}
+
 function collectTraceParts(
     value: unknown,
     key: string,
@@ -114,7 +120,7 @@ function collectTraceParts(
 
     if (typeof value === 'string') {
         if (IDENTITY_KEYS.has(key)) {
-            parts.push(`${key}:${value}`);
+            parts.push(`${key}:${compactIdentityValue(value)}`);
         } else if (key === 'visibleFrameState' && value === 'transition') {
             activity.present = true;
             parts.push(`${key}:${value}`);

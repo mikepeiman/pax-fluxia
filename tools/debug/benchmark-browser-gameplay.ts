@@ -684,6 +684,34 @@ function summarizeLongTasks(snapshot: any): Record<string, JsonValue> {
         Number(event.detail?.durationMs ?? 0),
     );
     const totalMs = durations.reduce((sum: number, value: number) => sum + value, 0);
+    const attributionGroups = new Map<
+        string,
+        { count: number; totalMs: number; maxMs: number }
+    >();
+    for (const event of longTasks) {
+        const detail = event.detail ?? {};
+        const attribution = Array.isArray(detail.attribution)
+            ? detail.attribution
+            : [];
+        const firstAttribution = attribution[0] ?? {};
+        const name = [
+            String(firstAttribution.name ?? detail.browserEntryName ?? "unknown"),
+            String(firstAttribution.containerType ?? ""),
+            String(firstAttribution.containerSrc ?? ""),
+        ]
+            .filter((part) => part.length > 0)
+            .join("|");
+        const durationMs = Number(detail.durationMs ?? 0);
+        const bucket = attributionGroups.get(name) ?? {
+            count: 0,
+            totalMs: 0,
+            maxMs: 0,
+        };
+        bucket.count += 1;
+        bucket.totalMs += durationMs;
+        bucket.maxMs = Math.max(bucket.maxMs, durationMs);
+        attributionGroups.set(name, bucket);
+    }
     return {
         count: longTasks.length,
         totalMs: round(totalMs),
@@ -692,6 +720,15 @@ function summarizeLongTasks(snapshot: any): Record<string, JsonValue> {
             .sort((a, b) => b - a)
             .slice(0, 10)
             .map((value) => round(value)),
+        attributionGroups: [...attributionGroups.entries()]
+            .map(([name, bucket]) => ({
+                name,
+                count: bucket.count,
+                totalMs: round(bucket.totalMs),
+                maxMs: round(bucket.maxMs),
+            }))
+            .sort((left, right) => Number(right.totalMs) - Number(left.totalMs))
+            .slice(0, 10),
     };
 }
 
@@ -910,7 +947,7 @@ function summarizeFrameSpikeDiagnostics(
         return (
             name.startsWith("game.renderFrame.") ||
             name.startsWith("territory.") ||
-            name.startsWith("browser.long") ||
+            name.startsWith("browser.") ||
             name.startsWith("input.")
         );
     });
@@ -1308,6 +1345,35 @@ function summarizeShipDiagnostics(
     };
 }
 
+function summarizeStarVisualRedraws(snapshot: any): Record<string, JsonValue> {
+    const events = (snapshot?.events ?? []).filter(
+        (event: any) => event.name === "game.renderFrame.stars.visuals",
+    );
+    const reasons = new Map<string, number>();
+    let redrawCount = 0;
+    for (const event of events) {
+        redrawCount += Number(event.detail?.redrawCount ?? 0);
+        const redrawReasons =
+            typeof event.detail?.redrawReasons === "object" &&
+            event.detail.redrawReasons !== null
+                ? event.detail.redrawReasons
+                : {};
+        for (const [reason, count] of Object.entries(redrawReasons)) {
+            reasons.set(
+                reason,
+                (reasons.get(reason) ?? 0) + Number(count ?? 0),
+            );
+        }
+    }
+    return {
+        eventCount: events.length,
+        redrawCount,
+        reasons: [...reasons.entries()]
+            .map(([reason, count]) => ({ reason, count }))
+            .sort((left, right) => Number(right.count) - Number(left.count)),
+    };
+}
+
 function summarizePerfSnapshot(
     snapshot: any,
     frames: Record<string, any> | null | undefined,
@@ -1396,6 +1462,7 @@ function summarizePerfSnapshot(
         longAnimationFrames: summarizeLongAnimationFrames(snapshot),
         eventTiming: summarizeEventTiming(snapshot),
         inputLatency: summarizeInputLatency(snapshot),
+        starVisualRedraws: summarizeStarVisualRedraws(snapshot),
         recentEvents: (snapshot?.events ?? []).slice(-40),
     };
 }
@@ -2035,6 +2102,17 @@ function summarizeFramePacing(
     );
     const longTaskCount = Number(perf?.longTasks?.count ?? 0);
     const longAnimationFrameCount = Number(perf?.longAnimationFrames?.count ?? 0);
+    const dominantIntervalMs = Number(frames.dominantIntervalMs ?? 0);
+    const dominantIntervalShare = Number(frames.dominantIntervalShare ?? 0);
+    const dominantIntervalCount = Number(frames.dominantIntervalCount ?? 0);
+    const intervalHistogram = Array.isArray(frames.intervalHistogram)
+        ? frames.intervalHistogram
+        : [];
+    const browserPerformance =
+        typeof frames.browserPerformance === "object" &&
+        frames.browserPerformance !== null
+            ? frames.browserPerformance
+            : null;
 
     let classification = "nominal";
     const reasons: string[] = [];
@@ -2060,9 +2138,17 @@ function summarizeFramePacing(
     }
 
     if (observedFps > 0 && observedFps < 45 && renderMaxMs <= 8) {
-        classification = "frame_pacing_or_unattributed";
+        classification =
+            dominantIntervalShare >= 0.45
+                ? "browser_cadence_limited_or_unmeasured_wait"
+                : "frame_pacing_or_unattributed";
         if (!reasons.includes("low_observed_fps_with_low_render_cost")) {
             reasons.push("low_observed_fps_with_low_render_cost");
+        }
+        if (dominantIntervalShare >= 0.45 && dominantIntervalMs > 0) {
+            reasons.push(
+                `dominant_${round(dominantIntervalMs)}ms_frame_interval`,
+            );
         }
     }
 
@@ -2077,6 +2163,11 @@ function summarizeFramePacing(
         renderAvgSumMs: round(renderAvgSumMs),
         longTaskCount,
         longAnimationFrameCount,
+        dominantIntervalMs: round(dominantIntervalMs),
+        dominantIntervalCount,
+        dominantIntervalShare: round(dominantIntervalShare),
+        intervalHistogram,
+        browserPerformance,
         cadenceBuckets,
     };
 }

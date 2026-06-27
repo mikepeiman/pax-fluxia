@@ -497,6 +497,7 @@ export function renderStars(
               };
     const playerLabelPaletteCache = new Map<number, { fillCol: number; borderCol: number }>();
     let starVisualRedrawCount = 0;
+    const starVisualRedrawReasons: Record<string, number> = {};
     let starVisualDurationMs = 0;
     let labelPassCount = 0;
     let labelDurationMs = 0;
@@ -588,6 +589,17 @@ export function renderStars(
         const shouldRedrawVisuals = starVisualKeys?.get(star.id) !== visualKey;
 
         if (shouldRedrawVisuals) {
+            const redrawReason = flash
+                ? 'flash'
+                : ownerBlend.active
+                    ? 'ownerTransition'
+                    : isActive
+                        ? 'active'
+                        : isPortalStar
+                            ? 'portal'
+                            : 'static';
+            starVisualRedrawReasons[redrawReason] =
+                (starVisualRedrawReasons[redrawReason] ?? 0) + 1;
             const visualStartedAt = performance.now();
             try {
                 graphics.clear();
@@ -1144,6 +1156,7 @@ export function renderStars(
     if (starVisualRedrawCount > 0) {
         recordPerfDuration('game.renderFrame.stars.visuals', starVisualDurationMs, {
             redrawCount: starVisualRedrawCount,
+            redrawReasons: starVisualRedrawReasons,
             starCount: stars.length,
         });
     }
