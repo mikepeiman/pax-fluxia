@@ -6,6 +6,7 @@
         type TerritoryFrontierBenchmarkPreset,
     } from '$lib/territory/frontier';
     import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
+    import { log } from '$lib/utils/logger';
     import {
         cellGridPhaseEdgesModeDefaults,
         cellGridPhaseFieldModeDefaults,
@@ -190,9 +191,16 @@
     }
 
     function writeConfig(configKey: string, panelKey: string, value: unknown): void {
+        const prev = (GAME_CONFIG as unknown as Record<string, unknown>)[configKey];
         (GAME_CONFIG as unknown as Record<string, unknown>)[configKey] = value;
         updatePanel(panelKey, value);
         bumpTerritoryVisualConfig();
+        // PAUSE-EXEMPT (settings panel pauses the game). Shows whether the toggle
+        // even fired + the active mode (some keys only act in specific modes).
+        log.ui(
+            "cellgrid",
+            `${configKey} = ${JSON.stringify(value)} (was ${JSON.stringify(prev)}) [mode=${(GAME_CONFIG as unknown as Record<string, unknown>).TERRITORY_RENDER_MODE}]`,
+        );
     }
 
     function panelKeyFromConfig(configKey: string): string {

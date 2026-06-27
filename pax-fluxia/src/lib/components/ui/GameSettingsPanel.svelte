@@ -1059,6 +1059,13 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             const fallback = activeCategoryId
                 ? chipsForCategory(activeCategoryId)[0]?.id ?? null
                 : null;
+            // PAUSE-EXEMPT collapse trace: if a setting toggle (e.g. Show fill)
+            // makes the active section leave visibleSections, the panel jumps/
+            // collapses. This logs the exact section + render-mode that triggered it.
+            log.ui(
+                "settings-fallback",
+                `section "${activeSectionId}" left visibleSections -> "${fallback}" [mode=${activeTerritoryRenderMode}]`,
+            );
             activeSectionId = fallback;
         }
     });
@@ -1310,7 +1317,9 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 const el = entry.target as HTMLElement;
                 const label =
                     selectors.find((s) => el.matches(s)) ?? el.className;
-                log.canvas(
+                // log.ui = PAUSE-EXEMPT: the panel pauses the game, which mutes
+                // log.canvas — so this probe never surfaced before. See logger.ts.
+                log.ui(
                     "settings-probe",
                     `${label} h=${Math.round(entry.contentRect.height)}`,
                 );

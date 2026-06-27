@@ -29,6 +29,7 @@ export const logFlags = (() => {
         canvas: true,    // Canvas debug (viewport, scaling, centering)
         renderer: false, // Territory renderer pipeline (borders, fills, transitions)
         pipeline: false, // Geometry pipeline trace: every stage, step 0 -> render (steady + conquest)
+        ui: true,        // User-initiated UI actions (settings toggles/clicks). PAUSE-EXEMPT — see log.ui.
     };
 
     // Load persisted flags if available
@@ -106,6 +107,16 @@ const cl = (...args: unknown[]): void => {
     console.log(...args);
 };
 
+// PAUSE-EXEMPT sink for user-initiated UI actions (settings toggles/clicks). These
+// happen WHILE the game is paused (opening the settings panel pauses the game), so they
+// MUST bypass the pause gate — otherwise the user clicks a toggle and sees nothing. Uses
+// the captured ORIGINAL console.log (setGamePaused swaps the live console.log to a no-op
+// while paused, so a plain console.log here would also be muted). Mirrors how `error`
+// stays exempt via console.error.
+const clForce = (...args: unknown[]): void => {
+    (__consoleOrig?.log ?? console.log)(...args);
+};
+
 
 const styles = {
     sys: 'background: #3b82f6; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
@@ -120,6 +131,7 @@ const styles = {
     renderer: 'background: #f97316; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
     gridGradientTrace: 'background: #7c3aed; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
     pipeline: 'background: #14b8a6; color: #06251f; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
+    ui: 'background: #ec4899; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
     reset: 'color: inherit;'
 };
 
@@ -171,6 +183,17 @@ export const log = {
     success: (context: string, msg: string, data?: unknown) => {
         if (!logFlags.success) return;
         cl(`%cSUCCESS%c [${context}] ${msg}`, styles.ok, styles.reset, data ?? '');
+    },
+
+    /**
+     * 🩷 UI - User-initiated interface actions (settings toggles, chip clicks).
+     * PAUSE-EXEMPT: surfaces even while the settings panel has the game paused, so
+     * the user actually SEES the effect of a toggle. Use ONLY for discrete user
+     * actions (never per-frame) so it can't spam.
+     */
+    ui: (context: string, msg: string, data?: unknown) => {
+        if (!logFlags.ui) return;
+        clForce(`%cUI%c [${context}] ${msg}`, styles.ui, styles.reset, data ?? '');
     },
 
     /** ⚔️ COMBAT - Battle and conflict events (simple) */
