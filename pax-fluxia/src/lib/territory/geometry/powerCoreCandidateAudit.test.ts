@@ -1,6 +1,80 @@
 import { describe, expect, it } from 'vitest';
+import type { StarConnection, StarState } from '$lib/types/game.types';
+import { computeGeometry0319 } from '../compiler/Geometry_0319';
 import type { TerritoryGeometryData } from '../compiler/powerVoronoiTerritoryGeometryGenerator';
+import type { TerritoryGeneratorSettings } from '../compiler/powerVoronoiTerritoryGeometryGenerator';
 import { auditPowerCoreCandidateGeometry } from './powerCoreCandidateAudit';
+
+const GENERATED_SETTINGS: TerritoryGeneratorSettings = {
+    starCoreGuardRadius: 20,
+    starMargin: 0,
+    msrStarBias: 0,
+    corridorEnabled: false,
+    corridorSpacing: 10,
+    cxCount: 0,
+    cxWeight: 0.5,
+    cxContestMidpointVstars: true,
+    cxContestPairCount: 1,
+    cxContestPairWeight: 0.5,
+    cxContestPairSpacing: 75,
+    disconnectEnabled: false,
+    disconnectDistance: 295,
+    dxWeight: 3,
+    clusterSplit: false,
+    chaikinPasses: 0,
+    frontierResolution: 5,
+    boundaryPad: 50,
+    boundaryEps: 6,
+    worldWidth: 100,
+    worldHeight: 80,
+};
+
+const GENERATED_STARS = [
+    {
+        id: 'alpha',
+        ownerId: 'red',
+        x: 20,
+        y: 40,
+        radius: 18,
+    },
+    {
+        id: 'beta',
+        ownerId: 'blue',
+        x: 80,
+        y: 40,
+        radius: 18,
+    },
+] as StarState[];
+
+const GENERATED_LANES = [
+    {
+        sourceId: 'alpha',
+        targetId: 'beta',
+        distance: 60,
+        lanePathKind: 'straight',
+        laneConstraintStatus: 'straight_ok',
+        laneWaypoints: [
+            [40, 40],
+            [60, 40],
+        ],
+    },
+] as StarConnection[];
+
+function computeGenerated0319Geometry(params: {
+    readonly stars?: StarState[];
+    readonly lanes?: StarConnection[];
+    readonly settings?: TerritoryGeneratorSettings;
+} = {}): TerritoryGeometryData {
+    const result = computeGeometry0319(
+        [...(params.stars ?? GENERATED_STARS)],
+        [...(params.lanes ?? [])],
+        params.settings ?? GENERATED_SETTINGS,
+    );
+    if ('kind' in result) {
+        throw new Error(result.message);
+    }
+    return result;
+}
 
 function makeSplitGeometryData(): TerritoryGeometryData {
     return {
@@ -136,5 +210,36 @@ describe('auditPowerCoreCandidateGeometry', () => {
         expect(auditPowerCoreCandidateGeometry(reordered).topologyFingerprint).toBe(
             auditPowerCoreCandidateGeometry(ordered).topologyFingerprint,
         );
+    });
+
+    it('passes on generated 0319 two-owner geometry without virtual sites', () => {
+        const audit = auditPowerCoreCandidateGeometry(computeGenerated0319Geometry());
+
+        expect(audit.ok).toBe(true);
+        expect(audit.cellCount).toBe(2);
+        expect(audit.loopCount).toBe(2);
+        expect(audit.sharedEdgeCount).toBe(1);
+        expect(audit.worldEdgeCount).toBeGreaterThan(0);
+        expect(audit.maxOwnerAreaDeltaPx2).not.toBeNull();
+        expect(audit.maxOwnerAreaDeltaPx2!).toBeLessThanOrEqual(0.01);
+    });
+
+    it('passes on generated 0319 corridor-virtual geometry with duplicate source site ids', () => {
+        const audit = auditPowerCoreCandidateGeometry(
+            computeGenerated0319Geometry({
+                lanes: GENERATED_LANES,
+                settings: {
+                    ...GENERATED_SETTINGS,
+                    corridorEnabled: true,
+                    cxCount: 4,
+                },
+            }),
+        );
+
+        expect(audit.ok).toBe(true);
+        expect(audit.cellCount).toBeGreaterThan(2);
+        expect(audit.duplicateSourceSiteIdCount).toBeGreaterThan(0);
+        expect(audit.maxOwnerAreaDeltaPx2).not.toBeNull();
+        expect(audit.maxOwnerAreaDeltaPx2!).toBeLessThanOrEqual(0.01);
     });
 });

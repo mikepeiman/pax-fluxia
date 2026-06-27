@@ -75,6 +75,11 @@ Safety checkpoint:
    - When selected, it runs a pure `powerCore` shared-edge audit over 0319 cell geometry and attaches diagnostics for cell count, loop count, shared/world edges, owner area agreement, duplicate source site ids, and a deterministic topology fingerprint.
    - Added a 0319-style split-cell fixture test proving power-core owner loops match 0319 cell areas and that the candidate topology fingerprint is stable when cell input order changes.
 
+9. Generated 0319 fixture coverage for power-core candidate
+   - Timestamp: 2026-06-27T17:00:12-04:00
+   - Added generated 0319 two-owner geometry coverage with no virtual sites.
+   - Added generated corridor-virtual coverage where 0319 emits duplicate source site ids; the candidate audit normalizes those ids and still verifies owner-area agreement.
+
 ## Validation So Far
 
 Passed before the first pushed implementation checkpoint:
@@ -126,6 +131,12 @@ Passed during power-core candidate audit slice:
 - `bun run build`
 - `bun run agentic:graphify:build` from repo root
 
+Passed during generated power-core fixture slice:
+
+- `bun x vitest run src/lib/territory/geometry/powerCoreCandidateAudit.test.ts` (1 file, 4 tests)
+- `bun run check` (0 errors, 1 existing warning)
+- `bun run agentic:graphify:build` from repo root
+
 Known recurring non-blocking warning:
 
 - `GameThemeManager.svelte`: unused CSS selector `.game-theme-manager--menu .theme-chip-name`
@@ -141,5 +152,5 @@ Known recurring build warnings:
 Next implementation targets:
 
 - Continue topology-to-region consistency checks beyond internal topology structure: owner/star containment, duplicate physical frontier detection, and targeted self-intersection checks.
-- Exercise `power_core_candidate` against generated live-map fixtures and decide which failures are power-core defects versus unsupported 0319 cell-input edge cases.
+- Exercise `power_core_candidate` against larger generated live-map fixtures and decide which failures are power-core defects versus unsupported 0319 cell-input edge cases.
 - Build a final integration report with selectable/default/blocked status and validation evidence before any default promotion.
