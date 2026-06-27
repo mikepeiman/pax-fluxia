@@ -57,10 +57,11 @@ import type {
     GridGradientShaderFieldStats,
     GridGradientShaderFieldTexturePlan,
 } from './shaderField/gridGradientShaderFieldTypes';
-import type {
-    GridGradientPlanWorkerGeometry,
-    GridGradientPlanWorkerRequest,
-    GridGradientPlanWorkerResponse,
+import {
+    dehydrateGridGradientWorkerGeometry,
+    type GridGradientPlanWorkerGeometry,
+    type GridGradientPlanWorkerRequest,
+    type GridGradientPlanWorkerResponse,
 } from './gridGradientPlanWorkerTypes';
 import type { GridGradientOwnerGrid } from './typedClassification';
 
@@ -443,10 +444,7 @@ export class GridGradientFamily implements RenderFamily {
     private buildWorkerGeometry(
         geometry: ResolvedGeometrySnapshot,
     ): GridGradientPlanWorkerGeometry {
-        return {
-            version: geometry.version,
-            territoryRegions: geometry.territoryRegions,
-        };
+        return dehydrateGridGradientWorkerGeometry(geometry);
     }
 
     private buildWorkerRequest(params: {
