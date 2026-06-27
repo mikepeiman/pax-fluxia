@@ -1194,8 +1194,13 @@ export class GridGradientFamily implements RenderFamily {
                 cells: plan.classification.vstars.length,
                 planCacheHit: planResult.cacheHit,
                 requestedPlanPending: planResult.requestedPlanPending,
+                planWorkerWaitMs: planResult.workerWaitMs,
                 classificationAlgorithm: plan.classificationAlgorithm,
                 presentationCacheHit: shaderTextureResult?.cacheHit ?? false,
+                textureUploaded: shaderStats.textureUploaded,
+                textureUploadMs: shaderStats.textureUploadMs,
+                uniformUpdateMs: shaderStats.uniformUpdateMs,
+                textureBytes: shaderStats.textureBytes,
             },
             updateStartMs,
         );

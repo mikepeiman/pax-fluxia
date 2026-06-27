@@ -1090,9 +1090,32 @@ export function detectEnclaves(merged: MergedTerritory[]): Map<number, [number, 
     return enclaveMap;
 }
 
-export function buildTerritoryGeometryFingerprint(stars: StarState[], config: TerritoryGeneratorSettings): string {
+function fingerprintNumber(value: unknown): string {
+    return typeof value === 'number' && Number.isFinite(value)
+        ? value.toFixed(3)
+        : String(value ?? '');
+}
+
+export function buildTerritoryGeometryFingerprint(
+    stars: ReadonlyArray<StarState>,
+    config: TerritoryGeneratorSettings,
+    connections: ReadonlyArray<StarConnection> = [],
+): string {
     let fp = 'pvv2:';
-    for (const s of stars) fp += `${s.id}:${s.ownerId ?? ''}|`;
+    fp += `w${fingerprintNumber(config.worldWidth)}x${fingerprintNumber(config.worldHeight)}`;
+    for (const s of stars) {
+        fp += `:s${s.id}:${s.ownerId ?? ''}:${fingerprintNumber(s.x)},${fingerprintNumber(s.y)},${fingerprintNumber(s.radius)}`;
+    }
+    for (const lane of connections) {
+        fp += `:l${lane.sourceId}>${lane.targetId}:${fingerprintNumber(lane.distance)}`;
+        fp += `:${lane.lanePathKind ?? ''}:${lane.laneConstraintStatus ?? ''}`;
+        const waypoints = lane.laneWaypoints ?? [];
+        fp += `:wp${waypoints.length}`;
+        for (const [x, y] of waypoints) {
+            fp += `@${fingerprintNumber(x)},${fingerprintNumber(y)}`;
+        }
+    }
+    fp += `:core${config.starCoreGuardRadius}`;
     fp += `:m${config.starMargin}`;
     fp += `:msrBias${config.msrStarBias}`;
     fp += `:cs${config.clusterSplit ? 1 : 0}`;
@@ -1108,6 +1131,9 @@ export function buildTerritoryGeometryFingerprint(stars: StarState[], config: Te
     fp += `:dd${config.disconnectDistance}`;
     fp += `:dxW${config.dxWeight}`;
     fp += `:ch${config.chaikinPasses}`;
+    fp += `:fr${config.frontierResolution}`;
+    fp += `:bp${config.boundaryPad}`;
+    fp += `:be${config.boundaryEps}`;
     return fp;
 }
 
@@ -1397,7 +1423,7 @@ export function generateVoronoiTerritoryGeometry(
         const enclaveMapFinal = detectEnclaves(mergedTerritories);
         log.renderer('PVV2Stage', `ENCLAVES: ${enclaveMapFinal.size} | COMPLETE`);
 
-        const fingerprint = buildTerritoryGeometryFingerprint(stars, config);
+        const fingerprint = buildTerritoryGeometryFingerprint(stars, config, connections);
 
         return {
             cells,

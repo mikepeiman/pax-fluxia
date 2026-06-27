@@ -65,6 +65,7 @@ function resolveStyleMode(config: Record<string, unknown>): TerritoryModeSelecti
 
 export function readTerritoryRuntimeSettings(
     config: Record<string, unknown>,
+    effectiveTickMs?: number,
 ): TerritoryRuntimeSettingsSnapshot {
     const geometryTunables = readNormalizedTerritoryGeometryTunables(config);
     return {
@@ -78,7 +79,10 @@ export function readTerritoryRuntimeSettings(
         tunables: {
             transitionDurationMs: (() => {
                 const bindToTick = Boolean(config.TERRITORY_TRANSITION_BIND_TO_TICK);
-                const tickMs = asNumber(config.BASE_TICK_MS, 1250);
+                const tickMs = asNumber(
+                    effectiveTickMs,
+                    asNumber(config.BASE_TICK_MS, 1250),
+                );
                 const storedMs = asNumber(config.TERRITORY_TRANSITION_MS, 600);
                 return bindToTick
                     ? Math.max(0, Math.round(tickMs))

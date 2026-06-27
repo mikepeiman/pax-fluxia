@@ -6531,6 +6531,7 @@
                     case "power_voronoi_runtime": {
                         const runtimeSettings = readTerritoryRuntimeSettings(
                             GAME_CONFIG as unknown as Record<string, unknown>,
+                            activeGameStore.effectiveTickMs,
                         );
                         if (!runtimeBridge) {
                             runtimeBridge = new GameCanvasBridge(
@@ -6555,6 +6556,7 @@
                         // ── RUNTIME ARCHITECTURE DISPATCH ─────────────────────────
                         const runtimeSettings = readTerritoryRuntimeSettings(
                             GAME_CONFIG as unknown as Record<string, unknown>,
+                            activeGameStore.effectiveTickMs,
                         );
                         const architectureRoute =
                             resolveTerritoryArchitectureRoute({

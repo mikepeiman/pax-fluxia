@@ -98,6 +98,19 @@ describe('readTerritoryRuntimeSettings', () => {
         expect(bound.tunables.transitionDurationMs).toBe(2000);
     });
 
+    it('prefers speed-adjusted tick duration for tick-bound transitions', () => {
+        const bound = readTerritoryRuntimeSettings(
+            {
+                TERRITORY_TRANSITION_BIND_TO_TICK: true,
+                BASE_TICK_MS: 2000,
+                TERRITORY_TRANSITION_MS: 400,
+            },
+            500,
+        );
+
+        expect(bound.tunables.transitionDurationMs).toBe(500);
+    });
+
     it('preserves surfaced topology maxima as real runtime geometry values', () => {
         const settings = readTerritoryRuntimeSettings({
             FRONTIER_RESOLUTION: 32,

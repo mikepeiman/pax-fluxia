@@ -1,13 +1,132 @@
 import { describe, expect, it } from 'vitest';
+import type { StarConnection, StarState } from '../../types/game.types';
 import { executeChainWalk, flattenLoopPoints } from './chainWalkCore';
 import {
+    buildTerritoryGeometryFingerprint,
     chainSharedEdgesIntoPolylines,
     constructFillsFromFrontierChain,
     mergeSameOwnerCells,
     type SharedBorderEdge,
     type SharedPolyline,
     type TerritoryCell,
+    type TerritoryGeneratorSettings,
 } from './powerVoronoiTerritoryGeometryGenerator';
+
+const BASE_SETTINGS: TerritoryGeneratorSettings = {
+    starCoreGuardRadius: 20,
+    starMargin: 0,
+    msrStarBias: 0,
+    corridorEnabled: true,
+    corridorSpacing: 10,
+    cxCount: 0,
+    cxWeight: 0.5,
+    cxContestMidpointVstars: true,
+    cxContestPairCount: 1,
+    cxContestPairWeight: 0.5,
+    cxContestPairSpacing: 75,
+    disconnectEnabled: true,
+    disconnectDistance: 295,
+    dxWeight: 3,
+    clusterSplit: false,
+    chaikinPasses: 2,
+    frontierResolution: 5,
+    boundaryPad: 50,
+    boundaryEps: 6,
+    worldWidth: 100,
+    worldHeight: 80,
+};
+
+const BASE_STARS = [
+    {
+        id: 'alpha',
+        ownerId: 'red',
+        x: 10,
+        y: 20,
+        radius: 18,
+    },
+    {
+        id: 'beta',
+        ownerId: 'blue',
+        x: 80,
+        y: 60,
+        radius: 22,
+    },
+] as StarState[];
+
+const BASE_LANES = [
+    {
+        sourceId: 'alpha',
+        targetId: 'beta',
+        distance: 92,
+        lanePathKind: 'angular',
+        laneConstraintStatus: 'reshaped_ok_angular',
+        laneWaypoints: [
+            [30, 35],
+            [60, 45],
+        ],
+    },
+] as StarConnection[];
+
+function fingerprint(params: {
+    readonly stars?: StarState[];
+    readonly lanes?: StarConnection[];
+    readonly settings?: TerritoryGeneratorSettings;
+} = {}): string {
+    return buildTerritoryGeometryFingerprint(
+        params.stars ?? BASE_STARS,
+        params.settings ?? BASE_SETTINGS,
+        params.lanes ?? BASE_LANES,
+    );
+}
+
+describe('buildTerritoryGeometryFingerprint', () => {
+    it('changes when star spatial inputs change', () => {
+        const movedStars = BASE_STARS.map((star) =>
+            star.id === 'alpha' ? { ...star, x: star.x + 1 } : star,
+        ) as StarState[];
+
+        expect(fingerprint({ stars: movedStars })).not.toBe(fingerprint());
+    });
+
+    it('changes when lane constraint inputs change', () => {
+        const movedLane = [
+            {
+                ...BASE_LANES[0]!,
+                laneWaypoints: [
+                    [31, 35],
+                    [60, 45],
+                ],
+            },
+        ] as StarConnection[];
+        const statusChangedLane = [
+            {
+                ...BASE_LANES[0]!,
+                laneConstraintStatus: 'constraint_unsatisfied_authored',
+            },
+        ] as StarConnection[];
+
+        expect(fingerprint({ lanes: movedLane })).not.toBe(fingerprint());
+        expect(fingerprint({ lanes: statusChangedLane })).not.toBe(fingerprint());
+    });
+
+    it('changes when world bounds or omitted geometry tunables change', () => {
+        for (const settings of [
+            { ...BASE_SETTINGS, worldWidth: BASE_SETTINGS.worldWidth + 1 },
+            {
+                ...BASE_SETTINGS,
+                starCoreGuardRadius: BASE_SETTINGS.starCoreGuardRadius + 1,
+            },
+            {
+                ...BASE_SETTINGS,
+                frontierResolution: BASE_SETTINGS.frontierResolution + 1,
+            },
+            { ...BASE_SETTINGS, boundaryPad: BASE_SETTINGS.boundaryPad + 1 },
+            { ...BASE_SETTINGS, boundaryEps: BASE_SETTINGS.boundaryEps + 1 },
+        ]) {
+            expect(fingerprint({ settings })).not.toBe(fingerprint());
+        }
+    });
+});
 
 describe('chainSharedEdgesIntoPolylines world borders', () => {
     const edge = (
