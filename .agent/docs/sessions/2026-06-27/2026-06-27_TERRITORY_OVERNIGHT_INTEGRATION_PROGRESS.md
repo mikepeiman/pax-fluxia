@@ -50,6 +50,12 @@ Safety checkpoint:
 4. Grid Gradient performance detail
    - High-level `territory.gridGradient.update` perf detail now includes worker wait, shader texture upload, uniform update, texture upload flag, and texture byte count.
 
+5. Exact transition identity for same-star recaptures
+   - Timestamp: 2026-06-27T16:33:40-04:00
+   - Active territory FX transitions are now keyed by exact conquest identity: tick, conquered star, previous owner, and new owner.
+   - Render-family terminal-frame retirement now marks exact transition keys, so a finished capture of a star no longer retires a newer recapture of that same star.
+   - Legacy star-id retirement calls still work for older consumers, but the main render-family path uses exact transition keys.
+
 ## Validation So Far
 
 Passed before the first pushed implementation checkpoint:
@@ -68,6 +74,14 @@ Passed after the second implementation slice:
 - `bun run build`
 - `bun run agentic:graphify:build` from repo root
 
+Passed during exact transition identity slice:
+
+- `bun x vitest run src/lib/fx/handlers/territoryTransitionHandler.test.ts src/lib/territory/transitions/renderFamilyTransitionLifecycle.test.ts` (2 files, 14 tests)
+- `bun x vitest run src/lib/territory src/lib/fx/handlers/territoryTransitionHandler.test.ts` (52 files, 328 tests)
+- `bun run check` (0 errors, 1 existing warning)
+- `bun run agentic:graphify:build` from repo root
+- `bun run build`
+
 Known recurring non-blocking warning:
 
 - `GameThemeManager.svelte`: unused CSS selector `.game-theme-manager--menu .theme-chip-name`
@@ -82,7 +96,6 @@ Known recurring build warnings:
 
 Next implementation targets:
 
-- Add exact transition identity for rapid same-star recapture instead of storing active FX transitions only by `starId`.
 - Add topology-to-region consistency checks beyond internal topology structure: loop-to-region agreement, owner/star containment, duplicate physical frontier detection, and self-intersection checks.
 - Add Grid Gradient owner-grid cache size diagnostics or bounded eviction for long sessions.
 - Wire `powerCore` as a selectable candidate authority with fixture comparison against 0319, not as a default.

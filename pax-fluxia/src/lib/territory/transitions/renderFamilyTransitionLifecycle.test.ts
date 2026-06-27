@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ConquestEvent } from '@pax/common';
 import {
+    buildTerritoryTransitionKey,
     TerritoryTransitionState,
     type TerritoryTransitionEntry,
 } from '$lib/fx/handlers/territoryTransitionHandler';
@@ -29,6 +30,7 @@ function makeConquestEvent(
 function makeEntry(overrides: Partial<TerritoryTransitionEntry> = {}): TerritoryTransitionEntry {
     const event = overrides.event ?? makeConquestEvent();
     return {
+        transitionKey: buildTerritoryTransitionKey(event),
         event,
         starId: event.starId,
         attackerStarIds: event.attackerStarIds ?? [event.attackerStarId],
@@ -55,6 +57,9 @@ describe('buildRenderFamilyTransitionLifecycle', () => {
         expect(result.activeTransition?.events[0]?.rawProgress).toBe(1);
         expect(result.activeTransition?.events[0]?.progress).toBe(1);
         expect(result.terminalFrameStarIds).toEqual(['target']);
+        expect(result.terminalFrameTransitionKeys).toEqual([
+            buildTerritoryTransitionKey(makeConquestEvent()),
+        ]);
     });
 
     it('keeps one clamped overshoot frame for render-family consumers before retirement', () => {
@@ -68,6 +73,9 @@ describe('buildRenderFamilyTransitionLifecycle', () => {
         expect(result.activeTransition?.events[0]?.rawProgress).toBeGreaterThan(1);
         expect(result.activeTransition?.events[0]?.progress).toBe(1);
         expect(result.terminalFrameStarIds).toEqual(['target']);
+        expect(result.terminalFrameTransitionKeys).toEqual([
+            buildTerritoryTransitionKey(makeConquestEvent()),
+        ]);
     });
 
     it('removes transitions only after a terminal frame has rendered once', () => {
@@ -83,10 +91,59 @@ describe('buildRenderFamilyTransitionLifecycle', () => {
             activeEntries: state.getActiveEntries(),
         });
         expect(lifecycle.terminalFrameStarIds).toEqual(['target']);
+        expect(lifecycle.terminalFrameTransitionKeys).toEqual([
+            buildTerritoryTransitionKey(makeConquestEvent()),
+        ]);
 
-        state.markTerminalFrameRendered(lifecycle.terminalFrameStarIds);
+        state.markTerminalFrameKeysRendered(lifecycle.terminalFrameTransitionKeys);
         state.cleanup(1466);
         expect(state.activeCount).toBe(0);
+    });
+
+    it('retires only the finished same-star recapture by exact transition key', () => {
+        const state = new TerritoryTransitionState();
+        const olderEvent = makeConquestEvent({
+            tick: 10,
+            starId: 'target',
+            previousOwner: 'red',
+            newOwner: 'blue',
+        });
+        const newerEvent = makeConquestEvent({
+            tick: 11,
+            starId: 'target',
+            previousOwner: 'blue',
+            newOwner: 'red',
+        });
+        state.add(
+            makeEntry({
+                event: olderEvent,
+                startTimeMs: 1000,
+                durationMs: 400,
+            }),
+        );
+        state.add(
+            makeEntry({
+                event: newerEvent,
+                startTimeMs: 1300,
+                durationMs: 400,
+            }),
+        );
+
+        const lifecycle = buildRenderFamilyTransitionLifecycle({
+            nowMs: 1450,
+            effectiveTickMs: 1000,
+            activeEntries: state.getActiveEntries(),
+        });
+        expect(lifecycle.terminalFrameStarIds).toEqual(['target']);
+        expect(lifecycle.terminalFrameTransitionKeys).toEqual([
+            buildTerritoryTransitionKey(olderEvent),
+        ]);
+
+        state.markTerminalFrameKeysRendered(lifecycle.terminalFrameTransitionKeys);
+        state.cleanup(1450);
+
+        expect(state.activeCount).toBe(1);
+        expect(state.getActiveEntries()[0]?.event).toEqual(newerEvent);
     });
 
     it('still allows legacy consumed transitions to retire without terminal-frame bookkeeping', () => {

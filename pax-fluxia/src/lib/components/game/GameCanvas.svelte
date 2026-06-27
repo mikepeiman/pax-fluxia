@@ -29,6 +29,7 @@
     import { STAR_TYPE_STATS, generateHexGrid } from "@pax/common";
     import { FXOrchestrator } from "$lib/fx/orchestrator";
     import {
+        buildTerritoryTransitionKey,
         territoryTransitions,
         type TerritoryTransitionEntry,
     } from "$lib/fx/handlers/territoryTransitionHandler";
@@ -1806,12 +1807,7 @@
     function transitionIdentityKey(
         conquest: import("@pax/common").ConquestEvent,
     ): string {
-        return [
-            conquest.tick,
-            conquest.starId,
-            conquest.previousOwner,
-            conquest.newOwner,
-        ].join(":");
+        return buildTerritoryTransitionKey(conquest);
     }
 
     function isGridGradientTransitionDebugEnabled(): boolean {
@@ -1963,15 +1959,18 @@
             pendingConquestCount: pendingConquests.length,
             activeSessionCount: lifecycle.activeSessions.length,
             terminalFrameStarIds: lifecycle.terminalFrameStarIds,
+            terminalFrameTransitionKeys: lifecycle.terminalFrameTransitionKeys,
             activeTransition:
                 summarizeRenderFamilyTransitionForLog(lifecycle.activeTransition),
         });
-        if (lifecycle.terminalFrameStarIds.length > 0) {
+        if (lifecycle.terminalFrameTransitionKeys.length > 0) {
             logGridGradientTransition("transition_lifecycle.terminal_mark", {
                 terminalFrameStarIds: lifecycle.terminalFrameStarIds,
+                terminalFrameTransitionKeys:
+                    lifecycle.terminalFrameTransitionKeys,
             });
-            territoryTransitions.markTerminalFrameRendered(
-                lifecycle.terminalFrameStarIds,
+            territoryTransitions.markTerminalFrameKeysRendered(
+                lifecycle.terminalFrameTransitionKeys,
             );
         }
         const activeTransition = lifecycle.activeTransition;

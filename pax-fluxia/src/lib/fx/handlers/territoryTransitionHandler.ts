@@ -25,9 +25,20 @@ import type { ConquestEvent } from '@pax/common';
 import type { FXHandler } from '../FXRegistry';
 import { GAME_CONFIG } from '$lib/config/game.config';
 
+export function buildTerritoryTransitionKey(event: ConquestEvent): string {
+    return [
+        event.tick,
+        event.starId,
+        event.previousOwner,
+        event.newOwner,
+    ].join(':');
+}
+
 // ── Transition State ─────────────────────────────────────────────────────────
 
 export interface TerritoryTransitionEntry {
+    /** Stable transition identity: tick + conquered star + owner change. */
+    transitionKey: string;
     /** Full conquest payload for family-level renderers. */
     event: ConquestEvent;
     /** Star that was conquered */
@@ -53,12 +64,12 @@ export interface TerritoryTransitionEntry {
  * The handler owns this; the renderer reads it.
  */
 export class TerritoryTransitionState {
-    /** Active transitions keyed by starId (most recent wins) */
+    /** Active transitions keyed by exact conquest identity. */
     private _pending = new Map<string, TerritoryTransitionEntry>();
 
     /** Record a new territory transition */
     add(entry: TerritoryTransitionEntry): void {
-        this._pending.set(entry.starId, entry);
+        this._pending.set(entry.transitionKey, entry);
     }
 
     /** Get all unconsumed transitions */
@@ -76,16 +87,33 @@ export class TerritoryTransitionState {
     }
 
     /** Mark a transition as consumed by the renderer */
-    markConsumed(starId: string): void {
-        const entry = this._pending.get(starId);
-        if (entry) entry.consumed = true;
+    markConsumed(starIdOrTransitionKey: string): void {
+        for (const [transitionKey, entry] of this._pending) {
+            if (
+                transitionKey === starIdOrTransitionKey ||
+                entry.starId === starIdOrTransitionKey
+            ) {
+                entry.consumed = true;
+            }
+        }
+    }
+
+    /** Mark exact transition keys that have rendered their terminal clamped frame. */
+    markTerminalFrameKeysRendered(transitionKeys: Iterable<string>): void {
+        for (const transitionKey of transitionKeys) {
+            const entry = this._pending.get(transitionKey);
+            if (entry) entry.terminalFrameRendered = true;
+        }
     }
 
     /** Mark that a transition has rendered its terminal clamped frame. */
     markTerminalFrameRendered(starIds: Iterable<string>): void {
         for (const starId of starIds) {
-            const entry = this._pending.get(starId);
-            if (entry) entry.terminalFrameRendered = true;
+            for (const entry of this._pending.values()) {
+                if (entry.starId === starId) {
+                    entry.terminalFrameRendered = true;
+                }
+            }
         }
     }
 
@@ -101,12 +129,12 @@ export class TerritoryTransitionState {
 
     /** Remove expired transitions */
     cleanup(nowMs: number): void {
-        for (const [starId, entry] of this._pending) {
+        for (const [transitionKey, entry] of this._pending) {
             if (
                 nowMs >= entry.startTimeMs + entry.durationMs &&
                 (entry.terminalFrameRendered || entry.consumed)
             ) {
-                this._pending.delete(starId);
+                this._pending.delete(transitionKey);
             }
         }
     }
@@ -155,6 +183,7 @@ export const territoryTransitionHandler: FXHandler<ConquestEvent> = {
         if (transitionMs <= 0) return; // Instant transitions, no animation needed
 
         territoryTransitions.add({
+            transitionKey: buildTerritoryTransitionKey(event),
             event,
             starId: event.starId,
             attackerStarIds: event.attackerStarIds ?? [event.attackerStarId],

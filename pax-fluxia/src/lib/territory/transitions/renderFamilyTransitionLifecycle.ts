@@ -1,5 +1,6 @@
 import type { ConquestEvent } from '@pax/common';
 import {
+    buildTerritoryTransitionKey,
     resolveTerritoryTransitionDurationMs,
     type TerritoryTransitionEntry,
 } from '$lib/fx/handlers/territoryTransitionHandler';
@@ -13,29 +14,22 @@ function clamp01(value: number): number {
     return Math.max(0, Math.min(1, value));
 }
 
-function transitionIdentityKey(conquest: ConquestEvent): string {
-    return [
-        conquest.tick,
-        conquest.starId,
-        conquest.previousOwner,
-        conquest.newOwner,
-    ].join(':');
-}
-
 interface LifecycleEvent extends RenderFamilyTransitionEvent {
     starIdToMark?: string;
+    transitionKeyToMark?: string;
 }
 
 export interface RenderFamilyTransitionLifecycleResult {
     activeTransition: RenderFamilyActiveTransition | null;
     activeSessions: readonly RenderFamilyTransitionSession[];
     terminalFrameStarIds: readonly string[];
+    terminalFrameTransitionKeys: readonly string[];
 }
 
 function buildSessionKey(events: ReadonlyArray<LifecycleEvent>): string {
     const tick = events[0]?.event.tick ?? -1;
     const conquestSig = events
-        .map((event) => transitionIdentityKey(event.event))
+        .map((event) => buildTerritoryTransitionKey(event.event))
         .sort()
         .join('|');
     return `tick:${tick}:${conquestSig}`;
@@ -48,12 +42,16 @@ function buildSession(
         if (a.startedAtMs !== b.startedAtMs) {
             return a.startedAtMs - b.startedAtMs;
         }
-        return transitionIdentityKey(a.event).localeCompare(
-            transitionIdentityKey(b.event),
+        return buildTerritoryTransitionKey(a.event).localeCompare(
+            buildTerritoryTransitionKey(b.event),
         );
     });
     const normalizedEvents: RenderFamilyTransitionEvent[] = sessionEvents.map(
-        ({ starIdToMark: _starIdToMark, ...event }) => event,
+        ({
+            starIdToMark: _starIdToMark,
+            transitionKeyToMark: _transitionKeyToMark,
+            ...event
+        }) => event,
     );
     const startedAtMs = Math.min(
         ...normalizedEvents.map((event) => event.startedAtMs),
@@ -86,7 +84,7 @@ export function buildRenderFamilyTransitionLifecycle(params: {
     const eventsByKey = new Map<string, LifecycleEvent>();
 
     for (const entry of params.activeEntries) {
-        const key = transitionIdentityKey(entry.event);
+        const key = entry.transitionKey;
         const durationMs = Math.max(1, entry.durationMs);
         const startedAtMs =
             params.pendingConquestStartedAtMsByKey?.get(key) ??
@@ -104,6 +102,10 @@ export function buildRenderFamilyTransitionLifecycle(params: {
                 rawProgress >= 1 && !entry.terminalFrameRendered
                     ? entry.starId
                     : undefined,
+            transitionKeyToMark:
+                rawProgress >= 1 && !entry.terminalFrameRendered
+                    ? key
+                    : undefined,
         });
     }
 
@@ -112,7 +114,7 @@ export function buildRenderFamilyTransitionLifecycle(params: {
     );
     if (previewDurationMs > 0) {
         for (const conquest of params.pendingConquests ?? []) {
-            const key = transitionIdentityKey(conquest);
+            const key = buildTerritoryTransitionKey(conquest);
             if (eventsByKey.has(key)) continue;
             const startedAtMs =
                 params.pendingConquestStartedAtMsByKey?.get(key) ??
@@ -137,6 +139,7 @@ export function buildRenderFamilyTransitionLifecycle(params: {
             activeTransition: null,
             activeSessions: [],
             terminalFrameStarIds: [],
+            terminalFrameTransitionKeys: [],
         };
     }
 
@@ -145,6 +148,13 @@ export function buildRenderFamilyTransitionLifecycle(params: {
             lifecycleEvents
                 .map((event) => event.starIdToMark)
                 .filter((starId): starId is string => Boolean(starId)),
+        ),
+    ];
+    const terminalFrameTransitionKeys = [
+        ...new Set(
+            lifecycleEvents
+                .map((event) => event.transitionKeyToMark)
+                .filter((key): key is string => Boolean(key)),
         ),
     ];
 
@@ -179,5 +189,6 @@ export function buildRenderFamilyTransitionLifecycle(params: {
         activeTransition,
         activeSessions,
         terminalFrameStarIds,
+        terminalFrameTransitionKeys,
     };
 }

@@ -3,6 +3,7 @@ import type { ConquestEvent } from '@pax/common';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { FXContext } from '../types';
 import {
+    buildTerritoryTransitionKey,
     resolveTerritoryTransitionDurationMs,
     territoryTransitionHandler,
     territoryTransitions,
@@ -11,7 +12,9 @@ import {
 const originalTransitionBindToTick = GAME_CONFIG.TERRITORY_TRANSITION_BIND_TO_TICK;
 const originalTransitionMs = GAME_CONFIG.TERRITORY_TRANSITION_MS;
 
-function makeConquestEvent(): ConquestEvent {
+function makeConquestEvent(
+    overrides: Partial<ConquestEvent> = {},
+): ConquestEvent {
     return {
         tick: 12,
         starId: 'target',
@@ -25,6 +28,7 @@ function makeConquestEvent(): ConquestEvent {
         shipsDestroyed: 0,
         shipsTransferred: 7,
         conquestType: 'complete',
+        ...overrides,
     };
 }
 
@@ -73,5 +77,29 @@ describe('territoryTransitionHandler', () => {
 
         territoryTransitionHandler.update?.(makeContext(800, 300));
         expect(territoryTransitions.activeCount).toBe(0);
+    });
+
+    it('keeps repeated captures of the same star as separate active transitions', () => {
+        const firstCapture = makeConquestEvent({
+            tick: 12,
+            previousOwner: 'A',
+            newOwner: 'B',
+        });
+        const secondCapture = makeConquestEvent({
+            tick: 13,
+            previousOwner: 'B',
+            newOwner: 'A',
+        });
+
+        territoryTransitionHandler.handle(firstCapture, makeContext(1000, 450));
+        territoryTransitionHandler.handle(secondCapture, makeContext(1100, 450));
+
+        const entries = territoryTransitions.getActiveEntries();
+        expect(entries).toHaveLength(2);
+        expect(entries.map((entry) => entry.transitionKey)).toEqual([
+            buildTerritoryTransitionKey(firstCapture),
+            buildTerritoryTransitionKey(secondCapture),
+        ]);
+        expect(entries.map((entry) => entry.newOwner)).toEqual(['B', 'A']);
     });
 });
