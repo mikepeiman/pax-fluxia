@@ -833,7 +833,9 @@ Clarification:
 
 Why safe:
 
-- It catches real in-place changes even if no revision counter exists.
+- Ownership changes from conquests are checked separately every time.
+- This scan is only a defensive check for map-layout data, such as star position/radius or lane endpoints, if setup/import/rebuild code changes that data without replacing the arrays.
+- During normal gameplay, the expected territory-changing event is ownership changing.
 
 Why slower:
 
