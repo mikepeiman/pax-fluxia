@@ -535,10 +535,7 @@ describe('CellGridFamily active frontier fast path', () => {
         expect(stats.disconnectEnabled).toBe(true);
         expect(stats.disconnectDistance).toBe(295);
         expect(stats.dxWeight).toBe(0.3);
-        // Default is now shader_frontier_band (smooth phase-surface fill that meets
-        // the border). Headless (no renderer) it falls back to control for the
-        // RESOLVED technique — the requested technique still reflects the new default.
-        expect(stats.frontierRequestedTechnique).toBe('shader_frontier_band');
+        expect(stats.frontierRequestedTechnique).toBe('control');
         expect(stats.frontierTechnique).toBe('control');
         expect(stats.frontierRequestedBorderGeometryMode).toBe('contour_matched');
         expect(stats.frontierBorderGeometryMode).toBe('shared_edge');
