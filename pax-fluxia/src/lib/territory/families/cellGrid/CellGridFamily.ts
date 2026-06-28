@@ -28,6 +28,10 @@
 import * as PIXI from 'pixi.js';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import {
+    isPerfCaptureEnabled,
+    recordPerfDuration,
+} from '$lib/perf/perfProbe';
+import {
     applyTerritoryFrontierFxFieldToFill,
     buildTerritoryFrontierFxSampleField,
     buildOwnershipGridFrontierDistanceField,
@@ -2277,6 +2281,7 @@ export class CellGridFamily implements RenderFamily {
             ownerIdByColorIdx[idx] = ownerId;
         }
         const captureDebug = shouldCaptureCellGridDebug();
+        const captureSectionTimings = isPerfCaptureEnabled();
 
         // ── Dirty-flag paint gate (MG-PERF Phase A) ─────────────────────────
         // Build a signature from every input that can change the painted
@@ -2548,8 +2553,18 @@ export class CellGridFamily implements RenderFamily {
         const boundaryHexR = boundarySize / SQRT3;
         const drawBorders = borderMode !== 'off' && borderWidth > 0 && borderAlpha > 0;
         const drawTerritoryEdgeOnly = borderMode === 'territory_edge';
+        // Centered blended borders are independent polylines on square grids,
+        // so normal Cell Grid can draw fills with sprites and keep borders on
+        // the graphics layer. Other border modes stay on the full graphics path.
+        const drawBlendedEdges =
+            drawBorders &&
+            drawTerritoryEdgeOnly &&
+            borderBlend &&
+            cached.classification.distribution === 'square';
+        const canSplitFillWithGraphicsBorder =
+            this.variant.id === 'cell_grid' && drawBlendedEdges;
         const canUseSplitFillOnlyFastPath =
-            !drawBorders &&
+            (!drawBorders || canSplitFillWithGraphicsBorder) &&
             !frontierFxActiveForFrame &&
             inwardOffsetPx === 0 &&
             edgeTrimPx === 0 &&
@@ -2557,19 +2572,11 @@ export class CellGridFamily implements RenderFamily {
             cellInsetPx === 0 &&
             cellCornerPx === 0 &&
             sharedEdgeSmoothingPasses === 0;
-        // Blended-edge polyline assumes a regular square vertex lattice
-        // (vertexX/vertexY are computed from ix/iy and spacingPx). hex_offset
-        // and jittered distributions break that assumption, so fall back to
-        // per-cell strokes in those modes — otherwise borders visibly detach
-        // from their fills.
-        const drawBlendedEdges =
-            drawBorders &&
-            drawTerritoryEdgeOnly &&
-            borderBlend &&
-            cached.classification.distribution === 'square';
         const activeFrontierFallbackReason =
             !input.activeTransition
                 ? 'steady_state'
+                : drawBorders
+                    ? 'borders'
                 : !canUseSplitFillOnlyFastPath
                     ? 'split_fill_constraints'
                     : flipTransition !== 'dual_pass_blend'
@@ -2604,6 +2611,19 @@ export class CellGridFamily implements RenderFamily {
                 ownerColorIdx,
             });
             sceneBuildMs = performance.now() - sceneStartMs;
+            if (captureSectionTimings) {
+                recordPerfDuration(
+                    'territory.cellGrid.scene.build',
+                    sceneBuildMs,
+                    {
+                        activeTransition: !!input.activeTransition,
+                        totalCells: cached.classification.cols * cached.classification.rows,
+                        emittableCells: cached.classification.emittableVstars.length,
+                        sceneCells: scene.cells.length,
+                    },
+                    sceneStartMs,
+                );
+            }
         }
 
         // Build an effective per-grid-index colorIdx so both "per-cell stroke
@@ -2620,7 +2640,6 @@ export class CellGridFamily implements RenderFamily {
             frontierFxActiveForFrame;
         let effectiveColorIdxByGridIdx: Int32Array | null = null;
         if (
-            !canUseSplitFillOnlyFastPath &&
             scene &&
             shouldUseSceneCellBoundaryClassification
         ) {
@@ -2654,6 +2673,9 @@ export class CellGridFamily implements RenderFamily {
             effectiveColorIdxByGridIdx &&
             (cellShape === 'square' || frontierFxActiveForFrame)
         ) {
+            const frontierPrepStartMs = captureSectionTimings
+                ? performance.now()
+                : 0;
             const distanceField = buildOwnershipGridFrontierDistanceField({
                 cols,
                 rows,
@@ -2694,6 +2716,19 @@ export class CellGridFamily implements RenderFamily {
                     });
                 }
             }
+            if (captureSectionTimings) {
+                recordPerfDuration(
+                    'territory.cellGrid.paint.frontierPrep',
+                    performance.now() - frontierPrepStartMs,
+                    {
+                        activeTransition: !!input.activeTransition,
+                        frontierFxActive: frontierFxActiveForFrame,
+                        totalCells: cols * rows,
+                        emittableCells: cached.classification.emittableVstars.length,
+                    },
+                    frontierPrepStartMs,
+                );
+            }
         }
 
         // Per-cell fill + (for per_cell and territory_edge non-blend) per-cell stroke.
@@ -2709,12 +2744,15 @@ export class CellGridFamily implements RenderFamily {
             palFillSig,
         ].join('|');
 
-        g.visible = !canUseSplitFillOnlyFastPath;
+        g.visible = !canUseSplitFillOnlyFastPath || drawBorders;
         this.nativeSpriteLayer.visible = canUseSplitFillOnlyFastPath;
         this.transitionSpriteLayer.visible = canUseSplitFillOnlyFastPath && !canUseActiveFrontierFastPath;
 
         if (canUseSplitFillOnlyFastPath) {
             if (this.lastSplitNativeSig !== nativeLayerSig) {
+                const nativeSpritesStartMs = captureSectionTimings
+                    ? performance.now()
+                    : 0;
                 let nativeCount = 0;
                 for (let i = 0; i < cached.classification.vstars.length; i++) {
                     if (cached.classification.vstars[i].role === 'native') {
@@ -2748,6 +2786,18 @@ export class CellGridFamily implements RenderFamily {
                 }
                 this.hideUnusedSprites(this.nativeSprites, nativeWriteIndex);
                 this.lastSplitNativeSig = nativeLayerSig;
+                if (captureSectionTimings) {
+                    recordPerfDuration(
+                        'territory.cellGrid.paint.nativeSprites',
+                        performance.now() - nativeSpritesStartMs,
+                        {
+                            activeTransition: !!input.activeTransition,
+                            nativeSprites: nativeWriteIndex,
+                            drawBorders,
+                        },
+                        nativeSpritesStartMs,
+                    );
+                }
             }
             if (canUseActiveFrontierFastPath) {
                 this.hideUnusedSprites(this.transitionSprites, 0);
@@ -2764,6 +2814,9 @@ export class CellGridFamily implements RenderFamily {
                     flipWindow.toFixed(4),
                     palFillSig,
                 ].join('|');
+                const activeFrontierStartMs = captureSectionTimings
+                    ? performance.now()
+                    : 0;
                 activeFrontierMetrics = this.updateActiveFrontierFastPath({
                     cached,
                     ownerColorIdx,
@@ -2776,9 +2829,26 @@ export class CellGridFamily implements RenderFamily {
                     settledAlpha: transitionBaseAlpha,
                     fillAlphaMult,
                 });
+                if (captureSectionTimings) {
+                    recordPerfDuration(
+                        'territory.cellGrid.paint.activeFrontierSprites',
+                        performance.now() - activeFrontierStartMs,
+                        {
+                            activeTransition: !!input.activeTransition,
+                            activeWindowCount:
+                                activeFrontierMetrics.activeWindowCount,
+                            transitionSpriteWrites:
+                                activeFrontierMetrics.transitionSpriteWrites,
+                        },
+                        activeFrontierStartMs,
+                    );
+                }
             } else {
                 this.resetActiveFrontierState();
                 const activeScene = scene!;
+                const transitionSpritesStartMs = captureSectionTimings
+                    ? performance.now()
+                    : 0;
                 let transitionCount = 0;
                 for (let i = 0; i < activeScene.cells.length; i++) {
                     const c = activeScene.cells[i];
@@ -2817,6 +2887,19 @@ export class CellGridFamily implements RenderFamily {
                     transitionSpriteWrites: transitionWriteIndex,
                     transitionTotalCount: cached.wavePlan.orderedTransitionVIds.length,
                 };
+                if (captureSectionTimings) {
+                    recordPerfDuration(
+                        'territory.cellGrid.paint.transitionSprites',
+                        performance.now() - transitionSpritesStartMs,
+                        {
+                            activeTransition: !!input.activeTransition,
+                            sceneCells: activeScene.cells.length,
+                            transitionSprites: transitionWriteIndex,
+                            drawBorders,
+                        },
+                        transitionSpritesStartMs,
+                    );
+                }
             }
             g.clear();
         } else {
@@ -2826,6 +2909,9 @@ export class CellGridFamily implements RenderFamily {
             this.hideUnusedSprites(this.transitionSprites, 0);
             g.clear();
             const activeScene = scene!;
+            const graphicsCellsPaintStartMs = captureSectionTimings
+                ? performance.now()
+                : 0;
             for (let i = 0; i < activeScene.cells.length; i++) {
                 const c = activeScene.cells[i];
                 if (c.alpha <= 0) continue;
@@ -2982,6 +3068,20 @@ export class CellGridFamily implements RenderFamily {
                     g.rect(x - half, y - half, size, size).stroke(strokeOpts);
                 }
             }
+            if (captureSectionTimings) {
+                recordPerfDuration(
+                    'territory.cellGrid.paint.graphicsCells',
+                    performance.now() - graphicsCellsPaintStartMs,
+                    {
+                        activeTransition: !!input.activeTransition,
+                        sceneCells: activeScene.cells.length,
+                        drawBorders,
+                        drawBlendedEdges,
+                        cellShape,
+                    },
+                    graphicsCellsPaintStartMs,
+                );
+            }
         }
 
         // ── Centered-blended territory-edge polyline pass ───────────────────
@@ -2996,11 +3096,13 @@ export class CellGridFamily implements RenderFamily {
         // The result is continuous, corner-joined boundaries in the 50/50
         // blended colour of the two owners' border hexes.
         if (
-            !canUseSplitFillOnlyFastPath &&
             drawBlendedEdges &&
             effectiveColorIdxByGridIdx &&
             visibleSquareBoundsByGridIdx
         ) {
+            const blendedEdgesStartMs = captureSectionTimings
+                ? performance.now()
+                : 0;
             interface BoundaryEdge {
                 readonly v0: string;
                 readonly v1: string;
@@ -3189,6 +3291,18 @@ export class CellGridFamily implements RenderFamily {
                     if (closed) chain.pop();
                     drawChain(chain, closed);
                 }
+            }
+            if (captureSectionTimings) {
+                recordPerfDuration(
+                    'territory.cellGrid.paint.blendedEdges',
+                    performance.now() - blendedEdgesStartMs,
+                    {
+                        activeTransition: !!input.activeTransition,
+                        totalCells: cols * rows,
+                        borderChaikinPasses: totalBorderChaikinPasses,
+                    },
+                    blendedEdgesStartMs,
+                );
             }
         }
 

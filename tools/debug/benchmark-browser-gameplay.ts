@@ -1254,6 +1254,10 @@ function summarizeTerritorySchedulerSnapshot(
         ),
         fixedBoardLayoutKey:
             (scheduler.fixedBoardLayoutKey as JsonValue) ?? null,
+        cellGridStats:
+            (scheduler.cellGridStats as JsonValue) ?? null,
+        cellGridDebug:
+            (scheduler.cellGridDebug as JsonValue) ?? null,
         renderFamilyGeometryKeyCache:
             (scheduler.renderFamilyGeometryKeyCache as JsonValue) ?? null,
     };

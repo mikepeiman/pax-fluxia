@@ -330,6 +330,12 @@ function printScenario(name: string, scenario: any): void {
                 `  - geometry key cache hits=${Number(geometryKeyCache?.hitCount ?? 0)} misses=${Number(geometryKeyCache?.missCount ?? 0)} lastStars=${Number(geometryKeyCache?.lastStarCount ?? 0)} lastLanes=${Number(geometryKeyCache?.lastLaneCount ?? 0)}`,
             );
         }
+        const cellGridStats = scheduler?.cellGridStats;
+        if (cellGridStats) {
+            console.log(
+                `  - cell grid update=${round(Number(cellGridStats?.lastUpdateMs ?? 0))}ms scene=${round(Number(cellGridStats?.lastSceneBuildMs ?? 0))}ms paint=${round(Number(cellGridStats?.lastPaintMs ?? 0))}ms painted=${Number(cellGridStats?.paintedCells ?? 0)} skipped=${Boolean(cellGridStats?.lastFrameSkipped)} fastPath=${Boolean(cellGridStats?.fastPathUsed)} reason=${String(cellGridStats?.fallbackReason ?? "none")}`,
+            );
+        }
         const workerStats =
             scheduler?.transitionDiagnostics?.runtimeBridge?.workerStats;
         if (workerStats) {

@@ -7660,6 +7660,7 @@
             cellGridFamily instanceof CellGridPhaseFieldFamily
                 ? cellGridFamily.getDebugSnapshot()
                 : null;
+        const cellGridStatsSnapshot = get(cellGridStats);
         const gridGradientFamily = getRenderFamily("grid_gradient");
         const gridGradientDebug =
             gridGradientFamily instanceof GridGradientFamily
@@ -7695,6 +7696,7 @@
             renderMode: GAME_CONFIG.TERRITORY_RENDER_MODE,
             ownerStarCounts,
             cellGridDebug,
+            cellGridStats: cellGridStatsSnapshot,
             gridGradientDebug,
             runtimeBridgeDiagnostics:
                 runtimeBridge?.getBenchmarkDiagnostics() ?? null,
