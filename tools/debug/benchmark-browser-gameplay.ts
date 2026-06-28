@@ -98,6 +98,9 @@ const BENCH_TERRITORY_MODE = process.env.PAX_BENCH_TERRITORY_MODE?.trim() || "";
 const INCLUDE_LEGACY_SCENARIOS = /^(1|true|yes)$/i.test(
     process.env.PAX_BENCH_INCLUDE_LEGACY ?? "",
 );
+const DISABLE_GPU_FOR_COMPAT = /^(1|true|yes)$/i.test(
+    process.env.PAX_BENCH_DISABLE_GPU ?? "",
+);
 const SELECTED_SCENARIOS = new Set(
     (process.env.PAX_BENCH_ONLY ?? "")
         .split(",")
@@ -4273,7 +4276,7 @@ async function main(): Promise<void> {
         browserPath,
         `--remote-debugging-port=${cdpPort}`,
         "--headless=new",
-        "--disable-gpu",
+        ...(DISABLE_GPU_FOR_COMPAT ? ["--disable-gpu"] : []),
         "--disable-background-timer-throttling",
         "--disable-backgrounding-occluded-windows",
         "--disable-renderer-backgrounding",
@@ -4572,6 +4575,7 @@ async function main(): Promise<void> {
             captureConfig: {
                 trace: CAPTURE_TRACE,
                 cpu: CAPTURE_CPU,
+                disableGpu: DISABLE_GPU_FOR_COMPAT,
                 traceArtifacts: WRITE_TRACE_ARTIFACTS,
                 frameWarmupMs: FRAME_WARMUP_MS,
                 mainMenuFrameMs: MAIN_MENU_FRAME_MS,

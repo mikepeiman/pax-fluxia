@@ -683,7 +683,7 @@ Finding:
 Recommended exact experiments:
 
 - trace-enabled benchmark;
-- benchmark without `--disable-gpu`;
+- benchmark with default GPU-enabled headless launch, then compare against `PAX_BENCH_DISABLE_GPU=1`;
 - Pixi diagnostic toggles for `antialias:false` and `resolution:1`.
 
 ### 10.4 Attempted Third Explorer
@@ -826,7 +826,7 @@ Risk of faster alternative:
 1. Is a map-layout revision still worth pursuing after rejecting the local-only implementation?
 2. If yes, where is the single active-state contract that all render paths should consume?
 3. Is the 35ms frame cadence visible in real foreground Chrome, or only in headless benchmark Chrome?
-4. How much does `--disable-gpu` distort Pixi/WebGL frame delivery in the benchmark?
+4. How much does `PAX_BENCH_DISABLE_GPU=1` distort Pixi/WebGL frame delivery compared with the default benchmark launch?
 5. Do other modes besides Grid Gradient show the same cadence pattern under matched conquest animation scenarios?
 6. Should Power Core remain only an audit candidate, or should it become a selectable authority path after more fixtures?
 7. Which transition modes are candidates for default promotion after geometry reliability gates improve?
@@ -845,7 +845,7 @@ Risk of faster alternative:
 
 1. Baseline trace-off Grid Gradient conquest animation.
 2. Trace-on Grid Gradient conquest animation.
-3. Add benchmark toggle to run Chrome without `--disable-gpu`.
+3. Compare the default benchmark launch against `PAX_BENCH_DISABLE_GPU=1`.
 4. Compare:
    - frame cadence;
    - Pixi ticker cadence;

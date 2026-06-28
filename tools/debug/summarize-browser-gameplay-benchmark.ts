@@ -506,7 +506,7 @@ function main(): void {
     }
     if (report?.captureConfig) {
         console.log(
-            `captureConfig trace=${String(report.captureConfig?.trace ?? false)} cpu=${String(report.captureConfig?.cpu ?? false)} warmupMs=${round(Number(report.captureConfig?.frameWarmupMs ?? 0))} gameplayFrameMs=${round(Number(report.captureConfig?.gameplayFrameMs ?? 0))}`,
+            `captureConfig trace=${String(report.captureConfig?.trace ?? false)} cpu=${String(report.captureConfig?.cpu ?? false)} disableGpu=${String(report.captureConfig?.disableGpu ?? false)} warmupMs=${round(Number(report.captureConfig?.frameWarmupMs ?? 0))} gameplayFrameMs=${round(Number(report.captureConfig?.gameplayFrameMs ?? 0))}`,
         );
     }
     if (Array.isArray(report?.browserArgs)) {
