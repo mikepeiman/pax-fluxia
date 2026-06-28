@@ -108,6 +108,64 @@ describe('TerritoryWorker geometry cache', () => {
         expect(moved.fromCache).toBe(false);
         expect(moved.geometry.version).toBe('geometry:11');
         expect(compute).toHaveBeenCalledTimes(2);
+        expect(worker.stats()).toMatchObject({
+            spatialTopologySignatureScanCount: 3,
+            spatialTopologySignatureReuseCount: 0,
+            repeatedSpatialTopologySignatureScanCount: 1,
+        });
+    });
+
+    it('reuses spatial topology identity while the same board arrays are stable', () => {
+        const compute = vi.fn(() => buildGeometry('geometry:same'));
+        const worker = new TerritoryWorker({ compute } as never);
+        const request = buildRequest();
+
+        const first = worker.computeGeometrySync(request);
+        const repeated = worker.computeGeometrySync({
+            ...request,
+            requestId: 'request-2',
+        });
+
+        expect(repeated.fromCache).toBe(true);
+        expect(repeated.geometry).toBe(first.geometry);
+        expect(compute).toHaveBeenCalledTimes(1);
+        expect(worker.stats()).toMatchObject({
+            spatialTopologySignatureScanCount: 1,
+            spatialTopologySignatureReuseCount: 1,
+            repeatedSpatialTopologySignatureScanCount: 0,
+        });
+    });
+
+    it('uses the board layout key without scanning when game-frame arrays are rebuilt', () => {
+        const compute = vi.fn(() => buildGeometry('geometry:session'));
+        const worker = new TerritoryWorker({ compute } as never);
+        const boardLayoutKey = 'session:42:stars:2:lanes:1:world:100:100';
+
+        const first = worker.computeGeometrySync(
+            buildRequest({ boardLayoutKey }),
+        );
+        const repeated = worker.computeGeometrySync(
+            buildRequest({ requestId: 'request-2', boardLayoutKey }),
+        );
+        const nextSession = worker.computeGeometrySync(
+            buildRequest({
+                requestId: 'request-3',
+                boardLayoutKey: 'session:43:stars:2:lanes:1:world:100:100',
+            }),
+        );
+
+        expect(first.fromCache).toBe(false);
+        expect(repeated.fromCache).toBe(true);
+        expect(repeated.geometry).toBe(first.geometry);
+        expect(nextSession.fromCache).toBe(false);
+        expect(compute).toHaveBeenCalledTimes(2);
+        expect(worker.stats()).toMatchObject({
+            spatialTopologySignatureScanCount: 0,
+            spatialTopologySignatureReuseCount: 1,
+            repeatedSpatialTopologySignatureScanCount: 0,
+            boardLayoutKeyUseCount: 3,
+            boardLayoutKeyChangeCount: 1,
+        });
     });
 
     it('invalidates when lane topology changes with the same ownership and counts', () => {
@@ -139,5 +197,10 @@ describe('TerritoryWorker geometry cache', () => {
         expect(rerouted.fromCache).toBe(false);
         expect(rerouted.geometry.version).toBe('geometry:55');
         expect(compute).toHaveBeenCalledTimes(2);
+        expect(worker.stats()).toMatchObject({
+            spatialTopologySignatureScanCount: 2,
+            spatialTopologySignatureReuseCount: 0,
+            repeatedSpatialTopologySignatureScanCount: 0,
+        });
     });
 });

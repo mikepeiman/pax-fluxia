@@ -1286,6 +1286,7 @@ function summarizeRuntimeBridgeDiagnostics(
         modeDiagnosticsBundleId: stringOrNull(
             diagnostics.modeDiagnosticsBundleId,
         ),
+        workerStats: toJsonRecord(diagnostics.workerStats),
     };
 }
 

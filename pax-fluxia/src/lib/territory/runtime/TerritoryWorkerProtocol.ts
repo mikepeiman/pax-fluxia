@@ -10,6 +10,7 @@ import type { TerritoryModeSelection } from '../contracts/TerritoryModeSelection
 export interface TerritoryWorkerGeometryRequest {
     requestId: string;
     nowMs: number;
+    boardLayoutKey?: string;
     stars: readonly StarState[];
     lanes: readonly StarConnection[];
     world: TerritoryWorldBounds;

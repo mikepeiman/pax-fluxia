@@ -96,6 +96,7 @@ export class GameCanvasTerritoryBridge {
             modeDiagnosticsKind: modeDiagnostics?.kind ?? null,
             modeDiagnosticsPlanId: modeDiagnostics?.planId ?? null,
             modeDiagnosticsBundleId: modeDiagnostics?.bundleId ?? null,
+            workerStats: this.runtime.getWorkerStats(),
         };
     }
 

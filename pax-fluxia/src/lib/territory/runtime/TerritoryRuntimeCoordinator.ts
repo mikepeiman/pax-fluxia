@@ -53,6 +53,10 @@ export class TerritoryRuntimeCoordinator {
         this.frameCount = 0;
     }
 
+    getWorkerStats(): ReturnType<TerritoryWorker['stats']> {
+        return this.worker.stats();
+    }
+
     update(rawInput: TerritoryFrameInput): TerritoryRuntimeOutput {
         const startedAtMs = Date.now();
         const diagnostics: TerritoryRuntimeDiagnostics = {
@@ -84,6 +88,7 @@ export class TerritoryRuntimeCoordinator {
         const geometryResult = this.worker.computeGeometrySync({
             requestId: `territory:${input.tickId}:${input.nowMs}`,
             nowMs: input.nowMs,
+            boardLayoutKey: input.boardLayoutKey,
             stars: input.stars,
             lanes: input.lanes,
             world: input.world,
@@ -100,11 +105,12 @@ export class TerritoryRuntimeCoordinator {
             this.state.previousOwnership
                 ? {
                       preGeometry: this.worker.computeGeometrySync({
-                          requestId: `territory:pv-prev:${input.tickId}:${input.nowMs}`,
-                          nowMs: input.nowMs,
-                          stars: input.stars,
-                          lanes: input.lanes,
-                          world: input.world,
+                      requestId: `territory:pv-prev:${input.tickId}:${input.nowMs}`,
+                      nowMs: input.nowMs,
+                      boardLayoutKey: input.boardLayoutKey,
+                      stars: input.stars,
+                      lanes: input.lanes,
+                      world: input.world,
                           tunables: input.tunables,
                           ownership: this.state.previousOwnership,
                           selection,

@@ -20,6 +20,7 @@ export interface TerritoryTunables extends TerritoryGeometryTunables {
 export interface TerritoryFrameInput {
     tickId: number;
     nowMs: number;
+    boardLayoutKey?: string;
     stars: readonly StarState[];
     lanes: readonly StarConnection[];
     players: readonly { id: string }[];

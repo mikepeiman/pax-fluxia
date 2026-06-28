@@ -324,6 +324,13 @@ function printScenario(name: string, scenario: any): void {
                 `  - geometry key cache hits=${Number(geometryKeyCache?.hitCount ?? 0)} misses=${Number(geometryKeyCache?.missCount ?? 0)} lastStars=${Number(geometryKeyCache?.lastStarCount ?? 0)} lastLanes=${Number(geometryKeyCache?.lastLaneCount ?? 0)}`,
             );
         }
+        const workerStats =
+            scheduler?.transitionDiagnostics?.runtimeBridge?.workerStats;
+        if (workerStats) {
+            console.log(
+                `  - runtime worker board-key uses=${Number(workerStats?.boardLayoutKeyUseCount ?? 0)} topology scans=${Number(workerStats?.spatialTopologySignatureScanCount ?? 0)} reused=${Number(workerStats?.spatialTopologySignatureReuseCount ?? 0)} repeatedScans=${Number(workerStats?.repeatedSpatialTopologySignatureScanCount ?? 0)} estimatedSaved=${round(Number(workerStats?.estimatedSpatialTopologySignatureScanMsSaved ?? 0))}ms`,
+            );
+        }
         console.log(
             `  - orderQueue scheduleMode=${String(scheduler?.orders?.scheduleMode ?? "n/a")} queueDelay=${round(Number(scheduler?.orders?.lastQueueDelayMs ?? 0))}ms flushCount=${Number(scheduler?.orders?.lastQueueFlushMutationCount ?? 0)}`,
         );

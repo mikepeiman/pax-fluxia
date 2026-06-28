@@ -2936,6 +2936,25 @@
         null;
     let transitionDiagnosticPrevOwnership: OwnershipSnapshot | null = null;
 
+    function buildBoardLayoutKey(
+        stars: ReadonlyArray<StarState>,
+        lanes: ReadonlyArray<StarConnection>,
+        worldWidth: number,
+        worldHeight: number,
+    ): string {
+        return [
+            "session",
+            activeGameStore.sessionId,
+            "stars",
+            stars.length,
+            "lanes",
+            lanes.length,
+            "world",
+            worldWidth,
+            worldHeight,
+        ].join(":");
+    }
+
     function buildRuntimeBridgeInput(
         stars: StarState[],
         runtimeSettings: ReturnType<typeof readTerritoryRuntimeSettings>,
@@ -2953,11 +2972,18 @@
                       styleMode: "vector",
                   }
                 : runtimeSettings.selection;
+        const lanes = activeGameStore.connections as StarConnection[];
         return {
             tickId: activeGameStore.currentTick ?? 0,
             nowMs: fxOrchestrator.gameTime,
+            boardLayoutKey: buildBoardLayoutKey(
+                stars,
+                lanes,
+                worldWidth,
+                worldHeight,
+            ),
             stars,
-            lanes: activeGameStore.connections as StarConnection[],
+            lanes,
             players:
                 activeGameStore.players?.map((player: { id: string }) => ({
                     id: player.id,
