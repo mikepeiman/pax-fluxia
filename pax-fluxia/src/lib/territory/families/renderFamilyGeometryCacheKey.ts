@@ -21,11 +21,13 @@ export interface RenderFamilyGeometryCacheKeyStats {
     readonly repeatedTopologySignatureScanMs: number;
     readonly lastTopologySignatureScanMs: number;
     readonly averageTopologySignatureScanMs: number;
+    readonly boardLayoutKeyUseCount: number;
 }
 
 export interface RenderFamilyGeometryCacheKeyBuildInput {
     readonly stars: ReadonlyArray<StarState>;
     readonly lanes: ReadonlyArray<StarConnection>;
+    readonly boardLayoutKey?: string;
     readonly source: Record<string, unknown>;
     readonly worldWidth: number;
     readonly worldHeight: number;
@@ -37,6 +39,7 @@ interface RenderFamilyGeometryCacheKeyEntry {
     readonly lanes: ReadonlyArray<StarConnection>;
     readonly starCount: number;
     readonly laneCount: number;
+    readonly boardLayoutKey: string | null;
     readonly topologySignature: string;
     readonly ownershipSignature: string;
     readonly fingerprint: string;
@@ -92,6 +95,7 @@ export class RenderFamilyGeometryCacheKeyBuilder {
     private repeatedTopologySignatureScanCount = 0;
     private repeatedTopologySignatureScanMs = 0;
     private lastTopologySignatureScanMs = 0;
+    private boardLayoutKeyUseCount = 0;
 
     build(input: RenderFamilyGeometryCacheKeyBuildInput): string {
         this.buildCount += 1;
@@ -101,8 +105,14 @@ export class RenderFamilyGeometryCacheKeyBuilder {
             worldHeight: input.worldHeight,
             visualEpoch: input.visualEpoch,
         });
+        const boardLayoutKey =
+            typeof input.boardLayoutKey === 'string' &&
+            input.boardLayoutKey.length > 0
+                ? input.boardLayoutKey
+                : null;
         const cached = this.lastEntry;
         const canReuseTopologySignature =
+            !boardLayoutKey &&
             cached &&
             cached.stars === input.stars &&
             cached.lanes === input.lanes &&
@@ -110,7 +120,10 @@ export class RenderFamilyGeometryCacheKeyBuilder {
             cached.laneCount === input.lanes.length;
         let topologySignature: string;
         let topologyScanMs = 0;
-        if (canReuseTopologySignature) {
+        if (boardLayoutKey) {
+            topologySignature = `fixed-board:${boardLayoutKey}`;
+            this.boardLayoutKeyUseCount += 1;
+        } else if (canReuseTopologySignature) {
             topologySignature = cached.topologySignature;
             this.topologySignatureReuseCount += 1;
         } else {
@@ -126,6 +139,7 @@ export class RenderFamilyGeometryCacheKeyBuilder {
         }
         const ownershipSignature = buildOwnershipSignature(input.stars);
         const repeatedTopologyScan =
+            !boardLayoutKey &&
             cached &&
             !canReuseTopologySignature &&
             cached.starCount === input.stars.length &&
@@ -135,12 +149,15 @@ export class RenderFamilyGeometryCacheKeyBuilder {
             this.repeatedTopologySignatureScanCount += 1;
             this.repeatedTopologySignatureScanMs += topologyScanMs;
         }
+        const samePhysicalLayout = boardLayoutKey
+            ? cached?.boardLayoutKey === boardLayoutKey
+            : cached?.stars === input.stars &&
+              cached?.lanes === input.lanes &&
+              cached?.starCount === input.stars.length &&
+              cached?.laneCount === input.lanes.length;
         if (
             cached &&
-            cached.stars === input.stars &&
-            cached.lanes === input.lanes &&
-            cached.starCount === input.stars.length &&
-            cached.laneCount === input.lanes.length &&
+            samePhysicalLayout &&
             cached.topologySignature === topologySignature &&
             cached.ownershipSignature === ownershipSignature &&
             cached.fingerprint === fingerprint
@@ -150,12 +167,14 @@ export class RenderFamilyGeometryCacheKeyBuilder {
         }
 
         let key = `${fingerprint}:topo=${topologySignature}:owners=${ownershipSignature}:`;
-        for (const star of input.stars) {
-            key += `${star.id}:${star.ownerId ?? ''}:${star.x}:${star.y}|`;
-        }
-        key += '::';
-        for (const lane of input.lanes) {
-            key += `${lane.sourceId}->${lane.targetId}|`;
+        if (!boardLayoutKey) {
+            for (const star of input.stars) {
+                key += `${star.id}:${star.ownerId ?? ''}:${star.x}:${star.y}|`;
+            }
+            key += '::';
+            for (const lane of input.lanes) {
+                key += `${lane.sourceId}->${lane.targetId}|`;
+            }
         }
 
         this.missCount += 1;
@@ -164,6 +183,7 @@ export class RenderFamilyGeometryCacheKeyBuilder {
             lanes: input.lanes,
             starCount: input.stars.length,
             laneCount: input.lanes.length,
+            boardLayoutKey,
             topologySignature,
             ownershipSignature,
             fingerprint,
@@ -197,6 +217,7 @@ export class RenderFamilyGeometryCacheKeyBuilder {
                 this.topologySignatureScanCount > 0
                     ? this.topologySignatureScanMs / this.topologySignatureScanCount
                     : 0,
+            boardLayoutKeyUseCount: this.boardLayoutKeyUseCount,
         };
     }
 
@@ -211,5 +232,6 @@ export class RenderFamilyGeometryCacheKeyBuilder {
         this.repeatedTopologySignatureScanCount = 0;
         this.repeatedTopologySignatureScanMs = 0;
         this.lastTopologySignatureScanMs = 0;
+        this.boardLayoutKeyUseCount = 0;
     }
 }

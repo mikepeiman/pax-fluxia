@@ -1252,6 +1252,8 @@ function summarizeTerritorySchedulerSnapshot(
         transitionReliability: summarizeTransitionReliability(
             runtimeBridgeDiagnostics,
         ),
+        fixedBoardLayoutKey:
+            (scheduler.fixedBoardLayoutKey as JsonValue) ?? null,
         renderFamilyGeometryKeyCache:
             (scheduler.renderFamilyGeometryKeyCache as JsonValue) ?? null,
     };

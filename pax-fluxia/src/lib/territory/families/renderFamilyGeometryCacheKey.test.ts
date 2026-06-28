@@ -165,6 +165,47 @@ describe('RenderFamilyGeometryCacheKeyBuilder', () => {
         });
     });
 
+    it('uses an exact fixed-board key without scanning replaced arrays', () => {
+        const builder = new RenderFamilyGeometryCacheKeyBuilder();
+        const config = source();
+        const base = {
+            boardLayoutKey: 'fixed-board:test-board',
+            source: config,
+            worldWidth: 100,
+            worldHeight: 80,
+            visualEpoch: 1,
+        };
+
+        const first = builder.build({
+            ...base,
+            stars: [star('a', 'p1', 10, 20), star('b', 'p2', 40, 20)],
+            lanes: [lane('a', 'b')],
+        });
+        const second = builder.build({
+            ...base,
+            stars: [star('a', 'p1', 10, 20), star('b', 'p2', 40, 20)],
+            lanes: [lane('a', 'b')],
+        });
+        const changedBoard = builder.build({
+            ...base,
+            boardLayoutKey: 'fixed-board:test-board-2',
+            stars: [star('a', 'p1', 10, 20), star('b', 'p2', 40, 20)],
+            lanes: [lane('a', 'b')],
+        });
+
+        expect(second).toBe(first);
+        expect(changedBoard).not.toBe(second);
+        expect(builder.getStats()).toMatchObject({
+            buildCount: 3,
+            hitCount: 1,
+            missCount: 2,
+            topologySignatureScanCount: 0,
+            topologySignatureReuseCount: 0,
+            repeatedTopologySignatureScanCount: 0,
+            boardLayoutKeyUseCount: 3,
+        });
+    });
+
     it('recomputes when star ownership mutates in place', () => {
         const builder = new RenderFamilyGeometryCacheKeyBuilder();
         const stars = [star('a', 'p1', 10, 20), star('b', 'p2', 40, 20)];

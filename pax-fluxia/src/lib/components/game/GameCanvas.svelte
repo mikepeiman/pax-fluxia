@@ -174,6 +174,7 @@
         readNormalizedTerritoryGeometryTunables,
     } from "$lib/territory/geometry/geometryTuning";
     import { normalizePerimeterFieldGeometrySource } from "$lib/territory/geometry/geometrySource";
+    import { buildTerritorySpatialTopologySignature } from "$lib/territory/geometry/spatialTopologySignature";
     import type {
         OwnershipSnapshot,
         TerritoryConquestEvent,
@@ -2935,6 +2936,23 @@
     let transitionDiagnosticPrevGeometry: ResolvedGeometrySnapshot | null =
         null;
     let transitionDiagnosticPrevOwnership: OwnershipSnapshot | null = null;
+    let fixedBoardLayoutKeyCache: {
+        phase: string;
+        sessionId: number;
+        generation: number;
+        starCount: number;
+        laneCount: number;
+        worldWidth: number;
+        worldHeight: number;
+        key: string;
+    } | null = null;
+    let fixedBoardLayoutPhase = activeGameStore.phase;
+    let fixedBoardLayoutGeneration = 0;
+    let fixedBoardLayoutKeyBuildCount = 0;
+    let fixedBoardLayoutKeyReuseCount = 0;
+    let fixedBoardLayoutSignatureScanCount = 0;
+    let fixedBoardLayoutSignatureScanMs = 0;
+    let fixedBoardLayoutLastSignatureScanMs = 0;
 
     function buildBoardLayoutKey(
         stars: ReadonlyArray<StarState>,
@@ -2942,17 +2960,80 @@
         worldWidth: number,
         worldHeight: number,
     ): string {
-        return [
+        fixedBoardLayoutKeyBuildCount += 1;
+        const phase = activeGameStore.phase;
+        if (phase !== fixedBoardLayoutPhase) {
+            fixedBoardLayoutPhase = phase;
+            fixedBoardLayoutGeneration += 1;
+            fixedBoardLayoutKeyCache = null;
+        }
+        const sessionId = activeGameStore.sessionId;
+        const cached = fixedBoardLayoutKeyCache;
+        if (
+            cached &&
+            cached.phase === phase &&
+            cached.sessionId === sessionId &&
+            cached.generation === fixedBoardLayoutGeneration &&
+            cached.starCount === stars.length &&
+            cached.laneCount === lanes.length &&
+            cached.worldWidth === worldWidth &&
+            cached.worldHeight === worldHeight
+        ) {
+            fixedBoardLayoutKeyReuseCount += 1;
+            return cached.key;
+        }
+
+        const scanStartedAtMs = performance.now();
+        const physicalLayoutSignature =
+            buildTerritorySpatialTopologySignature(stars, lanes);
+        const scanMs = performance.now() - scanStartedAtMs;
+        fixedBoardLayoutSignatureScanCount += 1;
+        fixedBoardLayoutSignatureScanMs += scanMs;
+        fixedBoardLayoutLastSignatureScanMs = scanMs;
+
+        const key = [
+            "fixed-board",
+            "generation",
+            fixedBoardLayoutGeneration,
+            "phase",
+            phase,
             "session",
-            activeGameStore.sessionId,
-            "stars",
-            stars.length,
-            "lanes",
-            lanes.length,
+            sessionId,
             "world",
             worldWidth,
             worldHeight,
+            "layout",
+            physicalLayoutSignature,
         ].join(":");
+        fixedBoardLayoutKeyCache = {
+            phase,
+            sessionId,
+            generation: fixedBoardLayoutGeneration,
+            starCount: stars.length,
+            laneCount: lanes.length,
+            worldWidth,
+            worldHeight,
+            key,
+        };
+        return key;
+    }
+
+    function getFixedBoardLayoutKeyStats() {
+        return {
+            buildCount: fixedBoardLayoutKeyBuildCount,
+            reuseCount: fixedBoardLayoutKeyReuseCount,
+            signatureScanCount: fixedBoardLayoutSignatureScanCount,
+            signatureScanMs: fixedBoardLayoutSignatureScanMs,
+            lastSignatureScanMs: fixedBoardLayoutLastSignatureScanMs,
+            averageSignatureScanMs:
+                fixedBoardLayoutSignatureScanCount > 0
+                    ? fixedBoardLayoutSignatureScanMs /
+                      fixedBoardLayoutSignatureScanCount
+                    : 0,
+            activeGeneration: fixedBoardLayoutGeneration,
+            lastStarCount: fixedBoardLayoutKeyCache?.starCount ?? 0,
+            lastLaneCount: fixedBoardLayoutKeyCache?.laneCount ?? 0,
+        };
     }
 
     function buildRuntimeBridgeInput(
@@ -3008,6 +3089,12 @@
         return renderFamilyGeometryCacheKeyBuilder.build({
             stars,
             lanes,
+            boardLayoutKey: buildBoardLayoutKey(
+                stars,
+                lanes,
+                GAME_WIDTH,
+                GAME_HEIGHT,
+            ),
             source,
             worldWidth: GAME_WIDTH,
             worldHeight: GAME_HEIGHT,
@@ -7611,6 +7698,7 @@
             gridGradientDebug,
             runtimeBridgeDiagnostics:
                 runtimeBridge?.getBenchmarkDiagnostics() ?? null,
+            fixedBoardLayoutKey: getFixedBoardLayoutKeyStats(),
             renderFamilyGeometryKeyCache:
                 renderFamilyGeometryCacheKeyBuilder.getStats(),
             rendererDiagnostics,

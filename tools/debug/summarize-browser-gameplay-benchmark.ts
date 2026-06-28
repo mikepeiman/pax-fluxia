@@ -319,6 +319,12 @@ function printScenario(name: string, scenario: any): void {
             `  - territoryAsync scheduleMode=${String(scheduler?.territoryAsync?.scheduleMode ?? "n/a")} yields=${Number(scheduler?.territoryAsync?.yieldCount ?? 0)} forced=${Number(scheduler?.territoryAsync?.forcedCount ?? 0)} lastYield=${String(scheduler?.territoryAsync?.lastYieldReason ?? "n/a")} age=${round(Number(scheduler?.territoryAsync?.lastYieldAgeMs ?? 0))}ms`,
         );
         const geometryKeyCache = scheduler?.renderFamilyGeometryKeyCache;
+        const fixedBoardLayoutKey = scheduler?.fixedBoardLayoutKey;
+        if (fixedBoardLayoutKey) {
+            console.log(
+                `  - fixed board key builds=${Number(fixedBoardLayoutKey?.buildCount ?? 0)} reuses=${Number(fixedBoardLayoutKey?.reuseCount ?? 0)} exact board reads=${Number(fixedBoardLayoutKey?.signatureScanCount ?? 0)} readMs=${round(Number(fixedBoardLayoutKey?.signatureScanMs ?? 0))}ms`,
+            );
+        }
         if (geometryKeyCache) {
             console.log(
                 `  - geometry key cache hits=${Number(geometryKeyCache?.hitCount ?? 0)} misses=${Number(geometryKeyCache?.missCount ?? 0)} lastStars=${Number(geometryKeyCache?.lastStarCount ?? 0)} lastLanes=${Number(geometryKeyCache?.lastLaneCount ?? 0)}`,
