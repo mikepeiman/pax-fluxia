@@ -285,6 +285,16 @@ Passed during transition diagnostic benchmark summary slice at 2026-06-28 10:16 
 - Observation: the diagnostic recorder is intentionally expensive and measured `game.renderFrame.territory.transitionDiagnosticSync avg=18.243ms max=37.5ms count=23`; ordinary animation benchmarks should keep the recorder disabled.
 - Validation passed: `bun build tools/debug/summarize-browser-gameplay-benchmark.ts --target bun --outdir .agent-harness/tmp-bun-build-check-summary-diagnostic-2`, fresh `grid_gradientConquestDiagnostic` benchmark, and `bun tools/debug/summarize-browser-gameplay-benchmark.ts` against the diagnostic artifact.
 
+Passed during exact render-family geometry cache slice at 2026-06-28 10:24 -04:00:
+
+- Fixed the live render-family geometry cache key so it no longer relies only on stable array references for cache reuse. It now compares the existing spatial topology signature plus a star-ownership signature before reusing the cached key.
+- Added regression coverage for in-place lane topology mutation and in-place owner mutation. These are now deterministic cache misses instead of stale-geometry hits.
+- Root cause observed before the fix: a pure ownership transition could compare a previous geometry with unresolved lane routing against a next geometry with normalized lane routing, because lane waypoints had been populated after an earlier stable geometry build.
+- Fresh `grid_gradientConquestDiagnostic` benchmark passed with `transitionFallbacks scenarios=0 reasons=none` and produced a validated transition diagnostic package.
+- Programmatic geometry check passed: previous and next geometry versions matched after replacing only the conquered star owner; both had normalized lane routing, and neither contained unresolved `:::wp0` lane entries.
+- Fresh `grid_gradientConquestAnimation` benchmark passed with `transitionFallbacks scenarios=0 reasons=none`, `frames count=94 avg=28.014ms p95=33.4ms max=50ms`, `frame cadence dominant=35ms count=58 share=0.617`, `game.renderFrame.territory.grid_gradient avg=0.765ms max=42.1ms`, and `geometry key cache hits=609 misses=8`.
+- Validation passed: `bun x vitest run src/lib/territory/families/renderFamilyGeometryCacheKey.test.ts` (6 tests), `bun x vitest run src/lib/territory` (55 files / 350 tests), `bun run check` from `pax-fluxia/` (0 errors, 1 existing warning), `bun run build` from `pax-fluxia/`, `bun run agentic:graphify:build` from repo root, and both fresh browser benchmark scenarios above.
+
 Known recurring non-blocking warning:
 
 - `GameThemeManager.svelte`: unused CSS selector `.game-theme-manager--menu .theme-chip-name`

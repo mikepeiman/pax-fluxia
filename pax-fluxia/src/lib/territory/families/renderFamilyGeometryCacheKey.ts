@@ -4,6 +4,7 @@ import {
     readNormalizedTerritoryGeometryTunables,
 } from '../geometry/geometryTuning';
 import { normalizePerimeterFieldGeometrySource } from '../geometry/geometrySource';
+import { buildTerritorySpatialTopologySignature } from '../geometry/spatialTopologySignature';
 
 export interface RenderFamilyGeometryCacheKeyStats {
     readonly hitCount: number;
@@ -27,8 +28,18 @@ interface RenderFamilyGeometryCacheKeyEntry {
     readonly lanes: ReadonlyArray<StarConnection>;
     readonly starCount: number;
     readonly laneCount: number;
+    readonly topologySignature: string;
+    readonly ownershipSignature: string;
     readonly fingerprint: string;
     readonly key: string;
+}
+
+function buildOwnershipSignature(stars: ReadonlyArray<StarState>): string {
+    let signature = '';
+    for (const star of stars) {
+        signature += `${star.id}:${star.ownerId ?? ''}|`;
+    }
+    return signature;
 }
 
 export function buildRenderFamilyGeometryFingerprint(params: {
@@ -67,6 +78,11 @@ export class RenderFamilyGeometryCacheKeyBuilder {
             worldHeight: input.worldHeight,
             visualEpoch: input.visualEpoch,
         });
+        const topologySignature = buildTerritorySpatialTopologySignature(
+            input.stars,
+            input.lanes,
+        );
+        const ownershipSignature = buildOwnershipSignature(input.stars);
         const cached = this.lastEntry;
         if (
             cached &&
@@ -74,13 +90,15 @@ export class RenderFamilyGeometryCacheKeyBuilder {
             cached.lanes === input.lanes &&
             cached.starCount === input.stars.length &&
             cached.laneCount === input.lanes.length &&
+            cached.topologySignature === topologySignature &&
+            cached.ownershipSignature === ownershipSignature &&
             cached.fingerprint === fingerprint
         ) {
             this.hitCount += 1;
             return cached.key;
         }
 
-        let key = `${fingerprint}:`;
+        let key = `${fingerprint}:topo=${topologySignature}:owners=${ownershipSignature}:`;
         for (const star of input.stars) {
             key += `${star.id}:${star.ownerId ?? ''}:${star.x}:${star.y}|`;
         }
@@ -95,6 +113,8 @@ export class RenderFamilyGeometryCacheKeyBuilder {
             lanes: input.lanes,
             starCount: input.stars.length,
             laneCount: input.lanes.length,
+            topologySignature,
+            ownershipSignature,
             fingerprint,
             key,
         };

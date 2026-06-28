@@ -128,6 +128,62 @@ describe('RenderFamilyGeometryCacheKeyBuilder', () => {
             missCount: 3,
         });
     });
+
+    it('recomputes when lane topology mutates in place', () => {
+        const builder = new RenderFamilyGeometryCacheKeyBuilder();
+        const stars = [star('a', 'p1', 10, 20), star('b', 'p2', 40, 20)];
+        const lanes = [lane('a', 'b')];
+        const base = {
+            stars,
+            lanes,
+            source: source(),
+            worldWidth: 100,
+            worldHeight: 80,
+            visualEpoch: 1,
+        };
+
+        const first = builder.build(base);
+        Object.assign(lanes[0]!, {
+            distance: 30,
+            lanePathKind: 'straight',
+            laneConstraintStatus: 'straight_ok',
+            laneWaypoints: [
+                [10, 20],
+                [40, 20],
+            ],
+        });
+        const second = builder.build(base);
+
+        expect(second).not.toBe(first);
+        expect(builder.getStats()).toMatchObject({
+            hitCount: 0,
+            missCount: 2,
+        });
+    });
+
+    it('recomputes when star ownership mutates in place', () => {
+        const builder = new RenderFamilyGeometryCacheKeyBuilder();
+        const stars = [star('a', 'p1', 10, 20), star('b', 'p2', 40, 20)];
+        const lanes = [lane('a', 'b')];
+        const base = {
+            stars,
+            lanes,
+            source: source(),
+            worldWidth: 100,
+            worldHeight: 80,
+            visualEpoch: 1,
+        };
+
+        const first = builder.build(base);
+        stars[0]!.ownerId = 'p2';
+        const second = builder.build(base);
+
+        expect(second).not.toBe(first);
+        expect(builder.getStats()).toMatchObject({
+            hitCount: 0,
+            missCount: 2,
+        });
+    });
 });
 
 describe('buildRenderFamilyGeometryFingerprint', () => {
