@@ -45,6 +45,12 @@ Never assume that something already in the code/design/architecture SHOULD be th
 
 My image perception is unreliable and I have misread screenshots with false confidence (claimed a fill met its border when a gap was visible; "confirmed" a mode looked correct while glancing). When an image carries information I will act on, follow `.agent/rules/image-comprehension-protocol.md`: **DESCRIBE the relevant region literally — region by region — BEFORE interpreting**; answer precise spatial questions (gap / alignment / overlap / what-occludes-what) at the exact location, never from gestalt; treat "I see what my code predicted" as a RED FLAG, not confirmation; hedge visual claims and prefer **measured numbers** (logs / DOM / computed geometry) over eyeballing for anything precise; and when my read conflicts with the user's live view, **MY READ IS WRONG by default** (they have full resolution; I have a compressed downscale). This is DISTINCT from `visual-bug-protocol.md` (trust the user's *words*) — this is the technical act of reading the *image*. Never confirm/deny a claim "from the screenshot" without the literal description first.
 
+## RULE 0.5 - PHASE CHANGES AND INVARIANTS BEFORE CHANGE-HANDLING
+
+Before adding detection, cache invalidation, fallback logic, tests, diagnostics, or recovery paths around a changing value, follow `.agent/rules/invariant-phase-change-protocol.md`.
+
+Repeated sameness is a signal. If a value stays the same across the runtime interval being studied, ask whether it is an invariant before designing for change. For current Pax Fluxia gameplay, loaded board layout is immutable after game start: star count, star positions, lane count, lane connections, lane shape, and lane distance must not change during live gameplay. If they appear to change, suspect the probe first, then treat a confirmed mutation as a bug unless the user explicitly scopes dynamic-map work.
+
 ## 1. Project
 
 **Pax Fluxia** is a real-time multiplayer galactic strategy game.
@@ -366,6 +372,10 @@ Use the 4-layer model:
 
 - Compiler: `compileVectorGeometry()` in `compiler_UnifiedVectorGeometry.ts`
 - Full spec: `.agent/docs/game/territory/TERRITORY_ARCHITECTURE.md`
+- Current loaded-game board-layout invariant: after gameplay starts, star count,
+  star positions, lane count, lane connections, lane shape, and lane distance do
+  not change. Territory geometry changes because ownership/settings/transition
+  state changes over that fixed board.
 
 ### 6.3 Known Gotchas
 

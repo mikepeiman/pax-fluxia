@@ -137,6 +137,24 @@ A bidirectional lane between two stars. Only connected stars can interact.
 | `targetId` | StarId | Second star |
 | `distance` | number | Euclidean distance |
 
+### 3.3a. Loaded Board Layout
+
+The loaded board layout is fixed during live gameplay.
+
+Board layout means:
+
+- star count;
+- star positions;
+- lane count;
+- lane connections;
+- lane shape;
+- lane distance.
+
+These values may be created or changed during setup, map load, map generation,
+map editing, restart, or new-map creation. They must not change during a loaded
+game. Conquest changes ownership, ships, orders, and territory derived from
+ownership; it does not move stars or rewire/reshape lanes.
+
 ### 3.4. Player
 
 | Property | Type | Description |

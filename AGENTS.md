@@ -42,6 +42,15 @@ Rules (enforce these on yourself before you speak or act):
    thing, build the instrument that can (e.g. log the real state in the app the
    user is actually running) instead of guessing from a proxy.
 
+8. **Repeated sameness is evidence, not noise.** When a value repeatedly stays
+   the same across the runtime interval being studied, stop and ask whether it is
+   an invariant. Before adding detection, cache invalidation, fallback logic,
+   tests, diagnostics, or recovery paths around that value changing, identify the
+   exact game phase where it is allowed to change. If no current product spec
+   permits the change, treat the change as a bug condition or bad measurement,
+   not a normal runtime case to support. See
+   `.agent/rules/invariant-phase-change-protocol.md`.
+
 ---
 
 ## graphify

@@ -30,6 +30,16 @@ All code, documentation, and agent communications use these terms:
 > [!NOTE]
 > Variable rename migration is tracked as a separate task. Code currently uses legacy names like `frontierGraph`, `ownerShells`, etc.
 
+### Loaded Board Layout Invariant
+
+During current live gameplay, the board layout is immutable. Star count, star
+positions, lane count, lane connections, lane shape, and lane distance are not
+gameplay variables. They are established during setup/load and can change only
+for setup, map load, map editing, restart, or new-map creation.
+
+Conquest changes ownership and game state. Territory geometry changes because it
+is derived from ownership over the fixed board.
+
 ---
 
 ## 1. Star Types

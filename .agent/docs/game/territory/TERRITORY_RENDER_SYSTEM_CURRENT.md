@@ -32,6 +32,23 @@ The shared truth is still:
 
 That model remains the runtime pipeline for the vector/pipeline route.
 
+### 2.1a Loaded-game board-layout invariant
+
+For the current product, once a board is loaded and gameplay has started, the
+physical board layout is immutable:
+
+- star count does not change;
+- star positions do not change;
+- lane count does not change;
+- lane connections do not change;
+- lane shape and lane distance do not change.
+
+Ownership, ships, orders, combat state, conquest events, transition progress,
+visual effects, and relevant settings can change during play. Territory geometry
+can change during play only because ownership/settings/transition state changes
+over the fixed board. If a live-game path observes a physical board-layout
+change, treat it as a bug or bad diagnostic, not as a normal renderer case.
+
 ### 2.2 Current reality
 
 The repo is not running one single territory architecture today. It is running three territory runtime shapes side by side:
@@ -215,6 +232,9 @@ As of 2026-04-28, ongoing work should assume:
 2. deliberate temporal undersampling is not an acceptable shipping tactic
 3. dynamic visual throttling is not an acceptable default tactic
 4. names must describe the actual code path, not the intended future architecture
+5. loaded-game board layout is immutable during live gameplay; renderer and
+   transition work must not spend per-frame effort detecting impossible star/lane
+   layout changes
 
 ## 10. Rename And Cull Recommendations
 

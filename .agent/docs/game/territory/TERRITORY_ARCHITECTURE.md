@@ -39,6 +39,14 @@ Ownership → Geometry → Transition → Presentation
 > [!IMPORTANT]
 > Ownership-layer input invariant: by the time territory code runs, every live star must have an `ownerId`. Missing or empty owner IDs from map inputs are normalized to `"neutral"` during game initialization so neutral territory holds space in every renderer.
 
+> [!IMPORTANT]
+> Loaded-game board-layout invariant: for the current product, after gameplay
+> starts, the physical board does not change. Star count, star positions, lane
+> count, lane connections, lane shape, and lane distance are setup/load facts,
+> not live-game variables. Ownership and territory geometry can change during
+> play; the board layout cannot. Future dynamic-map work must be explicitly
+> scoped as a separate feature.
+
 ### Core design position (from 2026-04-04 design review)
 
 A conquest transition is a transformation of the **shared frontier graph**, not of independent owner polygons. Only the frontier spans that actually change should move; unchanged spans remain fixed. Region loops are **rebuilt** from interpolated frontier geometry each frame — this is what preserves the planar-partition invariant (no gaps, no overlaps, borders aligned).

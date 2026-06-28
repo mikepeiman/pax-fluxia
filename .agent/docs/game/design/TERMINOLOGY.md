@@ -10,6 +10,7 @@
 | **Region** | A contiguous area of space owned by one player |
 | **Holding** | The sum total of a player's territories across the sector |
 | **Sector** | The game map |
+| **Board Layout** | The physical map facts: star count, star positions, lane count, lane connections, lane shape, and lane distance |
 | **Star** | A node on the map — produces ships, can be conquered |
 | **Lane** | A connection/route between two stars |
 | **Order** | A player command to move ships between stars |
@@ -45,6 +46,10 @@
 | **Recompute Connectivity** | Rebuild which star pairs are connected, then derive lane geometry from that new connectivity |
 | **Authored Map** | A map whose star layout and connectivity were chosen by a human or loaded from a saved map |
 | **Generated Map** | A map whose star layout and/or connectivity were produced by map generation logic |
+
+After a board is loaded and gameplay has started, Board Layout is immutable in
+the current product. Ownership, ships, orders, combat, and territory derived from
+ownership can change during play; Board Layout cannot.
 
 ## Lane Constraint Terms
 
