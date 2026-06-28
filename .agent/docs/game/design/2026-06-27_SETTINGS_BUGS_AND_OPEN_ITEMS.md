@@ -71,6 +71,15 @@ User-reported issues + items held in context. Keep updated as they're fixed.
    Flipped the default to shader-band (frontier/config.ts) → EDGES + EMBER smooth-by-
    default; only that family reads the technique so nothing else is touched; auto-
    falls back to control with no renderer / non-square; user choices persist.
+   **2026-06-27 REAL ROOT CAUSE (the "still not smooth" report):** inspected the LIVE
+   render state — technique was ALREADY shader-band with all conditions met, yet the
+   fill was a staircase. Cause = `territoryFrontierPhaseSampling: 'nearest'` (default +
+   persisted): the shader-band fill sampled the per-cell phase field nearest → each
+   ~12px texel constant → 12px staircase. FIXED (`f96bb7771`): force LINEAR sampling
+   for the shader-band fill + frontier-band border (sub-cell interpolation = smooth +
+   matching). Default → linear. Fixes EDGES + EMBER. Phase Sampling UI control now
+   vestigial (render forces linear) — remove next. Also: spacing unified to ONE
+   "Cell Spacing" (`7566068a3`).
    **FIELD (phase_field) STILL OPEN — different family, no phase-band path.**
    CellGridPhaseFieldFamily paints raster cells (`drawFilledGridCell`) MASKED by the
    smooth boundary geometry (`drawGeometryFill` of region rings), so its OUTER edge
