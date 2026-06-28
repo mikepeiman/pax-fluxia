@@ -105,14 +105,16 @@ what failed, and what remains unresolved.
    Plain result: when a transition silently falls back to a simpler path, the
    benchmark should say so instead of hiding the fallback.
 
-8. Star capture flash performance improved.
+8. Star capture flash render path was cleaned up.
 
-   The capture flash pulse was moved out of the main star shape redraw. The flash
-   now uses a small overlay whose shape can be reused while only its opacity
-   changes.
+   This is not the conquered star's owner-color change. It is the short white
+   flash effect drawn on top of the star after conquest. That flash pulse was
+   moved out of the main star shape redraw. The flash now uses a small overlay
+   whose shape can be reused while only its opacity changes.
 
-   Plain result: the visible capture flash still exists, but it should force less
-   expensive star redrawing during an animation.
+   Plain result: the visible capture flash still exists, and one unnecessary
+   repeated redraw path is avoided. This is a small local cleanup, not a major
+   game-performance fix.
 
 9. Some heavy conquest work was moved out of the immediate render frame.
 

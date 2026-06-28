@@ -311,21 +311,25 @@ Validation:
 - Added tests for in-place lane topology mutation and in-place owner mutation.
 - Both now cause deterministic cache misses.
 
-### 5.12 Conquest Flash Overlay Optimization
+### 5.12 Conquest Flash Overlay Cleanup
 
 What changed:
 
-- Moved conquest flash pulse rendering out of base star graphics.
+- Moved the brief white conquest flash pulse out of the main star-shape drawing.
 - The flash pulse now uses its own small overlay object and normally changes alpha only.
 
 User-facing meaning:
 
-- The visible flash on a conquered star still appears, but it should not force expensive redrawing of the base star shape every animation frame.
+- This is not the conquered star's owner-color change.
+- It is only the short white flash effect that appears on top of the star.
+- The change avoids one unnecessary repeated redraw path for that flash effect.
+- This should be treated as a small local cleanup, not as a major game-performance fix.
 
 Benchmark evidence:
 
 - Flash overlay shape was redrawn once and reused.
-- Remaining base star redraws were mostly owner-color transition changes.
+- Remaining main star-shape redraws were mostly owner-color transition changes.
+- The major frame-cadence problem remained.
 
 ### 5.13 Frame-Cadence Instrumentation
 
@@ -514,7 +518,7 @@ What was ruled out as primary cause so far:
 
 - normal Grid Gradient render work;
 - Pixi stage render time;
-- conquest flash base redraw;
+- the short white conquest flash effect;
 - transition fallback;
 - long JavaScript tasks in the latest animation benchmark.
 
@@ -593,7 +597,7 @@ Finding:
 
 Hypothesis:
 
-- Conquest flash animation was forcing expensive base star redraws.
+- Conquest flash animation was causing repeated redraws of the main star shape.
 
 Evidence:
 
@@ -602,8 +606,8 @@ Evidence:
 
 Finding:
 
-- Partly confirmed: flash redraw cost was reduced.
-- It did not solve frame cadence.
+- Confirmed only as a small local redraw cleanup.
+- It did not solve frame cadence and should not be treated as a meaningful explanation for the game's main performance problem.
 
 ### 9.5 Pixi Render Cost Hypothesis
 
@@ -731,7 +735,7 @@ Key commits in the integration branch:
 - `e2e600b05` - guarded transition diagnostics against non-owner geometry drift.
 - `6fa2717af` - made render-family geometry cache exact.
 - `51680e781` - reported transition diagnostic bundles.
-- `e33ba4e1e` - moved conquest flash off base redraws.
+- `e33ba4e1e` - moved the short white conquest flash pulse to a separate overlay.
 - `946e1bee7` - exposed browser cadence diagnostics.
 - `5291f9db3` - recorded integration reconciliation.
 - `d2ac9d771` - kept conquest geometry off render frame.
