@@ -3462,11 +3462,14 @@
     let animationFrameId: number | null = null;
     const emptyStarsMap = new Map<string, StarState>(); // Cached empty map — avoid per-frame allocation
     let resizeObserver: ResizeObserver | null = null;
-    // Coalesce ResizeObserver bursts. A settings-menu open/close animates the CSS
-    // grid every frame, which would otherwise run a full handleResize (backbuffer
-    // realloc + updateTerritoryViewportFrame + render) ~13x in 220ms → jank. The
-    // canvas is width:100%!important so it CSS-stretches for free between runs; we
-    // run the full (atomic) handleResize once the size settles.
+    // Resize handling is split so a settings-menu open/close (which animates the
+    // CSS grid every frame) stays smooth AND keeps the correct aspect ratio:
+    //  - every frame: refitViewportNow() — cheap (resize backbuffer + uniform
+    //    re-fit + territory frame), so the map tracks the container undistorted;
+    //  - on settle (RESIZE_SETTLE_MS idle): the full handleResize() runs once for
+    //    the heavy refresh (overlay re-render, world-bounds, nebula, logging).
+    // Because the per-frame refit already lands on the correct fit, the settle
+    // handleResize changes nothing visible → no snap.
     let resizeSettleTimer: ReturnType<typeof setTimeout> | null = null;
     const RESIZE_SETTLE_MS = 90;
     let lastTickGameTimeMs = 0; // Game-clock time at last tick (for tickProgress)
@@ -3901,6 +3904,12 @@
         // the expensive full handleResize until the size settles, so the
         // animation stays smooth instead of recomputing the map every frame.
         resizeObserver = new ResizeObserver(() => {
+            // Per frame: cheap refit so the map tracks the container at the correct
+            // aspect throughout the animation (no horizontal stretch, ends on the
+            // exact settle state → no snap).
+            refitViewportNow();
+            // On settle: the full handleResize refreshes the heavy bits (overlay
+            // re-render, world-bounds, nebula, logging) once.
             if (resizeSettleTimer) clearTimeout(resizeSettleTimer);
             resizeSettleTimer = setTimeout(() => {
                 resizeSettleTimer = null;
@@ -4353,6 +4362,29 @@
             `container=${containerWidth.toFixed(0)}x${containerHeight.toFixed(0)} content=(${contentMinX.toFixed(0)},${contentMinY.toFixed(0)} ${contentWidth.toFixed(0)}x${contentHeight.toFixed(0)}) baseScale=${baseScale.toFixed(4)} dpr=${window.devicePixelRatio} cssGrid(el)=${canvasEl?.clientWidth ?? "?"}x${canvasEl?.clientHeight ?? "?"} viewport=${window.innerWidth}x${window.innerHeight}`,
         );
         renderInteractionOverlayNow();
+    }
+
+    // Cheap per-frame refit run during a resize burst (e.g. the settings-menu
+    // slide). It keeps the map at the CORRECT aspect on every frame so there is
+    // no horizontal stretch and no snap when the full handleResize settles:
+    //  - app.resize() syncs the WebGL backbuffer to the container (no CSS stretch)
+    //  - baseScale re-fits content (contentWidth/Height are star-derived and do
+    //    NOT change with the container, so updateWorldBounds can stay debounced)
+    //  - app.stage.scale is uniform, so the scene never distorts
+    //  - updateTerritoryViewportFrame keeps territory aligned every frame
+    // The heavy parts (overlay re-render, world-bounds recompute, logging) stay in
+    // the debounced full handleResize.
+    function refitViewportNow() {
+        if (!app || !app.renderer) return;
+        invalidateCanvasClientRectCache();
+        app.resize();
+        const cw = app.screen.width;
+        const ch = app.screen.height;
+        if (contentWidth > 0 && contentHeight > 0) {
+            baseScale = Math.min(cw / contentWidth, ch / contentHeight);
+        }
+        updateTerritoryViewportFrame();
+        applyZoomTransform();
     }
 
     function applyZoomTransform() {
