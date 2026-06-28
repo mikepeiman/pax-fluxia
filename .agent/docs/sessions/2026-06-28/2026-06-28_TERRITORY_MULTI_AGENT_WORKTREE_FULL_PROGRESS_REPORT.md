@@ -404,7 +404,7 @@ Focused validation already passed:
 
 Not yet completed:
 
-- no-op lane result should not bump revision;
+- applying identical lane results should leave the revision unchanged;
 - multiplayer/online-room revision source;
 - full build after this uncommitted experiment;
 - Graphify rebuild after this uncommitted experiment;
@@ -694,7 +694,7 @@ Finding:
 - The optional `spatialTopologyRevision` fast path is directionally useful.
 - Current single-player-only revision is incomplete as architecture.
 - Recommended next refinements:
-  - do not bump revision when lane data is applied but unchanged;
+  - leave the revision unchanged when lane data is applied but unchanged;
   - create online-room revision support;
   - keep ownership invalidation separate from spatial topology invalidation.
 
@@ -776,7 +776,7 @@ Uncommitted files:
 - `pax-fluxia/src/lib/territory/families/renderFamilyGeometryCacheKey.test.ts`
 - `pax-fluxia/src/lib/territory/families/renderFamilyGeometryCacheKey.ts`
 
-These contain the spatial-topology-revision experiment. They are intentionally not committed with this report.
+These contain the map-layout-revision experiment. They are intentionally not committed with this report.
 
 Reason:
 
@@ -847,7 +847,7 @@ Faster alternative:
 
 Risk of faster alternative:
 
-- If a real layout change happens and the revision is not bumped, stale geometry can be reused.
+- If a code path changes the map layout but does not update the revision, stale geometry can be reused.
 
 ## 15. Open Questions
 
@@ -865,8 +865,8 @@ Risk of faster alternative:
 ### 16.1 Finish Current Uncommitted Cache-Revision Work
 
 1. Add no-op tests:
-   - applying identical lane results should not bump the map-layout revision.
-   - changing saved/generated lane path points, lane path status, or lane endpoints should bump the map-layout revision.
+   - applying identical lane results should leave the map-layout revision unchanged.
+   - changing saved/generated lane path points, lane path status, or lane endpoints should advance the map-layout revision.
 2. Add online-room revision path or explicitly defer it with a documented architecture note.
 3. Run:
    - focused cache tests;
@@ -925,4 +925,4 @@ The biggest solved class is not "visual polish"; it is making geometry and trans
 
 The biggest unsolved class is frame cadence: Grid Gradient conquest animation often receives frames around 35ms apart even when measured render work is low. The next work should prove whether that is browser/compositor/headless behavior, Pixi presentation behavior, or a still-unmeasured scheduling problem.
 
-The current uncommitted topology-revision experiment is promising but architecturally incomplete until the local-game and online-room state paths expose one unified render-facing revision signal.
+The current uncommitted map-layout-revision experiment is architecturally incomplete until the local-game and online-room state paths expose one unified render-facing revision signal.
