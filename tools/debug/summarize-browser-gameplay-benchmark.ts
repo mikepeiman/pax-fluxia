@@ -430,7 +430,7 @@ function printScenario(name: string, scenario: any): void {
                 `  - contract=${String(validation?.contract ?? diagnosticBundle?.exportKind ?? "unknown")} ok=${String(validation?.ok ?? "n/a")} transition=${String(diagnosticBundle?.transitionId ?? "n/a")}`,
             );
             console.log(
-                `  - mode=${String(validationSummary?.mode ?? "n/a")} capture=${String(validationSummary?.captureKind ?? "n/a")} selectedFrames=${Number(validationSummary?.selectedFrameCount ?? 0)} transitionFrames=${Number(validationSummary?.transitionFrameCount ?? 0)} progress=${round(Number(validationSummary?.minProgress ?? 0))}-${round(Number(validationSummary?.maxProgress ?? 0))}`,
+                `  - mode=${String(validationSummary?.mode ?? "n/a")} capture=${String(validationSummary?.captureKind ?? "n/a")} selectedFrames=${Number(validationSummary?.selectedFrameCount ?? 0)} transitionFrames=${Number(validationSummary?.transitionFrameCount ?? 0)} progress=${round(Number(validationSummary?.minProgress ?? 0))}-${round(Number(validationSummary?.maxProgress ?? 0))} ownerOnlyGeometryDelta=${String(validationSummary?.geometryVersionOwnerOnlyDelta ?? "n/a")}`,
             );
             console.log(
                 `  - conquests=${conquestEvents.length} first=${String(firstConquest?.starId ?? "n/a")}:${String(firstConquest?.previousOwner ?? "n/a")}->${String(firstConquest?.newOwner ?? "n/a")}`,

@@ -1,7 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import { validateTransitionDiagnosticBundleForBenchmark } from "./transition-diagnostic-benchmark-validation";
 
-function buildCurrentPackage(captureDiagnostics: unknown) {
+function buildCurrentPackage(
+    captureDiagnostics: unknown,
+    overrides: Record<string, unknown> = {},
+) {
     return {
         exportKind: "transition_diagnostic_package",
         bundleId: "bundle-1",
@@ -10,6 +13,7 @@ function buildCurrentPackage(captureDiagnostics: unknown) {
         nextGeometry: { version: "post" },
         selectedFrames: [{ progress: 0.5, filename: "frame_01.png", sourceIndex: 1 }],
         captureDiagnostics,
+        ...overrides,
     };
 }
 
@@ -125,6 +129,83 @@ describe("validateTransitionDiagnosticBundleForBenchmark", () => {
                 transitionFrameCount: 3,
             },
         });
+    });
+
+    it("accepts current geometry versions that differ only by conquered owner", () => {
+        const result = validateTransitionDiagnosticBundleForBenchmark(
+            buildCurrentPackage(
+                {
+                    kind: "territory_live_capture",
+                    mode: "grid_gradient",
+                    previousFrame: { progress: 0 },
+                    nextFrame: { progress: 1 },
+                    transitionFrames: [
+                        { frameIndex: 1, progress: 0, snapshot: {} },
+                        { frameIndex: 2, progress: 1, snapshot: {} },
+                    ],
+                },
+                {
+                    conquestEvents: [
+                        {
+                            starId: "star-6",
+                            previousOwner: "neutral",
+                            newOwner: "human-player",
+                        },
+                    ],
+                    previousGeometry: {
+                        version:
+                            "pvv2:sstar-6:neutral:610.000,460.000,25.000:lstar-0>star-6:0.000:straight:straight_ok:wp2@240.000,460.000@610.000,460.000:core20",
+                    },
+                    nextGeometry: {
+                        version:
+                            "pvv2:sstar-6:human-player:610.000,460.000,25.000:lstar-0>star-6:0.000:straight:straight_ok:wp2@240.000,460.000@610.000,460.000:core20",
+                    },
+                },
+            ),
+        );
+
+        expect(result.ok).toBe(true);
+        expect(result.summary.geometryVersionOwnerOnlyDelta).toBe(true);
+    });
+
+    it("rejects current geometry versions with lane routing drift", () => {
+        const result = validateTransitionDiagnosticBundleForBenchmark(
+            buildCurrentPackage(
+                {
+                    kind: "territory_live_capture",
+                    mode: "grid_gradient",
+                    previousFrame: { progress: 0 },
+                    nextFrame: { progress: 1 },
+                    transitionFrames: [
+                        { frameIndex: 1, progress: 0, snapshot: {} },
+                        { frameIndex: 2, progress: 1, snapshot: {} },
+                    ],
+                },
+                {
+                    conquestEvents: [
+                        {
+                            starId: "star-6",
+                            previousOwner: "neutral",
+                            newOwner: "human-player",
+                        },
+                    ],
+                    previousGeometry: {
+                        version:
+                            "pvv2:sstar-6:neutral:610.000,460.000,25.000:lstar-0>star-6:370.000:::wp0:core20",
+                    },
+                    nextGeometry: {
+                        version:
+                            "pvv2:sstar-6:human-player:610.000,460.000,25.000:lstar-0>star-6:0.000:straight:straight_ok:wp2@240.000,460.000@610.000,460.000:core20",
+                    },
+                },
+            ),
+        );
+
+        expect(result.ok).toBe(false);
+        expect(result.errors.join("\n")).toContain(
+            "geometry version changed outside conquered owner fields",
+        );
+        expect(result.summary.geometryVersionOwnerOnlyDelta).toBe(false);
     });
 
     it("rejects a current diagnostic package without capture diagnostics", () => {

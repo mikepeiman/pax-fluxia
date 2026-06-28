@@ -3401,9 +3401,10 @@
             !transitionDiagnosticCaptureSession ||
             transitionDiagnosticCaptureSession.key !== transitionKey
         ) {
-            const previousFrame = transitionDiagnosticStableFrame
+            const stablePreviousFrame = transitionDiagnosticStableFrame;
+            const previousFrame = stablePreviousFrame
                 ? {
-                      ...transitionDiagnosticStableFrame,
+                      ...stablePreviousFrame,
                       geometry: prevFrame?.geometry ?? liveFrame.geometry,
                       ownership: prevFrame?.ownership ?? liveFrame.ownership,
                       mode: params.activeMode,
@@ -3419,7 +3420,18 @@
                 mode: params.activeMode,
                 conquestEvents,
                 previousFrame,
-                frames: [],
+                frames: stablePreviousFrame
+                    ? [
+                          {
+                              frameIndex: 1,
+                              progress: 0,
+                              canvas: cloneCanvasFrame(previousFrame.canvas),
+                              debugSnapshot: cloneTransitionDiagnosticSnapshot(
+                                  previousFrame.debugSnapshot,
+                              ),
+                          },
+                      ]
+                    : [],
             };
         } else {
             transitionDiagnosticCaptureSession.conquestEvents = conquestEvents;

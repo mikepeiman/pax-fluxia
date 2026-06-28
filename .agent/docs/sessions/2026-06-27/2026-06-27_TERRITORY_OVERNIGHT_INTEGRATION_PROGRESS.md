@@ -295,6 +295,15 @@ Passed during exact render-family geometry cache slice at 2026-06-28 10:24 -04:0
 - Fresh `grid_gradientConquestAnimation` benchmark passed with `transitionFallbacks scenarios=0 reasons=none`, `frames count=94 avg=28.014ms p95=33.4ms max=50ms`, `frame cadence dominant=35ms count=58 share=0.617`, `game.renderFrame.territory.grid_gradient avg=0.765ms max=42.1ms`, and `geometry key cache hits=609 misses=8`.
 - Validation passed: `bun x vitest run src/lib/territory/families/renderFamilyGeometryCacheKey.test.ts` (6 tests), `bun x vitest run src/lib/territory` (55 files / 350 tests), `bun run check` from `pax-fluxia/` (0 errors, 1 existing warning), `bun run build` from `pax-fluxia/`, `bun run agentic:graphify:build` from repo root, and both fresh browser benchmark scenarios above.
 
+Passed during transition diagnostic frame-start and geometry guard slice at 2026-06-28 10:33 -04:00:
+
+- Added a permanent benchmark validator guard for transition diagnostic packages: previous/next geometry versions may differ by the conquered star owner field, but any lane routing, topology, coordinate, or non-conquered-owner drift now fails validation.
+- Added validator regression coverage for the accepted owner-only geometry delta and the rejected lane-routing drift case.
+- Fixed the live Grid Gradient transition diagnostic capture to seed the captured frame series with the real stable pre-transition frame at progress `0` when that frame exists. This preserves the validator's ability to reject genuinely late captures while making validated packages cover the full `0-1` transition range.
+- Fresh `grid_gradientConquestDiagnostic` benchmark passed with `transitionFallbacks scenarios=0 reasons=none` and a validated package: `contract=transition_diagnostic_package ok=true`, `capture=territory_live_capture`, `selectedFrames=5`, `transitionFrames=8`, `progress=0-1`, and `ownerOnlyGeometryDelta=true`.
+- Observation: the diagnostic recorder remains intentionally expensive (`game.renderFrame.territory.transitionDiagnosticSync avg=21.241ms max=42.6ms count=17`), so ordinary animation benchmarks should keep diagnostic capture disabled.
+- Validation passed: `bun test tools/debug/transition-diagnostic-benchmark-validation.test.ts` (9 tests), `bun build tools/debug/transition-diagnostic-benchmark-validation.ts tools/debug/summarize-browser-gameplay-benchmark.ts --target bun --outdir .agent-harness/tmp-bun-build-check-diagnostic-owner-geometry`, `bun run check` from `pax-fluxia/` (0 errors, 1 existing warning), fresh `grid_gradientConquestDiagnostic` benchmark, `bun tools/debug/summarize-browser-gameplay-benchmark.ts`, `bun run build` from `pax-fluxia/`, `bun run agentic:graphify:build` from repo root, and `git diff --check`.
+
 Known recurring non-blocking warning:
 
 - `GameThemeManager.svelte`: unused CSS selector `.game-theme-manager--menu .theme-chip-name`

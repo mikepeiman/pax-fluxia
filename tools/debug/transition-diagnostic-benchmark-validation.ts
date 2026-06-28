@@ -21,6 +21,32 @@ function asArray(value: unknown): unknown[] {
     return Array.isArray(value) ? value : [];
 }
 
+function escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function normalizeGeometryVersionForConquestOwners(
+    version: string,
+    conquestEvents: readonly Record<string, unknown>[],
+): string {
+    let normalized = version;
+    for (const event of conquestEvents) {
+        const starId = String(event.starId ?? '');
+        if (!starId) continue;
+        const owners = [
+            String(event.previousOwner ?? ''),
+            String(event.newOwner ?? ''),
+        ].filter((owner) => owner.length > 0);
+        if (owners.length === 0) continue;
+        const ownerPattern = owners.map(escapeRegExp).join('|');
+        normalized = normalized.replace(
+            new RegExp(`s${escapeRegExp(starId)}:(?:${ownerPattern}):`, 'g'),
+            `s${starId}:OWNER:`,
+        );
+    }
+    return normalized;
+}
+
 function hasTriggeredFailIf(step: Record<string, unknown>): boolean {
     return asArray(step.failIf).some(
         (entry) => asRecord(entry)?.triggered === true,
@@ -246,6 +272,30 @@ function validateCurrentPackage(
     }
     if (!asRecord(bundle.nextGeometry)) {
         errors.push('diagnostic package nextGeometry is missing');
+    }
+    const previousGeometry = asRecord(bundle.previousGeometry);
+    const nextGeometry = asRecord(bundle.nextGeometry);
+    const conquestEvents = asArray(bundle.conquestEvents).filter(isRecord);
+    if (
+        conquestEvents.length > 0 &&
+        typeof previousGeometry?.version === 'string' &&
+        typeof nextGeometry?.version === 'string'
+    ) {
+        const normalizedPrevious = normalizeGeometryVersionForConquestOwners(
+            previousGeometry.version,
+            conquestEvents,
+        );
+        const normalizedNext = normalizeGeometryVersionForConquestOwners(
+            nextGeometry.version,
+            conquestEvents,
+        );
+        summary.geometryVersionOwnerOnlyDelta =
+            normalizedPrevious === normalizedNext;
+        if (normalizedPrevious !== normalizedNext) {
+            errors.push(
+                'diagnostic package geometry version changed outside conquered owner fields',
+            );
+        }
     }
 
     const selectedFrames = asArray(bundle.selectedFrames);
