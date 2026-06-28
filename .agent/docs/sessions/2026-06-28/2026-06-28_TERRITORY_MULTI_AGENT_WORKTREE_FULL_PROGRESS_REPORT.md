@@ -5,6 +5,12 @@ Branch: `codex/territory-overnight-integration`
 Worktree: `C:\Users\mikep\.codex\worktrees\territory-overnight-integration\pax-fluxia`  
 Current pushed head when written: `56e0ce76d test(geometry): tighten resolved geometry oracle`
 
+Naming note:
+
+- Some exact branch and commit names include older source-code terms such as `oracle`.
+- In plain English, those are automatic geometry checkers.
+- Exact Git names are left unchanged so the history remains searchable.
+
 ## 1. Scope Of This Report
 
 This report covers the multi-agent, multi-worktree territory effort from the planning and audit phase through the latest integration-branch work.
@@ -113,7 +119,7 @@ The integration branch reconciled or absorbed work from:
 
 ### 4.3 Conflict Handling
 
-- Kept stricter frontier-topology oracle behavior when merging geometry invariant work.
+- Kept the stricter frontier border-structure checker when merging geometry invariant work.
 - Kept both PV frontline planner test groups when merging transition-correctness work.
 
 ## 5. Major Implemented Areas
@@ -193,7 +199,7 @@ Plain English:
 
 What changed:
 
-- Replaced unbounded Grid Gradient owner-grid caches with small LRU caches.
+- Replaced unbounded Grid Gradient owner-grid caches with small fixed-size caches that discard the least recently used entry when full.
 - Added diagnostics for cache entries, maximum entries, estimated bytes, and evictions.
 
 Why it matters:
@@ -207,7 +213,7 @@ What changed:
 - Added `power_core_candidate` as a real geometry mode id and registry option.
 - It does not replace the live default.
 - It audits 0319 cell geometry using pure shared-edge construction.
-- It reports cell count, loop count, shared/world edges, owner area agreement, duplicate source site ids, and deterministic topology fingerprint.
+- It reports cell count, loop count, shared/world edges, owner area agreement, duplicate source site ids, and a stable internal ID for the candidate border structure.
 
 Plain English:
 
@@ -259,10 +265,10 @@ Validation:
 What changed:
 
 - Transition planning is gated on geometry reliability:
-  - topology reliability;
+  - border-structure reliability;
   - identity reliability;
   - closure reliability;
-  - resolved geometry oracle result.
+  - automatic resolved-geometry checker result.
 - Added named fallback reasons instead of silent fallback.
 
 Plain English:
@@ -346,7 +352,7 @@ Finding:
 - Pixi stage render was not the missing 35-50ms cost.
 - In one run, Pixi stage render averaged about `1.013ms`, while the whole render frame averaged about `2.421ms`.
 
-### 5.15 Uncommitted Spatial Topology Revision Experiment
+### 5.15 Uncommitted Map-Layout Revision Experiment
 
 Current status:
 
@@ -360,18 +366,26 @@ Current status:
 
 What it means:
 
-- A "spatial topology revision" is a number that changes when the physical map/lane layout changes.
+- A "map-layout revision" is a number that changes when the physical star/lane layout changes.
+- The current source-code name is `spatialTopologyRevision`.
 - Physical layout includes:
   - star positions;
   - star radii;
   - lane endpoints;
   - lane distances;
-  - lane path types;
-  - lane waypoint coordinates.
+  - lane path metadata, if present;
+  - saved/generated lane path points, if present.
+
+Important correction:
+
+- "Lane path points" are not a player-facing feature and not a roadmap feature being introduced here.
+- The source type has an optional field named `laneWaypoints`.
+- In plain English, that field means optional internal/saved points along a normal star-to-star lane, used when map generation or map import has already produced a bent lane path.
+- If those points are absent, there are no extra lane path points to scan.
 
 Why it exists:
 
-- If that number has not changed, the renderer can reuse the previous map-shape hash instead of scanning lane waypoints every render frame.
+- If that number has not changed, the renderer can reuse the previous map-shape summary instead of rebuilding that summary from all star/lane layout data every render frame.
 - Ownership is still checked separately, so conquests still invalidate territory.
 
 Architecture concern raised:
@@ -549,7 +563,7 @@ Current safe fallback:
 
 Next correct fix:
 
-- expose a unified topology revision or topology fingerprint through `activeGameStore` for both state sources.
+- expose one shared "map layout changed" signal through `activeGameStore` for both state sources.
 
 ## 9. Tested Hypotheses
 
@@ -736,7 +750,7 @@ Known recurring warnings:
 
 Key commits in the integration branch:
 
-- `56e0ce76d` - tightened resolved geometry oracle.
+- `56e0ce76d` - tightened the resolved-geometry checker.
 - `92a915fe6` - recorded rejected Pixi ticker scheduling result.
 - `921d20bfb` - instrumented Pixi frame delivery.
 - `7196259d0` - separated frame cadence from render work.
@@ -749,8 +763,8 @@ Key commits in the integration branch:
 - `d2ac9d771` - kept conquest geometry off render frame.
 - `8b1b3be90` - cached render-family geometry keys.
 - `4a54330a0` and `90655fc3a` - surfaced transition fallback reliability.
-- `7c5d71851` and `eff5b28b0` - preserved oracle/topology reliability across Grid Gradient and transition gating.
-- `63187f40e`, `af13a89be`, `3d9c5bd11`, `9721283d9`, `6cab45ce8` - power-core candidate and geometry oracle coverage.
+- `7c5d71851` and `eff5b28b0` - preserved geometry-checker and border-structure reliability across Grid Gradient and transition gating.
+- `63187f40e`, `af13a89be`, `3d9c5bd11`, `9721283d9`, `6cab45ce8` - power-core candidate and geometry-checker coverage.
 
 ## 13. Current Dirty Worktree At Report Time
 
@@ -775,7 +789,7 @@ Reason:
 
 Observation:
 
-- The uncommitted patch exposes a topology revision for local games only.
+- The uncommitted patch exposes a map-layout revision for local games only.
 
 Hypothesis:
 
@@ -809,7 +823,13 @@ It reads:
 - lane distances;
 - lane path kind;
 - lane constraint status;
-- lane waypoint coordinates.
+- optional saved/generated lane path points.
+
+Clarification:
+
+- The source-code field for those optional path points is `laneWaypoints`.
+- That is internal map/lane geometry data, not a player-facing gameplay concept.
+- Most of the time the important lane data is simply "which two stars this lane connects."
 
 Why safe:
 
@@ -830,7 +850,7 @@ Risk of faster alternative:
 ## 15. Open Questions
 
 1. Should online-room state receive a server-provided map/lane revision, or should the client compute one once per room sync?
-2. Should the topology revision be maintained in `activeGameStore`, a lower shared state adapter, or common runtime state?
+2. Should the map-layout revision be maintained in `activeGameStore`, a lower shared state adapter, or common runtime state?
 3. Is the 35ms frame cadence visible in real foreground Chrome, or only in headless benchmark Chrome?
 4. How much does `--disable-gpu` distort Pixi/WebGL frame delivery in the benchmark?
 5. Do other modes besides Grid Gradient show the same cadence pattern under matched conquest animation scenarios?
@@ -843,8 +863,8 @@ Risk of faster alternative:
 ### 16.1 Finish Current Uncommitted Cache-Revision Work
 
 1. Add no-op tests:
-   - applying identical lane results should not bump topology revision.
-   - changing lane waypoint/path/status should bump topology revision.
+   - applying identical lane results should not bump the map-layout revision.
+   - changing saved/generated lane path points, lane path status, or lane endpoints should bump the map-layout revision.
 2. Add online-room revision path or explicitly defer it with a documented architecture note.
 3. Run:
    - focused cache tests;
