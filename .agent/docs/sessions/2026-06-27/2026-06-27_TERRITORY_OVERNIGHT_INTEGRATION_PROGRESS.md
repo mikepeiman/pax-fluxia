@@ -316,6 +316,17 @@ Passed during frame-cadence separation slice at 2026-06-28 10:53 -04:00:
 - The new app-loop interval summary reported `count=164 avg=26.523ms p95=33.4ms max=50.1ms`, with retained histogram `35ms:46,15ms:17,50ms:1`. The frame summary reported `count=105 avg=24.919ms p95=33.4ms max=50ms`, with histogram `15ms:54,35ms:50,50ms:1`.
 - The benchmark no longer showed unrelated setup renderer modes in the Grid Gradient animation aggregate; top render work was ships, Grid Gradient territory presentation, stars, and Grid Gradient geometry.
 
+Passed during Pixi render probe slice at 2026-06-28 11:02 -04:00:
+
+- Added benchmark-only Pixi probes for app ticker cadence and stage/offscreen renderer calls. The probes are inert when perf capture is disabled.
+- Added measured `game.frameLoop.fx`, `game.frameLoop.renderFrame`, and `game.frameLoop.camera` sections so frame attribution can account for work outside the nested render-family timers.
+- Updated frame attribution so Pixi ticker intervals are treated as cadence evidence, not CPU/render work.
+- Updated benchmark summaries to print Pixi ticker cadence and include Pixi stage render plus frame-loop work in the render line items.
+- Fresh `grid_gradientConquestAnimation` benchmark passed with `transitionFallbacks scenarios=0 reasons=none`.
+- Observation from the fresh run: Pixi stage render was not the missing 35-50ms cost. It averaged `1.013ms` with `max=8.3ms`; full `game.frameLoop.renderFrame` averaged `2.421ms` with `max=10.4ms`.
+- The same fresh run still reported frame delivery gaps: frame summary `count=91 avg=28.754ms p95=50ms max=50.1ms`, app-loop interval `count=155 avg=28.709ms p95=33.4ms max=50.1ms`, and Pixi ticker interval `count=155 avg=28.649ms p95=34.5ms max=45.2ms`.
+- Slow-frame attribution remained mostly unattributed after accounting for Pixi render, FX update, and full `renderFrame`; no long tasks were observed. Next scheduling experiment should remove the separate game `requestAnimationFrame` loop and drive game updates from Pixi's ticker before Pixi renders.
+
 Known recurring non-blocking warning:
 
 - `GameThemeManager.svelte`: unused CSS selector `.game-theme-manager--menu .theme-chip-name`

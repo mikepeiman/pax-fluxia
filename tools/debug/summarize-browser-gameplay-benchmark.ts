@@ -62,6 +62,17 @@ function printScenario(name: string, scenario: any): void {
                 `app frame loop count=${Number(frameLoopInterval?.count ?? 0)} avg=${round(Number(frameLoopInterval?.avgMs ?? 0))}ms p95=${round(Number(frameLoopInterval?.retainedP95Ms ?? 0))}ms max=${round(Number(frameLoopInterval?.maxMs ?? 0))}ms retained=${Number(frameLoopInterval?.retainedSampleCount ?? 0)} histogram=${loopHistogram || "none"}`,
             );
         }
+        const pixiTickerInterval = scenario?.perf?.pixiTickerInterval;
+        if (pixiTickerInterval) {
+            const pixiHistogram = Array.isArray(pixiTickerInterval?.retainedHistogram)
+                ? pixiTickerInterval.retainedHistogram
+                      .map((entry: any) => `${round(Number(entry?.bucketMs ?? 0))}ms:${Number(entry?.count ?? 0)}`)
+                      .join(",")
+                : "";
+            console.log(
+                `pixi ticker count=${Number(pixiTickerInterval?.count ?? 0)} avg=${round(Number(pixiTickerInterval?.avgMs ?? 0))}ms p95=${round(Number(pixiTickerInterval?.retainedP95Ms ?? 0))}ms max=${round(Number(pixiTickerInterval?.maxMs ?? 0))}ms retained=${Number(pixiTickerInterval?.retainedSampleCount ?? 0)} histogram=${pixiHistogram || "none"}`,
+            );
+        }
         const framePacing = scenario?.analysis?.framePacing;
         if (framePacing) {
             const reasons = Array.isArray(framePacing?.reasons)

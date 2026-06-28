@@ -93,6 +93,16 @@ describe('summarizeFramePerfAttribution', () => {
                     },
                 },
                 {
+                    name: 'game.pixi.ticker.interval',
+                    atMs: 100,
+                    detail: {
+                        kind: 'measure',
+                        durationMs: 50,
+                        startTimeMs: 100,
+                        endTimeMs: 150,
+                    },
+                },
+                {
                     name: 'game.renderFrame.ships',
                     atMs: 110,
                     detail: {

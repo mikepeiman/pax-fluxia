@@ -56,7 +56,7 @@ function mergeMeasuredIntervals(
 }
 
 function isCadenceOnlyMeasure(name: string): boolean {
-    return name === 'game.frameLoop.interval';
+    return name === 'game.frameLoop.interval' || name === 'game.pixi.ticker.interval';
 }
 
 export function summarizeFramePerfAttribution(

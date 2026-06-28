@@ -733,6 +733,9 @@ function summarizeLongTasks(snapshot: any): Record<string, JsonValue> {
 }
 
 const MEASURE_GROUP_PREFIXES = [
+    "game.frameLoop",
+    "game.pixi.render",
+    "game.pixi.ticker",
     "game.renderFrame",
     "territory.metaballFamily",
     "territory.perimeterFieldFamily",
@@ -744,6 +747,10 @@ const MEASURE_GROUP_PREFIXES = [
 ] as const;
 
 const FOCUS_MEASURE_PATTERNS = [
+    "game.frameLoop.fx",
+    "game.frameLoop.renderFrame",
+    "game.frameLoop.camera",
+    "game.pixi.render.",
     "game.renderFrame.ownership.",
     "game.renderFrame.geometry.",
     "game.renderFrame.fg2DataPipeline.",
@@ -1474,6 +1481,10 @@ function summarizePerfSnapshot(
         focusMeasures: summarizeFocusMeasures(measures),
         highlightMeasures: measures.filter((entry) =>
             [
+                "game.frameLoop.fx",
+                "game.frameLoop.renderFrame",
+                "game.frameLoop.camera",
+                "game.pixi.render.",
                 "game.renderFrame.territory.",
                 "game.renderFrame.renderFamilyInput.",
                 "game.renderFrame.geometry.",
@@ -1495,6 +1506,10 @@ function summarizePerfSnapshot(
         ),
         renderLineItems: measures.filter((entry) =>
             [
+                "game.frameLoop.fx",
+                "game.frameLoop.renderFrame",
+                "game.frameLoop.camera",
+                "game.pixi.render.",
                 "game.renderFrame.ownership.",
                 "game.renderFrame.geometry.",
                 "game.renderFrame.renderFamilyInput.",
@@ -1510,6 +1525,9 @@ function summarizePerfSnapshot(
         frameMeasures: frameMeasures.slice(0, 25),
         frameLoopInterval: summarizeIntervalMeasure(
             snapshot?.measures?.["game.frameLoop.interval"],
+        ),
+        pixiTickerInterval: summarizeIntervalMeasure(
+            snapshot?.measures?.["game.pixi.ticker.interval"],
         ),
         measureGroups: summarizeMeasureGroups(snapshot),
         eventCounts: [...eventCounts.entries()]

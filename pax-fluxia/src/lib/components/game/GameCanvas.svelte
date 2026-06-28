@@ -201,6 +201,7 @@
     import { computeLaneHeadingForNearside } from "$lib/lanes/applyLaneTravelPath";
     import { resolveEffectiveLaneMarginPx } from "$lib/lanes/laneMargin";
     import {
+        isPerfCaptureEnabled,
         measurePerf,
         recordPerfDuration,
         recordPerfEvent,
@@ -230,9 +231,107 @@
     let canvasContainer: HTMLDivElement;
     let interactionOverlayCanvas: HTMLCanvasElement | null = null;
     let app: PIXI.Application | null = null;
+    let restorePixiRendererRenderProbe: (() => void) | null = null;
+    let pixiTickerPerfProbe:
+        | ((ticker: PIXI.Ticker) => void)
+        | null = null;
     let interactionOverlayCtx: CanvasRenderingContext2D | null = null;
     let interactionOverlayAnimationFrameId: number | null = null;
     let lastInteractionOverlayRenderKey: string | null = null;
+
+    function removePixiPerfProbes(): void {
+        if (app && pixiTickerPerfProbe) {
+            app.ticker.remove(pixiTickerPerfProbe);
+        }
+        pixiTickerPerfProbe = null;
+        restorePixiRendererRenderProbe?.();
+        restorePixiRendererRenderProbe = null;
+    }
+
+    function installPixiPerfProbes(pixiApp: PIXI.Application): void {
+        removePixiPerfProbes();
+
+        let lastPixiTickerAtMs = 0;
+        let previousPixiTickerWasPlaying = !activeGameStore.isPaused;
+        pixiTickerPerfProbe = (ticker: PIXI.Ticker) => {
+            if (!isPerfCaptureEnabled()) {
+                lastPixiTickerAtMs = 0;
+                previousPixiTickerWasPlaying = !activeGameStore.isPaused;
+                return;
+            }
+            const nowMs = performance.now();
+            const previousTickAtMs = lastPixiTickerAtMs;
+            const isPaused = activeGameStore.isPaused;
+            lastPixiTickerAtMs = nowMs;
+            if (
+                previousTickAtMs > 0 &&
+                !isPaused &&
+                previousPixiTickerWasPlaying
+            ) {
+                recordPerfDuration(
+                    "game.pixi.ticker.interval",
+                    nowMs - previousTickAtMs,
+                    {
+                        elapsedMS: ticker.elapsedMS,
+                        deltaMS: ticker.deltaMS,
+                        FPS: ticker.FPS,
+                        isPaused,
+                    },
+                    previousTickAtMs,
+                );
+            }
+            previousPixiTickerWasPlaying = !isPaused;
+        };
+        pixiApp.ticker.add(
+            pixiTickerPerfProbe,
+            undefined,
+            PIXI.UPDATE_PRIORITY.HIGH,
+        );
+
+        const renderer = pixiApp.renderer;
+        const originalRender = renderer.render.bind(renderer);
+        renderer.render = ((...args: Parameters<typeof renderer.render>) => {
+            if (!isPerfCaptureEnabled()) {
+                return originalRender(...args);
+            }
+            const firstArg = args[0] as
+                | { container?: unknown; target?: unknown }
+                | unknown;
+            const renderContainer =
+                firstArg === pixiApp.stage
+                    ? firstArg
+                    : firstArg && typeof firstArg === "object"
+                      ? (firstArg as { container?: unknown }).container
+                      : null;
+            const isStageRender = renderContainer === pixiApp.stage;
+            const hasTarget = Boolean(
+                firstArg &&
+                    typeof firstArg === "object" &&
+                    (firstArg as { target?: unknown }).target,
+            );
+            const measureName = isStageRender
+                ? "game.pixi.render.stage"
+                : "game.pixi.render.offscreen";
+            const startedAtMs = performance.now();
+            try {
+                return originalRender(...args);
+            } finally {
+                recordPerfDuration(
+                    measureName,
+                    performance.now() - startedAtMs,
+                    {
+                        isStageRender,
+                        hasTarget,
+                        stageChildren: pixiApp.stage.children.length,
+                    },
+                    startedAtMs,
+                );
+            }
+        }) as typeof renderer.render;
+        restorePixiRendererRenderProbe = () => {
+            renderer.render = originalRender as typeof renderer.render;
+        };
+    }
 
     // Graphics layers
     let connectionGraphics: PIXI.Graphics | null = null;
@@ -3838,6 +3937,7 @@
             resolution: window.devicePixelRatio || 1,
             autoDensity: true,
         });
+        installPixiPerfProbes(app);
 
         // Append canvas to container
         canvasContainer.appendChild(app.canvas);
@@ -4025,6 +4125,7 @@
         disposeAllRenderFamilies();
 
         if (app) {
+            removePixiPerfProbes();
             app.destroy(true, { children: true });
             app = null;
         }
@@ -4097,10 +4198,16 @@
                 fxOrchestrator.pause();
             if (!isPaused && fxOrchestrator.clock.isPaused)
                 fxOrchestrator.resume();
-            fxOrchestrator.update(
-                currentTime,
-                emptyStarsMap,
-                activeGameStore.effectiveTickMs,
+            measurePerf(
+                "game.frameLoop.fx",
+                () => {
+                    fxOrchestrator.update(
+                        currentTime,
+                        emptyStarsMap,
+                        activeGameStore.effectiveTickMs,
+                    );
+                },
+                { isPaused },
             );
 
             // Render the current frame from unified store
@@ -4129,11 +4236,23 @@
                           1,
                       );
                 lastRenderedTickProgress = tickProgress;
-                renderFrame(displayStars, tickProgress);
+                measurePerf(
+                    "game.frameLoop.renderFrame",
+                    () => {
+                        renderFrame(displayStars, tickProgress);
+                    },
+                    {
+                        isPaused,
+                        starCount: displayStars.length,
+                        tickProgress,
+                    },
+                );
             }
 
             // Advance camera animation (lerp toward target each frame)
-            stepCameraAnimation();
+            measurePerf("game.frameLoop.camera", () => {
+                stepCameraAnimation();
+            });
 
             animationFrameId = requestAnimationFrame(loop);
         };
