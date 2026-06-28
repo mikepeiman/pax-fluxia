@@ -233,8 +233,8 @@ solved.
    maintained 0319 output while attaching extra comparison data from a candidate
    shared-border algorithm.
 
-   Meaning: it is useful for research, but it should not be treated as the new
-   default or a finished user-facing mode.
+   Meaning: it is useful for comparison and testing, but it should not be
+   treated as the new default or a finished user-facing mode.
 
 5. The report exposed an architecture concern.
 
@@ -255,9 +255,10 @@ solved.
 - Browser benchmark coverage was narrow. Most concrete browser evidence came
   from Grid Gradient gameplay, Grid Gradient conquest animation, and Grid
   Gradient transition diagnostics.
-- External web research was not completed during this specific implementation
-  stretch. The work was based on local code, local docs, branch audits, tests,
-  and local browser benchmarks.
+- External research was not completed during this specific implementation
+  stretch. That means no web search, no outside technical-source review, and no
+  external model/expert consultation. The work was based on local code, local
+  docs, branch audits, tests, and local browser benchmarks.
 - The older report over-emphasized internal test command lists and under-explained
   the real app effect.
 

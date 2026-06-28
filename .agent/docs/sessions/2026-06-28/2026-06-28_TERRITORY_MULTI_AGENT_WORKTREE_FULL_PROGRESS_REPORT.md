@@ -20,7 +20,8 @@ It includes:
 - successes;
 - failed or rejected attempts;
 - tested hypotheses;
-- research and audits performed;
+- local audits performed;
+- explicit external-research status;
 - benchmark evidence;
 - rejected uncommitted work;
 - architecture concerns raised by follow-up questions;
@@ -48,7 +49,14 @@ The operating model was:
 - preserve candidate work even when not default-ready;
 - use local docs, git history, Graphify, benchmarks, and adversarial review before making broad claims.
 
-## 3. Research And Audit Inputs
+## 3. Local Audit Inputs And External Research Status
+
+Correction added 2026-06-28 14:46:28 -04:00:
+
+- The earlier heading blurred local investigation with research.
+- In this report, "research" now means external investigation: web search, outside technical sources, external model consultation, or a deliberately separate expert/council process.
+- By that definition, the external research completed during this implementation stretch was: none.
+- What did happen was local audit work: reading project docs, source code, git history, benchmark artifacts, and local subagent audit output.
 
 ### 3.1 Session Docs Read Or Used
 
@@ -70,7 +78,7 @@ The operating model was:
 7. Prior attempts failed when transitions were optimized before static geometry was proven.
 8. The branch campaign should prefer invariant checkers, fixtures, and benchmark harnesses because they accelerate every later change.
 
-### 3.3 Codebase Discovery
+### 3.3 Local Codebase Discovery
 
 Graphify was used for code-structure discovery, then source was read directly. Key areas inspected:
 
@@ -87,9 +95,12 @@ Graphify was used for code-structure discovery, then source was read directly. K
 - `renderFamilyGeometryCacheKey`
 - `gameStore`, `activeGameStore`, and `multiplayerStore`
 
-### 3.4 Web Research
+### 3.4 External Research
 
-No external web research was completed during the latest implementation stretch. The work so far was grounded in local docs, source, git history, benchmark artifacts, and subagent audits.
+- Web research completed: none.
+- Outside technical-source research completed: none.
+- External model or expert/council consultation completed: none.
+- The local subagents used in this thread performed code/doc audits inside this project; that should not be reported as external research.
 
 ## 4. Worktree And Branch Integration
 
