@@ -162,7 +162,6 @@ function buildStarVisualKey(params: {
     effectiveOwner: string | null;
     isActive: boolean;
     radius: number;
-    flashBucket: number;
     ownerBlendBucket: number;
     animationBucket: number;
     visualConfigKey: string;
@@ -172,7 +171,6 @@ function buildStarVisualKey(params: {
         effectiveOwner,
         isActive,
         radius,
-        flashBucket,
         ownerBlendBucket,
         animationBucket,
         visualConfigKey,
@@ -185,10 +183,27 @@ function buildStarVisualKey(params: {
         star.starType,
         star.portalGroup ?? '',
         isActive ? 1 : 0,
-        flashBucket,
         ownerBlendBucket,
         animationBucket,
         visualConfigKey,
+    ].join('|');
+}
+
+function buildStarFlashKey(params: {
+    star: StarState;
+    radius: number;
+    usePolygon: boolean;
+    sides: number;
+    cornerRadius: number;
+}): string {
+    return [
+        params.star.x,
+        params.star.y,
+        params.radius,
+        params.star.starType,
+        params.usePolygon ? 1 : 0,
+        params.sides,
+        params.cornerRadius,
     ].join('|');
 }
 
@@ -342,6 +357,8 @@ export interface StarRenderCaches {
     starGraphics: Map<string, PIXI.Graphics>;
     starLabels: Map<string, StarLabelView>;
     starVisualKeys?: Map<string, string>;
+    starFlashGraphics?: Map<string, PIXI.Graphics>;
+    starFlashKeys?: Map<string, string>;
 }
 
 export type StarLabelMode = 'full' | 'compact' | 'hidden';
@@ -438,6 +455,8 @@ export function renderStars(
     colorUtils: ColorUtils,
 ): void {
     const starVisualKeys = caches.starVisualKeys;
+    const starFlashGraphics = caches.starFlashGraphics;
+    const starFlashKeys = caches.starFlashKeys;
     const globalAnimationBucket = Math.floor(state.gameNowMs / STAR_VISUAL_BUCKET_MS);
     const visualConfigKey = resolveStarVisualConfigKey();
     const ownerColorCache = new Map<string | null, number>();
@@ -499,6 +518,9 @@ export function renderStars(
     let starVisualRedrawCount = 0;
     const starVisualRedrawReasons: Record<string, number> = {};
     let starVisualDurationMs = 0;
+    let starFlashUpdateCount = 0;
+    let starFlashRedrawCount = 0;
+    let starFlashDurationMs = 0;
     let labelPassCount = 0;
     let labelDurationMs = 0;
     let labelDirtyCount = 0;
@@ -556,6 +578,9 @@ export function renderStars(
         const isPortalStar = star.starType === 'portal';
         const portalColor = isPortalStar ? getPortalGroupHexColor(star.portalGroup) : 0;
         const flash = state.conquestFlashes.get(star.id);
+        const sides = TYPE_SIDES[star.starType] ?? 0;
+        const usePolygon = GAME_CONFIG.STAR_SHAPE_MODE === 'polygon' && sides > 0;
+        const cornerRadius = GAME_CONFIG.STAR_CORNER_RADIUS ?? 0.3;
         const isLabelImportant =
             isActive || Boolean(pending) || ownerBlend.active || Boolean(flash);
         const labelMode = resolveStarLabelMode(state.stageScale, isLabelImportant);
@@ -565,9 +590,6 @@ export function renderStars(
             labelsContainer.addChild(labelView.container);
             caches.starLabels.set(star.id, labelView);
         }
-        const flashBucket = flash
-            ? Math.floor((state.gameNowMs - flash.startTime) / STAR_VISUAL_BUCKET_MS)
-            : -1;
         const shouldAnimateVisuals = shouldAnimateStarVisual({
             isActive,
             isPortalStar,
@@ -581,7 +603,6 @@ export function renderStars(
             effectiveOwner,
             isActive,
             radius,
-            flashBucket,
             ownerBlendBucket,
             animationBucket: shouldAnimateVisuals ? globalAnimationBucket : -1,
             visualConfigKey,
@@ -589,25 +610,20 @@ export function renderStars(
         const shouldRedrawVisuals = starVisualKeys?.get(star.id) !== visualKey;
 
         if (shouldRedrawVisuals) {
-            const redrawReason = flash
-                ? 'flash'
-                : ownerBlend.active
-                    ? 'ownerTransition'
-                    : isActive
-                        ? 'active'
-                        : isPortalStar
-                            ? 'portal'
+            const redrawReason = ownerBlend.active
+                ? 'ownerTransition'
+                : isActive
+                    ? 'active'
+                    : isPortalStar
+                        ? 'portal'
+                        : flash
+                            ? 'flash-on-base-miss'
                             : 'static';
             starVisualRedrawReasons[redrawReason] =
                 (starVisualRedrawReasons[redrawReason] ?? 0) + 1;
             const visualStartedAt = performance.now();
             try {
                 graphics.clear();
-
-        // Determine shape properties
-        const sides = TYPE_SIDES[star.starType] ?? 0;
-        const usePolygon = GAME_CONFIG.STAR_SHAPE_MODE === 'polygon' && sides > 0;
-        const cornerRadius = GAME_CONFIG.STAR_CORNER_RADIUS ?? 0.3;
 
         // Player Ownership-Ring (absolute radius from center)
         const ringRadius = GAME_CONFIG.STAR_RING_RADIUS;
@@ -714,26 +730,6 @@ export function renderStars(
             }
         }
 
-        // Conquest flash: bright white pulse overlay
-        if (flash) {
-            const flashCheckNow = state.gameNowMs;
-            const flashElapsed = flashCheckNow - flash.startTime;
-            if (flashElapsed >= flash.duration) {
-                state.conquestFlashes.delete(star.id);
-            } else {
-                const flashProgress = flashElapsed / flash.duration;
-                const flashAlpha = Math.sin(flashProgress * Math.PI);
-                if (usePolygon) {
-                    drawShapePath(graphics, star.x, star.y, radius * 1.3, sides, cornerRadius,
-                        { color: 0xffffff, alpha: flashAlpha * 0.85 });
-                } else {
-                    graphics.beginPath();
-                    graphics.circle(star.x, star.y, radius * 1.3);
-                    graphics.fill({ color: 0xffffff, alpha: flashAlpha * 0.85 });
-                }
-            }
-        }
-
         // Inner corona glow — soft type-colored radial behind the icon
         const coronaRadius = radius * 0.65;
         graphics.beginPath();
@@ -753,6 +749,71 @@ export function renderStars(
             } finally {
                 starVisualRedrawCount += 1;
                 starVisualDurationMs += performance.now() - visualStartedAt;
+            }
+        }
+
+        if (flash && starFlashGraphics && starFlashKeys) {
+            const flashStartedAt = performance.now();
+            try {
+                const flashElapsed = state.gameNowMs - flash.startTime;
+                if (flashElapsed >= flash.duration) {
+                    state.conquestFlashes.delete(star.id);
+                    const existingFlashGraphics = starFlashGraphics.get(star.id);
+                    if (existingFlashGraphics) {
+                        starsContainer.removeChild(existingFlashGraphics);
+                        existingFlashGraphics.destroy();
+                        starFlashGraphics.delete(star.id);
+                    }
+                    starFlashKeys.delete(star.id);
+                } else {
+                    let flashGraphics = starFlashGraphics.get(star.id);
+                    if (!flashGraphics) {
+                        flashGraphics = new PIXI.Graphics();
+                        starsContainer.addChild(flashGraphics);
+                        starFlashGraphics.set(star.id, flashGraphics);
+                    }
+                    const flashKey = buildStarFlashKey({
+                        star,
+                        radius,
+                        usePolygon,
+                        sides,
+                        cornerRadius,
+                    });
+                    if (starFlashKeys.get(star.id) !== flashKey) {
+                        flashGraphics.clear();
+                        if (usePolygon) {
+                            drawShapePath(
+                                flashGraphics,
+                                star.x,
+                                star.y,
+                                radius * 1.3,
+                                sides,
+                                cornerRadius,
+                                { color: 0xffffff, alpha: 0.85 },
+                            );
+                        } else {
+                            flashGraphics.beginPath();
+                            flashGraphics.circle(star.x, star.y, radius * 1.3);
+                            flashGraphics.fill({ color: 0xffffff, alpha: 0.85 });
+                        }
+                        starFlashKeys.set(star.id, flashKey);
+                        starFlashRedrawCount += 1;
+                    }
+                    const flashProgress = flashElapsed / flash.duration;
+                    flashGraphics.alpha = Math.sin(flashProgress * Math.PI);
+                    flashGraphics.visible = flashGraphics.alpha > 0.001;
+                    starFlashUpdateCount += 1;
+                }
+            } finally {
+                starFlashDurationMs += performance.now() - flashStartedAt;
+            }
+        } else {
+            const existingFlashGraphics = starFlashGraphics?.get(star.id);
+            if (existingFlashGraphics) {
+                starsContainer.removeChild(existingFlashGraphics);
+                existingFlashGraphics.destroy();
+                starFlashGraphics?.delete(star.id);
+                starFlashKeys?.delete(star.id);
             }
         }
 
@@ -1160,6 +1221,14 @@ export function renderStars(
             starCount: stars.length,
         });
     }
+    if (starFlashUpdateCount > 0 || starFlashRedrawCount > 0) {
+        recordPerfDuration('game.renderFrame.stars.flash', starFlashDurationMs, {
+            updateCount: starFlashUpdateCount,
+            redrawCount: starFlashRedrawCount,
+            activeFlashCount: state.conquestFlashes.size,
+            starCount: stars.length,
+        });
+    }
     if (labelPassCount > 0) {
         recordPerfDuration('game.renderFrame.stars.labels', labelDurationMs, {
             labelCount: labelPassCount,
@@ -1194,6 +1263,14 @@ export function cleanupStaleStars(
             starsContainer.removeChild(graphics);
             graphics.destroy();
             caches.starGraphics.delete(id);
+        }
+    });
+    caches.starFlashGraphics?.forEach((graphics, id) => {
+        if (!currentIds.has(id)) {
+            starsContainer.removeChild(graphics);
+            graphics.destroy();
+            caches.starFlashGraphics?.delete(id);
+            caches.starFlashKeys?.delete(id);
         }
     });
     caches.starLabels.forEach((labelView, id) => {

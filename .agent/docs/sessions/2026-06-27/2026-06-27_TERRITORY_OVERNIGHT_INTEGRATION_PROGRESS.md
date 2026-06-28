@@ -263,6 +263,19 @@ Passed during browser frame-cadence instrumentation slice at 2026-06-27 18:37 -0
 - Focused validation passed: `bun run check` from `pax-fluxia/` (0 errors, 1 existing warning), `bun x vitest run src/lib/territory/families/gridGradient` (9 files / 38 tests), `bun build tools/debug/benchmark-browser-gameplay.ts tools/debug/summarize-browser-gameplay-benchmark.ts --target bun --outdir .agent-harness/tmp-bun-build-check-frame-probe-final`, and the narrow browser benchmark command above.
 - Broader validation passed: `bun run build` from `pax-fluxia/`, `bun run agentic:graphify:build` from repo root, and `git diff --check`.
 
+Passed during conquest flash overlay performance slice at 2026-06-28 10:11 -04:00:
+
+- Moved conquest flash pulse rendering out of the base star graphics draw. The base star visual cache no longer includes flash time buckets; the flash pulse now has its own small `PIXI.Graphics` overlay and only changes alpha on normal animation frames.
+- Added dedicated flash overlay caches in `GameCanvas` and stale-star cleanup for those overlay graphics.
+- Added benchmark summary counters for star flash overlay updates/redraws so future runs can tell whether flash animation is changing alpha only or forcing expensive star shape rebuilds.
+- Fresh Grid Gradient conquest animation benchmark passed with `transitionFallbacks scenarios=0 reasons=none`.
+- The benchmark observed `star flash overlays events=123 updates=123 redraws=1 activeMax=1`, meaning the flash overlay shape was drawn once and reused while alpha changed over the animation.
+- The benchmark observed `star visual redraws events=45 redraws=51 reasons=ownerTransition:43,static:7,flash-on-base-miss:1`. The remaining base star redraws were mainly owner-color transition updates, not flash pulse updates.
+- Visual screenshot check passed for `grid_gradientConquestAnimation.png`; the conquest flash was visible and the settings/playfield panels were not clipped in the captured viewport.
+- Focused validation passed: `bun x vitest run src/lib/renderers/StarRenderer.test.ts` (1 file / 3 tests), `bun x vitest run src/lib/territory/families/gridGradient` (9 files / 38 tests), and `bun build tools/debug/benchmark-browser-gameplay.ts tools/debug/summarize-browser-gameplay-benchmark.ts --target bun --outdir .agent-harness/tmp-bun-build-check-star-flash-overlay-final`.
+- Broader validation passed: `bun run check` from `pax-fluxia/` (0 errors, 1 existing warning), `bun run build` from `pax-fluxia/`, and `bun run agentic:graphify:build` from repo root.
+- Remaining observation: the conquest animation benchmark still showed browser frame cadence around 35ms even while measured render work stayed low. That points the next slice toward owner-transition redraw cost, ship particle cost, and browser frame delivery rather than flash pulse drawing.
+
 Known recurring non-blocking warning:
 
 - `GameThemeManager.svelte`: unused CSS selector `.game-theme-manager--menu .theme-chip-name`

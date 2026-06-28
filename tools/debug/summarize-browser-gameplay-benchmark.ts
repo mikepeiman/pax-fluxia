@@ -183,6 +183,12 @@ function printScenario(name: string, scenario: any): void {
             `star visual redraws events=${Number(starVisualRedraws?.eventCount ?? 0)} redraws=${Number(starVisualRedraws?.redrawCount ?? 0)} reasons=${reasons || "none"}`,
         );
     }
+    const starFlashOverlays = scenario?.perf?.starFlashOverlays;
+    if (starFlashOverlays) {
+        console.log(
+            `star flash overlays events=${Number(starFlashOverlays?.eventCount ?? 0)} updates=${Number(starFlashOverlays?.updateCount ?? 0)} redraws=${Number(starFlashOverlays?.redrawCount ?? 0)} activeMax=${Number(starFlashOverlays?.activeFlashMax ?? 0)}`,
+        );
+    }
     const shipDiagnostics = scenario?.perf?.shipDiagnostics ?? scenario?.shipDiagnostics ?? null;
     if (shipDiagnostics) {
         console.log("ship diagnostics:");

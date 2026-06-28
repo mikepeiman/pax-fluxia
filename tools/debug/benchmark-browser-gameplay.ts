@@ -1374,6 +1374,29 @@ function summarizeStarVisualRedraws(snapshot: any): Record<string, JsonValue> {
     };
 }
 
+function summarizeStarFlashOverlays(snapshot: any): Record<string, JsonValue> {
+    const events = (snapshot?.events ?? []).filter(
+        (event: any) => event.name === "game.renderFrame.stars.flash",
+    );
+    let updateCount = 0;
+    let redrawCount = 0;
+    let activeFlashMax = 0;
+    for (const event of events) {
+        updateCount += Number(event.detail?.updateCount ?? 0);
+        redrawCount += Number(event.detail?.redrawCount ?? 0);
+        activeFlashMax = Math.max(
+            activeFlashMax,
+            Number(event.detail?.activeFlashCount ?? 0),
+        );
+    }
+    return {
+        eventCount: events.length,
+        updateCount,
+        redrawCount,
+        activeFlashMax,
+    };
+}
+
 function summarizePerfSnapshot(
     snapshot: any,
     frames: Record<string, any> | null | undefined,
@@ -1463,6 +1486,7 @@ function summarizePerfSnapshot(
         eventTiming: summarizeEventTiming(snapshot),
         inputLatency: summarizeInputLatency(snapshot),
         starVisualRedraws: summarizeStarVisualRedraws(snapshot),
+        starFlashOverlays: summarizeStarFlashOverlays(snapshot),
         recentEvents: (snapshot?.events ?? []).slice(-40),
     };
 }

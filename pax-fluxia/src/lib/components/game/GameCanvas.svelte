@@ -243,6 +243,8 @@
     let starGraphics: Map<string, PIXI.Graphics> = new Map();
     let starLabels: Map<string, StarLabelView> = new Map();
     let starVisualKeys: Map<string, string> = new Map();
+    let starFlashGraphics: Map<string, PIXI.Graphics> = new Map();
+    let starFlashKeys: Map<string, string> = new Map();
     let linkGraphics: PIXI.Graphics | null = null;
     let territoryGraphics: PIXI.Graphics | null = null;
     let voronoiContainer: PIXI.Container | null = null;
@@ -4033,6 +4035,8 @@
         starGraphics.clear();
         starLabels.clear();
         starVisualKeys.clear();
+        starFlashGraphics.clear();
+        starFlashKeys.clear();
         linkGraphics = null;
         starsContainer = null;
         glowContainer = null;
@@ -5375,6 +5379,15 @@
                 starsContainer!.removeChild(graphics);
                 graphics.destroy();
                 starGraphics.delete(id);
+                starVisualKeys.delete(id);
+            }
+        });
+        starFlashGraphics.forEach((graphics, id) => {
+            if (!currentIds.has(id)) {
+                starsContainer!.removeChild(graphics);
+                graphics.destroy();
+                starFlashGraphics.delete(id);
+                starFlashKeys.delete(id);
             }
         });
         starLabels.forEach((labelView, id) => {
@@ -6985,7 +6998,13 @@
                     stars,
                     starsContainer!,
                     labelsContainer!,
-                    { starGraphics, starLabels, starVisualKeys },
+                    {
+                        starGraphics,
+                        starLabels,
+                        starVisualKeys,
+                        starFlashGraphics,
+                        starFlashKeys,
+                    },
                     {
                         activeStarId,
                         dragSourceId,
