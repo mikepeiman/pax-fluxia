@@ -1625,13 +1625,15 @@ export class CellGridPhaseFieldFamily implements RenderFamily {
             (GAME_CONFIG.CELL_GRID_CELL_SHAPE as GridCellShape | undefined) ?? 'square',
             ['square', 'circle', 'diamond', 'hex'],
         );
+        // Unified resolution: the visible fill pattern follows the SINGLE Cell
+        // Spacing (base grid resolution) instead of a separate Pattern Spacing
+        // knob, so one slider controls Phase Field's whole resolution like Edges
+        // + Ember. (Was CELL_GRID_PATTERN_SPACING_PX, default 64 — now removed.)
         const patternSpacingPx = quantizePatternSpacingPx(
             readTunableNumber(
                 input,
-                'CELL_GRID_PATTERN_SPACING_PX',
-                ((GAME_CONFIG as unknown as Record<string, unknown>)
-                    .CELL_GRID_PATTERN_SPACING_PX as number | undefined) ??
-                    cellGridPhaseFieldModeDefaults.CELL_GRID_PATTERN_SPACING_PX,
+                'CELL_GRID_SPACING_PX',
+                GAME_CONFIG.CELL_GRID_SPACING_PX ?? 12,
             ),
         );
         const cellInsetPx = Math.max(

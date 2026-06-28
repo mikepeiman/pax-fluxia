@@ -223,7 +223,11 @@
     }
 
     function currentPlannerSpacingLabel(): string {
-        return isPhaseFieldMode() ? 'Base Resolution' : 'Cell Spacing';
+        // One resolution control for every cell-grid mode. Phase Field used to
+        // expose a SECOND "Pattern Spacing" knob (CELL_GRID_PATTERN_SPACING_PX);
+        // that is removed — Phase Field's visible fill now follows this single
+        // Cell Spacing (the base grid resolution) like Edges + Ember.
+        return 'Cell Spacing';
     }
 
     function currentPlannerSpacingDescription(): string {
@@ -231,22 +235,6 @@
             return 'Authoritative phase-field lattice spacing. It sets ownership classification density, conquest-wave timing density, transition-cell size, and grid-derived border/frontier detail. Smaller = denser behavior and heavier CPU. It does not set the visible interior fill-pattern pitch.';
         }
         return 'Distance between grid Vstar centers. Drives cell count as (worldWidth/spacing)x(worldHeight/spacing).';
-    }
-
-    function snapPatternSpacingPx(raw: number): number {
-        const clamped = Math.max(1, Math.min(64, Math.round(raw)));
-        if (clamped <= 24) return clamped;
-        return Math.max(24, Math.min(64, 24 + Math.round((clamped - 24) / 4) * 4));
-    }
-
-    function currentPatternSpacingPx(): number {
-        const raw = (
-            panel.cellGridPatternSpacingPx ??
-            (GAME_CONFIG as unknown as Record<string, unknown>).CELL_GRID_PATTERN_SPACING_PX ??
-            cellGridPhaseFieldModeDefaults.CELL_GRID_PATTERN_SPACING_PX ??
-            64
-        ) as number;
-        return snapPatternSpacingPx(raw);
     }
 
     function currentBorderBlendLabel(): string {
@@ -714,22 +702,9 @@
     }}
 />
 
-{#if isPhaseFieldMode()}
-<PaxSettingsRangeRow
-    label="Pattern Spacing"
-    note="Visible interior fill-pattern spacing for the PRE/NEXT ownership fills."
-    value={currentPatternSpacingPx()}
-    min={1}
-    max={64}
-    step={1}
-    suffix="px"
-    settingConfigKey="CELL_GRID_PATTERN_SPACING_PX"
-    onInput={(raw) => {
-        const value = snapPatternSpacingPx(raw);
-        writeConfig('CELL_GRID_PATTERN_SPACING_PX', 'cellGridPatternSpacingPx', value);
-    }}
-/>
-{/if}
+<!-- Pattern Spacing removed: Phase Field's visible fill now follows the single
+     Cell Spacing above (CELL_GRID_SPACING_PX) instead of a separate
+     CELL_GRID_PATTERN_SPACING_PX knob — one resolution setting per mode. -->
 
 <PaxSettingsSegmentedRow
     label="Origin Mode"
