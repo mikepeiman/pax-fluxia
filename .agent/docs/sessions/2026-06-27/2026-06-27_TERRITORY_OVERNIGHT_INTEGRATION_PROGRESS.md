@@ -327,6 +327,14 @@ Passed during Pixi render probe slice at 2026-06-28 11:02 -04:00:
 - The same fresh run still reported frame delivery gaps: frame summary `count=91 avg=28.754ms p95=50ms max=50.1ms`, app-loop interval `count=155 avg=28.709ms p95=33.4ms max=50.1ms`, and Pixi ticker interval `count=155 avg=28.649ms p95=34.5ms max=45.2ms`.
 - Slow-frame attribution remained mostly unattributed after accounting for Pixi render, FX update, and full `renderFrame`; no long tasks were observed. Next scheduling experiment should remove the separate game `requestAnimationFrame` loop and drive game updates from Pixi's ticker before Pixi renders.
 
+Rejected Pixi-ticker unification experiment at 2026-06-28 11:08 -04:00:
+
+- Tested driving the main `GameCanvas` update from Pixi's ticker at normal priority, before Pixi's built-in low-priority render, instead of keeping the separate game `requestAnimationFrame` loop.
+- Functional result: the narrow `grid_gradientConquestAnimation` benchmark still passed with `transitionFallbacks scenarios=0 reasons=none`.
+- Performance result: the experiment was worse in the same benchmark. Frame summary changed from the probe baseline `count=91 avg=28.754ms p95=50ms max=50.1ms` to `count=84 avg=31.545ms p95=50ms max=50.1ms`.
+- App-loop interval also worsened from `avg=28.709ms` to `avg=31.033ms`, and Pixi ticker interval worsened from `avg=28.649ms p95=34.5ms` to `avg=31.014ms p95=38.9ms`.
+- Code change was not kept. Keep the separate game `requestAnimationFrame` loop unless a stronger scheduling approach is tested with direct browser-visible improvement.
+
 Known recurring non-blocking warning:
 
 - `GameThemeManager.svelte`: unused CSS selector `.game-theme-manager--menu .theme-chip-name`
