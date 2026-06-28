@@ -22,7 +22,7 @@ It includes:
 - tested hypotheses;
 - research and audits performed;
 - benchmark evidence;
-- current uncommitted work;
+- rejected uncommitted work;
 - architecture concerns raised by follow-up questions;
 - open questions and recommended next steps.
 
@@ -352,63 +352,39 @@ Finding:
 - Pixi stage render was not the missing 35-50ms cost.
 - In one run, Pixi stage render averaged about `1.013ms`, while the whole render frame averaged about `2.421ms`.
 
-### 5.15 Uncommitted Map-Layout Revision Experiment
+### 5.15 Withdrawn Map-Layout Revision Experiment
 
 Current status:
 
-- Not committed at report time.
-- Dirty files:
-  - `GameCanvas.svelte`
-  - `activeGameStore.svelte.ts`
-  - `gameStore.svelte.ts`
-  - `renderFamilyGeometryCacheKey.ts`
-  - `renderFamilyGeometryCacheKey.test.ts`
+- Withdrawn after review at 2026-06-28 14:38:20 -04:00.
+- Removed from the working tree before commit.
+- Not part of branch history as implementation code.
 
 What it means:
 
-- A "map-layout revision" is a number that changes when the physical star/lane layout changes.
-- The current source-code name is `spatialTopologyRevision`.
-- Physical layout includes:
-  - star positions;
-  - star radii;
-  - lane endpoints;
-  - lane distances;
-  - lane path metadata, if present;
-  - saved/generated lane path points, if present.
+- The experiment tried to add a number that would change when physical star/lane layout changed.
+- It was intended as a render-cache speedup.
+- It should not have been added in the form tested.
 
 Important correction:
 
-- "Lane path points" are not a player-facing feature and not a roadmap feature being introduced here.
+- "Lane path points" are not a player-facing feature and not a roadmap feature.
 - The source type has an optional field named `laneWaypoints`.
 - In plain English, that field means optional internal/saved points along a normal star-to-star lane, used when map generation or map import has already produced a bent lane path.
-- If those points are absent, there are no extra lane path points to scan.
+- That internal field was not the reason the experiment was rejected.
 
-Why it exists:
+Why it was rejected:
 
-- If that number has not changed, the renderer can reuse the previous map-shape summary instead of rebuilding that summary from all star/lane layout data every render frame.
-- Ownership is still checked separately, so conquests still invalidate territory.
+- The experiment exposed the revision only through local game state.
+- Online-room state did not receive the same contract.
+- That created a render-facing local-vs-online distinction.
+- This violates the project architecture: rendering and geometry should consume one active game-state contract, regardless of whether that state came from a local game or an online room.
 
-Architecture concern raised:
+Correct result:
 
-- The uncommitted patch exposes this revision only for local game state.
-- For online-room state, the code currently returns `undefined`, which keeps the older full scan.
-- This is correct for safety but not architecturally clean.
-- The renderer should not care whether data came from a local game or online room. It should receive one unified state shape and one unified "map/lane layout changed" signal.
-
-Focused validation already passed:
-
-- Cache-key tests: 9 passed.
-- Territory family plus lane sync tests: 185 passed.
-- `bun run check`: 0 errors, 1 existing warning.
-- Fresh Grid Gradient conquest benchmark passed.
-
-Not yet completed:
-
-- applying identical lane results should leave the revision unchanged;
-- multiplayer/online-room revision source;
-- full build after this uncommitted experiment;
-- Graphify rebuild after this uncommitted experiment;
-- commit.
+- The source experiment was removed.
+- The committed exact cache behavior remains in place.
+- Any future cache speedup must be designed as one shared active-state contract, not as a local-mode special path.
 
 ## 6. Modes And Scenarios Actually Benchmarked
 
@@ -691,12 +667,10 @@ Did:
 
 Finding:
 
-- The optional `spatialTopologyRevision` fast path is directionally useful.
-- Current single-player-only revision is incomplete as architecture.
-- Recommended next refinements:
-  - leave the revision unchanged when lane data is applied but unchanged;
-  - create online-room revision support;
-  - keep ownership invalidation separate from spatial topology invalidation.
+- The attempted map-layout revision fast path was rejected.
+- Reason: it introduced different render-cache behavior for local game state and online-room state.
+- Correct future direction: if a map-layout revision is ever added, it must be part of the unified active game-state contract used by all render paths.
+- Ownership invalidation remains separate and already works by reading current ownership.
 
 ### 10.3 Explorer: Frame Scheduling
 
@@ -768,20 +742,15 @@ Key commits in the integration branch:
 
 ## 13. Current Dirty Worktree At Report Time
 
-Uncommitted files:
+Original report state:
 
-- `pax-fluxia/src/lib/components/game/GameCanvas.svelte`
-- `pax-fluxia/src/lib/stores/activeGameStore.svelte.ts`
-- `pax-fluxia/src/lib/stores/gameStore.svelte.ts`
-- `pax-fluxia/src/lib/territory/families/renderFamilyGeometryCacheKey.test.ts`
-- `pax-fluxia/src/lib/territory/families/renderFamilyGeometryCacheKey.ts`
+- The worktree contained an uncommitted map-layout-revision experiment.
 
-These contain the map-layout-revision experiment. They are intentionally not committed with this report.
+Updated state after review:
 
-Reason:
-
-- The user requested a full report commit.
-- The code experiment is promising but still needs refinement and full final validation.
+- That experiment was removed.
+- The worktree no longer contains the local-only render-cache revision patch.
+- The rejected patch should not be revived unless it is redesigned around one unified active game-state contract.
 
 ## 14. Architecture Concerns Raised By Follow-Up Questions
 
@@ -789,11 +758,12 @@ Reason:
 
 Observation:
 
-- The uncommitted patch exposes a map-layout revision for local games only.
+- The withdrawn patch exposed a map-layout revision for local games only.
 
-Hypothesis:
+Conclusion:
 
-- This reveals an architecture deviation: render cache behavior should not depend on local-vs-online source.
+- This was an architecture deviation.
+- Render cache behavior must not depend on whether state came from local game state or online-room state.
 
 Corrective direction:
 
@@ -802,7 +772,7 @@ Corrective direction:
   - lanes;
   - ownership;
   - tick;
-  - map/lane layout revision or fingerprint.
+  - any future map-layout identity, if one is added.
 
 Renderer rule:
 
@@ -841,18 +811,20 @@ Why slower:
 
 - It repeats work on every cache-key build.
 
-Faster alternative:
+Rejected faster alternative:
 
-- A trusted revision number says "map/lane layout has not changed", allowing reuse of the prior spatial signature.
+- A revision number can allow reuse of a prior map-layout summary.
+- The tested version was rejected because it was local-state-only.
 
 Risk of faster alternative:
 
+- If this is reintroduced, every active state source must publish the same contract.
 - If a code path changes the map layout but does not update the revision, stale geometry can be reused.
 
 ## 15. Open Questions
 
-1. Should online-room state receive a server-provided map/lane revision, or should the client compute one once per room sync?
-2. Should the map-layout revision be maintained in `activeGameStore`, a lower shared state adapter, or common runtime state?
+1. Is a map-layout revision still worth pursuing after rejecting the local-only implementation?
+2. If yes, where is the single active-state contract that all render paths should consume?
 3. Is the 35ms frame cadence visible in real foreground Chrome, or only in headless benchmark Chrome?
 4. How much does `--disable-gpu` distort Pixi/WebGL frame delivery in the benchmark?
 5. Do other modes besides Grid Gradient show the same cadence pattern under matched conquest animation scenarios?
@@ -862,19 +834,12 @@ Risk of faster alternative:
 
 ## 16. Recommended Next Steps
 
-### 16.1 Finish Current Uncommitted Cache-Revision Work
+### 16.1 Do Not Continue The Local-Only Cache-Revision Work
 
-1. Add no-op tests:
-   - applying identical lane results should leave the map-layout revision unchanged.
-   - changing saved/generated lane path points, lane path status, or lane endpoints should advance the map-layout revision.
-2. Add online-room revision path or explicitly defer it with a documented architecture note.
-3. Run:
-   - focused cache tests;
-   - relevant store tests if present;
-   - `bun run check`;
-   - `bun run build`;
-   - `bun run agentic:graphify:build`.
-4. Commit as a separate implementation commit.
+1. Keep the rejected local-only revision patch out of the codebase.
+2. Preserve the committed exact cache behavior until a unified design exists.
+3. If a future speedup is needed, design it from the active game-state contract first, then implement it once for all game states.
+4. Test that conquests, map import/setup, local play, and online-room play all use the same render-facing cache contract.
 
 ### 16.2 Run Frame Delivery Experiments
 
@@ -915,7 +880,7 @@ Prioritize:
 
 ### 16.5 Keep Reports Separate From Code Experiments
 
-This report is committed separately on purpose. It should remain easy to cherry-pick or read even if the current cache-revision experiment changes direction.
+This report is committed separately on purpose. It should remain easy to cherry-pick or read even after the rejected cache-revision experiment was removed.
 
 ## 17. Bottom Line
 
@@ -925,4 +890,4 @@ The biggest solved class is not "visual polish"; it is making geometry and trans
 
 The biggest unsolved class is frame cadence: Grid Gradient conquest animation often receives frames around 35ms apart even when measured render work is low. The next work should prove whether that is browser/compositor/headless behavior, Pixi presentation behavior, or a still-unmeasured scheduling problem.
 
-The current uncommitted map-layout-revision experiment is architecturally incomplete until the local-game and online-room state paths expose one unified render-facing revision signal.
+The local-only map-layout-revision experiment was rejected and removed. Any future cache speedup must preserve one geometry/rendering contract for all active game states.
