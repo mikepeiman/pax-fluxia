@@ -15,6 +15,8 @@ export interface RenderFamilyGeometryCacheKeyStats {
     readonly lastFingerprint: string | null;
     readonly topologySignatureScanCount: number;
     readonly topologySignatureScanMs: number;
+    readonly topologySignatureReuseCount: number;
+    readonly estimatedTopologySignatureScanMsSaved: number;
     readonly repeatedTopologySignatureScanCount: number;
     readonly repeatedTopologySignatureScanMs: number;
     readonly lastTopologySignatureScanMs: number;
@@ -86,6 +88,7 @@ export class RenderFamilyGeometryCacheKeyBuilder {
     private missCount = 0;
     private topologySignatureScanCount = 0;
     private topologySignatureScanMs = 0;
+    private topologySignatureReuseCount = 0;
     private repeatedTopologySignatureScanCount = 0;
     private repeatedTopologySignatureScanMs = 0;
     private lastTopologySignatureScanMs = 0;
@@ -98,19 +101,33 @@ export class RenderFamilyGeometryCacheKeyBuilder {
             worldHeight: input.worldHeight,
             visualEpoch: input.visualEpoch,
         });
-        const topologyScanStartMs = nowMs();
-        const topologySignature = buildTerritorySpatialTopologySignature(
-            input.stars,
-            input.lanes,
-        );
-        const topologyScanMs = nowMs() - topologyScanStartMs;
-        this.topologySignatureScanCount += 1;
-        this.topologySignatureScanMs += topologyScanMs;
-        this.lastTopologySignatureScanMs = topologyScanMs;
-        const ownershipSignature = buildOwnershipSignature(input.stars);
         const cached = this.lastEntry;
+        const canReuseTopologySignature =
+            cached &&
+            cached.stars === input.stars &&
+            cached.lanes === input.lanes &&
+            cached.starCount === input.stars.length &&
+            cached.laneCount === input.lanes.length;
+        let topologySignature: string;
+        let topologyScanMs = 0;
+        if (canReuseTopologySignature) {
+            topologySignature = cached.topologySignature;
+            this.topologySignatureReuseCount += 1;
+        } else {
+            const topologyScanStartMs = nowMs();
+            topologySignature = buildTerritorySpatialTopologySignature(
+                input.stars,
+                input.lanes,
+            );
+            topologyScanMs = nowMs() - topologyScanStartMs;
+            this.topologySignatureScanCount += 1;
+            this.topologySignatureScanMs += topologyScanMs;
+            this.lastTopologySignatureScanMs = topologyScanMs;
+        }
+        const ownershipSignature = buildOwnershipSignature(input.stars);
         const repeatedTopologyScan =
             cached &&
+            !canReuseTopologySignature &&
             cached.starCount === input.stars.length &&
             cached.laneCount === input.lanes.length &&
             cached.topologySignature === topologySignature;
@@ -165,6 +182,13 @@ export class RenderFamilyGeometryCacheKeyBuilder {
             lastFingerprint: this.lastEntry?.fingerprint ?? null,
             topologySignatureScanCount: this.topologySignatureScanCount,
             topologySignatureScanMs: this.topologySignatureScanMs,
+            topologySignatureReuseCount: this.topologySignatureReuseCount,
+            estimatedTopologySignatureScanMsSaved:
+                this.topologySignatureScanCount > 0
+                    ? this.topologySignatureReuseCount *
+                      (this.topologySignatureScanMs /
+                          this.topologySignatureScanCount)
+                    : 0,
             repeatedTopologySignatureScanCount:
                 this.repeatedTopologySignatureScanCount,
             repeatedTopologySignatureScanMs: this.repeatedTopologySignatureScanMs,
@@ -183,6 +207,7 @@ export class RenderFamilyGeometryCacheKeyBuilder {
         this.missCount = 0;
         this.topologySignatureScanCount = 0;
         this.topologySignatureScanMs = 0;
+        this.topologySignatureReuseCount = 0;
         this.repeatedTopologySignatureScanCount = 0;
         this.repeatedTopologySignatureScanMs = 0;
         this.lastTopologySignatureScanMs = 0;

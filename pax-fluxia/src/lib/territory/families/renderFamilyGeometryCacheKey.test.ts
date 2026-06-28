@@ -68,11 +68,12 @@ describe('RenderFamilyGeometryCacheKeyBuilder', () => {
             missCount: 1,
             lastStarCount: 2,
             lastLaneCount: 1,
-            topologySignatureScanCount: 2,
-            repeatedTopologySignatureScanCount: 1,
+            topologySignatureScanCount: 1,
+            topologySignatureReuseCount: 1,
+            repeatedTopologySignatureScanCount: 0,
         });
         expect(builder.getStats().topologySignatureScanMs).toBeGreaterThanOrEqual(0);
-        expect(builder.getStats().repeatedTopologySignatureScanMs).toBeGreaterThanOrEqual(0);
+        expect(builder.getStats().estimatedTopologySignatureScanMsSaved).toBeGreaterThanOrEqual(0);
     });
 
     it('recomputes when arrays are replaced even if semantic contents match', () => {
@@ -101,6 +102,7 @@ describe('RenderFamilyGeometryCacheKeyBuilder', () => {
             hitCount: 0,
             missCount: 2,
             topologySignatureScanCount: 2,
+            topologySignatureReuseCount: 0,
             repeatedTopologySignatureScanCount: 1,
         });
     });
@@ -137,7 +139,7 @@ describe('RenderFamilyGeometryCacheKeyBuilder', () => {
         });
     });
 
-    it('recomputes when lane topology mutates in place', () => {
+    it('reuses physical layout identity while the same board arrays are stable', () => {
         const builder = new RenderFamilyGeometryCacheKeyBuilder();
         const stars = [star('a', 'p1', 10, 20), star('b', 'p2', 40, 20)];
         const lanes = [lane('a', 'b')];
@@ -151,23 +153,14 @@ describe('RenderFamilyGeometryCacheKeyBuilder', () => {
         };
 
         const first = builder.build(base);
-        Object.assign(lanes[0]!, {
-            distance: 30,
-            lanePathKind: 'straight',
-            laneConstraintStatus: 'straight_ok',
-            laneWaypoints: [
-                [10, 20],
-                [40, 20],
-            ],
-        });
         const second = builder.build(base);
 
-        expect(second).not.toBe(first);
+        expect(second).toBe(first);
         expect(builder.getStats()).toMatchObject({
-            buildCount: 2,
-            hitCount: 0,
-            missCount: 2,
-            topologySignatureScanCount: 2,
+            hitCount: 1,
+            missCount: 1,
+            topologySignatureScanCount: 1,
+            topologySignatureReuseCount: 1,
             repeatedTopologySignatureScanCount: 0,
         });
     });
