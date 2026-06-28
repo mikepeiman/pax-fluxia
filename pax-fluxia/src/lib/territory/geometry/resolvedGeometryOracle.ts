@@ -19,15 +19,26 @@ function physicalPointKey(point: readonly [number, number]): string {
     return `${Math.round(point[0] / POINT_EPSILON_PX)}:${Math.round(point[1] / POINT_EPSILON_PX)}`;
 }
 
+function normalizedPhysicalPointChain(
+    points: ReadonlyArray<readonly [number, number]>,
+): string {
+    const forward = points.map(physicalPointKey).join('>');
+    const reverse = [...points].reverse().map(physicalPointKey).join('>');
+    return forward < reverse ? forward : reverse;
+}
+
 function physicalPolylineKey(
     kind: 'frontier' | 'world',
     polyline: ResolvedFrontierPolyline,
 ): string {
-    const forward = polyline.points.map(physicalPointKey).join('>');
-    const reverse = [...polyline.points].reverse().map(physicalPointKey).join('>');
-    return `${kind}:${polyline.ownerPairKey}:${
-        forward < reverse ? forward : reverse
-    }`;
+    return `${kind}:${polyline.ownerPairKey}:${normalizedPhysicalPointChain(polyline.points)}`;
+}
+
+function physicalPolylineGeometryKey(
+    kind: 'frontier' | 'world',
+    polyline: ResolvedFrontierPolyline,
+): string {
+    return `${kind}:${normalizedPhysicalPointChain(polyline.points)}`;
 }
 
 function pointsMatch(
@@ -126,14 +137,103 @@ function validatePhysicalPolylineDuplicates(
     polylines: readonly ResolvedFrontierPolyline[],
     fail: (message: string) => void,
 ): void {
-    const seen = new Map<string, string>();
+    const seenBySemanticKey = new Map<string, string>();
+    const seenByGeometryKey = new Map<string, ResolvedFrontierPolyline>();
     for (const polyline of polylines) {
-        const key = physicalPolylineKey(kind, polyline);
-        const existing = seen.get(key);
+        const semanticKey = physicalPolylineKey(kind, polyline);
+        const existing = seenBySemanticKey.get(semanticKey);
         if (existing) {
             fail(`${kind} ${polyline.frontierId}: duplicates physical chain ${existing}`);
         } else {
-            seen.set(key, polyline.frontierId);
+            seenBySemanticKey.set(semanticKey, polyline.frontierId);
+            const geometryKey = physicalPolylineGeometryKey(kind, polyline);
+            const existingGeometry = seenByGeometryKey.get(geometryKey);
+            if (existingGeometry) {
+                fail(
+                    `${kind} ${polyline.frontierId}: duplicates physical chain ${existingGeometry.frontierId} with ownerPairKey ${polyline.ownerPairKey} != ${existingGeometry.ownerPairKey}`,
+                );
+            } else {
+                seenByGeometryKey.set(geometryKey, polyline);
+            }
+        }
+    }
+}
+
+function polylinePointsMatch(
+    a: ReadonlyArray<readonly [number, number]>,
+    b: ReadonlyArray<readonly [number, number]>,
+): boolean {
+    if (a.length !== b.length) return false;
+    return a.every((point, index) => pointsMatch(point, b[index]!));
+}
+
+function validateSharedFrontierMap(
+    geometry: ResolvedGeometrySnapshot,
+    fail: (message: string) => void,
+): void {
+    const frontierById = new Map(
+        geometry.frontierPolylines.map((polyline) => [
+            polyline.frontierId,
+            polyline,
+        ]),
+    );
+    const mappedFrontierIds = new Map<string, string>();
+
+    for (const [ownerPairKey, polylines] of geometry.sharedFrontierMap) {
+        checkNoDuplicateIds(
+            polylines.map((polyline) => polyline.frontierId),
+            `sharedFrontierMap ${ownerPairKey}`,
+            fail,
+        );
+        for (const polyline of polylines) {
+            const existingBucket = mappedFrontierIds.get(polyline.frontierId);
+            if (existingBucket && existingBucket !== ownerPairKey) {
+                fail(
+                    `sharedFrontierMap ${ownerPairKey}: frontier ${polyline.frontierId} also appears in bucket ${existingBucket}`,
+                );
+            }
+            mappedFrontierIds.set(polyline.frontierId, ownerPairKey);
+
+            if (polyline.ownerPairKey !== ownerPairKey) {
+                fail(
+                    `sharedFrontierMap ${ownerPairKey}: frontier ${polyline.frontierId} ownerPairKey ${polyline.ownerPairKey} does not match bucket`,
+                );
+            }
+
+            const canonical = frontierById.get(polyline.frontierId);
+            if (!canonical) {
+                fail(
+                    `sharedFrontierMap ${ownerPairKey}: frontier ${polyline.frontierId} is not present in frontierPolylines`,
+                );
+                continue;
+            }
+            if (canonical.ownerPairKey !== polyline.ownerPairKey) {
+                fail(
+                    `sharedFrontierMap ${ownerPairKey}: frontier ${polyline.frontierId} ownerPairKey ${polyline.ownerPairKey} does not match frontierPolylines ownerPairKey ${canonical.ownerPairKey}`,
+                );
+            }
+            if (canonical.ownerA !== polyline.ownerA || canonical.ownerB !== polyline.ownerB) {
+                fail(
+                    `sharedFrontierMap ${ownerPairKey}: frontier ${polyline.frontierId} owners do not match frontierPolylines`,
+                );
+            }
+            if (!polylinePointsMatch(canonical.points, polyline.points)) {
+                fail(
+                    `sharedFrontierMap ${ownerPairKey}: frontier ${polyline.frontierId} geometry does not match frontierPolylines`,
+                );
+            }
+        }
+    }
+
+    for (const polyline of geometry.frontierPolylines) {
+        const bucket = geometry.sharedFrontierMap.get(polyline.ownerPairKey);
+        const isMapped = bucket?.some(
+            (candidate) => candidate.frontierId === polyline.frontierId,
+        ) ?? false;
+        if (!isMapped) {
+            fail(
+                `frontierPolylines ${polyline.frontierId}: missing from sharedFrontierMap bucket ${polyline.ownerPairKey}`,
+            );
         }
     }
 }
@@ -188,6 +288,7 @@ export function validateResolvedGeometrySnapshotInvariants(
 
     validatePhysicalPolylineDuplicates('frontier', geometry.frontierPolylines, fail);
     validatePhysicalPolylineDuplicates('world', geometry.worldBorderPolylines, fail);
+    validateSharedFrontierMap(geometry, fail);
 
     const starById = new Map((options.stars ?? []).map((star) => [star.id, star]));
     for (const region of geometry.territoryRegions) {

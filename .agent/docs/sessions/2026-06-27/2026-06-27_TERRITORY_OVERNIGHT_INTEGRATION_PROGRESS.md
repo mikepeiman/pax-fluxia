@@ -335,6 +335,13 @@ Rejected Pixi-ticker unification experiment at 2026-06-28 11:08 -04:00:
 - App-loop interval also worsened from `avg=28.709ms` to `avg=31.033ms`, and Pixi ticker interval worsened from `avg=28.649ms p95=34.5ms` to `avg=31.014ms p95=38.9ms`.
 - Code change was not kept. Keep the separate game `requestAnimationFrame` loop unless a stronger scheduling approach is tested with direct browser-visible improvement.
 
+Passed during resolved geometry map consistency slice at 2026-06-28 11:12 -04:00:
+
+- Tightened `validateResolvedGeometrySnapshotInvariants` so duplicate physical frontier chains are detected even when their owner-pair metadata differs. This catches seam reuse with drifted ownership labels instead of only duplicates inside the same owner-pair bucket.
+- Added `sharedFrontierMap` consistency checks against `frontierPolylines`: every frontier must appear in its matching owner-pair bucket, every map entry must point back to a real frontier, bucket keys must match frontier metadata, owner fields must match, and map geometry must match the canonical frontier points.
+- Added regression coverage for a valid mapped frontier fixture, same-owner duplicate frontier chains, cross-owner duplicate physical chains, missing map membership, wrong-bucket map entries, dangling map entries, and map geometry drift.
+- Validation passed: `bun x vitest run src/lib/territory/geometry/resolvedGeometryOracle.test.ts` (1 file / 8 tests), `bun x vitest run src/lib/territory/geometry` (10 files / 69 tests), `bun run check` from `pax-fluxia/` (0 errors, 1 existing warning), `bun run build` from `pax-fluxia/`, `bun run agentic:graphify:build` from repo root, and `git diff --check` (line-ending warnings only).
+
 Known recurring non-blocking warning:
 
 - `GameThemeManager.svelte`: unused CSS selector `.game-theme-manager--menu .theme-chip-name`
