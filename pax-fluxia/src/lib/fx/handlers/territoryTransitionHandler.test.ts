@@ -70,7 +70,9 @@ describe('territoryTransitionHandler', () => {
             makeConquestEvent(),
             makeContext(500, 300),
         );
-        territoryTransitions.markConsumed('target');
+        territoryTransitions.markConsumed(
+            buildTerritoryTransitionKey(makeConquestEvent()),
+        );
 
         territoryTransitionHandler.update?.(makeContext(799, 300));
         expect(territoryTransitions.activeCount).toBe(1);
@@ -101,5 +103,59 @@ describe('territoryTransitionHandler', () => {
             buildTerritoryTransitionKey(secondCapture),
         ]);
         expect(entries.map((entry) => entry.newOwner)).toEqual(['B', 'A']);
+    });
+
+    it('consumes only the exact same-star transition key', () => {
+        const firstCapture = makeConquestEvent({
+            tick: 12,
+            previousOwner: 'A',
+            newOwner: 'B',
+        });
+        const secondCapture = makeConquestEvent({
+            tick: 13,
+            previousOwner: 'B',
+            newOwner: 'A',
+        });
+        const firstKey = buildTerritoryTransitionKey(firstCapture);
+        const secondKey = buildTerritoryTransitionKey(secondCapture);
+
+        territoryTransitionHandler.handle(firstCapture, makeContext(1000, 450));
+        territoryTransitionHandler.handle(secondCapture, makeContext(1100, 450));
+        territoryTransitions.markConsumed(firstKey);
+
+        const entriesByKey = new Map(
+            territoryTransitions
+                .getActiveEntries()
+                .map((entry) => [entry.transitionKey, entry]),
+        );
+        expect(entriesByKey.get(firstKey)?.consumed).toBe(true);
+        expect(entriesByKey.get(secondKey)?.consumed).toBe(false);
+    });
+
+    it('marks terminal frames only for exact same-star transition keys', () => {
+        const firstCapture = makeConquestEvent({
+            tick: 12,
+            previousOwner: 'A',
+            newOwner: 'B',
+        });
+        const secondCapture = makeConquestEvent({
+            tick: 13,
+            previousOwner: 'B',
+            newOwner: 'A',
+        });
+        const firstKey = buildTerritoryTransitionKey(firstCapture);
+        const secondKey = buildTerritoryTransitionKey(secondCapture);
+
+        territoryTransitionHandler.handle(firstCapture, makeContext(1000, 450));
+        territoryTransitionHandler.handle(secondCapture, makeContext(1100, 450));
+        territoryTransitions.markTerminalFrameRendered([firstKey]);
+
+        const entriesByKey = new Map(
+            territoryTransitions
+                .getActiveEntries()
+                .map((entry) => [entry.transitionKey, entry]),
+        );
+        expect(entriesByKey.get(firstKey)?.terminalFrameRendered).toBe(true);
+        expect(entriesByKey.get(secondKey)?.terminalFrameRendered).toBe(false);
     });
 });

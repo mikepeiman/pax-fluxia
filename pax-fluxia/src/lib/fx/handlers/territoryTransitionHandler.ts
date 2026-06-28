@@ -86,16 +86,10 @@ export class TerritoryTransitionState {
         return [...this._pending.values()];
     }
 
-    /** Mark a transition as consumed by the renderer */
-    markConsumed(starIdOrTransitionKey: string): void {
-        for (const [transitionKey, entry] of this._pending) {
-            if (
-                transitionKey === starIdOrTransitionKey ||
-                entry.starId === starIdOrTransitionKey
-            ) {
-                entry.consumed = true;
-            }
-        }
+    /** Mark one exact conquest transition as consumed by the renderer. */
+    markConsumed(transitionKey: string): void {
+        const entry = this._pending.get(transitionKey);
+        if (entry) entry.consumed = true;
     }
 
     /** Mark exact transition keys that have rendered their terminal clamped frame. */
@@ -106,15 +100,9 @@ export class TerritoryTransitionState {
         }
     }
 
-    /** Mark that a transition has rendered its terminal clamped frame. */
-    markTerminalFrameRendered(starIds: Iterable<string>): void {
-        for (const starId of starIds) {
-            for (const entry of this._pending.values()) {
-                if (entry.starId === starId) {
-                    entry.terminalFrameRendered = true;
-                }
-            }
-        }
+    /** Mark exact transition keys that have rendered their terminal clamped frame. */
+    markTerminalFrameRendered(transitionKeys: Iterable<string>): void {
+        this.markTerminalFrameKeysRendered(transitionKeys);
     }
 
     /** Check if any transitions are active (including consumed but not expired) */

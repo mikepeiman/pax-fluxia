@@ -63,11 +63,16 @@ describe('RenderFamilyGeometryCacheKeyBuilder', () => {
 
         expect(second).toBe(first);
         expect(builder.getStats()).toMatchObject({
+            buildCount: 2,
             hitCount: 1,
             missCount: 1,
             lastStarCount: 2,
             lastLaneCount: 1,
+            topologySignatureScanCount: 2,
+            repeatedTopologySignatureScanCount: 1,
         });
+        expect(builder.getStats().topologySignatureScanMs).toBeGreaterThanOrEqual(0);
+        expect(builder.getStats().repeatedTopologySignatureScanMs).toBeGreaterThanOrEqual(0);
     });
 
     it('recomputes when arrays are replaced even if semantic contents match', () => {
@@ -92,8 +97,11 @@ describe('RenderFamilyGeometryCacheKeyBuilder', () => {
 
         expect(second).toBe(first);
         expect(builder.getStats()).toMatchObject({
+            buildCount: 2,
             hitCount: 0,
             missCount: 2,
+            topologySignatureScanCount: 2,
+            repeatedTopologySignatureScanCount: 1,
         });
     });
 
@@ -156,8 +164,11 @@ describe('RenderFamilyGeometryCacheKeyBuilder', () => {
 
         expect(second).not.toBe(first);
         expect(builder.getStats()).toMatchObject({
+            buildCount: 2,
             hitCount: 0,
             missCount: 2,
+            topologySignatureScanCount: 2,
+            repeatedTopologySignatureScanCount: 0,
         });
     });
 

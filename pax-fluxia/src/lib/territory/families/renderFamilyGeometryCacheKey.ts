@@ -7,11 +7,18 @@ import { normalizePerimeterFieldGeometrySource } from '../geometry/geometrySourc
 import { buildTerritorySpatialTopologySignature } from '../geometry/spatialTopologySignature';
 
 export interface RenderFamilyGeometryCacheKeyStats {
+    readonly buildCount: number;
     readonly hitCount: number;
     readonly missCount: number;
     readonly lastStarCount: number;
     readonly lastLaneCount: number;
     readonly lastFingerprint: string | null;
+    readonly topologySignatureScanCount: number;
+    readonly topologySignatureScanMs: number;
+    readonly repeatedTopologySignatureScanCount: number;
+    readonly repeatedTopologySignatureScanMs: number;
+    readonly lastTopologySignatureScanMs: number;
+    readonly averageTopologySignatureScanMs: number;
 }
 
 export interface RenderFamilyGeometryCacheKeyBuildInput {
@@ -42,6 +49,12 @@ function buildOwnershipSignature(stars: ReadonlyArray<StarState>): string {
     return signature;
 }
 
+function nowMs(): number {
+    return typeof performance !== 'undefined' && typeof performance.now === 'function'
+        ? performance.now()
+        : Date.now();
+}
+
 export function buildRenderFamilyGeometryFingerprint(params: {
     readonly source: Record<string, unknown>;
     readonly worldWidth: number;
@@ -68,22 +81,43 @@ export function buildRenderFamilyGeometryFingerprint(params: {
 
 export class RenderFamilyGeometryCacheKeyBuilder {
     private lastEntry: RenderFamilyGeometryCacheKeyEntry | null = null;
+    private buildCount = 0;
     private hitCount = 0;
     private missCount = 0;
+    private topologySignatureScanCount = 0;
+    private topologySignatureScanMs = 0;
+    private repeatedTopologySignatureScanCount = 0;
+    private repeatedTopologySignatureScanMs = 0;
+    private lastTopologySignatureScanMs = 0;
 
     build(input: RenderFamilyGeometryCacheKeyBuildInput): string {
+        this.buildCount += 1;
         const fingerprint = buildRenderFamilyGeometryFingerprint({
             source: input.source,
             worldWidth: input.worldWidth,
             worldHeight: input.worldHeight,
             visualEpoch: input.visualEpoch,
         });
+        const topologyScanStartMs = nowMs();
         const topologySignature = buildTerritorySpatialTopologySignature(
             input.stars,
             input.lanes,
         );
+        const topologyScanMs = nowMs() - topologyScanStartMs;
+        this.topologySignatureScanCount += 1;
+        this.topologySignatureScanMs += topologyScanMs;
+        this.lastTopologySignatureScanMs = topologyScanMs;
         const ownershipSignature = buildOwnershipSignature(input.stars);
         const cached = this.lastEntry;
+        const repeatedTopologyScan =
+            cached &&
+            cached.starCount === input.stars.length &&
+            cached.laneCount === input.lanes.length &&
+            cached.topologySignature === topologySignature;
+        if (repeatedTopologyScan) {
+            this.repeatedTopologySignatureScanCount += 1;
+            this.repeatedTopologySignatureScanMs += topologyScanMs;
+        }
         if (
             cached &&
             cached.stars === input.stars &&
@@ -123,17 +157,34 @@ export class RenderFamilyGeometryCacheKeyBuilder {
 
     getStats(): RenderFamilyGeometryCacheKeyStats {
         return {
+            buildCount: this.buildCount,
             hitCount: this.hitCount,
             missCount: this.missCount,
             lastStarCount: this.lastEntry?.starCount ?? 0,
             lastLaneCount: this.lastEntry?.laneCount ?? 0,
             lastFingerprint: this.lastEntry?.fingerprint ?? null,
+            topologySignatureScanCount: this.topologySignatureScanCount,
+            topologySignatureScanMs: this.topologySignatureScanMs,
+            repeatedTopologySignatureScanCount:
+                this.repeatedTopologySignatureScanCount,
+            repeatedTopologySignatureScanMs: this.repeatedTopologySignatureScanMs,
+            lastTopologySignatureScanMs: this.lastTopologySignatureScanMs,
+            averageTopologySignatureScanMs:
+                this.topologySignatureScanCount > 0
+                    ? this.topologySignatureScanMs / this.topologySignatureScanCount
+                    : 0,
         };
     }
 
     reset(): void {
         this.lastEntry = null;
+        this.buildCount = 0;
         this.hitCount = 0;
         this.missCount = 0;
+        this.topologySignatureScanCount = 0;
+        this.topologySignatureScanMs = 0;
+        this.repeatedTopologySignatureScanCount = 0;
+        this.repeatedTopologySignatureScanMs = 0;
+        this.lastTopologySignatureScanMs = 0;
     }
 }

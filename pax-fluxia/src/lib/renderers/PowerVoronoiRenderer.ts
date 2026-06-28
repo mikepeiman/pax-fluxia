@@ -1455,7 +1455,7 @@ export function renderPowerVoronoi(
             if (entry.attackerStarIds && entry.attackerStarIds.length > 0) {
                 attackerOriginMap.set(entry.starId, entry.attackerStarIds);
             }
-            territoryTransitions.markConsumed(entry.starId);
+            territoryTransitions.markConsumed(entry.transitionKey);
         }
 
         // ── Ghost-Site Weight Interpolation ──
