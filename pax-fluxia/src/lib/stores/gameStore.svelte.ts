@@ -48,6 +48,7 @@ import { animationStore } from '$lib/stores/animationStore.svelte';
 import { activeGameStore } from '$lib/stores/activeGameStore.svelte';
 import { getBuiltinMaps, loadBuiltinMaps } from '$lib/config/builtinMaps';
 import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
+import { buildTerritorySpatialTopologySignature } from '$lib/territory/geometry/spatialTopologySignature';
 import type { MapConnection, MapLaneMode } from '@pax/common/mapgen';
 import { AUTHORED_MAP_SCHEMA_VERSION } from '@pax/common/maps';
 import {
@@ -179,6 +180,7 @@ let settings = $state<GameSettings>({ ...DEFAULT_SETTINGS });
  *  Uses $state.raw to avoid deep-proxying the entire GameState tree.
  *  Reactivity triggers on reassignment (each tick), not on deep property access. */
 let snapshot = $state.raw<GameState | null>(null);
+let boardLayoutSignature = $state('board:empty');
 
 /** Tick progress — for UI-only consumers (Leaderboard progress bar).
  *  Animation code in GameCanvas uses its own game-time-based computation. */
@@ -287,6 +289,7 @@ function toGameState(s: GameRoomState): GameState {
         isPaused: s.isPaused,
         speed: s.speed as GameSpeed,
         phase: s.phase as any,
+        boardLayoutSignature,
         players,
         stars,
         connections,
@@ -294,6 +297,20 @@ function toGameState(s: GameRoomState): GameState {
     };
 
     return nextState;
+}
+
+function refreshBoardLayoutSignature(): void {
+    if (!state) {
+        boardLayoutSignature = 'board:empty';
+        return;
+    }
+
+    const stars = Array.from(state.stars.values()) as unknown as Star[];
+    const connections = toLaneAwareConnections(Array.from(state.connections));
+    boardLayoutSignature = `board:${sessionId}:${buildTerritorySpatialTopologySignature(
+        stars,
+        connections,
+    )}`;
 }
 
 interface SnapshotOrderPatch {
@@ -711,6 +728,7 @@ function commitLanePolylineResults(
 ): void {
     seedLanePolylineCacheFromMapGen(connections);
     applyLanePolylineResultsToState(connections);
+    refreshBoardLayoutSignature();
     if (state) {
         snapshot = toGameState(state);
     }
@@ -733,6 +751,7 @@ function rebuildLanePolylinesRuntime(params: {
             ),
         );
         applyLanePolylineResultsToState(rebuilt);
+        refreshBoardLayoutSignature();
         if (state) {
             snapshot = toGameState(state);
         }
@@ -831,6 +850,7 @@ function rebuildConnectionsFromLaneClearance(): void {
     for (const c of uni) {
         addDebugConnection(c.sourceId, c.targetId);
     }
+    refreshBoardLayoutSignature();
     rebuildLanePolylinesRuntime({
         reason: 'game.rebuildConnectionsFromLaneClearance.rebuildLanePolylineCache',
         nodes,
@@ -1670,6 +1690,7 @@ function initializeState(): void {
 
     // Snapshot map for restart (F-71)
     lastMapDefinition = exportMapDefinition();
+    refreshBoardLayoutSignature();
 
     // Initialize AI players
     aiPlayers.clear();
@@ -1698,6 +1719,7 @@ function destroyGame(): void {
     stopTick();
     terminateLanePolylineWorker();
     state = null;
+    boardLayoutSignature = 'board:empty';
     aiPlayers.clear();
     history = [];
     peakFleetSize = 0;
@@ -2122,6 +2144,7 @@ export const gameStore = {
     get humanPlayer() { return humanPlayer; },
     get leaderboard() { return leaderboard; },
     get sessionId() { return sessionId; },
+    get boardLayoutSignature() { return boardLayoutSignature; },
     get hasStarted() { return hasStarted; },
     get retainOrderOnConquest() { return true; },
     get allowOpposingOrders() { return false; },

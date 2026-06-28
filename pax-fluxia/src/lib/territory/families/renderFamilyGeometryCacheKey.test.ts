@@ -37,6 +37,8 @@ function source(overrides: Record<string, unknown> = {}): Record<string, unknown
     };
 }
 
+const boardLayoutSignature = 'board:test-layout';
+
 describe('RenderFamilyGeometryCacheKeyBuilder', () => {
     it('reuses the previous key when stable arrays and geometry fingerprint match', () => {
         const builder = new RenderFamilyGeometryCacheKeyBuilder();
@@ -47,6 +49,7 @@ describe('RenderFamilyGeometryCacheKeyBuilder', () => {
         const first = builder.build({
             stars,
             lanes,
+            boardLayoutSignature,
             source: config,
             worldWidth: 100,
             worldHeight: 80,
@@ -55,6 +58,7 @@ describe('RenderFamilyGeometryCacheKeyBuilder', () => {
         const second = builder.build({
             stars,
             lanes,
+            boardLayoutSignature,
             source: config,
             worldWidth: 100,
             worldHeight: 80,
@@ -70,12 +74,13 @@ describe('RenderFamilyGeometryCacheKeyBuilder', () => {
         });
     });
 
-    it('recomputes when arrays are replaced even if semantic contents match', () => {
+    it('reuses the previous key when arrays are replaced but board layout and ownership are unchanged', () => {
         const builder = new RenderFamilyGeometryCacheKeyBuilder();
         const config = source();
         const first = builder.build({
             stars: [star('a', 'p1', 10, 20)],
             lanes: [lane('a', 'b')],
+            boardLayoutSignature,
             source: config,
             worldWidth: 100,
             worldHeight: 80,
@@ -84,6 +89,7 @@ describe('RenderFamilyGeometryCacheKeyBuilder', () => {
         const second = builder.build({
             stars: [star('a', 'p1', 10, 20)],
             lanes: [lane('a', 'b')],
+            boardLayoutSignature,
             source: config,
             worldWidth: 100,
             worldHeight: 80,
@@ -92,8 +98,8 @@ describe('RenderFamilyGeometryCacheKeyBuilder', () => {
 
         expect(second).toBe(first);
         expect(builder.getStats()).toMatchObject({
-            hitCount: 0,
-            missCount: 2,
+            hitCount: 1,
+            missCount: 1,
         });
     });
 
@@ -104,6 +110,7 @@ describe('RenderFamilyGeometryCacheKeyBuilder', () => {
         const base = {
             stars,
             lanes,
+            boardLayoutSignature,
             source: source(),
             worldWidth: 100,
             worldHeight: 80,
@@ -129,13 +136,14 @@ describe('RenderFamilyGeometryCacheKeyBuilder', () => {
         });
     });
 
-    it('recomputes when lane topology mutates in place', () => {
+    it('recomputes when board layout identity changes', () => {
         const builder = new RenderFamilyGeometryCacheKeyBuilder();
         const stars = [star('a', 'p1', 10, 20), star('b', 'p2', 40, 20)];
         const lanes = [lane('a', 'b')];
         const base = {
             stars,
             lanes,
+            boardLayoutSignature,
             source: source(),
             worldWidth: 100,
             worldHeight: 80,
@@ -143,16 +151,10 @@ describe('RenderFamilyGeometryCacheKeyBuilder', () => {
         };
 
         const first = builder.build(base);
-        Object.assign(lanes[0]!, {
-            distance: 30,
-            lanePathKind: 'straight',
-            laneConstraintStatus: 'straight_ok',
-            laneWaypoints: [
-                [10, 20],
-                [40, 20],
-            ],
+        const second = builder.build({
+            ...base,
+            boardLayoutSignature: 'board:changed-layout',
         });
-        const second = builder.build(base);
 
         expect(second).not.toBe(first);
         expect(builder.getStats()).toMatchObject({
@@ -168,6 +170,7 @@ describe('RenderFamilyGeometryCacheKeyBuilder', () => {
         const base = {
             stars,
             lanes,
+            boardLayoutSignature,
             source: source(),
             worldWidth: 100,
             worldHeight: 80,

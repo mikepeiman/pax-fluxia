@@ -4,7 +4,6 @@ import {
     readNormalizedTerritoryGeometryTunables,
 } from '../geometry/geometryTuning';
 import { normalizePerimeterFieldGeometrySource } from '../geometry/geometrySource';
-import { buildTerritorySpatialTopologySignature } from '../geometry/spatialTopologySignature';
 
 export interface RenderFamilyGeometryCacheKeyStats {
     readonly hitCount: number;
@@ -17,6 +16,7 @@ export interface RenderFamilyGeometryCacheKeyStats {
 export interface RenderFamilyGeometryCacheKeyBuildInput {
     readonly stars: ReadonlyArray<StarState>;
     readonly lanes: ReadonlyArray<StarConnection>;
+    readonly boardLayoutSignature: string;
     readonly source: Record<string, unknown>;
     readonly worldWidth: number;
     readonly worldHeight: number;
@@ -24,11 +24,9 @@ export interface RenderFamilyGeometryCacheKeyBuildInput {
 }
 
 interface RenderFamilyGeometryCacheKeyEntry {
-    readonly stars: ReadonlyArray<StarState>;
-    readonly lanes: ReadonlyArray<StarConnection>;
     readonly starCount: number;
     readonly laneCount: number;
-    readonly topologySignature: string;
+    readonly boardLayoutSignature: string;
     readonly ownershipSignature: string;
     readonly fingerprint: string;
     readonly key: string;
@@ -78,19 +76,13 @@ export class RenderFamilyGeometryCacheKeyBuilder {
             worldHeight: input.worldHeight,
             visualEpoch: input.visualEpoch,
         });
-        const topologySignature = buildTerritorySpatialTopologySignature(
-            input.stars,
-            input.lanes,
-        );
         const ownershipSignature = buildOwnershipSignature(input.stars);
         const cached = this.lastEntry;
         if (
             cached &&
-            cached.stars === input.stars &&
-            cached.lanes === input.lanes &&
             cached.starCount === input.stars.length &&
             cached.laneCount === input.lanes.length &&
-            cached.topologySignature === topologySignature &&
+            cached.boardLayoutSignature === input.boardLayoutSignature &&
             cached.ownershipSignature === ownershipSignature &&
             cached.fingerprint === fingerprint
         ) {
@@ -98,22 +90,13 @@ export class RenderFamilyGeometryCacheKeyBuilder {
             return cached.key;
         }
 
-        let key = `${fingerprint}:topo=${topologySignature}:owners=${ownershipSignature}:`;
-        for (const star of input.stars) {
-            key += `${star.id}:${star.ownerId ?? ''}:${star.x}:${star.y}|`;
-        }
-        key += '::';
-        for (const lane of input.lanes) {
-            key += `${lane.sourceId}->${lane.targetId}|`;
-        }
+        const key = `${fingerprint}:board=${input.boardLayoutSignature}:owners=${ownershipSignature}`;
 
         this.missCount += 1;
         this.lastEntry = {
-            stars: input.stars,
-            lanes: input.lanes,
             starCount: input.stars.length,
             laneCount: input.lanes.length,
-            topologySignature,
+            boardLayoutSignature: input.boardLayoutSignature,
             ownershipSignature,
             fingerprint,
             key,

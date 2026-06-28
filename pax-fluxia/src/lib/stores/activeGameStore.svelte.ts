@@ -201,6 +201,13 @@ function getMapDiagnostics(): MapDiagnostics {
     return gameStore.snapshot?.mapDiagnostics ?? { measurements: [] };
 }
 
+function getBoardLayoutSignature(): string {
+    if (isMultiplayerMode()) {
+        return multiplayerStore.boardLayoutSignature;
+    }
+    return gameStore.boardLayoutSignature;
+}
+
 /**
  * All players in the game
  */
@@ -535,6 +542,7 @@ export const activeGameStore = {
     get stars() { return getStars(); },
     get connections() { return getConnections(); },
     get mapDiagnostics() { return getMapDiagnostics(); },
+    get boardLayoutSignature() { return getBoardLayoutSignature(); },
     get players() { return getPlayers(); },
     get localPlayerId() { return getLocalPlayerId(); },
     get isPaused() { return getIsPaused(); },

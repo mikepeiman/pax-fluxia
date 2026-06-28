@@ -2982,6 +2982,7 @@
         return renderFamilyGeometryCacheKeyBuilder.build({
             stars,
             lanes,
+            boardLayoutSignature: activeGameStore.boardLayoutSignature,
             source,
             worldWidth: GAME_WIDTH,
             worldHeight: GAME_HEIGHT,

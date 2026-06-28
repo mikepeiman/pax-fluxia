@@ -113,6 +113,8 @@ export interface GameState {
     isPaused: boolean;
     speed: GameSpeed;
     phase: AppView;
+    /** Immutable board-layout identity for renderer caches. */
+    boardLayoutSignature?: string;
     players: Player[];
     stars: Star[];
     connections: Connection[];

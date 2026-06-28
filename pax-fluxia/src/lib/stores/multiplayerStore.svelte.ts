@@ -22,6 +22,7 @@ import { audioManager } from '$lib/services/audioManager.svelte';
 import { clearLanePolylineCache } from '$lib/lanes/lanePolylineCache';
 import { seedLaneCacheFromConnections } from '$lib/lanes/laneConnectionSync';
 import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
+import { buildTerritorySpatialTopologySignature } from '$lib/territory/geometry/spatialTopologySignature';
 
 /** Options forwarded to Colyseus `create('game_room', opts)` (host map setup). */
 export type CreateRoomOptions = {
@@ -74,6 +75,10 @@ let localSessionId = $state<string | null>(null);
 let players = $state<PlayerState[]>([]);
 let stars = $state<StarState[]>([]);
 let connections = $state<StarConnection[]>([]);
+let boardLayoutSignature = $state('board:empty');
+let boardLayoutStarCount = 0;
+let boardLayoutConnectionCount = 0;
+let boardLayoutLocked = false;
 let mapDiagnostics = $state<MapDiagnostics>({ measurements: [] });
 let pendingTransfers = $state<TransferEvent[]>([]);
 let gameHistory = $state<GameHistoryEntry[]>([]);
@@ -262,6 +267,10 @@ function leaveRoom(): void {
     players = [];
     stars = [];
     connections = [];
+    boardLayoutSignature = 'board:empty';
+    boardLayoutStarCount = 0;
+    boardLayoutConnectionCount = 0;
+    boardLayoutLocked = false;
     mapDiagnostics = { measurements: [] };
     gameHistory = [];
     restartVoteInfo = null;
@@ -596,9 +605,28 @@ function syncStateFromRoom(state: any): void {
     mapDiagnostics = { measurements };
 
     // Convert connections array
-    connections = state.connections
+    const nextConnections = state.connections
         ? seedLaneCacheFromConnections(state.connections, starArray) as StarConnection[]
         : [];
+    connections = nextConnections;
+
+    const boardLayoutCountsChanged =
+        starArray.length !== boardLayoutStarCount ||
+        nextConnections.length !== boardLayoutConnectionCount;
+    const shouldRefreshBoardLayout =
+        boardLayoutSignature === 'board:empty' ||
+        !boardLayoutLocked ||
+        boardLayoutCountsChanged;
+
+    if (shouldRefreshBoardLayout) {
+        boardLayoutSignature = `board:${roomId ?? 'room'}:${buildTerritorySpatialTopologySignature(
+            starArray,
+            nextConnections,
+        )}`;
+        boardLayoutStarCount = starArray.length;
+        boardLayoutConnectionCount = nextConnections.length;
+        boardLayoutLocked = newPhase === 'playing' || newPhase === 'ended';
+    }
 }
 
 // ============================================================================
@@ -814,6 +842,7 @@ export const multiplayerStore = {
     get players() { return players; },
     get stars() { return stars; },
     get connections() { return connections; },
+    get boardLayoutSignature() { return boardLayoutSignature; },
     get mapDiagnostics() { return mapDiagnostics; },
     get localPlayer() { return players.find(p => (p as any).sessionId === localSessionId); },
     get pendingTransfers() { return pendingTransfers; },
