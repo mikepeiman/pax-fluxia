@@ -4782,14 +4782,18 @@ export class CellGridPhaseEdgesFamily implements RenderFamily {
         borderLayer.visible = baseBorderDrawn;
 
         if (shouldRenderPhaseFillOverlay) {
+            // Phase-surface fills (shader_frontier_band + contour) sample LINEARLY so
+            // the smooth distance field interpolates between cells. Sampling the
+            // shader-band fill 'nearest' (the old persisted default) made each ~12px
+            // cell texel constant -> the "smooth" fill rendered as a cell staircase.
+            // That is THE not-smooth bug: technique was shader-band, but nearest
+            // sampling kept it blocky. Force linear so the fill is actually smooth.
             const fillSamplingMode =
                 frontierSurfaceRecipe.geometryFamily === 'shared_edge'
                     ? inwardOffsetPx > 0
                         ? 'linear'
                         : 'nearest'
-                    : frontierTechnique === 'shader_frontier_band'
-                      ? frontierPhaseSampling
-                      : 'linear';
+                    : 'linear';
             const fillSoftnessPx =
                 frontierTechnique === 'shader_frontier_band'
                     ? frontierShaderSoftnessPx
@@ -4811,7 +4815,9 @@ export class CellGridPhaseEdgesFamily implements RenderFamily {
             if (frontierSurfaceRecipe.borderSource === 'frontier_band') {
                 this.renderFrontierBand({
                     layers: frontierPresentation.frontierBandLayers,
-                    samplingMode: frontierPhaseSampling,
+                    // Linear so the smooth frontier-band border matches the now-linear
+                    // smooth fill (was frontierPhaseSampling = 'nearest' -> blocky).
+                    samplingMode: 'linear',
                     borderHexByColorIdx,
                     borderAlpha: effectiveBorderAlpha,
                     bandWidth: frontierBandWidthPx,

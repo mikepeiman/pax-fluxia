@@ -18,7 +18,10 @@ export const territoryFrontierConfigDefaults = {
     TERRITORY_FRONTIER_TECHNIQUE: 'shader_frontier_band' as TerritoryFrontierTechniqueId,
     TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE:
         'shared_edge' as TerritoryFrontierBorderGeometryMode,
-    TERRITORY_FRONTIER_PHASE_SAMPLING: 'nearest' as const,
+    // Smooth fill samples the phase field linearly (the shader-band fill + border
+    // now force 'linear' in CellGridPhaseEdgesFamily regardless — 'nearest' rendered
+    // the smooth fill as a cell staircase). Kept for stats/back-compat.
+    TERRITORY_FRONTIER_PHASE_SAMPLING: 'linear' as const,
     TERRITORY_FRONTIER_BLUR_PASSES: 0,
     TERRITORY_FRONTIER_TRIANGLE_DIAGONAL_POLICY:
         'fixed' as TerritoryFrontierTriangleDiagonalPolicy,

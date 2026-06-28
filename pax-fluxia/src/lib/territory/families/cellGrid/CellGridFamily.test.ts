@@ -548,7 +548,8 @@ describe('CellGridFamily active frontier fast path', () => {
         expect(stats.frontierTransitionGeometryFamily).toBe('shared_edge');
         expect(stats.frontierSurfaceInvariantViolation).toBeNull();
         expect(stats.frontierBlurPasses).toBe(0);
-        expect(stats.frontierPhaseSampling).toBe('nearest');
+        // Default is now linear (smooth fill); the fill+border force linear regardless.
+        expect(stats.frontierPhaseSampling).toBe('linear');
 
         family.dispose();
     });
