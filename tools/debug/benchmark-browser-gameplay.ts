@@ -806,6 +806,48 @@ function summarizeMeasureGroups(snapshot: any): Record<string, JsonValue> {
     };
 }
 
+function summarizeIntervalMeasure(aggregate: any): Record<string, JsonValue> | null {
+    if (!aggregate) return null;
+    const count = Number(aggregate.count ?? 0);
+    const totalMs = Number(aggregate.totalMs ?? 0);
+    const samples = Array.isArray(aggregate.samples)
+        ? aggregate.samples
+              .map((value: unknown) => Number(value))
+              .filter((value: number) => Number.isFinite(value))
+        : [];
+    const sortedSamples = [...samples].sort((a, b) => a - b);
+    const percentile = (quantile: number): number => {
+        if (sortedSamples.length === 0) return 0;
+        const index = Math.min(
+            sortedSamples.length - 1,
+            Math.max(0, Math.round((sortedSamples.length - 1) * quantile)),
+        );
+        return sortedSamples[index] ?? 0;
+    };
+    const histogramBuckets = new Map<number, number>();
+    for (const sample of samples) {
+        const bucketMs = Math.round(sample / 5) * 5;
+        histogramBuckets.set(bucketMs, (histogramBuckets.get(bucketMs) ?? 0) + 1);
+    }
+    const histogram = [...histogramBuckets.entries()]
+        .map(([bucketMs, bucketCount]) => ({
+            bucketMs,
+            count: bucketCount,
+            share: samples.length > 0 ? round(bucketCount / samples.length) : 0,
+        }))
+        .sort((a, b) => Number(b.count) - Number(a.count));
+
+    return {
+        count,
+        avgMs: round(count > 0 ? totalMs / count : 0),
+        maxMs: round(Number(aggregate.maxMs ?? 0)),
+        lastMs: round(Number(aggregate.lastMs ?? 0)),
+        retainedSampleCount: samples.length,
+        retainedP95Ms: round(percentile(0.95)),
+        retainedHistogram: histogram,
+    };
+}
+
 function summarizeEventTiming(snapshot: any): Record<string, JsonValue> {
     const timingEvents = (snapshot?.events ?? []).filter(
         (event: any) => event.name === "browser.eventTiming",
@@ -1466,6 +1508,9 @@ function summarizePerfSnapshot(
             ].some((prefix) => entry.name.startsWith(prefix)),
         ),
         frameMeasures: frameMeasures.slice(0, 25),
+        frameLoopInterval: summarizeIntervalMeasure(
+            snapshot?.measures?.["game.frameLoop.interval"],
+        ),
         measureGroups: summarizeMeasureGroups(snapshot),
         eventCounts: [...eventCounts.entries()]
             .map(([name, count]) => ({ name, count }))
@@ -3947,6 +3992,7 @@ async function captureConquestAnimationScenario(
     const targetId = String(sampleOrder.targetId);
     const sourceIdLiteral = JSON.stringify(sourceId);
     const targetIdLiteral = JSON.stringify(targetId);
+    await client.evaluate<void>("window.__PAX_BENCH__.resetPerfCapture()");
     const issued = await client.evaluate<boolean>(
         `window.__PAX_BENCH__.issueOrderDirect(${sourceIdLiteral}, ${targetIdLiteral}, true)`,
     );
@@ -4205,18 +4251,23 @@ async function main(): Promise<void> {
         },
     );
 
+    const browserArgs = [
+        browserPath,
+        `--remote-debugging-port=${cdpPort}`,
+        "--headless=new",
+        "--disable-gpu",
+        "--disable-background-timer-throttling",
+        "--disable-backgrounding-occluded-windows",
+        "--disable-renderer-backgrounding",
+        "--disable-features=CalculateNativeWinOcclusion",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--window-size=1600,900",
+        `--user-data-dir=${profileDir}`,
+        "about:blank",
+    ];
     const browser = Bun.spawn(
-        [
-            browserPath,
-            `--remote-debugging-port=${cdpPort}`,
-            "--headless=new",
-            "--disable-gpu",
-            "--no-first-run",
-            "--no-default-browser-check",
-            "--window-size=1600,900",
-            `--user-data-dir=${profileDir}`,
-            "about:blank",
-        ],
+        browserArgs,
         {
             stdout: "ignore",
             stderr: "ignore",
@@ -4498,6 +4549,7 @@ async function main(): Promise<void> {
         const results = {
             generatedAt: new Date().toISOString(),
             browserPath,
+            browserArgs,
             appUrl,
             captureConfig: {
                 trace: CAPTURE_TRACE,

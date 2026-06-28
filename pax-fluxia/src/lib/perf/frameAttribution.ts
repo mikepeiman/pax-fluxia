@@ -55,6 +55,10 @@ function mergeMeasuredIntervals(
     return total;
 }
 
+function isCadenceOnlyMeasure(name: string): boolean {
+    return name === 'game.frameLoop.interval';
+}
+
 export function summarizeFramePerfAttribution(
     events: readonly PerfEventLike[],
     frame: FrameWindow,
@@ -63,6 +67,7 @@ export function summarizeFramePerfAttribution(
     const measures: FramePerfMeasureAttribution[] = [];
     const intervals: Array<{ startMs: number; endMs: number }> = [];
     for (const event of events) {
+        if (isCadenceOnlyMeasure(event.name)) continue;
         const detail = event.detail;
         if (!detail || detail.kind !== 'measure') continue;
         const startTimeMs = finiteNumber(detail.startTimeMs);

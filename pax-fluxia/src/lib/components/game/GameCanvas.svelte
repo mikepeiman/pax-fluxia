@@ -200,7 +200,11 @@
     import { trimLanePolylineToStarRims } from "$lib/lanes/laneGeometry";
     import { computeLaneHeadingForNearside } from "$lib/lanes/applyLaneTravelPath";
     import { resolveEffectiveLaneMarginPx } from "$lib/lanes/laneMargin";
-    import { measurePerf, recordPerfEvent } from "$lib/perf/perfProbe";
+    import {
+        measurePerf,
+        recordPerfDuration,
+        recordPerfEvent,
+    } from "$lib/perf/perfProbe";
     import {
         resetTerritoryRenderStatus,
         setTerritoryRenderStatus,
@@ -4066,12 +4070,24 @@
 
     function startAnimationLoop() {
         let lastTime = performance.now();
+        let previousLoopWasPlaying = !activeGameStore.isPaused;
 
         const loop = (currentTime: number) => {
+            const previousTime = lastTime;
             lastTime = currentTime;
+            const loopIntervalMs = currentTime - previousTime;
+            const isPaused = activeGameStore.isPaused;
+            if (loopIntervalMs > 0 && !isPaused && previousLoopWasPlaying) {
+                recordPerfDuration(
+                    "game.frameLoop.interval",
+                    loopIntervalMs,
+                    { isPaused },
+                    previousTime,
+                );
+            }
+            previousLoopWasPlaying = !isPaused;
 
             // Tick FXClock per-frame (pause-aware game time for all ship animations)
-            const isPaused = activeGameStore.isPaused;
             // Pause ALL telemetry logging (except errors) while the game is paused.
             setGamePaused(isPaused);
             // Initialize lastTickGameTimeMs on first frame so tickProgress starts at 0

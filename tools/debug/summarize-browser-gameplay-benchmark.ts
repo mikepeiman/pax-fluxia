@@ -51,6 +51,17 @@ function printScenario(name: string, scenario: any): void {
                 `frame cadence dominant=${round(Number(frames.dominantIntervalMs ?? 0))}ms count=${Number(frames.dominantIntervalCount ?? 0)} share=${round(Number(frames.dominantIntervalShare ?? 0))} histogram=${histogram.map((entry: any) => `${round(Number(entry?.bucketMs ?? 0))}ms:${Number(entry?.count ?? 0)}`).join(",")}`,
             );
         }
+        const frameLoopInterval = scenario?.perf?.frameLoopInterval;
+        if (frameLoopInterval) {
+            const loopHistogram = Array.isArray(frameLoopInterval?.retainedHistogram)
+                ? frameLoopInterval.retainedHistogram
+                      .map((entry: any) => `${round(Number(entry?.bucketMs ?? 0))}ms:${Number(entry?.count ?? 0)}`)
+                      .join(",")
+                : "";
+            console.log(
+                `app frame loop count=${Number(frameLoopInterval?.count ?? 0)} avg=${round(Number(frameLoopInterval?.avgMs ?? 0))}ms p95=${round(Number(frameLoopInterval?.retainedP95Ms ?? 0))}ms max=${round(Number(frameLoopInterval?.maxMs ?? 0))}ms retained=${Number(frameLoopInterval?.retainedSampleCount ?? 0)} histogram=${loopHistogram || "none"}`,
+            );
+        }
         const framePacing = scenario?.analysis?.framePacing;
         if (framePacing) {
             const reasons = Array.isArray(framePacing?.reasons)
@@ -485,6 +496,11 @@ function main(): void {
     if (report?.captureConfig) {
         console.log(
             `captureConfig trace=${String(report.captureConfig?.trace ?? false)} cpu=${String(report.captureConfig?.cpu ?? false)} warmupMs=${round(Number(report.captureConfig?.frameWarmupMs ?? 0))} gameplayFrameMs=${round(Number(report.captureConfig?.gameplayFrameMs ?? 0))}`,
+        );
+    }
+    if (Array.isArray(report?.browserArgs)) {
+        console.log(
+            `browserArgs=${report.browserArgs.map((arg: unknown) => String(arg)).join(" ")}`,
         );
     }
     if (report?.analysis) {

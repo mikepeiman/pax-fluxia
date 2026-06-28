@@ -78,4 +78,38 @@ describe('summarizeFramePerfAttribution', () => {
         expect(summary.measuredOverlapMs).toBe(40);
         expect(summary.unattributedFrameMs).toBe(10);
     });
+
+    it('ignores cadence-only frame loop intervals as CPU attribution', () => {
+        const summary = summarizeFramePerfAttribution(
+            [
+                {
+                    name: 'game.frameLoop.interval',
+                    atMs: 100,
+                    detail: {
+                        kind: 'measure',
+                        durationMs: 50,
+                        startTimeMs: 100,
+                        endTimeMs: 150,
+                    },
+                },
+                {
+                    name: 'game.renderFrame.ships',
+                    atMs: 110,
+                    detail: {
+                        kind: 'measure',
+                        durationMs: 4,
+                        startTimeMs: 110,
+                        endTimeMs: 114,
+                    },
+                },
+            ],
+            { frameMs: 50, startAtMs: 100, endAtMs: 150 },
+        );
+
+        expect(summary.measuredOverlapMs).toBe(4);
+        expect(summary.unattributedFrameMs).toBe(46);
+        expect(summary.measures.map((measure) => measure.name)).toEqual([
+            'game.renderFrame.ships',
+        ]);
+    });
 });

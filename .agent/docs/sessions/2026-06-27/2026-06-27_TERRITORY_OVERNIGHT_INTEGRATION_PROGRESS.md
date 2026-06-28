@@ -304,6 +304,18 @@ Passed during transition diagnostic frame-start and geometry guard slice at 2026
 - Observation: the diagnostic recorder remains intentionally expensive (`game.renderFrame.territory.transitionDiagnosticSync avg=21.241ms max=42.6ms count=17`), so ordinary animation benchmarks should keep diagnostic capture disabled.
 - Validation passed: `bun test tools/debug/transition-diagnostic-benchmark-validation.test.ts` (9 tests), `bun build tools/debug/transition-diagnostic-benchmark-validation.ts tools/debug/summarize-browser-gameplay-benchmark.ts --target bun --outdir .agent-harness/tmp-bun-build-check-diagnostic-owner-geometry`, `bun run check` from `pax-fluxia/` (0 errors, 1 existing warning), fresh `grid_gradientConquestDiagnostic` benchmark, `bun tools/debug/summarize-browser-gameplay-benchmark.ts`, `bun run build` from `pax-fluxia/`, `bun run agentic:graphify:build` from repo root, and `git diff --check`.
 
+Passed during frame-cadence separation slice at 2026-06-28 10:53 -04:00:
+
+- Added an app-loop interval probe named `game.frameLoop.interval`, recorded only across active unpaused animation-loop turns so menu/paused gaps do not pollute gameplay timing.
+- Updated frame attribution so `game.frameLoop.interval` is treated as cadence evidence, not CPU/render work. Slow-frame summaries now keep actual measured render work separate from the browser's frame delivery interval.
+- Added benchmark reporting for retained app-loop interval histograms and recorded the exact Chrome launch flags used for each run.
+- Added conservative headless Chrome anti-backgrounding flags: `--disable-background-timer-throttling`, `--disable-backgrounding-occluded-windows`, `--disable-renderer-backgrounding`, and `--disable-features=CalculateNativeWinOcclusion`.
+- Reset conquest-animation performance capture immediately before issuing the benchmark order, so setup/mode-change frames do not contaminate the animation-only aggregate.
+- Fresh `grid_gradientConquestAnimation` benchmark passed with `transitionFallbacks scenarios=0 reasons=none`.
+- Observation from the fresh run: measured render work remained low (`game.renderFrame.territory.grid_gradient avg=0.516ms max=9.3ms`, `game.renderFrame.ships avg=1.151ms max=3.9ms`), while frame delivery still alternated mostly between about 15ms and 35ms intervals.
+- The new app-loop interval summary reported `count=164 avg=26.523ms p95=33.4ms max=50.1ms`, with retained histogram `35ms:46,15ms:17,50ms:1`. The frame summary reported `count=105 avg=24.919ms p95=33.4ms max=50ms`, with histogram `15ms:54,35ms:50,50ms:1`.
+- The benchmark no longer showed unrelated setup renderer modes in the Grid Gradient animation aggregate; top render work was ships, Grid Gradient territory presentation, stars, and Grid Gradient geometry.
+
 Known recurring non-blocking warning:
 
 - `GameThemeManager.svelte`: unused CSS selector `.game-theme-manager--menu .theme-chip-name`
