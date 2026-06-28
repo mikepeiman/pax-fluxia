@@ -276,6 +276,15 @@ Passed during conquest flash overlay performance slice at 2026-06-28 10:11 -04:0
 - Broader validation passed: `bun run check` from `pax-fluxia/` (0 errors, 1 existing warning), `bun run build` from `pax-fluxia/`, and `bun run agentic:graphify:build` from repo root.
 - Remaining observation: the conquest animation benchmark still showed browser frame cadence around 35ms even while measured render work stayed low. That points the next slice toward owner-transition redraw cost, ship particle cost, and browser frame delivery rather than flash pulse drawing.
 
+Passed during transition diagnostic benchmark summary slice at 2026-06-28 10:16 -04:00:
+
+- Fixed the benchmark text summary so animation-only conquest scenarios no longer report a false `missing_bundle` diagnostic when the recorder was intentionally disabled.
+- Updated the diagnostic summary path to understand the current `transition_diagnostic_package` contract instead of only the older step-based bundle shape.
+- Fresh `grid_gradientConquestDiagnostic` benchmark passed with `transitionFallbacks scenarios=0 reasons=none`.
+- The diagnostic scenario produced a validated bundle: `contract=transition_diagnostic_package ok=true`, `mode=grid_gradient`, `capture=territory_live_capture`, `selectedFrames=4`, `transitionFrames=5`, and `conquests=1 first=star-6:neutral->human-player`.
+- Observation: the diagnostic recorder is intentionally expensive and measured `game.renderFrame.territory.transitionDiagnosticSync avg=18.243ms max=37.5ms count=23`; ordinary animation benchmarks should keep the recorder disabled.
+- Validation passed: `bun build tools/debug/summarize-browser-gameplay-benchmark.ts --target bun --outdir .agent-harness/tmp-bun-build-check-summary-diagnostic-2`, fresh `grid_gradientConquestDiagnostic` benchmark, and `bun tools/debug/summarize-browser-gameplay-benchmark.ts` against the diagnostic artifact.
+
 Known recurring non-blocking warning:
 
 - `GameThemeManager.svelte`: unused CSS selector `.game-theme-manager--menu .theme-chip-name`

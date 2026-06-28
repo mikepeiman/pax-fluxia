@@ -419,30 +419,45 @@ function printScenario(name: string, scenario: any): void {
     const diagnosticBundle = scenario?.actionResult?.diagnosticBundle;
     if (diagnosticBundle) {
         console.log("transition diagnostic:");
-        console.log(
-            `  - schema=${String(diagnosticBundle?.schemaVersion ?? "unknown")} conquest=${String(diagnosticBundle?.conquestId ?? "n/a")} target=${String(diagnosticBundle?.targetStarId ?? "n/a")}`,
-        );
-        const steps = Array.isArray(diagnosticBundle?.steps)
-            ? diagnosticBundle.steps
-            : [];
-        const failingSteps = steps.filter((step: any) =>
-            Array.isArray(step?.failIf)
-                ? step.failIf.some((entry: any) => entry?.triggered === true)
-                : false,
-        );
-        console.log(
-            `  - steps=${steps.length} failing=${failingSteps.map((step: any) => String(step?.stepId ?? "?")).join(", ") || "none"}`,
-        );
-        const finalStep = steps.find((step: any) => String(step?.stepId ?? "") === "R04");
-        if (finalStep?.text) {
+        const validation = diagnosticAction?.diagnosticValidation;
+        const validationSummary = validation?.summary ?? {};
+        if (diagnosticBundle?.exportKind === "transition_diagnostic_package") {
+            const conquestEvents = Array.isArray(diagnosticBundle?.conquestEvents)
+                ? diagnosticBundle.conquestEvents
+                : [];
+            const firstConquest = conquestEvents[0] ?? {};
             console.log(
-                `  - finalCompare withinTolerance=${String(finalStep.text?.withinTolerance ?? "n/a")} changedPixels=${Number(finalStep.text?.changedPixels ?? 0)} maxChannelDiff=${round(Number(finalStep.text?.maxChannelDiff ?? 0))}`,
+                `  - contract=${String(validation?.contract ?? diagnosticBundle?.exportKind ?? "unknown")} ok=${String(validation?.ok ?? "n/a")} transition=${String(diagnosticBundle?.transitionId ?? "n/a")}`,
             );
+            console.log(
+                `  - mode=${String(validationSummary?.mode ?? "n/a")} capture=${String(validationSummary?.captureKind ?? "n/a")} selectedFrames=${Number(validationSummary?.selectedFrameCount ?? 0)} transitionFrames=${Number(validationSummary?.transitionFrameCount ?? 0)} progress=${round(Number(validationSummary?.minProgress ?? 0))}-${round(Number(validationSummary?.maxProgress ?? 0))}`,
+            );
+            console.log(
+                `  - conquests=${conquestEvents.length} first=${String(firstConquest?.starId ?? "n/a")}:${String(firstConquest?.previousOwner ?? "n/a")}->${String(firstConquest?.newOwner ?? "n/a")}`,
+            );
+        } else {
+            console.log(
+                `  - schema=${String(diagnosticBundle?.schemaVersion ?? "unknown")} conquest=${String(diagnosticBundle?.conquestId ?? "n/a")} target=${String(diagnosticBundle?.targetStarId ?? "n/a")}`,
+            );
+            const steps = Array.isArray(diagnosticBundle?.steps)
+                ? diagnosticBundle.steps
+                : [];
+            const failingSteps = steps.filter((step: any) =>
+                Array.isArray(step?.failIf)
+                    ? step.failIf.some((entry: any) => entry?.triggered === true)
+                    : false,
+            );
+            console.log(
+                `  - steps=${steps.length} failing=${failingSteps.map((step: any) => String(step?.stepId ?? "?")).join(", ") || "none"}`,
+            );
+            const finalStep = steps.find((step: any) => String(step?.stepId ?? "") === "R04");
+            if (finalStep?.text) {
+                console.log(
+                    `  - finalCompare withinTolerance=${String(finalStep.text?.withinTolerance ?? "n/a")} changedPixels=${Number(finalStep.text?.changedPixels ?? 0)} maxChannelDiff=${round(Number(finalStep.text?.maxChannelDiff ?? 0))}`,
+                );
+            }
         }
-    } else if (
-        diagnosticAction
-        && Object.prototype.hasOwnProperty.call(diagnosticAction, "issued")
-    ) {
+    } else if (diagnosticAction?.bundleWait || diagnosticAction?.diagnosticValidation) {
         console.log("transition diagnostic:");
         console.log(
             `  - status=missing_bundle issued=${String(diagnosticAction?.issued ?? false)} matched=${String(diagnosticAction?.bundleWait?.matched ?? false)} bundleCount=${Number(diagnosticAction?.recorderSummary?.bundleCount ?? 0)}`,
