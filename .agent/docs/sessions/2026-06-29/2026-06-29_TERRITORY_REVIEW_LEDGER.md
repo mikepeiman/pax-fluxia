@@ -474,3 +474,37 @@ Visual check: screenshots for both versions showed visible Cell Grid territory; 
 Verdict: `KEEP-WITH-FOLLOWUP`. The split improved Cell Grid transition p99 in this isolated A/B test and did not cause stale presentation. Follow-up is required because gameplay p95 worsened from 8.5ms to 18.0ms in the same test.
 
 Bookkeeping: this unit is not the cause of the stale-update regression. Next Unit 12 targets are conquest flash drawing and input-pressure yielding.
+
+## Review Loop 10: Conquest Flash Drawing Isolation
+
+Timestamp: 2026-06-29T16:37:21-04:00
+
+Plain-English definition: the conquest flash is the brief white pulse drawn over a star after it is captured.
+
+Boundary: `e33ba4e1e perf(stars): move conquest flash off base redraws`, tested on the disposable worktree where the proven bad conquest-queue rule was already reverted.
+
+Intent: avoid redrawing the whole star just to animate the short white capture pulse.
+
+Behavior change: deterministic replay hash stayed unchanged at `9f6dae73473ad7528eaa767902a9bcac067a3197c5a0315c9e5577d9e9741910`, so this unit did not change game-rule output in the tested replay.
+
+Experiment: release build, `/play?bench=1`, map `First Symmetry-6_April 17b`, seven primary territory modes, gameplay and transition windows, 5 runs per row, 2500ms measured window, 500ms warmup.
+
+Artifacts:
+
+- Flash kept: `C:\Users\mikep\.codex\worktrees\territory-isolate-revert-conquest-background-20260629\.agent-harness\metrics\review-release\review-release-gameplay-benchmark-2026-06-29T20-19-25-178Z.json`
+- Flash reverted: `C:\Users\mikep\.codex\worktrees\territory-isolate-revert-conquest-background-20260629\.agent-harness\metrics\review-release\review-release-gameplay-benchmark-2026-06-29T20-28-36-630Z.json`
+
+Observation: the flash split is not the cause of broad jank. Most frame percentiles were unchanged. Star-render timing in checked transition rows was usually under 1ms at p95/p99 in both versions.
+
+Representative rows:
+
+| Row | Flash kept p95/p99/worst | Flash reverted p95/p99/worst |
+| --- | ---: | ---: |
+| Cell Grid transition | 25.0 / 33.3 / 108.6ms | 25.1 / 33.4 / 108.9ms |
+| Phase Edges transition | 33.3 / 42.4 / 109.1ms | 33.5 / 50.0 / 116.7ms |
+| Ember Lattice transition | 33.3 / 50.0 / 108.4ms | 33.3 / 50.0 / 133.4ms |
+| Phase Field transition | 8.6 / 16.8 / 75.0ms | 8.5 / 16.7 / 75.3ms |
+
+Verdict: `REVERT-AND-BACKLOG` as a performance change. The change may be visually acceptable, and it may help a narrow tail case, but it has not earned a place in the keep-set as a core performance improvement.
+
+Bookkeeping: next Unit 12 targets are input-pressure yielding and presentation throttling because those control when visible work is allowed to run and can affect every mode.
