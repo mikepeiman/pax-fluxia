@@ -697,3 +697,19 @@ Plan summary:
 5. Reassemble a clean keep-set and remeasure all primary modes.
 
 Current review conclusion: the branch's most proven user-visible regression is delayed territory display, not changed game rules and not physical-map checking.
+
+## Web Research Update
+
+Timestamp: 2026-06-29T17:52:00-04:00
+
+Documented in: `.agent/docs/sessions/2026-06-29/2026-06-29_TERRITORY_REVIEW_PHASE0_UPDATE_19_WEB_RESEARCH.md`
+
+Sources checked:
+
+- MDN Scheduler `postTask()`
+- web.dev long-task optimization
+- Chrome Platform Status for prioritized scheduling
+- PixiJS v8 performance tips
+- PixiJS Graphics `cacheAsTexture` docs
+
+Research conclusion: external browser guidance supports the local finding. Background scheduling is inappropriate for immediate visible conquest territory. Yielding is useful only after user-visible truth has been shown or for optional work. Pixi guidance supports moving stable heavy visuals toward sprites/textures/cached render paths rather than repeatedly modifying complex Graphics in visible frames.
