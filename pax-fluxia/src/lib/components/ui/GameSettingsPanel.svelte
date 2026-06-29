@@ -2443,14 +2443,23 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         padding: var(--pax-gap-sm);
     }
 
+    /* Per-category preset toolbar — fixed category CHROME, not section content.
+       Anchored as a full-bleed bar across the top of the section panel (negative
+       margins reach the panel edges; flat bottom edge butts against the first
+       content heading) so it reads as the category's toolbar instead of an
+       orphan content card floating above the chips. This is the SINGLE source
+       of its framing — it is intentionally excluded from the shared
+       .icon-toolbar/.section-panel content-card rule below. */
     .section-body :global(.category-theme-bar) {
-        margin: -2px -2px var(--pax-gap-sm);
-        padding: var(--pax-space-2);
-        border: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 26%, transparent);
+        margin: calc(-1 * var(--pax-gap-md)) calc(-1 * var(--pax-gap-md)) var(--pax-gap-md);
+        padding: var(--pax-space-2) var(--pax-gap-md);
+        border: 0;
+        border-bottom: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 30%, transparent);
+        border-radius: 0;
         background:
-            linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 90%, transparent), color-mix(in srgb, var(--pax-color-void) 94%, transparent)),
-            radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--pax-ui-accent) 8%, transparent), transparent 42%);
-        clip-path: var(--pax-ui-cut-corner-sm);
+            linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 94%, transparent), color-mix(in srgb, var(--pax-color-void) 86%, transparent)),
+            radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--pax-ui-accent) 10%, transparent), transparent 46%);
+        clip-path: none;
     }
 
     .section-body :global(.theme-select),
@@ -2511,8 +2520,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     .icon-toolbar,
-    .section-panel,
-    .section-body :global(.category-theme-bar) {
+    .section-panel {
         border-color: transparent;
         border-radius: var(--pax-ui-radius-md);
         clip-path: var(--pax-ui-rounded-corner-md);

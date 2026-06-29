@@ -294,6 +294,12 @@
 {/if}
 
 <style>
+    /*
+     * Base layout only. The visual framing of this bar (background, border,
+     * clip-path) is owned by GameSettingsPanel's `.section-body
+     * .category-theme-bar` rule so it can be anchored as fixed category chrome
+     * relative to the section panel — see GameSettingsPanel.svelte.
+     */
     .category-theme-bar {
         min-width: 0;
         display: flex;

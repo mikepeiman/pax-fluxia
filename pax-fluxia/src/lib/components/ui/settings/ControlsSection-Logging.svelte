@@ -68,13 +68,11 @@
         />
     {/key}
 {/each}
-
-<h4 class="sub-heading">Renderer Traces</h4>
 {#key logRefresh}
     <PaxSettingsToggleRow
         label="Grid Gradient transition trace"
         checked={gridGradientTraceEnabled()}
-        description="Filter logs for [GG_TRANSITION]"
+        description="Renderer trace: filter logs for [GG_TRANSITION]."
         settingConfigKey="GRID_GRADIENT_DEBUG_TRANSITIONS"
         onChange={(checked) => setGridGradientTraceEnabled(checked)} />
 {/key}

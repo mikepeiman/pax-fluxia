@@ -39,7 +39,7 @@
 
 <CategoryThemeBar category="conquest" onApply={() => syncFromConfig?.()} />
 
-<h4 class="sub-heading">Animation Mode</h4>
+<h4 class="sub-heading">Animation</h4>
 <PaxSettingsSegmentedRow
     label="Conquest Mode"
     hint="How conquest is animated: Immediate, Surge, Travel, or Arrowhead."
@@ -56,7 +56,6 @@
     }}
 />
 
-<h4 class="sub-heading">Resolution Timing</h4>
 <PaxSettingsRangeRow
     label="Color Delay"
     value={panel.conquestColorDelayTicks}
