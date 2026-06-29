@@ -725,3 +725,17 @@ Mode switching is now a confirmed reproduction path for user-visible regression.
 Phase Edges and Ember Lattice also have real immediate-display cost after stale display is removed. Representative immediate-display rows: Phase Edges transition p95/p99/worst 58.1/141.3/216.4ms; Ember Lattice transition 58.8/133.3/183.8ms. Existing timing shows geometry compute, transition-plan preparation, and Pixi render all contribute.
 
 Fixed-board measurement correction: fixed-board counters are cumulative page-lifetime counters. Use the final snapshot, not a sum of every row. Current observed physical-board read cost remains low: 30.6ms total over the broad player-route artifact and 16.1ms total over the focused Phase/Ember artifact. A direct fixed-board reverse patch did not apply cleanly in a disposable worktree, so no final keep/revert verdict is drawn from that attempt.
+
+## Phase/Ember Focus Probe Update
+
+Timestamp: 2026-06-29T18:22:00-04:00
+
+Documented in: `.agent/docs/sessions/2026-06-29/2026-06-29_TERRITORY_REVIEW_PHASE0_UPDATE_21_PHASE_EMBER_PROBE.md`
+
+Added measurement-only timing labels for Phase Edges and Ember Lattice: transition setup, scene build, and paint/Pixi-mutation block. The benchmark harness now keeps these labels in `focusMeasures` even when they are not among the largest timing rows.
+
+Important correction: `vite preview` does not rebuild. A release benchmark after source edits must run `bun run build` first, or it may measure a stale bundle.
+
+Fresh focused comparison: review branch versus disposable immediate-display isolation, 3 runs, Phase Edges and Ember Lattice transitions. Immediate display removed pending wait, but still exposed a heavy truthful transition frame. Phase Edges immediate-display transition had frame p95/p99/worst 25.1/34.1/141.5ms with frame update p50 104.6ms, transition setup p50 40.1ms, paint block p50 20.0ms, and Pixi render p50 19.3ms. Ember Lattice immediate-display transition had frame p95/p99/worst 25.1/33.2/108.4ms with frame update p50 90.5ms, transition setup p50 35.3ms, paint block p50 19.7ms, and Pixi render p50 20.3ms.
+
+Current interpretation: stale display must be removed, then Phase/Ember transition work must be split so current ownership is shown first and decorative transition work cannot block or delay visible truth.

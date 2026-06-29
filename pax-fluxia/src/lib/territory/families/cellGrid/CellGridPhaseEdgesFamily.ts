@@ -99,6 +99,7 @@ import {
     trimOpenPolylineEndpoints,
 } from './edgeShaping';
 import {
+    isPerfCaptureEnabled,
     recordPerfDuration,
 } from '$lib/perf/perfProbe';
 import {
@@ -2994,6 +2995,11 @@ export class CellGridPhaseEdgesFamily implements RenderFamily {
                 GAME_CONFIG.TERRITORY_FRONTIER_JUNCTION_RADIUS_PX ?? 6,
             ),
         );
+        const capturePerf = isPerfCaptureEnabled();
+        const transitionSetupStartMs = capturePerf ? performance.now() : 0;
+        let transitionSetupWorkerScheduled = false;
+        let transitionSetupFallbackPlanBuilt = false;
+        let transitionSetupPrevGeometryRebuilt = false;
         const transitionSessions = this.syncCapturedTransitionSessions({
             input,
             settings,
@@ -3073,6 +3079,7 @@ export class CellGridPhaseEdgesFamily implements RenderFamily {
                 input,
                 settings,
             });
+            transitionSetupPrevGeometryRebuilt = true;
             const planKey = buildCellGridPlanKey({
                 transitionKey,
                 geometryVersion: `${prevGeometry.version}->${currentGeometry.version}`,
@@ -3106,6 +3113,8 @@ export class CellGridPhaseEdgesFamily implements RenderFamily {
                     nextOwnedStars: currentOwnedStars,
                 });
                 const scheduled = this.enqueuePlanWorkerRequest(workerRequest);
+                transitionSetupWorkerScheduled =
+                    transitionSetupWorkerScheduled || scheduled;
                 if (!scheduled || !this.cachedPlan) {
                     this.cachedPlan = this.buildPlanForTransition({
                         input,
@@ -3114,6 +3123,7 @@ export class CellGridPhaseEdgesFamily implements RenderFamily {
                         settings,
                     });
                     rebuiltPlan = true;
+                    transitionSetupFallbackPlanBuilt = true;
                 }
             }
         } else {
@@ -3143,6 +3153,8 @@ export class CellGridPhaseEdgesFamily implements RenderFamily {
                     },
                 });
                 const scheduled = this.enqueuePlanWorkerRequest(workerRequest);
+                transitionSetupWorkerScheduled =
+                    transitionSetupWorkerScheduled || scheduled;
                 if (!scheduled || !this.cachedPlan) {
                     this.cachedPlan = this.buildSteadyStatePlan({
                         input,
@@ -3151,8 +3163,34 @@ export class CellGridPhaseEdgesFamily implements RenderFamily {
                         settings,
                     });
                     rebuiltPlan = true;
+                    transitionSetupFallbackPlanBuilt = true;
                 }
             }
+        }
+        if (capturePerf) {
+            const transitionSetupMs = performance.now() - transitionSetupStartMs;
+            recordPerfDuration(
+                'territory.phaseEdges.transitionSetup.main',
+                transitionSetupMs,
+                {
+                    familyId: this.id,
+                    transitionSessionCount: transitionSessions.length,
+                    transitionEventCount:
+                        input.activeTransition?.events.length ??
+                        input.transitionSessions?.reduce(
+                            (count, session) => count + session.events.length,
+                            0,
+                        ) ??
+                        0,
+                    activeTransition: Boolean(input.activeTransition),
+                    rebuiltPlan,
+                    workerScheduled: transitionSetupWorkerScheduled,
+                    fallbackPlanBuilt: transitionSetupFallbackPlanBuilt,
+                    prevGeometryRebuilt: transitionSetupPrevGeometryRebuilt,
+                    transitionPlanCacheSize: this.transitionPlanCache.size,
+                },
+                transitionSetupStartMs,
+            );
         }
 
         const cached = this.cachedPlan;
@@ -3820,6 +3858,20 @@ export class CellGridPhaseEdgesFamily implements RenderFamily {
             flipTransition,
         };
         const sceneBuildMs = performance.now() - sceneStartMs;
+        if (capturePerf) {
+            recordPerfDuration(
+                'territory.phaseEdges.sceneBuild',
+                sceneBuildMs,
+                {
+                    familyId: this.id,
+                    sceneCellCount: sceneCells.length,
+                    visualTransitionSessionCount,
+                    transitionSessionCount,
+                    activeTransition: Boolean(input.activeTransition),
+                },
+                sceneStartMs,
+            );
+        }
 
         const usingControlFrontier = frontierTechnique === 'control';
         let frontierPhaseLayerCount = 0;
@@ -4843,6 +4895,23 @@ export class CellGridPhaseEdgesFamily implements RenderFamily {
             if (scene.cells[i].alpha > 0) paintedCells++;
         }
         const paintMs = performance.now() - paintStartMs;
+        if (capturePerf) {
+            recordPerfDuration(
+                'territory.phaseEdges.paintAndPixiMutation',
+                paintMs,
+                {
+                    familyId: this.id,
+                    sceneCellCount: scene.cells.length,
+                    paintedCells,
+                    fastPathUsed: canUseSplitFillOnlyFastPath,
+                    frontierTechnique,
+                    frontierPhaseLayerCount,
+                    frontierPolylineCount,
+                    visualTransitionSessionCount,
+                },
+                paintStartMs,
+            );
+        }
         const elapsed = performance.now() - startMs;
         this.emaUpdateMs = this.emaUpdateMs === 0
             ? elapsed

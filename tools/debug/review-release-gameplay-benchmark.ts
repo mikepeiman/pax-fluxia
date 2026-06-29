@@ -113,6 +113,16 @@ const MODES = splitEnv(process.env.PAX_REVIEW_MODES, [...DEFAULT_MODES]);
 const MAP_NAME = process.env.PAX_REVIEW_MAP_NAME?.trim() ?? "";
 const APP_PATH = normalizeAppPath(process.env.PAX_REVIEW_APP_PATH, "/bench");
 const REVIEW_MAP = loadReviewMapDefinition();
+const FOCUS_MEASURE_NAMES = new Set([
+    "territory.phaseEdges.transitionSetup.main",
+    "territory.phaseEdges.sceneBuild",
+    "territory.phaseEdges.paintAndPixiMutation",
+    "territory.phaseEdges.buildPlanForCapturedSession",
+    "territory.geometry0319.compute",
+    "game.pixi.render.stage",
+    "game.frameLoop.renderFrame",
+    "game.frameLoop.interval",
+]);
 
 function splitEnv(value: string | undefined, fallback: string[]): string[] {
     const parsed = (value ?? "")
@@ -243,6 +253,7 @@ function summarizePerfCapture(capture: unknown): JsonValue {
     return {
         measureCount: rows.length,
         topMeasures: rows.slice(0, 48),
+        focusMeasures: rows.filter((row) => FOCUS_MEASURE_NAMES.has(row.name)),
     };
 }
 
