@@ -425,3 +425,26 @@ Verdict: `REVERT` for this unit as shipped. The branch was preparing territory c
 Confidence: high for this isolated cause on Cell Grid and Phase Field transitions. Remaining confidence gap: full-mode reassembly still has to prove the final keep-set improves the whole app, not just these two focused rows.
 
 Bookkeeping: next review target remains Unit 12, but split into smaller pieces: `4c847ca20` input-pressure yielding, the remaining intent of `d2ac9d771a`, `e33ba4e1e` conquest flash drawing, and `ae471a6c2` Cell Grid fill/border split.
+
+## Review Loop 8: Broad Check Of The Isolated Conquest-Queue Revert
+
+Timestamp: 2026-06-29T16:01:30-04:00
+
+Boundary: same disposable isolated revert from Review Loop 7, tested across seven primary modes and both gameplay and transition windows.
+
+Intent: determine whether the isolated revert only fixed two focused rows or broadly removed late territory presentation.
+
+Experiment: release build, `/play?bench=1`, map `First Symmetry-6_April 17b`, 5 runs per row, 2500ms measured window, 500ms warmup.
+
+Artifacts:
+
+- Integration branch: `C:\Users\mikep\.codex\worktrees\territory-overnight-integration\pax-fluxia\.agent-harness\metrics\review-release\review-release-gameplay-benchmark-2026-06-29T19-50-22-108Z.json`
+- Isolated revert: `C:\Users\mikep\.codex\worktrees\territory-isolate-revert-conquest-background-20260629\.agent-harness\metrics\review-release\review-release-gameplay-benchmark-2026-06-29T19-57-30-350Z.json`
+
+Observation: the isolated revert removed pending territory age across every tested row. Examples: Cell Grid transition 204.0ms median -> 0ms; Ember Lattice gameplay 69.2ms -> 0ms; Phase Edges gameplay 68.0ms -> 0ms; Power Voronoi transition 7.4ms -> 0ms.
+
+Tradeoff: removing delay exposes remaining render cost. Example p99 frame times worsened in Phase Edges gameplay 33.4ms -> 41.7ms, Phase Edges transition 33.8ms -> 42.7ms, Ember Lattice gameplay 33.5ms -> 49.9ms, and Ember Lattice transition 41.7ms -> 49.6ms.
+
+Verdict update: keep the `REVERT` verdict for the conquest-presentation part of `d2ac9d771a`, but do not treat it as a complete performance fix. It removes stale territory presentation; separate render-cost work remains necessary.
+
+Next unit: isolate the remaining Unit 12 rendering-cost pieces, starting with Cell Grid fill/border split and conquest flash changes, because the stale-update cause is now proven and the next problem is actual frame cost.
