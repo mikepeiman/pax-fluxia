@@ -619,18 +619,6 @@
 </div>
 <div class="var-row">
     <PaxSettingsRangeRow
-        label="Ring Offset"
-        value={panel.starRingOffset ?? GAME_CONFIG.STAR_RING_OFFSET ?? 20}
-        min={0}
-        max={40}
-        step={1}
-        suffix="px"
-        settingConfigKey="STAR_RING_OFFSET"
-        onInput={(value) => writePanelConfig("starRingOffset", "STAR_RING_OFFSET", value)}
-    />
-</div>
-<div class="var-row">
-    <PaxSettingsRangeRow
         label="Ring Width"
         value={panel.starRingWidth ?? GAME_CONFIG.STAR_RING_WIDTH ?? 2}
         min={0}

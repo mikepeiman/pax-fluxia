@@ -274,7 +274,6 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Icon Scale': { key: 'STAR_ICON_SCALE' },
         'Corner Radius': { key: 'STAR_CORNER_RADIUS' },
         'Ring Radius': { key: 'STAR_RING_RADIUS' },
-        'Ring Offset': { key: 'STAR_RING_OFFSET' },
         'Ring Width': { key: 'STAR_RING_WIDTH' },
         'Ring Alpha': { key: 'STAR_RING_ALPHA' },
         'Ring Saturation': { key: 'STAR_RING_SATURATION' },
