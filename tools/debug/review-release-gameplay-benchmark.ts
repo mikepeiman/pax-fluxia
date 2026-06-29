@@ -33,6 +33,33 @@ type FrameSample = {
     endAtMs: number;
 };
 
+type SchedulerSample = {
+    index: number;
+    sampledAtMs: number;
+    elapsedMs: number;
+    tick: number | null;
+    renderMode: string | null;
+    commitLagMs: number | null;
+    queueWaitMs: number | null;
+    pendingAgeMs: number | null;
+    postedCount: number | null;
+    completedCount: number | null;
+    supersededCount: number | null;
+    dedupedCount: number | null;
+    yieldCount: number | null;
+    forcedCount: number | null;
+    scheduled: boolean | null;
+    running: boolean | null;
+    pendingMode: string | null;
+    scheduleMode: string | null;
+    yieldReason: string | null;
+};
+
+type FrameWindowObservation = {
+    frames: FrameSample[];
+    schedulerSamples: SchedulerSample[];
+};
+
 const DEFAULT_MODES = [
     "power_voronoi_runtime",
     "perimeter_field",
@@ -135,6 +162,60 @@ function summarizeSamples(samples: readonly FrameSample[]) {
         over20: frameTimes.filter((value) => value > 20).length,
         over33: frameTimes.filter((value) => value > 33.34).length,
         histogram: summarizeHistogram(frameTimes),
+    };
+}
+
+function numericSampleValues(
+    samples: readonly SchedulerSample[],
+    key: keyof SchedulerSample,
+): number[] {
+    return samples
+        .map((sample) => sample[key])
+        .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+}
+
+function numericCountDelta(
+    samples: readonly SchedulerSample[],
+    key: keyof SchedulerSample,
+): number {
+    const values = numericSampleValues(samples, key);
+    if (values.length === 0) return 0;
+    return round(Math.max(...values) - Math.min(...values));
+}
+
+function uniqueStrings(
+    samples: readonly SchedulerSample[],
+    key: keyof SchedulerSample,
+): string[] {
+    return [
+        ...new Set(
+            samples
+                .map((sample) => sample[key])
+                .filter((value): value is string => typeof value === "string" && value.length > 0),
+        ),
+    ].sort();
+}
+
+function summarizeSchedulerSamples(samples: readonly SchedulerSample[]): JsonValue {
+    const commitLag = numericSampleValues(samples, "commitLagMs");
+    const queueWait = numericSampleValues(samples, "queueWaitMs");
+    const pendingAge = numericSampleValues(samples, "pendingAgeMs");
+    return {
+        count: samples.length,
+        commitLagMs: summarizeDistribution(commitLag),
+        queueWaitMs: summarizeDistribution(queueWait),
+        pendingAgeMs: summarizeDistribution(pendingAge),
+        postedDelta: numericCountDelta(samples, "postedCount"),
+        completedDelta: numericCountDelta(samples, "completedCount"),
+        supersededDelta: numericCountDelta(samples, "supersededCount"),
+        dedupedDelta: numericCountDelta(samples, "dedupedCount"),
+        yieldDelta: numericCountDelta(samples, "yieldCount"),
+        forcedDelta: numericCountDelta(samples, "forcedCount"),
+        scheduledSampleCount: samples.filter((sample) => sample.scheduled === true).length,
+        runningSampleCount: samples.filter((sample) => sample.running === true).length,
+        scheduleModes: uniqueStrings(samples, "scheduleMode"),
+        yieldReasons: uniqueStrings(samples, "yieldReason"),
+        pendingModes: uniqueStrings(samples, "pendingMode"),
     };
 }
 
@@ -456,6 +537,88 @@ function collectFrameExpression(durationMs: number, warmupMs: number): string {
     `;
 }
 
+function collectFrameWindowExpression(durationMs: number, warmupMs: number): string {
+    const schedulerSampleMs = 100;
+    return `
+        (async () => {
+            const frames = [];
+            const schedulerSamples = [];
+            const bench = window.__PAX_BENCH__;
+            const startedAt = performance.now();
+            const warmupDeadlineAt = startedAt + ${warmupMs};
+            const measuredDeadlineAt = warmupDeadlineAt + ${durationMs};
+            let previousFrameAt = startedAt;
+            let schedulerIndex = 0;
+
+            const readScheduler = async () => {
+                if (!bench?.getTerritorySchedulerSnapshot) return;
+                const now = performance.now();
+                if (now < warmupDeadlineAt) return;
+                const snapshot = await bench.getTerritorySchedulerSnapshot();
+                if (!snapshot) return;
+                schedulerSamples.push({
+                    index: schedulerIndex++,
+                    sampledAtMs: Number(now.toFixed(3)),
+                    elapsedMs: Number((now - warmupDeadlineAt).toFixed(3)),
+                    tick: Number.isFinite(Number(snapshot.currentTick)) ? Number(snapshot.currentTick) : null,
+                    renderMode: typeof snapshot.renderMode === "string" ? snapshot.renderMode : null,
+                    commitLagMs: Number.isFinite(Number(snapshot.territoryPresentationLastCommitLagMs)) ? Number(Number(snapshot.territoryPresentationLastCommitLagMs).toFixed(3)) : null,
+                    queueWaitMs: Number.isFinite(Number(snapshot.territoryPresentationLastQueueWaitMs)) ? Number(Number(snapshot.territoryPresentationLastQueueWaitMs).toFixed(3)) : null,
+                    pendingAgeMs: Number.isFinite(Number(snapshot.territoryPresentationPendingAgeMs)) ? Number(Number(snapshot.territoryPresentationPendingAgeMs).toFixed(3)) : null,
+                    postedCount: Number.isFinite(Number(snapshot.territoryPresentationPostedCount)) ? Number(snapshot.territoryPresentationPostedCount) : null,
+                    completedCount: Number.isFinite(Number(snapshot.territoryPresentationCompletedCount)) ? Number(snapshot.territoryPresentationCompletedCount) : null,
+                    supersededCount: Number.isFinite(Number(snapshot.territoryPresentationSupersededCount)) ? Number(snapshot.territoryPresentationSupersededCount) : null,
+                    dedupedCount: Number.isFinite(Number(snapshot.territoryPresentationDedupedCount)) ? Number(snapshot.territoryPresentationDedupedCount) : null,
+                    yieldCount: Number.isFinite(Number(snapshot.territoryPresentationYieldCount)) ? Number(snapshot.territoryPresentationYieldCount) : null,
+                    forcedCount: Number.isFinite(Number(snapshot.territoryPresentationForcedCount)) ? Number(snapshot.territoryPresentationForcedCount) : null,
+                    scheduled: typeof snapshot.territoryPresentationScheduled === "boolean" ? snapshot.territoryPresentationScheduled : null,
+                    running: typeof snapshot.territoryPresentationRunning === "boolean" ? snapshot.territoryPresentationRunning : null,
+                    pendingMode: typeof snapshot.territoryPresentationPendingMode === "string" ? snapshot.territoryPresentationPendingMode : null,
+                    scheduleMode: typeof snapshot.territoryPresentationLastScheduleMode === "string" ? snapshot.territoryPresentationLastScheduleMode : null,
+                    yieldReason: typeof snapshot.territoryPresentationLastYieldReason === "string" ? snapshot.territoryPresentationLastYieldReason : null,
+                });
+            };
+
+            const schedulerTimer = setInterval(() => {
+                void readScheduler();
+            }, ${schedulerSampleMs});
+
+            await new Promise((resolve) => {
+                const step = (now) => {
+                    frames.push({
+                        index: frames.length,
+                        frameMs: now - previousFrameAt,
+                        startAtMs: previousFrameAt,
+                        endAtMs: now,
+                    });
+                    previousFrameAt = now;
+                    if (now < measuredDeadlineAt) {
+                        requestAnimationFrame(step);
+                    } else {
+                        resolve();
+                    }
+                };
+                requestAnimationFrame(step);
+            });
+            clearInterval(schedulerTimer);
+            await readScheduler();
+
+            return {
+                frames: frames
+                    .slice(1)
+                    .filter((sample) => sample.endAtMs > warmupDeadlineAt)
+                    .map((sample, index) => ({
+                        index,
+                        frameMs: Number(sample.frameMs.toFixed(3)),
+                        startAtMs: Number(sample.startAtMs.toFixed(3)),
+                        endAtMs: Number(sample.endAtMs.toFixed(3)),
+                    })),
+                schedulerSamples,
+            };
+        })()
+    `;
+}
+
 async function captureScreenshot(client: CdpClient, outputPath: string): Promise<void> {
     const result = await client.send("Page.captureScreenshot", {
         format: "png",
@@ -573,9 +736,10 @@ async function runGameplayScenario(
 ): Promise<Record<string, JsonValue>> {
     const prep = await prepareMode(client, mode);
     const perfCursor = await beginPerfWindow(client);
-    const samples = await client.evaluate<FrameSample[]>(
-        collectFrameExpression(FRAME_MS, WARMUP_MS),
+    const observation = await client.evaluate<FrameWindowObservation>(
+        collectFrameWindowExpression(FRAME_MS, WARMUP_MS),
     );
+    const samples = observation.frames;
     const perf = await collectPerfWindow(client, perfCursor);
     const finalState = await client.evaluate<Record<string, JsonValue>>(`
         (async () => await window.__PAX_BENCH__.getStateSummary())()
@@ -588,8 +752,10 @@ async function runGameplayScenario(
         finalSchedulerSnapshot,
         routeSentinel,
         frames: summarizeSamples(samples) as JsonValue,
+        scheduler: summarizeSchedulerSamples(observation.schedulerSamples),
         perf,
         sampleCount: samples.length,
+        schedulerSampleCount: observation.schedulerSamples.length,
     };
 }
 
@@ -614,9 +780,10 @@ async function runTransitionScenario(
     if (!order?.issued) {
         throw new Error(`Could not issue conquest order for mode ${mode}`);
     }
-    const samples = await client.evaluate<FrameSample[]>(
-        collectFrameExpression(FRAME_MS, 0),
+    const observation = await client.evaluate<FrameWindowObservation>(
+        collectFrameWindowExpression(FRAME_MS, 0),
     );
+    const samples = observation.frames;
     const perf = await collectPerfWindow(client, perfCursor);
     const finalState = await client.evaluate<Record<string, JsonValue>>(`
         (async () => await window.__PAX_BENCH__.getStateSummary())()
@@ -639,8 +806,10 @@ async function runTransitionScenario(
         order: order as JsonValue,
         recorder: (recorder ?? null) as JsonValue,
         frames: summarizeSamples(samples) as JsonValue,
+        scheduler: summarizeSchedulerSamples(observation.schedulerSamples),
         perf,
         sampleCount: samples.length,
+        schedulerSampleCount: observation.schedulerSamples.length,
     };
 }
 
@@ -711,9 +880,10 @@ async function runModeSwitchScenario(
     if (!clickResult.clicked) {
         throw new Error(`Could not click topbar mode shortcut for ${mode}: ${JSON.stringify(clickResult)}`);
     }
-    const samples = await client.evaluate<FrameSample[]>(
-        collectFrameExpression(FRAME_MS, 0),
+    const observation = await client.evaluate<FrameWindowObservation>(
+        collectFrameWindowExpression(FRAME_MS, 0),
     );
+    const samples = observation.frames;
     const waitResult = await client.evaluate<Record<string, JsonValue>>(`
         (async () => await window.__PAX_BENCH__.waitForRenderMode(${JSON.stringify(mode)}))()
     `);
@@ -734,8 +904,10 @@ async function runModeSwitchScenario(
         finalSchedulerSnapshot,
         routeSentinel,
         frames: summarizeSamples(samples) as JsonValue,
+        scheduler: summarizeSchedulerSamples(observation.schedulerSamples),
         perf,
         sampleCount: samples.length,
+        schedulerSampleCount: observation.schedulerSamples.length,
     };
 }
 
@@ -934,6 +1106,24 @@ function aggregateRuns(runs: readonly JsonValue[]): JsonValue {
     const p95 = okRuns.map((run) => Number((run.frames as any)?.p95Ms ?? 0));
     const p99 = okRuns.map((run) => Number((run.frames as any)?.p99Ms ?? 0));
     const max = okRuns.map((run) => Number((run.frames as any)?.maxMs ?? 0));
+    const schedulerCommitLagP95 = okRuns.map((run) =>
+        Number((run.scheduler as any)?.commitLagMs?.p95 ?? 0),
+    );
+    const schedulerCommitLagP99 = okRuns.map((run) =>
+        Number((run.scheduler as any)?.commitLagMs?.p99 ?? 0),
+    );
+    const schedulerCommitLagMax = okRuns.map((run) =>
+        Number((run.scheduler as any)?.commitLagMs?.max ?? 0),
+    );
+    const schedulerPendingAgeMax = okRuns.map((run) =>
+        Number((run.scheduler as any)?.pendingAgeMs?.max ?? 0),
+    );
+    const schedulerYieldDelta = okRuns.map((run) =>
+        Number((run.scheduler as any)?.yieldDelta ?? 0),
+    );
+    const schedulerForcedDelta = okRuns.map((run) =>
+        Number((run.scheduler as any)?.forcedDelta ?? 0),
+    );
     return {
         okRunCount: okRuns.length,
         failedRunCount: runs.length - okRuns.length,
@@ -941,6 +1131,12 @@ function aggregateRuns(runs: readonly JsonValue[]): JsonValue {
         runP95Ms: summarizeDistribution(p95),
         runP99Ms: summarizeDistribution(p99),
         runMaxMs: summarizeDistribution(max),
+        schedulerCommitLagP95Ms: summarizeDistribution(schedulerCommitLagP95),
+        schedulerCommitLagP99Ms: summarizeDistribution(schedulerCommitLagP99),
+        schedulerCommitLagMaxMs: summarizeDistribution(schedulerCommitLagMax),
+        schedulerPendingAgeMaxMs: summarizeDistribution(schedulerPendingAgeMax),
+        schedulerYieldDelta: summarizeDistribution(schedulerYieldDelta),
+        schedulerForcedDelta: summarizeDistribution(schedulerForcedDelta),
     };
 }
 

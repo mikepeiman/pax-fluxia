@@ -335,11 +335,56 @@ Verdict: `REVIEW` for mode-switch behavior before any keep-set is assembled. Thi
 
 Confidence: medium. The path is representative because it clicks the actual topbar controls. Three runs per mode are enough to rank risk, not enough to close final attribution.
 
+## Review Loop 6: Focused Reruns And Screen-Update Delay Sampling
+
+Plain-English definition: the harness now samples the territory presentation system during the measured window. In plain terms, it checks whether a newly prepared territory picture is waiting too long before it appears on screen.
+
+Boundary: measurement-only update to `tools/debug/review-release-gameplay-benchmark.ts`. No product behavior was changed on the review branch.
+
+Intent: test the user's "janky despite frame timing" observation more directly than final-only snapshots.
+
+### Mode-Switch Rerun
+
+I reran the two worst-looking mode-switch rows from Review Loop 5 with five runs each.
+
+| Mode switched to | Original baseline p95/p99/max/>33/>20/delay | Current master p95/p99/max/>33/>20/delay | Review branch p95/p99/max/>33/>20/delay |
+| --- | ---: | ---: | ---: |
+| Ember Lattice | 9.0/17.0/25.2/0/4/0.2 | 9.0/16.7/34.0/2/4/0.4 | 8.9/17.3/33.4/1/7/0.2 |
+| Phase Field | 8.9/16.6/41.7/2/4/0.3 | 9.1/16.9/33.4/1/3/0.2 | 8.9/16.6/33.4/1/3/0.3 |
+
+Observation: the severe Ember Lattice and Phase Field mode-switch spikes from the three-run sweep did not reproduce. The earlier mode-switch finding is therefore downgraded from "confirmed regression" to "unstable spike / needs more evidence."
+
+Disposable isolation: I reverted `78399c308 Guard transition state on mode changes` in a throwaway worktree and reran the same focused two-mode switch test.
+
+| Mode switched to | Review branch p95/p99/max/>33/>20/delay | Guard reverted p95/p99/max/>33/>20/delay |
+| --- | ---: | ---: |
+| Ember Lattice | 8.9/17.3/33.4/1/7/0.2 | 9.1/17.6/33.4/1/8/0.2 |
+| Phase Field | 8.9/16.6/33.4/1/3/0.3 | 8.9/9.4/34.1/1/5/0.4 |
+
+Observation: reverting the mode-change guard did not improve Ember Lattice and did not reduce slow-frame count for Phase Field. It is not supported as the cause of the earlier severe mode-switch spike.
+
+### Transition Screen-Update Delay
+
+I then reran Cell Grid and Phase Field conquest transitions with the new screen-update delay sampler.
+
+`delay` below means sampled delay before a prepared territory picture appeared on screen. High delay can feel like stale or late territory even when frame timing looks acceptable.
+
+| Mode transition | Original baseline | Current master | Review branch |
+| --- | ---: | ---: | ---: |
+| Cell Grid | frame p99 49.9, >33 59, delay max 195.3 | frame p99 66.7, >33 43, delay max 229.7 | frame p99 50.0, >33 15, delay max 626.4 |
+| Phase Field | frame p99 41.7, >33 21, delay max 123.0 | frame p99 50.1, >33 28, delay max 134.6 | frame p99 49.9, >33 25, delay max 462.1 |
+
+Additional observation: the review branch had pending territory pictures waiting during the sampled window: Cell Grid pending age max 536.1 ms; Phase Field pending age max 316.6 ms. Baseline and current master reported 0 pending age max in these focused runs.
+
+Verdict: `REVIEW / ISOLATE` presentation queue behavior next. This is now stronger evidence than the mode-switch spike: it reproduces in five-run transition measurements and matches the user's description of visible jank despite not always worsening raw frame timing.
+
+Confidence: medium-high that transition screen-update delay is a real branch issue for Cell Grid and Phase Field. Confidence is low on exact cause until the queue-related changes are isolated.
+
 ## Next Actions
 
 1. Add localStorage seeding and route/visible-state sentinel data to the harness.
-2. Isolate the mode-switch regression first, starting with Ember Lattice and Phase Field because they have the clearest branch-only harm.
+2. Isolate presentation queue behavior first, starting with Cell Grid and Phase Field transitions because sampled screen-update delay is the clearest repeated branch-only harm.
 3. Run `/play?bench=1` on all primary modes with enough runs for stable p95/p99 before deciding keep/revert.
-4. Isolate scheduling more narrowly: cheap vector modes vs expensive cell modes, gameplay vs capture transition, and input-active vs idle windows.
+4. Isolate scheduling more narrowly: gameplay vs capture transition, input-active vs idle windows, and immediate vs queued territory presentation.
 5. Count transition snap/fallback reasons in `/play?bench=1` runs.
 6. Keep recording results here before any product remediation.
