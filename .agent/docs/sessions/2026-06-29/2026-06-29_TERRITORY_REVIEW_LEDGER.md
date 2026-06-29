@@ -581,3 +581,35 @@ Verdict update:
 - New open target: immediate Phase Edges / Ember Lattice render cost after stale-display rules are removed.
 
 Next action: isolate retained render-family and transition-lifecycle changes against Phase Edges and Ember Lattice immediate-display measurements. Do not spend the next pass on Distance Field / Grid Gradient unless it shares the same scheduler failure.
+
+## Review Loop 13: Fill/Border Split In Phase Edges And Ember Lattice
+
+Timestamp: 2026-06-29T17:33:03-04:00
+
+Boundary: renderer-file part of `ae471a6c2 perf(territory): split cell grid fills from borders`, specifically `pax-fluxia/src/lib/territory/families/cellGrid/CellGridFamily.ts`.
+
+Intent: determine whether the split hurts Phase Edges or Ember Lattice after stale-display rules are removed.
+
+Failure handled: `git revert --no-commit ae471a6c2` failed because the disposable worktree already had local `GameCanvas.svelte` edits from the scheduler isolation. I did not force it. Because no later commit touched `CellGridFamily.ts`, I isolated the renderer-file part by restoring that file to `ae471a6c2^` in the disposable worktree, then restored it afterward.
+
+Experiment: release build, `/play?bench=1`, map `First Symmetry-6_April 17b`, 8 runs per row, 3000ms measured window, 500ms warmup.
+
+Artifacts:
+
+- Split kept: `C:\Users\mikep\.codex\worktrees\territory-isolate-revert-conquest-background-20260629\.agent-harness\metrics\review-release\review-release-gameplay-benchmark-2026-06-29T21-19-06-056Z.json`
+- Renderer-file split reverted: `C:\Users\mikep\.codex\worktrees\territory-isolate-revert-conquest-background-20260629\.agent-harness\metrics\review-release\review-release-gameplay-benchmark-2026-06-29T21-28-43-093Z.json`
+
+Focused results:
+
+| Row | Split kept p95/p99/worst | Split kept >33ms | Split reverted p95/p99/worst | Split reverted >33ms |
+| --- | ---: | ---: | ---: | ---: |
+| Ember Lattice gameplay | 41.7 / 50.1 / 133.3ms | 108 / 921 | 58.3 / 91.4 / 175.0ms | 457 / 571 |
+| Ember Lattice transition | 50.0 / 91.7 / 183.4ms | 261 / 714 | 59.1 / 133.5 / 175.5ms | 471 / 551 |
+| Phase Edges gameplay | 33.4 / 50.0 / 133.2ms | 80 / 1147 | 49.2 / 66.7 / 208.1ms | 285 / 875 |
+| Phase Edges transition | 33.3 / 83.4 / 108.4ms | 40 / 1098 | 58.8 / 141.9 / 191.7ms | 330 / 632 |
+
+Observation: reverting the renderer-file split made all four tested rows worse while pending territory wait stayed zero.
+
+Verdict: `KEEP` for the renderer-file part of `ae471a6c2`. It is not the cause of the Phase Edges / Ember Lattice immediate-display cost and appears to reduce it.
+
+Next action: test transition lifecycle or presentation wiring next. Do not broad-revert the fill/border split.
