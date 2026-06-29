@@ -539,3 +539,45 @@ Representative result:
 Verdict: `REWRITE / ISOLATE`. The unit makes the frame table look better under input pressure, but it does so by delaying visible territory by about 170ms to 180ms. Reverting it removes stale presentation but exposes real render cost in heavy modes.
 
 Bookkeeping: the next target is immediate-presentation render cost in Phase Edges and Ember Lattice. Input-pressure yielding should remain gated until it proves bounded delay and no stale conquest presentation.
+
+## Review Loop 12: Phase Edges And Ember Lattice Immediate-Cost Check
+
+Timestamp: 2026-06-29T17:24:36-04:00
+
+Plain-English definition: pending wait means a prepared territory picture was ready but had not appeared on screen yet. Commit lag means time from queueing that territory picture to finishing its display.
+
+Boundary: focused measurement only. No product-code fix was made. The disposable isolation state still has the known-bad delayed conquest display removed and the input-pressure display delay removed; it is not a clean proposed patch.
+
+Intent: determine whether Phase Edges and Ember Lattice only looked bad because territory was displayed late, or whether immediate display exposes real render cost.
+
+Experiment: release build, `/play?bench=1`, map `First Symmetry-6_April 17b`, 8 runs per row, 3000ms measured window, 500ms warmup.
+
+Artifacts:
+
+- Baseline: `C:\Users\mikep\.codex\worktrees\territory-compare-base-20260628\.agent-harness\metrics\review-release\review-release-gameplay-benchmark-2026-06-29T21-07-57-923Z.json`
+- Current master: `C:\Users\mikep\.codex\worktrees\territory-compare-master-current-20260629\.agent-harness\metrics\review-release\review-release-gameplay-benchmark-2026-06-29T21-11-44-465Z.json`
+- Review branch: `C:\Users\mikep\.codex\worktrees\territory-overnight-integration\pax-fluxia\.agent-harness\metrics\review-release\review-release-gameplay-benchmark-2026-06-29T21-15-28-244Z.json`
+- Isolation state: `C:\Users\mikep\.codex\worktrees\territory-isolate-revert-conquest-background-20260629\.agent-harness\metrics\review-release\review-release-gameplay-benchmark-2026-06-29T21-19-06-056Z.json`
+
+Focused results:
+
+| Row | Review branch frame p95/p99/worst | Review pending wait median/worst | Isolation frame p95/p99/worst | Isolation pending wait median/worst |
+| --- | ---: | ---: | ---: | ---: |
+| Ember Lattice gameplay | 33.2 / 33.4 / 141.6ms | 142.4 / 226.4ms | 41.7 / 50.1 / 133.3ms | 0 / 0ms |
+| Ember Lattice transition | 32.6 / 41.6 / 108.5ms | 281.1 / 558.0ms | 50.0 / 91.7 / 183.4ms | 0 / 0ms |
+| Phase Edges gameplay | 33.3 / 41.7 / 133.4ms | 162.4 / 343.0ms | 33.4 / 50.0 / 133.2ms | 0 / 0ms |
+| Phase Edges transition | 25.1 / 33.5 / 108.4ms | 151.6 / 224.9ms | 33.3 / 83.4 / 108.4ms | 0 / 0ms |
+
+Observation:
+
+- The review branch still delays prepared territory pictures in these modes.
+- The raw frame table can improve because visible territory work is delayed. That is not a reliable UX improvement.
+- Removing the late-display behavior returns pending wait to zero, but some Phase Edges and Ember Lattice frame tails get heavier. That remaining cost is real enough to investigate, but it is not yet attributed to a specific retained change.
+
+Verdict update:
+
+- Keep `REVERT` for the conquest-presentation part of `d2ac9d771a`.
+- Keep `REWRITE / ISOLATE` for `4c847ca20`.
+- New open target: immediate Phase Edges / Ember Lattice render cost after stale-display rules are removed.
+
+Next action: isolate retained render-family and transition-lifecycle changes against Phase Edges and Ember Lattice immediate-display measurements. Do not spend the next pass on Distance Field / Grid Gradient unless it shares the same scheduler failure.
