@@ -713,3 +713,15 @@ Sources checked:
 - PixiJS Graphics `cacheAsTexture` docs
 
 Research conclusion: external browser guidance supports the local finding. Background scheduling is inappropriate for immediate visible conquest territory. Yielding is useful only after user-visible truth has been shown or for optional work. Pixi guidance supports moving stable heavy visuals toward sprites/textures/cached render paths rather than repeatedly modifying complex Graphics in visible frames.
+
+## Mode Switch And Phase/Ember Cost Update
+
+Timestamp: 2026-06-29T18:05:00-04:00
+
+Documented in: `.agent/docs/sessions/2026-06-29/2026-06-29_TERRITORY_REVIEW_PHASE0_UPDATE_20_MODE_SWITCH_AND_PHASE_COST.md`
+
+Mode switching is now a confirmed reproduction path for user-visible regression. On the review branch, Cell Grid mode switch has 91.8ms median pending territory wait and 158.7ms worst pending wait; Phase Edges mode switch has 718.4ms worst pending wait. Baseline and current master had 0ms pending wait in those same rows.
+
+Phase Edges and Ember Lattice also have real immediate-display cost after stale display is removed. Representative immediate-display rows: Phase Edges transition p95/p99/worst 58.1/141.3/216.4ms; Ember Lattice transition 58.8/133.3/183.8ms. Existing timing shows geometry compute, transition-plan preparation, and Pixi render all contribute.
+
+Fixed-board measurement correction: fixed-board counters are cumulative page-lifetime counters. Use the final snapshot, not a sum of every row. Current observed physical-board read cost remains low: 30.6ms total over the broad player-route artifact and 16.1ms total over the focused Phase/Ember artifact. A direct fixed-board reverse patch did not apply cleanly in a disposable worktree, so no final keep/revert verdict is drawn from that attempt.
