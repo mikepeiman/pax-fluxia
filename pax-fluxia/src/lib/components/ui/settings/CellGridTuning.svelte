@@ -1,10 +1,6 @@
 <script lang="ts">
   import "./panel-shared.css";
     import { GAME_CONFIG } from '$lib/config/game.config';
-    import {
-        TERRITORY_FRONTIER_BENCHMARK_PRESETS,
-        type TerritoryFrontierBenchmarkPreset,
-    } from '$lib/territory/frontier';
     import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
     import { log } from '$lib/utils/logger';
     import {
@@ -12,7 +8,6 @@
         cellGridPhaseFieldModeDefaults,
     } from '$lib/territory/families/cellGrid/config';
     import {
-        PaxHudButton,
         PaxHudSegmentedControl,
         PaxHudSelect,
         PaxInfoHint,
@@ -201,12 +196,6 @@
             "cellgrid",
             `${configKey} = ${JSON.stringify(value)} (was ${JSON.stringify(prev)}) [mode=${(GAME_CONFIG as unknown as Record<string, unknown>).TERRITORY_RENDER_MODE}]`,
         );
-    }
-
-    function panelKeyFromConfig(configKey: string): string {
-        return configKey
-            .toLowerCase()
-            .replace(/_([a-z0-9])/g, (_, value: string) => value.toUpperCase());
     }
 
     function currentModeLockNote(): string | null {
@@ -639,20 +628,6 @@
         );
     }
 
-    function applyFrontierPreset(preset: TerritoryFrontierBenchmarkPreset): void {
-        for (const [configKey, value] of Object.entries(preset.values)) {
-            writeConfig(configKey, panelKeyFromConfig(configKey), value);
-        }
-    }
-
-    function isFrontierPresetSelected(preset: TerritoryFrontierBenchmarkPreset): boolean {
-        return Object.entries(preset.values).every(([configKey, value]) => {
-            const panelValue = panel[panelKeyFromConfig(configKey)];
-            const configValue =
-                (GAME_CONFIG as unknown as Record<string, unknown>)[configKey];
-            return (panelValue ?? configValue) === value;
-        });
-    }
 </script>
 
 <div class="module-head">
@@ -953,31 +928,6 @@
 
 {#if showFrontierControls()}
 <div class="module-block">
-<div class="var-row" class:disabled={!canUseEmberFrontierTechnique()}>
-    <div class="row-top">
-        <span class="var-name">
-            Preset Rows
-            <PaxInfoHint text="Benchmark comparison rows matching the frontier technique matrix. Each applies a planned preset directly so effect and performance can be compared without dialing every knob by hand." />
-        </span>
-        <span class="val">
-            {#if !canUseEmberFrontierTechnique()}Square lattice required
-            {:else}Tap to apply{/if}
-        </span>
-    </div>
-    <div class="preset-grid">
-        {#each TERRITORY_FRONTIER_BENCHMARK_PRESETS as preset}
-            <PaxHudButton
-                label={preset.label}
-                size="sm"
-                active={isFrontierPresetSelected(preset)}
-                title={preset.description}
-                disabled={!canUseEmberFrontierTechnique()}
-                onclick={() => applyFrontierPreset(preset)}
-            />
-        {/each}
-    </div>
-</div>
-
 <PaxHudSelect
     label="Frontier Technique"
     hint="Selects how the territory FILL surface is built: Current control keeps crisp scene cells (raster fill edge), while shader-band produces a smooth phase-fill that matches the border. Applies to every square-lattice cell-grid mode (Phase Edges, Ember, Phase Field). Surface styling and border-geometry controls live in Territory Styles."
@@ -1324,16 +1274,5 @@
         display: flex;
         flex-direction: column;
         gap: 0;
-    }
-
-    .preset-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: var(--pax-space-2);
-        margin: var(--pax-space-1) 0 2px;
-    }
-
-    .var-row.disabled {
-        opacity: 0.55;
     }
 </style>

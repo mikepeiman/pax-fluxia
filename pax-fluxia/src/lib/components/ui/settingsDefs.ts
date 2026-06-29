@@ -315,7 +315,6 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'TERRITORY_MORPH_CONTROL_POINTS' },
     { configKey: 'TERRITORY_MODE' },
     { configKey: 'TERRITORY_RENDER_MODE' },
-    { configKey: 'TERRITORY_FILL_TRANSITION' },
     { configKey: 'TERRITORY_BORDER_TRANSITION' },
     { panelKey: 'territoryEngine', configKey: 'TERRITORY_ENGINE_ENABLED' },
     { configKey: 'TERRITORY_ENGINE_MODE' },

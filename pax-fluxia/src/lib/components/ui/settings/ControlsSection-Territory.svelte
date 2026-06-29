@@ -19,7 +19,6 @@
     cellGridFamilyConfigDefaults,
     cellGridPhaseEdgesModeDefaults,
   } from "$lib/territory/families/cellGrid/config";
-  import TerritoryGeometrySourceTuning from "./TerritoryGeometrySourceTuning.svelte";
   import TerritorySurfaceStyleTuning from "./TerritorySurfaceStyleTuning.svelte";
   import { untrack } from 'svelte';
   import { log } from "$lib/utils/logger";
@@ -109,10 +108,6 @@
   );
   const topologyLimits = TERRITORY_GEOMETRY_LIMITS;
 
-  type TerritorySystemModuleId =
-    | "all"
-    | "none"
-    | "render-mode";
   type TerritoryRendererModuleId =
     | "all"
     | "none"
@@ -129,64 +124,18 @@
     icon: string;
   }
 
-  type TerritorySystemViewId = Exclude<TerritorySystemModuleId, "all" | "none">;
   type TerritoryRendererViewId = Exclude<
     TerritoryRendererModuleId,
     "all" | "none"
   >;
 
-  const TERRITORY_SYSTEM_MODULES: Array<
-    TerritoryModuleDef<TerritorySystemViewId>
-  > = [
-    { id: "render-mode", label: "Mode", icon: "draw-polygon" },
-  ];
-
-  const TERRITORY_SYSTEM_MODULE_PANEL_KEY = "territorySystemModuleVisibility";
   const TERRITORY_RENDERER_MODULE_PANEL_KEY =
     "territoryRendererModuleVisibility";
 
-  let activeSystemModule = $derived(
-    (panel[TERRITORY_SYSTEM_MODULE_PANEL_KEY] ??
-      "all") as TerritorySystemModuleId,
-  );
   let activeRendererModule = $derived(
     (panel[TERRITORY_RENDERER_MODULE_PANEL_KEY] ??
       "all") as TerritoryRendererModuleId,
   );
-
-  function visibleSystemModules(): Array<
-    TerritoryModuleDef<TerritorySystemViewId>
-  > {
-    return TERRITORY_SYSTEM_MODULES.map((module) =>
-      hideRenderModeSelector && module.id === "render-mode"
-        ? { ...module, label: "Transition" }
-        : module,
-    );
-  }
-
-  function systemModuleOptions(): PaxHudSegmentedOption[] {
-    return [
-      { value: "all", label: "All" },
-      { value: "none", label: "None" },
-      ...visibleSystemModules().map((module) => ({
-        value: module.id,
-        label: module.label,
-        icon: module.icon,
-      })),
-    ];
-  }
-
-  function rendererModuleOptions(): PaxHudSegmentedOption[] {
-    return [
-      { value: "all", label: "All" },
-      { value: "none", label: "None" },
-      ...rendererModules().map((module) => ({
-        value: module.id,
-        label: module.label,
-        icon: module.icon,
-      })),
-    ];
-  }
 
   function renderModeOptions(): PaxHudSegmentedOption[] {
     return getRenderModeOptions().map((option) => ({
@@ -288,13 +237,6 @@
     }
     return "Visible fill, border, and finish presentation for Perimeter Field. Source geometry and topology live in Territory Tuning & Constraints.";
   }
-
-  $effect(() => {
-    if (activeSystemModule === "all" || activeSystemModule === "none") return;
-    if (!visibleSystemModules().some((module) => module.id === activeSystemModule)) {
-      updatePanel(TERRITORY_SYSTEM_MODULE_PANEL_KEY, "all");
-    }
-  });
 
   const METABALL_FALLOFF_OPTIONS = [
     {
@@ -752,20 +694,6 @@
     }
   });
 
-  // Module-visibility toggles were removed (they controlled nothing the user
-  // wanted); the active render-style checks below do the real gating.
-  function showSystemModule(_id: TerritorySystemViewId) {
-    return true;
-  }
-
-  function showRendererModule(_id: TerritoryRendererViewId) {
-    return true;
-  }
-
-  function setActiveSystemModule(value: TerritorySystemModuleId) {
-    updatePanel(TERRITORY_SYSTEM_MODULE_PANEL_KEY, value);
-  }
-
   function setActiveRendererModule(value: TerritoryRendererModuleId) {
     updatePanel(TERRITORY_RENDERER_MODULE_PANEL_KEY, value);
   }
@@ -782,7 +710,6 @@
     <h4 class="sub-heading territory-section-title">{systemTitle}</h4>
   </div>
   <div class="territory-module-grid">
-    {#if showSystemModule("render-mode")}
       <div class="axis-card territory-module-card">
         <div class="territory-card__header">
       <h4 class="axis-card-title">{hideRenderModeSelector ? "Transition" : "Mode"}</h4>
@@ -863,7 +790,6 @@
           />
         {/if}
       </div>
-    {/if}
 
   </div>
 </div>
@@ -884,7 +810,7 @@
   </div>
 {/if}
 
-{#if showStylesView && showRendererModule("metaball") && resolveActiveStyleId() === "metaball"}
+{#if showStylesView && resolveActiveStyleId() === "metaball"}
   <div class="engine-control-group territory-module-card">
     <div class="territory-card__header">
       <h4 class="axis-card-title">Metaball (CPU grid)</h4>
@@ -1472,7 +1398,7 @@
 
 <!-- Active Layers toggles removed — V3 architecture uses Render Mode dropdown above -->
 
-{#if showStylesView && showRendererModule("surface") &&
+{#if showStylesView &&
   (resolveActiveStyleId() === "territory_engine" ||
     resolveActiveStyleId() === "territory_runtime" ||
     resolveActiveStyleId() === "power_voronoi_runtime")}
@@ -1532,116 +1458,10 @@
             )} />
       </div>
     {/if}
-
-    {#if false}
-    <h5 class="territory-inline-heading">Fill &amp; Borders</h5>
-
-    <div class="var-row">
-    <PaxSettingsRangeRow
-      label="Fill Alpha"
-      value={panel.voronoiAlpha ?? GAME_CONFIG.VORONOI_ALPHA}
-      min={0}
-      max={1}
-      step={0.01}
-      format="fixed2"
-      settingConfigKey="VORONOI_ALPHA"
-      onInput={(value) =>
-        debouncedConfigUpdate("VORONOI_ALPHA", "voronoiAlpha", value)} />
-  </div>
-  <div class="var-row">
-    <div class="row-top">
-      <PaxSettingsToggleRow
-        label="Neutral Transparent"
-        checked={panel.neutralTerritoryTransparent ??
-          GAME_CONFIG.NEUTRAL_TERRITORY_TRANSPARENT}
-        settingConfigKey="NEUTRAL_TERRITORY_TRANSPARENT"
-        onChange={(value) =>
-          debouncedConfigUpdate(
-            "NEUTRAL_TERRITORY_TRANSPARENT",
-            "neutralTerritoryTransparent",
-            value,
-          )} />
-    </div>
-  </div>
-  <div class="var-row">
-    <PaxSettingsRangeRow
-      label="Border Width"
-      value={panel.voronoiBorderWidth ?? GAME_CONFIG.VORONOI_BORDER_WIDTH}
-      min={0}
-      max={30}
-      step={0.5}
-      format="fixed1"
-      suffix="px"
-      settingConfigKey="VORONOI_BORDER_WIDTH"
-      onInput={(value) =>
-        debouncedConfigUpdate(
-          "VORONOI_BORDER_WIDTH",
-          "voronoiBorderWidth",
-          value,
-        )} />
-  </div>
-  <div class="var-row">
-    <PaxSettingsRangeRow
-      label="Border Alpha"
-      value={panel.voronoiBorderAlpha ?? GAME_CONFIG.VORONOI_BORDER_ALPHA}
-      min={0}
-      max={1}
-      step={0.05}
-      format="fixed2"
-      settingConfigKey="VORONOI_BORDER_ALPHA"
-      onInput={(value) =>
-        debouncedConfigUpdate(
-          "VORONOI_BORDER_ALPHA",
-          "voronoiBorderAlpha",
-          value,
-        )} />
-  </div>
-
-  <div class="var-row">
-    <PaxSettingsRangeRow
-      label="Geometry Smooth Passes"
-      value={panel.voronoiBorderSmooth ?? GAME_CONFIG.VORONOI_BORDER_SMOOTH}
-      min={0}
-      max={5}
-      step={1}
-      settingConfigKey="VORONOI_BORDER_SMOOTH"
-      onInput={(value) =>
-        debouncedConfigUpdate(
-          "VORONOI_BORDER_SMOOTH",
-          "voronoiBorderSmooth",
-          value,
-        )} />
-  </div>
-
-  <div class="var-row">
-    <PaxSettingsRangeRow
-      label="Saturation"
-      value={panel.voronoiSaturation ?? GAME_CONFIG.VORONOI_SATURATION}
-      min={0}
-      max={2}
-      step={0.05}
-      format="fixed2"
-      settingConfigKey="VORONOI_SATURATION"
-      onInput={(value) =>
-        debouncedConfigUpdate("VORONOI_SATURATION", "voronoiSaturation", value)} />
-  </div>
-  <div class="var-row">
-    <PaxSettingsRangeRow
-      label="Lightness"
-      value={panel.voronoiLightness ?? GAME_CONFIG.VORONOI_LIGHTNESS}
-      min={0}
-      max={2}
-      step={0.05}
-      format="fixed2"
-      settingConfigKey="VORONOI_LIGHTNESS"
-      onInput={(value) =>
-        debouncedConfigUpdate("VORONOI_LIGHTNESS", "voronoiLightness", value)} />
-  </div>
-    {/if}
   </div>
 {/if}
 
-{#if showStylesView && showRendererModule("perimeter-field") && resolveActiveStyleId() === "perimeter_field"}
+{#if showStylesView && resolveActiveStyleId() === "perimeter_field"}
   <div class="engine-control-group territory-module-card">
     <div class="territory-card__header">
       <h4 class="axis-card-title">Perimeter Field (Experimental)</h4>
@@ -1657,7 +1477,7 @@
   </div>
 {/if}
 
-{#if showStylesView && showRendererModule("cell-grid") && isCellGridStyle()}
+{#if showStylesView && isCellGridStyle()}
   <div class="engine-control-group territory-module-card">
     <div class="territory-card__header">
       <h4 class="axis-card-title">
@@ -1684,7 +1504,7 @@
   </div>
 {/if}
 
-{#if showStylesView && showRendererModule("grid-gradient") && isGridGradientStyle()}
+{#if showStylesView && isGridGradientStyle()}
   <div class="engine-control-group territory-module-card">
     <div class="territory-card__header">
       <h4 class="axis-card-title">Grid Gradient (Experimental)</h4>
