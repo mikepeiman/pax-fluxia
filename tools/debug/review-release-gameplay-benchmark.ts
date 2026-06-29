@@ -73,6 +73,7 @@ const SCENARIOS = splitEnv(process.env.PAX_REVIEW_SCENARIOS, [
 ]);
 const MODES = splitEnv(process.env.PAX_REVIEW_MODES, [...DEFAULT_MODES]);
 const MAP_NAME = process.env.PAX_REVIEW_MAP_NAME?.trim() ?? "";
+const APP_PATH = normalizeAppPath(process.env.PAX_REVIEW_APP_PATH, "/bench");
 const REVIEW_MAP = loadReviewMapDefinition();
 
 function splitEnv(value: string | undefined, fallback: string[]): string[] {
@@ -88,6 +89,12 @@ function positiveInteger(value: string | undefined, fallback: number): number {
     return Number.isFinite(parsed) && parsed > 0
         ? Math.round(parsed)
         : fallback;
+}
+
+function normalizeAppPath(value: string | undefined, fallback: string): string {
+    const trimmed = value?.trim();
+    if (!trimmed) return fallback;
+    return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
 }
 
 function round(value: number, digits = 3): number {
@@ -527,6 +534,28 @@ async function collectSchedulerSnapshot(
     `);
 }
 
+async function collectRouteSentinel(client: CdpClient): Promise<JsonValue> {
+    return await client.evaluate<JsonValue>(`
+        (() => {
+            const shellDiag = window.__PAX_GAME_SHELL_DIAG__ ?? null;
+            const bodyText = String(document.body?.innerText ?? "")
+                .replace(/\\s+/g, " ")
+                .slice(0, 500);
+            return {
+                href: window.location.href,
+                pathname: window.location.pathname,
+                search: window.location.search,
+                title: document.title,
+                hasBenchBridge: Boolean(window.__PAX_BENCH__),
+                hasPixiCanvas: Boolean(document.querySelector("canvas")),
+                hasGameCanvasElement: Boolean(document.querySelector(".game-canvas")),
+                visibleTextStart: bodyText,
+                shellDiag,
+            };
+        })()
+    `);
+}
+
 async function runGameplayScenario(
     client: CdpClient,
     mode: string,
@@ -541,10 +570,12 @@ async function runGameplayScenario(
         (async () => await window.__PAX_BENCH__.getStateSummary())()
     `);
     const finalSchedulerSnapshot = await collectSchedulerSnapshot(client);
+    const routeSentinel = await collectRouteSentinel(client);
     return {
         prep: prep as JsonValue,
         finalState: finalState as JsonValue,
         finalSchedulerSnapshot,
+        routeSentinel,
         frames: summarizeSamples(samples) as JsonValue,
         perf,
         sampleCount: samples.length,
@@ -580,6 +611,7 @@ async function runTransitionScenario(
         (async () => await window.__PAX_BENCH__.getStateSummary())()
     `);
     const finalSchedulerSnapshot = await collectSchedulerSnapshot(client);
+    const routeSentinel = await collectRouteSentinel(client);
     const recorder = await client.evaluate<Record<string, JsonValue> | null>(`
         (async () => {
             const bench = window.__PAX_BENCH__;
@@ -592,6 +624,7 @@ async function runTransitionScenario(
         prep: prep as JsonValue,
         finalState: finalState as JsonValue,
         finalSchedulerSnapshot,
+        routeSentinel,
         order: order as JsonValue,
         recorder: (recorder ?? null) as JsonValue,
         frames: summarizeSamples(samples) as JsonValue,
@@ -611,7 +644,7 @@ async function main(): Promise<void> {
 
     const appPort = await findAvailablePort(5177);
     const cdpPort = await findAvailablePort(9277);
-    const appUrl = `http://${HOST}:${appPort}/bench`;
+    const appUrl = `http://${HOST}:${appPort}${APP_PATH}`;
     const profileDir = path.join(
         os.tmpdir(),
         `pax-review-release-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -682,6 +715,7 @@ async function main(): Promise<void> {
         await client.send("Runtime.enable");
         await client.send("Page.navigate", { url: appUrl });
         await waitForBenchBridge(client, 60_000);
+        const routeSentinel = await collectRouteSentinel(client);
 
         const generatedAt = new Date().toISOString();
         const screenshotDir = path.join(
@@ -740,12 +774,14 @@ async function main(): Promise<void> {
             generatedAt,
             targetRoot: ROOT,
             clientDir: CLIENT_DIR,
+            appPath: APP_PATH,
             appUrl,
             runsPerScenario: RUNS,
             frameMs: FRAME_MS,
             warmupMs: WARMUP_MS,
             mapName: REVIEW_MAP.name,
             mapSourcePath: REVIEW_MAP.sourcePath,
+            routeSentinel,
             modes: MODES,
             scenarios: SCENARIOS,
             screenshotDir,

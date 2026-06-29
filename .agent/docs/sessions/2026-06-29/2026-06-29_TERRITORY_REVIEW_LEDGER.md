@@ -131,18 +131,116 @@ These are not verdicts yet. They are bounded review units, ordered by risk and u
 | 7 | Frontier/geometry oracle additions | Potentially valuable for correctness, but tests alone are not player-facing proof. | Needs isolation and plain-English value check. |
 | 8 | Settings preset/frontier recipe UI | Prior work already caused visible settings damage once; must be reviewed for regressions but is not likely the smoothness root cause. | Lower priority. |
 
+## Review Loop 1: Benchmark Route Gap
+
+Boundary: `tools/debug/review-release-gameplay-benchmark.ts`, `/bench`, and `/play?bench=1`.
+
+Intent: determine whether the benchmark route measures the same player-facing game route the user judges.
+
+Observation:
+
+- `/bench` mounts the game container directly and installs the measurement bridge immediately.
+- `/play` dynamically loads the real game shell, then installs the measurement bridge only when internal benchmark access is enabled.
+- The harness now supports `PAX_REVIEW_APP_PATH`, so the same measurement script can run either `/bench` or `/play?bench=1`.
+- The harness now records a route sentinel at page load and after each measured scenario. The post-scenario sentinel confirms route, canvas presence, shell diagnostics, visible text prefix, render mode, star count, and current game state.
+
+Small route probe on review branch, large saved map, two runs per row:
+
+| Mode and window | p95 `/play?bench=1` -> `/bench` | p99 `/play?bench=1` -> `/bench` | Frames over 33 ms `/play?bench=1` -> `/bench` |
+| --- | ---: | ---: | ---: |
+| cell_grid.gameplay | 33.1 -> 49.9 | 58.2 -> 108.2 | 9 -> 18 |
+| cell_grid.transition | 33.5 -> 32.9 | 50.0 -> 33.4 | 16 -> 6 |
+| power_voronoi_runtime.gameplay | 59.4 -> 27.0 | 97.6 -> 41.7 | 15 -> 6 |
+| power_voronoi_runtime.transition | 25.5 -> 25.6 | 33.7 -> 34.4 | 6 -> 8 |
+
+Verdict: `KEEP-WITH-FOLLOWUP` for the route-switch harness change. `/bench` is not sufficient as player-facing evidence. Future UX-facing runs should include `/play?bench=1`, and ideally the exact visible user session if available.
+
+Confidence: medium. The result is only two runs per row, but the route difference is directly observed in source and measurements.
+
+## Review Loop 2: Territory Presentation Scheduling
+
+Plain-English definition: territory presentation is the visible territory layer being committed to the screen after the game state changes. The reviewed code can queue or delay this work to avoid blocking input.
+
+Boundary: `GameCanvas.svelte` scheduling functions around `scheduleTerritoryPresentationQueue`, `scheduleTerritoryPresentationQueueDelay`, and `shouldYieldTerritoryPresentationRequest`.
+
+Intent: determine whether delayed territory presentation explains visible jank or stale-looking transitions.
+
+Experiment: disposable worktree `territory-isolate-presentation-immediate-20260629` forced territory presentation requests to run immediately. This was not a product fix; it was an isolation probe.
+
+Two-run `/play?bench=1` probe:
+
+| Mode and window | p95 review -> immediate | p99 review -> immediate | Frames over 33 ms review -> immediate | Commit lag max review -> immediate |
+| --- | ---: | ---: | ---: | ---: |
+| cell_grid.gameplay | 33.1 -> 34.0 | 58.2 -> 59.0 | 9 -> 19 | 14.4 -> 8.8 |
+| cell_grid.transition | 33.5 -> 50.0 | 50.0 -> 182.8 | 16 -> 46 | 162.6 -> 14.3 |
+| power_voronoi_runtime.gameplay | 59.4 -> 25.1 | 97.6 -> 33.0 | 15 -> 4 | 0.9 -> 0.7 |
+| power_voronoi_runtime.transition | 25.5 -> 25.3 | 33.7 -> 33.6 | 6 -> 6 | 0.6 -> 0.9 |
+
+Five-run confirmation on `power_voronoi_runtime.gameplay` only:
+
+| Variant | Run-median p95 | Run-median p99 | Max frame | Frames over 33 ms | Frames over 20 ms |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Review branch | 25.2 | 33.3 | 108.9 | 18 | 192 |
+| Force immediate | 25.2 | 33.1 | 108.4 | 16 | 179 |
+
+Verdict: `ISOLATE`, not `KEEP` and not `REVERT`. Scheduling is involved, but a global immediate policy is too blunt: it slightly helps Power Voronoi gameplay and badly hurts Cell Grid transition in the two-run probe. The likely useful follow-up is mode-aware and transition-aware scheduling, not one global rule.
+
+Confidence: medium. The five-run confirmation reduced the apparent size of the Power Voronoi win, but the Cell Grid transition harm is large enough to rule out a blanket immediate policy.
+
+## Review Loop 3: Pixi Probe Isolation
+
+Plain-English definition: Pixi is the graphics library drawing the game. A probe is measurement code attached to Pixi to time frames.
+
+Boundary: `GameCanvas.svelte` call to `installPixiPerfProbes(app)`.
+
+Intent: test whether the measurement probes themselves make normal gameplay less smooth.
+
+Experiment: disposable worktree `territory-isolate-no-pixi-probes-20260629` removed only the call that installs the Pixi renderer/ticker probes.
+
+Two-run `/play?bench=1` probe:
+
+| Mode and window | p95 review -> no Pixi probes | p99 review -> no Pixi probes | Frames over 33 ms review -> no Pixi probes |
+| --- | ---: | ---: | ---: |
+| cell_grid.gameplay | 33.1 -> 33.6 | 58.2 -> 50.3 | 9 -> 16 |
+| cell_grid.transition | 33.5 -> 42.2 | 50.0 -> 57.9 | 16 -> 36 |
+| power_voronoi_runtime.gameplay | 59.4 -> 25.3 | 97.6 -> 33.1 | 15 -> 3 |
+| power_voronoi_runtime.transition | 25.5 -> 25.4 | 33.7 -> 33.6 | 6 -> 5 |
+
+Five-run confirmation on `power_voronoi_runtime.gameplay` only:
+
+| Variant | Run-median p95 | Run-median p99 | Max frame | Frames over 33 ms | Frames over 20 ms |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Review branch | 25.2 | 33.3 | 108.9 | 18 | 192 |
+| No Pixi probes | 25.2 | 33.4 | 100.0 | 18 | 199 |
+
+Verdict: `KEEP-WITH-FOLLOWUP` for the probes as measurement tools, with caution. The five-run confirmation does not support them as a strong standalone cause of the visible regression. They can still perturb measurement slightly, so final UX validation should include a run with them disabled or gated more tightly.
+
+Confidence: medium-high for "not the main cause" on `power_voronoi_runtime.gameplay`; lower for other modes because they only had two-run probes.
+
+## Subagent Findings Integrated
+
+- Transition identity and lifecycle changes have targeted test support and appear directionally valuable. They still need a visual overlap/recapture scenario before a final `KEEP` verdict.
+- Transition reliability fallbacks are correct by intent when geometry is unsafe, but they can visibly snap instead of animate. The review must count actual snap reasons in player-facing runs before keeping all gates.
+- Fixed board identity is consistent with the corrected rule that physical board geometry is immutable after game start. Current measured repeated physical-map scan cost is low on the review branch.
+- Grid Gradient remains janky and slow, but the user confirmed it is not the primary target. It should not dominate the recovery plan unless it explains shared scheduling problems.
+- `/bench` route evidence is not enough. Normal route, saved settings, and human mode switching remain open coverage gaps.
+
 ## Open Measurement Problems
 
 - The visible normal game at `http://localhost:5173/` is not currently reachable from this shell.
-- The release benchmark uses a controlled `/bench` route; it may bypass normal menu/settings/player workflows.
+- The release benchmark can now use `/play?bench=1`, but it still bypasses saved local browser state unless localStorage seeding is added.
 - Three runs per row is enough for first comparison, not enough for final percentile confidence.
 - The benchmark currently measures frame timing and named timing blocks, but not GPU draw calls, GPU time, or memory allocation counts.
 - No change-unit has an isolated revert result yet. Therefore no regression has been attributed to a specific change.
 - The full diff is not linear. Some commits were merged from separate worktrees, so the review needs targeted unit isolation rather than simple chronological blame.
+- Human mode switching through the topbar is not covered; benchmark mode switching directly sets the render mode.
+- Dev-server behavior on `localhost:5173` is not covered by release-preview runs. The review prompt prioritizes release builds, but the user's live observation likely came from a dev server.
 
 ## Next Actions
 
-1. Close the benchmark-vs-real-app gap: measure the normal visible game path or make the benchmark prove it exercises the same code.
-2. Finish cross-cutting triage: look for shared timing, validation, telemetry, or cache changes that can affect many modes.
-3. Run the first isolated unit experiment only after selecting a bounded unit and writing the expected confirming/refuting evidence.
-4. Keep recording results here before any product remediation.
+1. Add localStorage seeding and route/visible-state sentinel data to the harness.
+2. Add a human mode-switch scenario that uses the same topbar shortcut path as the player-facing UI.
+3. Run `/play?bench=1` on all primary modes with enough runs for stable p95/p99 before deciding keep/revert.
+4. Isolate scheduling more narrowly: cheap vector modes vs expensive cell modes, gameplay vs capture transition, and input-active vs idle windows.
+5. Count transition snap/fallback reasons in `/play?bench=1` runs.
+6. Keep recording results here before any product remediation.
