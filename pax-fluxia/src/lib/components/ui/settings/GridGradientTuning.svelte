@@ -4,6 +4,11 @@
     import PaxSettingsRangeRow from '$lib/design-system/components/PaxSettingsRangeRow.svelte';
     import PaxSettingsSegmentedRow from '$lib/design-system/components/PaxSettingsSegmentedRow.svelte';
     import PaxSettingsToggleRow from '$lib/design-system/components/PaxSettingsToggleRow.svelte';
+    import {
+        PaxHudSegmentedControl,
+        PaxInfoHint,
+        type PaxHudSegmentedOption,
+    } from '$lib/design-system';
     import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
     import { gridGradientStats } from '$lib/territory/families/gridGradient/gridGradientStats';
 
@@ -13,6 +18,30 @@
     }
 
     let { panel, updatePanel }: Props = $props();
+
+    type GridGradientModuleId = 'all' | 'fill' | 'color' | 'shape' | 'shader' | 'borders';
+
+    const GRID_GRADIENT_MODULE_PANEL_KEY = 'gridGradientModuleVisibility';
+    const GRID_GRADIENT_MODULE_OPTIONS: PaxHudSegmentedOption[] = [
+        { value: 'all', label: 'All' },
+        { value: 'fill', label: 'Fill' },
+        { value: 'color', label: 'Color' },
+        { value: 'shape', label: 'Shape' },
+        { value: 'shader', label: 'Shader FX' },
+        { value: 'borders', label: 'Borders' },
+    ];
+
+    let activeModule = $derived(
+        (panel[GRID_GRADIENT_MODULE_PANEL_KEY] ?? 'all') as GridGradientModuleId,
+    );
+
+    function showModule(id: Exclude<GridGradientModuleId, 'all'>): boolean {
+        return activeModule === 'all' || activeModule === id;
+    }
+
+    function setActiveModule(value: GridGradientModuleId): void {
+        updatePanel(GRID_GRADIENT_MODULE_PANEL_KEY, value);
+    }
 
     const SHADER_NEIGHBOR_OPTIONS = [
         { value: 'center', label: 'Center' },
@@ -82,18 +111,22 @@
     const shaderNoiseActive = $derived(shaderFieldFxActive && cellShape === 'noise');
 </script>
 
-<PaxSettingsSegmentedRow
-    label="Shader Neighbor Mode"
-    hint="How many neighbor cells the shader samples for the gradient field: Center (1), Cross (4-way), or Eight (8-way)."
-    value={shaderNeighborMode}
-    options={SHADER_NEIGHBOR_OPTIONS}
-    disabled={!shaderFieldFxActive}
-    settingConfigKey="GRID_GRADIENT_SHADER_NEIGHBOR_MODE"
-    onValueChange={(value) => {
-        writeConfig('GRID_GRADIENT_SHADER_NEIGHBOR_MODE', 'gridGradientShaderNeighborMode', value);
-    }}
-/>
+<div class="module-head">
+    <PaxInfoHint
+        text="Section chips (Fill, Color, Shape, Shader FX, Borders) only change which Grid Gradient controls are shown here — they do not switch the renderer."
+    />
+    <PaxHudSegmentedControl
+        class="module-scope-toggle"
+        value={activeModule}
+        options={GRID_GRADIENT_MODULE_OPTIONS}
+        density="compact"
+        ariaLabel="Grid gradient subsection visibility"
+        onValueChange={(value) => setActiveModule(value as GridGradientModuleId)}
+    />
+</div>
 
+{#if showModule('fill')}
+<div class="module-block">
 <div class="sub-heading">Grid Fill</div>
 
 <PaxSettingsSegmentedRow
@@ -140,7 +173,11 @@
         writeConfig('GRID_GRADIENT_CELL_SHAPE', 'gridGradientCellShape', value);
     }}
 />
+</div>
+{/if}
 
+{#if showModule('color')}
+<div class="module-block">
 <div class="sub-heading">Fill HSLA</div>
 
 <PaxSettingsRangeRow
@@ -182,7 +219,11 @@
     output={fillAlpha.toFixed(2)}
     settingConfigKey="TERRITORY_SURFACE_ALPHA"
     onInput={(value) => writeConfig('TERRITORY_SURFACE_ALPHA', 'territorySurfaceAlpha', value)} />
+</div>
+{/if}
 
+{#if showModule('shape')}
+<div class="module-block">
 <div class="sub-heading">Gradient Shape</div>
 
 <PaxSettingsRangeRow
@@ -242,8 +283,24 @@
         writeConfig('GRID_GRADIENT_DISTRIBUTION', 'gridGradientDistribution', value > 0 ? 'jittered' : 'square');
         writeConfig('GRID_GRADIENT_POSITION_JITTER', 'gridGradientPositionJitter', value);
     }} />
+</div>
+{/if}
 
+{#if showModule('shader')}
+<div class="module-block">
 <div class="sub-heading">Shader Field FX</div>
+
+<PaxSettingsSegmentedRow
+    label="Shader Neighbor Mode"
+    hint="How many neighbor cells the shader samples for the gradient field: Center (1), Cross (4-way), or Eight (8-way)."
+    value={shaderNeighborMode}
+    options={SHADER_NEIGHBOR_OPTIONS}
+    disabled={!shaderFieldFxActive}
+    settingConfigKey="GRID_GRADIENT_SHADER_NEIGHBOR_MODE"
+    onValueChange={(value) => {
+        writeConfig('GRID_GRADIENT_SHADER_NEIGHBOR_MODE', 'gridGradientShaderNeighborMode', value);
+    }}
+/>
 
 <PaxSettingsRangeRow
     label="Shader Mark Softness"
@@ -354,7 +411,11 @@
     output={shaderFieldFxActive ? shaderEdgeAlphaBoost.toFixed(2) : 'inactive'}
     settingConfigKey="GRID_GRADIENT_SHADER_EDGE_ALPHA_BOOST"
     onInput={(value) => writeConfig('GRID_GRADIENT_SHADER_EDGE_ALPHA_BOOST', 'gridGradientShaderEdgeAlphaBoost', value)} />
+</div>
+{/if}
 
+{#if showModule('borders')}
+<div class="module-block">
 <div class="sub-heading">Borders</div>
 
 <PaxSettingsToggleRow
@@ -391,8 +452,26 @@
         writeConfig('GRID_GRADIENT_BORDER_DOT_STYLE', 'gridGradientBorderDotStyle', value);
     }}
 />
+</div>
+{/if}
 
 <style>
+
+    .module-head {
+        display: flex;
+        justify-content: flex-end;
+        margin: 0 0 var(--pax-space-2);
+    }
+
+    .module-block {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .module-block:first-of-type .sub-heading:first-child {
+        margin-top: 0;
+    }
 
     .sub-heading {
         margin: var(--pax-space-3) 0 var(--pax-gap-xs);

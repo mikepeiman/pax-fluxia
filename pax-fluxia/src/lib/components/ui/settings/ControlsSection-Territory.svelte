@@ -1461,57 +1461,10 @@
   </div>
 {/if}
 
-{#if showStylesView && resolveActiveStyleId() === "perimeter_field"}
-  <div class="engine-control-group territory-module-card">
-    <div class="territory-card__header">
-      <h4 class="axis-card-title">Perimeter Field (Experimental)</h4>
-    </div>
-    <PerimeterFieldTuning {panel} {updatePanel} />
-    <TerritorySurfaceStyleTuning
-      {panel}
-      onUpdate={debouncedConfigUpdate}
-      sectionHeading="Style"
-      fillHelp="Perimeter Field uses the shared territory surface controls for fill color energy. Hue stays player-owned; adjust saturation, lightness, alpha, or disable fill entirely."
-      borderHelp="Perimeter Field borders are rendered through the shared territory border surface. Use this for width, saturation, lightness, alpha, or disable borders entirely."
-      activeSection={resolveActiveStyleSubsection()} />
-  </div>
-{/if}
-
-{#if showStylesView && isCellGridStyle()}
-  <div class="engine-control-group territory-module-card">
-    <div class="territory-card__header">
-      <h4 class="axis-card-title">
-        {isEmberLatticeStyle()
-          ? "Ember Lattice"
-          : isCellGridPhaseEdgesStyle()
-            ? "Phase Edges"
-          : "Cell Grid (Experimental)"}
-      </h4>
-    </div>
-    <CellGridTuning {panel} {updatePanel} />
-    <TerritorySurfaceStyleTuning
-      {panel}
-      onUpdate={debouncedConfigUpdate}
-      sectionHeading="Style"
-      fillHelp="Cell Grid uses the shared territory surface controls for fill color energy. Hue stays player-owned; adjust saturation, lightness, alpha, or disable fill entirely."
-      borderHelp="Cell Grid borders are rendered through the shared territory border surface. Use this for width, saturation, lightness, alpha, or disable borders entirely."
-      activeSection={resolveActiveStyleSubsection()}
-      styleFamily={isEmberLatticeStyle()
-        ? "ember_lattice"
-        : isCellGridPhaseEdgesStyle()
-          ? "phase_edges"
-          : "cell_grid"} />
-  </div>
-{/if}
-
-{#if showStylesView && isGridGradientStyle()}
-  <div class="engine-control-group territory-module-card">
-    <div class="territory-card__header">
-      <h4 class="axis-card-title">Grid Gradient (Experimental)</h4>
-    </div>
-    <GridGradientTuning {panel} {updatePanel} />
-  </div>
-{/if}
+<!-- Per-module style cards (Perimeter / Cell Grid / Grid Gradient) removed:
+     they only rendered in the unused view="all" path and exactly duplicated the
+     single style-card system in block D below (supports* cards). Block D is the
+     subsection-aware, finish-aware, richer surface and is the sole style home. -->
 
 </div>
 </div>
@@ -1701,7 +1654,7 @@
           onUpdate={debouncedConfigUpdate}
           sectionHeading={null}
           activeSection={resolvedStyleSubsection()}
-          showFinishSection={resolveActiveStyleId() === "perimeter_field"}
+          showFinishSection={false}
           styleFamily={isEmberLatticeStyle()
             ? "ember_lattice"
             : isCellGridPhaseEdgesStyle()

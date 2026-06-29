@@ -522,18 +522,6 @@
         return 'control';
     }
 
-    function currentFrontierBorderGeometryMode():
-        | 'shared_edge'
-        | 'contour_matched' {
-        const raw =
-            panel.territoryFrontierBorderGeometryMode ??
-            GAME_CONFIG.TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE ??
-            (isEmberLatticeMode()
-                ? cellGridPhaseEdgesModeDefaults.TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE
-                : 'shared_edge');
-        return raw === 'contour_matched' ? 'contour_matched' : 'shared_edge';
-    }
-
     function currentFrontierPhaseSampling(): 'nearest' | 'linear' {
         const raw =
             panel.territoryFrontierPhaseSampling ??
@@ -591,19 +579,6 @@
         // (Phase Edges, Ember, Phase Field) — not Ember-only. The only real
         // requirement is the square distribution the shader-band/contour paths need.
         return currentDistribution() === 'square';
-    }
-
-    function isControlFrontierTechnique(): boolean {
-        return currentFrontierTechnique() === 'control';
-    }
-
-    function canUseControlFrontierBorderGeometry(): boolean {
-        return (
-            isControlFrontierTechnique() &&
-            currentDistribution() === 'square' &&
-            currentBorderMode() === 'territory_edge' &&
-            currentBorderBlend()
-        );
     }
 
     function isShaderFrontierTechnique(): boolean {
@@ -877,52 +852,12 @@
             writeConfig('CELL_GRID_EDGE_TRIM_PX', 'cellGridEdgeTrimPx', value);
         }}
     />
-{:else if isEmberLatticeMode()}
-<PaxSettingsRangeRow
-    label="Border Chaikin Passes"
-    note="Rounds territory-edge boundaries for the control frontier path."
-    value={currentBorderChaikinPasses()}
-    min={0}
-    max={4}
-    step={1}
-    output={`${currentBorderChaikinPasses()}`}
-    disabled={!isControlFrontierTechnique() || currentBorderMode() !== 'territory_edge'}
-    settingConfigKey="CELL_GRID_BORDER_CHAIKIN_PASSES"
-    onInput={(value) => {
-        writeConfig('CELL_GRID_BORDER_CHAIKIN_PASSES', 'cellGridBorderChaikinPasses', value);
-    }}
-/>
-
-<PaxSettingsRangeRow
-    label="Shared Edge Smoothing"
-    note="Additional shared-edge softening for the straight control border path."
-    value={panel.cellGridEdgeSmoothingPasses ?? GAME_CONFIG.CELL_GRID_EDGE_SMOOTHING_PASSES ?? 0}
-    min={0}
-    max={4}
-    step={1}
-    output={`${panel.cellGridEdgeSmoothingPasses ?? GAME_CONFIG.CELL_GRID_EDGE_SMOOTHING_PASSES ?? 0}`}
-    disabled={!canUseControlFrontierBorderGeometry() || currentFrontierBorderGeometryMode() !== 'shared_edge'}
-    settingConfigKey="CELL_GRID_EDGE_SMOOTHING_PASSES"
-    onInput={(value) => {
-        writeConfig('CELL_GRID_EDGE_SMOOTHING_PASSES', 'cellGridEdgeSmoothingPasses', value);
-    }}
-/>
-
-<PaxSettingsRangeRow
-    label="Shared Edge Trim"
-    note="Endpoint trim for open shared-edge chains."
-    value={panel.cellGridEdgeTrimPx ?? GAME_CONFIG.CELL_GRID_EDGE_TRIM_PX ?? 0}
-    min={0}
-    max={12}
-    step={0.5}
-    output={`${(panel.cellGridEdgeTrimPx ?? GAME_CONFIG.CELL_GRID_EDGE_TRIM_PX ?? 0).toFixed(1)}px`}
-    disabled={!canUseControlFrontierBorderGeometry() || currentFrontierBorderGeometryMode() !== 'shared_edge'}
-    settingConfigKey="CELL_GRID_EDGE_TRIM_PX"
-    onInput={(value) => {
-        writeConfig('CELL_GRID_EDGE_TRIM_PX', 'cellGridEdgeTrimPx', value);
-    }}
-/>
 {/if}
+<!-- Removed dead `{:else if isEmberLatticeMode()}` edge-shaping branch: it lived
+     inside `{#if isPhaseFieldMode() && showModule('grid')}` so it was unreachable
+     (can't be phase_field AND ember). Ember Lattice's Border Chaikin / Shared Edge
+     Smoothing / Trim are owned solely by TerritorySurfaceStyleTuning's Ember Border
+     Geometry section (the single style home). -->
 </div>
 {/if}
 
