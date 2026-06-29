@@ -217,6 +217,67 @@ Verdict: `KEEP-WITH-FOLLOWUP` for the probes as measurement tools, with caution.
 
 Confidence: medium-high for "not the main cause" on `power_voronoi_runtime.gameplay`; lower for other modes because they only had two-run probes.
 
+## Review Loop 4: Full Player-Route Sweep
+
+Boundary: release benchmark on `/play?bench=1` for baseline, current master, and review branch.
+
+Intent: compare the review branch against the original baseline and current master on the route closest to normal play.
+
+All rows used the large saved map `First Symmetry-6_April 17b`, three runs per row, and post-scenario sentinels confirmed the game canvas was present for every review-branch run.
+
+### Review Branch vs Original Baseline
+
+| Mode and window | p95 frame ms | p99 frame ms | Frames over 33 ms | Commit lag max |
+| --- | ---: | ---: | ---: | ---: |
+| cell_grid.gameplay | 42.3 -> 33.7 | 58.7 -> 57.9 | 49 -> 36 | 21.0 -> 12.7 |
+| cell_grid.transition | 51.0 -> 41.6 | 292.2 -> 167.7 | 107 -> 59 | 18.2 -> 343.1 |
+| ember_lattice.gameplay | 42.9 -> 41.6 | 75.0 -> 42.4 | 166 -> 87 | 10.6 -> 77.9 |
+| ember_lattice.transition | 50.1 -> 41.9 | 216.6 -> 82.5 | 146 -> 73 | 12.6 -> 43.0 |
+| grid_gradient.gameplay | 269.1 -> 167.9 | 275.0 -> 218.2 | 60 -> 52 | 44.2 -> 95.1 |
+| grid_gradient.transition | 299.2 -> 168.1 | 326.8 -> 243.0 | 47 -> 43 | 179.7 -> 503.9 |
+| metaball.gameplay | 24.8 -> 24.8 | 32.6 -> 25.9 | 5 -> 5 | 1.8 -> 1.8 |
+| metaball.transition | 25.0 -> 25.0 | 34.5 -> 33.3 | 9 -> 7 | 1.8 -> 1.9 |
+| perimeter_field.gameplay | 25.2 -> 25.1 | 33.3 -> 31.8 | 7 -> 6 | 2.6 -> 2.6 |
+| perimeter_field.transition | 25.5 -> 25.2 | 41.8 -> 33.9 | 12 -> 9 | 5.1 -> 2.5 |
+| phase_edges.gameplay | 50.1 -> 41.7 | 75.3 -> 49.6 | 153 -> 79 | 13.7 -> 130.9 |
+| phase_edges.transition | 66.1 -> 34.1 | 208.4 -> 48.9 | 132 -> 55 | 10.8 -> 37.7 |
+| phase_field.gameplay | 24.3 -> 24.9 | 50.1 -> 66.8 | 9 -> 22 | 0.5 -> 58.2 |
+| phase_field.transition | 25.0 -> 24.8 | 58.7 -> 75.6 | 14 -> 18 | 0.4 -> 376.4 |
+| power_voronoi_runtime.gameplay | 25.4 -> 25.0 | 33.4 -> 25.7 | 9 -> 7 | 0.9 -> 0.9 |
+| power_voronoi_runtime.transition | 25.3 -> 25.2 | 42.2 -> 33.5 | 11 -> 8 | 0.8 -> 0.7 |
+
+### Review Branch vs Current Master
+
+| Mode and window | p95 frame ms | p99 frame ms | Frames over 33 ms | Commit lag max |
+| --- | ---: | ---: | ---: | ---: |
+| cell_grid.gameplay | 49.3 -> 33.7 | 66.1 -> 57.9 | 48 -> 36 | 14.4 -> 12.7 |
+| cell_grid.transition | 50.6 -> 41.6 | 308.4 -> 167.7 | 106 -> 59 | 17.9 -> 343.1 |
+| ember_lattice.gameplay | 50.5 -> 41.6 | 92.5 -> 42.4 | 172 -> 87 | 139.5 -> 77.9 |
+| ember_lattice.transition | 50.7 -> 41.9 | 217.3 -> 82.5 | 162 -> 73 | 12.2 -> 43.0 |
+| grid_gradient.gameplay | 275.6 -> 167.9 | 350.5 -> 218.2 | 58 -> 52 | 38.5 -> 95.1 |
+| grid_gradient.transition | 316.4 -> 168.1 | 318.5 -> 243.0 | 54 -> 43 | 55.9 -> 503.9 |
+| metaball.gameplay | 24.8 -> 24.8 | 26.2 -> 25.9 | 6 -> 5 | 1.8 -> 1.8 |
+| metaball.transition | 25.2 -> 25.0 | 41.3 -> 33.3 | 9 -> 7 | 1.9 -> 1.9 |
+| perimeter_field.gameplay | 25.0 -> 25.1 | 25.9 -> 31.8 | 9 -> 6 | 3.6 -> 2.6 |
+| perimeter_field.transition | 25.2 -> 25.2 | 33.2 -> 33.9 | 8 -> 9 | 2.4 -> 2.5 |
+| phase_edges.gameplay | 50.1 -> 41.7 | 83.5 -> 49.6 | 178 -> 79 | 149.0 -> 130.9 |
+| phase_edges.transition | 66.4 -> 34.1 | 208.3 -> 48.9 | 154 -> 55 | 12.0 -> 37.7 |
+| phase_field.gameplay | 24.1 -> 24.9 | 25.2 -> 66.8 | 7 -> 22 | 0.5 -> 58.2 |
+| phase_field.transition | 24.9 -> 24.8 | 124.9 -> 75.6 | 13 -> 18 | 0.3 -> 376.4 |
+| power_voronoi_runtime.gameplay | 25.1 -> 25.0 | 33.8 -> 25.7 | 7 -> 7 | 0.9 -> 0.9 |
+| power_voronoi_runtime.transition | 25.2 -> 25.2 | 41.3 -> 33.5 | 10 -> 8 | 1.0 -> 0.7 |
+
+Observation:
+
+- The player-route benchmark still does not reproduce "worse in every mode" in raw frame timing.
+- Phase Field is a real regression candidate: p99 and frames over 33 ms are worse than both baseline and current master in gameplay, and frames over 33 ms are worse in transition.
+- Presentation commit lag is a real regression candidate: several transition rows improved raw frame timing while commit lag became much worse. In plain English, the app may be doing less work per frame but waiting longer before showing the new territory frame.
+- This supports the user's observation more than the raw frame table alone: delayed visible updates can feel worse even when p95/p99 frame timing looks better.
+
+Verdict: `ISOLATE` presentation scheduling and `REVIEW` Phase Field before any keep/revert set is assembled.
+
+Confidence: medium. Three runs per row is enough to prioritize; it is not final attribution.
+
 ## Subagent Findings Integrated
 
 - Transition identity and lifecycle changes have targeted test support and appear directionally valuable. They still need a visual overlap/recapture scenario before a final `KEEP` verdict.
@@ -236,10 +297,48 @@ Confidence: medium-high for "not the main cause" on `power_voronoi_runtime.gamep
 - Human mode switching through the topbar is not covered; benchmark mode switching directly sets the render mode.
 - Dev-server behavior on `localhost:5173` is not covered by release-preview runs. The review prompt prioritizes release builds, but the user's live observation likely came from a dev server.
 
+## Review Loop 5: Human Mode-Switch Path
+
+Plain-English definition: this measures what happens when the player clicks the render-mode buttons in the top bar during a live game. It is different from directly changing the mode through the benchmark bridge because it uses the visible control the player uses.
+
+Boundary: `tools/debug/review-release-gameplay-benchmark.ts` measurement-only scenario `mode_switch`. No product code was changed.
+
+Intent: cover a player-facing transition that the earlier benchmark skipped.
+
+Experiment: release-preview `/play?bench=1`, large saved map `First Symmetry-6_April 17b`, three runs per target mode, original baseline vs current master vs review branch. The source mode is `power_voronoi_runtime` for all targets except switching to Power Voronoi, which starts from Cell Grid.
+
+Plain-English metric definitions:
+
+- `p95/p99/max`: how long frames took during the three-second window after the click. Lower is smoother.
+- `>33`: number of frames slower than about 30 frames per second across the three runs. Lower is smoother.
+- `lag`: delay before a newly prepared territory picture was actually shown on screen. Lower is better; high values can feel like stale or late territory even if frames keep arriving.
+
+| Mode switched to | Source mode | Baseline p95/p99/max/>33/lag | Current master p95/p99/max/>33/lag | Review branch p95/p99/max/>33/lag |
+| --- | --- | ---: | ---: | ---: |
+| Power Voronoi | Cell Grid | 16.7/16.8/33.4/1/0.3 | 16.9/17.7/33.3/0/0.2 | 16.7/17.6/41.7/3/0.3 |
+| Perimeter | Power Voronoi | 17.3/17.7/33.4/2/2.0 | 17.4/17.6/33.3/0/2.3 | 16.8/17.5/25.1/0/2.2 |
+| Metaball | Power Voronoi | 16.5/18.1/34.1/3/0.4 | 8.9/16.7/33.4/1/1.7 | 16.6/16.8/42.1/3/0.4 |
+| Cell Grid | Power Voronoi | 8.8/9.4/25.9/0/0.3 | 9.0/9.4/33.5/1/0.2 | 8.9/16.7/49.9/1/0.3 |
+| Phase Edges | Power Voronoi | 8.9/16.7/33.3/0/0.3 | 8.8/16.7/33.3/0/0.2 | 9.2/24.9/58.8/3/0.4 |
+| Ember Lattice | Power Voronoi | 8.9/9.3/33.3/0/0.2 | 8.9/16.6/25.1/0/0.3 | 33.7/66.3/108.6/36/1.6 |
+| Phase Field | Power Voronoi | 8.7/9.2/25.0/0/0.2 | 8.7/9.3/33.3/0/0.3 | 16.7/42.1/58.0/5/2.1 |
+| Grid Gradient | Power Voronoi | 133.9/141.7/141.7/94/19.8 | 133.1/149.9/149.9/95/17.7 | 84.2/100.0/158.8/59/60.9 |
+
+Observations:
+
+- Switching into Ember Lattice is a confirmed branch regression in this probe: p99 changed from 9.3 ms on the original baseline and 16.6 ms on current master to 66.3 ms on the review branch; slow frames changed from 0 to 36.
+- Switching into Phase Field is a confirmed branch regression in this probe: p99 changed from about 9 ms on both comparison points to 42.1 ms; slow frames changed from 0 to 5.
+- Switching into Phase Edges and Cell Grid also regressed at the tail of the frame distribution, though less severely.
+- Switching into Grid Gradient improved frame timing compared with both comparison points, but the screen-update delay worsened from 19.8 ms baseline and 17.7 ms current master to 60.9 ms on the review branch.
+
+Verdict: `REVIEW` for mode-switch behavior before any keep-set is assembled. This is evidence that the user-facing path has regressions not visible in the earlier direct-mode benchmark.
+
+Confidence: medium. The path is representative because it clicks the actual topbar controls. Three runs per mode are enough to rank risk, not enough to close final attribution.
+
 ## Next Actions
 
 1. Add localStorage seeding and route/visible-state sentinel data to the harness.
-2. Add a human mode-switch scenario that uses the same topbar shortcut path as the player-facing UI.
+2. Isolate the mode-switch regression first, starting with Ember Lattice and Phase Field because they have the clearest branch-only harm.
 3. Run `/play?bench=1` on all primary modes with enough runs for stable p95/p99 before deciding keep/revert.
 4. Isolate scheduling more narrowly: cheap vector modes vs expensive cell modes, gameplay vs capture transition, and input-active vs idle windows.
 5. Count transition snap/fallback reasons in `/play?bench=1` runs.

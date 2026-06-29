@@ -44,6 +44,17 @@ const DEFAULT_MODES = [
     "grid_gradient",
 ] as const;
 
+const TOPBAR_MODE_LABELS: Record<string, { label: string; shortLabel: string }> = {
+    power_voronoi_runtime: { label: "Power Voronoi", shortLabel: "PVV4" },
+    perimeter_field: { label: "Perimeter", shortLabel: "Perimeter" },
+    metaball: { label: "Metaball", shortLabel: "Metaball" },
+    cell_grid: { label: "Cell Grid", shortLabel: "Grid" },
+    phase_edges: { label: "Phase Edges", shortLabel: "Edges" },
+    ember_lattice: { label: "Ember Lattice", shortLabel: "Ember" },
+    phase_field: { label: "Phase Field", shortLabel: "Field" },
+    grid_gradient: { label: "Grid Gradient", shortLabel: "Grad" },
+};
+
 const HOST = "127.0.0.1";
 const ROOT = path.resolve(
     process.env.PAX_REVIEW_TARGET_ROOT?.trim() ||
@@ -633,6 +644,101 @@ async function runTransitionScenario(
     };
 }
 
+function resolveModeSwitchSourceMode(targetMode: string): string {
+    return targetMode === "power_voronoi_runtime"
+        ? "cell_grid"
+        : "power_voronoi_runtime";
+}
+
+async function clickTopbarModeShortcut(
+    client: CdpClient,
+    mode: string,
+): Promise<Record<string, JsonValue>> {
+    const modeLabels = TOPBAR_MODE_LABELS[mode] ?? {
+        label: mode,
+        shortLabel: mode,
+    };
+    return await client.evaluate<Record<string, JsonValue>>(`
+        (() => {
+            const targetLabel = ${JSON.stringify(modeLabels.label)};
+            const targetShortLabel = ${JSON.stringify(modeLabels.shortLabel)};
+            const buttons = Array.from(document.querySelectorAll(
+                ".topbar-modes .mode-shortcut, .pf-hud-topbar__modes .pf-hud-topbar__mode"
+            ));
+            const button = buttons.find((entry) => {
+                const label = entry.querySelector(".mode-shortcut__label, .pf-hud-topbar__mode-label")?.textContent?.trim();
+                const shortLabel = entry.querySelector(".mode-shortcut__short, .pf-hud-topbar__mode-short")?.textContent?.trim();
+                const text = entry.textContent?.replace(/\\s+/g, " ").trim() ?? "";
+                return label === targetLabel
+                    || shortLabel === targetShortLabel
+                    || text.includes(targetLabel)
+                    || text.includes(targetShortLabel);
+            });
+            if (!(button instanceof HTMLButtonElement)) {
+                return {
+                    clicked: false,
+                    targetLabel,
+                    targetShortLabel,
+                    available: buttons.map((entry) => ({
+                        label: entry.querySelector(".mode-shortcut__label, .pf-hud-topbar__mode-label")?.textContent?.trim() ?? "",
+                        shortLabel: entry.querySelector(".mode-shortcut__short, .pf-hud-topbar__mode-short")?.textContent?.trim() ?? "",
+                        text: entry.textContent?.replace(/\\s+/g, " ").trim() ?? "",
+                    })),
+                };
+            }
+            button.click();
+            return {
+                clicked: true,
+                targetLabel,
+                targetShortLabel,
+                buttonText: button.textContent?.replace(/\\s+/g, " ").trim() ?? "",
+            };
+        })()
+    `);
+}
+
+async function runModeSwitchScenario(
+    client: CdpClient,
+    mode: string,
+): Promise<Record<string, JsonValue>> {
+    const sourceMode = resolveModeSwitchSourceMode(mode);
+    const prep = await prepareMode(client, sourceMode);
+    const beforeSwitch = await client.evaluate<Record<string, JsonValue>>(`
+        (async () => await window.__PAX_BENCH__.getStateSummary())()
+    `);
+    const perfCursor = await beginPerfWindow(client);
+    const clickResult = await clickTopbarModeShortcut(client, mode);
+    if (!clickResult.clicked) {
+        throw new Error(`Could not click topbar mode shortcut for ${mode}: ${JSON.stringify(clickResult)}`);
+    }
+    const samples = await client.evaluate<FrameSample[]>(
+        collectFrameExpression(FRAME_MS, 0),
+    );
+    const waitResult = await client.evaluate<Record<string, JsonValue>>(`
+        (async () => await window.__PAX_BENCH__.waitForRenderMode(${JSON.stringify(mode)}))()
+    `);
+    const perf = await collectPerfWindow(client, perfCursor);
+    const finalState = await client.evaluate<Record<string, JsonValue>>(`
+        (async () => await window.__PAX_BENCH__.getStateSummary())()
+    `);
+    const finalSchedulerSnapshot = await collectSchedulerSnapshot(client);
+    const routeSentinel = await collectRouteSentinel(client);
+    return {
+        prep: prep as JsonValue,
+        sourceMode,
+        targetMode: mode,
+        beforeSwitch: beforeSwitch as JsonValue,
+        clickResult: clickResult as JsonValue,
+        waitResult: waitResult as JsonValue,
+        finalState: finalState as JsonValue,
+        finalSchedulerSnapshot,
+        routeSentinel,
+        frames: summarizeSamples(samples) as JsonValue,
+        perf,
+        sampleCount: samples.length,
+    };
+}
+
 async function main(): Promise<void> {
     if (!existsSync(CLIENT_DIR)) {
         throw new Error(`Missing client directory: ${CLIENT_DIR}`);
@@ -740,6 +846,8 @@ async function main(): Promise<void> {
                                       mode,
                                       scenario === "transition_diagnostic",
                                   )
+                                : scenario === "mode_switch"
+                                  ? await runModeSwitchScenario(client, mode)
                                 : await runGameplayScenario(client, mode);
                         if (runIndex === 0) {
                             await captureScreenshot(
