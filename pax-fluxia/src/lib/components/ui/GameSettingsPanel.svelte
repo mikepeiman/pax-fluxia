@@ -938,40 +938,15 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             | string
             | null,
     );
-    const TERRITORY_MODE_SECTION_BY_RENDER_MODE: Partial<
-        Record<string, SectionId>
-    > = {
-        phase_field: "territory_phase_field",
-        phase_edges: "territory_phase_edges",
-        ember_lattice: "territory_ember_lattice",
-    };
-
-    const TERRITORY_MODE_SECTION_IDS = new Set<SectionId>([
-        "territory_phase_field",
-        "territory_phase_edges",
-        "territory_ember_lattice",
-    ]);
-
-    let activeTerritoryModeSectionId = $derived(
-        activeTerritoryRenderMode
-            ? (TERRITORY_MODE_SECTION_BY_RENDER_MODE[
-                  activeTerritoryRenderMode
-              ] ?? null)
-            : null,
-    );
-
+    // UNIFIED SURFACE: territory section chips are a STABLE set that never
+    // changes with the active render mode. The per-mode swap (showing only the
+    // section matching TERRITORY_RENDER_MODE) is removed — every territory
+    // subsection chip (Render Mode, Topology, Styles, the per-mode style
+    // sections, Frontier FX) is always available; selecting a chip shows those
+    // controls whether or not they match the live render mode. isSectionVisible
+    // now filters by TIER only.
     function isSectionVisible(section: SettingsSectionDefinition): boolean {
-        if (TIER_RANK[section.tier] > TIER_RANK[activeTier]) return false;
-        if (TERRITORY_MODE_SECTION_IDS.has(section.id as SectionId)) {
-            return section.id === activeTerritoryModeSectionId;
-        }
-        if (section.id === "frontier_fx") {
-            return (
-                activeTerritoryRenderMode === "phase_edges" ||
-                activeTerritoryRenderMode === "ember_lattice"
-            );
-        }
-        return true;
+        return TIER_RANK[section.tier] <= TIER_RANK[activeTier];
     }
     let visibleSections = $derived(
         sections.filter((section) => isSectionVisible(section)),
@@ -1107,13 +1082,12 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     ): SubsectionChip[] {
         const subsections = [...((section.subsections ?? []) as SubsectionChip[])];
         if (section.id !== "territory_styles") return subsections;
-        if (
-            activeTerritoryRenderMode === "cell_grid" ||
-            activeTerritoryRenderMode === "phase_edges"
-        ) {
-            return subsections.filter((subsection) => subsection.id !== "finish");
-        }
-        return subsections;
+        // Finish (GPU Blur / Blur-affects-borders / Border Chaikin) writes
+        // METABALL_* keys read only by the metaball renderer — dead for the
+        // cell-grid / perimeter / runtime / grid-gradient families. The styles
+        // view (block D) exposes no Finish surface for any of those, so the chip
+        // would always be empty. Drop it from the stable Styles subsection set.
+        return subsections.filter((subsection) => subsection.id !== "finish");
     }
 
     let sectionSubsections = $derived.by(() =>
@@ -1478,7 +1452,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         {/each}
                     </div>
                 {/if}
-                {#if !showAllSections && activePanel && !isUtilityPanelId(activePanel.id) && (sectionSubsections[activePanel.id]?.length ?? 0) > 0}
+                {#if !showAllSections && activePanel && !isUtilityPanelId(activePanel.id) && (sectionSubsections[activePanel.id]?.length ?? 0) > 1}
                     {@const sec = activePanel}
                     <div class="section-subnav section-subnav--secondary">
                         <PaxHudButton

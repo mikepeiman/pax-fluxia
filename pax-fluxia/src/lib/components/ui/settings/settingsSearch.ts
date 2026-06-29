@@ -177,29 +177,9 @@ function resolveSectionTarget(
             if (record.key.startsWith("GRID_GRADIENT_")) {
                 return { sectionId: "render" };
             }
-            if (
-                activeTerritoryRenderMode === "ember_lattice" &&
-                (record.key.startsWith("CELL_GRID_") ||
-                    record.key.startsWith("METABALL_") ||
-                    record.key.startsWith("VORONOI_"))
-            ) {
-                return { sectionId: "territory_ember_lattice" };
-            }
-            if (
-                activeTerritoryRenderMode === "phase_edges" &&
-                (record.key.startsWith("CELL_GRID_") ||
-                    record.key.startsWith("METABALL_") ||
-                    record.key.startsWith("VORONOI_"))
-            ) {
-                return { sectionId: "territory_phase_edges" };
-            }
-            if (
-                activeTerritoryRenderMode === "phase_field" &&
-                (record.key.startsWith("CELL_GRID_") ||
-                    record.key.startsWith("METABALL_"))
-            ) {
-                return { sectionId: "territory_phase_field" };
-            }
+            // UNIFIED SURFACE: cell-grid / metaball / voronoi surface records
+            // route to the stable Styles section regardless of the active render
+            // mode (no per-mode chip targeting — the chip set never changes).
             return { sectionId: "territory_styles" };
         case "timing":
         case "rules":
@@ -287,40 +267,10 @@ function buildSectionEntries(
     activeTerritoryRenderMode?: string | null,
 ): SearchIndexEntry[] {
     const resolvedRecords = getResolvedSettingRecords(activeTerritoryRenderMode);
+    // UNIFIED SURFACE: territory sections are a stable set that never changes
+    // with the active render mode, so search surfaces all of them regardless of
+    // the live mode (matching the always-present chip nav). No per-mode gating.
     return SETTINGS_SECTIONS.flatMap((section) => {
-        if (
-            section.id === "territory_phase_field" &&
-            activeTerritoryRenderMode !== "phase_field"
-        ) {
-            return [];
-        }
-        if (
-            section.id === "territory_phase_edges" &&
-            activeTerritoryRenderMode !== "phase_edges"
-        ) {
-            return [];
-        }
-        if (
-            section.id === "territory_ember_lattice" &&
-            activeTerritoryRenderMode !== "ember_lattice"
-        ) {
-            return [];
-        }
-        if (
-            section.id === "territory_styles" &&
-            (activeTerritoryRenderMode === "phase_field" ||
-                activeTerritoryRenderMode === "phase_edges" ||
-                activeTerritoryRenderMode === "ember_lattice")
-        ) {
-            return [];
-        }
-        if (
-            section.id === "frontier_fx" &&
-            activeTerritoryRenderMode !== "ember_lattice" &&
-            activeTerritoryRenderMode !== "cell_grid"
-        ) {
-            return [];
-        }
         const subsectionLabels = (section.subsections ?? []).map((subsection) => subsection.label);
         const sectionRecords = resolvedRecords.filter((record) => record.sectionId === section.id);
         const sectionText = [
