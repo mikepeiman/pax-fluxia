@@ -80,7 +80,16 @@ User-reported issues + items held in context. Keep updated as they're fixed.
    matching). Default → linear. Fixes EDGES + EMBER. Phase Sampling UI control now
    vestigial (render forces linear) — remove next. Also: spacing unified to ONE
    "Cell Spacing" (`7566068a3`).
-   **FIELD (phase_field) STILL OPEN — different family, no phase-band path.**
+   **2026-06-29 — EDGES/EMBER + FIELD smooth-fill resolved (pending user visual verify):**
+   (a) The shader-band push was WRONG (inverted diagnosis). User confirmed Edges/Ember
+   match with the **Control** technique (+ contour_matched border they default to), not
+   shader-band. Reverted the default to 'control' (`79d278dba`).
+   (b) FIELD: I had its fill/border INVERTED in code-reasoning. FIELD's BORDER was already
+   smooth (constraint-geometry centerlines); its FILL was the cell-stepped one. FIXED
+   (`3b62ef044`): FIELD's settled fill now draws from the same geometry `territoryRegions`
+   (per-owner) that the border's `displayFrontierPolylines` come from → matches by
+   construction. Post-mortem: `.agent/docs/project/post-mortems/2026-06-29_field-fill-vs-border-inversion-postmortem.md`.
+   **FIELD (phase_field) — historical context below was the WRONG framing; see 2026-06-29 above.**
    CellGridPhaseFieldFamily paints raster cells (`drawFilledGridCell`) MASKED by the
    smooth boundary geometry (`drawGeometryFill` of region rings), so its OUTER edge
    is already smooth + border-flush (resolveFillMaskGeometry no-op), but INTERNAL
