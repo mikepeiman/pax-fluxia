@@ -2260,7 +2260,32 @@ export class CellGridPhaseFieldFamily implements RenderFamily {
             paintMs = performance.now() - paintStartMs;
         } else {
             const paintStartMs = performance.now();
-            if (input.renderer) {
+            if (useConstraintAlignedCenterlineBorders) {
+                // SETTLED (steady) FIELD fill: draw the smooth per-owner regions from the
+                // SAME constraint geometry the smooth border uses (territoryRegions share
+                // their boundary with displayFrontierPolylines), so the fill EDGES MATCH the
+                // border instead of showing cell-grid steps. Cells remain the conquest-
+                // transition animation (the hasTransition branch). Gated on the smooth-border
+                // flag so the fill and border are always the same geometry source: when the
+                // border is the cell-edge path instead, the cell fill below is kept.
+                drawGeometryFill({
+                    graphics: this.baseGraphics,
+                    geometry: currentFillGeometry,
+                    resolveColor: (ownerId: string) => {
+                        const idx = ownerColorIdx.get(ownerId);
+                        return idx === undefined ? 0x000000 : fillHexByColorIdx[idx];
+                    },
+                    alpha: fillAlpha,
+                });
+                drawGeometryFill({
+                    graphics: this.baseMaskGraphics,
+                    geometry: currentFillGeometry,
+                    resolveColor: () => 0xffffff,
+                    alpha: 1,
+                });
+                this.baseGraphics.visible = true;
+                paintedCells = currentFillGeometry.territoryRegions.length;
+            } else if (input.renderer) {
                 this.ensureTextures(input.world.width, input.world.height);
                 const nextTextureSig = [
                     cached.planKey,
