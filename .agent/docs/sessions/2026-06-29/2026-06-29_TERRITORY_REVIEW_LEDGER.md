@@ -681,3 +681,19 @@ Observation: disabling transition sessions is not a sufficient fix. Pending wait
 Verdict: `INCONCLUSIVE / DO NOT REVERT BROADLY`. Transition sessions may carry correctness value and are not proven as the main performance cause.
 
 Next action: product-phase plan should keep prompt visible conquest updates, preserve correct transition identity, and move or precompute expensive Phase Edges transition setup instead of hiding it behind stale display.
+
+## Current Remediation Plan
+
+Timestamp: 2026-06-29T17:46:22-04:00
+
+Documented in: `.agent/docs/sessions/2026-06-29/2026-06-29_TERRITORY_REVIEW_PHASE0_UPDATE_18_REMEDIATION_PLAN.md`
+
+Plan summary:
+
+1. Remove stale territory display first.
+2. Keep exact transition identity unless a direct isolated measurement proves harm.
+3. Make Phase Edges / Ember Lattice transition setup non-blocking; show correct current territory immediately if the fancy transition plan is not ready.
+4. Measure Pixi render cost separately from transition setup.
+5. Reassemble a clean keep-set and remeasure all primary modes.
+
+Current review conclusion: the branch's most proven user-visible regression is delayed territory display, not changed game rules and not physical-map checking.
