@@ -613,3 +613,37 @@ Observation: reverting the renderer-file split made all four tested rows worse w
 Verdict: `KEEP` for the renderer-file part of `ae471a6c2`. It is not the cause of the Phase Edges / Ember Lattice immediate-display cost and appears to reduce it.
 
 Next action: test transition lifecycle or presentation wiring next. Do not broad-revert the fill/border split.
+
+## Review Loop 14: Correction To Fill/Border Split Phase/Ember Verdict
+
+Timestamp: 2026-06-29T17:39:52-04:00
+
+Correction: the strong `KEEP` verdict from Review Loop 13 is downgraded to `INCONCLUSIVE / INVALIDATED` for Phase Edges and Ember Lattice.
+
+Observation: the user-facing `phase_edges` and `ember_lattice` modes are registered through `CellGridPhaseEdgesFamily.ts`, not the plain `CellGridFamily.ts` file that was rolled back in Review Loop 13.
+
+Instrument check: after restoring `CellGridFamily.ts`, the same split-kept disposable state was rerun.
+
+Artifacts:
+
+- First split-kept run: `C:\Users\mikep\.codex\worktrees\territory-isolate-revert-conquest-background-20260629\.agent-harness\metrics\review-release\review-release-gameplay-benchmark-2026-06-29T21-19-06-056Z.json`
+- Renderer-file rollback run: `C:\Users\mikep\.codex\worktrees\territory-isolate-revert-conquest-background-20260629\.agent-harness\metrics\review-release\review-release-gameplay-benchmark-2026-06-29T21-28-43-093Z.json`
+- Split-kept rerun: `C:\Users\mikep\.codex\worktrees\territory-isolate-revert-conquest-background-20260629\.agent-harness\metrics\review-release\review-release-gameplay-benchmark-2026-06-29T21-37-00-606Z.json`
+
+Focused comparison:
+
+| Row | First split-kept p95/p99/worst | Renderer rollback p95/p99/worst | Split-kept rerun p95/p99/worst |
+| --- | ---: | ---: | ---: |
+| Ember Lattice gameplay | 41.7 / 50.1 / 133.3ms | 58.3 / 91.4 / 175.0ms | 59.5 / 74.9 / 142.0ms |
+| Ember Lattice transition | 50.0 / 91.7 / 183.4ms | 59.1 / 133.5 / 175.5ms | 58.8 / 133.3 / 183.8ms |
+| Phase Edges gameplay | 33.4 / 50.0 / 133.2ms | 49.2 / 66.7 / 208.1ms | 49.9 / 50.2 / 209.0ms |
+| Phase Edges transition | 33.3 / 83.4 / 108.4ms | 58.8 / 141.9 / 191.7ms | 58.1 / 141.3 / 216.4ms |
+
+Conclusion: the Review Loop 13 Phase/Ember attribution does not meet the isolation standard. The prior result was likely benchmark instability or an indirect build/runtime effect, not proof that `CellGridFamily.ts` caused the Phase/Ember difference.
+
+Corrected verdict:
+
+- `ae471a6c2` remains `KEEP-WITH-FOLLOWUP` for plain Cell Grid only.
+- Phase Edges and Ember Lattice require a new isolation pass against `CellGridPhaseEdgesFamily.ts`.
+
+Next action: inspect and isolate the `CellGridPhaseEdgesFamily.ts` transition-plan path. Perf timers already point to one-time transition setup work such as `territory.phaseEdges.buildPlanForCapturedSession` and `territory.geometry0319.compute`.
