@@ -158,7 +158,52 @@ PerfScenarioRunner; SettingsDumpDiagnosticsControls; TerritoryEngineTraceDiagnos
 PerimeterFieldDiagnosticsControls; Diagnostics "mode-diagnostics" buries 2 real toggles under
 hundreds of read-only lines.
 
-## 8. Plumbing (settingsDefs / panelSync) — [pending agent 5]
+## 8. Plumbing (settingsDefs / panelSync)
+- **Map:** `PANEL_CONFIG_MAP` (settingsDefs.ts:176-783) → `RESOLVED_PANEL_CONFIG_MAP` +
+  `CONFIG_TO_PANEL_KEY`. Write: `setSetting`→`applyMappedSetting`→`GAME_CONFIG[key]`
+  (settingsState.ts). Read: `syncPanelFromConfig` (panelSync.ts). Inverse transform only for
+  `defense`↔`AGGRESSOR_ADVANTAGE`.
+- **⚠ GAME_CONFIG Proxy `set` is UNGUARDED** (game.config.ts:879) — writing a non-existent
+  configKey silently adds + debounce-persists junk. Ghost keys are actively harmful. A
+  `prop in target` guard should be added — but that's a core-config change with theme-roundtrip
+  risk; do it carefully/separately, NOT as a blind drive-by.
+- **12 genuinely dead controls (written, never read by render/engine):** `MINIMUM_DAMAGE`
+  (engine hardcodes 1 — value discarded), `OVERWHELM_THRESHOLD`, `STAR_SYSTEM_SCALE`,
+  `STAR_GLOW_LAYERS`, `STAR_RING_OFFSET`, `STAR_LABEL_OFFSET_X/Y`, `PIXEL_BLEND_POWER`,
+  `VORONOI_RESOLUTION`, `VORONOI_EDGE_BLEND`, `TERRITORY_MORPH_CONTROL_POINTS`,
+  `TERRITORY_ENGINE_HYBRID_PLAN`, `CONNECTION_MAX_DISTANCE`. Remove the CONTROLS; KEEP the
+  config keys (they're in theme catalogs `categoryThemes.ts`/`themePresets.ts` for round-trip).
+- **Ghost keys in PANEL_CONFIG_MAP:** `TERRITORY_FILL_TRANSITION` (stale alias of `_MODE`) →
+  remove; `MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS` (no default) → verify/remove.
+- **Render-mode dual mechanism:** modern `TERRITORY_RENDER_MODE` (string id) vs legacy boolean
+  family flags (`TERRITORY_VORONOI/METABALL/PIXEL/GRAPH/CONTOUR/POWER_VORONOI/PVV3/
+  DISTANCE_FIELD/MODIFIED_VORONOI`, driven by `selectTerritory()`/`STYLE_TO_BOOLEAN`).
+  `TERRITORY_MODIFIED_VORONOI` has 0 consumers → drop. The booleans are the redundant layer
+  the unified-chip refactor collapses into `TERRITORY_RENDER_MODE` (migration hook exists:
+  `normalizeTerritoryRenderModeId`). Removing controls needs the delete-old-key migration pattern.
+- **Persistence:** panel blob `pax-fluxia-panel-settings` + GAME_CONFIG auto-save (dual; can
+  drift); visuals/audio/anim-lock/tier separate keys; migrations run every load.
+
+## 8b. Confidence tiers for execution (so the one-shot is safe)
+- **TIER A — high confidence, svelte-check/test-verifiable, do now:** kill Preset Rows
+  (CellGridTuning); delete `{#if false}` (CST L1536-1640); remove dead gates
+  `showRendererModule`/`showSystemModule` + dead scaffolding (activeSystemModule/
+  setActiveSystemModule/systemModuleOptions/rendererModuleOptions) + dead import
+  (TerritoryGeometrySourceTuning in CST); collapse the in-file double-rendered edge controls
+  (CellGridTuning); remove ghost key `TERRITORY_FILL_TRANSITION`; gate Finish to metaball;
+  drop `TERRITORY_MODIFIED_VORONOI`; delete unused `SliderRow.svelte` + orphaned
+  `PerimeterFieldDiagnosticsControls.svelte` (after import re-check).
+- **TIER B — medium, structural but well-mapped, verify-after:** collapse style cards block
+  C→D (delete CST L1644-1694); de-dup CellGridTuning↔TerritorySurfaceStyleTuning cell-paint to
+  one home; remove the 12 dead controls; remove dead `TerritoryGeometrySourceTuning` render +
+  the frozen geometry-source control; resolve same-key conflicts (ORBIT_DENSITY,
+  ARROW_LENGTH_FRACTION, AGGRESSOR_ADVANTAGE) to one canonical surface; Timing "End Settle"
+  (add key to ANIM_SLIDERS if wanted, else delete block); merge single-item chips.
+- **TIER C — high risk blind, REQUIRES render verification (harness or user):** the unified
+  always-present render-mode chip surface (kill per-mode swap in isSectionVisible + unify
+  settingsSearch); total chip-gating via data-subsection-id across all sections; the
+  GridGradientTuning chipping; Ships/Audio/Diagnostics chip-splitting; CategoryThemeBar orphan
+  decision; collapsing the boolean family flags into TERRITORY_RENDER_MODE (needs migration).
 
 ## 9. Execution plan (calibrated to one-shot + no live verify)
 **Principle:** maximize value, minimize blind risk. Verified, reversible per-phase commits.
