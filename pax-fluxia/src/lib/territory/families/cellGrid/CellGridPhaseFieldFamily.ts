@@ -2321,9 +2321,20 @@ export class CellGridPhaseFieldFamily implements RenderFamily {
                     if (proximity <= 0) continue;
                     const frontierHexBase =
                         frontierHexByColorIdx[nextIdx] ?? fillHexByColorIdx[nextIdx];
+                    // Conquest wave FX (one-shot, gated by the frontier-highlight toggle):
+                    // leading-edge GLOW + flip FLASH — a whiteness + alpha boost that peaks
+                    // at the active flip front (proximity≈1, sharpened via proximity²) and
+                    // fades inward. It tracks the wave naturally (no time term, so no paint-
+                    // signature flicker). Purely additive on the highlight overlay; the
+                    // corrected smooth fill/border geometry is untouched.
+                    const frontierGlow = proximity * proximity;
                     const frontierHex = borderBlend
-                        ? blendColors(frontierHexBase, 0xffffff, 0.18)
-                        : frontierHexBase;
+                        ? blendColors(
+                              frontierHexBase,
+                              0xffffff,
+                              clamp01(0.18 + frontierGlow * 0.5),
+                          )
+                        : blendColors(frontierHexBase, 0xffffff, frontierGlow * 0.3);
                     const { nextAlpha } = computeDualPassBlendAlphas({
                         progress: easedProgress,
                         flipTime,
@@ -2334,7 +2345,8 @@ export class CellGridPhaseFieldFamily implements RenderFamily {
                     });
                     const alpha = clamp01(
                         Math.max(nextAlpha, proximity * borderAlpha * frontierAlphaMult) *
-                            frontierAlphaMultiplier,
+                            frontierAlphaMultiplier *
+                            (1 + frontierGlow * 0.3),
                     );
                     if (alpha <= 0) continue;
                     drawFilledGridCell(
