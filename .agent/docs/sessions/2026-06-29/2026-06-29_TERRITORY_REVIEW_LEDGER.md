@@ -388,3 +388,40 @@ Confidence: medium-high that transition screen-update delay is a real branch iss
 4. Isolate scheduling more narrowly: gameplay vs capture transition, input-active vs idle windows, and immediate vs queued territory presentation.
 5. Count transition snap/fallback reasons in `/play?bench=1` runs.
 6. Keep recording results here before any product remediation.
+
+## Review Loop 7: Conquest Presentation Queue Isolation
+
+Timestamp: 2026-06-29T15:48:01-04:00
+
+Plain-English definition: a conquest presentation update is the visible territory change after a star changes owner. A background task is browser work that may run later than visible work. Pending age means a prepared territory picture is waiting before the game shows it.
+
+Boundary: the conquest-presentation part of `d2ac9d771a perf(territory): keep conquest geometry off render frame`, isolated in `GameCanvas.svelte`.
+
+Intent: reduce render-frame spikes by keeping conquest territory work off the immediate render path.
+
+Behavior change: deterministic replay hash stayed unchanged in the isolated revert, so this unit did not change game-rule output in the tested replay.
+
+Fresh three-way measurement: release build, `/play?bench=1`, map `First Symmetry-6_April 17b`, 8 runs, 3000ms measured window, 500ms warmup.
+
+Artifacts:
+
+- Baseline: `C:\Users\mikep\.codex\worktrees\territory-compare-base-20260628\.agent-harness\metrics\review-release\review-release-gameplay-benchmark-2026-06-29T19-35-07-082Z.json`
+- Current master: `C:\Users\mikep\.codex\worktrees\territory-compare-master-current-20260629\.agent-harness\metrics\review-release\review-release-gameplay-benchmark-2026-06-29T19-37-08-692Z.json`
+- Integration branch: `C:\Users\mikep\.codex\worktrees\territory-overnight-integration\pax-fluxia\.agent-harness\metrics\review-release\review-release-gameplay-benchmark-2026-06-29T19-39-12-118Z.json`
+- Isolated revert: `C:\Users\mikep\.codex\worktrees\territory-isolate-revert-conquest-background-20260629\.agent-harness\metrics\review-release\review-release-gameplay-benchmark-2026-06-29T19-45-34-662Z.json`
+
+| Mode | Baseline pending age median/worst | Master pending age median/worst | Integration pending age median/worst | Isolated revert pending age median/worst |
+| --- | ---: | ---: | ---: | ---: |
+| Cell Grid transition | 0 / 0ms | 0 / 0ms | 324.9 / 682.8ms | 0 / 0ms |
+| Phase Field transition | 0 / 0ms | 0 / 0ms | 78.4 / 143.0ms | 0 / 0ms |
+
+| Mode | Integration commit lag median/worst | Isolated revert commit lag median/worst | Integration schedule modes | Isolated revert schedule modes |
+| --- | ---: | ---: | --- | --- |
+| Cell Grid transition | 460.5 / 542.1ms | 6.5 / 21.2ms | immediate, background | immediate |
+| Phase Field transition | 176.2 / 241.5ms | 25.8 / 63.3ms | immediate, background | immediate |
+
+Verdict: `REVERT` for this unit as shipped. The branch was preparing territory changes and then letting them wait before display. Reverting this small unit alone removed the waiting frames in both tested modes and kept the deterministic replay hash unchanged.
+
+Confidence: high for this isolated cause on Cell Grid and Phase Field transitions. Remaining confidence gap: full-mode reassembly still has to prove the final keep-set improves the whole app, not just these two focused rows.
+
+Bookkeeping: next review target remains Unit 12, but split into smaller pieces: `4c847ca20` input-pressure yielding, the remaining intent of `d2ac9d771a`, `e33ba4e1e` conquest flash drawing, and `ae471a6c2` Cell Grid fill/border split.
