@@ -508,3 +508,34 @@ Representative rows:
 Verdict: `REVERT-AND-BACKLOG` as a performance change. The change may be visually acceptable, and it may help a narrow tail case, but it has not earned a place in the keep-set as a core performance improvement.
 
 Bookkeeping: next Unit 12 targets are input-pressure yielding and presentation throttling because those control when visible work is allowed to run and can affect every mode.
+
+## Review Loop 11: Input-Pressure Presentation Isolation
+
+Timestamp: 2026-06-29T17:02:08-04:00
+
+Plain-English definition: input pressure means the browser reports pending user input. Yielding means the render loop delays some visible work until later. Pending age means a prepared territory picture is waiting before it appears.
+
+Boundary: `4c847ca20 perf(territory): yield presentation during input pressure`, tested on the disposable worktree where the proven bad conquest-queue rule was already reverted.
+
+Measurement harness update: added a measurement-only `input_pressure` scenario to `tools/debug/review-release-gameplay-benchmark.ts`. It temporarily forces `navigator.scheduling.isInputPending()` to return true, records that the override worked, then restores it.
+
+Discarded run: `review-release-gameplay-benchmark-2026-06-29T20-44-16-704Z.json` is invalid because the disposable d2 queue-rule revert left one undefined `inputHoldActive` reference in the input-pressure path. I corrected the disposable measurement state and reran.
+
+Behavior change: deterministic replay hash stayed unchanged at `9f6dae73473ad7528eaa767902a9bcac067a3197c5a0315c9e5577d9e9741910`, so this unit did not change game-rule output in the tested replay.
+
+Artifacts:
+
+- 4c kept: `C:\Users\mikep\.codex\worktrees\territory-isolate-revert-conquest-background-20260629\.agent-harness\metrics\review-release\review-release-gameplay-benchmark-2026-06-29T20-50-43-052Z.json`
+- 4c reverted: `C:\Users\mikep\.codex\worktrees\territory-isolate-revert-conquest-background-20260629\.agent-harness\metrics\review-release\review-release-gameplay-benchmark-2026-06-29T20-57-39-608Z.json`
+
+Representative result:
+
+| Row | 4c kept frame p95/p99/worst | 4c kept pending median/worst | 4c reverted frame p95/p99/worst | 4c reverted pending median/worst |
+| --- | ---: | ---: | ---: | ---: |
+| Phase Edges | 8.5 / 16.7 / 33.4ms | 175.5 / 178.9ms | 33.5 / 42.0 / 84.1ms | 0 / 0ms |
+| Ember Lattice | 8.5 / 16.7 / 25.1ms | 173.2 / 176.2ms | 33.4 / 50.0 / 75.0ms | 0 / 0ms |
+| Cell Grid | 16.8 / 17.3 / 25.1ms | 169.7 / 175.8ms | 16.8 / 17.8 / 33.3ms | 0 / 0ms |
+
+Verdict: `REWRITE / ISOLATE`. The unit makes the frame table look better under input pressure, but it does so by delaying visible territory by about 170ms to 180ms. Reverting it removes stale presentation but exposes real render cost in heavy modes.
+
+Bookkeeping: the next target is immediate-presentation render cost in Phase Edges and Ember Lattice. Input-pressure yielding should remain gated until it proves bounded delay and no stale conquest presentation.

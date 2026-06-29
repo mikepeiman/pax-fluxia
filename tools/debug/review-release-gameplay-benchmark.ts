@@ -759,6 +759,116 @@ async function runGameplayScenario(
     };
 }
 
+async function installSyntheticInputPending(
+    client: CdpClient,
+    activeMs: number,
+): Promise<Record<string, JsonValue>> {
+    return await client.evaluate<Record<string, JsonValue>>(`
+        (() => {
+            const activeMs = ${Math.max(1, Math.round(activeMs))};
+            const global = window;
+            const ownDescriptor = Object.getOwnPropertyDescriptor(navigator, "scheduling") ?? null;
+            if (!global.__PAX_REVIEW_INPUT_PENDING_RESTORE__) {
+                global.__PAX_REVIEW_INPUT_PENDING_RESTORE__ = {
+                    hadOwn: Boolean(ownDescriptor),
+                    ownDescriptor,
+                };
+            }
+            const untilMs = performance.now() + activeMs;
+            global.__PAX_REVIEW_INPUT_PENDING_UNTIL_MS__ = untilMs;
+            const syntheticScheduling = {
+                isInputPending: () => performance.now() < global.__PAX_REVIEW_INPUT_PENDING_UNTIL_MS__,
+            };
+            let installed = false;
+            let error = null;
+            try {
+                Object.defineProperty(navigator, "scheduling", {
+                    configurable: true,
+                    enumerable: false,
+                    value: syntheticScheduling,
+                });
+                installed = navigator.scheduling?.isInputPending?.() === true;
+            } catch (caught) {
+                error = caught instanceof Error ? caught.message : String(caught);
+            }
+            return {
+                installed,
+                active: navigator.scheduling?.isInputPending?.() === true,
+                activeMs,
+                untilMs: Number(untilMs.toFixed(3)),
+                hadOwnScheduling: Boolean(ownDescriptor),
+                error,
+            };
+        })()
+    `);
+}
+
+async function restoreSyntheticInputPending(
+    client: CdpClient,
+): Promise<Record<string, JsonValue>> {
+    return await client.evaluate<Record<string, JsonValue>>(`
+        (() => {
+            const global = window;
+            const restore = global.__PAX_REVIEW_INPUT_PENDING_RESTORE__ ?? null;
+            let restored = false;
+            let error = null;
+            try {
+                if (restore?.hadOwn && restore.ownDescriptor) {
+                    Object.defineProperty(navigator, "scheduling", restore.ownDescriptor);
+                } else {
+                    delete navigator.scheduling;
+                }
+                restored = true;
+            } catch (caught) {
+                error = caught instanceof Error ? caught.message : String(caught);
+            }
+            delete global.__PAX_REVIEW_INPUT_PENDING_RESTORE__;
+            delete global.__PAX_REVIEW_INPUT_PENDING_UNTIL_MS__;
+            return {
+                restored,
+                activeAfterRestore: navigator.scheduling?.isInputPending?.() === true,
+                error,
+            };
+        })()
+    `);
+}
+
+async function runInputPressureScenario(
+    client: CdpClient,
+    mode: string,
+): Promise<Record<string, JsonValue>> {
+    const prep = await prepareMode(client, mode);
+    const syntheticInput = await installSyntheticInputPending(
+        client,
+        FRAME_MS + WARMUP_MS + 1000,
+    );
+    const perfCursor = await beginPerfWindow(client);
+    const observation = await client.evaluate<FrameWindowObservation>(
+        collectFrameWindowExpression(FRAME_MS, WARMUP_MS),
+    );
+    const restoreInput = await restoreSyntheticInputPending(client);
+    const samples = observation.frames;
+    const perf = await collectPerfWindow(client, perfCursor);
+    const finalState = await client.evaluate<Record<string, JsonValue>>(`
+        (async () => await window.__PAX_BENCH__.getStateSummary())()
+    `);
+    const finalSchedulerSnapshot = await collectSchedulerSnapshot(client);
+    const routeSentinel = await collectRouteSentinel(client);
+    return {
+        prep: prep as JsonValue,
+        syntheticInput: syntheticInput as JsonValue,
+        restoreInput: restoreInput as JsonValue,
+        finalState: finalState as JsonValue,
+        finalSchedulerSnapshot,
+        routeSentinel,
+        frames: summarizeSamples(samples) as JsonValue,
+        scheduler: summarizeSchedulerSamples(observation.schedulerSamples),
+        perf,
+        sampleCount: samples.length,
+        schedulerSampleCount: observation.schedulerSamples.length,
+    };
+}
+
 async function runTransitionScenario(
     client: CdpClient,
     mode: string,
@@ -1020,6 +1130,8 @@ async function main(): Promise<void> {
                                   )
                                 : scenario === "mode_switch"
                                   ? await runModeSwitchScenario(client, mode)
+                                : scenario === "input_pressure"
+                                  ? await runInputPressureScenario(client, mode)
                                 : await runGameplayScenario(client, mode);
                         if (runIndex === 0) {
                             await captureScreenshot(
