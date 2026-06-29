@@ -448,3 +448,29 @@ Tradeoff: removing delay exposes remaining render cost. Example p99 frame times 
 Verdict update: keep the `REVERT` verdict for the conquest-presentation part of `d2ac9d771a`, but do not treat it as a complete performance fix. It removes stale territory presentation; separate render-cost work remains necessary.
 
 Next unit: isolate the remaining Unit 12 rendering-cost pieces, starting with Cell Grid fill/border split and conquest flash changes, because the stale-update cause is now proven and the next problem is actual frame cost.
+
+## Review Loop 9: Cell Grid Fill/Border Split
+
+Timestamp: 2026-06-29T16:18:30-04:00
+
+Boundary: `ae471a6c2 perf(territory): split cell grid fills from borders`, tested on top of the disposable worktree where the proven bad conquest queue rule was already reverted.
+
+Intent: make Cell Grid transition drawing cheaper by drawing fills and borders through separate paths where possible.
+
+Experiment: release build, `/play?bench=1`, Cell Grid only, map `First Symmetry-6_April 17b`, 8 runs per row, 3000ms measured window, 500ms warmup.
+
+Artifacts:
+
+- Split reverted: `C:\Users\mikep\.codex\worktrees\territory-isolate-revert-conquest-background-20260629\.agent-harness\metrics\review-release\review-release-gameplay-benchmark-2026-06-29T20-08-31-694Z.json`
+- Split kept: `C:\Users\mikep\.codex\worktrees\territory-isolate-revert-conquest-background-20260629\.agent-harness\metrics\review-release\review-release-gameplay-benchmark-2026-06-29T20-12-02-015Z.json`
+
+Visual check: screenshots for both versions showed visible Cell Grid territory; no obvious blank or missing-territory failure was observed.
+
+| Row | Split reverted p95/p99/worst frame | Split kept p95/p99/worst frame | Pending age |
+| --- | ---: | ---: | ---: |
+| Cell Grid gameplay | 8.5 / 33.3 / 125.1ms | 18.0 / 33.3 / 125.1ms | 0ms in both |
+| Cell Grid transition | 25.1 / 50.0 / 116.7ms | 25.0 / 33.2 / 141.6ms | 0ms in both |
+
+Verdict: `KEEP-WITH-FOLLOWUP`. The split improved Cell Grid transition p99 in this isolated A/B test and did not cause stale presentation. Follow-up is required because gameplay p95 worsened from 8.5ms to 18.0ms in the same test.
+
+Bookkeeping: this unit is not the cause of the stale-update regression. Next Unit 12 targets are conquest flash drawing and input-pressure yielding.
