@@ -647,3 +647,37 @@ Corrected verdict:
 - Phase Edges and Ember Lattice require a new isolation pass against `CellGridPhaseEdgesFamily.ts`.
 
 Next action: inspect and isolate the `CellGridPhaseEdgesFamily.ts` transition-plan path. Perf timers already point to one-time transition setup work such as `territory.phaseEdges.buildPlanForCapturedSession` and `territory.geometry0319.compute`.
+
+## Review Loop 15: Transition Sessions Input Check
+
+Timestamp: 2026-06-29T17:45:06-04:00
+
+Boundary: disposable `GameCanvas.svelte` input change for Phase Edges and Ember Lattice only: set `transitionSessions: null` instead of passing `renderFamilyTransitionState.activeSessions`.
+
+Intent: test whether the richer transition-session input is the main cause of immediate-display heavy frames.
+
+Source finding:
+
+- User-facing Phase Edges and Ember Lattice use `CellGridPhaseEdgesFamily.ts`.
+- `CellGridPhaseEdgesFamily.ts` has no diff from original baseline to the review branch.
+- `GameCanvas.svelte` changed and now feeds transition sessions and localized previous geometry into these renderers.
+
+Artifacts:
+
+- Sessions enabled reference: `C:\Users\mikep\.codex\worktrees\territory-isolate-revert-conquest-background-20260629\.agent-harness\metrics\review-release\review-release-gameplay-benchmark-2026-06-29T21-37-00-606Z.json`
+- Sessions disabled experiment: `C:\Users\mikep\.codex\worktrees\territory-isolate-revert-conquest-background-20260629\.agent-harness\metrics\review-release\review-release-gameplay-benchmark-2026-06-29T21-42-09-584Z.json`
+
+Focused results:
+
+| Row | Sessions enabled p95/p99/worst | Sessions disabled p95/p99/worst | Result |
+| --- | ---: | ---: | --- |
+| Ember Lattice gameplay | 59.5 / 74.9 / 142.0ms | 58.7 / 66.7 / 159.3ms | mixed |
+| Ember Lattice transition | 58.8 / 133.3 / 183.8ms | 58.4 / 108.1 / 216.7ms | mixed |
+| Phase Edges gameplay | 49.9 / 50.2 / 209.0ms | 50.1 / 58.5 / 216.8ms | worse |
+| Phase Edges transition | 58.1 / 141.3 / 216.4ms | 50.3 / 133.2 / 208.3ms | better p95/p99, still heavy |
+
+Observation: disabling transition sessions is not a sufficient fix. Pending wait stayed zero, but heavy frames remained and some rows worsened.
+
+Verdict: `INCONCLUSIVE / DO NOT REVERT BROADLY`. Transition sessions may carry correctness value and are not proven as the main performance cause.
+
+Next action: product-phase plan should keep prompt visible conquest updates, preserve correct transition identity, and move or precompute expensive Phase Edges transition setup instead of hiding it behind stale display.
