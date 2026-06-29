@@ -1057,6 +1057,45 @@ export class CellGridPhaseFieldFamily implements RenderFamily {
         return geometry;
     }
 
+    // Render a SMOOTH per-owner display fill into a prev/next transition texture (instead
+    // of cells), so that during a conquest the SETTLED area on both sides of the wave stays
+    // smooth + matches the constraint-aligned border. The cell-shaped wave mask still
+    // reveals next over prev, so squares appear ONLY at the moving frontier; and because
+    // these fills are geometry-bounded, the wave squares are clipped to the smooth frontier
+    // where they meet it. Mirrors renderPatternTexture but draws regions, not cells.
+    private renderDisplayFillTexture(params: {
+        renderer: PIXI.Renderer;
+        texture: PIXI.RenderTexture;
+        patternGraphics: PIXI.Graphics;
+        maskGraphics: PIXI.Graphics;
+        container: PIXI.Container;
+        displayFillRegions: GeometryFillSource['territoryRegions'];
+        resolveColor: (ownerId: string) => number;
+        alpha: number;
+    }): number {
+        const geometry: GeometryFillSource = {
+            territoryRegions: params.displayFillRegions,
+        };
+        drawGeometryFill({
+            graphics: params.patternGraphics,
+            geometry,
+            resolveColor: params.resolveColor,
+            alpha: params.alpha,
+        });
+        drawGeometryFill({
+            graphics: params.maskGraphics,
+            geometry,
+            resolveColor: () => 0xffffff,
+            alpha: 1,
+        });
+        params.renderer.render({
+            container: params.container,
+            target: params.texture,
+            clear: true,
+        });
+        return params.displayFillRegions.length;
+    }
+
     private renderPatternTexture(params: {
         renderer: PIXI.Renderer;
         texture: PIXI.RenderTexture;
@@ -2067,23 +2106,47 @@ export class CellGridPhaseFieldFamily implements RenderFamily {
                     cellInsetPx.toFixed(2),
                     cellCornerPx.toFixed(2),
                     inwardOffsetPx.toFixed(2),
+                    useConstraintAlignedCenterlineBorders ? 'smooth' : 'cells',
                 ].join('|');
                 if (this.prevTexture && this.lastPrevTextureSig !== prevTextureSig) {
-                    this.renderPatternTexture({
-                        renderer: input.renderer,
-                        texture: this.prevTexture,
-                        patternGraphics: this.prevSourceGraphics,
-                        maskGraphics: this.prevSourceMaskGraphics,
-                        container: this.prevSourceContainer,
-                        geometry: prevFillGeometry,
-                        sceneCells: prevOwnershipScene,
-                        fillHexByColorIdx,
-                        cellShape,
-                        cellSpacingPx: patternClassification.spacingPx,
-                        cellInsetPx,
-                        cellCornerPx,
-                        alphaMultiplier: fillAlpha,
-                    });
+                    if (useConstraintAlignedCenterlineBorders) {
+                        // Smooth prev fill: the un-conquered side stays smooth during the
+                        // conquest (the cell wave mask still reveals next over it).
+                        this.renderDisplayFillTexture({
+                            renderer: input.renderer,
+                            texture: this.prevTexture,
+                            patternGraphics: this.prevSourceGraphics,
+                            maskGraphics: this.prevSourceMaskGraphics,
+                            container: this.prevSourceContainer,
+                            displayFillRegions:
+                                buildDisplayFillRegionsFromConstraintAlignedGeometry(
+                                    prevResolvedGeometry,
+                                ),
+                            resolveColor: (ownerId) => {
+                                const idx = ownerColorIdx.get(ownerId);
+                                return idx === undefined
+                                    ? 0x000000
+                                    : fillHexByColorIdx[idx];
+                            },
+                            alpha: fillAlpha,
+                        });
+                    } else {
+                        this.renderPatternTexture({
+                            renderer: input.renderer,
+                            texture: this.prevTexture,
+                            patternGraphics: this.prevSourceGraphics,
+                            maskGraphics: this.prevSourceMaskGraphics,
+                            container: this.prevSourceContainer,
+                            geometry: prevFillGeometry,
+                            sceneCells: prevOwnershipScene,
+                            fillHexByColorIdx,
+                            cellShape,
+                            cellSpacingPx: patternClassification.spacingPx,
+                            cellInsetPx,
+                            cellCornerPx,
+                            alphaMultiplier: fillAlpha,
+                        });
+                    }
                     this.lastPrevTextureSig = prevTextureSig;
                 }
 
@@ -2100,23 +2163,46 @@ export class CellGridPhaseFieldFamily implements RenderFamily {
                     cellInsetPx.toFixed(2),
                     cellCornerPx.toFixed(2),
                     inwardOffsetPx.toFixed(2),
+                    useConstraintAlignedCenterlineBorders ? 'smooth' : 'cells',
                 ].join('|');
                 if (this.nextTexture && this.lastNextTextureSig !== nextTextureSig) {
-                    paintedCells = this.renderPatternTexture({
-                        renderer: input.renderer,
-                        texture: this.nextTexture,
-                        patternGraphics: this.nextSourceGraphics,
-                        maskGraphics: this.nextSourceMaskGraphics,
-                        container: this.nextSourceContainer,
-                        geometry: currentFillGeometry,
-                        sceneCells: nextOwnershipScene,
-                        fillHexByColorIdx,
-                        cellShape,
-                        cellSpacingPx: patternClassification.spacingPx,
-                        cellInsetPx,
-                        cellCornerPx,
-                        alphaMultiplier: fillAlpha,
-                    });
+                    if (useConstraintAlignedCenterlineBorders) {
+                        // Smooth next fill: the conquered side settles to the smooth shape.
+                        paintedCells = this.renderDisplayFillTexture({
+                            renderer: input.renderer,
+                            texture: this.nextTexture,
+                            patternGraphics: this.nextSourceGraphics,
+                            maskGraphics: this.nextSourceMaskGraphics,
+                            container: this.nextSourceContainer,
+                            displayFillRegions:
+                                buildDisplayFillRegionsFromConstraintAlignedGeometry(
+                                    currentResolvedGeometry,
+                                ),
+                            resolveColor: (ownerId) => {
+                                const idx = ownerColorIdx.get(ownerId);
+                                return idx === undefined
+                                    ? 0x000000
+                                    : fillHexByColorIdx[idx];
+                            },
+                            alpha: fillAlpha,
+                        });
+                    } else {
+                        paintedCells = this.renderPatternTexture({
+                            renderer: input.renderer,
+                            texture: this.nextTexture,
+                            patternGraphics: this.nextSourceGraphics,
+                            maskGraphics: this.nextSourceMaskGraphics,
+                            container: this.nextSourceContainer,
+                            geometry: currentFillGeometry,
+                            sceneCells: nextOwnershipScene,
+                            fillHexByColorIdx,
+                            cellShape,
+                            cellSpacingPx: patternClassification.spacingPx,
+                            cellInsetPx,
+                            cellCornerPx,
+                            alphaMultiplier: fillAlpha,
+                        });
+                    }
                     this.lastNextTextureSig = nextTextureSig;
                 } else {
                     paintedCells = nextOwnershipScene.length;
