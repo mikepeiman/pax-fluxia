@@ -547,7 +547,6 @@
     }
     const raw =
       panel.territoryFillTransitionMode ??
-      panel.territoryFillTransition ??
       GAME_CONFIG.TERRITORY_FILL_TRANSITION_MODE ??
       GAME_CONFIG.TERRITORY_FILL_MODE ??
       "active_front";
