@@ -1179,7 +1179,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
 
     function flashSearchTarget(target: HTMLElement) {
         target.classList.add("settings-search-hit");
-        setTimeout(() => target.classList.remove("settings-search-hit"), 1800);
+        setTimeout(() => target.classList.remove("settings-search-hit"), 1500);
     }
 
     async function navigateToSearchResult(result: SettingsSearchResult) {
@@ -2043,7 +2043,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         min-height: 0;
     }
     :global(.settings-search-hit) {
-        animation: settings-search-hit-flash 1.8s ease;
+        animation: settings-search-hit-flash 1.5s ease-out;
+        border-radius: var(--pax-radius-sm, 6px);
     }
     .section-head-wrap {
         display: flex;
@@ -2063,16 +2064,20 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
     @keyframes settings-search-hit-flash {
         0% {
-            background: color-mix(in srgb, var(--pax-color-player-blue) 12%, transparent);
-            box-shadow: 0 0 0 0 color-mix(in srgb, var(--pax-color-player-blue) 35%, transparent);
+            background: color-mix(in srgb, var(--accent) 32%, transparent);
+            box-shadow:
+                0 0 0 3px color-mix(in srgb, var(--accent) 60%, transparent),
+                0 0 20px 5px color-mix(in srgb, var(--accent) 45%, transparent);
         }
-        40% {
-            background: color-mix(in srgb, var(--pax-color-player-blue) 20%, transparent);
-            box-shadow: 0 0 0 2px color-mix(in srgb, var(--pax-color-player-blue) 28%, transparent);
+        45% {
+            background: color-mix(in srgb, var(--accent) 18%, transparent);
+            box-shadow:
+                0 0 0 2px color-mix(in srgb, var(--accent) 42%, transparent),
+                0 0 14px 3px color-mix(in srgb, var(--accent) 30%, transparent);
         }
         100% {
             background: transparent;
-            box-shadow: 0 0 0 0 color-mix(in srgb, var(--pax-color-player-blue) 0%, transparent);
+            box-shadow: 0 0 0 0 transparent;
         }
     }
 

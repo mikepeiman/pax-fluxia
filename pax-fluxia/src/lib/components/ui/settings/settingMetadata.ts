@@ -634,6 +634,10 @@ const SCOPE_LABEL_META: LabelScopeMap = {
             key: 'TERRITORY_TRANSITION_BIND_TO_TICK',
         },
         'Territory Transition': { key: 'TERRITORY_TRANSITION_MS' },
+        'End Settle': {
+            key: 'TERRITORY_TRANSITION_SETTLE_PCT',
+            description: 'Eases the final settle of the metaball conquest transition. 0 = off.',
+        },
     },
     travel: {
         'Travel Mode': { key: 'TRAVEL_MODE' },
