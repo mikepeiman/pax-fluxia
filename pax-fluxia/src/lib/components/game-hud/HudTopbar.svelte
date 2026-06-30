@@ -1,8 +1,9 @@
 <script lang="ts">
   import type { GameSpeed } from "$lib/types/game.types";
   import type { TerritoryModeShortcutOption } from "$lib/territory/ui/territoryModeShortcuts";
+  import { getTerritoryRenderModeSelectOptions } from "$lib/territory/ui/territoryModeShortcuts";
   import HudIcon from "$lib/components/ui/hud/HudIcon.svelte";
-  import { PaxHudButton } from "$lib/design-system";
+  import { PaxHudButton, PaxHudSelect } from "$lib/design-system";
   import HudIconButton from "./HudIconButton.svelte";
   import { formatHudNumber } from "./viewModels";
   import { gameHudStatsStore } from "$lib/stores/gameHudStatsStore";
@@ -43,6 +44,14 @@
   const localPlayer = $derived(players.find((player) => player.isLocal) ?? players[0] ?? null);
   const tacticalOverview = $derived(
     [...players].sort((a, b) => b.totalShips - a.totalShips).slice(0, 5),
+  );
+
+  // Full render-mode catalog (non-uiHidden). The PVV4|EMBER|FIELD|GRID chips are
+  // quick-picks; this <select> reaches every selectable family. Both call
+  // onModeSelect → applyTopbarTerritoryModeShortcut (identical dispatch path).
+  const renderModeSelectOptions = getTerritoryRenderModeSelectOptions();
+  const isKnownRenderMode = $derived(
+    renderModeSelectOptions.some((option) => option.value === activeModeId),
   );
 </script>
 
@@ -127,6 +136,15 @@
         <span>{option.shortLabel}</span>
       </PaxHudButton>
     {/each}
+    <PaxHudSelect
+      class="pf-hud-topbar__mode-select"
+      size="sm"
+      value={isKnownRenderMode ? activeModeId : ""}
+      placeholder={isKnownRenderMode ? undefined : "Mode…"}
+      options={renderModeSelectOptions}
+      ariaLabel="Territory render mode"
+      onValueChange={(value) => onModeSelect(value)}
+    />
   </div>
 
   <div class="pf-hud-topbar__actions">

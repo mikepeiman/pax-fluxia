@@ -11,7 +11,7 @@ export type SettingsSectionId =
     | "conquest"
     | "effects"
     | "map_options"
-    | "render"
+    | "transition"
     | "territory_phase_field"
     | "territory_phase_edges"
     | "territory_ember_lattice"
@@ -121,9 +121,9 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         ],
     },
     {
-        id: "render",
+        id: "transition",
         icon: "render",
-        label: "Render Mode",
+        label: "Transition",
         color: "#a78bfa",
         tier: "advanced",
         audience: "advanced",

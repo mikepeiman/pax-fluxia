@@ -703,7 +703,7 @@
   flex: 0 1 auto;
   gap: var(--pax-gap-xs);
   overflow: hidden;
-  max-width: 390px;
+  max-width: 470px;
 }
 
 .pf-hud-topbar__mode {
@@ -715,6 +715,17 @@
   min-height: 30px;
   padding: 0 9px;
   font-size: var(--pax-type-4xs);
+}
+
+/* Full render-mode catalog selector — sits beside the quick-pick chips. */
+.pf-hud-topbar__mode-select {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.pf-hud-topbar__mode-select select {
+  min-height: 30px;
+  max-width: 150px;
 }
 
 

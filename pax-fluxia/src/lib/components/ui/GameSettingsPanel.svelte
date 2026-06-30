@@ -1609,7 +1609,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         {updatePanel}
                         syncFromConfig={syncAllFromConfig}
                     />
-                {:else if sec.id === "render"}
+                {:else if sec.id === "transition"}
                     <ControlsSectionTerritory
                         {panel}
                         {updatePanel}
@@ -1623,7 +1623,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         {lockRatioToAnimSpeed}
                         syncFromConfig={syncAllFromConfig}
                         view="modes"
-                        systemTitle="Render Mode"
+                        hideRenderModeSelector={true}
+                        systemTitle="Transition"
                     />
                 {:else if sec.id === "territory_tuning"}
                     <ControlsSectionTerritory

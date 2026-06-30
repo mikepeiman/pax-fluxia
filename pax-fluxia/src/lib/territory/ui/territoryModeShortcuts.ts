@@ -117,6 +117,17 @@ export function getTopbarTerritoryModeOptions(): TerritoryModeShortcutOption[] {
     });
 }
 
+/**
+ * Full render-mode option list for the topbar <select> — every selectable
+ * (non-uiHidden) family from the catalog, as { value, label } for PaxHudSelect.
+ * The PVV4|EMBER|FIELD|GRID chips are quick-picks; this reaches the rest.
+ */
+export function getTerritoryRenderModeSelectOptions(): { value: string; label: string }[] {
+    return resolveTerritoryRenderModeOptions()
+        .filter((option) => option.selectable)
+        .map((option) => ({ value: option.id, label: option.label }));
+}
+
 function resolveActiveFillTransitionMode(panel: Record<string, any>): string {
     return (
         panel.territoryFillTransitionMode ??

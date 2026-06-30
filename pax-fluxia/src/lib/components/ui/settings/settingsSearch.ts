@@ -158,7 +158,7 @@ function resolveSectionTarget(
                 return { sectionId: "territory_tuning" };
             }
             if (isTerritoryRenderModeRecord(record)) {
-                return { sectionId: "render" };
+                return { sectionId: "transition" };
             }
             if (isTerritoryFrontierFxRecord(record)) {
                 return { sectionId: "frontier_fx" };
@@ -175,7 +175,7 @@ function resolveSectionTarget(
                 return { sectionId: "territory_phase_field" };
             }
             if (record.key.startsWith("GRID_GRADIENT_")) {
-                return { sectionId: "render" };
+                return { sectionId: "territory_styles" };
             }
             // UNIFIED SURFACE: cell-grid / metaball / voronoi surface records
             // route to the stable Styles section regardless of the active render
