@@ -108,6 +108,7 @@ export const ANIM_SLIDERS: AnimSliderDef[] = [
     { key: 'ARROW_STAGGER_MS', label: 'Arrow Stagger', min: 0, max: 5000, step: 1, unit: 'ms', group: 'Arrow Formation' },
     // Territory Transition
     { key: 'TERRITORY_TRANSITION_MS', label: 'Animation Duration', min: 0, max: 3000, step: 50, unit: 'ms', group: 'Conquest Transition', desc: 'Animation duration for the conquest transition.' },
+    { key: 'TERRITORY_TRANSITION_SETTLE_PCT', label: 'End Settle', min: 0, max: 100, step: 1, unit: '%', group: 'Conquest Transition', desc: 'Eases the final settle of the metaball conquest transition. 0 = off; higher = a longer soft settle into the conquered shape.' },
     // VS Transition (F-165) — rendered in Territory panel under mode selection, not Timing
     { key: 'VS_VICTOR_TRAVEL_MS', label: 'Victor Travel', min: 0, max: 5000, step: 10, unit: 'ms', group: 'VS Transition', desc: 'How long the attacker\'s virtual star takes to travel from the attacking star to the conquered star. Longer = slower territory expansion animation.' },
     { key: 'VS_LOSER_TRAVEL_MS', label: 'Loser Travel', min: 0, max: 5000, step: 10, unit: 'ms', group: 'VS Transition', desc: 'How long the loser\'s virtual star takes to retreat from the conquered star to a connected ally star. Longer = slower territory shrinkage.' },
@@ -490,6 +491,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'DF_INFLUENCE_WEIGHT' },
     { configKey: 'DF_DISTANCE_METRIC' },
     { configKey: 'TERRITORY_TRANSITION_MS' },
+    { configKey: 'TERRITORY_TRANSITION_SETTLE_PCT' },
     { configKey: 'TERRITORY_TRANSITION_BIND_TO_TICK' },
     { configKey: 'BORDER_TRANS_RESAMPLE_N' },
     { configKey: 'BORDER_TRANS_EASING' },

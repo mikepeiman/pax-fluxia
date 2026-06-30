@@ -134,12 +134,6 @@
         updatePanel("numberTransitionMs", value);
     }
 
-    function updateArrowLength(percent: number) {
-        const value = percent / 100;
-        GAME_CONFIG.ARROW_LENGTH_FRACTION = value;
-        updatePanel("arrowLengthFraction", value);
-    }
-
     function updateOrderArrowsFollowLanePaths(value: boolean) {
         GAME_CONFIG.ORDER_ARROWS_FOLLOW_LANE_PATHS = value;
         updatePanel("orderArrowsFollowLanePaths", value);
@@ -308,17 +302,6 @@
 
 <section data-subsection-id="connections" class="visuals-section">
     <h4 class="sub-heading">Connections</h4>
-
-    <PaxSettingsRangeRow
-        label="Arrow Length"
-        value={Math.round(((panel.arrowLengthFraction ?? 0.5) as number) * 100)}
-        min={10}
-        max={100}
-        step={1}
-        format="percent"
-        settingConfigKey="ARROW_LENGTH_FRACTION"
-        onInput={updateArrowLength}
-    />
 
     <PaxSettingsToggleRow
         label="Arrows follow lane paths"

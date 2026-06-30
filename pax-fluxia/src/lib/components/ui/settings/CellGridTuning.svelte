@@ -627,17 +627,6 @@
 
 {#if showModule('grid')}
 <div class="module-block">
-<PaxSettingsToggleRow
-    label="Cell Grid Enabled"
-    checked={panel.cellGridEnabled ?? GAME_CONFIG.CELL_GRID_ENABLED ?? false}
-    description="Master switch for the cell-grid conquest family. Leave on to preview; the render mode selector in Mode must also be set to Cell grid."
-    meta={(panel.cellGridEnabled ?? GAME_CONFIG.CELL_GRID_ENABLED ?? false) ? 'On' : 'Off'}
-    settingConfigKey="CELL_GRID_ENABLED"
-    onChange={(value) => {
-        writeConfig('CELL_GRID_ENABLED', 'cellGridEnabled', value);
-    }}
-/>
-
 <PaxSettingsRangeRow
     label={currentPlannerSpacingLabel()}
     note={currentPlannerSpacingDescription()}

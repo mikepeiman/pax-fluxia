@@ -287,20 +287,6 @@
 
 <h4 class="sub-heading">Orbit Bias</h4>
 <PaxSettingsRangeRow
-    label="Orbit Density"
-    value={panel.orbitDensity}
-    min={1}
-    max={4}
-    step={0.1}
-    format="multiplier"
-    settingConfigKey="ORBIT_DENSITY"
-    onInput={(value) => {
-        GAME_CONFIG.ORBIT_DENSITY = value;
-        updatePanel("orbitDensity", value);
-    }}
-/>
-
-<PaxSettingsRangeRow
     label="Bias Strength"
     value={panel.orbitBiasStrength ?? GAME_CONFIG.ORBIT_BIAS_STRENGTH ?? 0}
     min={0}

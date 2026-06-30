@@ -137,16 +137,3 @@
     }}
 />
 
-<PaxSettingsRangeRow
-    label="Defense Multiplier"
-    value={panel.defense}
-    min={0.2}
-    max={5}
-    step={0.1}
-    format="multiplier"
-    settingConfigKey="AGGRESSOR_ADVANTAGE"
-    onInput={(value) => {
-        GAME_CONFIG.AGGRESSOR_ADVANTAGE = 1 / value;
-        updatePanel("defense", value);
-    }}
-/>

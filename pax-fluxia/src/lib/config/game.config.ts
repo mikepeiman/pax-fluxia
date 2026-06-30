@@ -381,6 +381,7 @@ interface GameConfigType {
     TERRITORY_ENGINE_STEP_MODE: boolean; // Interactive stage stepping for territory engine diagnostics
     TERRITORY_ENGINE_STEP_ADVANCE_TOKEN: number; // Increment to advance one stage when step mode is enabled
     TERRITORY_TRANSITION_MS: number;      // Duration of territory morph animation in ms (0 = instant, default 400)
+    TERRITORY_TRANSITION_SETTLE_PCT: number; // Metaball conquest end-settle easing, percent (0 = off)
     /** When true, territory conquest transition duration tracks BASE_TICK_MS (Timing panel) */
     TERRITORY_TRANSITION_BIND_TO_TICK: boolean;
     // ── Virtual Star Transition (F-165) ──────────────────────────────────────
