@@ -39,7 +39,7 @@ interface BenchmarkReport {
     warmupIterations: number;
     steadyIterations: number;
     transitionIterations: number;
-    metaballGrid: {
+    cellGrid: {
         steadyState: ScenarioMetrics;
         conquestTransition: ScenarioMetrics;
     };
@@ -515,7 +515,7 @@ describe('territory benchmark harness', () => {
             warmupIterations: 10,
             steadyIterations,
             transitionIterations,
-            metaballGrid: {
+            cellGrid: {
                 steadyState: benchmarkMetaball(steadyFrames),
                 conquestTransition: benchmarkMetaball(transitionFrames),
             },
@@ -528,23 +528,23 @@ describe('territory benchmark harness', () => {
         mkdirSync(METRICS_DIR, { recursive: true });
         writeFileSync(OUTPUT_PATH, JSON.stringify(report, null, 2), 'utf8');
 
-        expect(report.metaballGrid.steadyState.frameTotalMsAvg).toBeGreaterThanOrEqual(0);
+        expect(report.cellGrid.steadyState.frameTotalMsAvg).toBeGreaterThanOrEqual(0);
         expect(report.perimeterField.conquestTransition.frameTotalMsAvg).toBeGreaterThanOrEqual(0);
 
         console.table([
             {
                 scenario: 'metaball-steady',
-                frameTotalMsAvg: report.metaballGrid.steadyState.frameTotalMsAvg,
-                sceneBuildMsAvg: report.metaballGrid.steadyState.sceneBuildMsAvg,
-                renderTotalMsAvg: report.metaballGrid.steadyState.renderTotalMsAvg,
-                solveMsAvg: report.metaballGrid.steadyState.rendererSolveMsAvg,
+                frameTotalMsAvg: report.cellGrid.steadyState.frameTotalMsAvg,
+                sceneBuildMsAvg: report.cellGrid.steadyState.sceneBuildMsAvg,
+                renderTotalMsAvg: report.cellGrid.steadyState.renderTotalMsAvg,
+                solveMsAvg: report.cellGrid.steadyState.rendererSolveMsAvg,
             },
             {
                 scenario: 'metaball-transition',
-                frameTotalMsAvg: report.metaballGrid.conquestTransition.frameTotalMsAvg,
-                sceneBuildMsAvg: report.metaballGrid.conquestTransition.sceneBuildMsAvg,
-                renderTotalMsAvg: report.metaballGrid.conquestTransition.renderTotalMsAvg,
-                solveMsAvg: report.metaballGrid.conquestTransition.rendererSolveMsAvg,
+                frameTotalMsAvg: report.cellGrid.conquestTransition.frameTotalMsAvg,
+                sceneBuildMsAvg: report.cellGrid.conquestTransition.sceneBuildMsAvg,
+                renderTotalMsAvg: report.cellGrid.conquestTransition.renderTotalMsAvg,
+                solveMsAvg: report.cellGrid.conquestTransition.rendererSolveMsAvg,
             },
             {
                 scenario: 'perimeter-steady',

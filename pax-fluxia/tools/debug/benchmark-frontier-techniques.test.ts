@@ -10,12 +10,12 @@ import type {
     TerritoryRegionShape,
 } from '$lib/territory/contracts/GeometryContracts';
 import { buildRenderFamilyInput } from '$lib/territory/families/buildRenderFamilyInput';
-import { createMetaballGridPhaseEdgesFamily } from '$lib/territory/families/metaballGrid/MetaballGridFamily';
+import { createCellGridPhaseEdgesFamily } from '$lib/territory/families/cellGrid/CellGridFamily';
 import {
-    metaballGridPhaseEdgesGeometryDefaults,
-    metaballGridPhaseEdgesModeDefaults,
-} from '$lib/territory/families/metaballGrid/config';
-import { metaballGridStats } from '$lib/territory/families/metaballGrid/metaballGridStats';
+    cellGridPhaseEdgesGeometryDefaults,
+    cellGridPhaseEdgesModeDefaults,
+} from '$lib/territory/families/cellGrid/config';
+import { cellGridStats } from '$lib/territory/families/cellGrid/cellGridStats';
 
 interface FrontierScenarioMetrics {
     readonly requestedTechnique: string;
@@ -56,7 +56,7 @@ const frontierColorUtils = {
     },
 } as never;
 const frontierTunableKeys = (() => {
-    const family = createMetaballGridPhaseEdgesFamily(frontierColorUtils);
+    const family = createCellGridPhaseEdgesFamily(frontierColorUtils);
     const keys = family.tunableKeys;
     family.dispose();
     return keys;
@@ -150,28 +150,28 @@ function makeInput(
     ]);
     const event = makeEvent('A', 'B');
     const configSource: Record<string, unknown> = {
-        METABALL_GRID_ENABLED: true,
-        METABALL_GRID_SPACING_PX: 10,
-        METABALL_GRID_ORIGIN_MODE: 'centered',
-        METABALL_GRID_DISTRIBUTION: 'square',
-        METABALL_GRID_POSITION_JITTER: 0,
-        METABALL_GRID_MAX_CELLS: 0,
-        METABALL_GRID_ADJACENCY: '4',
-        METABALL_GRID_WAVE_SEEDING: 'conquered_star_center',
-        METABALL_GRID_FLIP_TRANSITION: 'dual_pass_blend',
-        METABALL_GRID_FLIP_WINDOW: 0.08,
-        METABALL_GRID_FLIP_WINDOW_JITTER: 0,
-        METABALL_GRID_CELL_SHAPE: 'square',
-        METABALL_GRID_CELL_INSET_PX: 0,
-        METABALL_GRID_CELL_CORNER_PX: 0,
-        METABALL_BORDER_ALPHA: 1,
-        METABALL_BORDER_WIDTH: 3,
-        METABALL_ALPHA: 1,
-        METABALL_SATURATION: 1,
-        METABALL_LIGHTNESS: 0.5,
+        CELL_GRID_ENABLED: true,
+        CELL_GRID_SPACING_PX: 10,
+        CELL_GRID_ORIGIN_MODE: 'centered',
+        CELL_GRID_DISTRIBUTION: 'square',
+        CELL_GRID_POSITION_JITTER: 0,
+        CELL_GRID_MAX_CELLS: 0,
+        CELL_GRID_ADJACENCY: '4',
+        CELL_GRID_WAVE_SEEDING: 'conquered_star_center',
+        CELL_GRID_FLIP_TRANSITION: 'dual_pass_blend',
+        CELL_GRID_FLIP_WINDOW: 0.08,
+        CELL_GRID_FLIP_WINDOW_JITTER: 0,
+        CELL_GRID_CELL_SHAPE: 'square',
+        CELL_GRID_CELL_INSET_PX: 0,
+        CELL_GRID_CELL_CORNER_PX: 0,
+        TERRITORY_SURFACE_BORDER_ALPHA: 1,
+        TERRITORY_SURFACE_BORDER_WIDTH: 3,
+        TERRITORY_SURFACE_ALPHA: 1,
+        TERRITORY_SURFACE_SATURATION: 1,
+        TERRITORY_SURFACE_LIGHTNESS: 0.5,
         ...territoryFrontierConfigDefaults,
-        ...metaballGridPhaseEdgesGeometryDefaults,
-        ...metaballGridPhaseEdgesModeDefaults,
+        ...cellGridPhaseEdgesGeometryDefaults,
+        ...cellGridPhaseEdgesModeDefaults,
         ...presetValues,
     };
 
@@ -231,7 +231,7 @@ function makeInput(
 }
 
 function readScenarioMetrics(): FrontierScenarioMetrics {
-    const stats = get(metaballGridStats);
+    const stats = get(cellGridStats);
     return {
         requestedTechnique: stats.frontierRequestedTechnique,
         appliedTechnique: stats.frontierTechnique,
@@ -254,7 +254,7 @@ describe('frontier technique benchmark matrix', () => {
         const report: FrontierBenchmarkReport = {
             generatedAt: new Date().toISOString(),
             presets: TERRITORY_FRONTIER_BENCHMARK_PRESETS.map((preset) => {
-                const family = createMetaballGridPhaseEdgesFamily(
+                const family = createCellGridPhaseEdgesFamily(
                     frontierColorUtils,
                 );
 

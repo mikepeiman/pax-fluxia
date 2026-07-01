@@ -10,6 +10,18 @@ companion: 2026-06-17_TERRITORY_ARCHITECTURE_CONSOLIDATED.md, 2026-06-17_GEOMETR
 
 # Territory Solution — Candidates + Recommendation
 
+> **CORRECTION (2026-06-17, after user feedback) — supersedes the transition framing below.**
+> The topology-correspondence-first method has **NOT been implemented or tested even once** — it is the
+> **leading proposal / leading edge of the theory work, NOT a failed approach.** The ~50 historical
+> failures were *other* approaches; a crucial recurring one was **agentic insistence on centroid matching
+> against the user's instructions. Centroid matching is DEFUNCT — fallback-only, undesirable.**
+> ⇒ Corrected recommendation: anchor the **STATIC map** on the proven 8dce88c MECHANISM (basic PV +
+> shared-edge chaining + identical Chaikin + pre-solve constraints); build & test the **TRANSITION** as the
+> topology-correspondence-first method (its FIRST real implementation) — **not** the 8dce88c centroid/DY4-OT
+> morph (fallback-only). Candidate #3 is the transition approach (NOT "weak/never-succeeded"); candidate #5
+> contributes its GEOMETRY half only, not its morph. The discipline/casebook hedge (#4) and the static-first
+> hard gate still stand. Treat the ranking/H3 below through this lens.
+
 ## The decisive reframing (verified)
 - **A proven-good state exists and is recoverable:** commit `8dce88c` (live at the `PRISM-ui-design`
   worktree — but marked *prunable*, so it must be stabilized/captured). Smooth fills **pinned at 3-way
