@@ -55,7 +55,6 @@
     import ControlsSectionConquest from "./settings/ControlsSection-Conquest.svelte";
     import ControlsSectionTerritory from "./settings/ControlsSection-Territory.svelte";
     import ControlsSectionFrontierFx from "./settings/ControlsSection-FrontierFx.svelte";
-    import TerritoryPhaseFieldSettings from "./settings/TerritoryPhaseFieldSettings.svelte";
     import TerritoryGeometrySourceTuning from "./settings/TerritoryGeometrySourceTuning.svelte";
     import ControlsSectionShips from "./settings/ControlsSection-Ships.svelte";
     import ControlsSectionPlayers from "./settings/ControlsSection-Players.svelte";
@@ -1644,43 +1643,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                     <TerritoryGeometrySourceTuning
                         {panel}
                         {updatePanel}
-                    />
-                {:else if sec.id === "territory_phase_field"}
-                    <TerritoryPhaseFieldSettings
-                        {panel}
-                        {updatePanel}
-                    />
-                {:else if sec.id === "territory_phase_edges"}
-                    <ControlsSectionTerritory
-                        {panel}
-                        {updatePanel}
-                        {animLockModes}
-                        {animLockRatios}
-                        {getAnimValue}
-                        {setAnimValue}
-                        {formatAnimValue}
-                        {pinValueToTickDuration}
-                        {lockRatioToTick}
-                        {lockRatioToAnimSpeed}
-                        syncFromConfig={syncAllFromConfig}
-                        view="styles"
-                        activeSubsection={activeSubsections[sec.id] ?? "all"}
-                    />
-                {:else if sec.id === "territory_ember_lattice"}
-                    <ControlsSectionTerritory
-                        {panel}
-                        {updatePanel}
-                        {animLockModes}
-                        {animLockRatios}
-                        {getAnimValue}
-                        {setAnimValue}
-                        {formatAnimValue}
-                        {pinValueToTickDuration}
-                        {lockRatioToTick}
-                        {lockRatioToAnimSpeed}
-                        syncFromConfig={syncAllFromConfig}
-                        view="styles"
-                        activeSubsection={activeSubsections[sec.id] ?? "all"}
                     />
                 {:else if sec.id === "territory_styles"}
                     <ControlsSectionTerritory

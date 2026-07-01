@@ -168,11 +168,15 @@ function resolveSectionTarget(
             }
             if (isTerritoryFrontierRecord(record)) {
                 return {
-                    sectionId: "territory_ember_lattice",
+                    sectionId: "territory_styles",
+                    subsectionId: "ember_lattice",
                 };
             }
             if (record.key.startsWith("CELL_GRID_PHASE_FIELD_")) {
-                return { sectionId: "territory_phase_field" };
+                return {
+                    sectionId: "territory_styles",
+                    subsectionId: "phase_field",
+                };
             }
             if (record.key.startsWith("GRID_GRADIENT_")) {
                 return { sectionId: "territory_styles" };

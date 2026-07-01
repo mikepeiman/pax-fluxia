@@ -12,9 +12,6 @@ export type SettingsSectionId =
     | "effects"
     | "map_options"
     | "transition"
-    | "territory_phase_field"
-    | "territory_phase_edges"
-    | "territory_ember_lattice"
     | "frontier_fx"
     | "territory_tuning"
     | "territory_styles"
@@ -130,33 +127,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         scope: "territory",
     },
     {
-        id: "territory_phase_field",
-        icon: "phase-field",
-        label: "Phase Field",
-        color: "#8ab4ff",
-        tier: "basic",
-        audience: "advanced",
-        scope: "territory",
-    },
-    {
-        id: "territory_phase_edges",
-        icon: "phase-edges",
-        label: "Phase Edges",
-        color: "#fda4af",
-        tier: "basic",
-        audience: "advanced",
-        scope: "territory",
-    },
-    {
-        id: "territory_ember_lattice",
-        icon: "ember-lattice",
-        label: "Ember Lattice",
-        color: "#fb923c",
-        tier: "basic",
-        audience: "advanced",
-        scope: "territory",
-    },
-    {
         id: "frontier_fx",
         icon: "frontier-fx",
         label: "Frontier FX",
@@ -177,15 +147,19 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
     {
         id: "territory_styles",
         icon: "territory-styles",
-        label: "Territory Styles",
+        label: "Render",
         color: "#93c5fd",
         tier: "basic",
         audience: "advanced",
         scope: "territory",
         subsections: [
-            { id: "fill", label: "Fill", icon: "phase-field" },
-            { id: "border", label: "Border", icon: "phase-edges" },
-            { id: "finish", label: "Finish", icon: "effects" },
+            { id: "power_voronoi_runtime", label: "PVV4", icon: "render" },
+            { id: "perimeter_field", label: "Perimeter", icon: "render" },
+            { id: "cell_grid", label: "Cell Grid", icon: "topology" },
+            { id: "phase_edges", label: "Phase Edges", icon: "phase-edges" },
+            { id: "ember_lattice", label: "Ember", icon: "ember-lattice" },
+            { id: "phase_field", label: "Phase Field", icon: "phase-field" },
+            { id: "grid_gradient", label: "Grid Gradient", icon: "territory-styles" },
         ],
     },
     {
@@ -257,7 +231,7 @@ const COMPAT_SECTION_ID_ALIASES: Record<string, SettingsSectionId> = {
     territory: "territory_tuning",
     territory_modes: "territory_tuning",
     frontier_fx: "frontier_fx",
-    ember_lattice: "territory_ember_lattice",
+    ember_lattice: "territory_styles",
     ships: "fleet_star_visuals",
     visuals: "map_options",
     logging: "logging",

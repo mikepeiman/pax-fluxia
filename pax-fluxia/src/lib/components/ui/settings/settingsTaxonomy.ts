@@ -66,9 +66,6 @@ export const SETTINGS_CATEGORIES: readonly SettingsCategory[] = [
         sections: [
             "territory_tuning",
             "territory_styles",
-            "territory_phase_field",
-            "territory_phase_edges",
-            "territory_ember_lattice",
             "frontier_fx",
             "transition",
         ],

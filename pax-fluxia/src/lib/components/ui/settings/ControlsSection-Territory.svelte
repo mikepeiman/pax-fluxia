@@ -518,7 +518,29 @@
     }
   }
 
+  // Render modes surfaced as subsection chips inside the unified Render section.
+  // When the styles view is filtered to one of these, that mode's card renders —
+  // letting the user view/tune ANY mode's controls independent of the live
+  // (topbar-selected) render mode.
+  const RENDER_MODE_SUBSECTION_IDS = new Set<string>([
+    "power_voronoi_runtime",
+    "perimeter_field",
+    "cell_grid",
+    "phase_edges",
+    "ember_lattice",
+    "phase_field",
+    "grid_gradient",
+    "metaball",
+  ]);
+
   function resolveActiveStyleId(): string {
+    if (
+      view === "styles" &&
+      activeSubsection !== "all" &&
+      RENDER_MODE_SUBSECTION_IDS.has(activeSubsection)
+    ) {
+      return normalizeTerritoryRenderModeId(activeSubsection) as string;
+    }
     return normalizeTerritoryRenderModeId(
       panel.territoryRenderMode ??
         GAME_CONFIG.TERRITORY_RENDER_MODE ??
@@ -1484,7 +1506,7 @@
     {/if}
 
     {#if supportsRuntimeSurfaceStyleCard() && showStyleSection("fill")}
-      <div class="engine-control-group territory-module-card" data-subsection-id="fill">
+      <div class="engine-control-group territory-module-card">
         <div class="territory-card__header">
           <h4 class="axis-card-title">
             {resolveActiveStyleId() === "territory_engine"
@@ -1563,7 +1585,7 @@
     {/if}
 
     {#if supportsRuntimeSurfaceStyleCard() && showStyleSection("border")}
-      <div class="engine-control-group territory-module-card" data-subsection-id="border">
+      <div class="engine-control-group territory-module-card">
         <div class="territory-card__header">
           <h4 class="axis-card-title">
             {resolveActiveStyleId() === "territory_engine"
