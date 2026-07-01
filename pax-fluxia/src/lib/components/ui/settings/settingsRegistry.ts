@@ -194,6 +194,11 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         tier: "basic",
         audience: "public",
         scope: "audio",
+        subsections: [
+            { id: "master", label: "Master", icon: "audio" },
+            { id: "event-sounds", label: "Event Sounds", icon: "effects" },
+            { id: "conquest", label: "Conquest", icon: "conquest" },
+        ],
     },
     {
         id: "diagnostics",

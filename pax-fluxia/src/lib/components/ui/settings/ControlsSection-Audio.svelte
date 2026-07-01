@@ -110,6 +110,7 @@
 
 <CategoryThemeBar category="audio" onApply={() => syncFromConfig?.()} />
 
+<div data-subsection-id="master">
 <h4 class="sub-heading">Master</h4>
 <PaxSettingsToggleRow
     label="Sound Enabled"
@@ -131,7 +132,9 @@
     settingConfigKey="AUDIO_MASTER_VOLUME"
     onInput={setMasterVolume}
 />
+</div>
 
+<div data-subsection-id="event-sounds">
 <h4 class="sub-heading">Event Sounds</h4>
 {#each NON_CONQUEST_TYPES as soundType}
     <section
@@ -195,7 +198,9 @@
         />
     </section>
 {/each}
+</div>
 
+<div data-subsection-id="conquest">
 <h4 class="sub-heading">Conquest Sounds</h4>
 <section
     class="audio-conquest-group"
@@ -283,6 +288,7 @@
         </section>
     {/each}
 </section>
+</div>
 
 <style>
 
