@@ -816,16 +816,20 @@
 </div>
 {/if}
 
-{#if showTuningView}
+{#if showTuningView || (showStylesView && resolveActiveStyleId() === "metaball")}
 <div class="territory-section-shell territory-section-shell--renderer">
   <div class="territory-section-head">
     <h4 class="sub-heading territory-section-title">
-      {showStylesView ? "Render Families" : "Frontier Topology"}
+      {showStylesView && resolveActiveStyleId() === "metaball"
+        ? "Metaball"
+        : showStylesView
+          ? "Render Families"
+          : "Frontier Topology"}
     </h4>
   </div>
   <div class="territory-module-grid">
 
-{#if showStylesView && rendererModules().length === 0}
+{#if showStylesView && resolveActiveStyleId() !== "metaball" && rendererModules().length === 0}
   <div class="axis-note">
     This territory mode does not expose dedicated render-family controls.
   </div>

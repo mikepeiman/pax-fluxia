@@ -155,6 +155,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         subsections: [
             { id: "power_voronoi_runtime", label: "PVV4", icon: "render" },
             { id: "perimeter_field", label: "Perimeter", icon: "render" },
+            { id: "metaball", label: "Metaball", icon: "render" },
             { id: "cell_grid", label: "Cell Grid", icon: "topology" },
             { id: "phase_edges", label: "Phase Edges", icon: "phase-edges" },
             { id: "ember_lattice", label: "Ember", icon: "ember-lattice" },
