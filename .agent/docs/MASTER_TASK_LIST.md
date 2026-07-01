@@ -55,6 +55,12 @@ superseding docs:
 - [x] **Preserve territory overnight-integration review tranche** `[docs]` — 28 review docs copied
   verbatim into `.agent/docs/sessions/2026-06-29/`; synthesized into the recovery plan above.
 - [x] **Establish MASTER_TASK_LIST + AGENT.md RULE 0.5** `[process]`.
+- [x] **README full rewrite** `[docs]` — grounded in real mechanics; removed the "V4 Symmetric
+  Damage Model" cruft, stale `.atlas/`/`server/` paths, and wrong clone URL (`pax-galaxia-redux`
+  → `pax-fluxia`). Foregrounds the living-frontier territory rendering (render families +
+  4-layer pipeline), the tuning/theme surface, star types + portal stars, the shared deterministic
+  engine, and a real roadmap. Combat correctly described as remote symmetric attrition (ships hold;
+  only reinforcements move) — the exact point the old README got backwards.
 
 ### Done (settings overhaul — 2026-06-30 → 2026-07-01)
 - [x] Settings surface audit doc `[settings]` — `.agent/docs/game/design/2026-06-29_SETTINGS_SURFACE_AUDIT.md`.

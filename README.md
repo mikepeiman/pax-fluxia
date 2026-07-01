@@ -1,172 +1,211 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/status-alpha-blueviolet?style=for-the-badge" alt="Status: Alpha">
-  <img src="https://img.shields.io/badge/engine-custom-ff6b35?style=for-the-badge" alt="Engine: Custom">
-  <img src="https://img.shields.io/badge/stack-svelte%20%2B%20pixi%20%2B%20colyseus-00e0ff?style=for-the-badge" alt="Stack">
+  <img src="https://img.shields.io/badge/status-playable%20alpha-blueviolet?style=for-the-badge" alt="Status: Playable Alpha">
+  <img src="https://img.shields.io/badge/stack-svelte%205%20%C2%B7%20pixi%208%20%C2%B7%20colyseus-00e0ff?style=for-the-badge" alt="Stack">
   <img src="https://img.shields.io/badge/runtime-bun-f472b6?style=for-the-badge" alt="Runtime: Bun">
+  <img src="https://img.shields.io/badge/desktop-tauri-ff6b35?style=for-the-badge" alt="Desktop: Tauri">
 </p>
 
 # 🌌 Pax Fluxia
 
-> A real-time space conquest strategy game with symmetric combat, territory control, and AI opponents — rendered in a neon-void aesthetic.
+> **Own the space between the stars.** A real-time strategy game where victory isn't measured in
+> units — it's measured in *territory*: the living, glowing frontier that swells and recoils as
+> fleets clash across a network of stars.
 
-**Pax Fluxia** is a fast-paced, browser-based strategy game where players compete to conquer a procedurally generated star map. Command fleets, issue orders, and outmaneuver AI opponents across a network of connected stars.
+**Pax Fluxia** is a browser- and desktop-native RTS in the lineage of *Galcon* / *Pax Galaxia*,
+built around one idea the genre usually leaves flat: **the map itself is the drama.** Every star you
+hold projects ownership into the void around it, and where two holdings meet, a **frontier** forms —
+a real geometric boundary that bends, buckles, and re-flows in real time as the balance of power
+shifts. Take a star and watch your color pour across the sector.
 
----
-
-## ✨ Features
-
-| Feature | Status |
-|---------|--------|
-| **Procedural star maps** with Delaunay-connected topology | ✅ |
-| **V4 Symmetric Damage Model** — attritional combat with tunable parameters | ✅ |
-| **Real-time game engine** with configurable tick rate | ✅ |
-| **AI opponents** with greedy strategy and tunable aggression | ✅ |
-| **Combat tuning panel** — live-adjust 15+ combat variables | ✅ |
-| **Combat log** with battle grouping, "My Battles" filter, and conquest breakdown | ✅ |
-| **Ship production, repair, and conquest mechanics** | ✅ |
-| **Scatter/retreat system** on conquest with escape routes | ✅ |
-| **Deferred orders** — queue attacks on enemy stars before capture | ✅ |
-| **Multiplayer** via Colyseus (local dev) | 🔧 |
-| **Ship transfer animations** | 🔜 |
-| **Custom map editor** | 📋 |
+It runs on a **single deterministic engine shared between client and server**, so a solo match
+against the AI and a live multiplayer game are the *same game*, tick for tick.
 
 ---
 
-## 🎮 How to Play
+## ⚔️ How it actually plays
 
-1. **Select** a star you own (click)
-2. **Order** ships to a connected star (click target)
-3. **Right-click** to cancel an order
-4. **Ctrl-click** to issue a one-time (non-persistent) order
-5. **Conquer** all enemy stars to win
+You start with a cluster of stars. Every star quietly builds ships. You give orders; the sector does
+the rest.
 
-Ships transfer continuously along active orders. Combat resolves automatically when your ships reach an enemy star.
+- **Select** a star you own, **click a connected star** to give it a standing order.
+- Order a **friendly** star → **reinforce** it: ships physically stream down the lane.
+- Order an **enemy** star → **attack** it: your ships *hold position* and project force across the
+  frontier, a pressure wave surging and receding between the two stars each tick.
+- **Right-click** cancels. **Ctrl-click** issues a one-shot order. **Drag from any star** — even one
+  you don't own yet — to pre-place a **deferred order** that fires the instant you capture it, so you
+  can choreograph a whole offensive before the first shot lands.
+
+Combat is **symmetric attrition**: when two stars are locked, *both* sides take damage every tick —
+some ships destroyed outright, the rest **disabled** into a repair pool that trickles back to active
+if the star survives. There are no magic lane ambushes and no first-strike advantage; you win a front
+by out-massing and out-repairing it, or by out-maneuvering it entirely.
+
+When a defender finally breaks, the star **flips to your color** and its survivors **scatter** down
+escape lanes (or make an orderly **retreat** if their owner had somewhere to run) — some captured,
+some lost to the void. Chain a deferred order off the capture and your momentum never stops.
+
+**Last commander holding a star wins.** (Configurable victory thresholds are on the roadmap — see below.)
 
 ---
 
-## 🛠️ Tech Stack
+## ✨ What makes it distinct
 
-| Layer | Technology |
-|-------|-----------|
-| **Frontend** | [SvelteKit](https://kit.svelte.dev/) (Svelte 5 with Runes) |
-| **Rendering** | [PixiJS](https://pixijs.com/) — WebGL canvas |
-| **Game Engine** | Custom stateless tick processor (shared client/server) |
-| **Multiplayer** | [Colyseus](https://colyseus.io/) — authoritative server |
-| **Monorepo** | `common/` (shared types + engine) · `pax-fluxia/` (client) · `server/` (Colyseus) |
+**A frontier that's really *there*.** Territory isn't a decorative tint — it's computed geometry.
+Ownership fields resolve into regions, regions meet at frontiers, and frontiers animate through
+conquest as continuous shapes rather than popping between states. The renderer ships **multiple
+territory "families"** you can switch between live, each a different way of drawing the same truth:
+
+| Render family | Character |
+|---|---|
+| **Power Voronoi (PVV4)** | Crisp weighted-Voronoi regions — the exact-geometry reference look |
+| **Cell Grid · Phase Edges · Ember Lattice** | Dense ownership mass with contour-derived, smoothed frontier seams |
+| **Phase Field** | Soft field-based ownership shading |
+| **Grid Gradient** | Shader-driven gradient fills |
+| **Metaball · Perimeter Field** | Organic blob / perimeter-sampled boundary styles |
+
+Every family shares the same HSLA fill/border language and the same conquest-transition pipeline, so
+you can dial the sector's entire visual identity — from clinical vector borders to a molten neon
+haze — without touching gameplay.
+
+**Six star archetypes.** Grey (baseline), **Yellow** (2× production), **Blue** (2× logistics),
+**Purple** (2× repair), **Red** (2× defense), **Green** (2× attack). A neutral faction holds real
+territory across the map until someone takes it. Classic *Pax Galaxia* maps import directly,
+including **portal stars** — capture one and you seize every star in its portal group at once,
+bridging otherwise-disconnected regions.
+
+**A deep, live tuning surface.** Nearly every number in the game is a slider. Combat, timing, travel
+and orbit motion, AI aggression and strategy, territory rendering, ship look, audio — all adjustable
+in-game and saveable as **themes**. A unified Search jumps to any control (and pulses it so you can
+find it); render mode lives on the topbar so the settings surface stays stable whatever you're
+running.
+
+**Fleet swarms with weight.** Ships orbit their stars in layered rings, depart from the near side,
+arc down lanes, and settle into formation — rendered through a batched particle pool that stays fluid
+into the tens of thousands of ships, with density-driven color grading so a fortress *reads* as a
+fortress.
 
 ---
 
-## 🚀 Getting Started
+## 🧠 The AI
 
-### Prerequisites
+Opponents evaluate every star each tick and commit to fronts using a three-zone attack model
+(must-attack / may-attack / desist) with anti-oscillation stickiness, plus selectable postures
+— **aggressive, opportunistic, expansionist, defensive** — and fully tunable thresholds. Smarter,
+star-type-aware and multi-source behaviors are on the roadmap.
 
-- **Bun** 1.0+
+---
 
-### Install & Run
+## 🛠️ Architecture
+
+One engine, two front ends, zero divergence.
+
+| Layer | What it is |
+|---|---|
+| **Shared engine** | `common/` — `@pax/common`: the authoritative, deterministic tick engine + AI + types. **No client duplicate.** Client renders it; server arbitrates it. |
+| **Client** | `pax-fluxia/` — SvelteKit 5 (Runes) + PixiJS 8 (WebGL). Presentation only. |
+| **Server** | `pax-server/` — Colyseus authoritative rooms (lobby browser, mid-game join with AI-slot takeover). |
+| **Desktop** | Tauri build — native `.exe` / `.msi` / installer. |
+
+Territory rendering follows a strict **4-layer pipeline** — *Ownership → Geometry → Transition →
+Presentation* — so "who owns what" never gets tangled with "how it's drawn." Because the simulation
+is deterministic, a replay of the same inputs reproduces the same tick-by-tick outcome, which is how
+the project regression-tests gameplay.
+
+---
+
+## 🚀 Getting started
+
+**Prerequisite:** [Bun](https://bun.sh) 1.0+. (This project is Bun-only — no npm/npx/yarn.)
 
 ```bash
-# Clone
-git clone https://github.com/mikepeiman/pax-galaxia-redux.git
-cd pax-galaxia-redux
-
-# Install dependencies
+git clone https://github.com/mikepeiman/pax-fluxia.git
+cd pax-fluxia
 bun install
 
-# Start the dev server (single-player)
+# Single-player (client only)
 cd pax-fluxia
-bun run dev
+bun run dev            # open the printed localhost URL
 ```
 
-Open `http://localhost:5173` in your browser.
-
-### Multiplayer (Local Dev)
+**Multiplayer (local):**
 
 ```bash
-# Terminal 1: Start Colyseus server
+# Terminal 1 — Colyseus server (listens on :2567)
 cd pax-server
 bun run src/index.ts
 
-# Terminal 2: Start client
+# Terminal 2 — client
 cd pax-fluxia
 bun run dev
 ```
 
+The client auto-detects a local Colyseus server on `:2567`; the lobby browser lists open rooms, and
+you can join a game already in progress by taking over an AI seat.
+
 ---
 
-## 📁 Project Structure
+## 📁 Project structure
 
 ```
 pax-fluxia/
-├── common/              # Shared types, schemas, combat logic
-│   └── src/
-│       ├── combat.ts        # V4 Symmetric Damage Model
-│       ├── types.ts         # Canonical type definitions
-│       └── schema/          # Colyseus state schemas
-├── pax-fluxia/          # SvelteKit client application
+├── common/            # @pax/common — shared deterministic engine, AI, types, schemas
+├── pax-fluxia/        # SvelteKit 5 + PixiJS 8 client
 │   └── src/lib/
-│       ├── components/      # UI + game canvas
-│       ├── config/          # game.config.ts (40+ tunable vars)
-│       ├── engine/          # GameEngine.ts, AI.ts
-│       ├── stores/          # Svelte stores (game state, combat log)
-│       └── utils/           # Logger, helpers
-├── server/              # Colyseus game server
-├── .atlas/              # Project documentation (PRD, specs, decisions)
-└── .agent/              # AI agent rules and skills
+│       ├── components/    # HUD, settings surface, game canvas
+│       ├── territory/     # render families, frontier geometry, conquest transitions
+│       ├── renderers/     # stars, lanes, ships (particle-pool), overlays
+│       ├── config/        # game.config.ts — the tunable-variable source of truth
+│       ├── stores/        # game / multiplayer / animation state (Svelte 5 runes)
+│       └── utils/         # telemetry logger, helpers
+├── pax-server/        # Colyseus authoritative game + lobby rooms
+└── .agent/docs/       # design specs, mechanics, feature tracker, session history
 ```
 
 ---
 
-## ⚙️ Combat System
+## 🗺️ Roadmap
 
-Pax Fluxia uses a **V4 Symmetric Damage Model**:
+**Near-term**
+- Territory conquest-transition performance pass (immediate correct ownership + deadline-bounded
+  decoration; two-stage presentation) and Frontier-FX blending with the smooth frontier.
+- Configurable victory conditions (win by ship count, star count, or specific targets) with a
+  "view results or keep playing" endgame.
+- Custom map editor (reproducible territory / corridor / conquest scenarios).
 
-- Both sides deal damage simultaneously each tick
-- **5 core variables**: Aggressor Advantage, Damage Per Ship, Lethality, Force Ratio Effect, Conquest Threshold
-- Damaged ships contribute fractional defensive value (configurable)
-- Conquest triggers **scatter/retreat** — surviving defenders flee to connected escape routes
-- All parameters tunable in real-time via the Combat Debug Panel
+**Gameplay systems**
+- Deeper AI: star-type awareness, multi-source coordination, frontline & surround behaviors, saved AI personalities.
+- Orbital structures (satellites, shields, mines), a production/economy layer, and star upgrades.
+- Travel-time game mode: at >1× travel, fleets exist mid-lane and opposing fleets can pass — or fight — en route.
 
----
+**Presentation & platform**
+- Scatter/retreat and capture VFX language; conquest flair (pulsing frontiers, heartbeat stars).
+- Sound design (tick, conquest, arrival) and selectable visual style packs.
+- Community content hub for sharing themes and maps; multiplayer deployment.
 
-## 🎨 Visual Style
-
-**"Neon Void"** aesthetic — dark space background with glowing star nodes, pulsing ship clusters, and color-coded ownership. Stars are rendered as concentric rings of ship dots orbiting a central glow.
+*(Full living tracker: [`.agent/docs/project/features/FEATURE_STATUS.md`](.agent/docs/project/features/FEATURE_STATUS.md). Cross-day task-of-record: [`.agent/docs/MASTER_TASK_LIST.md`](.agent/docs/MASTER_TASK_LIST.md).)*
 
 ---
 
 ## 📜 Documentation
 
 | Document | Description |
-|----------|-------------|
-| [Game Specification](.atlas/GAME_SPECIFICATION.md) | Complete technical spec for all systems |
-| [Development History](.atlas/DEVELOPMENT_HISTORY.md) | Chronological build log and roadmap |
-| [Feature Status](.agent/docs/project/features/FEATURE_STATUS.md) | Current state of all features |
-| [Design Decisions](.atlas/DECISIONS.md) | Architectural decision records |
-| [PRD](.atlas/PRD_ACTIVE.md) | Product requirements document |
-
----
-
-## 🗺️ Roadmap
-
-- [ ] Ship transfer & combat animations
-- [ ] Advanced AI strategies (frontline, tactical surround, backline-and-pounce)
-- [ ] Custom map editor
-- [ ] Multiplayer deployment (Vercel + Railway)
-- [ ] Star type–aware AI behavior
-- [ ] Sound effects & music
+|---|---|
+| [Mechanics](.agent/docs/game/design/MECHANICS.md) | Definitive spec of every gameplay rule |
+| [Game Specification](.agent/docs/game/design/GAME_SPECIFICATION.md) | System-level technical spec |
+| [Terminology](.agent/docs/game/design/TERMINOLOGY.md) | Territory / frontier / front / holding glossary |
+| [Territory Architecture](.agent/docs/game/territory/TERRITORY_ARCHITECTURE.md) | The 4-layer rendering pipeline |
+| [Feature & Regression Tracker](.agent/docs/project/features/FEATURE_STATUS.md) | Current state of everything |
 
 ---
 
 ## 📄 License
 
-This project is proprietary and released under an **All Rights Reserved**
-license. No permission is granted to use, copy, modify, distribute, or create
-derivative works without prior written permission from the copyright holder.
-
-See [LICENSE](LICENSE) for the full terms.
+Proprietary — **All Rights Reserved.** No permission is granted to use, copy, modify, distribute, or
+create derivative works without prior written permission from the copyright holder. See
+[LICENSE](LICENSE).
 
 ---
 
 <p align="center">
-  <sub>Built with 🌌 by <a href="https://github.com/mikepeiman">@mikepeiman</a></sub>
+  <sub>Built in the neon void by <a href="https://github.com/mikepeiman">@mikepeiman</a></sub>
 </p>
