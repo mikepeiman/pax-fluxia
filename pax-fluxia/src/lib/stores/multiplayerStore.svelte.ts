@@ -39,9 +39,15 @@ export type CreateRoomOptions = {
     gameplayConfig?: Partial<EngineConfig>;
 };
 
-// Server URL: env var > same-origin (production) > localhost (dev)
+// Server URL: env var > same-origin (production) > localhost (dev).
+// Loopback detection must cover IPv6 (::1 / [::1]) and 127.0.0.1, not just the
+// literal 'localhost'. Tauri/Vite frequently bind the app to [::1]:1420, which
+// otherwise falls through to same-origin and 404s /matchmake/* against the app
+// port instead of the Colyseus dev server on :2567.
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
 const SERVER_URL = import.meta.env.VITE_SERVER_URL
-    || (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+    || (typeof window !== 'undefined' &&
+        !LOOPBACK_HOSTS.has(window.location.hostname)
         ? window.location.origin
         : 'http://127.0.0.1:2567');
 
