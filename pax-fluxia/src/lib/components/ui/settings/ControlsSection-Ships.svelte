@@ -528,7 +528,7 @@
 </div>
 <div class="var-row">
     <PaxSettingsRangeRow
-        label="Ships Per Ring"
+        label="Ship Spacing"
         value={panel.orbitDensity ?? GAME_CONFIG.ORBIT_DENSITY ?? 0.5}
         min={0.5}
         max={4}
