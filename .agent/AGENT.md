@@ -45,6 +45,10 @@ Never assume that something already in the code/design/architecture SHOULD be th
 
 My image perception is unreliable and I have misread screenshots with false confidence (claimed a fill met its border when a gap was visible; "confirmed" a mode looked correct while glancing). When an image carries information I will act on, follow `.agent/rules/image-comprehension-protocol.md`: **DESCRIBE the relevant region literally — region by region — BEFORE interpreting**; answer precise spatial questions (gap / alignment / overlap / what-occludes-what) at the exact location, never from gestalt; treat "I see what my code predicted" as a RED FLAG, not confirmation; hedge visual claims and prefer **measured numbers** (logs / DOM / computed geometry) over eyeballing for anything precise; and when my read conflicts with the user's live view, **MY READ IS WRONG by default** (they have full resolution; I have a compressed downscale). This is DISTINCT from `visual-bug-protocol.md` (trust the user's *words*) — this is the technical act of reading the *image*. Never confirm/deny a claim "from the screenshot" without the literal description first.
 
+## ⭐ RULE 0.5 — ONE MASTER TASK LIST. ALWAYS ADD TASKS THERE.
+
+There is exactly ONE master task list for the project: **`.agent/docs/MASTER_TASK_LIST.md`** (docs root). Every agent ALWAYS records new tasks, fixes, and instructions there — organized **by date** (newest first, under a `## YYYY-MM-DD` heading) and by any other relevant context (area tag, mode, severity, owner, linked spec/plan/commit). Do NOT scatter task lists across ad-hoc docs. Same-day working detail may also live in the daily session queue (`.agent/docs/sessions/YYYY-MM-DD/`), but the durable, cross-day task-of-record is the master list. Mark items done with `[x]` + commit hash; never delete history. When the user gives a task, fix, or instruction, capture it in the master list as you begin it.
+
 ## 1. Project
 
 **Pax Fluxia** is a real-time multiplayer galactic strategy game.
@@ -445,6 +449,7 @@ Trace the real code path end-to-end, and form hypotheses only AFTER tracing — 
 
 | Need                   | Path                                                   |
 | ---------------------- | ------------------------------------------------------ |
+| **Master task list**   | `.agent/docs/MASTER_TASK_LIST.md`                      |
 | Game mechanics         | `.agent/docs/game/design/MECHANICS.md`                 |
 | Master game spec       | `.agent/docs/game/design/GAME_SPECIFICATION.md`        |
 | Terminology            | `.agent/docs/game/design/TERMINOLOGY.md`               |
