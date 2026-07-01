@@ -1453,22 +1453,34 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 {/if}
                 {#if !showAllSections && activePanel && !isUtilityPanelId(activePanel.id) && (sectionSubsections[activePanel.id]?.length ?? 0) > 1}
                     {@const sec = activePanel}
+                    {@const isRenderSection = sec.id === "territory_styles"}
+                    {@const effectiveSub =
+                        activeSubsections[sec.id] ??
+                        (isRenderSection ? (activeTerritoryRenderMode ?? "all") : "all")}
                     <div class="section-subnav section-subnav--secondary">
+                        {#if !isRenderSection}
                         <PaxHudButton
                             class="subsection-chip"
-                            active={(activeSubsections[sec.id] ?? "all") === "all"}
+                            active={effectiveSub === "all"}
                             onclick={() => toggleSubsection(sec.id, "all")}
                             title="Show all"
                         >
                             <span class="subsection-chip__icon"><HudIcon name="phase-field" size={14} /></span>
                             <span>All</span>
                         </PaxHudButton>
+                        {/if}
                         {#each sectionSubsections[sec.id] ?? [] as subsection}
+                            {@const isLive =
+                                isRenderSection &&
+                                subsection.id === activeTerritoryRenderMode}
                             <PaxHudButton
-                                class="subsection-chip"
-                                active={(activeSubsections[sec.id] ?? "all") === subsection.id}
+                                class={"subsection-chip" +
+                                    (isLive ? " subsection-chip--live" : "")}
+                                active={effectiveSub === subsection.id}
                                 onclick={() => toggleSubsection(sec.id, subsection.id)}
-                                title={subsection.label}
+                                title={isLive
+                                    ? subsection.label + " (live render mode)"
+                                    : subsection.label}
                             >
                                 <span class="subsection-chip__icon"><HudIcon name={subsection.icon} size={14} /></span>
                                 <span>{subsection.label}</span>
@@ -1659,7 +1671,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         syncFromConfig={syncAllFromConfig}
                         view="styles"
                         showCategoryThemeBar={true}
-                        activeSubsection={activeSubsections[sec.id] ?? "all"}
+                        activeSubsection={activeSubsections[sec.id] ??
+                            (activeTerritoryRenderMode ?? "all")}
                     />
                 {:else if sec.id === "frontier_fx"}
                     <ControlsSectionFrontierFx
@@ -2192,6 +2205,22 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     :global(.section-subnav .subsection-chip:nth-child(6)) { --chip-hue: 48; }
     :global(.section-subnav .subsection-chip:nth-child(7)) { --chip-hue: 90; }
     :global(.section-subnav .subsection-chip:nth-child(8)) { --chip-hue: 150; }
+    /* Live render-mode marker: the chip whose mode is the active TERRITORY_RENDER_MODE. */
+    :global(.subsection-chip--live) {
+        position: relative;
+    }
+    :global(.subsection-chip--live)::after {
+        content: "";
+        position: absolute;
+        top: 3px;
+        right: 3px;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--pax-color-player-green, #4ade80);
+        box-shadow: 0 0 6px 1px
+            color-mix(in srgb, var(--pax-color-player-green, #4ade80) 60%, transparent);
+    }
     .subsection-chip__icon {
         display: inline-grid;
         place-items: center;
