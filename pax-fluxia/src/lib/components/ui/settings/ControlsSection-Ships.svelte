@@ -222,6 +222,7 @@
 <CategoryThemeBar category="ships" onApply={() => syncFromConfig?.()} />
 
 <!-- ── Master Star System Scale ── -->
+<div data-subsection-id="star-scale">
 <h4 class="sub-heading">Star System Scale</h4>
 <div class="var-row">
     <PaxSettingsRangeRow
@@ -235,8 +236,10 @@
         onInput={setStarSystemScale}
     />
 </div>
+</div>
 
 <!-- ── Ship Size & Shape ── -->
+<div data-subsection-id="ship-size">
 <h4 class="sub-heading">Ship Size & Shape</h4>
 <div class="var-row">
     <PaxSettingsRangeRow
@@ -318,7 +321,10 @@
     />
 </div>
 
+</div>
+
 <!-- ── Star Halos (F-47) ── -->
+<div data-subsection-id="halos">
 <h4 class="sub-heading">Star Halos</h4>
 <PaxSettingsToggleRow
     label="Show Halos"
@@ -487,8 +493,10 @@
         {/if}
     {/if}
 {/if}
+</div>
 
 <!-- ── Orbit Layout ── -->
+<div data-subsection-id="orbit">
 <h4 class="sub-heading">Orbit Layout</h4>
 <div class="var-row">
     <PaxSettingsRangeRow
@@ -563,7 +571,10 @@
     />
 </div>
 
+</div>
+
 <!-- ── Star Shape ── -->
+<div data-subsection-id="star-shape">
 <h4 class="sub-heading">Star Shape</h4>
 <div class="var-row">
     <div class="row-top">
@@ -603,7 +614,9 @@
         />
     </div>
 {/if}
+</div>
 
+<div data-subsection-id="ownership-ring">
 <h4 class="sub-heading">Ownership Ring</h4>
 <div class="var-row">
     <PaxSettingsRangeRow
@@ -667,7 +680,10 @@
     />
 </div>
 
+</div>
+
 <!-- ── Star Labels (Pill) ── -->
+<div data-subsection-id="labels">
 <h4 class="sub-heading">Star Labels</h4>
 
 <!-- Layout Toggle: Pill vs Stacked (large buttons) -->
@@ -941,7 +957,10 @@
     />
 </div>
 
+</div>
+
 <!-- ── Order Arrows ── -->
+<div data-subsection-id="arrows">
 <h4 class="sub-heading">Order Arrows</h4>
 <div class="var-row">
     <PaxSettingsRangeRow
@@ -1147,7 +1166,10 @@
     />
 </div>
 
+</div>
+
 <!-- ── Damaged Ships ── -->
+<div data-subsection-id="damaged">
 <h4 class="sub-heading">Damaged Ships</h4>
 <div class="var-row">
     <PaxSettingsRangeRow
@@ -1182,7 +1204,10 @@
     />
 </div>
 
+</div>
+
 <!-- ── Interaction ── -->
+<div data-subsection-id="interaction">
 <h4 class="sub-heading">Interaction</h4>
 <div class="var-row">
     <PaxSettingsRangeRow
@@ -1197,7 +1222,10 @@
     />
 </div>
 
+</div>
+
 <!-- ── Density Coloring ── -->
+<div data-subsection-id="density">
 <h4 class="sub-heading">Density Coloring</h4>
 {#each DENSITY_VARIABLES as v}
     {@const panelKey = DENSITY_PANEL_MAP[v.key] ?? v.key}
@@ -1223,7 +1251,10 @@
     />
 </div>
 
+</div>
+
 <!-- ── Star Glow ── -->
+<div data-subsection-id="glow">
 <h4 class="sub-heading">Star Glow</h4>
 <div class="var-row">
     <PaxSettingsToggleRow
@@ -1256,4 +1287,5 @@
         settingConfigKey="STAR_GLOW_INTENSITY"
         onInput={(value) => writePanelConfig("starGlowIntensity", "STAR_GLOW_INTENSITY", value)}
     />
+</div>
 </div>
