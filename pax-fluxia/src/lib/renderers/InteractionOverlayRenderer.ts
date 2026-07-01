@@ -185,7 +185,7 @@ function drawArrow(
         : GAME_CONFIG.ARROW_HEAD_SIZE ?? 30;
     const dashLength = GAME_CONFIG.ARROW_DASH_LENGTH ?? 15;
     const dashGap = GAME_CONFIG.ARROW_DASH_GAP ?? 10;
-    const tipDistance = totalLength * (GAME_CONFIG.ARROW_LENGTH_FRACTION ?? 0.5);
+    const tipDistance = totalLength * (GAME_CONFIG.ARROW_LENGTH ?? 0.5);
     const baseDistance = Math.max(0, tipDistance - headLength);
     const shaftPath = pointAtArcLength(
         path.map((point) => [point.x, point.y] as [number, number]),

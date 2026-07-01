@@ -183,7 +183,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'REPAIR_SUPPRESS_ATTACKER' },
     { configKey: 'REPAIR_SUPPRESS_DEFENDER' },
     { configKey: 'GLOBAL_DAMAGE_MODIFIER' },
-    { configKey: 'ARROW_LENGTH_FRACTION' },
+    { configKey: 'ARROW_LENGTH', panelKey: 'arrowLengthFraction' },
     { configKey: 'ORDER_ARROWS_FOLLOW_LANE_PATHS' },
     { configKey: 'ARROW_PATH_PADDING' },
     { configKey: 'ARROW_HEAD_SPREAD_DEG' },

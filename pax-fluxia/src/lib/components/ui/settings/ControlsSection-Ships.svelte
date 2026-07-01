@@ -1017,18 +1017,6 @@
 </div>
 <div class="var-row">
     <PaxSettingsRangeRow
-        label="Arrow Length"
-        value={panel.arrowLengthFraction ?? GAME_CONFIG.ARROW_LENGTH_FRACTION ?? 0.5}
-        min={0.1}
-        max={1.0}
-        step={0.05}
-        format="fixed2"
-        settingConfigKey="ARROW_LENGTH_FRACTION"
-        onInput={(value) => writePanelConfig("arrowLengthFraction", "ARROW_LENGTH_FRACTION", value)}
-    />
-</div>
-<div class="var-row">
-    <PaxSettingsRangeRow
         label="Gradient Steps"
         value={panel.arrowShaftSteps ?? GAME_CONFIG.ARROW_SHAFT_STEPS ?? 6}
         min={1}

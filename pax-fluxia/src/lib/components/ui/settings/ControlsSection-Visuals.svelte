@@ -315,6 +315,20 @@
     />
 
     <PaxSettingsRangeRow
+        label="Arrow Length"
+        value={panel.arrowLengthFraction ?? GAME_CONFIG.ARROW_LENGTH ?? 0.5}
+        min={0.1}
+        max={1.0}
+        step={0.05}
+        format="fixed2"
+        settingConfigKey="ARROW_LENGTH"
+        onInput={(value) => {
+            GAME_CONFIG.ARROW_LENGTH = value;
+            updatePanel("arrowLengthFraction", value);
+        }}
+    />
+
+    <PaxSettingsRangeRow
         label="Arrow Path Padding"
         value={panel.arrowPathPadding ?? GAME_CONFIG.ARROW_PATH_PADDING ?? 0}
         min={0}

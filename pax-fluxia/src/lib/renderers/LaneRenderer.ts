@@ -505,7 +505,7 @@ export function renderOrderArrows(
         const totalLen = polylineTotalLength(path);
         if (totalLen <= 10) return;
 
-        const tipDist = totalLen * (GAME_CONFIG.ARROW_LENGTH_FRACTION ?? 0.5);
+        const tipDist = totalLen * (GAME_CONFIG.ARROW_LENGTH ?? 0.5);
         const baseDist = Math.max(0, tipDist - headLen);
         const shaftPath = slicePolylineBetweenDistances(path, 0, baseDist);
         const tip = pointAtArcLength(path, tipDist);
@@ -611,7 +611,7 @@ export function renderOrderArrows(
         if (!path) return;
         const totalLen = polylineTotalLength(path);
         if (totalLen <= 1) return;
-        const tipDist = totalLen * (GAME_CONFIG.ARROW_LENGTH_FRACTION ?? 0.5);
+        const tipDist = totalLen * (GAME_CONFIG.ARROW_LENGTH ?? 0.5);
         const baseDist = Math.max(0, tipDist - headLen);
 
         // Dashed line segments

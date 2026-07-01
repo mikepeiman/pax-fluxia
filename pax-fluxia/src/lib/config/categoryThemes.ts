@@ -170,7 +170,7 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'ARROW_SPIRAL_DURATION_MS',
         'ARROW_STAGGER_MS',
         'ARROW_STAGGER_AUTO',
-        'ARROW_LENGTH_FRACTION',
+        'ARROW_LENGTH',
     ],
 
     territory: [

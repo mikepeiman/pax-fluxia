@@ -275,7 +275,7 @@ interface GameConfigType {
     STAR_GLOW_LAYERS: number;       // Number of concentric gradient layers (default 4)
 
     /** How far order arrows extend along the lane (0.0-1.0, 1.0 = full distance to target edge) */
-    ARROW_LENGTH_FRACTION: number;
+    ARROW_LENGTH: number;
     /** Arrowhead size in px (default 30) */
     ARROW_HEAD_SIZE: number;
     /** Arrow shaft width in px (default 6) */
