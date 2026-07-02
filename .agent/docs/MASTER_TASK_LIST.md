@@ -10,17 +10,21 @@ superseding docs:
 # ⭐ MASTER TASK LIST
 
 > **This is the ONE master task list for the project (AGENT.md RULE 0.5).**
-> Every agent ALWAYS adds tasks, fixes, and instructions here — organized **by date**, and by any
-> other relevant context (area, mode, severity, owner). Do not scatter task lists across ad-hoc
-> docs. Daily session queues (`.agent/docs/sessions/YYYY-MM-DD/`) may hold same-day detail, but the
-> durable cross-day task of record lives here.
+> **Purpose: prevent forgetting and loss of tasks.** Log every task, fix, idea, and instruction here
+> **the moment it becomes known — BEFORE it is implemented.** Capture first; implement later. A task
+> you might not touch for weeks still gets logged the instant it surfaces (even mid-other-work). This
+> is a forward-looking backlog, NOT a retrospective changelog. Don't scatter task lists across ad-hoc
+> docs; daily session queues (`.agent/docs/sessions/YYYY-MM-DD/`) may hold same-day detail, but the
+> durable cross-day task-of-record lives here.
 
-**How to use**
-- Add under today's dated `## YYYY-MM-DD` heading. Create the heading if missing.
-- Each item: `- [ ]` open / `- [x]` done; a one-line title; area tag `[area]`; and a link to the
-  spec/plan/commit where relevant.
-- When you complete an item, mark `[x]` and add the commit hash; do not delete it (history matters).
-- Keep newest date on top.
+**Workflow**
+1. **Capture immediately.** When a task/fix/idea/instruction appears — a user request, a bug you
+   notice, a follow-up you realize, a "we should later…" — add it FIRST, before starting work, under
+   today's `## YYYY-MM-DD` → `### Open` as `- [ ]` with a one-line title, an area tag `[area]`, and
+   any link. Do this even in the middle of another task; capturing beats remembering.
+2. **Then** work it. On completion, flip to `- [x]` and add the commit hash — secondary bookkeeping;
+   never delete history. The capture is the point, not the checkmark.
+3. Newest date on top. Missing today's heading? Create it.
 
 ---
 
