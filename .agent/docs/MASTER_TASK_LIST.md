@@ -35,7 +35,10 @@ superseding docs:
   perfect a single PV core (PowerCore); grid-lattice looks (Edges/Ember/Phase) re-based as skins on
   it, NOT abandoned. Plan: [POWERCORE_UNIFICATION_PLAN](sessions/2026-07-01/2026-07-01_POWERCORE_UNIFICATION_PLAN.md).
   Supersedes recovery L3–L6. Absorbs tasks #4/#8/#10/#11 + settings remainder of #9.
-  - [ ] P0: delete dead PRESENTATION_SMOOTHNESS_FIRST false-branches (keep instrument); gate: hash + pending 0.
+  - [x] P0 DONE 2026-07-01 (`08b475e87` on `claude/territory-recovery`): −519/+27 in GameCanvas;
+    flag + 4 dead scheduling paths + yield/cadence cluster + 17 orphan consts deleted; instrument
+    kept. Gate green: check 0 errors; tests match master; hash unchanged; spot bench == baseline;
+    pending 0.
   - [ ] P1: PowerCore correctness + adapter to ResolvedGeometrySnapshot; gate: invariant tests + USER visual sign-off.
   - [ ] P2: local/incremental capture updates; gate: per-capture geometry p95 ≤ 2ms.
   - [ ] P3: one transition system (exact identity; two-stage; never stale); gate: pending 0, capture-tick p95 ≤ 16.7ms.

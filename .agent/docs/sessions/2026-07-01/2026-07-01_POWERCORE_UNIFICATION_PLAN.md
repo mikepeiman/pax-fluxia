@@ -90,6 +90,20 @@ so a capture is a **local** change. Fix the root (correct + local + cheap), then
 - **Kills:** recovery loops L3–L6 (superseded); the 8-family acceptance ritual; all
   scheduling-as-perf work (the overnight branch's approach and its descendants).
 
+## LOC baseline (2026-07-01, master `a753bef05`) — track downward per phase
+
+Code = `.ts/.svelte/.js/.css` incl. tests. Client `pax-fluxia/src` **192,574**, of which the
+territory stack is **73,419 (38%)**: families 32,704 (cellGrid 17,855 = Cell Grid + Phase Edges +
+Ember + Phase Field · gridGradient 7,086 · perimeter 4,464 · metaball 2,382), pipeline
+(orchestrator/compiler/layers/transitions) 20,156, geometry 7,003 (PowerCore 1,020),
+devtools/frontier/pvFrontline/misc ~13,500. GameCanvas.svelte alone 8,822. Settings UI 14,284.
+Config 4,264 + 20,437 lines of theme JSON data. Shared game engine `common/src`: **6,028** — the
+territory rendering stack is 12× the game it displays.
+
+**Reduction targets:** P0 −519 (done) · P1–P2 ≈ −4k net (legacy geometry chain → PowerCore) ·
+P3 ≈ −8–10k (one transition system) · P4 ≈ −30–36k (families → skins; settings/config; devtools)
+· plus ~6–8k theme-JSON data. **Endpoint: territory 73.4k → ~22–25k (−65–70%); client → ~140k.**
+
 ## Standing rules for this plan
 1. Replay hash checked at every phase gate; any change = stop, report.
 2. User visual sign-off gates geometry (P1) and each skin (P4) — screenshots + live check.
