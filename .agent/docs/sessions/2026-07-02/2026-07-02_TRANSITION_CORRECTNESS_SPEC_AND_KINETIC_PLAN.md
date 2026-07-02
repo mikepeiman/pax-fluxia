@@ -15,6 +15,20 @@ superseding docs:
 **User directive 2026-07-02:** transitions are the real hard problem; solve for ABSOLUTE
 correctness. Constraints tuning is shelved. Breaking the running app is permitted.
 
+## 0. Design history (user-authored 2026-07-02 — full version in CONQUEST_ANIMATION_SPEC.md)
+
+The standing feel target: vector borders animating PRE→POST **like water flowing / rippling waves /
+a rope being pulled**. The first mechanism tried (implant transition vertices on changed sections,
+PRE|POST correspondence, lerp) **never worked reliably** — this spec's rejection of shape
+correspondence is that lesson, made structural. A second concept (visual-diff the PRE|POST and
+morph in image/field space, e.g. SDF interpolation) was never implemented and remains a documented
+alternative. The metaball family AND all grid-based modes were invented *because* vector
+transitions were hard — grid modes are the most reliable so far, but the goal remains **pure,
+deterministic vector transitions** as the foundation for performance and a visual-FX suite. The
+kinetic bubble morph below is aimed squarely at that goal: the diagram's own motion produces the
+flowing-water frontier sweep; easing/propagation shaping along the front supplies the ripple
+character; every frame is exact vector geometry.
+
 ## 1. What "correct" means (testable acceptance criteria)
 
 Derived from CONQUEST_ANIMATION_SPEC.md hard constraints + the identity model already on master.

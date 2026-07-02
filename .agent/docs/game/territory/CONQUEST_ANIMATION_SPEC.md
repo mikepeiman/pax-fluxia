@@ -37,6 +37,29 @@ Fills and strokes must follow one coordinated transition when using the referenc
 - The approach should be minimal: only move what needs to move.
 - The exact interpolation method is open as long as the hard constraints are satisfied.
 
+## Origin & Design History (user-authored, recorded 2026-07-02 — do not re-learn this the hard way)
+
+1. **The original and STANDING intent:** vector borders — rounded or straight — animate from the
+   PRE-conquest state to the POST-conquest state **like water flowing across the map; rippling
+   waves**. "Rope/string" is another valid metaphor (borders as strings being pulled). This feel
+   target has never changed.
+2. **The first implementation idea** was to implant transition vertices along changed border
+   sections, assign PRE|POST correspondence, and lerp them. **It never worked reliably** (though
+   partial successes had visual appeal). Correspondence-matching of output shapes is a known
+   failure path here — do not re-attempt it naively.
+3. **A second, never-implemented concept:** visually diff the PRE|POST states and morph via a
+   modern image/field-space algorithm (e.g. SDF/level-set interpolation of ownership masks).
+   No agent ever produced code for it. It remains a legitimate unexplored alternative,
+   especially for raster/lattice presentation.
+4. **The metaball family was devised BECAUSE transitions were hard — no other reason.** It proved
+   too compute-heavy as implemented.
+5. **The grid-based modes (Cell Grid / Phase Edges / Ember / Phase Field / Grid Gradient) share
+   the same origin:** they exist to make transitions comprehensible and deterministic. They have
+   high visual appeal and the best transition reliability so far.
+6. **What is still missing — the actual goal:** pure, deterministic VECTOR transitions, believed
+   to be the best basis for both performance and a suite of visual-effect options. Everything
+   above is context; this is the target.
+
 ---
 
 ## Implementation Files
