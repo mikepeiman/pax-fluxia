@@ -35,9 +35,20 @@ superseding docs:
   latest master; two-stage presentation (immediate correct ownership; deadline-bounded fancy
   transition; skip if late). Plan + full evidence:
   [recovery plan](sessions/2026-07-01/2026-07-01_TERRITORY_OVERNIGHT_INTEGRATION_REVIEW_SYNTHESIS_AND_RECOVERY_PLAN.md).
-  Not started. NOTE: do NOT merge `codex/territory-overnight-integration` wholesale.
-  - [ ] L1: master-based measurement branch; copy keep-set harness + representative artifacts into master.
-  - [ ] L2: remove delayed/stale display (revert `d2ac9d771a` presentation part; rewrite `4c847ca20`).
+  IN PROGRESS (started 2026-07-01). NOTE: do NOT merge `codex/territory-overnight-integration` wholesale.
+  Working branch: `claude/territory-recovery` (worktree `.claude/worktrees/territory-recovery`).
+  - [ ] L1 (in progress): master-based measurement branch; copy keep-set harness + representative artifacts into master.
+    Harness ported + pushed; replay hash on recovery branch == review reference
+    `9f6dae73473ad7528eaa767902a9bcac067a3197c5a0315c9e5577d9e9741910` (rules intact). Baseline
+    benchmark rows next.
+  - [ ] L2: remove delayed/stale display. REFINED 2026-07-01: `d2ac9d771a`/`4c847ca20` are NOT on
+    master — but master carries the OLDER flag-gated machinery they extended
+    (`PRESENTATION_SMOOTHNESS_FIRST = true` hardcoded at GameCanvas.svelte:314 since `d4b57a7ca`
+    2026-04-28; 8 gate sites; dead `false` branches = scheduler-background / message-channel /
+    timeout / delay-timeout paths). L2 = delete the dead delayed-display branches + the flag
+    (bias-to-less-code; the overnight effort proved the hazard by re-enabling them), KEEP the
+    pending-age/commit-lag/scheduleMode instrument. Gate unchanged: pending 0/budget, hash
+    unchanged, non-blank screenshots.
   - [ ] L3: split Phase Edges / Ember / Phase Field transition setup off the visible path.
   - [ ] L4: mode-switch acceptance (pending-display 0/budget all modes).
   - [ ] L5: Power Voronoi runtime mode-switch p95 open check (unproven; may be noise).
