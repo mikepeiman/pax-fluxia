@@ -387,8 +387,12 @@ function buildHalfEdges(
         raw.push({ fromKey: bKey, toKey: aKey, fromPt: b, toPt: a, edgeId, kind, forward: false });
     };
 
-    for (const e of graph.sharedEdges) pushBoth(e.edgeId, 'shared', e.pts[0], e.pts[1]);
-    for (const e of graph.worldEdges) pushBoth(e.edgeId, 'world', e.pts[0], e.pts[1]);
+    // Graph topology is built on edge ENDPOINTS (the pinned junction vertices);
+    // interior pts (if a later phase subdivided the edge) do not affect the walk.
+    for (const e of graph.sharedEdges)
+        pushBoth(e.edgeId, 'shared', e.pts[0], e.pts[e.pts.length - 1]);
+    for (const e of graph.worldEdges)
+        pushBoth(e.edgeId, 'world', e.pts[0], e.pts[e.pts.length - 1]);
 
     // Assign ids; twins are consecutive (2k, 2k+1). Each half-edge carries the
     // cell that contributed it (interior on the left of its direction).

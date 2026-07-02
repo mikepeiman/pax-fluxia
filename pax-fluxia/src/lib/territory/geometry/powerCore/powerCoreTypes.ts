@@ -43,26 +43,30 @@ export const WORLD_OWNER = 'world';
 /**
  * Atomic inter-owner border unit. A SINGLE object referenced by BOTH adjacent
  * regions. `ownerA` < `ownerB` lexicographically for determinism. `pts` is the
- * raw segment endpoints; `smoothedPts` is what loops read for their polygon
- * (initialized to a copy of `pts` — no smoothing in Phase 1). Mutating
- * `smoothedPts` updates every loop that references this edge, identically.
+ * raw polyline — buildSharedEdgeGraph emits exactly the 2 segment endpoints;
+ * later phases may insert INTERIOR points (subdivision), but the FIRST and LAST
+ * points are always the junction vertices and must never move. `smoothedPts` is
+ * what loops read for their polygon (initialized to a copy of `pts`; rewritten
+ * by smoothSharedEdges). Mutating `smoothedPts` updates every loop that
+ * references this edge, identically.
  */
 export interface SharedEdge {
     readonly edgeId: string;
     readonly ownerA: string;
     readonly ownerB: string;
-    pts: [Point, Point];
+    pts: Point[];
     smoothedPts: Point[];
 }
 
 /**
  * An owner↔world border (a cell edge lying on the world rectangle). The real
- * owner is on the inside; `WORLD_OWNER` is on the outside.
+ * owner is on the inside; `WORLD_OWNER` is on the outside. Same `pts` /
+ * `smoothedPts` convention as SharedEdge (first/last points are pinned).
  */
 export interface WorldEdge {
     readonly edgeId: string;
     readonly owner: string;
-    pts: [Point, Point];
+    pts: Point[];
     smoothedPts: Point[];
 }
 
