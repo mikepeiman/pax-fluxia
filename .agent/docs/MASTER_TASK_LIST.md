@@ -31,16 +31,25 @@ superseding docs:
 ## 2026-07-01
 
 ### Open
+- [ ] **STRATEGIC REVIEW (proposed, awaiting user decision)** `[direction]` — 100k-ft gameplay-first
+  re-sequencing proposed 2026-07-01: (1) finish PowerCore geometry correctness first; (2) make
+  capture updates LOCAL/incremental (board is immutable in-game — per-capture global recompute is
+  the root perf bug, not scheduling); (3) ONE transition system on the new engine; (4) consolidate
+  8 render families → hero mode(s) as skins over one geometry+transition core; (5) small harness
+  gate (hero modes only). Recovery plan L3–L6 demoted to "only if still relevant after the above";
+  L2 dead-code deletion + harness stay.
 - [ ] **Territory overnight-integration RECOVERY / merge-in** `[territory][perf]` — start from
   latest master; two-stage presentation (immediate correct ownership; deadline-bounded fancy
   transition; skip if late). Plan + full evidence:
   [recovery plan](sessions/2026-07-01/2026-07-01_TERRITORY_OVERNIGHT_INTEGRATION_REVIEW_SYNTHESIS_AND_RECOVERY_PLAN.md).
   IN PROGRESS (started 2026-07-01). NOTE: do NOT merge `codex/territory-overnight-integration` wholesale.
   Working branch: `claude/territory-recovery` (worktree `.claude/worktrees/territory-recovery`).
-  - [ ] L1 (in progress): master-based measurement branch; copy keep-set harness + representative artifacts into master.
-    Harness ported + pushed; replay hash on recovery branch == review reference
-    `9f6dae73473ad7528eaa767902a9bcac067a3197c5a0315c9e5577d9e9741910` (rules intact). Baseline
-    benchmark rows next.
+  - [x] L1 DONE 2026-07-01: branch `claude/territory-recovery`; harness ported (`0d019ca0a`);
+    replay hash == review reference `9f6dae73…9741910` (rules intact); review-worktree aggregates
+    preserved (`d3349cbb5`); full 32-row baseline captured + distilled (`f2fdf1c72`).
+    Baseline verdict: pending-display 0 everywhere; PV/perimeter/metaball/phase_field at refresh;
+    cell_grid transition p95 25ms; phase_edges p50 25ms + ember p50 33ms in ALL scenarios
+    (structural); grid_gradient p50 ~100ms (unusable).
   - [ ] L2: remove delayed/stale display. REFINED 2026-07-01: `d2ac9d771a`/`4c847ca20` are NOT on
     master — but master carries the OLDER flag-gated machinery they extended
     (`PRESENTATION_SMOOTHNESS_FIRST = true` hardcoded at GameCanvas.svelte:314 since `d4b57a7ca`
