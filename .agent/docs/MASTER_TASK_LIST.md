@@ -67,6 +67,16 @@ superseding docs:
     - [ ] P1c: A/B on acceptance map `First Symmetry-6_April 17b` + USER visual sign-off (the gate).
       To view PowerCore live: settings key `PERIMETER_FIELD_GEOMETRY_SOURCE` = `power_core`
       (0319 remains default until sign-off).
+      REFINED 2026-07-02 (user caught it): the toggle reaches ONLY the render-family seam —
+      live in Ember/Edges/Phase Field/Grid Gradient/Cell Grid (RenderFamilyInput.geometry).
+      **PVV4-runtime is a THIRD separate assembler** (TerritoryEngineController→TerritoryCompiler
+      metric/frontier/region stages — does NOT consume the shared power diagram at all), so PVV4
+      showed no change. PV-look A/B therefore = build the **Vector skin** (render PowerCore's
+      snapshot directly: crisp fills+borders, selectable mode) rather than wiring the toggle into
+      the legacy PVV4 engine. This starts P4's Vector skin early; PVV4 retires against it later.
+    - [ ] Vector skin (PowerCore-native PV look) `[territory][render]` — minimal presentation of
+      ResolvedGeometrySnapshot (region fills + frontier/world borders, HSLA + width tunables),
+      registered as a selectable mode for A/B vs PVV4. IN PROGRESS 2026-07-02.
   - [ ] P2: local/incremental capture updates; gate: per-capture geometry p95 ≤ 2ms.
   - [ ] P3: one transition system (exact identity; two-stage; never stale); gate: pending 0, capture-tick p95 ≤ 16.7ms.
   - [ ] P4: skins (Vector + Lattice via region-mask/SDF shader); per-skin USER sign-off; legacy → museum branch.
