@@ -7,15 +7,26 @@
 
 # 🌌 Pax Fluxia
 
-> **Own the space between the stars.** A real-time strategy game where victory isn't measured in
-> units — it's measured in *territory*: the living, glowing frontier that swells and recoils as
-> fleets clash across a network of stars.
+> **Real-time conquest by attrition.** Command the fleets orbiting your stars, apply relentless
+> pressure to enemy fronts, and grind them down tick by tick — destroying ships, nursing your repair
+> pool, and turning broken defenders into captured territory. Every star is production; every front
+> is a decision; the last commander holding a star wins.
 
-**Pax Fluxia** is a browser- and desktop-native RTS in the lineage of *Galcon* / *Pax Galaxia*,
-built around one idea the genre usually leaves flat: **the map itself is the drama.** Every star you
-hold projects ownership into the void around it, and where two holdings meet, a **frontier** forms —
-a real geometric boundary that bends, buckles, and re-flows in real time as the balance of power
-shifts. Take a star and watch your color pour across the sector.
+**Pax Fluxia** is a real-time, tick-based strategy game of territorial conquest — a modern descendant
+of **Pax Galaxia**. You issue standing orders from the stars you hold across a network of lanes, and
+every tick the whole sector resolves at once: stars produce ships, locked fronts trade damage, and
+the wounded crawl back toward repair. There is no single decisive battle — there is **pressure**.
+Commit to a front and *both* sides bleed continuously: some ships destroyed for good, the rest
+**disabled** into a slowly-healing pool. You take a front by out-massing and out-repairing it while
+feeding reinforcements from the rear — and you lose one by overcommitting and leaving another exposed.
+
+Break a defender and its star **flips to you**; the survivors **scatter** down escape lanes or
+**retreat** if they had somewhere to run — some captured, some destroyed. A capture hands you that
+star's production and can spring a **deferred order** you pre-placed, so one breakthrough can cascade
+across the map. The depth is in *where* you apply pressure and *when* you commit: juggling several
+attrition fronts at once, exploiting **star specializations** (production, logistics, repair, defense,
+attack), defending the **territory** that is simultaneously your economy and your exposure, and
+reading the balance of force before it tips.
 
 It runs on a **single deterministic engine shared between client and server**, so a solo match
 against the AI and a live multiplayer game are the *same game*, tick for tick.
@@ -50,10 +61,22 @@ some lost to the void. Chain a deferred order off the capture and your momentum 
 
 ## ✨ What makes it distinct
 
-**A frontier that's really *there*.** Territory isn't a decorative tint — it's computed geometry.
-Ownership fields resolve into regions, regions meet at frontiers, and frontiers animate through
-conquest as continuous shapes rather than popping between states. The renderer ships **multiple
-territory "families"** you can switch between live, each a different way of drawing the same truth:
+**Attrition you manage, not micro you spam.** Battles aren't clicks — they're sustained fronts. Both
+sides bleed every tick, damage splits into permanent kills and repairable wounds, and repair slows
+under fire, so winning a front is a *rate* problem: can you destroy and reinforce faster than they
+can heal and feed? That turns every engagement into a commitment decision, not a coin flip.
+
+**Territory is the strategy, not the scenery.** Your holding is at once your economy (every star
+produces) and your liability (every frontier is a front you must defend). Lanes are exclusive — a
+contested lane belongs to at most two players — so fronts form at real boundaries you can pressure,
+pinch, or abandon. **Deferred orders** let you pre-stage an offensive so a single breakthrough
+cascades across the map.
+
+**A sector you can read at a glance.** Because ownership is computed geometry — fields resolve into
+regions, regions meet at frontiers, frontiers re-flow through conquest as continuous shapes — the map
+*is* a live strategic readout: you can see pressure massing before the numbers spell it out. The
+renderer ships **multiple territory "families"** you can switch between live, each a different way of
+drawing the same underlying truth:
 
 | Render family | Character |
 |---|---|
