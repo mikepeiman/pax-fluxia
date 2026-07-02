@@ -40,6 +40,14 @@ superseding docs:
     kept. Gate green: check 0 errors; tests match master; hash unchanged; spot bench == baseline;
     pending 0.
   - [ ] P1: PowerCore correctness + adapter to ResolvedGeometrySnapshot; gate: invariant tests + USER visual sign-off.
+    - [ ] P1a (in progress 2026-07-01, delegated): weighted-Voronoi→PowerCell adapter; owner-from-half-edge
+      (kills O(N²) walk); Chaikin-with-junction-pinning on SharedEdge.smoothedPts; fixture invariant tests.
+      Scope: powerCore dir only, no live-path changes.
+    - [ ] P1b: snapshot assembly (frontier polyline chaining per owner-pair, shells/holes, frontierTopology,
+      provenance: sourceMethod 'power_voronoi', geometryFamily 'vector-native', reliable-flags true) +
+      geometry source registration (geometrySource.ts hard-return + buildFamilyGeometry.ts:158 branch)
+      for 0319-vs-PowerCore A/B; Stage-0 (MSR weights + CX/DX virtuals) shared unchanged.
+    - [ ] P1c: A/B parity run on 5 fixture maps + acceptance map; then USER visual sign-off (the gate).
   - [ ] P2: local/incremental capture updates; gate: per-capture geometry p95 ≤ 2ms.
   - [ ] P3: one transition system (exact identity; two-stage; never stale); gate: pending 0, capture-tick p95 ≤ 16.7ms.
   - [ ] P4: skins (Vector + Lattice via region-mask/SDF shader); per-skin USER sign-off; legacy → museum branch.
