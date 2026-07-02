@@ -8,7 +8,11 @@ import { computeGeometry0319 } from '../compiler/Geometry_0319';
 import type { TerritoryGeneratorSettings } from '../compiler/powerVoronoiTerritoryGeometryGenerator';
 import { buildPowerVoronoi0319AuthoritySnapshot } from '../geometry/buildPowerVoronoi0319AuthoritySnapshot';
 import { buildTerritoryGeneratorSettingsFromTunables } from '../geometry/geometryTuning';
-import { normalizePerimeterFieldGeometrySource } from '../geometry/geometrySource';
+import {
+    normalizePerimeterFieldGeometrySource,
+    POWER_CORE_GEOMETRY_SOURCE,
+} from '../geometry/geometrySource';
+import { buildPowerCoreAuthoritySnapshot } from '../geometry/powerCore/buildPowerCoreAuthoritySnapshot';
 import { readTerritoryRuntimeSettings } from '../integration/TerritorySettingsBridge';
 import { compileVectorGeometry } from '../layers/geometry/compiler_UnifiedVectorGeometry';
 
@@ -132,6 +136,38 @@ function buildPowerVoronoi0319RenderFamilyGeometry(params: {
     });
 }
 
+function buildPowerCoreRenderFamilyGeometry(params: {
+    stars: ReadonlyArray<StarState>;
+    lanes: ReadonlyArray<StarConnection>;
+    worldWidth: number;
+    worldHeight: number;
+    ownershipVersion: string;
+    sourceStyle: ResolvedGeometrySnapshot['sourceStyle'];
+    configSource?: Record<string, unknown>;
+}): ResolvedGeometrySnapshot | null {
+    const settings = buildPowerVoronoi0319Settings({
+        lanes: params.lanes,
+        worldWidth: params.worldWidth,
+        worldHeight: params.worldHeight,
+        configSource: params.configSource,
+    });
+    const result = buildPowerCoreAuthoritySnapshot({
+        stars: params.stars,
+        connections: params.lanes,
+        config: settings,
+        ownershipVersion: params.ownershipVersion,
+        sourceStyle: params.sourceStyle,
+    });
+    if ('kind' in result) {
+        log.error(
+            'PerimeterFieldGeometry',
+            `PowerCore fallback to 0319 authority path: ${result.message}`,
+        );
+        return null;
+    }
+    return result;
+}
+
 export function buildPerimeterFieldRenderFamilyGeometry(params: {
     stars: ReadonlyArray<StarState>;
     lanes: ReadonlyArray<StarConnection>;
@@ -154,6 +190,22 @@ export function buildPerimeterFieldRenderFamilyGeometry(params: {
     const geometrySource = normalizePerimeterFieldGeometrySource(
         requestedGeometrySource,
     );
+
+    if (geometrySource === POWER_CORE_GEOMETRY_SOURCE) {
+        const powerCore = buildPowerCoreRenderFamilyGeometry({
+            stars: params.stars,
+            lanes: params.lanes,
+            worldWidth: params.worldWidth,
+            worldHeight: params.worldHeight,
+            ownershipVersion: ownership.version,
+            sourceStyle: runtimeSettings.selection.styleMode,
+            configSource,
+        });
+        if (powerCore) {
+            return powerCore;
+        }
+        // CompileError inside PowerCore: fall through to the 0319 authority path.
+    }
 
     const adapted = buildPowerVoronoi0319RenderFamilyGeometry({
         stars: params.stars,
