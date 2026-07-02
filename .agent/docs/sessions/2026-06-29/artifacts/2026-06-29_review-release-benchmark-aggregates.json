@@ -1,0 +1,8903 @@
+{
+ "note": "Distilled from raw review-release benchmark JSONs (worktrees may be cleaned; this file preserves the aggregates). Full evidence chain: UPDATE_01..27 docs.",
+ "sources": {
+  "review_branch(codex/territory-overnight-integration)": {
+   "dir": "C:\\Users\\mikep\\.codex\\worktrees\\territory-overnight-integration\\pax-fluxia\\.agent-harness\\metrics\\review-release",
+   "fileCount": 36,
+   "runs": [
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T14-41-17-656Z.json",
+     "generatedAt": "2026-06-29T14:41:17.656Z",
+     "appPath": null,
+     "mapName": null,
+     "runsPerScenario": 1,
+     "frameMs": 800,
+     "rows": {
+      "cell_grid.gameplay": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP99Ms": {
+        "p50": 8.6,
+        "p95": 8.6,
+        "p99": 8.6,
+        "max": 8.6
+       },
+       "runMaxMs": {
+        "p50": 8.9,
+        "p95": 8.9,
+        "p99": 8.9,
+        "max": 8.9
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T14-42-45-809Z.json",
+     "generatedAt": "2026-06-29T14:42:45.809Z",
+     "appPath": null,
+     "mapName": null,
+     "runsPerScenario": 3,
+     "frameMs": 3600,
+     "rows": {
+      "power_voronoi_runtime.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 9,
+        "p95": 9,
+        "p99": 9,
+        "max": 9
+       },
+       "runP99Ms": {
+        "p50": 9.2,
+        "p95": 9.2,
+        "p99": 9.2,
+        "max": 9.2
+       },
+       "runMaxMs": {
+        "p50": 9.4,
+        "p95": 9.4,
+        "p99": 9.4,
+        "max": 9.4
+       }
+      },
+      "power_voronoi_runtime.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 8.9,
+        "p95": 9.1,
+        "p99": 9.1,
+        "max": 9.1
+       },
+       "runP99Ms": {
+        "p50": 9.3,
+        "p95": 9.6,
+        "p99": 9.6,
+        "max": 9.6
+       },
+       "runMaxMs": {
+        "p50": 17.1,
+        "p95": 25.1,
+        "p99": 25.1,
+        "max": 25.1
+       }
+      },
+      "perimeter_field.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 9.1,
+        "p95": 9.2,
+        "p99": 9.2,
+        "max": 9.2
+       },
+       "runP99Ms": {
+        "p50": 16.3,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runMaxMs": {
+        "p50": 17.3,
+        "p95": 18,
+        "p99": 18,
+        "max": 18
+       }
+      },
+      "perimeter_field.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 16.7,
+        "p95": 17.2,
+        "p99": 17.2,
+        "max": 17.2
+       },
+       "runP99Ms": {
+        "p50": 17.7,
+        "p95": 18,
+        "p99": 18,
+        "max": 18
+       },
+       "runMaxMs": {
+        "p50": 33.7,
+        "p95": 41.7,
+        "p99": 41.7,
+        "max": 41.7
+       }
+      },
+      "metaball.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 9,
+        "p95": 9.2,
+        "p99": 9.2,
+        "max": 9.2
+       },
+       "runP99Ms": {
+        "p50": 16.2,
+        "p95": 17,
+        "p99": 17,
+        "max": 17
+       },
+       "runMaxMs": {
+        "p50": 17.4,
+        "p95": 100,
+        "p99": 100,
+        "max": 100
+       }
+      },
+      "metaball.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 17.2,
+        "p95": 17.2,
+        "p99": 17.2,
+        "max": 17.2
+       },
+       "runP99Ms": {
+        "p50": 17.6,
+        "p95": 17.7,
+        "p99": 17.7,
+        "max": 17.7
+       },
+       "runMaxMs": {
+        "p50": 25,
+        "p95": 25.8,
+        "p99": 25.8,
+        "max": 25.8
+       }
+      },
+      "cell_grid.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 9.4,
+        "p95": 16.5,
+        "p99": 16.5,
+        "max": 16.5
+       },
+       "runP99Ms": {
+        "p50": 16.9,
+        "p95": 17.3,
+        "p99": 17.3,
+        "max": 17.3
+       },
+       "runMaxMs": {
+        "p50": 17.3,
+        "p95": 17.5,
+        "p99": 17.5,
+        "max": 17.5
+       }
+      },
+      "cell_grid.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.5,
+        "p99": 8.5,
+        "max": 8.5
+       },
+       "runP95Ms": {
+        "p50": 17,
+        "p95": 17.4,
+        "p99": 17.4,
+        "max": 17.4
+       },
+       "runP99Ms": {
+        "p50": 17.6,
+        "p95": 24.9,
+        "p99": 24.9,
+        "max": 24.9
+       },
+       "runMaxMs": {
+        "p50": 25.3,
+        "p95": 26,
+        "p99": 26,
+        "max": 26
+       }
+      },
+      "phase_edges.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 16.5,
+        "p95": 16.5,
+        "p99": 16.5,
+        "max": 16.5
+       },
+       "runP99Ms": {
+        "p50": 16.9,
+        "p95": 17.1,
+        "p99": 17.1,
+        "max": 17.1
+       },
+       "runMaxMs": {
+        "p50": 17.2,
+        "p95": 17.6,
+        "p99": 17.6,
+        "max": 17.6
+       }
+      },
+      "phase_edges.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 17,
+        "p95": 17,
+        "p99": 17,
+        "max": 17
+       },
+       "runP99Ms": {
+        "p50": 17.4,
+        "p95": 17.4,
+        "p99": 17.4,
+        "max": 17.4
+       },
+       "runMaxMs": {
+        "p50": 34.6,
+        "p95": 58.3,
+        "p99": 58.3,
+        "max": 58.3
+       }
+      },
+      "ember_lattice.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 9.8,
+        "p95": 16.2,
+        "p99": 16.2,
+        "max": 16.2
+       },
+       "runP99Ms": {
+        "p50": 16.9,
+        "p95": 17,
+        "p99": 17,
+        "max": 17
+       },
+       "runMaxMs": {
+        "p50": 17.5,
+        "p95": 17.7,
+        "p99": 17.7,
+        "max": 17.7
+       }
+      },
+      "ember_lattice.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 17.1,
+        "p95": 17.2,
+        "p99": 17.2,
+        "max": 17.2
+       },
+       "runP99Ms": {
+        "p50": 17.8,
+        "p95": 24.8,
+        "p99": 24.8,
+        "max": 24.8
+       },
+       "runMaxMs": {
+        "p50": 25.2,
+        "p95": 31.1,
+        "p99": 31.1,
+        "max": 31.1
+       }
+      },
+      "phase_field.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 16.2,
+        "p95": 16.4,
+        "p99": 16.4,
+        "max": 16.4
+       },
+       "runP99Ms": {
+        "p50": 17.1,
+        "p95": 17.2,
+        "p99": 17.2,
+        "max": 17.2
+       },
+       "runMaxMs": {
+        "p50": 17.4,
+        "p95": 17.7,
+        "p99": 17.7,
+        "max": 17.7
+       }
+      },
+      "phase_field.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 17,
+        "p95": 17.1,
+        "p99": 17.1,
+        "max": 17.1
+       },
+       "runP99Ms": {
+        "p50": 17.4,
+        "p95": 17.6,
+        "p99": 17.6,
+        "max": 17.6
+       },
+       "runMaxMs": {
+        "p50": 25.4,
+        "p95": 49.6,
+        "p99": 49.6,
+        "max": 49.6
+       }
+      },
+      "grid_gradient.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 17.6,
+        "p95": 66.1,
+        "p99": 66.1,
+        "max": 66.1
+       },
+       "runP95Ms": {
+        "p50": 92.4,
+        "p95": 100.2,
+        "p99": 100.2,
+        "max": 100.2
+       },
+       "runP99Ms": {
+        "p50": 117.9,
+        "p95": 141.8,
+        "p99": 141.8,
+        "max": 141.8
+       },
+       "runMaxMs": {
+        "p50": 211.4,
+        "p95": 508.4,
+        "p99": 508.4,
+        "max": 508.4
+       }
+      },
+      "grid_gradient.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 13.5,
+        "p95": 16.4,
+        "p99": 16.4,
+        "max": 16.4
+       },
+       "runP95Ms": {
+        "p50": 151.4,
+        "p95": 270.9,
+        "p99": 270.9,
+        "max": 270.9
+       },
+       "runP99Ms": {
+        "p50": 191.9,
+        "p95": 474.4,
+        "p99": 474.4,
+        "max": 474.4
+       },
+       "runMaxMs": {
+        "p50": 474.4,
+        "p95": 546.3,
+        "p99": 546.3,
+        "max": 546.3
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T14-56-33-840Z.json",
+     "generatedAt": "2026-06-29T14:56:33.840Z",
+     "appPath": null,
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 1,
+     "frameMs": 800,
+     "rows": {
+      "cell_grid.gameplay": {
+       "okRuns": 0,
+       "failedRuns": 1,
+       "runP50Ms": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "runP95Ms": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "runP99Ms": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "runMaxMs": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T14-57-35-773Z.json",
+     "generatedAt": "2026-06-29T14:57:35.773Z",
+     "appPath": null,
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 1,
+     "frameMs": 800,
+     "rows": {
+      "cell_grid.gameplay": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 9.2,
+        "p95": 9.2,
+        "p99": 9.2,
+        "max": 9.2
+       },
+       "runP99Ms": {
+        "p50": 9.7,
+        "p95": 9.7,
+        "p99": 9.7,
+        "max": 9.7
+       },
+       "runMaxMs": {
+        "p50": 9.9,
+        "p95": 9.9,
+        "p99": 9.9,
+        "max": 9.9
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T14-58-04-346Z.json",
+     "generatedAt": "2026-06-29T14:58:04.346Z",
+     "appPath": null,
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 1,
+     "frameMs": 800,
+     "rows": {
+      "cell_grid.transition": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 17.6,
+        "p95": 17.6,
+        "p99": 17.6,
+        "max": 17.6
+       },
+       "runP99Ms": {
+        "p50": 33.7,
+        "p95": 33.7,
+        "p99": 33.7,
+        "max": 33.7
+       },
+       "runMaxMs": {
+        "p50": 99.5,
+        "p95": 99.5,
+        "p99": 99.5,
+        "max": 99.5
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T14-58-35-392Z.json",
+     "generatedAt": "2026-06-29T14:58:35.392Z",
+     "appPath": null,
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 3,
+     "frameMs": 3600,
+     "rows": {
+      "power_voronoi_runtime.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 25,
+        "p95": 25,
+        "p99": 25,
+        "max": 25
+       },
+       "runP99Ms": {
+        "p50": 26,
+        "p95": 33.5,
+        "p99": 33.5,
+        "max": 33.5
+       },
+       "runMaxMs": {
+        "p50": 74.8,
+        "p95": 83,
+        "p99": 83,
+        "max": 83
+       }
+      },
+      "power_voronoi_runtime.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 25.3,
+        "p95": 25.3,
+        "p99": 25.3,
+        "max": 25.3
+       },
+       "runP99Ms": {
+        "p50": 57.6,
+        "p95": 66.4,
+        "p99": 66.4,
+        "max": 66.4
+       },
+       "runMaxMs": {
+        "p50": 108.8,
+        "p95": 124.8,
+        "p99": 124.8,
+        "max": 124.8
+       }
+      },
+      "perimeter_field.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 33.3,
+        "p95": 36.3,
+        "p99": 36.3,
+        "max": 36.3
+       },
+       "runP99Ms": {
+        "p50": 83.9,
+        "p95": 91.6,
+        "p99": 91.6,
+        "max": 91.6
+       },
+       "runMaxMs": {
+        "p50": 107.8,
+        "p95": 133.5,
+        "p99": 133.5,
+        "max": 133.5
+       }
+      },
+      "perimeter_field.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 33.3,
+        "p95": 58.4,
+        "p99": 58.4,
+        "max": 58.4
+       },
+       "runP99Ms": {
+        "p50": 91.7,
+        "p95": 102.1,
+        "p99": 102.1,
+        "max": 102.1
+       },
+       "runMaxMs": {
+        "p50": 101.1,
+        "p95": 253.8,
+        "p99": 253.8,
+        "max": 253.8
+       }
+      },
+      "metaball.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.5,
+        "p95": 16.5,
+        "p99": 16.5,
+        "max": 16.5
+       },
+       "runP95Ms": {
+        "p50": 32.9,
+        "p95": 33.3,
+        "p99": 33.3,
+        "max": 33.3
+       },
+       "runP99Ms": {
+        "p50": 42.1,
+        "p95": 42.2,
+        "p99": 42.2,
+        "max": 42.2
+       },
+       "runMaxMs": {
+        "p50": 99.4,
+        "p95": 100.8,
+        "p99": 100.8,
+        "max": 100.8
+       }
+      },
+      "metaball.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 25.4,
+        "p95": 25.7,
+        "p99": 25.7,
+        "max": 25.7
+       },
+       "runP99Ms": {
+        "p50": 41.7,
+        "p95": 42.2,
+        "p99": 42.2,
+        "max": 42.2
+       },
+       "runMaxMs": {
+        "p50": 100.5,
+        "p95": 100.5,
+        "p99": 100.5,
+        "max": 100.5
+       }
+      },
+      "cell_grid.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 33.5,
+        "p95": 41.2,
+        "p99": 41.2,
+        "max": 41.2
+       },
+       "runP99Ms": {
+        "p50": 42.1,
+        "p95": 58.9,
+        "p99": 58.9,
+        "max": 58.9
+       },
+       "runMaxMs": {
+        "p50": 99.9,
+        "p95": 107.9,
+        "p99": 107.9,
+        "max": 107.9
+       }
+      },
+      "cell_grid.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 33.3,
+        "p95": 41.2,
+        "p99": 41.2,
+        "max": 41.2
+       },
+       "runP99Ms": {
+        "p50": 50,
+        "p95": 66.9,
+        "p99": 66.9,
+        "max": 66.9
+       },
+       "runMaxMs": {
+        "p50": 108.6,
+        "p95": 117.8,
+        "p99": 117.8,
+        "max": 117.8
+       }
+      },
+      "phase_edges.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.5,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 41.6,
+        "p95": 50.2,
+        "p99": 50.2,
+        "max": 50.2
+       },
+       "runP99Ms": {
+        "p50": 58.3,
+        "p95": 58.9,
+        "p99": 58.9,
+        "max": 58.9
+       },
+       "runMaxMs": {
+        "p50": 124.9,
+        "p95": 125.1,
+        "p99": 125.1,
+        "max": 125.1
+       }
+      },
+      "phase_edges.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.5,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 41.3,
+        "p95": 41.4,
+        "p99": 41.4,
+        "max": 41.4
+       },
+       "runP99Ms": {
+        "p50": 58.2,
+        "p95": 91.8,
+        "p99": 91.8,
+        "max": 91.8
+       },
+       "runMaxMs": {
+        "p50": 158.4,
+        "p95": 166.7,
+        "p99": 166.7,
+        "max": 166.7
+       }
+      },
+      "ember_lattice.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.5,
+        "p95": 16.5,
+        "p99": 16.5,
+        "max": 16.5
+       },
+       "runP95Ms": {
+        "p50": 41.6,
+        "p95": 49.9,
+        "p99": 49.9,
+        "max": 49.9
+       },
+       "runP99Ms": {
+        "p50": 50.1,
+        "p95": 51.4,
+        "p99": 51.4,
+        "max": 51.4
+       },
+       "runMaxMs": {
+        "p50": 116.5,
+        "p95": 124.4,
+        "p99": 124.4,
+        "max": 124.4
+       }
+      },
+      "ember_lattice.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 41.8,
+        "p95": 42.1,
+        "p99": 42.1,
+        "max": 42.1
+       },
+       "runP99Ms": {
+        "p50": 83.3,
+        "p95": 83.4,
+        "p99": 83.4,
+        "max": 83.4
+       },
+       "runMaxMs": {
+        "p50": 158.7,
+        "p95": 158.7,
+        "p99": 158.7,
+        "max": 158.7
+       }
+      },
+      "phase_field.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.5,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 33,
+        "p95": 33.3,
+        "p99": 33.3,
+        "max": 33.3
+       },
+       "runP99Ms": {
+        "p50": 49.5,
+        "p95": 50.3,
+        "p99": 50.3,
+        "max": 50.3
+       },
+       "runMaxMs": {
+        "p50": 133.4,
+        "p95": 134.3,
+        "p99": 134.3,
+        "max": 134.3
+       }
+      },
+      "phase_field.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 33.3,
+        "p95": 33.4,
+        "p99": 33.4,
+        "max": 33.4
+       },
+       "runP99Ms": {
+        "p50": 50.4,
+        "p95": 58.3,
+        "p99": 58.3,
+        "max": 58.3
+       },
+       "runMaxMs": {
+        "p50": 141.1,
+        "p95": 149.9,
+        "p99": 149.9,
+        "max": 149.9
+       }
+      },
+      "grid_gradient.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 175,
+        "p95": 183.3,
+        "p99": 183.3,
+        "max": 183.3
+       },
+       "runP99Ms": {
+        "p50": 258.9,
+        "p95": 291.9,
+        "p99": 291.9,
+        "max": 291.9
+       },
+       "runMaxMs": {
+        "p50": 266.8,
+        "p95": 317.3,
+        "p99": 317.3,
+        "max": 317.3
+       }
+      },
+      "grid_gradient.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.8,
+        "p99": 16.8,
+        "max": 16.8
+       },
+       "runP95Ms": {
+        "p50": 25.5,
+        "p95": 74.8,
+        "p99": 74.8,
+        "max": 74.8
+       },
+       "runP99Ms": {
+        "p50": 183.5,
+        "p95": 258.6,
+        "p99": 258.6,
+        "max": 258.6
+       },
+       "runMaxMs": {
+        "p50": 267.9,
+        "p95": 275.6,
+        "p99": 275.6,
+        "max": 275.6
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T15-30-27-216Z.json",
+     "generatedAt": "2026-06-29T15:30:27.216Z",
+     "appPath": null,
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 1,
+     "frameMs": 3600,
+     "rows": {
+      "cell_grid.gameplay": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.1,
+        "p95": 16.1,
+        "p99": 16.1,
+        "max": 16.1
+       },
+       "runP95Ms": {
+        "p50": 24.7,
+        "p95": 24.7,
+        "p99": 24.7,
+        "max": 24.7
+       },
+       "runP99Ms": {
+        "p50": 33.6,
+        "p95": 33.6,
+        "p99": 33.6,
+        "max": 33.6
+       },
+       "runMaxMs": {
+        "p50": 225.3,
+        "p95": 225.3,
+        "p99": 225.3,
+        "max": 225.3
+       }
+      },
+      "cell_grid.transition": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.8,
+        "p95": 16.8,
+        "p99": 16.8,
+        "max": 16.8
+       },
+       "runP95Ms": {
+        "p50": 25.1,
+        "p95": 25.1,
+        "p99": 25.1,
+        "max": 25.1
+       },
+       "runP99Ms": {
+        "p50": 34.8,
+        "p95": 34.8,
+        "p99": 34.8,
+        "max": 34.8
+       },
+       "runMaxMs": {
+        "p50": 174.7,
+        "p95": 174.7,
+        "p99": 174.7,
+        "max": 174.7
+       }
+      },
+      "grid_gradient.gameplay": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 41.6,
+        "p95": 41.6,
+        "p99": 41.6,
+        "max": 41.6
+       },
+       "runP99Ms": {
+        "p50": 216.6,
+        "p95": 216.6,
+        "p99": 216.6,
+        "max": 216.6
+       },
+       "runMaxMs": {
+        "p50": 291.8,
+        "p95": 291.8,
+        "p99": 291.8,
+        "max": 291.8
+       }
+      },
+      "grid_gradient.transition": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.5,
+        "p95": 16.5,
+        "p99": 16.5,
+        "max": 16.5
+       },
+       "runP95Ms": {
+        "p50": 52.1,
+        "p95": 52.1,
+        "p99": 52.1,
+        "max": 52.1
+       },
+       "runP99Ms": {
+        "p50": 317.3,
+        "p95": 317.3,
+        "p99": 317.3,
+        "max": 317.3
+       },
+       "runMaxMs": {
+        "p50": 541.9,
+        "p95": 541.9,
+        "p99": 541.9,
+        "max": 541.9
+       }
+      },
+      "power_voronoi_runtime.gameplay": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 25.2,
+        "p95": 25.2,
+        "p99": 25.2,
+        "max": 25.2
+       },
+       "runP99Ms": {
+        "p50": 41.8,
+        "p95": 41.8,
+        "p99": 41.8,
+        "max": 41.8
+       },
+       "runMaxMs": {
+        "p50": 140.3,
+        "p95": 140.3,
+        "p99": 140.3,
+        "max": 140.3
+       }
+      },
+      "power_voronoi_runtime.transition": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 25.7,
+        "p95": 25.7,
+        "p99": 25.7,
+        "max": 25.7
+       },
+       "runP99Ms": {
+        "p50": 88.5,
+        "p95": 88.5,
+        "p99": 88.5,
+        "max": 88.5
+       },
+       "runMaxMs": {
+        "p50": 95.6,
+        "p95": 95.6,
+        "p99": 95.6,
+        "max": 95.6
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T15-31-47-256Z.json",
+     "generatedAt": "2026-06-29T15:31:47.256Z",
+     "appPath": null,
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 1,
+     "frameMs": 3600,
+     "rows": {
+      "cell_grid.gameplay": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.6,
+        "p95": 8.6,
+        "p99": 8.6,
+        "max": 8.6
+       },
+       "runP95Ms": {
+        "p50": 24,
+        "p95": 24,
+        "p99": 24,
+        "max": 24
+       },
+       "runP99Ms": {
+        "p50": 33.1,
+        "p95": 33.1,
+        "p99": 33.1,
+        "max": 33.1
+       },
+       "runMaxMs": {
+        "p50": 215.9,
+        "p95": 215.9,
+        "p99": 215.9,
+        "max": 215.9
+       }
+      },
+      "cell_grid.transition": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 25.1,
+        "p95": 25.1,
+        "p99": 25.1,
+        "max": 25.1
+       },
+       "runP99Ms": {
+        "p50": 66.8,
+        "p95": 66.8,
+        "p99": 66.8,
+        "max": 66.8
+       },
+       "runMaxMs": {
+        "p50": 133.4,
+        "p95": 133.4,
+        "p99": 133.4,
+        "max": 133.4
+       }
+      },
+      "grid_gradient.gameplay": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 158.4,
+        "p95": 158.4,
+        "p99": 158.4,
+        "max": 158.4
+       },
+       "runP99Ms": {
+        "p50": 216.9,
+        "p95": 216.9,
+        "p99": 216.9,
+        "max": 216.9
+       },
+       "runMaxMs": {
+        "p50": 233.4,
+        "p95": 233.4,
+        "p99": 233.4,
+        "max": 233.4
+       }
+      },
+      "grid_gradient.transition": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 25.1,
+        "p95": 25.1,
+        "p99": 25.1,
+        "max": 25.1
+       },
+       "runP99Ms": {
+        "p50": 191.7,
+        "p95": 191.7,
+        "p99": 191.7,
+        "max": 191.7
+       },
+       "runMaxMs": {
+        "p50": 300,
+        "p95": 300,
+        "p99": 300,
+        "max": 300
+       }
+      },
+      "power_voronoi_runtime.gameplay": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 25.4,
+        "p95": 25.4,
+        "p99": 25.4,
+        "max": 25.4
+       },
+       "runP99Ms": {
+        "p50": 32.5,
+        "p95": 32.5,
+        "p99": 32.5,
+        "max": 32.5
+       },
+       "runMaxMs": {
+        "p50": 75.8,
+        "p95": 75.8,
+        "p99": 75.8,
+        "max": 75.8
+       }
+      },
+      "power_voronoi_runtime.transition": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 25.7,
+        "p95": 25.7,
+        "p99": 25.7,
+        "max": 25.7
+       },
+       "runP99Ms": {
+        "p50": 99.3,
+        "p95": 99.3,
+        "p99": 99.3,
+        "max": 99.3
+       },
+       "runMaxMs": {
+        "p50": 108.3,
+        "p95": 108.3,
+        "p99": 108.3,
+        "max": 108.3
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T15-33-10-731Z.json",
+     "generatedAt": "2026-06-29T15:33:10.731Z",
+     "appPath": null,
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 1,
+     "frameMs": 3600,
+     "rows": {
+      "cell_grid.gameplay": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.5,
+        "p95": 8.5,
+        "p99": 8.5,
+        "max": 8.5
+       },
+       "runP95Ms": {
+        "p50": 49,
+        "p95": 49,
+        "p99": 49,
+        "max": 49
+       },
+       "runP99Ms": {
+        "p50": 190.2,
+        "p95": 190.2,
+        "p99": 190.2,
+        "max": 190.2
+       },
+       "runMaxMs": {
+        "p50": 312.6,
+        "p95": 312.6,
+        "p99": 312.6,
+        "max": 312.6
+       }
+      },
+      "cell_grid.transition": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 17.3,
+        "p95": 17.3,
+        "p99": 17.3,
+        "max": 17.3
+       },
+       "runP95Ms": {
+        "p50": 41.5,
+        "p95": 41.5,
+        "p99": 41.5,
+        "max": 41.5
+       },
+       "runP99Ms": {
+        "p50": 50.1,
+        "p95": 50.1,
+        "p99": 50.1,
+        "max": 50.1
+       },
+       "runMaxMs": {
+        "p50": 183.3,
+        "p95": 183.3,
+        "p99": 183.3,
+        "max": 183.3
+       }
+      },
+      "grid_gradient.gameplay": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 141.7,
+        "p95": 141.7,
+        "p99": 141.7,
+        "max": 141.7
+       },
+       "runP99Ms": {
+        "p50": 242.1,
+        "p95": 242.1,
+        "p99": 242.1,
+        "max": 242.1
+       },
+       "runMaxMs": {
+        "p50": 384.2,
+        "p95": 384.2,
+        "p99": 384.2,
+        "max": 384.2
+       }
+      },
+      "grid_gradient.transition": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 25.1,
+        "p95": 25.1,
+        "p99": 25.1,
+        "max": 25.1
+       },
+       "runP99Ms": {
+        "p50": 225,
+        "p95": 225,
+        "p99": 225,
+        "max": 225
+       },
+       "runMaxMs": {
+        "p50": 275,
+        "p95": 275,
+        "p99": 275,
+        "max": 275
+       }
+      },
+      "power_voronoi_runtime.gameplay": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 25,
+        "p95": 25,
+        "p99": 25,
+        "max": 25
+       },
+       "runP99Ms": {
+        "p50": 25.8,
+        "p95": 25.8,
+        "p99": 25.8,
+        "max": 25.8
+       },
+       "runMaxMs": {
+        "p50": 74.9,
+        "p95": 74.9,
+        "p99": 74.9,
+        "max": 74.9
+       }
+      },
+      "power_voronoi_runtime.transition": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 25.1,
+        "p95": 25.1,
+        "p99": 25.1,
+        "max": 25.1
+       },
+       "runP99Ms": {
+        "p50": 25.6,
+        "p95": 25.6,
+        "p99": 25.6,
+        "max": 25.6
+       },
+       "runMaxMs": {
+        "p50": 66.3,
+        "p95": 66.3,
+        "p99": 66.3,
+        "max": 66.3
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T15-34-21-008Z.json",
+     "generatedAt": "2026-06-29T15:34:21.008Z",
+     "appPath": null,
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 1,
+     "frameMs": 5000,
+     "rows": {
+      "cell_grid.gameplay": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.4,
+        "p95": 16.4,
+        "p99": 16.4,
+        "max": 16.4
+       },
+       "runP95Ms": {
+        "p50": 33.3,
+        "p95": 33.3,
+        "p99": 33.3,
+        "max": 33.3
+       },
+       "runP99Ms": {
+        "p50": 112.9,
+        "p95": 112.9,
+        "p99": 112.9,
+        "max": 112.9
+       },
+       "runMaxMs": {
+        "p50": 200.6,
+        "p95": 200.6,
+        "p99": 200.6,
+        "max": 200.6
+       }
+      },
+      "grid_gradient.gameplay": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 57.3,
+        "p95": 57.3,
+        "p99": 57.3,
+        "max": 57.3
+       },
+       "runP99Ms": {
+        "p50": 299.9,
+        "p95": 299.9,
+        "p99": 299.9,
+        "max": 299.9
+       },
+       "runMaxMs": {
+        "p50": 726.3,
+        "p95": 726.3,
+        "p99": 726.3,
+        "max": 726.3
+       }
+      },
+      "power_voronoi_runtime.gameplay": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 25.4,
+        "p95": 25.4,
+        "p99": 25.4,
+        "max": 25.4
+       },
+       "runP99Ms": {
+        "p50": 75.1,
+        "p95": 75.1,
+        "p99": 75.1,
+        "max": 75.1
+       },
+       "runMaxMs": {
+        "p50": 125.8,
+        "p95": 125.8,
+        "p99": 125.8,
+        "max": 125.8
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T15-36-18-887Z.json",
+     "generatedAt": "2026-06-29T15:36:18.887Z",
+     "appPath": null,
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 1,
+     "frameMs": 5000,
+     "rows": {
+      "cell_grid.gameplay": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 17.2,
+        "p95": 17.2,
+        "p99": 17.2,
+        "max": 17.2
+       },
+       "runP95Ms": {
+        "p50": 33.5,
+        "p95": 33.5,
+        "p99": 33.5,
+        "max": 33.5
+       },
+       "runP99Ms": {
+        "p50": 174.4,
+        "p95": 174.4,
+        "p99": 174.4,
+        "max": 174.4
+       },
+       "runMaxMs": {
+        "p50": 233.1,
+        "p95": 233.1,
+        "p99": 233.1,
+        "max": 233.1
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T15-37-05-539Z.json",
+     "generatedAt": "2026-06-29T15:37:05.539Z",
+     "appPath": null,
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 1,
+     "frameMs": 5000,
+     "rows": {
+      "cell_grid.gameplay": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 17,
+        "p95": 17,
+        "p99": 17,
+        "max": 17
+       },
+       "runP95Ms": {
+        "p50": 33.9,
+        "p95": 33.9,
+        "p99": 33.9,
+        "max": 33.9
+       },
+       "runP99Ms": {
+        "p50": 175.4,
+        "p95": 175.4,
+        "p99": 175.4,
+        "max": 175.4
+       },
+       "runMaxMs": {
+        "p50": 218,
+        "p95": 218,
+        "p99": 218,
+        "max": 218
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T15-39-01-804Z.json",
+     "generatedAt": "2026-06-29T15:39:01.804Z",
+     "appPath": null,
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 3,
+     "frameMs": 3600,
+     "rows": {
+      "power_voronoi_runtime.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 24.9,
+        "p95": 66.2,
+        "p99": 66.2,
+        "max": 66.2
+       },
+       "runP99Ms": {
+        "p50": 26.2,
+        "p95": 153.8,
+        "p99": 153.8,
+        "max": 153.8
+       },
+       "runMaxMs": {
+        "p50": 73.6,
+        "p95": 179.8,
+        "p99": 179.8,
+        "max": 179.8
+       }
+      },
+      "power_voronoi_runtime.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 25.1,
+        "p95": 25.1,
+        "p99": 25.1,
+        "max": 25.1
+       },
+       "runP99Ms": {
+        "p50": 41.8,
+        "p95": 49.4,
+        "p99": 49.4,
+        "max": 49.4
+       },
+       "runMaxMs": {
+        "p50": 75.1,
+        "p95": 83.6,
+        "p99": 83.6,
+        "max": 83.6
+       }
+      },
+      "perimeter_field.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.4,
+        "p95": 16.5,
+        "p99": 16.5,
+        "max": 16.5
+       },
+       "runP95Ms": {
+        "p50": 24.9,
+        "p95": 25.6,
+        "p99": 25.6,
+        "max": 25.6
+       },
+       "runP99Ms": {
+        "p50": 32.7,
+        "p95": 41.7,
+        "p99": 41.7,
+        "max": 41.7
+       },
+       "runMaxMs": {
+        "p50": 75.1,
+        "p95": 75.3,
+        "p99": 75.3,
+        "max": 75.3
+       }
+      },
+      "perimeter_field.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 25,
+        "p95": 25.1,
+        "p99": 25.1,
+        "max": 25.1
+       },
+       "runP99Ms": {
+        "p50": 34.2,
+        "p95": 50,
+        "p99": 50,
+        "max": 50
+       },
+       "runMaxMs": {
+        "p50": 84,
+        "p95": 91.8,
+        "p99": 91.8,
+        "max": 91.8
+       }
+      },
+      "metaball.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 25.1,
+        "p95": 25.3,
+        "p99": 25.3,
+        "max": 25.3
+       },
+       "runP99Ms": {
+        "p50": 26.1,
+        "p95": 41.2,
+        "p99": 41.2,
+        "max": 41.2
+       },
+       "runMaxMs": {
+        "p50": 74.4,
+        "p95": 83.3,
+        "p99": 83.3,
+        "max": 83.3
+       }
+      },
+      "metaball.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 25,
+        "p95": 25.3,
+        "p99": 25.3,
+        "max": 25.3
+       },
+       "runP99Ms": {
+        "p50": 41.9,
+        "p95": 50,
+        "p99": 50,
+        "max": 50
+       },
+       "runMaxMs": {
+        "p50": 83.3,
+        "p95": 91.9,
+        "p99": 91.9,
+        "max": 91.9
+       }
+      },
+      "cell_grid.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 17.6,
+        "p95": 24.3,
+        "p99": 24.3,
+        "max": 24.3
+       },
+       "runP95Ms": {
+        "p50": 32.8,
+        "p95": 33,
+        "p99": 33,
+        "max": 33
+       },
+       "runP99Ms": {
+        "p50": 33.9,
+        "p95": 33.9,
+        "p99": 33.9,
+        "max": 33.9
+       },
+       "runMaxMs": {
+        "p50": 150.5,
+        "p95": 158.3,
+        "p99": 158.3,
+        "max": 158.3
+       }
+      },
+      "cell_grid.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 24.7,
+        "p95": 25,
+        "p99": 25,
+        "max": 25
+       },
+       "runP95Ms": {
+        "p50": 34,
+        "p95": 40.9,
+        "p99": 40.9,
+        "max": 40.9
+       },
+       "runP99Ms": {
+        "p50": 149.7,
+        "p95": 166.6,
+        "p99": 166.6,
+        "max": 166.6
+       },
+       "runMaxMs": {
+        "p50": 166.7,
+        "p95": 166.8,
+        "p99": 166.8,
+        "max": 166.8
+       }
+      },
+      "phase_edges.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.5,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 25.2,
+        "p95": 33.5,
+        "p99": 33.5,
+        "max": 33.5
+       },
+       "runP99Ms": {
+        "p50": 42.1,
+        "p95": 50,
+        "p99": 50,
+        "max": 50
+       },
+       "runMaxMs": {
+        "p50": 108.3,
+        "p95": 110,
+        "p99": 110,
+        "max": 110
+       }
+      },
+      "phase_edges.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.5,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 33,
+        "p95": 33.4,
+        "p99": 33.4,
+        "max": 33.4
+       },
+       "runP99Ms": {
+        "p50": 34,
+        "p95": 49.7,
+        "p99": 49.7,
+        "max": 49.7
+       },
+       "runMaxMs": {
+        "p50": 141.6,
+        "p95": 150.3,
+        "p99": 150.3,
+        "max": 150.3
+       }
+      },
+      "ember_lattice.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.5,
+        "p95": 16.5,
+        "p99": 16.5,
+        "max": 16.5
+       },
+       "runP95Ms": {
+        "p50": 32.8,
+        "p95": 33.4,
+        "p99": 33.4,
+        "max": 33.4
+       },
+       "runP99Ms": {
+        "p50": 41.6,
+        "p95": 41.7,
+        "p99": 41.7,
+        "max": 41.7
+       },
+       "runMaxMs": {
+        "p50": 100.7,
+        "p95": 134.2,
+        "p99": 134.2,
+        "max": 134.2
+       }
+      },
+      "ember_lattice.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 33.2,
+        "p95": 33.4,
+        "p99": 33.4,
+        "max": 33.4
+       },
+       "runP99Ms": {
+        "p50": 42.2,
+        "p95": 42.6,
+        "p99": 42.6,
+        "max": 42.6
+       },
+       "runMaxMs": {
+        "p50": 142.1,
+        "p95": 209.4,
+        "p99": 209.4,
+        "max": 209.4
+       }
+      },
+      "phase_field.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.4,
+        "p95": 16.5,
+        "p99": 16.5,
+        "max": 16.5
+       },
+       "runP95Ms": {
+        "p50": 24.2,
+        "p95": 24.7,
+        "p99": 24.7,
+        "max": 24.7
+       },
+       "runP99Ms": {
+        "p50": 59.4,
+        "p95": 67.1,
+        "p99": 67.1,
+        "max": 67.1
+       },
+       "runMaxMs": {
+        "p50": 108.4,
+        "p95": 116.5,
+        "p99": 116.5,
+        "max": 116.5
+       }
+      },
+      "phase_field.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.4,
+        "p95": 16.4,
+        "p99": 16.4,
+        "max": 16.4
+       },
+       "runP95Ms": {
+        "p50": 24.9,
+        "p95": 24.9,
+        "p99": 24.9,
+        "max": 24.9
+       },
+       "runP99Ms": {
+        "p50": 58.9,
+        "p95": 75.8,
+        "p99": 75.8,
+        "max": 75.8
+       },
+       "runMaxMs": {
+        "p50": 117.2,
+        "p95": 117.3,
+        "p99": 117.3,
+        "max": 117.3
+       }
+      },
+      "grid_gradient.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 158.4,
+        "p95": 158.6,
+        "p99": 158.6,
+        "max": 158.6
+       },
+       "runP99Ms": {
+        "p50": 216.6,
+        "p95": 233.3,
+        "p99": 233.3,
+        "max": 233.3
+       },
+       "runMaxMs": {
+        "p50": 250,
+        "p95": 258.2,
+        "p99": 258.2,
+        "max": 258.2
+       }
+      },
+      "grid_gradient.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 141.7,
+        "p95": 158.4,
+        "p99": 158.4,
+        "max": 158.4
+       },
+       "runP99Ms": {
+        "p50": 226,
+        "p95": 275.9,
+        "p99": 275.9,
+        "max": 275.9
+       },
+       "runMaxMs": {
+        "p50": 233.3,
+        "p95": 284.3,
+        "p99": 284.3,
+        "max": 284.3
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T16-07-06-187Z.json",
+     "generatedAt": "2026-06-29T16:07:06.187Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 2,
+     "frameMs": 3000,
+     "rows": {
+      "power_voronoi_runtime.gameplay": {
+       "okRuns": 2,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.9,
+        "p95": 16.9,
+        "p99": 16.9,
+        "max": 16.9
+       },
+       "runP95Ms": {
+        "p50": 59.4,
+        "p95": 59.4,
+        "p99": 59.4,
+        "max": 59.4
+       },
+       "runP99Ms": {
+        "p50": 97.6,
+        "p95": 97.6,
+        "p99": 97.6,
+        "max": 97.6
+       },
+       "runMaxMs": {
+        "p50": 115.6,
+        "p95": 115.6,
+        "p99": 115.6,
+        "max": 115.6
+       }
+      },
+      "power_voronoi_runtime.transition": {
+       "okRuns": 2,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.8,
+        "p95": 16.8,
+        "p99": 16.8,
+        "max": 16.8
+       },
+       "runP95Ms": {
+        "p50": 25.5,
+        "p95": 25.5,
+        "p99": 25.5,
+        "max": 25.5
+       },
+       "runP99Ms": {
+        "p50": 33.7,
+        "p95": 33.7,
+        "p99": 33.7,
+        "max": 33.7
+       },
+       "runMaxMs": {
+        "p50": 66.7,
+        "p95": 66.7,
+        "p99": 66.7,
+        "max": 66.7
+       }
+      },
+      "cell_grid.gameplay": {
+       "okRuns": 2,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 24.8,
+        "p95": 24.8,
+        "p99": 24.8,
+        "max": 24.8
+       },
+       "runP95Ms": {
+        "p50": 33.1,
+        "p95": 33.1,
+        "p99": 33.1,
+        "max": 33.1
+       },
+       "runP99Ms": {
+        "p50": 58.2,
+        "p95": 58.2,
+        "p99": 58.2,
+        "max": 58.2
+       },
+       "runMaxMs": {
+        "p50": 192,
+        "p95": 192,
+        "p99": 192,
+        "max": 192
+       }
+      },
+      "cell_grid.transition": {
+       "okRuns": 2,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 24.9,
+        "p95": 24.9,
+        "p99": 24.9,
+        "max": 24.9
+       },
+       "runP95Ms": {
+        "p50": 33.5,
+        "p95": 33.5,
+        "p99": 33.5,
+        "max": 33.5
+       },
+       "runP99Ms": {
+        "p50": 50,
+        "p95": 50,
+        "p99": 50,
+        "max": 50
+       },
+       "runMaxMs": {
+        "p50": 191.6,
+        "p95": 191.6,
+        "p99": 191.6,
+        "max": 191.6
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T16-08-28-440Z.json",
+     "generatedAt": "2026-06-29T16:08:28.440Z",
+     "appPath": "/bench",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 2,
+     "frameMs": 3000,
+     "rows": {
+      "power_voronoi_runtime.gameplay": {
+       "okRuns": 2,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.8,
+        "p95": 16.8,
+        "p99": 16.8,
+        "max": 16.8
+       },
+       "runP95Ms": {
+        "p50": 27,
+        "p95": 27,
+        "p99": 27,
+        "max": 27
+       },
+       "runP99Ms": {
+        "p50": 41.7,
+        "p95": 41.7,
+        "p99": 41.7,
+        "max": 41.7
+       },
+       "runMaxMs": {
+        "p50": 91.4,
+        "p95": 91.4,
+        "p99": 91.4,
+        "max": 91.4
+       }
+      },
+      "power_voronoi_runtime.transition": {
+       "okRuns": 2,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.9,
+        "p95": 16.9,
+        "p99": 16.9,
+        "max": 16.9
+       },
+       "runP95Ms": {
+        "p50": 25.6,
+        "p95": 25.6,
+        "p99": 25.6,
+        "max": 25.6
+       },
+       "runP99Ms": {
+        "p50": 34.4,
+        "p95": 34.4,
+        "p99": 34.4,
+        "max": 34.4
+       },
+       "runMaxMs": {
+        "p50": 83.2,
+        "p95": 83.2,
+        "p99": 83.2,
+        "max": 83.2
+       }
+      },
+      "cell_grid.gameplay": {
+       "okRuns": 2,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 24.6,
+        "p95": 24.6,
+        "p99": 24.6,
+        "max": 24.6
+       },
+       "runP95Ms": {
+        "p50": 49.9,
+        "p95": 49.9,
+        "p99": 49.9,
+        "max": 49.9
+       },
+       "runP99Ms": {
+        "p50": 108.2,
+        "p95": 108.2,
+        "p99": 108.2,
+        "max": 108.2
+       },
+       "runMaxMs": {
+        "p50": 309.1,
+        "p95": 309.1,
+        "p99": 309.1,
+        "max": 309.1
+       }
+      },
+      "cell_grid.transition": {
+       "okRuns": 2,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 24.5,
+        "p95": 24.5,
+        "p99": 24.5,
+        "max": 24.5
+       },
+       "runP95Ms": {
+        "p50": 32.9,
+        "p95": 32.9,
+        "p99": 32.9,
+        "max": 32.9
+       },
+       "runP99Ms": {
+        "p50": 33.4,
+        "p95": 33.4,
+        "p99": 33.4,
+        "max": 33.4
+       },
+       "runMaxMs": {
+        "p50": 240.1,
+        "p95": 240.1,
+        "p99": 240.1,
+        "max": 240.1
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T16-22-24-111Z.json",
+     "generatedAt": "2026-06-29T16:22:24.111Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 5,
+     "frameMs": 5000,
+     "rows": {
+      "power_voronoi_runtime.gameplay": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 25.2,
+        "p95": 25.3,
+        "p99": 25.3,
+        "max": 25.3
+       },
+       "runP99Ms": {
+        "p50": 33.3,
+        "p95": 41.4,
+        "p99": 41.4,
+        "max": 41.4
+       },
+       "runMaxMs": {
+        "p50": 75.1,
+        "p95": 108.9,
+        "p99": 108.9,
+        "max": 108.9
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T16-27-14-709Z.json",
+     "generatedAt": "2026-06-29T16:27:14.709Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 1,
+     "frameMs": 1200,
+     "rows": {
+      "power_voronoi_runtime.gameplay": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 16.8,
+        "p95": 16.8,
+        "p99": 16.8,
+        "max": 16.8
+       },
+       "runP99Ms": {
+        "p50": 17.6,
+        "p95": 17.6,
+        "p99": 17.6,
+        "max": 17.6
+       },
+       "runMaxMs": {
+        "p50": 17.8,
+        "p95": 17.8,
+        "p99": 17.8,
+        "max": 17.8
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T16-27-49-288Z.json",
+     "generatedAt": "2026-06-29T16:27:49.288Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 1,
+     "frameMs": 1200,
+     "rows": {
+      "power_voronoi_runtime.gameplay": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP99Ms": {
+        "p50": 16.8,
+        "p95": 16.8,
+        "p99": 16.8,
+        "max": 16.8
+       },
+       "runMaxMs": {
+        "p50": 25.1,
+        "p95": 25.1,
+        "p99": 25.1,
+        "max": 25.1
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T16-28-53-489Z.json",
+     "generatedAt": "2026-06-29T16:28:53.489Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 3,
+     "frameMs": 3600,
+     "rows": {
+      "power_voronoi_runtime.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 25,
+        "p95": 25.1,
+        "p99": 25.1,
+        "max": 25.1
+       },
+       "runP99Ms": {
+        "p50": 25.7,
+        "p95": 33.4,
+        "p99": 33.4,
+        "max": 33.4
+       },
+       "runMaxMs": {
+        "p50": 66.8,
+        "p95": 99.9,
+        "p99": 99.9,
+        "max": 99.9
+       }
+      },
+      "power_voronoi_runtime.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 25.2,
+        "p95": 25.6,
+        "p99": 25.6,
+        "max": 25.6
+       },
+       "runP99Ms": {
+        "p50": 33.5,
+        "p95": 41.4,
+        "p99": 41.4,
+        "max": 41.4
+       },
+       "runMaxMs": {
+        "p50": 66.6,
+        "p95": 83.1,
+        "p99": 83.1,
+        "max": 83.1
+       }
+      },
+      "perimeter_field.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 25.1,
+        "p95": 25.1,
+        "p99": 25.1,
+        "max": 25.1
+       },
+       "runP99Ms": {
+        "p50": 31.8,
+        "p95": 33.1,
+        "p99": 33.1,
+        "max": 33.1
+       },
+       "runMaxMs": {
+        "p50": 67.4,
+        "p95": 75.5,
+        "p99": 75.5,
+        "max": 75.5
+       }
+      },
+      "perimeter_field.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 25.2,
+        "p95": 25.2,
+        "p99": 25.2,
+        "max": 25.2
+       },
+       "runP99Ms": {
+        "p50": 33.9,
+        "p95": 41.8,
+        "p99": 41.8,
+        "max": 41.8
+       },
+       "runMaxMs": {
+        "p50": 92.5,
+        "p95": 100.1,
+        "p99": 100.1,
+        "max": 100.1
+       }
+      },
+      "metaball.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 24.8,
+        "p95": 24.9,
+        "p99": 24.9,
+        "max": 24.9
+       },
+       "runP99Ms": {
+        "p50": 25.9,
+        "p95": 26,
+        "p99": 26,
+        "max": 26
+       },
+       "runMaxMs": {
+        "p50": 68,
+        "p95": 83.4,
+        "p99": 83.4,
+        "max": 83.4
+       }
+      },
+      "metaball.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 25,
+        "p95": 25.1,
+        "p99": 25.1,
+        "max": 25.1
+       },
+       "runP99Ms": {
+        "p50": 33.3,
+        "p95": 41.8,
+        "p99": 41.8,
+        "max": 41.8
+       },
+       "runMaxMs": {
+        "p50": 83.6,
+        "p95": 83.8,
+        "p99": 83.8,
+        "max": 83.8
+       }
+      },
+      "cell_grid.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 24.8,
+        "p95": 24.8,
+        "p99": 24.8,
+        "max": 24.8
+       },
+       "runP95Ms": {
+        "p50": 33.7,
+        "p95": 33.8,
+        "p99": 33.8,
+        "max": 33.8
+       },
+       "runP99Ms": {
+        "p50": 57.9,
+        "p95": 66.1,
+        "p99": 66.1,
+        "max": 66.1
+       },
+       "runMaxMs": {
+        "p50": 182.9,
+        "p95": 191.7,
+        "p99": 191.7,
+        "max": 191.7
+       }
+      },
+      "cell_grid.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 24.8,
+        "p95": 24.8,
+        "p99": 24.8,
+        "max": 24.8
+       },
+       "runP95Ms": {
+        "p50": 41.6,
+        "p95": 41.7,
+        "p99": 41.7,
+        "max": 41.7
+       },
+       "runP99Ms": {
+        "p50": 167.7,
+        "p95": 174.7,
+        "p99": 174.7,
+        "max": 174.7
+       },
+       "runMaxMs": {
+        "p50": 191.3,
+        "p95": 192.6,
+        "p99": 192.6,
+        "max": 192.6
+       }
+      },
+      "phase_edges.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 41.7,
+        "p95": 41.7,
+        "p99": 41.7,
+        "max": 41.7
+       },
+       "runP99Ms": {
+        "p50": 49.6,
+        "p95": 49.8,
+        "p99": 49.8,
+        "max": 49.8
+       },
+       "runMaxMs": {
+        "p50": 124.6,
+        "p95": 150.7,
+        "p99": 150.7,
+        "max": 150.7
+       }
+      },
+      "phase_edges.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 34.1,
+        "p95": 34.3,
+        "p99": 34.3,
+        "max": 34.3
+       },
+       "runP99Ms": {
+        "p50": 48.9,
+        "p95": 49.5,
+        "p99": 49.5,
+        "max": 49.5
+       },
+       "runMaxMs": {
+        "p50": 158.9,
+        "p95": 167.6,
+        "p99": 167.6,
+        "max": 167.6
+       }
+      },
+      "ember_lattice.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 41.6,
+        "p95": 41.8,
+        "p99": 41.8,
+        "max": 41.8
+       },
+       "runP99Ms": {
+        "p50": 42.4,
+        "p95": 42.7,
+        "p99": 42.7,
+        "max": 42.7
+       },
+       "runMaxMs": {
+        "p50": 117.3,
+        "p95": 132.3,
+        "p99": 132.3,
+        "max": 132.3
+       }
+      },
+      "ember_lattice.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 41.9,
+        "p95": 42.2,
+        "p99": 42.2,
+        "max": 42.2
+       },
+       "runP99Ms": {
+        "p50": 82.5,
+        "p95": 92.5,
+        "p99": 92.5,
+        "max": 92.5
+       },
+       "runMaxMs": {
+        "p50": 157.8,
+        "p95": 167.3,
+        "p99": 167.3,
+        "max": 167.3
+       }
+      },
+      "phase_field.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.5,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 24.9,
+        "p95": 25.3,
+        "p99": 25.3,
+        "max": 25.3
+       },
+       "runP99Ms": {
+        "p50": 66.8,
+        "p95": 66.8,
+        "p99": 66.8,
+        "max": 66.8
+       },
+       "runMaxMs": {
+        "p50": 108.1,
+        "p95": 108.4,
+        "p99": 108.4,
+        "max": 108.4
+       }
+      },
+      "phase_field.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 24.8,
+        "p95": 25,
+        "p99": 25,
+        "max": 25
+       },
+       "runP99Ms": {
+        "p50": 75.6,
+        "p95": 76.4,
+        "p99": 76.4,
+        "max": 76.4
+       },
+       "runMaxMs": {
+        "p50": 124.5,
+        "p95": 133.4,
+        "p99": 133.4,
+        "max": 133.4
+       }
+      },
+      "grid_gradient.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.9,
+        "p99": 16.9,
+        "max": 16.9
+       },
+       "runP95Ms": {
+        "p50": 167.9,
+        "p95": 175.3,
+        "p99": 175.3,
+        "max": 175.3
+       },
+       "runP99Ms": {
+        "p50": 218.2,
+        "p95": 242,
+        "p99": 242,
+        "max": 242
+       },
+       "runMaxMs": {
+        "p50": 233.4,
+        "p95": 242.2,
+        "p99": 242.2,
+        "max": 242.2
+       }
+      },
+      "grid_gradient.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 168.1,
+        "p95": 201.6,
+        "p99": 201.6,
+        "max": 201.6
+       },
+       "runP99Ms": {
+        "p50": 243,
+        "p95": 333.3,
+        "p99": 333.3,
+        "max": 333.3
+       },
+       "runMaxMs": {
+        "p50": 300.2,
+        "p95": 392.3,
+        "p99": 392.3,
+        "max": 392.3
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T16-50-51-512Z.json",
+     "generatedAt": "2026-06-29T16:50:51.512Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 2,
+     "frameMs": 3000,
+     "rows": {
+      "power_voronoi_runtime.mode_switch": {
+       "okRuns": 0,
+       "failedRuns": 2,
+       "runP50Ms": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "runP95Ms": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "runP99Ms": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "runMaxMs": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       }
+      },
+      "phase_field.mode_switch": {
+       "okRuns": 0,
+       "failedRuns": 2,
+       "runP50Ms": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "runP95Ms": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "runP99Ms": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "runMaxMs": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T16-52-24-439Z.json",
+     "generatedAt": "2026-06-29T16:52:24.439Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 2,
+     "frameMs": 3000,
+     "rows": {
+      "power_voronoi_runtime.mode_switch": {
+       "okRuns": 2,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 17.9,
+        "p95": 17.9,
+        "p99": 17.9,
+        "max": 17.9
+       },
+       "runP99Ms": {
+        "p50": 42,
+        "p95": 42,
+        "p99": 42,
+        "max": 42
+       },
+       "runMaxMs": {
+        "p50": 70.2,
+        "p95": 70.2,
+        "p99": 70.2,
+        "max": 70.2
+       }
+      },
+      "phase_field.mode_switch": {
+       "okRuns": 2,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 9,
+        "p95": 9,
+        "p99": 9,
+        "max": 9
+       },
+       "runP99Ms": {
+        "p50": 16.8,
+        "p95": 16.8,
+        "p99": 16.8,
+        "max": 16.8
+       },
+       "runMaxMs": {
+        "p50": 117.6,
+        "p95": 117.6,
+        "p99": 117.6,
+        "max": 117.6
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T16-53-29-571Z.json",
+     "generatedAt": "2026-06-29T16:53:29.571Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 2,
+     "frameMs": 3000,
+     "rows": {
+      "power_voronoi_runtime.mode_switch": {
+       "okRuns": 2,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP99Ms": {
+        "p50": 17.5,
+        "p95": 17.5,
+        "p99": 17.5,
+        "max": 17.5
+       },
+       "runMaxMs": {
+        "p50": 41.6,
+        "p95": 41.6,
+        "p99": 41.6,
+        "max": 41.6
+       }
+      },
+      "phase_field.mode_switch": {
+       "okRuns": 2,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 25,
+        "p95": 25,
+        "p99": 25,
+        "max": 25
+       },
+       "runP99Ms": {
+        "p50": 41.7,
+        "p95": 41.7,
+        "p99": 41.7,
+        "max": 41.7
+       },
+       "runMaxMs": {
+        "p50": 90.2,
+        "p95": 90.2,
+        "p99": 90.2,
+        "max": 90.2
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T16-54-25-483Z.json",
+     "generatedAt": "2026-06-29T16:54:25.483Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 3,
+     "frameMs": 3000,
+     "rows": {
+      "power_voronoi_runtime.mode_switch": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP99Ms": {
+        "p50": 17.6,
+        "p95": 17.6,
+        "p99": 17.6,
+        "max": 17.6
+       },
+       "runMaxMs": {
+        "p50": 33.5,
+        "p95": 41.7,
+        "p99": 41.7,
+        "max": 41.7
+       }
+      },
+      "perimeter_field.mode_switch": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 16.8,
+        "p95": 16.8,
+        "p99": 16.8,
+        "max": 16.8
+       },
+       "runP99Ms": {
+        "p50": 17.4,
+        "p95": 17.5,
+        "p99": 17.5,
+        "max": 17.5
+       },
+       "runMaxMs": {
+        "p50": 17.7,
+        "p95": 25.1,
+        "p99": 25.1,
+        "max": 25.1
+       }
+      },
+      "metaball.mode_switch": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 8.9,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP99Ms": {
+        "p50": 16.7,
+        "p95": 16.8,
+        "p99": 16.8,
+        "max": 16.8
+       },
+       "runMaxMs": {
+        "p50": 41.8,
+        "p95": 42.1,
+        "p99": 42.1,
+        "max": 42.1
+       }
+      },
+      "cell_grid.mode_switch": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 8.6,
+        "p95": 8.9,
+        "p99": 8.9,
+        "max": 8.9
+       },
+       "runP99Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runMaxMs": {
+        "p50": 33.3,
+        "p95": 49.9,
+        "p99": 49.9,
+        "max": 49.9
+       }
+      },
+      "phase_edges.mode_switch": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 8.9,
+        "p95": 9.2,
+        "p99": 9.2,
+        "max": 9.2
+       },
+       "runP99Ms": {
+        "p50": 17.5,
+        "p95": 24.9,
+        "p99": 24.9,
+        "max": 24.9
+       },
+       "runMaxMs": {
+        "p50": 50,
+        "p95": 58.8,
+        "p99": 58.8,
+        "max": 58.8
+       }
+      },
+      "ember_lattice.mode_switch": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 25.7,
+        "p95": 33.7,
+        "p99": 33.7,
+        "max": 33.7
+       },
+       "runP99Ms": {
+        "p50": 58.5,
+        "p95": 66.3,
+        "p99": 66.3,
+        "max": 66.3
+       },
+       "runMaxMs": {
+        "p50": 67.4,
+        "p95": 108.6,
+        "p99": 108.6,
+        "max": 108.6
+       }
+      },
+      "phase_field.mode_switch": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 9.3,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP99Ms": {
+        "p50": 17.3,
+        "p95": 42.1,
+        "p99": 42.1,
+        "max": 42.1
+       },
+       "runMaxMs": {
+        "p50": 18.4,
+        "p95": 58,
+        "p99": 58,
+        "max": 58
+       }
+      },
+      "grid_gradient.mode_switch": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 83.4,
+        "p95": 84.2,
+        "p99": 84.2,
+        "max": 84.2
+       },
+       "runP99Ms": {
+        "p50": 100,
+        "p95": 100,
+        "p99": 100,
+        "max": 100
+       },
+       "runMaxMs": {
+        "p50": 133.4,
+        "p95": 158.8,
+        "p99": 158.8,
+        "max": 158.8
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T17-17-06-506Z.json",
+     "generatedAt": "2026-06-29T17:17:06.506Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 5,
+     "frameMs": 3000,
+     "rows": {
+      "ember_lattice.mode_switch": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 8.8,
+        "p95": 8.9,
+        "p99": 8.9,
+        "max": 8.9
+       },
+       "runP99Ms": {
+        "p50": 9.5,
+        "p95": 17.3,
+        "p99": 17.3,
+        "max": 17.3
+       },
+       "runMaxMs": {
+        "p50": 25.1,
+        "p95": 33.4,
+        "p99": 33.4,
+        "max": 33.4
+       }
+      },
+      "phase_field.mode_switch": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 8.7,
+        "p95": 8.9,
+        "p99": 8.9,
+        "max": 8.9
+       },
+       "runP99Ms": {
+        "p50": 9.3,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runMaxMs": {
+        "p50": 25,
+        "p95": 33.4,
+        "p99": 33.4,
+        "max": 33.4
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T17-26-42-478Z.json",
+     "generatedAt": "2026-06-29T17:26:42.478Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 1,
+     "frameMs": 500,
+     "rows": {
+      "phase_field.mode_switch": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP99Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runMaxMs": {
+        "p50": 25.1,
+        "p95": 25.1,
+        "p99": 25.1,
+        "max": 25.1
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 0.4,
+        "p95": 0.4,
+        "p99": 0.4,
+        "max": 0.4
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 0.4,
+        "p95": 0.4,
+        "p99": 0.4,
+        "max": 0.4
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 0.4,
+        "p95": 0.4,
+        "p99": 0.4,
+        "max": 0.4
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T17-27-23-655Z.json",
+     "generatedAt": "2026-06-29T17:27:23.655Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 5,
+     "frameMs": 3000,
+     "rows": {
+      "cell_grid.transition": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 25,
+        "p95": 25.1,
+        "p99": 25.1,
+        "max": 25.1
+       },
+       "runP99Ms": {
+        "p50": 33.4,
+        "p95": 50,
+        "p99": 50,
+        "max": 50
+       },
+       "runMaxMs": {
+        "p50": 125,
+        "p95": 158.4,
+        "p99": 158.4,
+        "max": 158.4
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 457.6,
+        "p95": 536.1,
+        "p99": 536.1,
+        "max": 536.1
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 564.9,
+        "p95": 626.4,
+        "p99": 626.4,
+        "max": 626.4
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 564.9,
+        "p95": 626.4,
+        "p99": 626.4,
+        "max": 626.4
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 564.9,
+        "p95": 626.4,
+        "p99": 626.4,
+        "max": 626.4
+       }
+      },
+      "phase_field.transition": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 16.8,
+        "p95": 33.3,
+        "p99": 33.3,
+        "max": 33.3
+       },
+       "runP99Ms": {
+        "p50": 33.4,
+        "p95": 49.9,
+        "p99": 49.9,
+        "max": 49.9
+       },
+       "runMaxMs": {
+        "p50": 75.1,
+        "p95": 83.4,
+        "p99": 83.4,
+        "max": 83.4
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 137.1,
+        "p95": 316.6,
+        "p99": 316.6,
+        "max": 316.6
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 136,
+        "p95": 462.1,
+        "p99": 462.1,
+        "max": 462.1
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 261.8,
+        "p95": 462.1,
+        "p99": 462.1,
+        "max": 462.1
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 261.8,
+        "p95": 462.1,
+        "p99": 462.1,
+        "max": 462.1
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T19-39-12-118Z.json",
+     "generatedAt": "2026-06-29T19:39:12.118Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 8,
+     "frameMs": 3000,
+     "rows": {
+      "cell_grid.transition": {
+       "okRuns": 8,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 25,
+        "p95": 25.2,
+        "p99": 25.2,
+        "max": 25.2
+       },
+       "runP95Ms": {
+        "p50": 41.6,
+        "p95": 49.5,
+        "p99": 49.5,
+        "max": 49.5
+       },
+       "runP99Ms": {
+        "p50": 58.2,
+        "p95": 166.7,
+        "p99": 166.7,
+        "max": 166.7
+       },
+       "runMaxMs": {
+        "p50": 175,
+        "p95": 201.1,
+        "p99": 201.1,
+        "max": 201.1
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 324.9,
+        "p95": 682.8,
+        "p99": 682.8,
+        "max": 682.8
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 313.1,
+        "p95": 542.1,
+        "p99": 542.1,
+        "max": 542.1
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 460.5,
+        "p95": 542.1,
+        "p99": 542.1,
+        "max": 542.1
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 460.5,
+        "p95": 542.1,
+        "p99": 542.1,
+        "max": 542.1
+       }
+      },
+      "phase_field.transition": {
+       "okRuns": 8,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 25.1,
+        "p95": 33.3,
+        "p99": 33.3,
+        "max": 33.3
+       },
+       "runP99Ms": {
+        "p50": 42.2,
+        "p95": 83.9,
+        "p99": 83.9,
+        "max": 83.9
+       },
+       "runMaxMs": {
+        "p50": 126.2,
+        "p95": 175.2,
+        "p99": 175.2,
+        "max": 175.2
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 78.4,
+        "p95": 143,
+        "p99": 143,
+        "max": 143
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 119.3,
+        "p95": 241.5,
+        "p99": 241.5,
+        "max": 241.5
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 176.2,
+        "p95": 241.5,
+        "p99": 241.5,
+        "max": 241.5
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 176.2,
+        "p95": 241.5,
+        "p99": 241.5,
+        "max": 241.5
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T19-50-22-108Z.json",
+     "generatedAt": "2026-06-29T19:50:22.108Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 5,
+     "frameMs": 2500,
+     "rows": {
+      "cell_grid.gameplay": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.5,
+        "p99": 8.5,
+        "max": 8.5
+       },
+       "runP95Ms": {
+        "p50": 16.8,
+        "p95": 16.9,
+        "p99": 16.9,
+        "max": 16.9
+       },
+       "runP99Ms": {
+        "p50": 17.4,
+        "p95": 17.5,
+        "p99": 17.5,
+        "max": 17.5
+       },
+       "runMaxMs": {
+        "p50": 25.1,
+        "p95": 33.4,
+        "p99": 33.4,
+        "max": 33.4
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 0.3,
+        "p95": 0.3,
+        "p99": 0.3,
+        "max": 0.3
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 0.3,
+        "p95": 3.6,
+        "p99": 3.6,
+        "max": 3.6
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 0.3,
+        "p95": 3.6,
+        "p99": 3.6,
+        "max": 3.6
+       }
+      },
+      "cell_grid.transition": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 25,
+        "p95": 25,
+        "p99": 25,
+        "max": 25
+       },
+       "runP99Ms": {
+        "p50": 25.5,
+        "p95": 33.4,
+        "p99": 33.4,
+        "max": 33.4
+       },
+       "runMaxMs": {
+        "p50": 109.4,
+        "p95": 125.1,
+        "p99": 125.1,
+        "max": 125.1
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 204,
+        "p95": 380.6,
+        "p99": 380.6,
+        "max": 380.6
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 217,
+        "p95": 390.9,
+        "p99": 390.9,
+        "max": 390.9
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 329.8,
+        "p95": 441.6,
+        "p99": 441.6,
+        "max": 441.6
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 329.8,
+        "p95": 441.6,
+        "p99": 441.6,
+        "max": 441.6
+       }
+      },
+      "phase_field.gameplay": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 8.5,
+        "p95": 8.5,
+        "p99": 8.5,
+        "max": 8.5
+       },
+       "runP99Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runMaxMs": {
+        "p50": 25,
+        "p95": 41.7,
+        "p99": 41.7,
+        "max": 41.7
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 3.2,
+        "p95": 3.2,
+        "p99": 3.2,
+        "max": 3.2
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 3.3,
+        "p95": 13.3,
+        "p99": 13.3,
+        "max": 13.3
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 3.3,
+        "p95": 13.3,
+        "p99": 13.3,
+        "max": 13.3
+       }
+      },
+      "phase_field.transition": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 8.6,
+        "p95": 16.5,
+        "p99": 16.5,
+        "max": 16.5
+       },
+       "runP99Ms": {
+        "p50": 16.9,
+        "p95": 17.1,
+        "p99": 17.1,
+        "max": 17.1
+       },
+       "runMaxMs": {
+        "p50": 74.9,
+        "p95": 75,
+        "p99": 75,
+        "max": 75
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 8,
+        "p95": 41.6,
+        "p99": 41.6,
+        "max": 41.6
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 58.4,
+        "p95": 74.1,
+        "p99": 74.1,
+        "max": 74.1
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 93.9,
+        "p95": 124.3,
+        "p99": 124.3,
+        "max": 124.3
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 93.9,
+        "p95": 124.3,
+        "p99": 124.3,
+        "max": 124.3
+       }
+      },
+      "phase_edges.gameplay": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 25.3,
+        "p95": 33.2,
+        "p99": 33.2,
+        "max": 33.2
+       },
+       "runP99Ms": {
+        "p50": 33.4,
+        "p95": 34,
+        "p99": 34,
+        "max": 34
+       },
+       "runMaxMs": {
+        "p50": 41.7,
+        "p95": 41.8,
+        "p99": 41.8,
+        "max": 41.8
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 68,
+        "p95": 164.8,
+        "p99": 164.8,
+        "max": 164.8
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 62.2,
+        "p95": 102,
+        "p99": 102,
+        "max": 102
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 95,
+        "p95": 102.7,
+        "p99": 102.7,
+        "max": 102.7
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 95,
+        "p95": 102.7,
+        "p99": 102.7,
+        "max": 102.7
+       }
+      },
+      "phase_edges.transition": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 25.3,
+        "p95": 5003.4,
+        "p99": 5003.4,
+        "max": 5003.4
+       },
+       "runP99Ms": {
+        "p50": 33.8,
+        "p95": 5003.4,
+        "p99": 5003.4,
+        "max": 5003.4
+       },
+       "runMaxMs": {
+        "p50": 100,
+        "p95": 5003.4,
+        "p99": 5003.4,
+        "max": 5003.4
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 60.1,
+        "p95": 92.9,
+        "p99": 92.9,
+        "max": 92.9
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 112.5,
+        "p95": 135.5,
+        "p99": 135.5,
+        "max": 135.5
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 115,
+        "p95": 135.5,
+        "p99": 135.5,
+        "max": 135.5
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 115,
+        "p95": 135.5,
+        "p99": 135.5,
+        "max": 135.5
+       }
+      },
+      "ember_lattice.gameplay": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.5,
+        "p99": 8.5,
+        "max": 8.5
+       },
+       "runP95Ms": {
+        "p50": 33.2,
+        "p95": 33.4,
+        "p99": 33.4,
+        "max": 33.4
+       },
+       "runP99Ms": {
+        "p50": 33.5,
+        "p95": 41.7,
+        "p99": 41.7,
+        "max": 41.7
+       },
+       "runMaxMs": {
+        "p50": 41.8,
+        "p95": 50.2,
+        "p99": 50.2,
+        "max": 50.2
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 69.2,
+        "p95": 271.4,
+        "p99": 271.4,
+        "max": 271.4
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 67.8,
+        "p95": 85.2,
+        "p99": 85.2,
+        "max": 85.2
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 97,
+        "p95": 141.2,
+        "p99": 141.2,
+        "max": 141.2
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 97,
+        "p95": 141.2,
+        "p99": 141.2,
+        "max": 141.2
+       }
+      },
+      "ember_lattice.transition": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 33.3,
+        "p95": 33.4,
+        "p99": 33.4,
+        "max": 33.4
+       },
+       "runP99Ms": {
+        "p50": 41.7,
+        "p95": 58.5,
+        "p99": 58.5,
+        "max": 58.5
+       },
+       "runMaxMs": {
+        "p50": 91.7,
+        "p95": 109.2,
+        "p99": 109.2,
+        "max": 109.2
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 103.4,
+        "p95": 178,
+        "p99": 178,
+        "max": 178
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 104.1,
+        "p95": 140.3,
+        "p99": 140.3,
+        "max": 140.3
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 130.4,
+        "p95": 305,
+        "p99": 305,
+        "max": 305
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 130.4,
+        "p95": 305,
+        "p99": 305,
+        "max": 305
+       }
+      },
+      "power_voronoi_runtime.gameplay": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 16.7,
+        "p95": 41.6,
+        "p99": 41.6,
+        "max": 41.6
+       },
+       "runP99Ms": {
+        "p50": 16.8,
+        "p95": 100.3,
+        "p99": 100.3,
+        "max": 100.3
+       },
+       "runMaxMs": {
+        "p50": 41.7,
+        "p95": 158.2,
+        "p99": 158.2,
+        "max": 158.2
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 0,
+        "p95": 1.7,
+        "p99": 1.7,
+        "max": 1.7
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 0.3,
+        "p95": 0.5,
+        "p99": 0.5,
+        "max": 0.5
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 1.8,
+        "p95": 2.3,
+        "p99": 2.3,
+        "max": 2.3
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 1.8,
+        "p95": 2.3,
+        "p99": 2.3,
+        "max": 2.3
+       }
+      },
+      "power_voronoi_runtime.transition": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 16.7,
+        "p95": 16.8,
+        "p99": 16.8,
+        "max": 16.8
+       },
+       "runP99Ms": {
+        "p50": 17.2,
+        "p95": 41.6,
+        "p99": 41.6,
+        "max": 41.6
+       },
+       "runMaxMs": {
+        "p50": 41.7,
+        "p95": 49.7,
+        "p99": 49.7,
+        "max": 49.7
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 7.4,
+        "p95": 102.9,
+        "p99": 102.9,
+        "max": 102.9
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 0.5,
+        "p95": 42.8,
+        "p99": 42.8,
+        "max": 42.8
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 47.5,
+        "p95": 122.8,
+        "p99": 122.8,
+        "max": 122.8
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 47.5,
+        "p95": 122.8,
+        "p99": 122.8,
+        "max": 122.8
+       }
+      },
+      "metaball.gameplay": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 16.6,
+        "p95": 16.8,
+        "p99": 16.8,
+        "max": 16.8
+       },
+       "runP99Ms": {
+        "p50": 16.8,
+        "p95": 17.3,
+        "p99": 17.3,
+        "max": 17.3
+       },
+       "runMaxMs": {
+        "p50": 25,
+        "p95": 33.4,
+        "p99": 33.4,
+        "max": 33.4
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 0,
+        "p95": 28.2,
+        "p99": 28.2,
+        "max": 28.2
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 1.3,
+        "p95": 1.8,
+        "p99": 1.8,
+        "max": 1.8
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 1.5,
+        "p95": 22.3,
+        "p99": 22.3,
+        "max": 22.3
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 1.5,
+        "p95": 22.3,
+        "p99": 22.3,
+        "max": 22.3
+       }
+      },
+      "metaball.transition": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP99Ms": {
+        "p50": 17,
+        "p95": 17.4,
+        "p99": 17.4,
+        "max": 17.4
+       },
+       "runMaxMs": {
+        "p50": 50,
+        "p95": 50.2,
+        "p99": 50.2,
+        "max": 50.2
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 16.8,
+        "p95": 65.5,
+        "p99": 65.5,
+        "max": 65.5
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 2.9,
+        "p95": 52.5,
+        "p99": 52.5,
+        "max": 52.5
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 53.5,
+        "p95": 144.8,
+        "p99": 144.8,
+        "max": 144.8
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 53.5,
+        "p95": 144.8,
+        "p99": 144.8,
+        "max": 144.8
+       }
+      },
+      "perimeter_field.gameplay": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP99Ms": {
+        "p50": 16.8,
+        "p95": 17.4,
+        "p99": 17.4,
+        "max": 17.4
+       },
+       "runMaxMs": {
+        "p50": 33.3,
+        "p95": 50.6,
+        "p99": 50.6,
+        "max": 50.6
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 0,
+        "p95": 2,
+        "p99": 2,
+        "max": 2
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 1.4,
+        "p95": 2.3,
+        "p99": 2.3,
+        "max": 2.3
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 3.8,
+        "p95": 29.2,
+        "p99": 29.2,
+        "max": 29.2
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 3.8,
+        "p95": 29.2,
+        "p99": 29.2,
+        "max": 29.2
+       }
+      },
+      "perimeter_field.transition": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP99Ms": {
+        "p50": 17,
+        "p95": 17.4,
+        "p99": 17.4,
+        "max": 17.4
+       },
+       "runMaxMs": {
+        "p50": 41.6,
+        "p95": 50.1,
+        "p99": 50.1,
+        "max": 50.1
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 7.3,
+        "p95": 151.5,
+        "p99": 151.5,
+        "max": 151.5
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 3.4,
+        "p95": 3.8,
+        "p99": 3.8,
+        "max": 3.8
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 82.2,
+        "p95": 128.8,
+        "p99": 128.8,
+        "max": 128.8
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 82.2,
+        "p95": 128.8,
+        "p99": 128.8,
+        "max": 128.8
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T20-41-46-789Z.json",
+     "generatedAt": "2026-06-29T20:41:46.789Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 1,
+     "frameMs": 1000,
+     "rows": {
+      "phase_edges.input_pressure": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP99Ms": {
+        "p50": 8.5,
+        "p95": 8.5,
+        "p99": 8.5,
+        "max": 8.5
+       },
+       "runMaxMs": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 177.7,
+        "p95": 177.7,
+        "p99": 177.7,
+        "max": 177.7
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 201.1,
+        "p95": 201.1,
+        "p99": 201.1,
+        "max": 201.1
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 201.1,
+        "p95": 201.1,
+        "p99": 201.1,
+        "max": 201.1
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 201.1,
+        "p95": 201.1,
+        "p99": 201.1,
+        "max": 201.1
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T21-15-28-244Z.json",
+     "generatedAt": "2026-06-29T21:15:28.244Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 8,
+     "frameMs": 3000,
+     "rows": {
+      "phase_edges.gameplay": {
+       "okRuns": 8,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 33.3,
+        "p95": 41.7,
+        "p99": 41.7,
+        "max": 41.7
+       },
+       "runP99Ms": {
+        "p50": 41.7,
+        "p95": 50,
+        "p99": 50,
+        "max": 50
+       },
+       "runMaxMs": {
+        "p50": 91.5,
+        "p95": 133.4,
+        "p99": 133.4,
+        "max": 133.4
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 162.4,
+        "p95": 343,
+        "p99": 343,
+        "max": 343
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 76.4,
+        "p95": 131.4,
+        "p99": 131.4,
+        "max": 131.4
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 108.9,
+        "p95": 131.4,
+        "p99": 131.4,
+        "max": 131.4
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 108.9,
+        "p95": 131.4,
+        "p99": 131.4,
+        "max": 131.4
+       }
+      },
+      "phase_edges.transition": {
+       "okRuns": 8,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 25.1,
+        "p95": 33.2,
+        "p99": 33.2,
+        "max": 33.2
+       },
+       "runP99Ms": {
+        "p50": 33.5,
+        "p95": 41.8,
+        "p99": 41.8,
+        "max": 41.8
+       },
+       "runMaxMs": {
+        "p50": 100,
+        "p95": 108.4,
+        "p99": 108.4,
+        "max": 108.4
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 151.6,
+        "p95": 224.9,
+        "p99": 224.9,
+        "max": 224.9
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 216.9,
+        "p95": 269.7,
+        "p99": 269.7,
+        "max": 269.7
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 261,
+        "p95": 385.5,
+        "p99": 385.5,
+        "max": 385.5
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 261,
+        "p95": 385.5,
+        "p99": 385.5,
+        "max": 385.5
+       }
+      },
+      "ember_lattice.gameplay": {
+       "okRuns": 8,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.5,
+        "p99": 8.5,
+        "max": 8.5
+       },
+       "runP95Ms": {
+        "p50": 33.2,
+        "p95": 41.7,
+        "p99": 41.7,
+        "max": 41.7
+       },
+       "runP99Ms": {
+        "p50": 33.4,
+        "p95": 66.7,
+        "p99": 66.7,
+        "max": 66.7
+       },
+       "runMaxMs": {
+        "p50": 74.9,
+        "p95": 141.6,
+        "p99": 141.6,
+        "max": 141.6
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 142.4,
+        "p95": 226.4,
+        "p99": 226.4,
+        "max": 226.4
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 74.6,
+        "p95": 210.5,
+        "p99": 210.5,
+        "max": 210.5
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 151.6,
+        "p95": 255.6,
+        "p99": 255.6,
+        "max": 255.6
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 151.6,
+        "p95": 255.6,
+        "p99": 255.6,
+        "max": 255.6
+       }
+      },
+      "ember_lattice.transition": {
+       "okRuns": 8,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 32.6,
+        "p95": 33.4,
+        "p99": 33.4,
+        "max": 33.4
+       },
+       "runP99Ms": {
+        "p50": 41.6,
+        "p95": 50.1,
+        "p99": 50.1,
+        "max": 50.1
+       },
+       "runMaxMs": {
+        "p50": 100,
+        "p95": 108.5,
+        "p99": 108.5,
+        "max": 108.5
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 281.1,
+        "p95": 558,
+        "p99": 558,
+        "max": 558
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 210.1,
+        "p95": 422.6,
+        "p99": 422.6,
+        "max": 422.6
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 315.2,
+        "p95": 464.6,
+        "p99": 464.6,
+        "max": 464.6
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 315.2,
+        "p95": 464.6,
+        "p99": 464.6,
+        "max": 464.6
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T21-57-41-013Z.json",
+     "generatedAt": "2026-06-29T21:57:41.013Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 5,
+     "frameMs": 2500,
+     "rows": {
+      "cell_grid.mode_switch": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.9,
+        "p95": 16.5,
+        "p99": 16.5,
+        "max": 16.5
+       },
+       "runP95Ms": {
+        "p50": 17.5,
+        "p95": 18.2,
+        "p99": 18.2,
+        "max": 18.2
+       },
+       "runP99Ms": {
+        "p50": 25.4,
+        "p95": 33.5,
+        "p99": 33.5,
+        "max": 33.5
+       },
+       "runMaxMs": {
+        "p50": 33.4,
+        "p95": 42.5,
+        "p99": 42.5,
+        "max": 42.5
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 91.8,
+        "p95": 158.7,
+        "p99": 158.7,
+        "max": 158.7
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 0.5,
+        "p95": 185.9,
+        "p99": 185.9,
+        "max": 185.9
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 78.2,
+        "p95": 185.9,
+        "p99": 185.9,
+        "max": 185.9
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 78.2,
+        "p95": 185.9,
+        "p99": 185.9,
+        "max": 185.9
+       }
+      },
+      "phase_edges.mode_switch": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 8.5,
+        "p95": 25,
+        "p99": 25,
+        "max": 25
+       },
+       "runP99Ms": {
+        "p50": 16.7,
+        "p95": 41.7,
+        "p99": 41.7,
+        "max": 41.7
+       },
+       "runMaxMs": {
+        "p50": 33.4,
+        "p95": 58.3,
+        "p99": 58.3,
+        "max": 58.3
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 0.7,
+        "p95": 718.4,
+        "p99": 718.4,
+        "max": 718.4
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 1.2,
+        "p95": 215.1,
+        "p99": 215.1,
+        "max": 215.1
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 44.7,
+        "p95": 215.1,
+        "p99": 215.1,
+        "max": 215.1
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 44.7,
+        "p95": 215.1,
+        "p99": 215.1,
+        "max": 215.1
+       }
+      },
+      "ember_lattice.mode_switch": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 8.4,
+        "p95": 8.5,
+        "p99": 8.5,
+        "max": 8.5
+       },
+       "runP99Ms": {
+        "p50": 9.1,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runMaxMs": {
+        "p50": 25.1,
+        "p95": 41.6,
+        "p99": 41.6,
+        "max": 41.6
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 0,
+        "p95": 95.9,
+        "p99": 95.9,
+        "max": 95.9
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 0.4,
+        "p95": 3.2,
+        "p99": 3.2,
+        "max": 3.2
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 2.9,
+        "p95": 41.7,
+        "p99": 41.7,
+        "max": 41.7
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 2.9,
+        "p95": 41.7,
+        "p99": 41.7,
+        "max": 41.7
+       }
+      },
+      "phase_field.mode_switch": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 8.6,
+        "p95": 8.9,
+        "p99": 8.9,
+        "max": 8.9
+       },
+       "runP99Ms": {
+        "p50": 9.1,
+        "p95": 17.4,
+        "p99": 17.4,
+        "max": 17.4
+       },
+       "runMaxMs": {
+        "p50": 40.7,
+        "p95": 42.8,
+        "p99": 42.8,
+        "max": 42.8
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 0,
+        "p95": 35.4,
+        "p99": 35.4,
+        "max": 35.4
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 0.3,
+        "p95": 0.4,
+        "p99": 0.4,
+        "max": 0.4
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 0.4,
+        "p95": 33.9,
+        "p99": 33.9,
+        "max": 33.9
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 0.4,
+        "p95": 33.9,
+        "p99": 33.9,
+        "max": 33.9
+       }
+      },
+      "power_voronoi_runtime.mode_switch": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 16.6,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP99Ms": {
+        "p50": 16.8,
+        "p95": 16.8,
+        "p99": 16.8,
+        "max": 16.8
+       },
+       "runMaxMs": {
+        "p50": 16.8,
+        "p95": 41.7,
+        "p99": 41.7,
+        "max": 41.7
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 0.4,
+        "p95": 0.5,
+        "p99": 0.5,
+        "max": 0.5
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 0.4,
+        "p95": 2,
+        "p99": 2,
+        "max": 2
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 0.4,
+        "p95": 2,
+        "p99": 2,
+        "max": 2
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T22-11-33-291Z.json",
+     "generatedAt": "2026-06-29T22:11:33.291Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 3,
+     "frameMs": 2500,
+     "rows": {
+      "phase_edges.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 25.1,
+        "p95": 33.3,
+        "p99": 33.3,
+        "max": 33.3
+       },
+       "runP99Ms": {
+        "p50": 33.4,
+        "p95": 91.7,
+        "p99": 91.7,
+        "max": 91.7
+       },
+       "runMaxMs": {
+        "p50": 166.6,
+        "p95": 166.8,
+        "p99": 166.8,
+        "max": 166.8
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 401.6,
+        "p95": 445.4,
+        "p99": 445.4,
+        "max": 445.4
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 164.7,
+        "p95": 482,
+        "p99": 482,
+        "max": 482
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 164.7,
+        "p95": 482,
+        "p99": 482,
+        "max": 482
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 164.7,
+        "p95": 482,
+        "p99": 482,
+        "max": 482
+       }
+      },
+      "ember_lattice.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 25,
+        "p95": 33.3,
+        "p99": 33.3,
+        "max": 33.3
+       },
+       "runP99Ms": {
+        "p50": 33.4,
+        "p95": 58.3,
+        "p99": 58.3,
+        "max": 58.3
+       },
+       "runMaxMs": {
+        "p50": 91.7,
+        "p95": 100.2,
+        "p99": 100.2,
+        "max": 100.2
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 162.4,
+        "p95": 181.3,
+        "p99": 181.3,
+        "max": 181.3
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 96.6,
+        "p95": 273,
+        "p99": 273,
+        "max": 273
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 172.7,
+        "p95": 273,
+        "p99": 273,
+        "max": 273
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 172.7,
+        "p95": 273,
+        "p99": 273,
+        "max": 273
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T22-12-51-417Z.json",
+     "generatedAt": "2026-06-29T22:12:51.417Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 3,
+     "frameMs": 2500,
+     "rows": {
+      "phase_edges.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 25,
+        "p95": 25,
+        "p99": 25,
+        "max": 25
+       },
+       "runP99Ms": {
+        "p50": 33.4,
+        "p95": 33.5,
+        "p99": 33.5,
+        "max": 33.5
+       },
+       "runMaxMs": {
+        "p50": 108.5,
+        "p95": 133.3,
+        "p99": 133.3,
+        "max": 133.3
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 11.8,
+        "p95": 147.6,
+        "p99": 147.6,
+        "max": 147.6
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 21.1,
+        "p95": 120.9,
+        "p99": 120.9,
+        "max": 120.9
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 100.2,
+        "p95": 120.9,
+        "p99": 120.9,
+        "max": 120.9
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 100.2,
+        "p95": 120.9,
+        "p99": 120.9,
+        "max": 120.9
+       }
+      },
+      "ember_lattice.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 24.9,
+        "p95": 25,
+        "p99": 25,
+        "max": 25
+       },
+       "runP99Ms": {
+        "p50": 32.4,
+        "p95": 33.2,
+        "p99": 33.2,
+        "max": 33.2
+       },
+       "runMaxMs": {
+        "p50": 91.7,
+        "p95": 99.9,
+        "p99": 99.9,
+        "max": 99.9
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 17.7,
+        "p95": 165.2,
+        "p99": 165.2,
+        "max": 165.2
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 17.2,
+        "p95": 90.9,
+        "p99": 90.9,
+        "max": 90.9
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 89,
+        "p95": 90.9,
+        "p99": 90.9,
+        "max": 90.9
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 89,
+        "p95": 90.9,
+        "p99": 90.9,
+        "max": 90.9
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T22-16-08-119Z.json",
+     "generatedAt": "2026-06-29T22:16:08.119Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 3,
+     "frameMs": 2500,
+     "rows": {
+      "phase_edges.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 25,
+        "p95": 25,
+        "p99": 25,
+        "max": 25
+       },
+       "runP99Ms": {
+        "p50": 33.3,
+        "p95": 33.4,
+        "p99": 33.4,
+        "max": 33.4
+       },
+       "runMaxMs": {
+        "p50": 100,
+        "p95": 125,
+        "p99": 125,
+        "max": 125
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 13,
+        "p95": 76.6,
+        "p99": 76.6,
+        "max": 76.6
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 100.4,
+        "p95": 120.2,
+        "p99": 120.2,
+        "max": 120.2
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 100.4,
+        "p95": 149.9,
+        "p99": 149.9,
+        "max": 149.9
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 100.4,
+        "p95": 149.9,
+        "p99": 149.9,
+        "max": 149.9
+       }
+      },
+      "ember_lattice.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 24.9,
+        "p95": 25,
+        "p99": 25,
+        "max": 25
+       },
+       "runP99Ms": {
+        "p50": 25.1,
+        "p95": 33.3,
+        "p99": 33.3,
+        "max": 33.3
+       },
+       "runMaxMs": {
+        "p50": 91.8,
+        "p95": 100.1,
+        "p99": 100.1,
+        "max": 100.1
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 63.5,
+        "p95": 73.8,
+        "p99": 73.8,
+        "max": 73.8
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 9.7,
+        "p95": 12.7,
+        "p99": 12.7,
+        "max": 12.7
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 92.1,
+        "p95": 95.9,
+        "p99": 95.9,
+        "max": 95.9
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 92.1,
+        "p95": 95.9,
+        "p99": 95.9,
+        "max": 95.9
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T22-24-46-087Z.json",
+     "generatedAt": "2026-06-29T22:24:46.087Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 1,
+     "frameMs": 1800,
+     "rows": {
+      "phase_edges.transition": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 25,
+        "p95": 25,
+        "p99": 25,
+        "max": 25
+       },
+       "runP99Ms": {
+        "p50": 33.2,
+        "p95": 33.2,
+        "p99": 33.2,
+        "max": 33.2
+       },
+       "runMaxMs": {
+        "p50": 124.9,
+        "p95": 124.9,
+        "p99": 124.9,
+        "max": 124.9
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 190.5,
+        "p95": 190.5,
+        "p99": 190.5,
+        "max": 190.5
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 26.3,
+        "p95": 26.3,
+        "p99": 26.3,
+        "max": 26.3
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 139.9,
+        "p95": 139.9,
+        "p99": 139.9,
+        "max": 139.9
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 139.9,
+        "p95": 139.9,
+        "p99": 139.9,
+        "max": 139.9
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T22-25-55-829Z.json",
+     "generatedAt": "2026-06-29T22:25:55.829Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 3,
+     "frameMs": 2500,
+     "rows": {
+      "phase_edges.transition_diagnostic": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 25,
+        "p95": 25.2,
+        "p99": 25.2,
+        "max": 25.2
+       },
+       "runP99Ms": {
+        "p50": 33.4,
+        "p95": 42.2,
+        "p99": 42.2,
+        "max": 42.2
+       },
+       "runMaxMs": {
+        "p50": 116.8,
+        "p95": 141.7,
+        "p99": 141.7,
+        "max": 141.7
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 249.8,
+        "p95": 263,
+        "p99": 263,
+        "max": 263
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 156,
+        "p95": 306.3,
+        "p99": 306.3,
+        "max": 306.3
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 211.4,
+        "p95": 306.3,
+        "p99": 306.3,
+        "max": 306.3
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 211.4,
+        "p95": 306.3,
+        "p99": 306.3,
+        "max": 306.3
+       }
+      },
+      "ember_lattice.transition_diagnostic": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 25,
+        "p95": 25,
+        "p99": 25,
+        "max": 25
+       },
+       "runP99Ms": {
+        "p50": 33.4,
+        "p95": 34.7,
+        "p99": 34.7,
+        "max": 34.7
+       },
+       "runMaxMs": {
+        "p50": 116.7,
+        "p95": 125,
+        "p99": 125,
+        "max": 125
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 159.5,
+        "p95": 268.8,
+        "p99": 268.8,
+        "max": 268.8
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 127.4,
+        "p95": 131.5,
+        "p99": 131.5,
+        "max": 131.5
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 127.4,
+        "p95": 328.8,
+        "p99": 328.8,
+        "max": 328.8
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 127.4,
+        "p95": 328.8,
+        "p99": 328.8,
+        "max": 328.8
+       }
+      },
+      "phase_field.transition_diagnostic": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 16.8,
+        "p95": 25,
+        "p99": 25,
+        "max": 25
+       },
+       "runP99Ms": {
+        "p50": 33.3,
+        "p95": 43.1,
+        "p99": 43.1,
+        "max": 43.1
+       },
+       "runMaxMs": {
+        "p50": 91.6,
+        "p95": 100,
+        "p99": 100,
+        "max": 100
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 153.1,
+        "p95": 199.9,
+        "p99": 199.9,
+        "max": 199.9
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 201.2,
+        "p95": 205.9,
+        "p99": 205.9,
+        "max": 205.9
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 203.7,
+        "p95": 252.3,
+        "p99": 252.3,
+        "max": 252.3
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 203.7,
+        "p95": 252.3,
+        "p99": 252.3,
+        "max": 252.3
+       }
+      },
+      "power_voronoi_runtime.transition_diagnostic": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 16.7,
+        "p95": 16.8,
+        "p99": 16.8,
+        "max": 16.8
+       },
+       "runP99Ms": {
+        "p50": 25.1,
+        "p95": 33.5,
+        "p99": 33.5,
+        "max": 33.5
+       },
+       "runMaxMs": {
+        "p50": 49.9,
+        "p95": 58.3,
+        "p99": 58.3,
+        "max": 58.3
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 1.4,
+        "p95": 12.3,
+        "p99": 12.3,
+        "max": 12.3
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 0.6,
+        "p95": 13.6,
+        "p99": 13.6,
+        "max": 13.6
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 48.7,
+        "p95": 59,
+        "p99": 59,
+        "max": 59
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 48.7,
+        "p95": 59,
+        "p99": 59,
+        "max": 59
+       }
+      }
+     }
+    }
+   ]
+  },
+  "merge_base(3ddd95386)": {
+   "dir": "C:\\Users\\mikep\\.codex\\worktrees\\territory-compare-base-20260628\\.agent-harness\\metrics\\review-release",
+   "fileCount": 13,
+   "runs": [
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T14-42-04-396Z.json",
+     "generatedAt": "2026-06-29T14:42:04.396Z",
+     "appPath": null,
+     "mapName": null,
+     "runsPerScenario": 1,
+     "frameMs": 800,
+     "rows": {
+      "cell_grid.gameplay": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 9,
+        "p95": 9,
+        "p99": 9,
+        "max": 9
+       },
+       "runP99Ms": {
+        "p50": 9.3,
+        "p95": 9.3,
+        "p99": 9.3,
+        "max": 9.3
+       },
+       "runMaxMs": {
+        "p50": 9.3,
+        "p95": 9.3,
+        "p99": 9.3,
+        "max": 9.3
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T14-48-50-758Z.json",
+     "generatedAt": "2026-06-29T14:48:50.758Z",
+     "appPath": null,
+     "mapName": null,
+     "runsPerScenario": 3,
+     "frameMs": 3600,
+     "rows": {
+      "power_voronoi_runtime.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 9,
+        "p95": 9,
+        "p99": 9,
+        "max": 9
+       },
+       "runP99Ms": {
+        "p50": 9.4,
+        "p95": 10.2,
+        "p99": 10.2,
+        "max": 10.2
+       },
+       "runMaxMs": {
+        "p50": 9.7,
+        "p95": 13.4,
+        "p99": 13.4,
+        "max": 13.4
+       }
+      },
+      "power_voronoi_runtime.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 8.9,
+        "p95": 8.9,
+        "p99": 8.9,
+        "max": 8.9
+       },
+       "runP99Ms": {
+        "p50": 9.3,
+        "p95": 9.6,
+        "p99": 9.6,
+        "max": 9.6
+       },
+       "runMaxMs": {
+        "p50": 17,
+        "p95": 49.5,
+        "p99": 49.5,
+        "max": 49.5
+       }
+      },
+      "perimeter_field.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.5,
+        "p99": 8.5,
+        "max": 8.5
+       },
+       "runP95Ms": {
+        "p50": 17.1,
+        "p95": 23.9,
+        "p99": 23.9,
+        "max": 23.9
+       },
+       "runP99Ms": {
+        "p50": 17.6,
+        "p95": 35.3,
+        "p99": 35.3,
+        "max": 35.3
+       },
+       "runMaxMs": {
+        "p50": 39.9,
+        "p95": 42,
+        "p99": 42,
+        "max": 42
+       }
+      },
+      "perimeter_field.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 33.3,
+        "p95": 33.4,
+        "p99": 33.4,
+        "max": 33.4
+       },
+       "runP99Ms": {
+        "p50": 42,
+        "p95": 50.2,
+        "p99": 50.2,
+        "max": 50.2
+       },
+       "runMaxMs": {
+        "p50": 67.3,
+        "p95": 68.5,
+        "p99": 68.5,
+        "max": 68.5
+       }
+      },
+      "metaball.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.5,
+        "p99": 8.5,
+        "max": 8.5
+       },
+       "runP95Ms": {
+        "p50": 17.2,
+        "p95": 17.2,
+        "p99": 17.2,
+        "max": 17.2
+       },
+       "runP99Ms": {
+        "p50": 17.5,
+        "p95": 17.9,
+        "p99": 17.9,
+        "max": 17.9
+       },
+       "runMaxMs": {
+        "p50": 24.4,
+        "p95": 24.9,
+        "p99": 24.9,
+        "max": 24.9
+       }
+      },
+      "metaball.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 9.2,
+        "p95": 15.7,
+        "p99": 15.7,
+        "max": 15.7
+       },
+       "runP95Ms": {
+        "p50": 17.6,
+        "p95": 24.3,
+        "p99": 24.3,
+        "max": 24.3
+       },
+       "runP99Ms": {
+        "p50": 25.7,
+        "p95": 25.7,
+        "p99": 25.7,
+        "max": 25.7
+       },
+       "runMaxMs": {
+        "p50": 26,
+        "p95": 33.2,
+        "p99": 33.2,
+        "max": 33.2
+       }
+      },
+      "cell_grid.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 17.2,
+        "p95": 17.2,
+        "p99": 17.2,
+        "max": 17.2
+       },
+       "runP99Ms": {
+        "p50": 17.6,
+        "p95": 17.8,
+        "p99": 17.8,
+        "max": 17.8
+       },
+       "runMaxMs": {
+        "p50": 24.8,
+        "p95": 25.1,
+        "p99": 25.1,
+        "max": 25.1
+       }
+      },
+      "cell_grid.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 25.8,
+        "p95": 32.8,
+        "p99": 32.8,
+        "max": 32.8
+       },
+       "runP99Ms": {
+        "p50": 41.5,
+        "p95": 42,
+        "p99": 42,
+        "max": 42
+       },
+       "runMaxMs": {
+        "p50": 42.1,
+        "p95": 42.5,
+        "p99": 42.5,
+        "max": 42.5
+       }
+      },
+      "phase_edges.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 17.1,
+        "p95": 17.2,
+        "p99": 17.2,
+        "max": 17.2
+       },
+       "runP99Ms": {
+        "p50": 17.5,
+        "p95": 17.6,
+        "p99": 17.6,
+        "max": 17.6
+       },
+       "runMaxMs": {
+        "p50": 24.8,
+        "p95": 41.9,
+        "p99": 41.9,
+        "max": 41.9
+       }
+      },
+      "phase_edges.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.3,
+        "p95": 16.4,
+        "p99": 16.4,
+        "max": 16.4
+       },
+       "runP95Ms": {
+        "p50": 25.5,
+        "p95": 25.7,
+        "p99": 25.7,
+        "max": 25.7
+       },
+       "runP99Ms": {
+        "p50": 33.8,
+        "p95": 34,
+        "p99": 34,
+        "max": 34
+       },
+       "runMaxMs": {
+        "p50": 50.4,
+        "p95": 50.8,
+        "p99": 50.8,
+        "max": 50.8
+       }
+      },
+      "ember_lattice.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 17,
+        "p95": 17,
+        "p99": 17,
+        "max": 17
+       },
+       "runP99Ms": {
+        "p50": 17.3,
+        "p95": 17.4,
+        "p99": 17.4,
+        "max": 17.4
+       },
+       "runMaxMs": {
+        "p50": 17.7,
+        "p95": 17.8,
+        "p99": 17.8,
+        "max": 17.8
+       }
+      },
+      "ember_lattice.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.3,
+        "p95": 16.4,
+        "p99": 16.4,
+        "max": 16.4
+       },
+       "runP95Ms": {
+        "p50": 25.1,
+        "p95": 25.2,
+        "p99": 25.2,
+        "max": 25.2
+       },
+       "runP99Ms": {
+        "p50": 33.2,
+        "p95": 33.9,
+        "p99": 33.9,
+        "max": 33.9
+       },
+       "runMaxMs": {
+        "p50": 49.8,
+        "p95": 50.5,
+        "p99": 50.5,
+        "max": 50.5
+       }
+      },
+      "phase_field.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.5,
+        "p99": 8.5,
+        "max": 8.5
+       },
+       "runP95Ms": {
+        "p50": 17.1,
+        "p95": 17.1,
+        "p99": 17.1,
+        "max": 17.1
+       },
+       "runP99Ms": {
+        "p50": 17.5,
+        "p95": 17.5,
+        "p99": 17.5,
+        "max": 17.5
+       },
+       "runMaxMs": {
+        "p50": 24.6,
+        "p95": 24.7,
+        "p99": 24.7,
+        "max": 24.7
+       }
+      },
+      "phase_field.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 15.1,
+        "p95": 16,
+        "p99": 16,
+        "max": 16
+       },
+       "runP95Ms": {
+        "p50": 24.5,
+        "p95": 24.6,
+        "p99": 24.6,
+        "max": 24.6
+       },
+       "runP99Ms": {
+        "p50": 25.8,
+        "p95": 26,
+        "p99": 26,
+        "max": 26
+       },
+       "runMaxMs": {
+        "p50": 41.7,
+        "p95": 67.1,
+        "p99": 67.1,
+        "max": 67.1
+       }
+      },
+      "grid_gradient.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 91.9,
+        "p95": 91.9,
+        "p99": 91.9,
+        "max": 91.9
+       },
+       "runP95Ms": {
+        "p50": 116.3,
+        "p95": 125.3,
+        "p99": 125.3,
+        "max": 125.3
+       },
+       "runP99Ms": {
+        "p50": 124.9,
+        "p95": 141.6,
+        "p99": 141.6,
+        "max": 141.6
+       },
+       "runMaxMs": {
+        "p50": 124.9,
+        "p95": 141.6,
+        "p99": 141.6,
+        "max": 141.6
+       }
+      },
+      "grid_gradient.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 102,
+        "p95": 108.3,
+        "p99": 108.3,
+        "max": 108.3
+       },
+       "runP95Ms": {
+        "p50": 133.3,
+        "p95": 141.9,
+        "p99": 141.9,
+        "max": 141.9
+       },
+       "runP99Ms": {
+        "p50": 175.1,
+        "p95": 189.7,
+        "p99": 189.7,
+        "max": 189.7
+       },
+       "runMaxMs": {
+        "p50": 175.1,
+        "p95": 189.7,
+        "p99": 189.7,
+        "max": 189.7
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T15-04-39-986Z.json",
+     "generatedAt": "2026-06-29T15:04:39.986Z",
+     "appPath": null,
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 3,
+     "frameMs": 3600,
+     "rows": {
+      "power_voronoi_runtime.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.5,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 24.6,
+        "p95": 24.9,
+        "p99": 24.9,
+        "max": 24.9
+       },
+       "runP99Ms": {
+        "p50": 25.5,
+        "p95": 25.8,
+        "p99": 25.8,
+        "max": 25.8
+       },
+       "runMaxMs": {
+        "p50": 100,
+        "p95": 125.1,
+        "p99": 125.1,
+        "max": 125.1
+       }
+      },
+      "power_voronoi_runtime.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.8,
+        "p99": 16.8,
+        "max": 16.8
+       },
+       "runP95Ms": {
+        "p50": 25.5,
+        "p95": 25.6,
+        "p99": 25.6,
+        "max": 25.6
+       },
+       "runP99Ms": {
+        "p50": 49.7,
+        "p95": 58.3,
+        "p99": 58.3,
+        "max": 58.3
+       },
+       "runMaxMs": {
+        "p50": 125.5,
+        "p95": 141.3,
+        "p99": 141.3,
+        "max": 141.3
+       }
+      },
+      "perimeter_field.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 33.1,
+        "p95": 33.2,
+        "p99": 33.2,
+        "max": 33.2
+       },
+       "runP95Ms": {
+        "p50": 42.3,
+        "p95": 141.5,
+        "p99": 141.5,
+        "max": 141.5
+       },
+       "runP99Ms": {
+        "p50": 58.8,
+        "p95": 149.8,
+        "p99": 149.8,
+        "max": 149.8
+       },
+       "runMaxMs": {
+        "p50": 140.9,
+        "p95": 166.4,
+        "p99": 166.4,
+        "max": 166.4
+       }
+      },
+      "perimeter_field.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 33.2,
+        "p95": 33.2,
+        "p99": 33.2,
+        "max": 33.2
+       },
+       "runP95Ms": {
+        "p50": 50.3,
+        "p95": 57.6,
+        "p99": 57.6,
+        "max": 57.6
+       },
+       "runP99Ms": {
+        "p50": 148.8,
+        "p95": 150,
+        "p99": 150,
+        "max": 150
+       },
+       "runMaxMs": {
+        "p50": 175,
+        "p95": 183.1,
+        "p99": 183.1,
+        "max": 183.1
+       }
+      },
+      "metaball.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 33.2,
+        "p95": 33.3,
+        "p99": 33.3,
+        "max": 33.3
+       },
+       "runP95Ms": {
+        "p50": 50.2,
+        "p95": 50.2,
+        "p99": 50.2,
+        "max": 50.2
+       },
+       "runP99Ms": {
+        "p50": 58.6,
+        "p95": 59.4,
+        "p99": 59.4,
+        "max": 59.4
+       },
+       "runMaxMs": {
+        "p50": 150.3,
+        "p95": 174.4,
+        "p99": 174.4,
+        "max": 174.4
+       }
+      },
+      "metaball.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 33.4,
+        "p95": 33.4,
+        "p99": 33.4,
+        "max": 33.4
+       },
+       "runP95Ms": {
+        "p50": 50.2,
+        "p95": 57.8,
+        "p99": 57.8,
+        "max": 57.8
+       },
+       "runP99Ms": {
+        "p50": 58.9,
+        "p95": 150.5,
+        "p99": 150.5,
+        "max": 150.5
+       },
+       "runMaxMs": {
+        "p50": 150.6,
+        "p95": 166.7,
+        "p99": 166.7,
+        "max": 166.7
+       }
+      },
+      "cell_grid.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 33,
+        "p95": 33.2,
+        "p99": 33.2,
+        "max": 33.2
+       },
+       "runP95Ms": {
+        "p50": 66.2,
+        "p95": 67.2,
+        "p99": 67.2,
+        "max": 67.2
+       },
+       "runP99Ms": {
+        "p50": 99.4,
+        "p95": 132.8,
+        "p99": 132.8,
+        "max": 132.8
+       },
+       "runMaxMs": {
+        "p50": 158.2,
+        "p95": 175.8,
+        "p99": 175.8,
+        "max": 175.8
+       }
+      },
+      "cell_grid.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 58.3,
+        "p95": 58.4,
+        "p99": 58.4,
+        "max": 58.4
+       },
+       "runP95Ms": {
+        "p50": 91.6,
+        "p95": 92.3,
+        "p99": 92.3,
+        "max": 92.3
+       },
+       "runP99Ms": {
+        "p50": 200.1,
+        "p95": 208,
+        "p99": 208,
+        "max": 208
+       },
+       "runMaxMs": {
+        "p50": 225,
+        "p95": 241.2,
+        "p99": 241.2,
+        "max": 241.2
+       }
+      },
+      "phase_edges.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 50.2,
+        "p95": 50.7,
+        "p99": 50.7,
+        "max": 50.7
+       },
+       "runP95Ms": {
+        "p50": 83.6,
+        "p95": 92.4,
+        "p99": 92.4,
+        "max": 92.4
+       },
+       "runP99Ms": {
+        "p50": 92.3,
+        "p95": 107.1,
+        "p99": 107.1,
+        "max": 107.1
+       },
+       "runMaxMs": {
+        "p50": 225.6,
+        "p95": 241.7,
+        "p99": 241.7,
+        "max": 241.7
+       }
+      },
+      "phase_edges.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 50.8,
+        "p95": 57.8,
+        "p99": 57.8,
+        "max": 57.8
+       },
+       "runP95Ms": {
+        "p50": 83.5,
+        "p95": 99.5,
+        "p99": 99.5,
+        "max": 99.5
+       },
+       "runP99Ms": {
+        "p50": 216.9,
+        "p95": 234.1,
+        "p99": 234.1,
+        "max": 234.1
+       },
+       "runMaxMs": {
+        "p50": 233,
+        "p95": 300.2,
+        "p99": 300.2,
+        "max": 300.2
+       }
+      },
+      "ember_lattice.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 50.9,
+        "p95": 57.7,
+        "p99": 57.7,
+        "max": 57.7
+       },
+       "runP95Ms": {
+        "p50": 83.3,
+        "p95": 83.9,
+        "p99": 83.9,
+        "max": 83.9
+       },
+       "runP99Ms": {
+        "p50": 92,
+        "p95": 92.2,
+        "p99": 92.2,
+        "max": 92.2
+       },
+       "runMaxMs": {
+        "p50": 191.8,
+        "p95": 200.2,
+        "p99": 200.2,
+        "max": 200.2
+       }
+      },
+      "ember_lattice.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 50.4,
+        "p95": 57.9,
+        "p99": 57.9,
+        "max": 57.9
+       },
+       "runP95Ms": {
+        "p50": 83.6,
+        "p95": 90.7,
+        "p99": 90.7,
+        "max": 90.7
+       },
+       "runP99Ms": {
+        "p50": 225.4,
+        "p95": 233.9,
+        "p99": 233.9,
+        "max": 233.9
+       },
+       "runMaxMs": {
+        "p50": 317.3,
+        "p95": 317.6,
+        "p99": 317.6,
+        "max": 317.6
+       }
+      },
+      "phase_field.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 33.3,
+        "p95": 33.3,
+        "p99": 33.3,
+        "max": 33.3
+       },
+       "runP95Ms": {
+        "p50": 50.3,
+        "p95": 50.5,
+        "p99": 50.5,
+        "max": 50.5
+       },
+       "runP99Ms": {
+        "p50": 66.5,
+        "p95": 91.7,
+        "p99": 91.7,
+        "max": 91.7
+       },
+       "runMaxMs": {
+        "p50": 183.3,
+        "p95": 241.6,
+        "p99": 241.6,
+        "max": 241.6
+       }
+      },
+      "phase_field.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 33.3,
+        "p95": 33.4,
+        "p99": 33.4,
+        "max": 33.4
+       },
+       "runP95Ms": {
+        "p50": 50.8,
+        "p95": 57.5,
+        "p99": 57.5,
+        "max": 57.5
+       },
+       "runP99Ms": {
+        "p50": 208.5,
+        "p95": 224.5,
+        "p99": 224.5,
+        "max": 224.5
+       },
+       "runMaxMs": {
+        "p50": 266.5,
+        "p95": 275.4,
+        "p99": 275.4,
+        "max": 275.4
+       }
+      },
+      "grid_gradient.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 241.7,
+        "p95": 242.2,
+        "p99": 242.2,
+        "max": 242.2
+       },
+       "runP95Ms": {
+        "p50": 349.5,
+        "p95": 350.7,
+        "p99": 350.7,
+        "max": 350.7
+       },
+       "runP99Ms": {
+        "p50": 374.4,
+        "p95": 424.3,
+        "p99": 424.3,
+        "max": 424.3
+       },
+       "runMaxMs": {
+        "p50": 374.4,
+        "p95": 424.3,
+        "p99": 424.3,
+        "max": 424.3
+       }
+      },
+      "grid_gradient.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 250,
+        "p95": 258.9,
+        "p99": 258.9,
+        "max": 258.9
+       },
+       "runP95Ms": {
+        "p50": 391,
+        "p95": 407.5,
+        "p99": 407.5,
+        "max": 407.5
+       },
+       "runP99Ms": {
+        "p50": 425.2,
+        "p95": 449.6,
+        "p99": 449.6,
+        "max": 449.6
+       },
+       "runMaxMs": {
+        "p50": 425.2,
+        "p95": 449.6,
+        "p99": 449.6,
+        "max": 449.6
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T15-37-47-313Z.json",
+     "generatedAt": "2026-06-29T15:37:47.313Z",
+     "appPath": null,
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 1,
+     "frameMs": 5000,
+     "rows": {
+      "cell_grid.gameplay": {
+       "okRuns": 1,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 42.1,
+        "p95": 42.1,
+        "p99": 42.1,
+        "max": 42.1
+       },
+       "runP95Ms": {
+        "p50": 74.6,
+        "p95": 74.6,
+        "p99": 74.6,
+        "max": 74.6
+       },
+       "runP99Ms": {
+        "p50": 299.9,
+        "p95": 299.9,
+        "p99": 299.9,
+        "max": 299.9
+       },
+       "runMaxMs": {
+        "p50": 333.3,
+        "p95": 333.3,
+        "p99": 333.3,
+        "max": 333.3
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T15-45-12-347Z.json",
+     "generatedAt": "2026-06-29T15:45:12.347Z",
+     "appPath": null,
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 3,
+     "frameMs": 3600,
+     "rows": {
+      "power_voronoi_runtime.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.5,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 24.5,
+        "p95": 24.7,
+        "p99": 24.7,
+        "max": 24.7
+       },
+       "runP99Ms": {
+        "p50": 25.6,
+        "p95": 33.5,
+        "p99": 33.5,
+        "max": 33.5
+       },
+       "runMaxMs": {
+        "p50": 100.3,
+        "p95": 150.4,
+        "p99": 150.4,
+        "max": 150.4
+       }
+      },
+      "power_voronoi_runtime.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 25.3,
+        "p95": 25.3,
+        "p99": 25.3,
+        "max": 25.3
+       },
+       "runP99Ms": {
+        "p50": 34.1,
+        "p95": 41,
+        "p99": 41,
+        "max": 41
+       },
+       "runMaxMs": {
+        "p50": 91.8,
+        "p95": 91.9,
+        "p99": 91.9,
+        "max": 91.9
+       }
+      },
+      "perimeter_field.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 25,
+        "p95": 25,
+        "p99": 25,
+        "max": 25
+       },
+       "runP99Ms": {
+        "p50": 33.4,
+        "p95": 57.6,
+        "p99": 57.6,
+        "max": 57.6
+       },
+       "runMaxMs": {
+        "p50": 125,
+        "p95": 133,
+        "p99": 133,
+        "max": 133
+       }
+      },
+      "perimeter_field.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 25.2,
+        "p95": 25.2,
+        "p99": 25.2,
+        "max": 25.2
+       },
+       "runP99Ms": {
+        "p50": 133.4,
+        "p95": 142,
+        "p99": 142,
+        "max": 142
+       },
+       "runMaxMs": {
+        "p50": 150.6,
+        "p95": 158.4,
+        "p99": 158.4,
+        "max": 158.4
+       }
+      },
+      "metaball.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.5,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 24.9,
+        "p95": 24.9,
+        "p99": 24.9,
+        "max": 24.9
+       },
+       "runP99Ms": {
+        "p50": 33.9,
+        "p95": 41.6,
+        "p99": 41.6,
+        "max": 41.6
+       },
+       "runMaxMs": {
+        "p50": 125,
+        "p95": 133.6,
+        "p99": 133.6,
+        "max": 133.6
+       }
+      },
+      "metaball.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 25.1,
+        "p95": 25.2,
+        "p99": 25.2,
+        "max": 25.2
+       },
+       "runP99Ms": {
+        "p50": 40.7,
+        "p95": 42.3,
+        "p99": 42.3,
+        "max": 42.3
+       },
+       "runMaxMs": {
+        "p50": 149.2,
+        "p95": 150.2,
+        "p99": 150.2,
+        "max": 150.2
+       }
+      },
+      "cell_grid.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.5,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 41.6,
+        "p95": 41.8,
+        "p99": 41.8,
+        "max": 41.8
+       },
+       "runP99Ms": {
+        "p50": 59,
+        "p95": 66.4,
+        "p99": 66.4,
+        "max": 66.4
+       },
+       "runMaxMs": {
+        "p50": 241.3,
+        "p95": 267.5,
+        "p99": 267.5,
+        "max": 267.5
+       }
+      },
+      "cell_grid.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 17.2,
+        "p95": 17.6,
+        "p99": 17.6,
+        "max": 17.6
+       },
+       "runP95Ms": {
+        "p50": 49.6,
+        "p95": 50.2,
+        "p99": 50.2,
+        "max": 50.2
+       },
+       "runP99Ms": {
+        "p50": 266.8,
+        "p95": 291.2,
+        "p99": 291.2,
+        "max": 291.2
+       },
+       "runMaxMs": {
+        "p50": 283.5,
+        "p95": 291.2,
+        "p99": 291.2,
+        "max": 291.2
+       }
+      },
+      "phase_edges.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 33.4,
+        "p95": 33.4,
+        "p99": 33.4,
+        "max": 33.4
+       },
+       "runP95Ms": {
+        "p50": 49.9,
+        "p95": 50.1,
+        "p99": 50.1,
+        "max": 50.1
+       },
+       "runP99Ms": {
+        "p50": 66.7,
+        "p95": 66.7,
+        "p99": 66.7,
+        "max": 66.7
+       },
+       "runMaxMs": {
+        "p50": 174.9,
+        "p95": 182.8,
+        "p99": 182.8,
+        "max": 182.8
+       }
+      },
+      "phase_edges.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 33.4,
+        "p95": 33.5,
+        "p99": 33.5,
+        "max": 33.5
+       },
+       "runP95Ms": {
+        "p50": 57.7,
+        "p95": 58.4,
+        "p99": 58.4,
+        "max": 58.4
+       },
+       "runP99Ms": {
+        "p50": 191.8,
+        "p95": 208.3,
+        "p99": 208.3,
+        "max": 208.3
+       },
+       "runMaxMs": {
+        "p50": 216.4,
+        "p95": 241.7,
+        "p99": 241.7,
+        "max": 241.7
+       }
+      },
+      "ember_lattice.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 33.5,
+        "p95": 33.6,
+        "p99": 33.6,
+        "max": 33.6
+       },
+       "runP95Ms": {
+        "p50": 114.4,
+        "p95": 124.2,
+        "p99": 124.2,
+        "max": 124.2
+       },
+       "runP99Ms": {
+        "p50": 140.2,
+        "p95": 223,
+        "p99": 223,
+        "max": 223
+       },
+       "runMaxMs": {
+        "p50": 261.5,
+        "p95": 271.9,
+        "p99": 271.9,
+        "max": 271.9
+       }
+      },
+      "ember_lattice.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 33.3,
+        "p95": 33.7,
+        "p99": 33.7,
+        "max": 33.7
+       },
+       "runP95Ms": {
+        "p50": 66.8,
+        "p95": 75.4,
+        "p99": 75.4,
+        "max": 75.4
+       },
+       "runP99Ms": {
+        "p50": 175.5,
+        "p95": 208.3,
+        "p99": 208.3,
+        "max": 208.3
+       },
+       "runMaxMs": {
+        "p50": 200.2,
+        "p95": 225.1,
+        "p99": 225.1,
+        "max": 225.1
+       }
+      },
+      "phase_field.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 41.5,
+        "p95": 74.7,
+        "p99": 74.7,
+        "max": 74.7
+       },
+       "runP99Ms": {
+        "p50": 94.5,
+        "p95": 224.2,
+        "p99": 224.2,
+        "max": 224.2
+       },
+       "runMaxMs": {
+        "p50": 200,
+        "p95": 231.9,
+        "p99": 231.9,
+        "max": 231.9
+       }
+      },
+      "phase_field.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 25,
+        "p95": 25.2,
+        "p99": 25.2,
+        "max": 25.2
+       },
+       "runP99Ms": {
+        "p50": 58.4,
+        "p95": 66.7,
+        "p99": 66.7,
+        "max": 66.7
+       },
+       "runMaxMs": {
+        "p50": 184.1,
+        "p95": 224.9,
+        "p99": 224.9,
+        "max": 224.9
+       }
+      },
+      "grid_gradient.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 176.2,
+        "p95": 182.3,
+        "p99": 182.3,
+        "max": 182.3
+       },
+       "runP95Ms": {
+        "p50": 265.4,
+        "p95": 275.7,
+        "p99": 275.7,
+        "max": 275.7
+       },
+       "runP99Ms": {
+        "p50": 292.6,
+        "p95": 342,
+        "p99": 342,
+        "max": 342
+       },
+       "runMaxMs": {
+        "p50": 292.6,
+        "p95": 342,
+        "p99": 342,
+        "max": 342
+       }
+      },
+      "grid_gradient.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 191,
+        "p95": 200.7,
+        "p99": 200.7,
+        "max": 200.7
+       },
+       "runP95Ms": {
+        "p50": 311.5,
+        "p95": 341.4,
+        "p99": 341.4,
+        "max": 341.4
+       },
+       "runP99Ms": {
+        "p50": 317.9,
+        "p95": 392.3,
+        "p99": 392.3,
+        "max": 392.3
+       },
+       "runMaxMs": {
+        "p50": 317.9,
+        "p95": 392.3,
+        "p99": 392.3,
+        "max": 392.3
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T16-35-30-090Z.json",
+     "generatedAt": "2026-06-29T16:35:30.090Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 3,
+     "frameMs": 3600,
+     "rows": {
+      "power_voronoi_runtime.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 25.4,
+        "p95": 25.7,
+        "p99": 25.7,
+        "max": 25.7
+       },
+       "runP99Ms": {
+        "p50": 33.4,
+        "p95": 33.8,
+        "p99": 33.8,
+        "max": 33.8
+       },
+       "runMaxMs": {
+        "p50": 109.4,
+        "p95": 158.7,
+        "p99": 158.7,
+        "max": 158.7
+       }
+      },
+      "power_voronoi_runtime.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.8,
+        "p99": 16.8,
+        "max": 16.8
+       },
+       "runP95Ms": {
+        "p50": 25.3,
+        "p95": 25.4,
+        "p99": 25.4,
+        "max": 25.4
+       },
+       "runP99Ms": {
+        "p50": 42.2,
+        "p95": 50.6,
+        "p99": 50.6,
+        "max": 50.6
+       },
+       "runMaxMs": {
+        "p50": 101.2,
+        "p95": 125.5,
+        "p99": 125.5,
+        "max": 125.5
+       }
+      },
+      "perimeter_field.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 25.2,
+        "p95": 25.3,
+        "p99": 25.3,
+        "max": 25.3
+       },
+       "runP99Ms": {
+        "p50": 33.3,
+        "p95": 34.8,
+        "p99": 34.8,
+        "max": 34.8
+       },
+       "runMaxMs": {
+        "p50": 117.5,
+        "p95": 133.9,
+        "p99": 133.9,
+        "max": 133.9
+       }
+      },
+      "perimeter_field.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.8,
+        "p99": 16.8,
+        "max": 16.8
+       },
+       "runP95Ms": {
+        "p50": 25.5,
+        "p95": 25.6,
+        "p99": 25.6,
+        "max": 25.6
+       },
+       "runP99Ms": {
+        "p50": 41.8,
+        "p95": 41.9,
+        "p99": 41.9,
+        "max": 41.9
+       },
+       "runMaxMs": {
+        "p50": 150.7,
+        "p95": 158.5,
+        "p99": 158.5,
+        "max": 158.5
+       }
+      },
+      "metaball.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.5,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 24.8,
+        "p95": 25.2,
+        "p99": 25.2,
+        "max": 25.2
+       },
+       "runP99Ms": {
+        "p50": 32.6,
+        "p95": 33.2,
+        "p99": 33.2,
+        "max": 33.2
+       },
+       "runMaxMs": {
+        "p50": 124.9,
+        "p95": 133.9,
+        "p99": 133.9,
+        "max": 133.9
+       }
+      },
+      "metaball.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 25,
+        "p95": 25.1,
+        "p99": 25.1,
+        "max": 25.1
+       },
+       "runP99Ms": {
+        "p50": 34.5,
+        "p95": 41.6,
+        "p99": 41.6,
+        "max": 41.6
+       },
+       "runMaxMs": {
+        "p50": 141.7,
+        "p95": 150.2,
+        "p99": 150.2,
+        "max": 150.2
+       }
+      },
+      "cell_grid.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.5,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 42.3,
+        "p95": 74.6,
+        "p99": 74.6,
+        "max": 74.6
+       },
+       "runP99Ms": {
+        "p50": 58.7,
+        "p95": 174.7,
+        "p99": 174.7,
+        "max": 174.7
+       },
+       "runMaxMs": {
+        "p50": 267.3,
+        "p95": 274.2,
+        "p99": 274.2,
+        "max": 274.2
+       }
+      },
+      "cell_grid.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 17,
+        "p99": 17,
+        "max": 17
+       },
+       "runP95Ms": {
+        "p50": 51,
+        "p95": 58.6,
+        "p99": 58.6,
+        "max": 58.6
+       },
+       "runP99Ms": {
+        "p50": 292.2,
+        "p95": 299.8,
+        "p99": 299.8,
+        "max": 299.8
+       },
+       "runMaxMs": {
+        "p50": 300.1,
+        "p95": 317.2,
+        "p99": 317.2,
+        "max": 317.2
+       }
+      },
+      "phase_edges.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 33.3,
+        "p95": 41,
+        "p99": 41,
+        "max": 41
+       },
+       "runP95Ms": {
+        "p50": 50.1,
+        "p95": 58,
+        "p99": 58,
+        "max": 58
+       },
+       "runP99Ms": {
+        "p50": 75.3,
+        "p95": 83.6,
+        "p99": 83.6,
+        "max": 83.6
+       },
+       "runMaxMs": {
+        "p50": 199.5,
+        "p95": 208.3,
+        "p99": 208.3,
+        "max": 208.3
+       }
+      },
+      "phase_edges.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 33.3,
+        "p95": 33.3,
+        "p99": 33.3,
+        "max": 33.3
+       },
+       "runP95Ms": {
+        "p50": 66.1,
+        "p95": 75,
+        "p99": 75,
+        "max": 75
+       },
+       "runP99Ms": {
+        "p50": 208.4,
+        "p95": 226.1,
+        "p99": 226.1,
+        "max": 226.1
+       },
+       "runMaxMs": {
+        "p50": 224.8,
+        "p95": 241.7,
+        "p99": 241.7,
+        "max": 241.7
+       }
+      },
+      "ember_lattice.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 33.3,
+        "p95": 41.6,
+        "p99": 41.6,
+        "max": 41.6
+       },
+       "runP95Ms": {
+        "p50": 42.9,
+        "p95": 50.5,
+        "p99": 50.5,
+        "max": 50.5
+       },
+       "runP99Ms": {
+        "p50": 75,
+        "p95": 83.9,
+        "p99": 83.9,
+        "max": 83.9
+       },
+       "runMaxMs": {
+        "p50": 191.5,
+        "p95": 199.9,
+        "p99": 199.9,
+        "max": 199.9
+       }
+      },
+      "ember_lattice.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 33.4,
+        "p95": 33.5,
+        "p99": 33.5,
+        "max": 33.5
+       },
+       "runP95Ms": {
+        "p50": 50.1,
+        "p95": 65.9,
+        "p99": 65.9,
+        "max": 65.9
+       },
+       "runP99Ms": {
+        "p50": 216.6,
+        "p95": 225,
+        "p99": 225,
+        "max": 225
+       },
+       "runMaxMs": {
+        "p50": 225,
+        "p95": 225.8,
+        "p99": 225.8,
+        "max": 225.8
+       }
+      },
+      "phase_field.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 24.3,
+        "p95": 24.4,
+        "p99": 24.4,
+        "max": 24.4
+       },
+       "runP99Ms": {
+        "p50": 50.1,
+        "p95": 57.7,
+        "p99": 57.7,
+        "max": 57.7
+       },
+       "runMaxMs": {
+        "p50": 157.9,
+        "p95": 208.4,
+        "p99": 208.4,
+        "max": 208.4
+       }
+      },
+      "phase_field.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.6,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runP95Ms": {
+        "p50": 25,
+        "p95": 25,
+        "p99": 25,
+        "max": 25
+       },
+       "runP99Ms": {
+        "p50": 58.7,
+        "p95": 59.2,
+        "p99": 59.2,
+        "max": 59.2
+       },
+       "runMaxMs": {
+        "p50": 183,
+        "p95": 183.3,
+        "p99": 183.3,
+        "max": 183.3
+       }
+      },
+      "grid_gradient.gameplay": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 182.6,
+        "p95": 183.3,
+        "p99": 183.3,
+        "max": 183.3
+       },
+       "runP95Ms": {
+        "p50": 269.1,
+        "p95": 283.4,
+        "p99": 283.4,
+        "max": 283.4
+       },
+       "runP99Ms": {
+        "p50": 275,
+        "p95": 349.3,
+        "p99": 349.3,
+        "max": 349.3
+       },
+       "runMaxMs": {
+        "p50": 275,
+        "p95": 349.3,
+        "p99": 349.3,
+        "max": 349.3
+       }
+      },
+      "grid_gradient.transition": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 182.4,
+        "p95": 294.9,
+        "p99": 294.9,
+        "max": 294.9
+       },
+       "runP95Ms": {
+        "p50": 299.2,
+        "p95": 938.6,
+        "p99": 938.6,
+        "max": 938.6
+       },
+       "runP99Ms": {
+        "p50": 326.8,
+        "p95": 938.6,
+        "p99": 938.6,
+        "max": 938.6
+       },
+       "runMaxMs": {
+        "p50": 326.8,
+        "p95": 938.6,
+        "p99": 938.6,
+        "max": 938.6
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T16-57-25-860Z.json",
+     "generatedAt": "2026-06-29T16:57:25.860Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 3,
+     "frameMs": 3000,
+     "rows": {
+      "power_voronoi_runtime.mode_switch": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP99Ms": {
+        "p50": 16.8,
+        "p95": 16.8,
+        "p99": 16.8,
+        "max": 16.8
+       },
+       "runMaxMs": {
+        "p50": 33.3,
+        "p95": 33.4,
+        "p99": 33.4,
+        "max": 33.4
+       }
+      },
+      "perimeter_field.mode_switch": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 17,
+        "p95": 17.3,
+        "p99": 17.3,
+        "max": 17.3
+       },
+       "runP99Ms": {
+        "p50": 17.6,
+        "p95": 17.7,
+        "p99": 17.7,
+        "max": 17.7
+       },
+       "runMaxMs": {
+        "p50": 33.4,
+        "p95": 33.4,
+        "p99": 33.4,
+        "max": 33.4
+       }
+      },
+      "metaball.mode_switch": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 9.1,
+        "p95": 16.5,
+        "p99": 16.5,
+        "max": 16.5
+       },
+       "runP99Ms": {
+        "p50": 17.3,
+        "p95": 18.1,
+        "p99": 18.1,
+        "max": 18.1
+       },
+       "runMaxMs": {
+        "p50": 33.4,
+        "p95": 34.1,
+        "p99": 34.1,
+        "max": 34.1
+       }
+      },
+      "cell_grid.mode_switch": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 8.8,
+        "p95": 8.8,
+        "p99": 8.8,
+        "max": 8.8
+       },
+       "runP99Ms": {
+        "p50": 9.3,
+        "p95": 9.4,
+        "p99": 9.4,
+        "max": 9.4
+       },
+       "runMaxMs": {
+        "p50": 25,
+        "p95": 25.9,
+        "p99": 25.9,
+        "max": 25.9
+       }
+      },
+      "phase_edges.mode_switch": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 8.9,
+        "p95": 8.9,
+        "p99": 8.9,
+        "max": 8.9
+       },
+       "runP99Ms": {
+        "p50": 9.4,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runMaxMs": {
+        "p50": 25.6,
+        "p95": 33.3,
+        "p99": 33.3,
+        "max": 33.3
+       }
+      },
+      "ember_lattice.mode_switch": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 8.7,
+        "p95": 8.9,
+        "p99": 8.9,
+        "max": 8.9
+       },
+       "runP99Ms": {
+        "p50": 9.2,
+        "p95": 9.3,
+        "p99": 9.3,
+        "max": 9.3
+       },
+       "runMaxMs": {
+        "p50": 33.2,
+        "p95": 33.3,
+        "p99": 33.3,
+        "max": 33.3
+       }
+      },
+      "phase_field.mode_switch": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 8.6,
+        "p95": 8.7,
+        "p99": 8.7,
+        "max": 8.7
+       },
+       "runP99Ms": {
+        "p50": 9.2,
+        "p95": 9.2,
+        "p99": 9.2,
+        "max": 9.2
+       },
+       "runMaxMs": {
+        "p50": 24.9,
+        "p95": 25,
+        "p99": 25,
+        "max": 25
+       }
+      },
+      "grid_gradient.mode_switch": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 91.8,
+        "p95": 92.4,
+        "p99": 92.4,
+        "max": 92.4
+       },
+       "runP95Ms": {
+        "p50": 133.3,
+        "p95": 133.9,
+        "p99": 133.9,
+        "max": 133.9
+       },
+       "runP99Ms": {
+        "p50": 141.6,
+        "p95": 141.7,
+        "p99": 141.7,
+        "max": 141.7
+       },
+       "runMaxMs": {
+        "p50": 141.6,
+        "p95": 141.7,
+        "p99": 141.7,
+        "max": 141.7
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T17-19-59-361Z.json",
+     "generatedAt": "2026-06-29T17:19:59.361Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 5,
+     "frameMs": 3000,
+     "rows": {
+      "ember_lattice.mode_switch": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 8.7,
+        "p95": 9,
+        "p99": 9,
+        "max": 9
+       },
+       "runP99Ms": {
+        "p50": 9.4,
+        "p95": 17,
+        "p99": 17,
+        "max": 17
+       },
+       "runMaxMs": {
+        "p50": 25,
+        "p95": 25.2,
+        "p99": 25.2,
+        "max": 25.2
+       }
+      },
+      "phase_field.mode_switch": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 8.8,
+        "p95": 8.9,
+        "p99": 8.9,
+        "max": 8.9
+       },
+       "runP99Ms": {
+        "p50": 9.4,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runMaxMs": {
+        "p50": 25,
+        "p95": 41.7,
+        "p99": 41.7,
+        "max": 41.7
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T17-28-42-235Z.json",
+     "generatedAt": "2026-06-29T17:28:42.235Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 5,
+     "frameMs": 3000,
+     "rows": {
+      "cell_grid.transition": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 33.4,
+        "p95": 33.4,
+        "p99": 33.4,
+        "max": 33.4
+       },
+       "runP99Ms": {
+        "p50": 41.7,
+        "p95": 49.9,
+        "p99": 49.9,
+        "max": 49.9
+       },
+       "runMaxMs": {
+        "p50": 200,
+        "p95": 283.3,
+        "p99": 283.3,
+        "max": 283.3
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 16.7,
+        "p95": 19.2,
+        "p99": 19.2,
+        "max": 19.2
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 182.7,
+        "p95": 195.3,
+        "p99": 195.3,
+        "max": 195.3
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 182.7,
+        "p95": 195.3,
+        "p99": 195.3,
+        "max": 195.3
+       }
+      },
+      "phase_field.transition": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 16.7,
+        "p95": 25.1,
+        "p99": 25.1,
+        "max": 25.1
+       },
+       "runP99Ms": {
+        "p50": 33.4,
+        "p95": 41.7,
+        "p99": 41.7,
+        "max": 41.7
+       },
+       "runMaxMs": {
+        "p50": 133.4,
+        "p95": 166.6,
+        "p99": 166.6,
+        "max": 166.6
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 30.5,
+        "p95": 78,
+        "p99": 78,
+        "max": 78
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 99.2,
+        "p95": 123,
+        "p99": 123,
+        "max": 123
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 99.2,
+        "p95": 123,
+        "p99": 123,
+        "max": 123
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T19-35-07-082Z.json",
+     "generatedAt": "2026-06-29T19:35:07.082Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 8,
+     "frameMs": 3000,
+     "rows": {
+      "cell_grid.transition": {
+       "okRuns": 8,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 19.3,
+        "p95": 19.6,
+        "p99": 19.6,
+        "max": 19.6
+       },
+       "runP95Ms": {
+        "p50": 57.2,
+        "p95": 58.6,
+        "p99": 58.6,
+        "max": 58.6
+       },
+       "runP99Ms": {
+        "p50": 288.8,
+        "p95": 331.2,
+        "p99": 331.2,
+        "max": 331.2
+       },
+       "runMaxMs": {
+        "p50": 330,
+        "p95": 359.8,
+        "p99": 359.8,
+        "max": 359.8
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 21.5,
+        "p95": 264.1,
+        "p99": 264.1,
+        "max": 264.1
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 44.2,
+        "p95": 317.5,
+        "p99": 317.5,
+        "max": 317.5
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 44.2,
+        "p95": 317.5,
+        "p99": 317.5,
+        "max": 317.5
+       }
+      },
+      "phase_field.transition": {
+       "okRuns": 8,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 18.8,
+        "p95": 19,
+        "p99": 19,
+        "max": 19
+       },
+       "runP95Ms": {
+        "p50": 20.4,
+        "p95": 28.4,
+        "p99": 28.4,
+        "max": 28.4
+       },
+       "runP99Ms": {
+        "p50": 48.4,
+        "p95": 66.6,
+        "p99": 66.6,
+        "max": 66.6
+       },
+       "runMaxMs": {
+        "p50": 192.4,
+        "p95": 211.1,
+        "p99": 211.1,
+        "max": 211.1
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 38.9,
+        "p95": 43.3,
+        "p99": 43.3,
+        "max": 43.3
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 45.6,
+        "p95": 178.2,
+        "p99": 178.2,
+        "max": 178.2
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 45.6,
+        "p95": 178.2,
+        "p99": 178.2,
+        "max": 178.2
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T21-07-57-923Z.json",
+     "generatedAt": "2026-06-29T21:07:57.923Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 8,
+     "frameMs": 3000,
+     "rows": {
+      "phase_edges.gameplay": {
+       "okRuns": 8,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.8,
+        "p99": 16.8,
+        "max": 16.8
+       },
+       "runP95Ms": {
+        "p50": 25.1,
+        "p95": 32.8,
+        "p99": 32.8,
+        "max": 32.8
+       },
+       "runP99Ms": {
+        "p50": 41.1,
+        "p95": 41.8,
+        "p99": 41.8,
+        "max": 41.8
+       },
+       "runMaxMs": {
+        "p50": 116.7,
+        "p95": 166,
+        "p99": 166,
+        "max": 166
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 7,
+        "p95": 9.2,
+        "p99": 9.2,
+        "max": 9.2
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 21.8,
+        "p95": 101.5,
+        "p99": 101.5,
+        "max": 101.5
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 21.8,
+        "p95": 101.5,
+        "p99": 101.5,
+        "max": 101.5
+       }
+      },
+      "phase_edges.transition": {
+       "okRuns": 8,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 25.1,
+        "p95": 25.6,
+        "p99": 25.6,
+        "max": 25.6
+       },
+       "runP99Ms": {
+        "p50": 33.5,
+        "p95": 42.3,
+        "p99": 42.3,
+        "max": 42.3
+       },
+       "runMaxMs": {
+        "p50": 125.1,
+        "p95": 133.4,
+        "p99": 133.4,
+        "max": 133.4
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 7.1,
+        "p95": 8.2,
+        "p99": 8.2,
+        "max": 8.2
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 16.6,
+        "p95": 21.7,
+        "p99": 21.7,
+        "max": 21.7
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 16.6,
+        "p95": 21.7,
+        "p99": 21.7,
+        "max": 21.7
+       }
+      },
+      "ember_lattice.gameplay": {
+       "okRuns": 8,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 24.5,
+        "p95": 24.9,
+        "p99": 24.9,
+        "max": 24.9
+       },
+       "runP95Ms": {
+        "p50": 25.6,
+        "p95": 32.8,
+        "p99": 32.8,
+        "max": 32.8
+       },
+       "runP99Ms": {
+        "p50": 42,
+        "p95": 50.1,
+        "p99": 50.1,
+        "max": 50.1
+       },
+       "runMaxMs": {
+        "p50": 91.7,
+        "p95": 99.9,
+        "p99": 99.9,
+        "max": 99.9
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 9.3,
+        "p95": 10.2,
+        "p99": 10.2,
+        "max": 10.2
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 10.4,
+        "p95": 75.2,
+        "p99": 75.2,
+        "max": 75.2
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 10.4,
+        "p95": 75.2,
+        "p99": 75.2,
+        "max": 75.2
+       }
+      },
+      "ember_lattice.transition": {
+       "okRuns": 8,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 24.9,
+        "p95": 24.9,
+        "p99": 24.9,
+        "max": 24.9
+       },
+       "runP95Ms": {
+        "p50": 26.3,
+        "p95": 33.4,
+        "p99": 33.4,
+        "max": 33.4
+       },
+       "runP99Ms": {
+        "p50": 108.4,
+        "p95": 117.7,
+        "p99": 117.7,
+        "max": 117.7
+       },
+       "runMaxMs": {
+        "p50": 133.5,
+        "p95": 149.9,
+        "p99": 149.9,
+        "max": 149.9
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 11.9,
+        "p95": 95.4,
+        "p99": 95.4,
+        "max": 95.4
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 108.7,
+        "p95": 125.5,
+        "p99": 125.5,
+        "max": 125.5
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 108.7,
+        "p95": 125.5,
+        "p99": 125.5,
+        "max": 125.5
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T22-00-21-973Z.json",
+     "generatedAt": "2026-06-29T22:00:21.973Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 5,
+     "frameMs": 2500,
+     "rows": {
+      "cell_grid.mode_switch": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 8.6,
+        "p95": 8.6,
+        "p99": 8.6,
+        "max": 8.6
+       },
+       "runP99Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runMaxMs": {
+        "p50": 25,
+        "p95": 25.1,
+        "p99": 25.1,
+        "max": 25.1
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 0.3,
+        "p95": 0.3,
+        "p99": 0.3,
+        "max": 0.3
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 0.3,
+        "p95": 2.9,
+        "p99": 2.9,
+        "max": 2.9
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 0.3,
+        "p95": 2.9,
+        "p99": 2.9,
+        "max": 2.9
+       }
+      },
+      "phase_edges.mode_switch": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 8.5,
+        "p95": 8.6,
+        "p99": 8.6,
+        "max": 8.6
+       },
+       "runP99Ms": {
+        "p50": 9.1,
+        "p95": 16.6,
+        "p99": 16.6,
+        "max": 16.6
+       },
+       "runMaxMs": {
+        "p50": 25,
+        "p95": 41.7,
+        "p99": 41.7,
+        "max": 41.7
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 0.3,
+        "p95": 0.3,
+        "p99": 0.3,
+        "max": 0.3
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 0.3,
+        "p95": 0.4,
+        "p99": 0.4,
+        "max": 0.4
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 0.3,
+        "p95": 0.4,
+        "p99": 0.4,
+        "max": 0.4
+       }
+      },
+      "ember_lattice.mode_switch": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 8.6,
+        "p95": 8.7,
+        "p99": 8.7,
+        "max": 8.7
+       },
+       "runP99Ms": {
+        "p50": 9.4,
+        "p95": 16.5,
+        "p99": 16.5,
+        "max": 16.5
+       },
+       "runMaxMs": {
+        "p50": 25.1,
+        "p95": 41.7,
+        "p99": 41.7,
+        "max": 41.7
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 0.3,
+        "p95": 0.3,
+        "p99": 0.3,
+        "max": 0.3
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 0.3,
+        "p95": 3.5,
+        "p99": 3.5,
+        "max": 3.5
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 0.3,
+        "p95": 3.5,
+        "p99": 3.5,
+        "max": 3.5
+       }
+      },
+      "phase_field.mode_switch": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.3,
+        "p99": 8.3,
+        "max": 8.3
+       },
+       "runP95Ms": {
+        "p50": 8.5,
+        "p95": 8.5,
+        "p99": 8.5,
+        "max": 8.5
+       },
+       "runP99Ms": {
+        "p50": 9.1,
+        "p95": 9.2,
+        "p99": 9.2,
+        "max": 9.2
+       },
+       "runMaxMs": {
+        "p50": 25.1,
+        "p95": 41.8,
+        "p99": 41.8,
+        "max": 41.8
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 0.3,
+        "p95": 0.3,
+        "p99": 0.3,
+        "max": 0.3
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 0.3,
+        "p95": 0.3,
+        "p99": 0.3,
+        "max": 0.3
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 0.3,
+        "p95": 0.3,
+        "p99": 0.3,
+        "max": 0.3
+       }
+      },
+      "power_voronoi_runtime.mode_switch": {
+       "okRuns": 5,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.3,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 9.1,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP99Ms": {
+        "p50": 16.8,
+        "p95": 16.8,
+        "p99": 16.8,
+        "max": 16.8
+       },
+       "runMaxMs": {
+        "p50": 33.3,
+        "p95": 50.1,
+        "p99": 50.1,
+        "max": 50.1
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 0.3,
+        "p95": 0.5,
+        "p99": 0.5,
+        "max": 0.5
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 1.8,
+        "p95": 2.6,
+        "p99": 2.6,
+        "max": 2.6
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 1.8,
+        "p95": 2.6,
+        "p99": 2.6,
+        "max": 2.6
+       }
+      }
+     }
+    },
+    {
+     "file": "review-release-gameplay-benchmark-2026-06-29T22-33-17-056Z.json",
+     "generatedAt": "2026-06-29T22:33:17.056Z",
+     "appPath": "/play?bench=1",
+     "mapName": "First Symmetry-6_April 17b",
+     "runsPerScenario": 3,
+     "frameMs": 2500,
+     "rows": {
+      "phase_edges.transition_diagnostic": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 25,
+        "p95": 25,
+        "p99": 25,
+        "max": 25
+       },
+       "runP95Ms": {
+        "p50": 41.6,
+        "p95": 41.8,
+        "p99": 41.8,
+        "max": 41.8
+       },
+       "runP99Ms": {
+        "p50": 50.1,
+        "p95": 50.2,
+        "p99": 50.2,
+        "max": 50.2
+       },
+       "runMaxMs": {
+        "p50": 166.6,
+        "p95": 199.4,
+        "p99": 199.4,
+        "max": 199.4
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 26.8,
+        "p95": 28.7,
+        "p99": 28.7,
+        "max": 28.7
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 34.1,
+        "p95": 149,
+        "p99": 149,
+        "max": 149
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 34.1,
+        "p95": 149,
+        "p99": 149,
+        "max": 149
+       }
+      },
+      "ember_lattice.transition_diagnostic": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 24.9,
+        "p95": 24.9,
+        "p99": 24.9,
+        "max": 24.9
+       },
+       "runP95Ms": {
+        "p50": 41.7,
+        "p95": 41.8,
+        "p99": 41.8,
+        "max": 41.8
+       },
+       "runP99Ms": {
+        "p50": 50,
+        "p95": 50.1,
+        "p99": 50.1,
+        "max": 50.1
+       },
+       "runMaxMs": {
+        "p50": 166.7,
+        "p95": 183.4,
+        "p99": 183.4,
+        "max": 183.4
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 23.5,
+        "p95": 25.5,
+        "p99": 25.5,
+        "max": 25.5
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 34.8,
+        "p95": 36.9,
+        "p99": 36.9,
+        "max": 36.9
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 34.8,
+        "p95": 36.9,
+        "p99": 36.9,
+        "max": 36.9
+       }
+      },
+      "phase_field.transition_diagnostic": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP95Ms": {
+        "p50": 33.3,
+        "p95": 33.3,
+        "p99": 33.3,
+        "max": 33.3
+       },
+       "runP99Ms": {
+        "p50": 41.7,
+        "p95": 50,
+        "p99": 50,
+        "max": 50
+       },
+       "runMaxMs": {
+        "p50": 125,
+        "p95": 141.8,
+        "p99": 141.8,
+        "max": 141.8
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 14.4,
+        "p95": 17.1,
+        "p99": 17.1,
+        "max": 17.1
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 14.8,
+        "p95": 113.3,
+        "p99": 113.3,
+        "max": 113.3
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 14.8,
+        "p95": 113.3,
+        "p99": 113.3,
+        "max": 113.3
+       }
+      },
+      "power_voronoi_runtime.transition_diagnostic": {
+       "okRuns": 3,
+       "failedRuns": 0,
+       "runP50Ms": {
+        "p50": 8.4,
+        "p95": 8.4,
+        "p99": 8.4,
+        "max": 8.4
+       },
+       "runP95Ms": {
+        "p50": 16.7,
+        "p95": 16.7,
+        "p99": 16.7,
+        "max": 16.7
+       },
+       "runP99Ms": {
+        "p50": 24.9,
+        "p95": 25.1,
+        "p99": 25.1,
+        "max": 25.1
+       },
+       "runMaxMs": {
+        "p50": 83.3,
+        "p95": 83.4,
+        "p99": 83.4,
+        "max": 83.4
+       },
+       "schedulerPendingAgeMaxMs": {
+        "p50": 0,
+        "p95": 0,
+        "p99": 0,
+        "max": 0
+       },
+       "schedulerCommitLagP95Ms": {
+        "p50": 0.7,
+        "p95": 0.7,
+        "p99": 0.7,
+        "max": 0.7
+       },
+       "schedulerCommitLagP99Ms": {
+        "p50": 1.9,
+        "p95": 3.5,
+        "p99": 3.5,
+        "max": 3.5
+       },
+       "schedulerCommitLagMaxMs": {
+        "p50": 1.9,
+        "p95": 3.5,
+        "p99": 3.5,
+        "max": 3.5
+       }
+      }
+     }
+    }
+   ]
+  }
+ }
+}

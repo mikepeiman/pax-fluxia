@@ -1,0 +1,604 @@
+{
+  "generatedAt": "2026-06-29T15:28:48.926Z",
+  "targetRoot": "C:\\Users\\mikep\\.codex\\worktrees\\territory-overnight-integration\\pax-fluxia",
+  "gitHead": "e423c29ec709278446da6e7ee2b5d5948a26dd37",
+  "mapName": "First Symmetry-6_April 17b",
+  "mapSourcePath": "C:\\Users\\mikep\\.codex\\worktrees\\territory-overnight-integration\\pax-fluxia\\common\\resources\\saved-maps\\first_symmetry-6_april_17b.json",
+  "ticks": 36,
+  "order": {
+    "sourceId": "star-33",
+    "targetId": "star-34",
+    "playerId": "ai-1"
+  },
+  "finalHash": "9f6dae73473ad7528eaa767902a9bcac067a3197c5a0315c9e5577d9e9741910",
+  "tickReports": [
+    {
+      "tick": 1,
+      "hash": "9267e5923f42309fa388ca5127f45500cf73f1ef03f6a8a656e47d39cce47878",
+      "events": {
+        "transfers": [],
+        "combats": [],
+        "conquests": [
+          {
+            "tick": 1,
+            "starId": "star-34",
+            "attackerStarId": "star-33",
+            "attackerStarIds": [
+              "star-33"
+            ],
+            "attackerShipTransfers": [
+              120
+            ],
+            "previousOwner": "neutral",
+            "newOwner": "ai-1",
+            "shipsCaptured": 0,
+            "shipsEscaped": 0,
+            "shipsDestroyed": 0,
+            "shipsTransferred": 120,
+            "conquestType": "scatter"
+          }
+        ]
+      }
+    },
+    {
+      "tick": 2,
+      "hash": "bc4e01f29465568e76fb081c02aa086b878dca897bf0c858d3b496843ef7f48c",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 13
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 3,
+      "hash": "6fb8a2889e5d0aee1ae12f3cf04d002556841ce0265394c0a9851fe8eed274b4",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 11
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 4,
+      "hash": "81f3e41efca505984087b625d07da5eaf16f1ed0891368eb8e17f9f4385e3687",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 10
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 5,
+      "hash": "6796ac60bf4ec1b07364db579fb4d20154b4e775e3a84ab8ccc5e8d8d26015c3",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 9
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 6,
+      "hash": "88a0b329d202fdbdb027e54a2efe11305457a6b2e7f53ec3d7a5498f2456538a",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 9
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 7,
+      "hash": "be6e1d92f4d06d926383d271d50c25d16ed4c0faa4c47a5af88834f322193817",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 8
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 8,
+      "hash": "06b63b1e7685b584c0f4d0b0cf712b7a746ea5912b362223a94686498bf7ee82",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 7
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 9,
+      "hash": "c226825691bdb80e1e7c1cc862b84dab7f1f2e7cddc1c282707ce4473dcc11a7",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 6
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 10,
+      "hash": "16c3e546f60fec9b81ca55e3b22278a240bb53c4737ad9e3cd0591615df8ee3d",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 6
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 11,
+      "hash": "1b708ed3afbebd0128afa024dd64749f4410c82028d161d616c8af1a8169fab7",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 5
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 12,
+      "hash": "3c12091179a40c4209e2b2bdb67fe9fce3a5fd0f8b7cd3f4e1ea887a642b7e2e",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 5
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 13,
+      "hash": "e4874d0b4ace0309e0f1bde7acd9178473fca9d240c9228b36cd35132504f35d",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 5
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 14,
+      "hash": "5f6daf206331e1b9ef1ab49f654da5cd5360cb17bc1fc491ed06fe5d371f413e",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 4
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 15,
+      "hash": "12eb520e443647fffd922f3f07004cf12ccaf23a68bf8ada2fabab87f3c1c9de",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 4
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 16,
+      "hash": "f06ae8155f1a23df2ef1ae7f8309742fa516b7ab8c991875867ff16c40aa1e4a",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 3
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 17,
+      "hash": "886e4de0987b12955094dcef04d319c1a0468c1860931402aca19e0783d10fd8",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 3
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 18,
+      "hash": "2f456ea6780fbeaf189e007f81c3bcf9f2da2c1869fedb2d8c8a30d16a2d40c3",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 3
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 19,
+      "hash": "5f69fb94ab1e092b732d33e476966267323cd2f9c654e4a7f72765c292bbf99e",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 3
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 20,
+      "hash": "c910617205cea5dbd310d7240a71688e800912352b7f49789fa9aaef96752494",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 3
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 21,
+      "hash": "19139355946c6aed25a78137419a5f1c38eed883ec332631af2487b3f361e5ea",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 2
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 22,
+      "hash": "77aee6fdef91219ad264838023071e25eaa09e34b77ee2a1cad78292a918f35a",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 2
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 23,
+      "hash": "161775c264f1fb91017a0f8bd30e6ba642a7bf746dcd40ed36bec22208e52545",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 2
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 24,
+      "hash": "6f47e043583f22a5f81e294331229cf992c44ce5c96a079a6fcbb70bbb381b50",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 2
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 25,
+      "hash": "61399fdf142a21632d86e8ff0fc949faf0d42b481602c2285811cb47077f9fa8",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 2
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 26,
+      "hash": "9bc88a450bb6664b81175e073c0b9d3926c5f3103ae071cbbb0dd462e062c5d1",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 2
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 27,
+      "hash": "d8602e540040d565c39930459afebd01bbd2bdb4b1773e338d6aa1fc368e47c2",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 2
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 28,
+      "hash": "99d51834bb96251a544eebd2e9f5573b667100d79058912b70bc6f8a32bbae36",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 2
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 29,
+      "hash": "767bf61124bcb1122a80a79472f3350066e8e429aa2c59781d8c7a1aa0e5a9c9",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 1
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 30,
+      "hash": "22fce8a78979a3bb8209d6faf4d8a2435b03beb292b617c5f9a30fa5221a1723",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 1
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 31,
+      "hash": "43bc77b755e085830b652b31ce6b3f3b2c3f8bb389b7ca94ebfc53409aca0f4e",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 1
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 32,
+      "hash": "e82ad9bcfb1f5d138df89a73d565f3a3956caa4680f574f0cc0c3c9966b90d80",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 1
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 33,
+      "hash": "c63d12ce82227ca887cc0d414f7ca3ee71b16ba34b97b95948994acc72b1cf0d",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 1
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 34,
+      "hash": "f75fd4a80b4f9a97a928c67d605f92b33f0559b68caae32268e6d0b9aef99d88",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 1
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 35,
+      "hash": "ad46cdd9061627fe9582a126c041c6fdfe06b390497ea3257fa9a9425688c04b",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 1
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    },
+    {
+      "tick": 36,
+      "hash": "99996eb3471ecf36dc21a913c1019de56f1e83fbe8192314641892682723cc96",
+      "events": {
+        "transfers": [
+          {
+            "sourceId": "star-33",
+            "targetId": "star-34",
+            "ownerId": "ai-1",
+            "shipCount": 1
+          }
+        ],
+        "combats": [],
+        "conquests": []
+      }
+    }
+  ]
+}
