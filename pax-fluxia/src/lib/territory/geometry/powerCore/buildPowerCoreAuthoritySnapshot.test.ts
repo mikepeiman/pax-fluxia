@@ -65,7 +65,7 @@ function buildSnapshot(fixtureName: string): ResolvedGeometrySnapshot {
         connections,
         config,
         ownershipVersion: 'test-ownership',
-        sourceStyle: 'perimeter_field',
+        sourceStyle: 'vector',
     });
     expect('kind' in result).toBe(false);
     return result as ResolvedGeometrySnapshot;
