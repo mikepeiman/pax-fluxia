@@ -277,6 +277,67 @@ describe('case 4 — three-owner 3-way junction (the classic failure)', () => {
     });
 });
 
+// --- case 4b: half-edge owner derivation === old point-in-polygon answer -----
+
+describe('case 4b — structural owner derivation matches point-in-polygon (3-way junction)', () => {
+    // Same cells as case 4 — the make-or-break junction.
+    const cells: PowerCell[] = [
+        { siteId: 'ul', ownerId: 'A', points: [[0, 0], [50, 0], [50, 50], [0, 50]] },
+        { siteId: 'ur', ownerId: 'B', points: [[50, 0], [100, 0], [100, 50], [50, 50]] },
+        {
+            siteId: 'bot',
+            ownerId: 'C',
+            points: [[0, 50], [50, 50], [100, 50], [100, 100], [0, 100]],
+        },
+    ];
+
+    /** The OLD derivation: ray-cast each cell's centroid against the loop ring. */
+    function pointInPolygon(pt: Point, ring: Point[]): boolean {
+        const x = pt[0];
+        const y = pt[1];
+        let inside = false;
+        const n = ring.length;
+        for (let i = 0, j = n - 1; i < n; j = i++) {
+            const xi = ring[i][0];
+            const yi = ring[i][1];
+            const xj = ring[j][0];
+            const yj = ring[j][1];
+            const intersects =
+                yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+            if (intersects) inside = !inside;
+        }
+        return inside;
+    }
+
+    function centroid(ring: Point[]): Point {
+        let mx = 0;
+        let my = 0;
+        for (const p of ring) {
+            mx += p[0];
+            my += p[1];
+        }
+        return [mx / ring.length, my / ring.length];
+    }
+
+    it('every loop: derived ownerId and starIds equal the point-in-polygon answer', () => {
+        const graph = buildSharedEdgeGraph(cells, WORLD);
+        const loops = walkRegionLoops(graph, cells);
+        expect(loops.length).toBe(3);
+
+        for (const loop of loops) {
+            const ring = reconstructLoopPolygon(loop, graph);
+
+            // Old-style membership: which cells' centroids fall inside the ring?
+            const contained = cells.filter((c) => pointInPolygon(centroid(c.points), ring));
+            expect(contained.length).toBeGreaterThan(0);
+
+            const containedOwners = [...new Set(contained.map((c) => c.ownerId))];
+            expect(containedOwners).toEqual([loop.ownerId]);
+            expect(contained.map((c) => c.siteId).sort()).toEqual(loop.starIds);
+        }
+    });
+});
+
 // --- case 5: determinism -----------------------------------------------------
 
 describe('case 5 — determinism across input array order', () => {

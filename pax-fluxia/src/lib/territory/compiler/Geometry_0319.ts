@@ -212,6 +212,189 @@ function buildMinStarMarginValidator<TShared extends SharedPolyline>(params: {
 }
 
 // ---------------------------------------------------------------------------
+// Stage 0 (shared): site array + world clip
+// ---------------------------------------------------------------------------
+
+export interface Geometry0319SitesAndClip {
+    readonly sites: PowerSite[];
+    readonly ownedStars: StarState[];
+    readonly clip: [number, number][];
+    readonly corridorVirtualCount: number;
+    readonly disconnectVirtualCount: number;
+}
+
+/**
+ * Stage 0 + world-clip construction, extracted verbatim from
+ * computeGeometry0319 so alternative geometry assemblies (PowerCore) consume
+ * byte-identical site inputs. Any behavior drift here changes BOTH pipelines.
+ */
+export function buildGeometry0319SitesAndClip(
+    stars: StarState[],
+    connections: StarConnection[],
+    config: TerritoryGeneratorSettings,
+    weightOverrides?: Map<string, number>,
+    extraSites?: PowerSite[],
+): Geometry0319SitesAndClip | CompileError {
+    const { starMargin, worldWidth, worldHeight } = config;
+
+    const ownedStars = stars.filter(s => s.ownerId);
+    if (ownedStars.length < 2) {
+        return {
+            kind: 'error',
+            stage: 'metric',
+            message: 'Geometry_0319: fewer than 2 owned stars — cannot compute power diagram',
+            recoverable: true,
+        } satisfies CompileError;
+    }
+
+    geometryTrace.step('0', 'input', { stars: stars.length, lanes: connections.length, owned: ownedStars.length, owners: new Set(ownedStars.map((s) => s.ownerId)).size, world: `${worldWidth}x${worldHeight}` });
+
+    // ── Stage 0: Build site array ───────────────────────────────────────
+    const localStarMargins = resolvePerStarMinStarMarginPx({
+        stars: ownedStars,
+        requestedMarginPx: starMargin,
+        worldWidth,
+        worldHeight,
+    });
+    const sites: PowerSite[] = ownedStars.map(s => ({
+        x: s.x,
+        y: s.y,
+        weight:
+            weightOverrides?.get(s.id) ??
+            buildRealSiteWeight(
+                localStarMargins.get(s.id) ?? starMargin,
+                config.msrStarBias,
+            ),
+        ownerId: s.ownerId!,
+        starId: s.id,
+    }));
+    const realOwnershipGuardSites = sites.map((site) => ({
+        x: site.x,
+        y: site.y,
+        weight: site.weight,
+        clearanceRadiusPx: 0,
+    }));
+    const realDisconnectGuardSites = sites.map((site) => ({
+        x: site.x,
+        y: site.y,
+        weight: site.weight,
+        clearanceRadiusPx: config.starCoreGuardRadius,
+    }));
+
+    // Inject ghost/extra sites (used for transition ghost old-owner duplicates)
+    if (extraSites) {
+        for (const es of extraSites) sites.push(es);
+    }
+
+    let traceCorridorVirtualCount = 0;
+    let traceDisconnectVirtualCount = 0;
+    if (config.corridorEnabled) {
+        const corridorVirtuals = computeCorridorVirtuals(
+            ownedStars,
+            connections,
+            config.corridorSpacing,
+            config.cxWeight,
+            config.cxCount || undefined,
+            // Use authored/cache lane paths only; territory geometry must not reroute lanes.
+            undefined,
+            config.cxContestMidpointVstars,
+            true,
+            true,
+            config.cxContestPairWeight,
+            config.cxContestPairCount,
+            config.cxContestPairSpacing,
+            config.starCoreGuardRadius,
+        );
+        for (const cv of corridorVirtuals) {
+            const clampedWeight = clampVirtualSiteWeightForRealStarOwnership({
+                x: cv.x,
+                y: cv.y,
+                weight: buildVirtualSiteWeight(cv.weight),
+                realSites: realOwnershipGuardSites,
+            });
+            if (clampedWeight <= 0) continue;
+            sites.push({
+                x: cv.x, y: cv.y,
+                weight: clampedWeight,
+                ownerId: cv.ownerId,
+                starId: `corridor_${cv.sourceStarA}_${cv.sourceStarB}`,
+                virtual: 'corridor',
+            });
+            traceCorridorVirtualCount++;
+        }
+    }
+
+    if (config.disconnectEnabled) {
+        const disconnectVirtuals = computeDisconnectVirtuals(ownedStars, stars, connections, config.disconnectDistance, config.dxWeight);
+        for (const dv of disconnectVirtuals) {
+            const clampedWeight = clampVirtualSiteWeightForRealStarOwnership({
+                x: dv.x,
+                y: dv.y,
+                weight: buildVirtualSiteWeight(dv.weight),
+                realSites: realDisconnectGuardSites,
+            });
+            if (clampedWeight <= 0) continue;
+            sites.push({
+                x: dv.x, y: dv.y,
+                weight: clampedWeight,
+                ownerId: DISCONNECT_OWNER_ID,
+                starId: `disconnect_${dv.sourceStarA}_${dv.sourceStarB}`,
+                virtual: 'disconnect',
+            });
+            traceDisconnectVirtualCount++;
+        }
+    }
+
+    geometryTrace.step('1', 'sites', { total: sites.length, cx: traceCorridorVirtualCount, dx: traceDisconnectVirtualCount });
+
+    // ── Stage 1 clip: world bounds + pad ────────────────────────────────
+    // Use the configured world clip, matching the authoritative power-voronoi
+    // geometry path. World-border edges must be true world bounds, not a
+    // star-local rectangle, or owner-vs-world polylines collapse into
+    // internal bars and boxes.
+    const pad = config.boundaryPad;
+    const clip: [number, number][] = [
+        [-pad, -pad],
+        [worldWidth + pad, -pad],
+        [worldWidth + pad, worldHeight + pad],
+        [-pad, worldHeight + pad],
+    ];
+
+    return {
+        sites,
+        ownedStars,
+        clip,
+        corridorVirtualCount: traceCorridorVirtualCount,
+        disconnectVirtualCount: traceDisconnectVirtualCount,
+    };
+}
+
+/**
+ * Stage-2 disconnect-cell owner resolution, extracted verbatim: a disconnect
+ * virtual's cell is assigned to the nearest owner that is NOT the source
+ * star's owner (falls back to the source owner; null = skip the cell).
+ */
+export function resolveDisconnectCellOwner(
+    site: PowerSite,
+    ownedStars: ReadonlyArray<StarState>,
+): string | null {
+    const parts = site.starId.split('_');
+    const sourceStarA = parts[1];
+    const sourceOwner = ownedStars.find(s => s.id === sourceStarA)?.ownerId;
+    let nearestDist = Infinity;
+    let nearestOwner = '';
+    for (const s of ownedStars) {
+        if (s.ownerId === sourceOwner) continue;
+        const d = (s.x - site.x) ** 2 + (s.y - site.y) ** 2;
+        if (d < nearestDist) { nearestDist = d; nearestOwner = s.ownerId!; }
+    }
+    if (!nearestOwner) {
+        return sourceOwner ?? null;
+    }
+    return nearestOwner;
+}
+
+// ---------------------------------------------------------------------------
 // Main entry point
 // ---------------------------------------------------------------------------
 
@@ -235,129 +418,17 @@ export function computeGeometry0319(
     try {
         const { starMargin, worldWidth, worldHeight } = config;
 
-        const ownedStars = stars.filter(s => s.ownerId);
-        if (ownedStars.length < 2) {
-            return {
-                kind: 'error',
-                stage: 'metric',
-                message: 'Geometry_0319: fewer than 2 owned stars — cannot compute power diagram',
-                recoverable: true,
-            } satisfies CompileError;
-        }
-
-        geometryTrace.step('0', 'input', { stars: stars.length, lanes: connections.length, owned: ownedStars.length, owners: new Set(ownedStars.map((s) => s.ownerId)).size, world: `${worldWidth}x${worldHeight}` });
-
-        // ── Stage 0: Build site array ───────────────────────────────────────
-        const localStarMargins = resolvePerStarMinStarMarginPx({
-            stars: ownedStars,
-            requestedMarginPx: starMargin,
-            worldWidth,
-            worldHeight,
-        });
-        const sites: PowerSite[] = ownedStars.map(s => ({
-            x: s.x,
-            y: s.y,
-            weight:
-                weightOverrides?.get(s.id) ??
-                buildRealSiteWeight(
-                    localStarMargins.get(s.id) ?? starMargin,
-                    config.msrStarBias,
-                ),
-            ownerId: s.ownerId!,
-            starId: s.id,
-        }));
-        const realOwnershipGuardSites = sites.map((site) => ({
-            x: site.x,
-            y: site.y,
-            weight: site.weight,
-            clearanceRadiusPx: 0,
-        }));
-        const realDisconnectGuardSites = sites.map((site) => ({
-            x: site.x,
-            y: site.y,
-            weight: site.weight,
-            clearanceRadiusPx: config.starCoreGuardRadius,
-        }));
-
-        // Inject ghost/extra sites (used for transition ghost old-owner duplicates)
-        if (extraSites) {
-            for (const es of extraSites) sites.push(es);
-        }
-
-        let traceCorridorVirtualCount = 0;
-        let traceDisconnectVirtualCount = 0;
-        if (config.corridorEnabled) {
-            const corridorVirtuals = computeCorridorVirtuals(
-                ownedStars,
-                connections,
-                config.corridorSpacing,
-                config.cxWeight,
-                config.cxCount || undefined,
-                // Use authored/cache lane paths only; territory geometry must not reroute lanes.
-                undefined,
-                config.cxContestMidpointVstars,
-                true,
-                true,
-                config.cxContestPairWeight,
-                config.cxContestPairCount,
-                config.cxContestPairSpacing,
-                config.starCoreGuardRadius,
-            );
-            for (const cv of corridorVirtuals) {
-                const clampedWeight = clampVirtualSiteWeightForRealStarOwnership({
-                    x: cv.x,
-                    y: cv.y,
-                    weight: buildVirtualSiteWeight(cv.weight),
-                    realSites: realOwnershipGuardSites,
-                });
-                if (clampedWeight <= 0) continue;
-                sites.push({
-                    x: cv.x, y: cv.y,
-                    weight: clampedWeight,
-                    ownerId: cv.ownerId,
-                    starId: `corridor_${cv.sourceStarA}_${cv.sourceStarB}`,
-                    virtual: 'corridor',
-                });
-                traceCorridorVirtualCount++;
-            }
-        }
-
-        if (config.disconnectEnabled) {
-            const disconnectVirtuals = computeDisconnectVirtuals(ownedStars, stars, connections, config.disconnectDistance, config.dxWeight);
-            for (const dv of disconnectVirtuals) {
-                const clampedWeight = clampVirtualSiteWeightForRealStarOwnership({
-                    x: dv.x,
-                    y: dv.y,
-                    weight: buildVirtualSiteWeight(dv.weight),
-                    realSites: realDisconnectGuardSites,
-                });
-                if (clampedWeight <= 0) continue;
-                sites.push({
-                    x: dv.x, y: dv.y,
-                    weight: clampedWeight,
-                    ownerId: DISCONNECT_OWNER_ID,
-                    starId: `disconnect_${dv.sourceStarA}_${dv.sourceStarB}`,
-                    virtual: 'disconnect',
-                });
-                traceDisconnectVirtualCount++;
-            }
-        }
-
-        geometryTrace.step('1', 'sites', { total: sites.length, cx: traceCorridorVirtualCount, dx: traceDisconnectVirtualCount });
+        const stage0 = buildGeometry0319SitesAndClip(
+            stars,
+            connections,
+            config,
+            weightOverrides,
+            extraSites,
+        );
+        if ('kind' in stage0) return stage0;
+        const { sites, ownedStars, clip } = stage0;
 
         // ── Stage 1: Power diagram ──────────────────────────────────────────
-        // Use the configured world clip, matching the authoritative power-voronoi
-        // geometry path. World-border edges must be true world bounds, not a
-        // star-local rectangle, or owner-vs-world polylines collapse into
-        // internal bars and boxes.
-        const pad = config.boundaryPad;
-        const clip: [number, number][] = [
-            [-pad, -pad],
-            [worldWidth + pad, -pad],
-            [worldWidth + pad, worldHeight + pad],
-            [-pad, worldHeight + pad],
-        ];
-
         let polygons: any[];
         try {
             const wv = weightedVoronoi()
@@ -385,22 +456,9 @@ export function computeGeometry0319(
 
             let effectiveOwner = site.ownerId;
             if (site.ownerId === DISCONNECT_OWNER_ID) {
-                const parts = site.starId.split('_');
-                const sourceStarA = parts[1];
-                const sourceOwner = ownedStars.find(s => s.id === sourceStarA)?.ownerId;
-                let nearestDist = Infinity;
-                let nearestOwner = '';
-                for (const s of ownedStars) {
-                    if (s.ownerId === sourceOwner) continue;
-                    const d = (s.x - site.x) ** 2 + (s.y - site.y) ** 2;
-                    if (d < nearestDist) { nearestDist = d; nearestOwner = s.ownerId!; }
-                }
-                if (!nearestOwner) {
-                    effectiveOwner = sourceOwner ?? '';
-                    if (!effectiveOwner) continue;
-                } else {
-                    effectiveOwner = nearestOwner;
-                }
+                const resolved = resolveDisconnectCellOwner(site, ownedStars);
+                if (!resolved) continue;
+                effectiveOwner = resolved;
             }
 
             const pts: [number, number][] = poly.map((p: number[]) => [p[0], p[1]] as [number, number]);

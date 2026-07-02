@@ -47,18 +47,23 @@ function edgeIdFromKeys(aKey: string, bKey: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// World-boundary test — is a point on the rectangle [0,w] x [0,h] border?
+// World-boundary test — is a point on the clip rectangle border? Defaults to
+// [0,w] x [0,h]; WorldRect.minX/minY/maxX/maxY override for padded clips.
 // ---------------------------------------------------------------------------
 
 const ON_BOUNDARY_EPS = 1e-6;
 
 function onWorldBoundary(p: Point, world: WorldRect): boolean {
-    const onLeft = Math.abs(p[0] - 0) <= ON_BOUNDARY_EPS;
-    const onRight = Math.abs(p[0] - world.width) <= ON_BOUNDARY_EPS;
-    const onTop = Math.abs(p[1] - 0) <= ON_BOUNDARY_EPS;
-    const onBottom = Math.abs(p[1] - world.height) <= ON_BOUNDARY_EPS;
-    const xInside = p[0] >= -ON_BOUNDARY_EPS && p[0] <= world.width + ON_BOUNDARY_EPS;
-    const yInside = p[1] >= -ON_BOUNDARY_EPS && p[1] <= world.height + ON_BOUNDARY_EPS;
+    const minX = world.minX ?? 0;
+    const minY = world.minY ?? 0;
+    const maxX = world.maxX ?? world.width;
+    const maxY = world.maxY ?? world.height;
+    const onLeft = Math.abs(p[0] - minX) <= ON_BOUNDARY_EPS;
+    const onRight = Math.abs(p[0] - maxX) <= ON_BOUNDARY_EPS;
+    const onTop = Math.abs(p[1] - minY) <= ON_BOUNDARY_EPS;
+    const onBottom = Math.abs(p[1] - maxY) <= ON_BOUNDARY_EPS;
+    const xInside = p[0] >= minX - ON_BOUNDARY_EPS && p[0] <= maxX + ON_BOUNDARY_EPS;
+    const yInside = p[1] >= minY - ON_BOUNDARY_EPS && p[1] <= maxY + ON_BOUNDARY_EPS;
     return (
         ((onLeft || onRight) && yInside) || ((onTop || onBottom) && xInside)
     );
@@ -187,6 +192,12 @@ export function buildSharedEdgeGraph(
 // DCEL construction + angular-order face traversal
 // ---------------------------------------------------------------------------
 
+/** The cell whose interior lies to the LEFT of a directed (half-)edge. */
+interface LeftCellTag {
+    readonly siteId: string;
+    readonly ownerId: string;
+}
+
 interface HalfEdge {
     readonly id: number;
     readonly fromKey: string; // tail vertex key
@@ -200,7 +211,132 @@ interface HalfEdge {
     readonly twinId: number;
     /** Angle of the OUTGOING direction (atan2(dy, dx)) at `fromKey`. */
     readonly angle: number;
+    /**
+     * The cell that CONTRIBUTED this half-edge, i.e. the cell whose interior is
+     * on the LEFT of fromKey→toKey. The face walk keeps its interior on the
+     * left too, so a face directly inherits owner/membership from these tags —
+     * no point-in-polygon needed. Undefined on the outward side of world edges
+     * (the unbounded face has no owning cell).
+     */
+    readonly leftCell?: LeftCellTag;
     nextId: number; // filled during linking
+}
+
+/**
+ * Directed-edge → contributing-cell map. For each cell, every boundary segment
+ * is keyed in the direction that puts the CELL INTERIOR ON THE LEFT (ring order
+ * if the ring winds CCW / positive signed area, reversed otherwise). This is
+ * what lets the DCEL walk derive each face's owner directly from the half-edges
+ * it traverses.
+ */
+function buildInteriorLeftTags(cells: PowerCell[]): Map<string, LeftCellTag> {
+    const tags = new Map<string, LeftCellTag>();
+    for (const cell of cells) {
+        const ring = cell.points;
+        const n = ring.length;
+        if (n < 3) continue;
+        const ccw = signedArea(ring) > 0;
+        for (let i = 0; i < n; i++) {
+            const p = ring[i];
+            const q = ring[(i + 1) % n];
+            const pKey = pointKey(p);
+            const qKey = pointKey(q);
+            if (pKey === qKey) continue; // zero-length / closing duplicate
+            // Interior-on-left direction: ring order when CCW, reversed when CW.
+            const key = ccw ? `${pKey}>${qKey}` : `${qKey}>${pKey}`;
+            const existing = tags.get(key);
+            // Valid non-overlapping cells never collide here; if corrupt input
+            // does, keep the lexicographically-smallest siteId for determinism.
+            if (!existing || cell.siteId < existing.siteId) {
+                tags.set(key, { siteId: cell.siteId, ownerId: cell.ownerId });
+            }
+        }
+    }
+    return tags;
+}
+
+/**
+ * Same-owner connected components over cell adjacency (cells of the SAME owner
+ * sharing an undirected boundary segment are one region). Components supply a
+ * face's FULL membership — including interior cells whose edges never reach the
+ * border graph (same-owner internal edges are dropped by buildSharedEdgeGraph).
+ * Returns siteId → sorted member siteIds (shared array per component).
+ */
+function buildSameOwnerComponents(cells: PowerCell[]): Map<string, string[]> {
+    // Union-find over siteIds.
+    const parent = new Map<string, string>();
+    const find = (x: string): string => {
+        let r = x;
+        while (parent.get(r) !== r) r = parent.get(r)!;
+        // Path compression.
+        let c = x;
+        while (c !== r) {
+            const next = parent.get(c)!;
+            parent.set(c, r);
+            c = next;
+        }
+        return r;
+    };
+    const union = (a: string, b: string): void => {
+        const ra = find(a);
+        const rb = find(b);
+        if (ra === rb) return;
+        // Deterministic root choice: lexicographically smaller wins.
+        if (ra < rb) parent.set(rb, ra);
+        else parent.set(ra, rb);
+    };
+
+    const byOwner = new Map<string, string>(); // siteId → ownerId
+    for (const cell of cells) {
+        parent.set(cell.siteId, cell.siteId);
+        byOwner.set(cell.siteId, cell.ownerId);
+    }
+
+    // Accumulate cells per undirected segment, then union same-owner pairs.
+    const touching = new Map<string, string[]>(); // undirectedKey → siteIds
+    for (const cell of cells) {
+        const ring = cell.points;
+        const n = ring.length;
+        if (n < 2) continue;
+        for (let i = 0; i < n; i++) {
+            const pKey = pointKey(ring[i]);
+            const qKey = pointKey(ring[(i + 1) % n]);
+            const undirected = undirectedEdgeKey(pKey, qKey);
+            if (undirected === null) continue;
+            let list = touching.get(undirected);
+            if (!list) {
+                list = [];
+                touching.set(undirected, list);
+            }
+            if (!list.includes(cell.siteId)) list.push(cell.siteId);
+        }
+    }
+    for (const siteIds of touching.values()) {
+        for (let i = 0; i < siteIds.length; i++) {
+            for (let j = i + 1; j < siteIds.length; j++) {
+                if (byOwner.get(siteIds[i]) === byOwner.get(siteIds[j])) {
+                    union(siteIds[i], siteIds[j]);
+                }
+            }
+        }
+    }
+
+    // Materialize sorted member lists, one shared array per component root.
+    const membersByRoot = new Map<string, string[]>();
+    for (const siteId of [...parent.keys()].sort()) {
+        const root = find(siteId);
+        let members = membersByRoot.get(root);
+        if (!members) {
+            members = [];
+            membersByRoot.set(root, members);
+        }
+        members.push(siteId); // insertion is in sorted siteId order
+    }
+    const bySite = new Map<string, string[]>();
+    for (const members of membersByRoot.values()) {
+        for (const siteId of members) bySite.set(siteId, members);
+    }
+    return bySite;
 }
 
 /**
@@ -227,7 +363,10 @@ interface HalfEdge {
  * is independent of visit order, so 3-, 4-, and higher-way junctions all resolve
  * deterministically and without self-crossing.
  */
-function buildHalfEdges(graph: SharedEdgeGraph): HalfEdge[] {
+function buildHalfEdges(
+    graph: SharedEdgeGraph,
+    interiorLeftTags: Map<string, LeftCellTag>,
+): HalfEdge[] {
     interface RawDir {
         fromKey: string;
         toKey: string;
@@ -253,10 +392,15 @@ function buildHalfEdges(graph: SharedEdgeGraph): HalfEdge[] {
         raw.push({ fromKey: bKey, toKey: aKey, fromPt: b, toPt: a, edgeId, kind, forward: false });
     };
 
-    for (const e of graph.sharedEdges) pushBoth(e.edgeId, 'shared', e.pts[0], e.pts[1]);
-    for (const e of graph.worldEdges) pushBoth(e.edgeId, 'world', e.pts[0], e.pts[1]);
+    // Graph topology is built on edge ENDPOINTS (the pinned junction vertices);
+    // interior pts (if a later phase subdivided the edge) do not affect the walk.
+    for (const e of graph.sharedEdges)
+        pushBoth(e.edgeId, 'shared', e.pts[0], e.pts[e.pts.length - 1]);
+    for (const e of graph.worldEdges)
+        pushBoth(e.edgeId, 'world', e.pts[0], e.pts[e.pts.length - 1]);
 
-    // Assign ids; twins are consecutive (2k, 2k+1).
+    // Assign ids; twins are consecutive (2k, 2k+1). Each half-edge carries the
+    // cell that contributed it (interior on the left of its direction).
     const halfEdges: HalfEdge[] = raw.map((r, i) => ({
         id: i,
         fromKey: r.fromKey,
@@ -268,6 +412,7 @@ function buildHalfEdges(graph: SharedEdgeGraph): HalfEdge[] {
         forward: r.forward,
         twinId: i % 2 === 0 ? i + 1 : i - 1,
         angle: Math.atan2(r.toPt[1] - r.fromPt[1], r.toPt[0] - r.fromPt[0]),
+        leftCell: interiorLeftTags.get(`${r.fromKey}>${r.toKey}`),
         nextId: -1,
     }));
 
@@ -318,66 +463,6 @@ function signedArea(ring: Point[]): number {
     return s / 2;
 }
 
-/** Centroid of a non-self-intersecting polygon (area-weighted; falls back to mean). */
-function polygonCentroid(ring: Point[]): Point {
-    const n = ring.length;
-    let area = 0;
-    let cx = 0;
-    let cy = 0;
-    for (let i = 0; i < n; i++) {
-        const a = ring[i];
-        const b = ring[(i + 1) % n];
-        const cross = a[0] * b[1] - b[0] * a[1];
-        area += cross;
-        cx += (a[0] + b[0]) * cross;
-        cy += (a[1] + b[1]) * cross;
-    }
-    area /= 2;
-    if (Math.abs(area) < 1e-12) {
-        // Degenerate — average the vertices.
-        let mx = 0;
-        let my = 0;
-        for (const p of ring) {
-            mx += p[0];
-            my += p[1];
-        }
-        return [mx / n, my / n];
-    }
-    return [cx / (6 * area), cy / (6 * area)];
-}
-
-/** Standard ray-cast point-in-polygon (ring treated closed). */
-function pointInPolygon(pt: Point, ring: Point[]): boolean {
-    const x = pt[0];
-    const y = pt[1];
-    let inside = false;
-    const n = ring.length;
-    for (let i = 0, j = n - 1; i < n; j = i++) {
-        const xi = ring[i][0];
-        const yi = ring[i][1];
-        const xj = ring[j][0];
-        const yj = ring[j][1];
-        const intersects =
-            yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
-        if (intersects) inside = !inside;
-    }
-    return inside;
-}
-
-/** Representative interior point of a cell (centroid; clamped onto the cell if needed). */
-function cellRepresentativePoint(cell: PowerCell): Point {
-    const c = polygonCentroid(cell.points);
-    if (pointInPolygon(c, cell.points)) return c;
-    // Convexity is expected for power cells, but guard non-convex inputs by
-    // averaging the centroid with the first vertex until inside (bounded tries).
-    for (let t = 0.5; t > 1e-3; t *= 0.5) {
-        const v = cell.points[0];
-        const cand: Point = [c[0] * t + v[0] * (1 - t), c[1] * t + v[1] * (1 - t)];
-        if (pointInPolygon(cand, cell.points)) return cand;
-    }
-    return c;
-}
-
 // ---------------------------------------------------------------------------
 // Stable loopId hash (sorted starIds set — NOT centroid, NOT order)
 // ---------------------------------------------------------------------------
@@ -411,17 +496,26 @@ function loopIdFromStarIds(starIds: string[]): string {
  * Trace every bounded face of the border graph with the angular-order walk and
  * keep those with a real (non-WORLD) owner as RegionLoops.
  *
- * Face owner & membership are assigned by geometry: each bounded face is a union
- * of same-owner cells, so we test each input cell's representative point against
- * the face polygon. The owning cells supply `ownerId` and `starIds` (siteIds).
- * The unbounded outer face (CW / negative signed area) and any face whose
- * representative cells are absent (pure WORLD boundary face) are discarded.
+ * Face owner & membership are derived STRUCTURALLY, not geometrically: every
+ * half-edge carries the cell that contributed it (the cell whose interior is on
+ * its LEFT — see buildInteriorLeftTags), and the walk keeps the face interior
+ * on the left, so a face's owner is simply the owner of its half-edges' left
+ * cells. Full membership (`starIds`) comes from the same-owner connected
+ * component of those boundary cells, which also covers INTERIOR cells whose
+ * edges never reached the border graph. The unbounded outer face (CW / negative
+ * signed area) and any face with no contributing cell (pure WORLD boundary
+ * face) are discarded.
  */
 export function walkRegionLoops(
     graph: SharedEdgeGraph,
     cells: PowerCell[],
 ): RegionLoop[] {
-    const halfEdges = buildHalfEdges(graph);
+    const interiorLeftTags = buildInteriorLeftTags(cells);
+    const componentBySite = buildSameOwnerComponents(cells);
+    const ownerBySite = new Map<string, string>();
+    for (const cell of cells) ownerBySite.set(cell.siteId, cell.ownerId);
+
+    const halfEdges = buildHalfEdges(graph, interiorLeftTags);
     if (halfEdges.length === 0) return [];
 
     const visited = new Array<boolean>(halfEdges.length).fill(false);
@@ -451,20 +545,22 @@ export function walkRegionLoops(
         // Outer (unbounded) face winds CW => negative area. Skip it.
         if (area <= 0) continue;
 
-        // Determine owner + member stars by representative-point containment.
-        const memberSiteIds: string[] = [];
+        // Determine owner + boundary cells from the half-edges' left-cell tags:
+        // the walk keeps the face interior on the LEFT, and each tag is the cell
+        // whose interior is on the left of that half-edge — so every tagged cell
+        // is a member of THIS face's region, by construction.
+        const boundarySiteIds = new Set<string>();
         const ownerVotes = new Map<string, number>();
-        for (const cell of cells) {
-            const rep = cellRepresentativePoint(cell);
-            if (pointInPolygon(rep, ring)) {
-                memberSiteIds.push(cell.siteId);
-                ownerVotes.set(cell.ownerId, (ownerVotes.get(cell.ownerId) ?? 0) + 1);
-            }
+        for (const h of faceHalfEdges) {
+            const tag = h.leftCell;
+            if (!tag) continue;
+            boundarySiteIds.add(tag.siteId);
+            ownerVotes.set(tag.ownerId, (ownerVotes.get(tag.ownerId) ?? 0) + 1);
         }
 
-        if (memberSiteIds.length === 0) continue; // pure WORLD / spurious face
+        if (boundarySiteIds.size === 0) continue; // pure WORLD / spurious face
 
-        // Owner = the (single) owner of the contained cells. If somehow mixed
+        // Owner = the (single) owner of the contributing cells. If somehow mixed
         // (should not happen for a well-formed power diagram), take the majority
         // then lexicographically-smallest for determinism.
         let ownerId = '';
@@ -478,6 +574,19 @@ export function walkRegionLoops(
             }
         }
         if (ownerId === WORLD_OWNER || ownerId === '') continue;
+
+        // Full membership: expand boundary cells to their same-owner connected
+        // component (covers interior cells with no border-graph edges). Only
+        // same-owner components count — a stray mixed tag never leaks members.
+        const memberSet = new Set<string>();
+        for (const siteId of boundarySiteIds) {
+            if (ownerBySite.get(siteId) !== ownerId) continue;
+            const component = componentBySite.get(siteId);
+            if (component) for (const member of component) memberSet.add(member);
+            else memberSet.add(siteId);
+        }
+        const memberSiteIds = [...memberSet].sort();
+        if (memberSiteIds.length === 0) continue;
 
         const orderedEdgeRefs: RegionLoopEdgeRef[] = faceHalfEdges.map((h) => ({
             edgeId: h.edgeId,

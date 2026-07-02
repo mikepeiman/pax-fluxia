@@ -282,22 +282,6 @@
     const fxOrchestrator = new FXOrchestrator();
     const TERRITORY_INPUT_PRIORITY_WINDOW_MS = 180;
     const ORDER_MUTATION_PRIORITY_WINDOW_MS = 320;
-    const TERRITORY_INPUT_PRIORITY_MIN_INTERVAL_MS = 48;
-    const TERRITORY_HEAVY_UPDATE_MS = 8;
-    const TERRITORY_INTERACTIVE_MIN_CADENCE_MS = 72;
-    const TERRITORY_IDLE_MIN_CADENCE_MS = 32;
-    const TERRITORY_MAX_STALE_MS = 180;
-    const TERRITORY_INPUT_HOLD_MAX_STALE_MS = 320;
-    const TERRITORY_ASYNC_REQUEUE_DELAY_MS = 16;
-    const SHIP_RENDER_HEAVY_UPDATE_MS = 6;
-    const SHIP_RENDER_INTERACTIVE_MIN_CADENCE_MS = 48;
-    const SHIP_RENDER_IDLE_MIN_CADENCE_MS = 16;
-    const SHIP_RENDER_MAX_STALE_MS = 144;
-    const SHIP_RENDER_TRAVEL_HEAVY_UPDATE_MS = 18;
-    const SHIP_RENDER_TRAVEL_INTERACTIVE_MIN_CADENCE_MS = 8;
-    const SHIP_RENDER_TRAVEL_IDLE_MIN_CADENCE_MS = 0;
-    const SHIP_RENDER_TRAVEL_MAX_STALE_MS = 32;
-    const SHIP_RENDER_INPUT_HOLD_MAX_STALE_MS = 360;
     const SHIP_RENDER_INPUT_YIELD_RESCUE_STALE_MS = 32;
     const CONNECTIONS_PRESENT_HEAVY_UPDATE_MS = 2;
     const CONNECTIONS_PRESENT_INTERACTIVE_MIN_CADENCE_MS = 96;
@@ -309,9 +293,6 @@
     const STARS_PRESENT_IDLE_MIN_CADENCE_MS = 48;
     const STARS_PRESENT_MAX_STALE_MS = 144;
     const STARS_PRESENT_INPUT_HOLD_MAX_STALE_MS = 320;
-    const RENDER_INPUT_PENDING_MIN_BUDGET_MS = 4;
-    const RENDER_INPUT_PENDING_SOFT_BUDGET_MS = 8;
-    const PRESENTATION_SMOOTHNESS_FIRST = true;
     const CONQUEST_PRESENT_TARGET_FRAME_MS = 1000 / 60;
     let territoryInputPriorityUntilMs = 0;
     let lastTerritoryUpdateStartedAtMs = 0;
@@ -420,8 +401,6 @@
             reason: string;
         };
     };
-    const territoryPresentationChannel =
-        typeof MessageChannel !== "undefined" ? new MessageChannel() : null;
     const starHitIndexCellPx = 96;
     let territoryPresentationScheduled = false;
     let territoryPresentationRunning = false;
@@ -445,8 +424,6 @@
     let territoryPresentationLastScheduleMode = "";
     let territoryPresentationLastCommittedSignature = "";
     let territoryPresentationPendingRequest: TerritoryPresentationRequest | null =
-        null;
-    let territoryPresentationDelayTimer: ReturnType<typeof setTimeout> | null =
         null;
     let interactionStarsSource: ReadonlyArray<StarState> | null = null;
     let interactionConnectionsSource: ReadonlyArray<StarConnection> | null = null;
@@ -838,11 +815,6 @@
             flushQueuedOrderMutations();
         };
     }
-    if (territoryPresentationChannel) {
-        territoryPresentationChannel.port1.onmessage = () => {
-            void flushTerritoryPresentationQueue();
-        };
-    }
 
     function noteInteractivePressure(
         kind?: string,
@@ -857,29 +829,7 @@
         }
     }
 
-    function isInputPriorityActive(nowMs: number): boolean {
-        const activeInteraction =
-            isDragging || isPanning || isPinching || activePointers.size > 0;
-        const recentInteraction = nowMs < territoryInputPriorityUntilMs;
-        return (
-            activeInteraction ||
-            recentInteraction ||
-            hasBrowserInputPending() ||
-            queuedOrderMutations.length > 0 ||
-            pendingInteractionVisualAcknowledgments.length > 0
-        );
-    }
-
-    function shouldHoldPresentationForInput(nowMs: number): boolean {
-        return (
-            isInputPriorityActive(nowMs) &&
-            (nowMs < territoryInputPriorityUntilMs ||
-                hasBrowserInputPending() ||
-                queuedOrderMutations.length > 0 ||
-                pendingInteractionVisualAcknowledgments.length > 0)
-        );
-    }
-
+    // Instrument-only probe (reported in the benchmark scheduler snapshot).
     function hasBrowserInputPending(): boolean {
         const scheduling = (navigator as Navigator & {
             scheduling?: { isInputPending?: () => boolean };
@@ -892,70 +842,15 @@
         }
     }
 
-    function getRenderFrameInputYieldState(frameStartedAtMs: number): {
-        shouldYield: boolean;
-        reason: string;
-        elapsedMs: number;
-    } {
-        const elapsedMs = performance.now() - frameStartedAtMs;
-        if (!hasBrowserInputPending()) {
-            return {
-                shouldYield: false,
-                reason: "no_pending_input",
-                elapsedMs,
-            };
-        }
-        if (elapsedMs < RENDER_INPUT_PENDING_MIN_BUDGET_MS) {
-            return {
-                shouldYield: false,
-                reason: "pending_input_below_budget",
-                elapsedMs,
-            };
-        }
-        return {
-            shouldYield: true,
-            reason:
-                elapsedMs >= RENDER_INPUT_PENDING_SOFT_BUDGET_MS
-                    ? "pending_input_budget_exceeded"
-                    : "pending_input_ready",
-            elapsedMs,
-        };
-    }
-
+    // P0 (PowerCore plan): presentation never yields to input or throttles on a
+    // cadence — visible territory truth is painted immediately, every frame. The
+    // input-yield/cadence machinery this replaced traded stale visuals for
+    // prettier frame tables (the proven overnight-branch regression class).
     function shouldYieldRenderFrameForInput(
-        frameStartedAtMs: number,
-        stage: string,
+        _frameStartedAtMs: number,
+        _stage: string,
     ): boolean {
-        if (PRESENTATION_SMOOTHNESS_FIRST) {
-            return false;
-        }
-        const yieldState = getRenderFrameInputYieldState(frameStartedAtMs);
-        if (!yieldState.shouldYield) return false;
-        renderFrameInputYieldCount += 1;
-        lastRenderFrameInputYieldStage = stage;
-        lastRenderFrameInputYieldReason = yieldState.reason;
-        lastRenderFrameInputYieldAtMs = performance.now();
-        noteInteractivePressure(
-            "renderInputYield",
-            ORDER_MUTATION_PRIORITY_WINDOW_MS,
-        );
-
-        return true;
-    }
-
-    function shouldDeferTerritoryUpdate(nowMs: number): boolean {
-        if (!voronoiContainer?.children.length) return false;
-        if (lastTerritoryUpdateCostMs < TERRITORY_HEAVY_UPDATE_MS) return false;
-        const activeInteraction =
-            isDragging || isPanning || isPinching || activePointers.size > 0;
-        const recentInteraction = nowMs < territoryInputPriorityUntilMs;
-        if (!activeInteraction && !recentInteraction && !hasBrowserInputPending()) {
-            return false;
-        }
-        return (
-            nowMs - lastTerritoryUpdateStartedAtMs <
-            TERRITORY_INPUT_PRIORITY_MIN_INTERVAL_MS
-        );
+        return false;
     }
 
     function runTerritoryUpdate<T>(name: string, fn: () => T): T {
@@ -1138,131 +1033,13 @@
             params.lastPresentedAtMs > 0
                 ? params.nowMs - params.lastPresentedAtMs
                 : Number.POSITIVE_INFINITY;
-        if (PRESENTATION_SMOOTHNESS_FIRST) {
-            return {
-                defer: false,
-                reason: "smoothness_first",
-                cadenceMs: 0,
-                staleMs,
-            };
-        }
-        if (params.isPaused || params.lastPresentedAtMs === 0) {
-            return {
-                defer: false,
-                reason: "fresh_required",
-                cadenceMs: params.interactiveMinCadenceMs,
-                staleMs,
-            };
-        }
-        if (shouldHoldPresentationForInput(params.nowMs)) {
-            if (staleMs >= params.inputHoldMaxStaleMs) {
-                return {
-                    defer: false,
-                    reason: "input_hold_stale_limit",
-                    cadenceMs: params.inputHoldMaxStaleMs,
-                    staleMs,
-                };
-            }
-            return {
-                defer: true,
-                reason: "input_priority_hold",
-                cadenceMs: params.inputHoldMaxStaleMs,
-                staleMs,
-            };
-        }
-        if (staleMs >= params.maxStaleMs) {
-            return {
-                defer: false,
-                reason: "stale_limit",
-                cadenceMs: params.maxStaleMs,
-                staleMs,
-            };
-        }
-        const pressureActive = isInputPriorityActive(params.nowMs);
-        const baseCadenceMs = pressureActive
-            ? params.interactiveMinCadenceMs
-            : params.idleMinCadenceMs;
-        const cadenceMs =
-            params.lastCostMs < params.heavyUpdateMs
-                ? baseCadenceMs
-                : Math.min(
-                      params.maxStaleMs,
-                      Math.max(baseCadenceMs, Math.round(params.lastCostMs * 3)),
-                  );
-        if (
-            !pressureActive &&
-            params.lastCostMs < params.heavyUpdateMs &&
-            !params.allowIdleCadence
-        ) {
-            return {
-                defer: false,
-                reason: "idle",
-                cadenceMs,
-                staleMs,
-            };
-        }
         return {
-            defer: staleMs < cadenceMs,
-            reason:
-                pressureActive
-                    ? "interactive_pressure"
-                    : params.allowIdleCadence
-                        ? "idle_cadence_budget"
-                        : "cadence_budget",
-            cadenceMs,
+            defer: false,
+            reason: "immediate",
+            cadenceMs: 0,
             staleMs,
         };
     }
-
-    function computeTerritoryCadenceMs(nowMs: number): number {
-        const baseCadenceMs = isInputPriorityActive(nowMs)
-                ? TERRITORY_INTERACTIVE_MIN_CADENCE_MS
-                : TERRITORY_IDLE_MIN_CADENCE_MS;
-        if (lastTerritoryUpdateCostMs < TERRITORY_HEAVY_UPDATE_MS) {
-            return baseCadenceMs;
-        }
-        return Math.min(
-            TERRITORY_MAX_STALE_MS,
-            Math.max(baseCadenceMs, Math.round(lastTerritoryUpdateCostMs * 4)),
-        );
-    }
-
-    function computeShipRenderCadenceMs(
-        nowMs: number,
-        travelingShips: number,
-    ): number {
-        const prioritizeTravelCadence = travelingShips > 0;
-        const baseCadenceMs = prioritizeTravelCadence
-            ? (
-                  isInputPriorityActive(nowMs)
-                      ? SHIP_RENDER_TRAVEL_INTERACTIVE_MIN_CADENCE_MS
-                      : SHIP_RENDER_TRAVEL_IDLE_MIN_CADENCE_MS
-              )
-            : (
-                  isInputPriorityActive(nowMs)
-                      ? SHIP_RENDER_INTERACTIVE_MIN_CADENCE_MS
-                      : SHIP_RENDER_IDLE_MIN_CADENCE_MS
-              );
-        const heavyUpdateMs = prioritizeTravelCadence
-            ? SHIP_RENDER_TRAVEL_HEAVY_UPDATE_MS
-            : SHIP_RENDER_HEAVY_UPDATE_MS;
-        if (lastShipRenderCostMs < heavyUpdateMs) {
-            return baseCadenceMs;
-        }
-        return Math.min(
-            prioritizeTravelCadence
-                ? SHIP_RENDER_TRAVEL_MAX_STALE_MS
-                : SHIP_RENDER_MAX_STALE_MS,
-            Math.max(
-                baseCadenceMs,
-                Math.round(
-                    lastShipRenderCostMs *
-                        (prioritizeTravelCadence ? 1 : 3),
-                ),
-            ),
-        );
-    }
-
     function shouldThrottleTerritoryCadence(params: {
         nowMs: number;
         isPaused: boolean;
@@ -1274,63 +1051,10 @@
             lastTerritoryPresentedAtMs > 0
                 ? params.nowMs - lastTerritoryPresentedAtMs
                 : Number.POSITIVE_INFINITY;
-        if (PRESENTATION_SMOOTHNESS_FIRST) {
-            return {
-                defer: false,
-                reason: "smoothness_first",
-                cadenceMs: 0,
-                staleMs,
-            };
-        }
-        const cadenceMs = computeTerritoryCadenceMs(params.nowMs);
-        const forceFresh =
-            params.isPaused ||
-            params.configChanged ||
-            lastTerritoryPresentedAtMs === 0 ||
-            territoryLastMode !== params.activeMode ||
-            params.pendingConquests > 0;
-        if (forceFresh) {
-            return {
-                defer: false,
-                reason: "fresh_required",
-                cadenceMs,
-                staleMs,
-            };
-        }
-        if (
-            shouldDeferTerritoryUpdate(params.nowMs) &&
-            staleMs < TERRITORY_INPUT_HOLD_MAX_STALE_MS
-        ) {
-            return {
-                defer: true,
-                reason: "input_priority",
-                cadenceMs: TERRITORY_INPUT_HOLD_MAX_STALE_MS,
-                staleMs,
-            };
-        }
-        if (
-            shouldHoldPresentationForInput(params.nowMs) &&
-            staleMs < TERRITORY_INPUT_HOLD_MAX_STALE_MS
-        ) {
-            return {
-                defer: true,
-                reason: "input_priority_hold",
-                cadenceMs: TERRITORY_INPUT_HOLD_MAX_STALE_MS,
-                staleMs,
-            };
-        }
-        if (staleMs < cadenceMs) {
-            return {
-                defer: true,
-                reason: "cadence_budget",
-                cadenceMs,
-                staleMs,
-            };
-        }
         return {
             defer: false,
-            reason: "cadence_ready",
-            cadenceMs,
+            reason: "immediate",
+            cadenceMs: 0,
             staleMs,
         };
     }
@@ -1344,76 +1068,10 @@
             lastShipRenderPresentedAtMs > 0
                 ? params.nowMs - lastShipRenderPresentedAtMs
                 : Number.POSITIVE_INFINITY;
-        if (PRESENTATION_SMOOTHNESS_FIRST) {
-            return {
-                defer: false,
-                reason: "smoothness_first",
-                cadenceMs: 0,
-                staleMs,
-            };
-        }
-        const prioritizeTravelCadence = params.travelingShips > 0;
-        const cadenceMs = computeShipRenderCadenceMs(
-            params.nowMs,
-            params.travelingShips,
-        );
-        if (params.isPaused || lastShipRenderPresentedAtMs === 0) {
-            return {
-                defer: false,
-                reason: "fresh_required",
-                cadenceMs,
-                staleMs,
-            };
-        }
-        if (shouldHoldPresentationForInput(params.nowMs)) {
-            const inputHoldMaxStaleMs = prioritizeTravelCadence
-                ? Math.min(
-                      SHIP_RENDER_INPUT_HOLD_MAX_STALE_MS,
-                      SHIP_RENDER_TRAVEL_MAX_STALE_MS * 2,
-                  )
-                : SHIP_RENDER_INPUT_HOLD_MAX_STALE_MS;
-            if (staleMs >= inputHoldMaxStaleMs) {
-                return {
-                    defer: false,
-                    reason: "input_hold_stale_limit",
-                    cadenceMs: inputHoldMaxStaleMs,
-                    staleMs,
-                };
-            }
-            return {
-                defer: true,
-                reason: "input_priority_hold",
-                cadenceMs: inputHoldMaxStaleMs,
-                staleMs,
-            };
-        }
-        const maxStaleMs = prioritizeTravelCadence
-            ? SHIP_RENDER_TRAVEL_MAX_STALE_MS
-            : SHIP_RENDER_MAX_STALE_MS;
-        if (staleMs >= maxStaleMs) {
-            return {
-                defer: false,
-                reason: "stale_limit",
-                cadenceMs,
-                staleMs,
-            };
-        }
-        const pressureActive = isInputPriorityActive(params.nowMs);
-        const heavyUpdateMs = prioritizeTravelCadence
-            ? SHIP_RENDER_TRAVEL_HEAVY_UPDATE_MS
-            : SHIP_RENDER_HEAVY_UPDATE_MS;
-        if (!pressureActive && lastShipRenderCostMs < heavyUpdateMs) {
-            return {
-                defer: false,
-                reason: prioritizeTravelCadence ? "travel_priority" : "idle",
-                cadenceMs,
-                staleMs,
-            };
-        }
         return {
-            defer: staleMs < cadenceMs,
-            reason: pressureActive ? "interactive_pressure" : "cadence_budget",
-            cadenceMs,
+            defer: false,
+            reason: "immediate",
+            cadenceMs: 0,
             staleMs,
         };
     }
@@ -4880,141 +4538,14 @@
         }
     }
 
+    // P0 (PowerCore plan): territory presentation is always flushed immediately —
+    // the background/message-channel/timeout scheduling alternatives were the
+    // stale-display landmine the overnight branch re-enabled (150–700ms pending).
     function scheduleTerritoryPresentationQueue(): void {
         if (territoryPresentationScheduled || territoryPresentationRunning) return;
         if (!territoryPresentationPendingRequest) return;
-        if (PRESENTATION_SMOOTHNESS_FIRST) {
-            territoryPresentationLastScheduleMode = "immediate";
-            void flushTerritoryPresentationQueue();
-            return;
-        }
-        territoryPresentationScheduled = true;
-        territoryPresentationPostedCount += 1;
-        const scheduler = getTaskScheduler();
-        if (scheduler?.postTask) {
-            territoryPresentationLastScheduleMode = "scheduler-background";
-            void scheduler
-                .postTask(
-                    async () => {
-                        await flushTerritoryPresentationQueue();
-                    },
-                    { priority: "background" },
-                )
-                .catch((error) => {
-                    territoryPresentationScheduled = false;
-                    log.error(
-                        "GameCanvas",
-                        "Territory presentation background task failed",
-                        error,
-                    );
-                    setTimeout(() => {
-                        void flushTerritoryPresentationQueue();
-                    }, 0);
-                });
-            return;
-        }
-        if (territoryPresentationChannel) {
-            territoryPresentationLastScheduleMode = "message-channel";
-            territoryPresentationChannel.port2.postMessage(null);
-            return;
-        }
-        territoryPresentationLastScheduleMode = "timeout";
-        setTimeout(() => {
-            void flushTerritoryPresentationQueue();
-        }, 0);
-    }
-
-    function scheduleTerritoryPresentationQueueDelay(delayMs: number): void {
-        if (territoryPresentationDelayTimer || !territoryPresentationPendingRequest) {
-            return;
-        }
-        if (PRESENTATION_SMOOTHNESS_FIRST) {
-            territoryPresentationLastScheduleMode = "immediate-delay-bypass";
-            void flushTerritoryPresentationQueue();
-            return;
-        }
-        territoryPresentationScheduled = true;
-        territoryPresentationLastScheduleMode = "delay-timeout";
-        territoryPresentationDelayTimer = setTimeout(() => {
-            territoryPresentationDelayTimer = null;
-            territoryPresentationScheduled = false;
-            void flushTerritoryPresentationQueue();
-        }, delayMs);
-    }
-
-    function classifyTerritoryPresentationPressure(nowMs: number): {
-        active: boolean;
-        reason: string;
-    } {
-        const activeInteraction =
-            isDragging || isPanning || isPinching || activePointers.size > 0;
-        if (activeInteraction) {
-            return { active: true, reason: "active_interaction" };
-        }
-        if (nowMs < territoryInputPriorityUntilMs) {
-            return { active: true, reason: "recent_interaction" };
-        }
-        if (hasBrowserInputPending()) {
-            return { active: true, reason: "browser_input_pending" };
-        }
-        if (queuedOrderMutations.length > 0) {
-            return { active: true, reason: "queued_orders" };
-        }
-        if (pendingInteractionVisualAcknowledgments.length > 0) {
-            return { active: true, reason: "pending_visual_acknowledgment" };
-        }
-        return { active: false, reason: "ready" };
-    }
-
-    function shouldYieldTerritoryPresentationRequest(
-        request: TerritoryPresentationRequest,
-        nowMs: number,
-    ): {
-        yield: boolean;
-        requestAgeMs: number;
-        reason: string;
-        forced: boolean;
-    } {
-        const requestAgeMs = nowMs - request.enqueuedAtMs;
-        if (PRESENTATION_SMOOTHNESS_FIRST) {
-            return {
-                yield: false,
-                requestAgeMs,
-                reason: "smoothness_first",
-                forced: true,
-            };
-        }
-        if (request.isPaused) {
-            return {
-                yield: false,
-                requestAgeMs,
-                reason: "paused_fresh_required",
-                forced: true,
-            };
-        }
-        if (request.pendingConquests.length > 0) {
-            return {
-                yield: false,
-                requestAgeMs,
-                reason: "conquest_fresh_required",
-                forced: true,
-            };
-        }
-        if (requestAgeMs >= TERRITORY_MAX_STALE_MS) {
-            return {
-                yield: false,
-                requestAgeMs,
-                reason: "stale_limit",
-                forced: true,
-            };
-        }
-        const pressure = classifyTerritoryPresentationPressure(nowMs);
-        return {
-            yield: pressure.active,
-            requestAgeMs,
-            reason: pressure.reason,
-            forced: false,
-        };
+        territoryPresentationLastScheduleMode = "immediate";
+        void flushTerritoryPresentationQueue();
     }
 
     async function flushTerritoryPresentationQueue(): Promise<void> {
@@ -5025,45 +4556,26 @@
         try {
             while (territoryPresentationPendingRequest) {
                 const request = territoryPresentationPendingRequest;
-                const nowMs = performance.now();
-                const decision = shouldYieldTerritoryPresentationRequest(
-                    request,
-                    nowMs,
-                );
                 if (request.activeMode === "grid_gradient") {
                     logGridGradientTransition("presentation_queue.decision", {
                         requestId: request.requestId,
                         activeMode: request.activeMode,
                         signature: request.signature,
-                        requestAgeMs: decision.requestAgeMs,
-                        yield: decision.yield,
-                        forced: decision.forced,
-                        reason: decision.reason,
+                        requestAgeMs:
+                            performance.now() - request.enqueuedAtMs,
+                        yield: false,
+                        forced: true,
+                        reason: "immediate",
                         pendingConquestCount: request.pendingConquests.length,
                         territoryScheduler: request.territoryScheduler,
                     });
-                }
-                if (decision.yield) {
-                    territoryPresentationYieldCount += 1;
-                    territoryPresentationLastYieldAtMs = nowMs;
-                    territoryPresentationLastYieldAgeMs = decision.requestAgeMs;
-                    territoryPresentationLastYieldRequestId = request.requestId;
-                    territoryPresentationLastYieldReason = decision.reason;
-
-
-                    scheduleTerritoryPresentationQueueDelay(
-                        TERRITORY_ASYNC_REQUEUE_DELAY_MS,
-                    );
-                    return;
                 }
                 territoryPresentationPendingRequest = null;
                 territoryPresentationLastRequestId = request.requestId;
                 territoryPresentationLastStartedAtMs = performance.now();
                 territoryPresentationLastQueueWaitMs =
                     territoryPresentationLastStartedAtMs - request.enqueuedAtMs;
-                if (decision.forced) {
-                    territoryPresentationForcedCount += 1;
-                }
+                territoryPresentationForcedCount += 1;
 
 
                 runTerritoryUpdate(
@@ -5288,10 +4800,6 @@
             territoryPresentationLastYieldReason = "";
             territoryPresentationLastScheduleMode = "";
             territoryPresentationLastCommittedSignature = "";
-            if (territoryPresentationDelayTimer) {
-                clearTimeout(territoryPresentationDelayTimer);
-                territoryPresentationDelayTimer = null;
-            }
             territoryPresentationPendingRequest = null;
             lastShipRenderStartedAtMs = 0;
             lastShipRenderCostMs = 0;
