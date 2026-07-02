@@ -26,10 +26,8 @@ star's production and can spring a **deferred order** you pre-placed, so one bre
 across the map. The depth is in *where* you apply pressure and *when* you commit: juggling several
 attrition fronts at once, exploiting **star specializations** (production, logistics, repair, defense,
 attack), defending the **territory** that is simultaneously your economy and your exposure, and
-reading the balance of force before it tips.
-
-It runs on a **single deterministic engine shared between client and server**, so a solo match
-against the AI and a live multiplayer game are the *same game*, tick for tick.
+reading the balance of force before it tips. Play it solo against the AI, or head-to-head in
+real-time multiplayer.
 
 ---
 
@@ -72,11 +70,10 @@ contested lane belongs to at most two players — so fronts form at real boundar
 pinch, or abandon. **Deferred orders** let you pre-stage an offensive so a single breakthrough
 cascades across the map.
 
-**A sector you can read at a glance.** Because ownership is computed geometry — fields resolve into
-regions, regions meet at frontiers, frontiers re-flow through conquest as continuous shapes — the map
-*is* a live strategic readout: you can see pressure massing before the numbers spell it out. The
-renderer ships **multiple territory "families"** you can switch between live, each a different way of
-drawing the same underlying truth:
+**A sector you can read at a glance.** Ownership is drawn as real, continuous territory — not a flat
+tint — so the map itself is a live strategic readout: you can see pressure massing before the numbers
+spell it out. It comes in **several territory styles** you can switch between live, each a different
+way of drawing the same underlying truth:
 
 | Render family | Character |
 |---|---|
@@ -86,9 +83,8 @@ drawing the same underlying truth:
 | **Grid Gradient** | Shader-driven gradient fills |
 | **Metaball · Perimeter Field** | Organic blob / perimeter-sampled boundary styles |
 
-Every family shares the same HSLA fill/border language and the same conquest-transition pipeline, so
-you can dial the sector's entire visual identity — from clinical vector borders to a molten neon
-haze — without touching gameplay.
+Each shares the same color, border, and conquest-animation controls, so you can take the sector from
+clean vector borders to a molten neon haze — without touching a single rule of play.
 
 **Six star archetypes.** Grey (baseline), **Yellow** (2× production), **Blue** (2× logistics),
 **Purple** (2× repair), **Red** (2× defense), **Green** (2× attack). A neutral faction holds real
@@ -96,25 +92,21 @@ territory across the map until someone takes it. Classic *Pax Galaxia* maps impo
 including **portal stars** — capture one and you seize every star in its portal group at once,
 bridging otherwise-disconnected regions.
 
-**A deep, live tuning surface.** Nearly every number in the game is a slider. Combat, timing, travel
-and orbit motion, AI aggression and strategy, territory rendering, ship look, audio — all adjustable
-in-game and saveable as **themes**. A unified Search jumps to any control (and pulses it so you can
-find it); render mode lives on the topbar so the settings surface stays stable whatever you're
-running.
+**A deep, live tuning surface.** Nearly every number in the game is a slider — combat, timing, travel
+and orbit motion, AI aggression and strategy, territory look, ship style, audio — all adjustable
+mid-game and saveable as your own **themes**, with a search that jumps straight to any control.
 
-**Fleet swarms with weight.** Ships orbit their stars in layered rings, depart from the near side,
-arc down lanes, and settle into formation — rendered through a batched particle pool that stays fluid
-into the tens of thousands of ships, with density-driven color grading so a fortress *reads* as a
-fortress.
+**Fleet swarms with weight.** Ships orbit their stars in layered rings, peel off the near side, arc
+down lanes, and settle into formation — staying fluid into the tens of thousands of ships, with
+density-driven color grading so a fortress *reads* as a fortress at a glance.
 
 ---
 
 ## 🧠 The AI
 
-Opponents evaluate every star each tick and commit to fronts using a three-zone attack model
-(must-attack / may-attack / desist) with anti-oscillation stickiness, plus selectable postures
-— **aggressive, opportunistic, expansionist, defensive** — and fully tunable thresholds. Smarter,
-star-type-aware and multi-source behaviors are on the roadmap.
+Opponents weigh every star each tick and commit to fronts instead of dithering, with selectable
+postures — **aggressive, opportunistic, expansionist, defensive** — and fully tunable aggression.
+Smarter, star-type-aware and multi-source behaviors are on the roadmap.
 
 ---
 
