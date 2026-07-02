@@ -20,10 +20,20 @@
 /** A 2D point. Immutable pair. */
 export type Point = readonly [number, number];
 
-/** World bounds. Origin is implicitly (0, 0); extent is (width, height). */
+/**
+ * World bounds. By default the origin is (0, 0) and the extent is
+ * (width, height). When the diagram was clipped to a rectangle that does NOT
+ * start at the origin (e.g. 0319's padded clip [-pad … width+pad]), pass the
+ * true boundary lines via minX/minY/maxX/maxY — world-edge classification
+ * tests against those.
+ */
 export interface WorldRect {
     readonly width: number;
     readonly height: number;
+    readonly minX?: number;
+    readonly minY?: number;
+    readonly maxX?: number;
+    readonly maxY?: number;
 }
 
 /**

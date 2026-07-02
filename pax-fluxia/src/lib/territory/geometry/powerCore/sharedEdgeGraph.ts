@@ -47,18 +47,23 @@ function edgeIdFromKeys(aKey: string, bKey: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// World-boundary test — is a point on the rectangle [0,w] x [0,h] border?
+// World-boundary test — is a point on the clip rectangle border? Defaults to
+// [0,w] x [0,h]; WorldRect.minX/minY/maxX/maxY override for padded clips.
 // ---------------------------------------------------------------------------
 
 const ON_BOUNDARY_EPS = 1e-6;
 
 function onWorldBoundary(p: Point, world: WorldRect): boolean {
-    const onLeft = Math.abs(p[0] - 0) <= ON_BOUNDARY_EPS;
-    const onRight = Math.abs(p[0] - world.width) <= ON_BOUNDARY_EPS;
-    const onTop = Math.abs(p[1] - 0) <= ON_BOUNDARY_EPS;
-    const onBottom = Math.abs(p[1] - world.height) <= ON_BOUNDARY_EPS;
-    const xInside = p[0] >= -ON_BOUNDARY_EPS && p[0] <= world.width + ON_BOUNDARY_EPS;
-    const yInside = p[1] >= -ON_BOUNDARY_EPS && p[1] <= world.height + ON_BOUNDARY_EPS;
+    const minX = world.minX ?? 0;
+    const minY = world.minY ?? 0;
+    const maxX = world.maxX ?? world.width;
+    const maxY = world.maxY ?? world.height;
+    const onLeft = Math.abs(p[0] - minX) <= ON_BOUNDARY_EPS;
+    const onRight = Math.abs(p[0] - maxX) <= ON_BOUNDARY_EPS;
+    const onTop = Math.abs(p[1] - minY) <= ON_BOUNDARY_EPS;
+    const onBottom = Math.abs(p[1] - maxY) <= ON_BOUNDARY_EPS;
+    const xInside = p[0] >= minX - ON_BOUNDARY_EPS && p[0] <= maxX + ON_BOUNDARY_EPS;
+    const yInside = p[1] >= minY - ON_BOUNDARY_EPS && p[1] <= maxY + ON_BOUNDARY_EPS;
     return (
         ((onLeft || onRight) && yInside) || ((onTop || onBottom) && xInside)
     );

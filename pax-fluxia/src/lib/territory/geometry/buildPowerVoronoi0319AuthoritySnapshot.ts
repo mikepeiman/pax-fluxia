@@ -233,7 +233,7 @@ function hydrateResolvedRegions(params: {
     });
 }
 
-function buildShellsFromRegions(
+export function buildShellsFromRegions(
     territoryRegions: ReadonlyArray<TerritoryRegionShape>,
 ): {
     readonly shells: readonly ResolvedShell[];
