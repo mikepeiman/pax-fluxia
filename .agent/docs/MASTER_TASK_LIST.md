@@ -40,9 +40,12 @@ superseding docs:
     kept. Gate green: check 0 errors; tests match master; hash unchanged; spot bench == baseline;
     pending 0.
   - [ ] P1: PowerCore correctness + adapter to ResolvedGeometrySnapshot; gate: invariant tests + USER visual sign-off.
-    - [ ] P1a (in progress 2026-07-01, delegated): weighted-Voronoi→PowerCell adapter; owner-from-half-edge
-      (kills O(N²) walk); Chaikin-with-junction-pinning on SharedEdge.smoothedPts; fixture invariant tests.
-      Scope: powerCore dir only, no live-path changes.
+    - [x] P1a DONE 2026-07-01 (`b8e4dab87..a48181a76`, verified independently: 33/33 tests, check 0
+      errors, scope respected): adapter buildPowerCellsFromSites; owner-from-half-edge left-cell tags
+      (O(N²) walk deleted; pinned vs old answer); smoothSharedEdges Chaikin w/ pinned junctions;
+      2-fixture invariant suite (closure, no self-intersect, edge-use parity, shuffle determinism).
+      KNOWN LIMIT: negative-area hole cycles skipped → enclave maps would break the edge-use
+      invariant (Phase-1 limitation, carried to P1b).
     - [ ] P1b: snapshot assembly (frontier polyline chaining per owner-pair, shells/holes, frontierTopology,
       provenance: sourceMethod 'power_voronoi', geometryFamily 'vector-native', reliable-flags true) +
       geometry source registration (geometrySource.ts hard-return + buildFamilyGeometry.ts:158 branch)
