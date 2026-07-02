@@ -72,14 +72,12 @@ superseding docs:
       post-hoc constraint-resolution smoothing) shows in FIELD and is preferable as an option.
       PowerCore has junction-pinned Chaikin (smoothSharedEdges) — expose/raise passes so PowerCore
       matches or exceeds 0319's rounding as a tunable.
-    - [ ] **⭐ Constraint INVARIANTS spec** `[territory][geometry][design]` — constraints (MSR/CX/DX/
-      cluster) have always been specified as MECHANISMS (weights, virtuals, post-hoc repair), never
-      as testable INVARIANTS — that's why they've stayed a "hard problem" (user, 2026-07-02: both
-      pipelines do a poor job). Write the invariant list with the user (e.g. star-margin disc;
-      contested-lane midpoint ON the frontier; no unbordered owner contact; same-owner pocket
-      bridging), then: enforce PRE-diagram only via SOLVED weights (iterative MSR weight solve, not
-      one-shot heuristic), unique contest-virtual siteIds, and an invariant harness like the
-      adjacency oracle. Resolves the open "pre- vs post-PV placement" question: pre, with solvers.
+    - [ ] **Constraints — SHELVED by user 2026-07-02 "until further notice."** `[territory][geometry]`
+      Do not work constraints (MSR/CX/DX tuning, invariant specs) until the user re-opens them.
+      CORRECTION on record: constraints tuning was NEVER the source of fill/border divergence
+      (documented cause: greedy junction walk + per-polygon vertex edits). Focus order set by user:
+      (1) absolute geometry correctness (PV/PowerCore — largely done), (2) **absolute correctness
+      of TRANSITIONS — the real hard problem** (= P3, now elevated).
     - [ ] P1c: A/B on acceptance map `First Symmetry-6_April 17b` + USER visual sign-off (the gate).
       To view PowerCore live: settings key `PERIMETER_FIELD_GEOMETRY_SOURCE` = `power_core`
       (0319 remains default until sign-off).
