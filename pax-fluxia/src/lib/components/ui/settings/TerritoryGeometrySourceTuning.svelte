@@ -27,7 +27,10 @@
     }
 
     function geometrySourceLabel(): string {
-        return 'Power Voronoi (0319 Authority)';
+        return normalizePerimeterFieldGeometrySource(currentGeometrySource()) ===
+            'power_core'
+            ? 'PowerCore (A/B candidate)'
+            : 'Power Voronoi (0319 Authority)';
     }
 </script>
 
@@ -52,6 +55,7 @@
         }}
     >
         <option value="power_voronoi_0319">Power Voronoi (0319 Authority)</option>
+        <option value="power_core">PowerCore (A/B candidate)</option>
     </select>
 </div>
 
