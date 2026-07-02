@@ -58,12 +58,28 @@ superseding docs:
       (regions with identity from the walk, deterministic junction-terminated frontier chaining,
       topology, shells); 'power_core' registered on the existing PERIMETER_FIELD_GEOMETRY_SOURCE key
       (default UNCHANGED = 0319); 5-fixture A/B parity suite. powerCore 76/76; check 0 errors.
-    - [ ] **⭐ FINDING (oracle-verified 2026-07-02): 0319 DROPS real inter-owner frontiers**
-      `[territory][geometry][bug]` — vs ground-truth adjacency read directly off the raw power
-      diagram: lane_clearance_triplet missing ai-1|human-player (290px); same_owner_disconnect_gap
-      missing ai-1|ai-2 (945px). PowerCore matches the oracle EXACTLY on all 5 fixtures. Live 0319
-      maps are therefore missing real frontier borders today. Fix = PowerCore adoption (P1c sign-off),
-      not a 0319 patch. Pinned in powerCoreParity.test.ts.
+    - [ ] **FINDING (REFINED 2026-07-02 after user challenge — original framing overstated):**
+      `[territory][geometry][bug]` — 0319 drops the **contested-lane midpoint frontier**: corridor
+      CONTEST virtuals share one siteId (`corridor_A_B`), and `extractSharedEdges` (generator :591)
+      dedups edge sides BY siteId → the second owner's side never records → frontier dropped at the
+      extraction stage. Cell-level diff proved both pipelines see IDENTICAL cells; loss is purely
+      0319 extraction. Visual severity: a thin lane-corridor seam without a border — largely
+      invisible in lattice modes (user correctly saw no gross violations); the px figures were
+      sliver-perimeter totals, not hole sizes. Still a real defect: it is exactly the frontier the
+      CX-contest feature exists to draw. PowerCore == oracle on all 5 fixtures. Pinned in
+      powerCoreParity.test.ts.
+    - [ ] **FIELD-mode rounding option** `[territory][render]` — user: 0319's rounding (from its
+      post-hoc constraint-resolution smoothing) shows in FIELD and is preferable as an option.
+      PowerCore has junction-pinned Chaikin (smoothSharedEdges) — expose/raise passes so PowerCore
+      matches or exceeds 0319's rounding as a tunable.
+    - [ ] **⭐ Constraint INVARIANTS spec** `[territory][geometry][design]` — constraints (MSR/CX/DX/
+      cluster) have always been specified as MECHANISMS (weights, virtuals, post-hoc repair), never
+      as testable INVARIANTS — that's why they've stayed a "hard problem" (user, 2026-07-02: both
+      pipelines do a poor job). Write the invariant list with the user (e.g. star-margin disc;
+      contested-lane midpoint ON the frontier; no unbordered owner contact; same-owner pocket
+      bridging), then: enforce PRE-diagram only via SOLVED weights (iterative MSR weight solve, not
+      one-shot heuristic), unique contest-virtual siteIds, and an invariant harness like the
+      adjacency oracle. Resolves the open "pre- vs post-PV placement" question: pre, with solvers.
     - [ ] P1c: A/B on acceptance map `First Symmetry-6_April 17b` + USER visual sign-off (the gate).
       To view PowerCore live: settings key `PERIMETER_FIELD_GEOMETRY_SOURCE` = `power_core`
       (0319 remains default until sign-off).

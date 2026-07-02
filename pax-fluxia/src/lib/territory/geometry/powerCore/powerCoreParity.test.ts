@@ -234,11 +234,18 @@ describe.each(FIXTURES)('powerCore vs 0319 parity (%s)', (fixture) => {
         const oracle = groundTruthPairSet(fixture);
         // PowerCore must report EXACTLY the adjacencies present in the diagram.
         expect(pairs(snapCore)).toEqual(oracle);
-        // FINDING (P1b-4, 2026-07-02): 0319 DROPS real frontiers on 2 of the 5
-        // fixtures — lane_clearance_triplet loses ai-1|human-player (290px) and
-        // same_owner_disconnect_gap loses ai-1|ai-2 (945px!) versus the same
-        // oracle. That is the junction/assembly bug class PowerCore replaces,
-        // so 0319 is only required to be a SUBSET of the oracle here.
+        // FINDING (P1b-4, refined 2026-07-02 after user challenge): on 2 of the
+        // 5 fixtures 0319 drops a real-but-thin frontier — the contested-lane
+        // midpoint seam between corridor-CONTEST virtual cells. Root cause:
+        // contest virtuals share ONE siteId (`corridor_A_B`), and
+        // extractSharedEdges (generator :591) dedups edge sides BY siteId, so
+        // the second owner's side is never recorded and the frontier drops.
+        // Cell-level diff proved both pipelines see identical cells; the loss
+        // is purely 0319's extraction. Visual severity: a thin lane-corridor
+        // seam without a border (largely invisible in rasterized lattice
+        // modes), NOT a gross hole — but gameplay-wise it is exactly the
+        // contested-midpoint frontier the CX-contest feature exists to draw.
+        // Hence: PowerCore must equal the oracle; 0319 only a SUBSET of it.
         for (const pair of pairs(snap0319)) {
             expect(oracle).toContain(pair);
         }
