@@ -30,6 +30,19 @@ superseding docs:
 
 ## 2026-07-02
 
+### Open
+- [ ] **⭐ TRANSITIONS — kinetic bubble morph (P3, USER-DIRECTED FOCUS)** `[territory][transitions]` —
+  governing spec: [TRANSITION_CORRECTNESS_SPEC_AND_KINETIC_PLAN](sessions/2026-07-02/2026-07-02_TRANSITION_CORRECTNESS_SPEC_AND_KINETIC_PLAN.md).
+  Acceptance T1–T7 (endpoint exactness, frame validity, frozen-outside, identity+recapture
+  retarget, tick-bound, determinism, ≤2ms/frame). Mechanism: diff S0/S1 by identity → freeze
+  outside → kinetic mini-diagram of bubble sites with union weight ramps (ghost pair for the
+  captured star; ε-ramps for appearing/vanishing virtuals) → presentation just draws geometry.
+  Measured: full snapshot 41ms / diagram 17.6ms @1,929 sites → full-recompute per frame ruled out.
+  - [ ] K1: kinetic core (diffSnapshotsToBubble + sampleKineticFrame) + T1/T2/T3/T6 test suite; gate ≤2ms.
+  - [ ] K2: engine integration behind power_core source; hash + bench + pending-0 gate.
+  - [ ] K3: Vector skin + lattice consumption; USER visual sign-off gate.
+  - [ ] K4: retire the six legacy transition implementations (museum branch, post-sign-off).
+
 ### Done (2026-07-02)
 - [x] **Settings panel crash (blocked P1c sign-off)** `[settings][bug]` — `sec.id` null deref in the
   sectionContent snippet (Svelte 5 teardown race: snippet deriveds re-evaluate before the
