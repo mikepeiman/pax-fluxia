@@ -28,6 +28,13 @@ superseding docs:
 
 ---
 
+## 2026-07-02
+
+### Done (2026-07-02)
+- [x] **Settings panel crash (blocked P1c sign-off)** `[settings][bug]` — `sec.id` null deref in the
+  sectionContent snippet (Svelte 5 teardown race: snippet deriveds re-evaluate before the
+  activePanel guard unmounts). All sec derefs in the panel now null-tolerant. `599362560`.
+
 ## 2026-07-01
 
 ### Open
