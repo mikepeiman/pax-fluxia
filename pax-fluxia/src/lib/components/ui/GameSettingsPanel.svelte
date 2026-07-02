@@ -1453,23 +1453,23 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 {/if}
                 {#if !showAllSections && activePanel && !isUtilityPanelId(activePanel.id) && (sectionSubsections[activePanel.id]?.length ?? 0) > 1}
                     {@const sec = activePanel}
-                    {@const isRenderSection = sec.id === "territory_styles"}
+                    {@const isRenderSection = sec?.id === "territory_styles"}
                     {@const effectiveSub =
-                        activeSubsections[sec.id] ??
+                        activeSubsections[sec?.id] ??
                         (isRenderSection ? (activeTerritoryRenderMode ?? "all") : "all")}
                     <div class="section-subnav section-subnav--secondary">
                         {#if !isRenderSection}
                         <PaxHudButton
                             class="subsection-chip"
                             active={effectiveSub === "all"}
-                            onclick={() => toggleSubsection(sec.id, "all")}
+                            onclick={() => toggleSubsection(sec?.id, "all")}
                             title="Show all"
                         >
                             <span class="subsection-chip__icon"><HudIcon name="phase-field" size={14} /></span>
                             <span>All</span>
                         </PaxHudButton>
                         {/if}
-                        {#each sectionSubsections[sec.id] ?? [] as subsection}
+                        {#each sectionSubsections[sec?.id] ?? [] as subsection}
                             {@const isLive =
                                 isRenderSection &&
                                 subsection.id === activeTerritoryRenderMode}
@@ -1477,7 +1477,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                                 class={"subsection-chip" +
                                     (isLive ? " subsection-chip--live" : "")}
                                 active={effectiveSub === subsection.id}
-                                onclick={() => toggleSubsection(sec.id, subsection.id)}
+                                onclick={() => toggleSubsection(sec?.id, subsection.id)}
                                 title={isLive
                                     ? subsection.label + " (live render mode)"
                                     : subsection.label}
@@ -1516,11 +1516,11 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 <div
                     class="section-body"
                     use:registerSectionBody={{
-                        sectionId: sec.id,
-                        activeSubsection: activeSubsections[sec.id] ?? "all",
+                        sectionId: sec?.id,
+                        activeSubsection: activeSubsections[sec?.id] ?? "all",
                     }}
                     use:enhanceSettingMetadata={{
-                        scope: isUtilityPanelId(sec.id) ? null : getSectionDefinition(sec.id).scope,
+                        scope: isUtilityPanelId(sec?.id) ? null : getSectionDefinition(sec?.id).scope,
                     }}
                 >
                     {@render sectionContent(sec)}
@@ -1538,7 +1538,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     {/if}
 
 {#snippet sectionContent(sec: NavChip)}
-                {#if sec.id === "ui_appearance"}
+                {#if sec?.id === "ui_appearance"}
                     <HudThemePanel />
                     <ControlsSectionVisuals
                         {panel}
@@ -1547,25 +1547,25 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         {updateVisual}
                         syncFromConfig={syncAllFromConfig}
                     />
-                {:else if sec.id === "ui_typography"}
+                {:else if sec?.id === "ui_typography"}
                     <TypographyTokenPanel />
-                {:else if sec.id === "ui_themes"}
+                {:else if sec?.id === "ui_themes"}
                     <ThemeLibraryPanel />
-                {:else if sec.id === "ui_savegame"}
+                {:else if sec?.id === "ui_savegame"}
                     <SaveLoadGamePanel />
-                {:else if sec.id === "ui_stats"}
+                {:else if sec?.id === "ui_stats"}
                     <PaxSettingsInfoRow label="Tick" value={activeGameStore.currentTick ?? 0} />
                     <PaxSettingsInfoRow label="Players" value={activeGameStore.players.length} />
                     <PaxSettingsInfoRow label="Stars" value={activeGameStore.stars.length} />
                     <PaxSettingsInfoRow label="Selected" value={selectedStarStore.id ?? "None"} />
-                {:else if sec.id === "ui_hotkeys"}
+                {:else if sec?.id === "ui_hotkeys"}
                     <PaxSettingsInfoRow label="F" value="Fit the map to the viewport." valueAlign="left" />
                     <PaxSettingsInfoRow label="Esc" value="Close active overlays or clear search focus." valueAlign="left" />
                     <PaxSettingsInfoRow label="Click star" value="Select and inspect a star." valueAlign="left" />
                     <PaxSettingsInfoRow label="Drag lane" value="Issue a route from an owned star." valueAlign="left" />
-                {:else if sec.id === "ui_help"}
+                {:else if sec?.id === "ui_help"}
                     <p>Select owned stars, assign routes across connected lanes, and watch active ships transfer control through the network.</p>
-                {:else if sec.id === "match_flow"}
+                {:else if sec?.id === "match_flow"}
                     <ControlsSectionTiming
                         {panel}
                         {updatePanel}
@@ -1582,13 +1582,13 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         {lockRatioToAnimSpeed}
                         syncFromConfig={syncAllFromConfig}
                     />
-                {:else if sec.id === "combat_tuning"}
+                {:else if sec?.id === "combat_tuning"}
                     <ControlsSectionBattle
                         {panel}
                         {updatePanel}
                         syncFromConfig={syncAllFromConfig}
                     />
-                {:else if sec.id === "economy"}
+                {:else if sec?.id === "economy"}
                     <ControlsSectionEconomy
                         {panel}
                         {updatePanel}
@@ -1596,31 +1596,31 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         {updateTransferRate}
                         syncFromConfig={syncAllFromConfig}
                     />
-                {:else if sec.id === "ai"}
+                {:else if sec?.id === "ai"}
                     <ControlsSectionAI
                         {panel}
                         {updatePanel}
                         syncFromConfig={syncAllFromConfig}
                     />
-                {:else if sec.id === "travel_orders"}
+                {:else if sec?.id === "travel_orders"}
                     <ControlsSectionTravel
                         {panel}
                         {updatePanel}
                         syncFromConfig={syncAllFromConfig}
                     />
-                {:else if sec.id === "conquest"}
+                {:else if sec?.id === "conquest"}
                     <ControlsSectionConquest
                         {panel}
                         {updatePanel}
                         syncFromConfig={syncAllFromConfig}
                     />
-                {:else if sec.id === "effects"}
+                {:else if sec?.id === "effects"}
                     <ControlsSectionSurge
                         {panel}
                         {updatePanel}
                         syncFromConfig={syncAllFromConfig}
                     />
-                {:else if sec.id === "transition"}
+                {:else if sec?.id === "transition"}
                     <ControlsSectionTerritory
                         {panel}
                         {updatePanel}
@@ -1637,7 +1637,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         hideRenderModeSelector={true}
                         systemTitle="Transition"
                     />
-                {:else if sec.id === "territory_tuning"}
+                {:else if sec?.id === "territory_tuning"}
                     <ControlsSectionTerritory
                         {panel}
                         {updatePanel}
@@ -1656,7 +1656,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         {panel}
                         {updatePanel}
                     />
-                {:else if sec.id === "territory_styles"}
+                {:else if sec?.id === "territory_styles"}
                     <ControlsSectionTerritory
                         {panel}
                         {updatePanel}
@@ -1671,26 +1671,26 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         syncFromConfig={syncAllFromConfig}
                         view="styles"
                         showCategoryThemeBar={true}
-                        activeSubsection={activeSubsections[sec.id] ??
+                        activeSubsection={activeSubsections[sec?.id] ??
                             (activeTerritoryRenderMode ?? "all")}
                     />
-                {:else if sec.id === "frontier_fx"}
+                {:else if sec?.id === "frontier_fx"}
                     <ControlsSectionFrontierFx
                         {panel}
                         {updatePanel}
                         syncFromConfig={syncAllFromConfig}
                     />
-                {:else if sec.id === "fleet_star_visuals"}
+                {:else if sec?.id === "fleet_star_visuals"}
                     <ControlsSectionShips
                         {panel}
                         {updatePanel}
                         syncFromConfig={syncAllFromConfig}
                     />
-                {:else if sec.id === "players"}
+                {:else if sec?.id === "players"}
                     <ControlsSectionPlayers
                         syncFromConfig={syncAllFromConfig}
                     />
-                {:else if sec.id === "map_options"}
+                {:else if sec?.id === "map_options"}
                     <ControlsSectionVisuals
                         {panel}
                         {updatePanel}
@@ -1698,19 +1698,19 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         {updateVisual}
                         syncFromConfig={syncAllFromConfig}
                     />
-                {:else if sec.id === "logging"}
+                {:else if sec?.id === "logging"}
                     <ControlsSectionLogging
                         {logCategories}
                         {logRefresh}
                         syncFromConfig={syncAllFromConfig}
                     />
-                {:else if sec.id === "audio"}
+                {:else if sec?.id === "audio"}
                     <ControlsSectionAudio
                         {panel}
                         {updatePanel}
                         syncFromConfig={syncAllFromConfig}
                     />
-                {:else if sec.id === "diagnostics"}
+                {:else if sec?.id === "diagnostics"}
                     <ControlsSectionDiagnostics
                         {panel}
                         {updatePanel}
