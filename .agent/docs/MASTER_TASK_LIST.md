@@ -31,13 +31,16 @@ superseding docs:
 ## 2026-07-01
 
 ### Open
-- [ ] **STRATEGIC REVIEW (proposed, awaiting user decision)** `[direction]` — 100k-ft gameplay-first
-  re-sequencing proposed 2026-07-01: (1) finish PowerCore geometry correctness first; (2) make
-  capture updates LOCAL/incremental (board is immutable in-game — per-capture global recompute is
-  the root perf bug, not scheduling); (3) ONE transition system on the new engine; (4) consolidate
-  8 render families → hero mode(s) as skins over one geometry+transition core; (5) small harness
-  gate (hero modes only). Recovery plan L3–L6 demoted to "only if still relevant after the above";
-  L2 dead-code deletion + harness stay.
+- [ ] **⭐ POWERCORE UNIFICATION (governing plan — USER-APPROVED 2026-07-01)** `[territory][direction]` —
+  perfect a single PV core (PowerCore); grid-lattice looks (Edges/Ember/Phase) re-based as skins on
+  it, NOT abandoned. Plan: [POWERCORE_UNIFICATION_PLAN](sessions/2026-07-01/2026-07-01_POWERCORE_UNIFICATION_PLAN.md).
+  Supersedes recovery L3–L6. Absorbs tasks #4/#8/#10/#11 + settings remainder of #9.
+  - [ ] P0: delete dead PRESENTATION_SMOOTHNESS_FIRST false-branches (keep instrument); gate: hash + pending 0.
+  - [ ] P1: PowerCore correctness + adapter to ResolvedGeometrySnapshot; gate: invariant tests + USER visual sign-off.
+  - [ ] P2: local/incremental capture updates; gate: per-capture geometry p95 ≤ 2ms.
+  - [ ] P3: one transition system (exact identity; two-stage; never stale); gate: pending 0, capture-tick p95 ≤ 16.7ms.
+  - [ ] P4: skins (Vector + Lattice via region-mask/SDF shader); per-skin USER sign-off; legacy → museum branch.
+  - [ ] P5: hero-skin acceptance matrix + Frontier FX/smooth-fill inside Lattice skin.
 - [ ] **Territory overnight-integration RECOVERY / merge-in** `[territory][perf]` — start from
   latest master; two-stage presentation (immediate correct ownership; deadline-bounded fancy
   transition; skip if late). Plan + full evidence:
