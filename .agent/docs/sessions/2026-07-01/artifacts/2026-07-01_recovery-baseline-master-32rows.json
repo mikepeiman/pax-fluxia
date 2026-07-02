@@ -1,0 +1,1677 @@
+{
+ "note": "L1 baseline: master (a753bef05) via claude/territory-recovery. Aggregates only; raw in worktree .agent-harness.",
+ "config": {
+  "generatedAt": "2026-07-02T01:06:26.155Z",
+  "appPath": "/play?bench=1",
+  "mapName": "First Symmetry-6_April 17b",
+  "runsPerScenario": 8,
+  "frameMs": 3000,
+  "warmupMs": 500
+ },
+ "rows": {
+  "power_voronoi_runtime.gameplay": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 8.3,
+    "p95": 8.3,
+    "p99": 8.3,
+    "max": 8.3
+   },
+   "runP95Ms": {
+    "p50": 8.9,
+    "p95": 16.6,
+    "p99": 16.6,
+    "max": 16.6
+   },
+   "runP99Ms": {
+    "p50": 16.8,
+    "p95": 17.6,
+    "p99": 17.6,
+    "max": 17.6
+   },
+   "runMaxMs": {
+    "p50": 66.6,
+    "p95": 108.5,
+    "p99": 108.5,
+    "max": 108.5
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 0.4,
+    "p95": 0.5,
+    "p99": 0.5,
+    "max": 0.5
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 1,
+    "p95": 54,
+    "p99": 54,
+    "max": 54
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 1,
+    "p95": 54,
+    "p99": 54,
+    "max": 54
+   }
+  },
+  "power_voronoi_runtime.transition": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 8.3,
+    "p95": 8.3,
+    "p99": 8.3,
+    "max": 8.3
+   },
+   "runP95Ms": {
+    "p50": 16.7,
+    "p95": 16.7,
+    "p99": 16.7,
+    "max": 16.7
+   },
+   "runP99Ms": {
+    "p50": 17.3,
+    "p95": 17.6,
+    "p99": 17.6,
+    "max": 17.6
+   },
+   "runMaxMs": {
+    "p50": 50,
+    "p95": 58.3,
+    "p99": 58.3,
+    "max": 58.3
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 0.5,
+    "p95": 2.1,
+    "p99": 2.1,
+    "max": 2.1
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 1.8,
+    "p95": 47.2,
+    "p99": 47.2,
+    "max": 47.2
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 1.8,
+    "p95": 47.2,
+    "p99": 47.2,
+    "max": 47.2
+   }
+  },
+  "power_voronoi_runtime.mode_switch": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 8.3,
+    "p95": 8.3,
+    "p99": 8.3,
+    "max": 8.3
+   },
+   "runP95Ms": {
+    "p50": 8.6,
+    "p95": 9,
+    "p99": 9,
+    "max": 9
+   },
+   "runP99Ms": {
+    "p50": 16.7,
+    "p95": 16.7,
+    "p99": 16.7,
+    "max": 16.7
+   },
+   "runMaxMs": {
+    "p50": 25.1,
+    "p95": 41.8,
+    "p99": 41.8,
+    "max": 41.8
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 0.3,
+    "p95": 0.5,
+    "p99": 0.5,
+    "max": 0.5
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 0.3,
+    "p95": 1.8,
+    "p99": 1.8,
+    "max": 1.8
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 0.3,
+    "p95": 1.8,
+    "p99": 1.8,
+    "max": 1.8
+   }
+  },
+  "power_voronoi_runtime.input_pressure": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 8.3,
+    "p95": 8.3,
+    "p99": 8.3,
+    "max": 8.3
+   },
+   "runP95Ms": {
+    "p50": 8.8,
+    "p95": 9.5,
+    "p99": 9.5,
+    "max": 9.5
+   },
+   "runP99Ms": {
+    "p50": 16.8,
+    "p95": 17.6,
+    "p99": 17.6,
+    "max": 17.6
+   },
+   "runMaxMs": {
+    "p50": 50,
+    "p95": 50.2,
+    "p99": 50.2,
+    "max": 50.2
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 0.4,
+    "p95": 1.4,
+    "p99": 1.4,
+    "max": 1.4
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 1.6,
+    "p95": 39.5,
+    "p99": 39.5,
+    "max": 39.5
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 1.6,
+    "p95": 39.5,
+    "p99": 39.5,
+    "max": 39.5
+   }
+  },
+  "perimeter_field.gameplay": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 8.3,
+    "p95": 8.3,
+    "p99": 8.3,
+    "max": 8.3
+   },
+   "runP95Ms": {
+    "p50": 8.6,
+    "p95": 9,
+    "p99": 9,
+    "max": 9
+   },
+   "runP99Ms": {
+    "p50": 16.7,
+    "p95": 17.4,
+    "p99": 17.4,
+    "max": 17.4
+   },
+   "runMaxMs": {
+    "p50": 66.7,
+    "p95": 66.9,
+    "p99": 66.9,
+    "max": 66.9
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 1.7,
+    "p95": 2.8,
+    "p99": 2.8,
+    "max": 2.8
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 2.9,
+    "p95": 64,
+    "p99": 64,
+    "max": 64
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 2.9,
+    "p95": 64,
+    "p99": 64,
+    "max": 64
+   }
+  },
+  "perimeter_field.transition": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 8.3,
+    "p95": 8.3,
+    "p99": 8.3,
+    "max": 8.3
+   },
+   "runP95Ms": {
+    "p50": 8.7,
+    "p95": 9.2,
+    "p99": 9.2,
+    "max": 9.2
+   },
+   "runP99Ms": {
+    "p50": 16.8,
+    "p95": 17.5,
+    "p99": 17.5,
+    "max": 17.5
+   },
+   "runMaxMs": {
+    "p50": 75,
+    "p95": 83.4,
+    "p99": 83.4,
+    "max": 83.4
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 1.4,
+    "p95": 3,
+    "p99": 3,
+    "max": 3
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 3.1,
+    "p95": 68,
+    "p99": 68,
+    "max": 68
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 3.1,
+    "p95": 68,
+    "p99": 68,
+    "max": 68
+   }
+  },
+  "perimeter_field.mode_switch": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 8.3,
+    "p95": 8.5,
+    "p99": 8.5,
+    "max": 8.5
+   },
+   "runP95Ms": {
+    "p50": 8.7,
+    "p95": 33.4,
+    "p99": 33.4,
+    "max": 33.4
+   },
+   "runP99Ms": {
+    "p50": 16.6,
+    "p95": 59.6,
+    "p99": 59.6,
+    "max": 59.6
+   },
+   "runMaxMs": {
+    "p50": 33.2,
+    "p95": 74.7,
+    "p99": 74.7,
+    "max": 74.7
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 1.4,
+    "p95": 2.9,
+    "p99": 2.9,
+    "max": 2.9
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 2.8,
+    "p95": 4.1,
+    "p99": 4.1,
+    "max": 4.1
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 2.8,
+    "p95": 4.1,
+    "p99": 4.1,
+    "max": 4.1
+   }
+  },
+  "perimeter_field.input_pressure": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 8.3,
+    "p95": 8.3,
+    "p99": 8.3,
+    "max": 8.3
+   },
+   "runP95Ms": {
+    "p50": 8.7,
+    "p95": 9.1,
+    "p99": 9.1,
+    "max": 9.1
+   },
+   "runP99Ms": {
+    "p50": 17.3,
+    "p95": 17.6,
+    "p99": 17.6,
+    "max": 17.6
+   },
+   "runMaxMs": {
+    "p50": 66.7,
+    "p95": 83.4,
+    "p99": 83.4,
+    "max": 83.4
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 1.5,
+    "p95": 3,
+    "p99": 3,
+    "max": 3
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 3,
+    "p95": 77.4,
+    "p99": 77.4,
+    "max": 77.4
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 3,
+    "p95": 77.4,
+    "p99": 77.4,
+    "max": 77.4
+   }
+  },
+  "metaball.gameplay": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 8.3,
+    "p95": 8.3,
+    "p99": 8.3,
+    "max": 8.3
+   },
+   "runP95Ms": {
+    "p50": 8.8,
+    "p95": 16.5,
+    "p99": 16.5,
+    "max": 16.5
+   },
+   "runP99Ms": {
+    "p50": 17.1,
+    "p95": 17.6,
+    "p99": 17.6,
+    "max": 17.6
+   },
+   "runMaxMs": {
+    "p50": 66.6,
+    "p95": 67.3,
+    "p99": 67.3,
+    "max": 67.3
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 2.8,
+    "p95": 3.2,
+    "p99": 3.2,
+    "max": 3.2
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 3.3,
+    "p95": 62.1,
+    "p99": 62.1,
+    "max": 62.1
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 3.3,
+    "p95": 62.1,
+    "p99": 62.1,
+    "max": 62.1
+   }
+  },
+  "metaball.transition": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 8.3,
+    "p95": 8.3,
+    "p99": 8.3,
+    "max": 8.3
+   },
+   "runP95Ms": {
+    "p50": 8.7,
+    "p95": 9,
+    "p99": 9,
+    "max": 9
+   },
+   "runP99Ms": {
+    "p50": 17,
+    "p95": 17.3,
+    "p99": 17.3,
+    "max": 17.3
+   },
+   "runMaxMs": {
+    "p50": 83.7,
+    "p95": 84.1,
+    "p99": 84.1,
+    "max": 84.1
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 2.8,
+    "p95": 3.9,
+    "p99": 3.9,
+    "max": 3.9
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 68.7,
+    "p95": 71,
+    "p99": 71,
+    "max": 71
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 68.7,
+    "p95": 71,
+    "p99": 71,
+    "max": 71
+   }
+  },
+  "metaball.mode_switch": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 8.3,
+    "p95": 8.3,
+    "p99": 8.3,
+    "max": 8.3
+   },
+   "runP95Ms": {
+    "p50": 8.7,
+    "p95": 16.6,
+    "p99": 16.6,
+    "max": 16.6
+   },
+   "runP99Ms": {
+    "p50": 16.8,
+    "p95": 25,
+    "p99": 25,
+    "max": 25
+   },
+   "runMaxMs": {
+    "p50": 33.4,
+    "p95": 58.4,
+    "p99": 58.4,
+    "max": 58.4
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 3,
+    "p95": 3.1,
+    "p99": 3.1,
+    "max": 3.1
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 3.3,
+    "p95": 5.2,
+    "p99": 5.2,
+    "max": 5.2
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 3.3,
+    "p95": 5.2,
+    "p99": 5.2,
+    "max": 5.2
+   }
+  },
+  "metaball.input_pressure": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 8.3,
+    "p95": 8.4,
+    "p99": 8.4,
+    "max": 8.4
+   },
+   "runP95Ms": {
+    "p50": 9.3,
+    "p95": 25.4,
+    "p99": 25.4,
+    "max": 25.4
+   },
+   "runP99Ms": {
+    "p50": 34.4,
+    "p95": 58.3,
+    "p99": 58.3,
+    "max": 58.3
+   },
+   "runMaxMs": {
+    "p50": 66.7,
+    "p95": 92.1,
+    "p99": 92.1,
+    "max": 92.1
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 2.9,
+    "p95": 3.5,
+    "p99": 3.5,
+    "max": 3.5
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 4.5,
+    "p95": 60.3,
+    "p99": 60.3,
+    "max": 60.3
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 4.5,
+    "p95": 60.3,
+    "p99": 60.3,
+    "max": 60.3
+   }
+  },
+  "cell_grid.gameplay": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 8.3,
+    "p95": 8.4,
+    "p99": 8.4,
+    "max": 8.4
+   },
+   "runP95Ms": {
+    "p50": 9,
+    "p95": 33.3,
+    "p99": 33.3,
+    "max": 33.3
+   },
+   "runP99Ms": {
+    "p50": 33.4,
+    "p95": 50.2,
+    "p99": 50.2,
+    "max": 50.2
+   },
+   "runMaxMs": {
+    "p50": 151.3,
+    "p95": 166.7,
+    "p99": 166.7,
+    "max": 166.7
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 10.5,
+    "p95": 13.6,
+    "p99": 13.6,
+    "max": 13.6
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 21.1,
+    "p95": 143.3,
+    "p99": 143.3,
+    "max": 143.3
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 21.1,
+    "p95": 143.3,
+    "p99": 143.3,
+    "max": 143.3
+   }
+  },
+  "cell_grid.transition": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 8.4,
+    "p95": 8.4,
+    "p99": 8.4,
+    "max": 8.4
+   },
+   "runP95Ms": {
+    "p50": 25.2,
+    "p95": 33,
+    "p99": 33,
+    "max": 33
+   },
+   "runP99Ms": {
+    "p50": 42.1,
+    "p95": 50.6,
+    "p99": 50.6,
+    "max": 50.6
+   },
+   "runMaxMs": {
+    "p50": 158.4,
+    "p95": 200.5,
+    "p99": 200.5,
+    "max": 200.5
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 10.9,
+    "p95": 13.8,
+    "p99": 13.8,
+    "max": 13.8
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 149.1,
+    "p95": 163.4,
+    "p99": 163.4,
+    "max": 163.4
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 149.1,
+    "p95": 163.4,
+    "p99": 163.4,
+    "max": 163.4
+   }
+  },
+  "cell_grid.mode_switch": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 8.3,
+    "p95": 8.4,
+    "p99": 8.4,
+    "max": 8.4
+   },
+   "runP95Ms": {
+    "p50": 8.8,
+    "p95": 25,
+    "p99": 25,
+    "max": 25
+   },
+   "runP99Ms": {
+    "p50": 16.6,
+    "p95": 25.2,
+    "p99": 25.2,
+    "max": 25.2
+   },
+   "runMaxMs": {
+    "p50": 32.9,
+    "p95": 41.7,
+    "p99": 41.7,
+    "max": 41.7
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 8.5,
+    "p95": 9.2,
+    "p99": 9.2,
+    "max": 9.2
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 8.5,
+    "p95": 28.8,
+    "p99": 28.8,
+    "max": 28.8
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 8.5,
+    "p95": 28.8,
+    "p99": 28.8,
+    "max": 28.8
+   }
+  },
+  "cell_grid.input_pressure": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 8.3,
+    "p95": 8.4,
+    "p99": 8.4,
+    "max": 8.4
+   },
+   "runP95Ms": {
+    "p50": 9,
+    "p95": 41.7,
+    "p99": 41.7,
+    "max": 41.7
+   },
+   "runP99Ms": {
+    "p50": 33.4,
+    "p95": 66.7,
+    "p99": 66.7,
+    "max": 66.7
+   },
+   "runMaxMs": {
+    "p50": 149.9,
+    "p95": 158.3,
+    "p99": 158.3,
+    "max": 158.3
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 10.7,
+    "p95": 12.1,
+    "p99": 12.1,
+    "max": 12.1
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 12,
+    "p95": 43.8,
+    "p99": 43.8,
+    "max": 43.8
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 12,
+    "p95": 43.8,
+    "p99": 43.8,
+    "max": 43.8
+   }
+  },
+  "phase_edges.gameplay": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 25,
+    "p95": 25,
+    "p99": 25,
+    "max": 25
+   },
+   "runP95Ms": {
+    "p50": 33.4,
+    "p95": 34.2,
+    "p99": 34.2,
+    "max": 34.2
+   },
+   "runP99Ms": {
+    "p50": 57.9,
+    "p95": 66.8,
+    "p99": 66.8,
+    "max": 66.8
+   },
+   "runMaxMs": {
+    "p50": 99.9,
+    "p95": 116.1,
+    "p99": 116.1,
+    "max": 116.1
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 10.4,
+    "p95": 17.4,
+    "p99": 17.4,
+    "max": 17.4
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 15.3,
+    "p95": 77.6,
+    "p99": 77.6,
+    "max": 77.6
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 15.3,
+    "p95": 77.6,
+    "p99": 77.6,
+    "max": 77.6
+   }
+  },
+  "phase_edges.transition": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 25,
+    "p95": 25.1,
+    "p99": 25.1,
+    "max": 25.1
+   },
+   "runP95Ms": {
+    "p50": 58.3,
+    "p95": 83.5,
+    "p99": 83.5,
+    "max": 83.5
+   },
+   "runP99Ms": {
+    "p50": 125,
+    "p95": 150.1,
+    "p99": 150.1,
+    "max": 150.1
+   },
+   "runMaxMs": {
+    "p50": 158.4,
+    "p95": 166.7,
+    "p99": 166.7,
+    "max": 166.7
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 18.2,
+    "p95": 106.5,
+    "p99": 106.5,
+    "max": 106.5
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 117.6,
+    "p95": 132.5,
+    "p99": 132.5,
+    "max": 132.5
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 117.6,
+    "p95": 132.5,
+    "p99": 132.5,
+    "max": 132.5
+   }
+  },
+  "phase_edges.mode_switch": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 25,
+    "p95": 25.1,
+    "p99": 25.1,
+    "max": 25.1
+   },
+   "runP95Ms": {
+    "p50": 50,
+    "p95": 66.7,
+    "p99": 66.7,
+    "max": 66.7
+   },
+   "runP99Ms": {
+    "p50": 58.3,
+    "p95": 75,
+    "p99": 75,
+    "max": 75
+   },
+   "runMaxMs": {
+    "p50": 66.7,
+    "p95": 91.6,
+    "p99": 91.6,
+    "max": 91.6
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 13.2,
+    "p95": 17.3,
+    "p99": 17.3,
+    "max": 17.3
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 19,
+    "p95": 56.2,
+    "p99": 56.2,
+    "max": 56.2
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 19,
+    "p95": 56.2,
+    "p99": 56.2,
+    "max": 56.2
+   }
+  },
+  "phase_edges.input_pressure": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 25,
+    "p95": 25,
+    "p99": 25,
+    "max": 25
+   },
+   "runP95Ms": {
+    "p50": 33.4,
+    "p95": 33.4,
+    "p99": 33.4,
+    "max": 33.4
+   },
+   "runP99Ms": {
+    "p50": 58.5,
+    "p95": 66.7,
+    "p99": 66.7,
+    "max": 66.7
+   },
+   "runMaxMs": {
+    "p50": 108.3,
+    "p95": 133.4,
+    "p99": 133.4,
+    "max": 133.4
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 11,
+    "p95": 18,
+    "p99": 18,
+    "max": 18
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 84,
+    "p95": 91.1,
+    "p99": 91.1,
+    "max": 91.1
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 84,
+    "p95": 91.1,
+    "p99": 91.1,
+    "max": 91.1
+   }
+  },
+  "ember_lattice.gameplay": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 33.3,
+    "p95": 33.3,
+    "p99": 33.3,
+    "max": 33.3
+   },
+   "runP95Ms": {
+    "p50": 41.7,
+    "p95": 66.7,
+    "p99": 66.7,
+    "max": 66.7
+   },
+   "runP99Ms": {
+    "p50": 74.9,
+    "p95": 116.2,
+    "p99": 116.2,
+    "max": 116.2
+   },
+   "runMaxMs": {
+    "p50": 109,
+    "p95": 133.3,
+    "p99": 133.3,
+    "max": 133.3
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 14.3,
+    "p95": 57.9,
+    "p99": 57.9,
+    "max": 57.9
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 50.4,
+    "p95": 90,
+    "p99": 90,
+    "max": 90
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 50.4,
+    "p95": 90,
+    "p99": 90,
+    "max": 90
+   }
+  },
+  "ember_lattice.transition": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 33.3,
+    "p95": 33.3,
+    "p99": 33.3,
+    "max": 33.3
+   },
+   "runP95Ms": {
+    "p50": 50.8,
+    "p95": 66.7,
+    "p99": 66.7,
+    "max": 66.7
+   },
+   "runP99Ms": {
+    "p50": 116.7,
+    "p95": 158.3,
+    "p99": 158.3,
+    "max": 158.3
+   },
+   "runMaxMs": {
+    "p50": 141.7,
+    "p95": 158.4,
+    "p99": 158.4,
+    "max": 158.4
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 19.2,
+    "p95": 94.3,
+    "p99": 94.3,
+    "max": 94.3
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 93.3,
+    "p95": 137.3,
+    "p99": 137.3,
+    "max": 137.3
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 93.3,
+    "p95": 137.3,
+    "p99": 137.3,
+    "max": 137.3
+   }
+  },
+  "ember_lattice.mode_switch": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 33.3,
+    "p95": 33.4,
+    "p99": 33.4,
+    "max": 33.4
+   },
+   "runP95Ms": {
+    "p50": 34.3,
+    "p95": 66.7,
+    "p99": 66.7,
+    "max": 66.7
+   },
+   "runP99Ms": {
+    "p50": 66.6,
+    "p95": 83.4,
+    "p99": 83.4,
+    "max": 83.4
+   },
+   "runMaxMs": {
+    "p50": 75,
+    "p95": 108.4,
+    "p99": 108.4,
+    "max": 108.4
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 13.6,
+    "p95": 18.4,
+    "p99": 18.4,
+    "max": 18.4
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 19.2,
+    "p95": 36.1,
+    "p99": 36.1,
+    "max": 36.1
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 19.2,
+    "p95": 36.1,
+    "p99": 36.1,
+    "max": 36.1
+   }
+  },
+  "ember_lattice.input_pressure": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 33,
+    "p95": 33.2,
+    "p99": 33.2,
+    "max": 33.2
+   },
+   "runP95Ms": {
+    "p50": 41.7,
+    "p95": 41.9,
+    "p99": 41.9,
+    "max": 41.9
+   },
+   "runP99Ms": {
+    "p50": 67,
+    "p95": 75.1,
+    "p99": 75.1,
+    "max": 75.1
+   },
+   "runMaxMs": {
+    "p50": 100.5,
+    "p95": 125.6,
+    "p99": 125.6,
+    "max": 125.6
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 12,
+    "p95": 40.7,
+    "p99": 40.7,
+    "max": 40.7
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 21.7,
+    "p95": 92,
+    "p99": 92,
+    "max": 92
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 21.7,
+    "p95": 92,
+    "p99": 92,
+    "max": 92
+   }
+  },
+  "phase_field.gameplay": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 8.3,
+    "p95": 8.3,
+    "p99": 8.3,
+    "max": 8.3
+   },
+   "runP95Ms": {
+    "p50": 8.6,
+    "p95": 8.9,
+    "p99": 8.9,
+    "max": 8.9
+   },
+   "runP99Ms": {
+    "p50": 58.4,
+    "p95": 66.8,
+    "p99": 66.8,
+    "max": 66.8
+   },
+   "runMaxMs": {
+    "p50": 108.4,
+    "p95": 125.2,
+    "p99": 125.2,
+    "max": 125.2
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 53.5,
+    "p95": 60.9,
+    "p99": 60.9,
+    "max": 60.9
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 56.2,
+    "p95": 102.9,
+    "p99": 102.9,
+    "max": 102.9
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 56.2,
+    "p95": 102.9,
+    "p99": 102.9,
+    "max": 102.9
+   }
+  },
+  "phase_field.transition": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 8.3,
+    "p95": 8.3,
+    "p99": 8.3,
+    "max": 8.3
+   },
+   "runP95Ms": {
+    "p50": 8.5,
+    "p95": 16.7,
+    "p99": 16.7,
+    "max": 16.7
+   },
+   "runP99Ms": {
+    "p50": 16.7,
+    "p95": 25,
+    "p99": 25,
+    "max": 25
+   },
+   "runMaxMs": {
+    "p50": 116.7,
+    "p95": 125,
+    "p99": 125,
+    "max": 125
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 0.3,
+    "p95": 0.5,
+    "p99": 0.5,
+    "max": 0.5
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 49.7,
+    "p95": 107.3,
+    "p99": 107.3,
+    "max": 107.3
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 49.7,
+    "p95": 107.3,
+    "p99": 107.3,
+    "max": 107.3
+   }
+  },
+  "phase_field.mode_switch": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 8.3,
+    "p95": 8.3,
+    "p99": 8.3,
+    "max": 8.3
+   },
+   "runP95Ms": {
+    "p50": 8.5,
+    "p95": 8.7,
+    "p99": 8.7,
+    "max": 8.7
+   },
+   "runP99Ms": {
+    "p50": 8.8,
+    "p95": 16.6,
+    "p99": 16.6,
+    "max": 16.6
+   },
+   "runMaxMs": {
+    "p50": 33.9,
+    "p95": 50.1,
+    "p99": 50.1,
+    "max": 50.1
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 0.3,
+    "p95": 2.7,
+    "p99": 2.7,
+    "max": 2.7
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 1,
+    "p95": 3.5,
+    "p99": 3.5,
+    "max": 3.5
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 1,
+    "p95": 3.5,
+    "p99": 3.5,
+    "max": 3.5
+   }
+  },
+  "phase_field.input_pressure": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 8.3,
+    "p95": 8.3,
+    "p99": 8.3,
+    "max": 8.3
+   },
+   "runP95Ms": {
+    "p50": 8.5,
+    "p95": 8.5,
+    "p99": 8.5,
+    "max": 8.5
+   },
+   "runP99Ms": {
+    "p50": 58.4,
+    "p95": 66.7,
+    "p99": 66.7,
+    "max": 66.7
+   },
+   "runMaxMs": {
+    "p50": 108.5,
+    "p95": 116.7,
+    "p99": 116.7,
+    "max": 116.7
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 53.4,
+    "p95": 56.4,
+    "p99": 56.4,
+    "max": 56.4
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 56.2,
+    "p95": 102,
+    "p99": 102,
+    "max": 102
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 56.2,
+    "p95": 102,
+    "p99": 102,
+    "max": 102
+   }
+  },
+  "grid_gradient.gameplay": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 99.6,
+    "p95": 108.4,
+    "p99": 108.4,
+    "max": 108.4
+   },
+   "runP95Ms": {
+    "p50": 158.3,
+    "p95": 158.4,
+    "p99": 158.4,
+    "max": 158.4
+   },
+   "runP99Ms": {
+    "p50": 166.7,
+    "p95": 200.5,
+    "p99": 200.5,
+    "max": 200.5
+   },
+   "runMaxMs": {
+    "p50": 166.7,
+    "p95": 200.5,
+    "p99": 200.5,
+    "max": 200.5
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 27.6,
+    "p95": 39.8,
+    "p99": 39.8,
+    "max": 39.8
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 78.3,
+    "p95": 84.9,
+    "p99": 84.9,
+    "max": 84.9
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 78.3,
+    "p95": 84.9,
+    "p99": 84.9,
+    "max": 84.9
+   }
+  },
+  "grid_gradient.transition": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 99.5,
+    "p95": 100.6,
+    "p99": 100.6,
+    "max": 100.6
+   },
+   "runP95Ms": {
+    "p50": 167.5,
+    "p95": 175.4,
+    "p99": 175.4,
+    "max": 175.4
+   },
+   "runP99Ms": {
+    "p50": 183.5,
+    "p95": 299.6,
+    "p99": 299.6,
+    "max": 299.6
+   },
+   "runMaxMs": {
+    "p50": 183.5,
+    "p95": 299.6,
+    "p99": 299.6,
+    "max": 299.6
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 72.6,
+    "p95": 90.1,
+    "p99": 90.1,
+    "max": 90.1
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 93.8,
+    "p95": 96.2,
+    "p99": 96.2,
+    "max": 96.2
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 93.8,
+    "p95": 96.2,
+    "p99": 96.2,
+    "max": 96.2
+   }
+  },
+  "grid_gradient.mode_switch": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 91.8,
+    "p95": 92.5,
+    "p99": 92.5,
+    "max": 92.5
+   },
+   "runP95Ms": {
+    "p50": 141.8,
+    "p95": 150.1,
+    "p99": 150.1,
+    "max": 150.1
+   },
+   "runP99Ms": {
+    "p50": 150.4,
+    "p95": 159.1,
+    "p99": 159.1,
+    "max": 159.1
+   },
+   "runMaxMs": {
+    "p50": 150.4,
+    "p95": 159.1,
+    "p99": 159.1,
+    "max": 159.1
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 29.8,
+    "p95": 32.1,
+    "p99": 32.1,
+    "max": 32.1
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 30.7,
+    "p95": 68.9,
+    "p99": 68.9,
+    "max": 68.9
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 30.7,
+    "p95": 68.9,
+    "p99": 68.9,
+    "max": 68.9
+   }
+  },
+  "grid_gradient.input_pressure": {
+   "okRunCount": 8,
+   "failedRunCount": 0,
+   "runP50Ms": {
+    "p50": 99.9,
+    "p95": 100.1,
+    "p99": 100.1,
+    "max": 100.1
+   },
+   "runP95Ms": {
+    "p50": 150.1,
+    "p95": 308.3,
+    "p99": 308.3,
+    "max": 308.3
+   },
+   "runP99Ms": {
+    "p50": 183.6,
+    "p95": 375.1,
+    "p99": 375.1,
+    "max": 375.1
+   },
+   "runMaxMs": {
+    "p50": 183.6,
+    "p95": 375.1,
+    "p99": 375.1,
+    "max": 375.1
+   },
+   "schedulerPendingAgeMaxMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 0
+   },
+   "schedulerCommitLagP95Ms": {
+    "p50": 55.3,
+    "p95": 68.9,
+    "p99": 68.9,
+    "max": 68.9
+   },
+   "schedulerCommitLagP99Ms": {
+    "p50": 77.6,
+    "p95": 91.3,
+    "p99": 91.3,
+    "max": 91.3
+   },
+   "schedulerCommitLagMaxMs": {
+    "p50": 77.6,
+    "p95": 91.3,
+    "p99": 91.3,
+    "max": 91.3
+   }
+  }
+ }
+}
