@@ -46,11 +46,20 @@ superseding docs:
       2-fixture invariant suite (closure, no self-intersect, edge-use parity, shuffle determinism).
       KNOWN LIMIT: negative-area hole cycles skipped → enclave maps would break the edge-use
       invariant (Phase-1 limitation, carried to P1b).
-    - [ ] P1b: snapshot assembly (frontier polyline chaining per owner-pair, shells/holes, frontierTopology,
-      provenance: sourceMethod 'power_voronoi', geometryFamily 'vector-native', reliable-flags true) +
-      geometry source registration (geometrySource.ts hard-return + buildFamilyGeometry.ts:158 branch)
-      for 0319-vs-PowerCore A/B; Stage-0 (MSR weights + CX/DX virtuals) shared unchanged.
-    - [ ] P1c: A/B parity run on 5 fixture maps + acceptance map; then USER visual sign-off (the gate).
+    - [x] P1b DONE 2026-07-02 (`39c42c322..b52fe8a0f`, done inline after the delegated agent stalled
+      with zero commits): Stage-0 extracted + shared byte-identically; buildPowerCoreAuthoritySnapshot
+      (regions with identity from the walk, deterministic junction-terminated frontier chaining,
+      topology, shells); 'power_core' registered on the existing PERIMETER_FIELD_GEOMETRY_SOURCE key
+      (default UNCHANGED = 0319); 5-fixture A/B parity suite. powerCore 76/76; check 0 errors.
+    - [ ] **⭐ FINDING (oracle-verified 2026-07-02): 0319 DROPS real inter-owner frontiers**
+      `[territory][geometry][bug]` — vs ground-truth adjacency read directly off the raw power
+      diagram: lane_clearance_triplet missing ai-1|human-player (290px); same_owner_disconnect_gap
+      missing ai-1|ai-2 (945px). PowerCore matches the oracle EXACTLY on all 5 fixtures. Live 0319
+      maps are therefore missing real frontier borders today. Fix = PowerCore adoption (P1c sign-off),
+      not a 0319 patch. Pinned in powerCoreParity.test.ts.
+    - [ ] P1c: A/B on acceptance map `First Symmetry-6_April 17b` + USER visual sign-off (the gate).
+      To view PowerCore live: settings key `PERIMETER_FIELD_GEOMETRY_SOURCE` = `power_core`
+      (0319 remains default until sign-off).
   - [ ] P2: local/incremental capture updates; gate: per-capture geometry p95 ≤ 2ms.
   - [ ] P3: one transition system (exact identity; two-stage; never stale); gate: pending 0, capture-tick p95 ≤ 16.7ms.
   - [ ] P4: skins (Vector + Lattice via region-mask/SDF shader); per-skin USER sign-off; legacy → museum branch.
