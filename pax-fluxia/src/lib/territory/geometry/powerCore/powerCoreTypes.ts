@@ -45,6 +45,13 @@ export interface PowerCell {
     readonly siteId: string;
     readonly ownerId: string;
     readonly points: Point[];
+    /**
+     * Index of the generating site in the input `sites` array of
+     * buildPowerCellsFromSites. siteIds are NOT unique (corridor contest
+     * virtuals share one id) and a weighted site's position may lie OUTSIDE
+     * its own cell, so this index is the only exact cell↔site link.
+     */
+    readonly sourceSiteIndex?: number;
 }
 
 /** Sentinel owner for the unbounded exterior / world rectangle boundary. */

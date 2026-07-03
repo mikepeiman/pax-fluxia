@@ -58,6 +58,9 @@ export function buildPowerCellsFromSites(
         .clip(clip);
     const polygons = wv([...sites]);
 
+    const indexBySite = new Map<PowerCoreSite, number>();
+    sites.forEach((site, index) => indexBySite.set(site, index));
+
     const cells: PowerCell[] = [];
     for (const poly of polygons) {
         if (!poly || poly.length < 3) continue;
@@ -78,6 +81,7 @@ export function buildPowerCellsFromSites(
             siteId: site.starId,
             ownerId: site.ownerId,
             points,
+            sourceSiteIndex: indexBySite.get(site),
         });
     }
 
