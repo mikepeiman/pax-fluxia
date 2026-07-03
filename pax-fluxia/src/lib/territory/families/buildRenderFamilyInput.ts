@@ -43,6 +43,7 @@ export function buildRenderFamilyInput(params: {
     renderer?: RenderFamilyInput['renderer'];
     activeTransition?: RenderFamilyInput['activeTransition'];
     transitionSessions?: RenderFamilyInput['transitionSessions'];
+    kineticFrame?: RenderFamilyInput['kineticFrame'];
     tunableKeys?: readonly string[];
     configSource?: Record<string, unknown>;
 }): RenderFamilyInput {
@@ -72,6 +73,7 @@ export function buildRenderFamilyInput(params: {
         renderer: params.renderer,
         activeTransition: params.activeTransition ?? null,
         transitionSessions: params.transitionSessions ?? null,
+        kineticFrame: params.kineticFrame ?? null,
     };
 
     return input;

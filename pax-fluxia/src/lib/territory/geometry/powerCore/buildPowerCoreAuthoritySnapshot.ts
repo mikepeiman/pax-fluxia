@@ -232,6 +232,12 @@ export function computePowerCoreEndpoint(params: {
 
 export function buildPowerCoreAuthoritySnapshot(
     params: BuildPowerCoreAuthoritySnapshotParams,
+    /**
+     * K2c: optional sink for the computed endpoint (sites+cells+clip), so the
+     * kinetic transition runtime can consume the SAME endpoint this snapshot
+     * was built from — never a second diagram compute. Fires only on success.
+     */
+    collectEndpoint?: (endpoint: PowerCoreEndpointComputation) => void,
 ): ResolvedGeometrySnapshot | CompileError {
     const { config } = params;
 
@@ -241,6 +247,7 @@ export function buildPowerCoreAuthoritySnapshot(
         config,
     });
     if ('kind' in endpoint) return endpoint;
+    collectEndpoint?.(endpoint);
     const { cells, ownedStars, clip } = endpoint;
 
     // Stage 3 — the PowerCore replacement for 0319's edge extraction/chaining:

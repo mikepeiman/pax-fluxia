@@ -28,6 +28,7 @@ export const logFlags = (() => {
         repair: false,
         canvas: true,    // Canvas debug (viewport, scaling, centering)
         renderer: false, // Territory renderer pipeline (borders, fills, transitions)
+        transition: false, // Kinetic conquest-transition lifecycle (PowerCore): commit/settle/retarget + cost
         pipeline: false, // Geometry pipeline trace: every stage, step 0 -> render (steady + conquest)
         ui: true,        // User-initiated UI actions (settings toggles/clicks). PAUSE-EXEMPT — see log.ui.
     };
@@ -129,6 +130,7 @@ const styles = {
     conquest: 'background: #e11d48; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
     canvas: 'background: #0ea5e9; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
     renderer: 'background: #f97316; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
+    transition: 'background: #06b6d4; color: #04222a; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
     gridGradientTrace: 'background: #7c3aed; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
     pipeline: 'background: #14b8a6; color: #06251f; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
     ui: 'background: #ec4899; color: #fff; padding: 2px 4px; border-radius: 2px; font-weight: bold;',
@@ -514,6 +516,12 @@ export const log = {
     renderer: (context: string, msg: string, data?: unknown) => {
         if (!logFlags.renderer) return;
         cl(`%cRENDERER%c [${context}] ${msg}`, styles.renderer, styles.reset, data ?? '');
+    },
+
+    /** 🌊 TRANSITION - Kinetic conquest-transition lifecycle (PowerCore). Gated by logFlags.transition. */
+    transition: (context: string, msg: string, data?: unknown) => {
+        if (!logFlags.transition) return;
+        cl(`%cTRANSITION%c [${context}] ${msg}`, styles.transition, styles.reset, data ?? '');
     },
 
     /** Grid Gradient transition trace. Gated by the Grid Gradient trace setting before this is called. */

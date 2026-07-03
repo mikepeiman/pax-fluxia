@@ -12,7 +12,10 @@ import {
     normalizePerimeterFieldGeometrySource,
     POWER_CORE_GEOMETRY_SOURCE,
 } from '../geometry/geometrySource';
-import { buildPowerCoreAuthoritySnapshot } from '../geometry/powerCore/buildPowerCoreAuthoritySnapshot';
+import {
+    buildPowerCoreAuthoritySnapshot,
+    type PowerCoreEndpointComputation,
+} from '../geometry/powerCore/buildPowerCoreAuthoritySnapshot';
 import { readTerritoryRuntimeSettings } from '../integration/TerritorySettingsBridge';
 import { compileVectorGeometry } from '../layers/geometry/compiler_UnifiedVectorGeometry';
 
@@ -144,6 +147,7 @@ function buildPowerCoreRenderFamilyGeometry(params: {
     ownershipVersion: string;
     sourceStyle: ResolvedGeometrySnapshot['sourceStyle'];
     configSource?: Record<string, unknown>;
+    collectEndpoint?: (endpoint: PowerCoreEndpointComputation) => void;
 }): ResolvedGeometrySnapshot | null {
     const settings = buildPowerVoronoi0319Settings({
         lanes: params.lanes,
@@ -157,7 +161,7 @@ function buildPowerCoreRenderFamilyGeometry(params: {
         config: settings,
         ownershipVersion: params.ownershipVersion,
         sourceStyle: params.sourceStyle,
-    });
+    }, params.collectEndpoint);
     if ('kind' in result) {
         log.error(
             'PerimeterFieldGeometry',
@@ -177,6 +181,11 @@ export function buildPerimeterFieldRenderFamilyGeometry(params: {
     ownership?: OwnershipSnapshot | null;
     geometrySource?: string | null;
     configSource?: Record<string, unknown>;
+    /**
+     * K2c: only invoked on the `power_core` source — surfaces the endpoint the
+     * snapshot was built from so the kinetic runtime reuses it (no re-compute).
+     */
+    collectEndpoint?: (endpoint: PowerCoreEndpointComputation) => void;
 }): ResolvedGeometrySnapshot {
     const configSource =
         params.configSource ??
@@ -200,6 +209,7 @@ export function buildPerimeterFieldRenderFamilyGeometry(params: {
             ownershipVersion: ownership.version,
             sourceStyle: runtimeSettings.selection.styleMode,
             configSource,
+            collectEndpoint: params.collectEndpoint,
         });
         if (powerCore) {
             return powerCore;

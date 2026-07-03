@@ -3,6 +3,7 @@ import type { ConquestEvent } from '@pax/common';
 import type { OwnershipSnapshot } from '../contracts/OwnershipContracts';
 import type { TerritoryRuntimeDiagnostics } from '../contracts/DiagnosticsContracts';
 import type { ResolvedGeometrySnapshot } from '../contracts/GeometryContracts';
+import type { KineticFrame } from '../geometry/powerCore/kineticTypes';
 import type { StarState, StarConnection } from '$lib/types/game.types';
 
 export interface RenderFamilyTransitionEvent {
@@ -73,6 +74,13 @@ export interface RenderFamilyInput {
     activeTransition?: RenderFamilyActiveTransition | null;
     transitionSessions?: ReadonlyArray<RenderFamilyTransitionSession> | null;
     transitionTruth?: unknown | null;
+    /**
+     * K2c: per-frame kinetic transition frame (PowerCore geometry source only).
+     * null/undefined = no active morph → draw the settled geometry. NO family
+     * consumes this yet (K3a Vector skin is the first consumer); it exists so
+     * the runtime's output flows to presentation without a later type churn.
+     */
+    kineticFrame?: KineticFrame | null;
 }
 
 export interface RenderFamilyOutput {
