@@ -92,7 +92,11 @@ export const territoryConfigDefaults = {
     MODIFIED_VORONOI_ARC_THRESHOLD: 150,
     MODIFIED_VORONOI_ARC_MIN_SEGMENT: 4,
     MODIFIED_VORONOI_ARC_MAX_SEGMENTS: 28,
-    MODIFIED_VORONOI_CORRIDOR_ENABLED: true,
+    // 2026-07-02: constraints SHELVED by user — corridor/disconnect virtual
+    // sites off by default. They inflated 172 stars to 1,929 diagram sites
+    // (11x): 17.6ms full diagrams and 44-104 transition ramps per capture of
+    // pure virtual churn. Re-enable via these toggles when constraints resume.
+    MODIFIED_VORONOI_CORRIDOR_ENABLED: false,
     MODIFIED_VORONOI_CORRIDOR_SPACING: 10,
     TERRITORY_CX_COUNT: 0,
     TERRITORY_CX_WEIGHT: 0.5,
@@ -100,7 +104,7 @@ export const territoryConfigDefaults = {
     TERRITORY_CX_CONTEST_PAIR_COUNT: 1,
     TERRITORY_CX_CONTEST_PAIR_WEIGHT: 0.5,
     TERRITORY_CX_CONTEST_PAIR_SPACING: 45,
-    MODIFIED_VORONOI_DISCONNECT_ENABLED: true,
+    MODIFIED_VORONOI_DISCONNECT_ENABLED: false,
     MODIFIED_VORONOI_DISCONNECT_DISTANCE: 295,
     TERRITORY_DX_WEIGHT: 3,
     PIXEL_ALPHA: 0.5,
