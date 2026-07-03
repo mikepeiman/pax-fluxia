@@ -58,7 +58,11 @@ superseding docs:
     (cell_grid.transition p50 8.4 / p95 25.1 / p99 41.6 / pending 0 — within noise of the 2026-07-01
     baseline). DEVIATION: kineticFrame sampled + exposed but NOT threaded into the 7 family inputs
     (no consumer in K2c; K3a wires the Vector skin).
-  - [ ] K3a: Vector skin v1 (registration checklist in §3c) → USER CHECKPOINT 1 (script in §3b).
+  - [x] K3a CODE DONE 2026-07-02 (`8e2fa80de`): 'power_vector' render mode — PowerVectorFamily draws
+    kinetic cells (getKineticRenderCells); dispatch case + cleanup + router + catalog. check 0 err;
+    territory 393/394. **AWAITING USER CHECKPOINT 1** (script below): reload → Render mode = Power
+    Vector + Geometry Source = PowerCore → capture a star → judge the sweep. v1 = dumb (cell edges
+    visible, q=0.5 owner flip; crossfade/wipe = v2 after sweep reads right).
   - [ ] K3b: feel tunables → USER CHECKPOINT 2 = vector-transition sign-off.
   - [ ] K4: lattice modes consume kinetic geometry → USER CHECKPOINT 3; then museum-branch retirement.
 
