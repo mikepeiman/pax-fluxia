@@ -27,7 +27,9 @@ import type {
     RenderFamilyOutput,
 } from '../RenderFamilyTypes';
 
-const FILL_ALPHA = 0.85;
+// Matches the prior Power Vector fill weight; merged (no per-cell stroke).
+// A live tunable is coming with the region-shape controls (plan item #1).
+const FILL_ALPHA = 0.6;
 
 export class PowerVectorFamily implements RenderFamily {
     readonly id = 'power_vector';

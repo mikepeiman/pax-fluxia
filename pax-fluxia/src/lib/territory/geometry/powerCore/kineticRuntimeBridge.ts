@@ -28,6 +28,8 @@ let framesSampled = 0;
 let lastCostMs = 0;
 let costWindow: number[] = [];
 let activeKey: string | null = null;
+let activeStartedAtMs = 0;
+let activeDurationMs = 0;
 
 function round2(n: number): number {
     return Math.round(n * 100) / 100;
@@ -125,11 +127,16 @@ export function commitKineticEndpoint(params: {
         conquestOrigins,
     });
     lastCommitFp = fp;
+    const retarget = Boolean(activeKey) && runtime.activeKey !== activeKey;
+    activeStartedAtMs = params.nowMs;
+    activeDurationMs = params.durationMs;
     log.transition('runtime', transitionKey ? 'commit' : 'snap', {
         key: transitionKey,
+        retarget,
+        conquests: conquestOrigins.size,
+        durationMs: round2(params.durationMs),
+        nowMs: round2(params.nowMs),
         sites: params.endpoint.sites.length,
-        activeKey: runtime.activeKey,
-        durationMs: params.durationMs,
     });
 }
 
@@ -176,6 +183,8 @@ export function sampleKineticForFrame(
         log.transition('runtime', 'settle', {
             key: activeKey,
             frames: framesSampled,
+            elapsedMs: round2(nowMs - activeStartedAtMs),
+            expectedMs: round2(activeDurationMs),
         });
         activeKey = null;
     }

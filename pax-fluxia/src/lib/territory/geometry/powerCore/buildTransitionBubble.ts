@@ -88,7 +88,10 @@ export function buildTransitionBubble(
     params: BuildTransitionBubbleParams,
 ): TransitionBubble {
     const ringDepth = params.ringDepth ?? 3;
-    const rippleSpan = Math.min(1, Math.max(0.05, params.rippleSpan ?? 0.55));
+    // Default 1.0 = NO stagger: every ramp morphs over the FULL window, so the
+    // conquest sweep spans the whole tick instead of finishing at ~0.55 and
+    // sitting. The wave/ripple (rippleSpan < 1) becomes an opt-in tunable.
+    const rippleSpan = Math.min(1, Math.max(0.05, params.rippleSpan ?? 1.0));
 
     // Index both states by composite site key.
     const sites0 = new Map<string, PowerCoreSite>();
