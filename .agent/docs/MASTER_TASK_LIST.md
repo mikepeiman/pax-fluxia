@@ -38,7 +38,15 @@ superseding docs:
   outside → kinetic mini-diagram of bubble sites with union weight ramps (ghost pair for the
   captured star; ε-ramps for appearing/vanishing virtuals) → presentation just draws geometry.
   Measured: full snapshot 41ms / diagram 17.6ms @1,929 sites → full-recompute per frame ruled out.
-  - [ ] K1: kinetic core (diffSnapshotsToBubble + sampleKineticFrame) + T1/T2/T3/T6 test suite; gate ≤2ms.
+  - [x] K1 DONE 2026-07-02 (`5e95f63a6`): buildTransitionBubble + sampleKineticFrame, 15-test
+    T-criteria suite green (93/93 powerCore total). Hard-won design facts baked into code comments:
+    co-located ghost pairs are a binary switch (ownership flip = presentation WIPE, not geometry);
+    weight alone can't model absence in open space; a site may lie OUTSIDE its own weighted cell
+    (containment mapping invalid → cells carry sourceSiteIndex); mid-morph space contested between
+    two ramping sites needs an inner FLEX ring layer rendered live (static substitution → holes);
+    library degeneracies escape via deterministic sub-quantum jitter on ramped sites only.
+    CAVEATS → K2: per-frame 2.6ms vs 2ms target (ring is 193 of 297 mini sites — adaptive depth is
+    the lever); T4 recapture retarget is engine-level, lands in K2.
   - [ ] K2: engine integration behind power_core source; hash + bench + pending-0 gate.
   - [ ] K3: Vector skin + lattice consumption; USER visual sign-off gate.
   - [ ] K4: retire the six legacy transition implementations (museum branch, post-sign-off).
