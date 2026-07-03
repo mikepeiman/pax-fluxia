@@ -176,6 +176,57 @@ function toSharedPolyline(polyline: ResolvedFrontierPolyline): SharedPolyline {
 }
 
 // ---------------------------------------------------------------------------
+// Endpoint state (shared with the kinetic transition runtime)
+// ---------------------------------------------------------------------------
+
+export interface PowerCoreEndpointComputation {
+    readonly sites: PowerSite[];
+    readonly cells: PowerCell[];
+    readonly ownedStars: StarState[];
+    readonly clip: [number, number][];
+}
+
+/**
+ * Stage 0–2 for one ownership state: shared 0319 sites/clip → power diagram →
+ * PowerCell[] with the same disconnect-cell effective-owner resolution 0319
+ * applies. The kinetic transition runtime computes one of these per endpoint
+ * (S0/S1) and diffs them; the static snapshot path assembles from it directly.
+ */
+export function computePowerCoreEndpoint(params: {
+    readonly stars: ReadonlyArray<StarState>;
+    readonly connections: ReadonlyArray<StarConnection>;
+    readonly config: TerritoryGeneratorSettings;
+}): PowerCoreEndpointComputation | CompileError {
+    const stage0 = buildGeometry0319SitesAndClip(
+        [...params.stars],
+        [...params.connections],
+        params.config,
+    );
+    if ('kind' in stage0) return stage0;
+    const { sites, ownedStars, clip } = stage0;
+
+    const rawCells = buildPowerCellsFromSites(sites, clip);
+    const cells: PowerCell[] = [];
+    for (const cell of rawCells) {
+        if (cell.ownerId !== DISCONNECT_OWNER_ID) {
+            cells.push(cell);
+            continue;
+        }
+        // Exact cell→site link (duplicate starIds make id lookup ambiguous).
+        const site =
+            cell.sourceSiteIndex !== undefined
+                ? sites[cell.sourceSiteIndex]
+                : sites.find((s) => s.starId === cell.siteId);
+        const resolved = site
+            ? resolveDisconnectCellOwner(site, ownedStars)
+            : null;
+        if (!resolved) continue;
+        cells.push({ ...cell, ownerId: resolved });
+    }
+    return { sites, cells, ownedStars, clip };
+}
+
+// ---------------------------------------------------------------------------
 // Main entry
 // ---------------------------------------------------------------------------
 
@@ -184,33 +235,13 @@ export function buildPowerCoreAuthoritySnapshot(
 ): ResolvedGeometrySnapshot | CompileError {
     const { config } = params;
 
-    // Stage 0 — byte-identical shared inputs with 0319.
-    const stage0 = buildGeometry0319SitesAndClip(
-        [...params.stars],
-        [...params.connections],
+    const endpoint = computePowerCoreEndpoint({
+        stars: params.stars,
+        connections: params.connections,
         config,
-    );
-    if ('kind' in stage0) return stage0;
-    const { sites, ownedStars, clip } = stage0;
-
-    // Stage 1+2 — power diagram → PowerCell[], with the same disconnect-cell
-    // effective-owner resolution 0319 applies.
-    const siteById = new Map<string, PowerSite>();
-    for (const site of sites) siteById.set(site.starId, site);
-    const rawCells = buildPowerCellsFromSites(sites, clip);
-    const cells: PowerCell[] = [];
-    for (const cell of rawCells) {
-        if (cell.ownerId !== DISCONNECT_OWNER_ID) {
-            cells.push(cell);
-            continue;
-        }
-        const site = siteById.get(cell.siteId);
-        const resolved = site
-            ? resolveDisconnectCellOwner(site, ownedStars)
-            : null;
-        if (!resolved) continue;
-        cells.push({ ...cell, ownerId: resolved });
-    }
+    });
+    if ('kind' in endpoint) return endpoint;
+    const { cells, ownedStars, clip } = endpoint;
 
     // Stage 3 — the PowerCore replacement for 0319's edge extraction/chaining:
     // one shared edge per border, smoothed once, loops walked in angular order.
