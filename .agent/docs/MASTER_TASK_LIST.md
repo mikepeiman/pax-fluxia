@@ -54,9 +54,10 @@ superseding docs:
     optional RenderFamilyInput.kineticFrame + endpoint collector (no re-compute); kineticRuntimeBridge
     singleton driven from GameCanvas (commit on ownership-fp change via collector — dodges the
     render-family-live trap; per-frame sample; bench counters; reset on destroy). Gates: check 0 err;
-    territory 393/394 (pre-existing only) + 5 bridge tests; replay hash unchanged. Bench confirm pending
-    (default 0319 path gains only one early-returning call/frame). DEVIATION: kineticFrame sampled +
-    exposed but NOT threaded into the 7 family inputs (no consumer in K2c; K3a wires the Vector skin).
+    territory 393/394 (pre-existing only) + 5 bridge tests; replay hash unchanged; bench CONFIRMED
+    (cell_grid.transition p50 8.4 / p95 25.1 / p99 41.6 / pending 0 — within noise of the 2026-07-01
+    baseline). DEVIATION: kineticFrame sampled + exposed but NOT threaded into the 7 family inputs
+    (no consumer in K2c; K3a wires the Vector skin).
   - [ ] K3a: Vector skin v1 (registration checklist in §3c) → USER CHECKPOINT 1 (script in §3b).
   - [ ] K3b: feel tunables → USER CHECKPOINT 2 = vector-transition sign-off.
   - [ ] K4: lattice modes consume kinetic geometry → USER CHECKPOINT 3; then museum-branch retirement.
