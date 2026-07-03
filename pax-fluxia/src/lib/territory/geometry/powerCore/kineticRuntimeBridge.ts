@@ -19,6 +19,7 @@ import type { RenderFamilyActiveTransition } from '../../families/RenderFamilyTy
 import type { PowerCoreEndpointComputation } from './buildPowerCoreAuthoritySnapshot';
 import { KineticTransitionRuntime } from './kineticTransitionRuntime';
 import type { KineticFrame } from './kineticTypes';
+import type { PowerCell } from './powerCoreTypes';
 
 let runtime: KineticTransitionRuntime | null = null;
 let lastCommitFp: string | null = null;
@@ -152,6 +153,17 @@ export function sampleKineticForFrame(
 /** Latest sampled frame (for a consumer that reads outside the sample call). */
 export function getActiveKineticFrame(): KineticFrame | null {
     return lastFrame;
+}
+
+/**
+ * The complete current cell set for presentation (K3a Vector skin): the morph
+ * frame (frozen + moving) while a transition is active, else the settled
+ * endpoint's cells. null when no runtime (source ≠ power_core) → the consumer
+ * should fall back to the resolved snapshot. Cells are in MAP/world coords.
+ */
+export function getKineticRenderCells(): readonly PowerCell[] | null {
+    if (lastFrame) return [...lastFrame.frozenCells, ...lastFrame.bubbleCells];
+    return runtime?.settledState?.cells ?? null;
 }
 
 /** Counters for getBenchmarkTerritorySchedulerSnapshot. */

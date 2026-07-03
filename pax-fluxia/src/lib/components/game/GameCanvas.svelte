@@ -147,6 +147,7 @@
         logGridGradientTransitionTrace,
     } from "$lib/territory/families/gridGradient/transitionTraceLogger";
     import { PerimeterFieldFamily, createPerimeterFieldFamily } from "$lib/territory/families/perimeterField/PerimeterFieldFamily";
+    import { PowerVectorFamily, createPowerVectorFamily } from "$lib/territory/families/powerVector/PowerVectorFamily";
     import type { PerimeterFieldDebugSnapshot } from "$lib/territory/families/perimeterField/buildPerimeterFieldScene";
     import { compactPerimeterFieldDebugSnapshot } from "$lib/territory/families/perimeterField/perimeterFieldDiagnostics";
     import {
@@ -5112,7 +5113,8 @@
                     activeMode === "ember_lattice" ||
                     activeMode === "phase_field" ||
                     activeMode === "grid_gradient" ||
-                    activeMode === "perimeter_field";
+                    activeMode === "perimeter_field" ||
+                    activeMode === "power_vector";
                 let geometryReady: boolean | null = activeModeNeedsGeometry
                     ? false
                     : null;
@@ -5263,6 +5265,17 @@
                 ) {
                     activeVoronoiContainer.removeChild(
                         gridGradientFamily.displayRoot,
+                    );
+                }
+                const powerVectorFamily = getRenderFamily("power_vector");
+                if (
+                    activeMode !== "power_vector" &&
+                    powerVectorFamily instanceof PowerVectorFamily &&
+                    powerVectorFamily.displayRoot.parent ===
+                        activeVoronoiContainer
+                ) {
+                    activeVoronoiContainer.removeChild(
+                        powerVectorFamily.displayRoot,
                     );
                 }
 
@@ -6051,6 +6064,50 @@
                             container: activeVoronoiContainer,
                             liveRoot: pf.displayRoot,
                         });
+                        break;
+                    }
+                    case "power_vector": {
+                        // K3a: PowerCore Vector skin — draws the kinetic runtime's
+                        // live cells (frozen + morphing bubble) so conquest
+                        // frontiers SWEEP. Falls back to the resolved snapshot
+                        // when the runtime is inactive (source ≠ power_core).
+                        let fam = getRenderFamily("power_vector");
+                        if (!fam) {
+                            registerRenderFamily(
+                                createPowerVectorFamily(colorUtils),
+                            );
+                            fam = getRenderFamily("power_vector")!;
+                        }
+                        const pv = fam as PowerVectorFamily;
+                        const activeTransition = activeRenderFamilyTransition;
+                        const ownership = buildRenderFamilyOwnershipSnapshot(
+                            territoryPresentationStars,
+                            activeTransition,
+                        );
+                        const geometry = readFamilyGeometry();
+                        const pvInput = buildRenderFamilyInput({
+                            stars: territoryPresentationStars,
+                            lanes,
+                            worldMinX: territoryPresentationFrame.minX,
+                            worldMinY: territoryPresentationFrame.minY,
+                            worldWidth: territoryPresentationWorldWidth,
+                            worldHeight: territoryPresentationWorldHeight,
+                            nowMs: fxOrchestrator.gameTime,
+                            paused: isPausedNow,
+                            gameTick: activeGameStore.currentTick,
+                            ownership,
+                            geometry: localizePresentationGeometry(geometry),
+                            renderer: app?.renderer ?? undefined,
+                            activeTransition,
+                            transitionSessions:
+                                renderFamilyTransitionState.activeSessions,
+                            tunableKeys: pv.tunableKeys,
+                        });
+                        pv.update(pvInput);
+                        if (pv.displayRoot.parent !== activeVoronoiContainer) {
+                            activeVoronoiContainer.addChild(pv.displayRoot);
+                        }
+                        pv.displayRoot.visible = true;
                         break;
                     }
                     case "pixel":

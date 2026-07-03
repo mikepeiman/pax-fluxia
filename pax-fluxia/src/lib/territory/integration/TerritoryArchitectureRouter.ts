@@ -38,7 +38,8 @@ export function resolveTerritoryArchitectureRoute(
         renderMode === 'ember_lattice' ||
         renderMode === 'phase_field' ||
         renderMode === 'perimeter_field' ||
-        renderMode === 'grid_gradient';
+        renderMode === 'grid_gradient' ||
+        renderMode === 'power_vector';
 
     if (isRenderFamilySurfaceStyle) {
         return {

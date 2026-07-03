@@ -110,6 +110,13 @@ export const TERRITORY_RENDER_MODE_CATALOG: readonly TerritoryRenderModeDefiniti
             'Experimental render-family mode using PV geometry with invisible grid samples that grow toward region centers',
         legacyDispatch: true,
     },
+    {
+        id: 'power_vector',
+        label: 'Power Vector',
+        shortDescription:
+            'PowerCore vector skin (K3a): fills power cells by owner; conquest frontiers SWEEP via the kinetic transition engine (needs Geometry Source = PowerCore to animate)',
+        legacyDispatch: true,
+    },
     { id: 'pixel', label: 'Pixel', shortDescription: 'Pixel ownership grid', legacyDispatch: true },
     { id: 'graph', label: 'Lane graph', shortDescription: 'Graph/lane influence', legacyDispatch: true },
     { id: 'contour', label: 'Contour', shortDescription: 'Marching squares worker', legacyDispatch: true },
