@@ -4,6 +4,11 @@ last updated: 2026-07-02
 last updated by: AI
 relevant prior docs:
   - .agent/docs/game/territory/CONQUEST_ANIMATION_SPEC.md (user-authored intent — governs)
+  - .agent/docs/game/territory/2026-07-02_POWER_VORONOI_TECHNICAL_GUIDE.md (independent technical
+    guide, user-supplied; §E validates weight-interpolation transitions + color cross-fade for
+    captures + the hidden-site popping clamp; §C gives CLOSED-FORM SB/MSR weight bounds for when
+    constraints are unshelved; its "full recompute is trivial" assumption does NOT hold at our
+    virtual-inflated site counts (1,929 sites → 17.6ms) — the bubble is the adaptation)
   - .agent/docs/game/territory/TERRITORY_TRANSITION_INVENTORY.md
   - .agent/docs/sessions/2026-06-16/2026-06-16_GEOMETRY_PIPELINE_MODEL_AND_FIX_PLAN.md (§ validated structural direction)
   - .agent/docs/sessions/2026-07-01/2026-07-01_POWERCORE_UNIFICATION_PLAN.md (P3 of the governing plan)

@@ -95,6 +95,13 @@ superseding docs:
       matches or exceeds 0319's rounding as a tunable.
     - [ ] **Constraints — SHELVED by user 2026-07-02 "until further notice."** `[territory][geometry]`
       Do not work constraints (MSR/CX/DX tuning, invariant specs) until the user re-opens them.
+      WHEN UNSHELVED, start from the user-supplied technical guide
+      (game/territory/2026-07-02_POWER_VORONOI_TECHNICAL_GUIDE.md §C): SB/MSR has a CLOSED FORM —
+      inscribed radius r_i = min_j (d_ij² + w_i − w_j)/(2d_ij); guarantee via weight floor
+      w_i − w_j ≥ 2ρ·d_ij − d_ij²; hidden-site guard w_j − w_i ≤ d_ij². No iteration, no post-hoc
+      repair. Also there: CX capsule-union tradeoffs, CL Delaunay-adjacency, DX union-find,
+      area-targeted weights (Aurenhammer–Hoffmann–Aronov), and a contested-band "who is winning"
+      readout (band width ∝ |d₁ − d/2|) worth stealing for gameplay legibility.
       CORRECTION on record: constraints tuning was NEVER the source of fill/border divergence
       (documented cause: greedy junction walk + per-polygon vertex edits). Focus order set by user:
       (1) absolute geometry correctness (PV/PowerCore — largely done), (2) **absolute correctness
