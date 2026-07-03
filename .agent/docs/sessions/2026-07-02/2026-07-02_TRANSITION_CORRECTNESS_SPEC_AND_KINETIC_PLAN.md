@@ -29,6 +29,16 @@ kinetic bubble morph below is aimed squarely at that goal: the diagram's own mot
 flowing-water frontier sweep; easing/propagation shaping along the front supplies the ripple
 character; every frame is exact vector geometry.
 
+**User 2026-07-02: kinetic-style transitions were TRIED BEFORE AND FAILED** (the half-built
+virtualStars/extraSites seam is the residue), approved now for a second attempt because the idea
+"makes clear sense." What this attempt has that the prior one lacked: PowerCore's single-source
+edge graph (fills cannot drift), the frozen-outside identity diff (no global recompute, no global
+jitter), the no-leak weight-bound argument (ramped sites provably cannot invade frozen cells), and
+an offline T1–T7 test harness that runs without a browser. Known sharp edge carried in: corridor
+CONTEST virtuals share duplicate siteIds (the 0319 dropped-frontier root cause) — kinetic code
+keys sites by composite identity (id+owner+position), and a Stage-0 unique-id fix is a separate
+gated task (it would change BOTH pipelines' output, likely for the better).
+
 ## 1. What "correct" means (testable acceptance criteria)
 
 Derived from CONQUEST_ANIMATION_SPEC.md hard constraints + the identity model already on master.
@@ -107,6 +117,60 @@ another payoff of interpolating inputs instead of shapes.
   **Gate: USER visual sign-off on captures (the wave look, junction behavior, recapture).**
 - **K4 — Retirement.** The six legacy transition implementations + transitions/ dir contents that
   the inventory marks live-but-superseded move to the museum branch (after K3 sign-off only).
+
+## 3b. Completion plan (operational — added after K1/K2a/K2b landed, 2026-07-02)
+
+Status: K1 core (`5e95f63a6`) + K2a endpoint extraction (`254e38421`) + K2b runtime with T4/T5
+(`53f29625e`) are green offline. What remains is wiring, visuals, and retirement. USER CHECKPOINTS
+are the moments the user looks at the screen; each comes with a diagnostics recipe.
+
+### K2c — wire the runtime into the live loop (no visuals; game unchanged)
+1. Recon the GameCanvas seams: ownership snapshot + conquestEvents + `transitionIdentityKey`
+   session bundling (renderFamilyTransitionLifecycle) + the per-frame geometry call.
+2. One `KineticTransitionRuntime` active when geometry source = `power_core`: commit on ownership
+   change (session key; duration = resolveTerritoryTransitionDurationMs(tick); ripple origin =
+   captured star). `RenderFamilyInput` gains optional `kineticFrame` — NO consumer yet, so zero
+   behavior change in every mode.
+3. **Diagnostics (built here, used at every later checkpoint):**
+   - New logger category `transition` (default OFF; user toggles it in Settings → Developer →
+     Logging). Lines: commit (key, ramp count, bubble/frozen sizes), settle, RETARGET, degeneracy
+     retries, bounds escapes, per-frame cost p50/p95 every ~60 frames. No raw console.log.
+   - Kinetic counters (frames sampled, cost, active key) added to
+     `getBenchmarkTerritorySchedulerSnapshot()` so the bench harness sees them.
+4. Gates (mine): replay hash unchanged · spot bench transition rows (both sources) ≥ baseline ·
+   pending-display 0 · suites + check green. Per-frame cost target ≤2ms — adaptive ring depth is
+   the lever if the 2.6ms K1 number doesn't drop on real captures (bubbles from single captures
+   are smaller than the test's full-corridor churn).
+   - OPTIONAL user smoke: enable the `transition` log category, play, confirm lifecycle lines
+     appear on captures while visuals stay 100% unchanged (proves event flow before pixels move).
+
+### K3a — Vector skin MVP · **USER CHECKPOINT 1 (first visible transitions)**
+Minimal PowerCore Vector render mode: settled snapshot fills+borders; when a kineticFrame is
+active, redraw only the moving bubble cells per frame; captured-cell ownership shown as a fill
+crossfade driven by the handoff ramp's q (directional wipe = polish, later). Registered as a
+selectable render mode.
+**User instructions (the message will repeat these exactly):** reload → select the PowerCore
+Vector mode → capture stars. Verify: (a) static map correct; (b) capture frontier SWEEPS
+(water/ripple) with no pop at start or end; (c) untouched borders perfectly still; (d) recapture
+mid-wave reverses smoothly; (e) no hitching. **Diagnostics involvement:** enable the `transition`
+category; paste any WARN/ERROR lines (retries, escapes) + describe/screenshot anything visually
+wrong, with the logged capture key so I can correlate.
+
+### K3b — feel tuning · **USER CHECKPOINT 2 (the water/rope verdict)**
+Expose in Settings → Territory → Transition: ripple span, easing, wipe style, (duration already
+tick-bound). User tunes live and judges against the standing feel target. THIS is the vector-
+transition sign-off gate.
+
+### K3c — scrubber (built only if checkpoint 1/2 findings need it)
+The runtime is pure + deterministic, so a dev HUD widget (NOT the settings panel — it pauses the
+game) can freeze a capture and scrub p by slider, plus dump frames to `.agent-harness` for
+offline analysis of anything the user flags.
+
+### K4 — lattice modes + retirement · **USER CHECKPOINT 3**
+Edges/Ember/Field consume the kinetic geometry (their fills/seams follow the moving cells; their
+own wave planners bypass under `power_core`). User re-runs the checkpoint-1 script in EMBER /
+EDGES / FIELD. After sign-off: the six legacy transition implementations move to the museum
+branch (never before).
 
 ## 4. What this kills (from the 2026-07-02 landscape brief)
 
