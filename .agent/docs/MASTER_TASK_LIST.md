@@ -47,9 +47,14 @@ superseding docs:
     library degeneracies escape via deterministic sub-quantum jitter on ramped sites only.
     CAVEATS → K2: per-frame 2.6ms vs 2ms target (ring is 193 of 297 mini sites — adaptive depth is
     the lever); T4 recapture retarget is engine-level, lands in K2.
-  - [ ] K2: engine integration behind power_core source; hash + bench + pending-0 gate.
-  - [ ] K3: Vector skin + lattice consumption; USER visual sign-off gate.
-  - [ ] K4: retire the six legacy transition implementations (museum branch, post-sign-off).
+  - [x] K2a+K2b DONE 2026-07-02 (`254e38421`, `53f29625e`): endpoint extraction + KineticTransitionRuntime
+    (T4 retarget continuous <5%, T5 tick-bound; 5 tests). Virtuals-off default (`0700e81d7`) collapsed
+    capture cost to 7 ramps / 0.30ms per frame (budget RESOLVED, was 2.6ms).
+  - [ ] K2c: GameCanvas wiring — **follow the IMPLEMENTER HANDBOOK (spec §3c) exactly**; beware the
+    'render-family-live' static ownership-version trap; gates: hash + bench + pending-0 + zero visual change.
+  - [ ] K3a: Vector skin v1 (registration checklist in §3c) → USER CHECKPOINT 1 (script in §3b).
+  - [ ] K3b: feel tunables → USER CHECKPOINT 2 = vector-transition sign-off.
+  - [ ] K4: lattice modes consume kinetic geometry → USER CHECKPOINT 3; then museum-branch retirement.
 
 ### Done (2026-07-02)
 - [x] **Settings panel crash (blocked P1c sign-off)** `[settings][bug]` — `sec.id` null deref in the

@@ -177,6 +177,81 @@ own wave planners bypass under `power_core`). User re-runs the checkpoint-1 scri
 EDGES / FIELD. After sign-off: the six legacy transition implementations move to the museum
 branch (never before).
 
+## 3c. IMPLEMENTER HANDBOOK (written for a lower-cost follow-on model — read fully before coding)
+
+State as of `0700e81d7`: K1 core + K2a/K2b runtime are DONE and green (93 powerCore tests + 5
+runtime tests). Corridor/disconnect virtuals are OFF by default (constraints shelved) — a capture
+is now ~7 ramps at 0.30ms/frame, 9× under budget. What remains: K2c wiring, K3 visuals, K4.
+
+### Ground rules (each one is a scar from this build — do not relearn them)
+1. NEVER weaken a failing assertion to make a test pass. Investigate; if unresolved, stop and
+   report. Every "impossible" failure in K1 was a real design fact.
+2. Do not modify `sharedEdgeGraph.ts`, `sampleKineticFrame.ts`, `buildTransitionBubble.ts`
+   internals unless a test forces it — the kinetic suite IS the contract. If the diagram library
+   throws "twin is null" in a NEW call path, use the existing retry pattern; do not invent jitter.
+3. The ONE allowed failing test is `TerritorySettingsBridge.test.ts > reads tunables from config
+   and falls back safely` (pre-existing). Anything else red = your change broke it.
+4. Bun only. Commit with explicit pathspec (`git commit -- <files>`), never `-a`/`add -A`. Gate
+   EVERY commit on: `bunx vitest run src/lib/territory` (only the allowed failure) +
+   `bun run check` (0 errors; 1 pre-existing GameThemeManager warning OK).
+5. Do not change `PERIMETER_FIELD_GEOMETRY_SOURCE` default (0319) and do not re-enable
+   corridor/disconnect defaults. All kinetic behavior stays behind `power_core`.
+6. No raw console.log (AGENT.md §5.2) — use `$lib/utils/logger`.
+7. Read `.agent/docs/game/territory/CONQUEST_ANIMATION_SPEC.md` (incl. Origin & Design History)
+   and §0–§2 of this doc before coding.
+
+### K2c — exact wiring instructions
+- **Endpoint reuse:** `computePowerCoreEndpoint` (buildPowerCoreAuthoritySnapshot.ts) computes
+  sites+cells; `buildPowerCoreAuthoritySnapshot` calls it. Restructure the power_core branch in
+  `families/buildFamilyGeometry.ts` (buildPowerCoreRenderFamilyGeometry) so ONE endpoint
+  computation feeds BOTH the snapshot assembly and the runtime commit — do not compute twice.
+- **⚠ THE VERSION TRAP:** the live ownership snapshot's version is the STATIC string
+  `'render-family-live'` (buildFamilyGeometry.ts:30). `KineticTransitionRuntime.commit()` dedupes
+  by ownershipVersion — with the static string it would no-op forever. Key commits on a REAL
+  change signal: the transition SESSION KEY (below) plus a stars-ownership fingerprint
+  (`stars.map(s => s.id+':'+s.ownerId).join()` hashed). Do NOT ship 'render-family-live' into the
+  runtime.
+- **Identity/session:** `transitions/renderFamilyTransitionLifecycle.ts` — `transitionIdentityKey`
+  (:16, `tick:starId:prevOwner:newOwner`) and `buildSessionKey` (:69). Use the session key as
+  `transitionKey`; conquest events arrive on `ownership.conquestEvents` (`ConquestEvent` from
+  @pax/common). Ripple origin = captured star's position (look up by `event.starId` in stars).
+- **Duration (T5):** resolve via the existing tick-bound helper used by
+  `fx/handlers/conquestStarOwnerTransition.ts` / `territoryTransitionHandler.ts`
+  (`resolveTerritoryTransitionDurationMs`) — do not invent a constant.
+- **Frame exposure:** add optional `kineticFrame?: KineticFrame` to `RenderFamilyInput`
+  (families/RenderFamilyTypes.ts:51). GameCanvas: when source === 'power_core', call
+  `runtime.sample(nowMs)` once per render frame and pass it through. NO family consumes it in
+  K2c — zero visual change is the acceptance criterion.
+- **Diagnostics:** add a `transition` category to `$lib/utils/logger` (categories object ~line 29,
+  default false, style entry ~line 130 — copy the `renderer` pattern; it appears in the Logging
+  settings panel automatically if the panel enumerates categories — verify). Log: commit (key,
+  ramps, frozen/ring counts), settle, retarget, retry/escape warnings, cost p50/p95 every ~60
+  samples. Add kinetic counters to `getBenchmarkTerritorySchedulerSnapshot` (GameCanvas ~:7294).
+- **Gates:** suites+check; replay hash unchanged (`bun tools/debug/review-sim-replay-hash.ts`,
+  expect `9f6dae73…9741910`); spot bench (`PAX_REVIEW_RUNS=8 PAX_REVIEW_SCENARIOS=transition
+  PAX_REVIEW_MODES=cell_grid,phase_edges PAX_REVIEW_MAP_NAME="First Symmetry-6_April 17b"
+  PAX_REVIEW_APP_PATH="/play?bench=1" bun tools/debug/review-release-gameplay-benchmark.ts` after
+  `bun run build` in pax-fluxia/) — rows within noise of `.agent/docs/sessions/2026-07-01/artifacts/`
+  aggregates; pendingAgeMax 0.
+
+### K3a — Vector skin registration checklist
+Follow how an existing mode registers, end to end (grep `grid_gradient` for the full list):
+mode id in the territory mode contracts → `TerritoryArchitectureRouter.ts` (isRenderFamilySurface
+list) → family class implementing the RenderFamily interface (`families/renderFamilyRegistry.ts`)
+→ topbar chip (territoryModeShortcuts) → settings registry subsection (settingsRegistry
+`territory_styles`). Drawing v1 (keep it dumb): one static PIXI.Graphics with all settled cells
+(fill per ownerId color + stroke), redrawn only when the settled snapshot version changes; one
+dynamic Graphics redrawn per frame from `kineticFrame.bubbleCells` when present. Ownership flips
+at ramp q=0.5 in v1 (visible color pop mid-cell is ACCEPTED for v1); crossfade/wipe is v2, only
+after the sweep itself looks right. HSLA fill/border tunables can reuse existing territory color
+config helpers — do not build a new settings surface for v1.
+
+### Checkpoints & who does what
+After K2c gates pass → tell the user the OPTIONAL log-smoke line (enable `transition` category in
+Settings → Developer → Logging; play; lifecycle lines appear; visuals unchanged). After K3a → send
+the user the Checkpoint-1 script from §3b VERBATIM. Never claim visual correctness yourself —
+the user's eyes are the gate (standing project rule).
+
 ## 4. What this kills (from the 2026-07-02 landscape brief)
 
 OT/DY4 border transition (non-reference, regression-laden) · FrontierMorphFillMode ·
