@@ -72,6 +72,15 @@ export interface TransitionBubble {
     /** Ramp table for every site participating in the moving region. */
     readonly ramps: readonly SiteRamp[];
     /**
+     * Deep-frozen (site, cell) pairs — everything in `frozenCells` with its
+     * generator site. The runtime materializes MID-MORPH endpoint states from
+     * these plus the sampled frame (retarget support, T4).
+     */
+    readonly frozenPairs: readonly {
+        readonly site: import('./buildPowerCellsFromSites').PowerCoreSite;
+        readonly cell: PowerCell;
+    }[];
+    /**
      * Frozen ring: sites whose cells are UNCHANGED but adjacent (within
      * `ringDepth` adjacency layers) to changed cells. Included in the mini
      * diagram as boundary conditions; their mini-cells are DISCARDED.
@@ -94,4 +103,10 @@ export interface KineticFrame {
     readonly frozenCells: readonly PowerCell[];
     /** The moving cells at this p (exact S0/S1 cells at p=0/1 — T1). */
     readonly bubbleCells: readonly PowerCell[];
+    /**
+     * The (deduped) site array the mini diagram ran on; bubbleCells'
+     * sourceSiteIndex points into it. Absent on snapped endpoint frames
+     * (p=0/1), which return the endpoint cells directly.
+     */
+    readonly miniSites?: readonly import('./buildPowerCellsFromSites').PowerCoreSite[];
 }

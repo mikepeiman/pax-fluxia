@@ -318,6 +318,15 @@ export function buildTransitionBubble(
         .filter(Boolean) as PowerCoreSite[];
     ringSites.sort((a, b) => (siteIdentityKey(a) < siteIdentityKey(b) ? -1 : 1));
 
+    // Deep-frozen (site, cell) pairs — exactly the frozenCells set, with
+    // generator sites, for mid-morph endpoint materialization (retarget).
+    const frozenPairs = [...frozenByKey.entries()]
+        .filter(([k]) => !flexKeys.has(k))
+        .map(([, entry]) => entry)
+        .sort((a, b) =>
+            siteIdentityKey(a.site) < siteIdentityKey(b.site) ? -1 : 1,
+        );
+
     // ── Ripple stagger ─────────────────────────────────────────────────────
     let staggered = ramps;
     if (params.rippleOrigin && ramps.length > 1) {
@@ -360,6 +369,7 @@ export function buildTransitionBubble(
 
     return {
         ramps: staggered,
+        frozenPairs,
         ringSites,
         frozenCells,
         bubbleCells0,

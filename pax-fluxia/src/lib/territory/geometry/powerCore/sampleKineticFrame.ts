@@ -143,6 +143,7 @@ export function sampleKineticFrame(params: SampleKineticFrameParams): KineticFra
     // above the library's degeneracy epsilon, identical on every run.
     const ringStart = miniSites.length - bubble.ringSites.length;
     let miniCells: PowerCell[] | null = null;
+    let usedSites: PowerCoreSite[] = miniSites;
     let lastError: unknown = null;
     for (let attempt = 0; attempt < 3 && !miniCells; attempt++) {
         try {
@@ -159,7 +160,8 @@ export function sampleKineticFrame(params: SampleKineticFrameParams): KineticFra
                                     y: site.y + jitter * Math.sin(i * 2.399963229728653),
                                 },
                       );
-            miniCells = buildPowerCellsFromSites(dedupeCoincident(sites), params.clip);
+            usedSites = dedupeCoincident(sites);
+            miniCells = buildPowerCellsFromSites(usedSites, params.clip);
         } catch (error) {
             lastError = error;
         }
@@ -193,7 +195,7 @@ export function sampleKineticFrame(params: SampleKineticFrameParams): KineticFra
         bubbleCells.push({ ...cell, siteId: ramp?.starId ?? cell.siteId });
     }
 
-    return { p, frozenCells: bubble.frozenCells, bubbleCells };
+    return { p, frozenCells: bubble.frozenCells, bubbleCells, miniSites: usedSites };
 }
 
 /**
