@@ -30,6 +30,7 @@
     import { FXOrchestrator } from "$lib/fx/orchestrator";
     import {
         territoryTransitions,
+        resolveTerritoryTransitionDurationMs,
         type TerritoryTransitionEntry,
     } from "$lib/fx/handlers/territoryTransitionHandler";
     import {
@@ -171,7 +172,16 @@
         buildTerritoryGeometryCacheKeyParts,
         readNormalizedTerritoryGeometryTunables,
     } from "$lib/territory/geometry/geometryTuning";
-    import { normalizePerimeterFieldGeometrySource } from "$lib/territory/geometry/geometrySource";
+    import {
+        normalizePerimeterFieldGeometrySource,
+        POWER_CORE_GEOMETRY_SOURCE,
+    } from "$lib/territory/geometry/geometrySource";
+    import {
+        commitKineticEndpoint,
+        sampleKineticForFrame,
+        resetKineticRuntimeBridge,
+        getKineticDiagnostics,
+    } from "$lib/territory/geometry/powerCore/kineticRuntimeBridge";
     import type {
         OwnershipSnapshot,
         TerritoryConquestEvent,
@@ -2433,6 +2443,13 @@
     let pipelineTraceFrame = 0;
     let renderFamilyGeometryCacheKey: string | null = null;
     let renderFamilyGeometryCache: ResolvedGeometrySnapshot | null = null;
+    // K2c: per-frame session context for the kinetic transition runtime. Set
+    // once per frame after the transition lifecycle is built (search
+    // "kineticFrameContext"); read by the power_core geometry build's endpoint
+    // collector so a commit uses THIS frame's session key + game clock.
+    let kineticFrameActiveTransition: RenderFamilyActiveTransition | null = null;
+    let kineticFrameNowMs = 0;
+    let kineticFrameDurationMs = 0;
     let renderFamilyStableGeometryKey: string | null = null;
     let renderFamilyStableGeometry: ResolvedGeometrySnapshot | null = null;
     let renderFamilyStableOwnership: OwnershipSnapshot | null = null;
@@ -2523,6 +2540,19 @@
                     source.PERIMETER_FIELD_GEOMETRY_SOURCE,
                 ),
                 configSource: source,
+                // K2c: only fires on the power_core source, only on a real
+                // (cache-miss) rebuild = ownership change. Commits the new
+                // settled state to the kinetic runtime, reusing this exact
+                // endpoint (no second diagram compute).
+                collectEndpoint: (endpoint) => {
+                    commitKineticEndpoint({
+                        endpoint,
+                        stars,
+                        activeTransition: kineticFrameActiveTransition,
+                        nowMs: kineticFrameNowMs,
+                        durationMs: kineticFrameDurationMs,
+                    });
+                },
             });
             renderFamilyGeometryCacheKey = key;
 
@@ -3582,6 +3612,7 @@
         // Restore telemetry logging when leaving the game (don't leave it paused-suppressed).
         setGamePaused(false);
         gameHudStatsStore.reset();
+        resetKineticRuntimeBridge();
 
         window.removeEventListener("resize", handleResize);
         window.removeEventListener(
@@ -4930,6 +4961,27 @@
                 activeGameStore.effectiveTickMs,
                 pendingTickEvents?.conquests ?? [],
             );
+
+        // kineticFrameContext (K2c): stash this frame's transition session +
+        // game clock so the power_core geometry build's collectEndpoint commits
+        // with the correct session key, then sample the active morph. The
+        // commit itself happens later this frame inside the geometry build (on
+        // ownership change), so the first morph frame samples one tick later —
+        // imperceptible, endpoint-exact. Nothing consumes the frame in K2c
+        // (zero visual change); this drives the runtime + diagnostics only.
+        kineticFrameActiveTransition = renderFamilyTransitionState.activeTransition;
+        kineticFrameNowMs = fxOrchestrator.gameTime;
+        kineticFrameDurationMs =
+            renderFamilyTransitionState.activeTransition?.durationMs ??
+            resolveTerritoryTransitionDurationMs(
+                activeGameStore.effectiveTickMs,
+            );
+        sampleKineticForFrame(
+            fxOrchestrator.gameTime,
+            normalizePerimeterFieldGeometrySource(
+                GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE,
+            ) === POWER_CORE_GEOMETRY_SOURCE,
+        );
 
         if (voronoiContainer) {
             const territoryPresentationSignature =
@@ -6937,6 +6989,7 @@
             territoryPresentationPendingAgeMs: territoryPresentationPendingRequest
                 ? performance.now() - territoryPresentationPendingRequest.enqueuedAtMs
                 : 0,
+            ...getKineticDiagnostics(),
             transitionDiagnosticCaptureState,
         };
     }
