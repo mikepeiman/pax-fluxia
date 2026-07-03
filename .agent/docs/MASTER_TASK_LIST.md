@@ -50,8 +50,13 @@ superseding docs:
   - [x] K2a+K2b DONE 2026-07-02 (`254e38421`, `53f29625e`): endpoint extraction + KineticTransitionRuntime
     (T4 retarget continuous <5%, T5 tick-bound; 5 tests). Virtuals-off default (`0700e81d7`) collapsed
     capture cost to 7 ramps / 0.30ms per frame (budget RESOLVED, was 2.6ms).
-  - [ ] K2c: GameCanvas wiring — **follow the IMPLEMENTER HANDBOOK (spec §3c) exactly**; beware the
-    'render-family-live' static ownership-version trap; gates: hash + bench + pending-0 + zero visual change.
+  - [x] K2c DONE 2026-07-02 (`160461d9d` plumbing + `748f12d82` drive): logger `transition` category;
+    optional RenderFamilyInput.kineticFrame + endpoint collector (no re-compute); kineticRuntimeBridge
+    singleton driven from GameCanvas (commit on ownership-fp change via collector — dodges the
+    render-family-live trap; per-frame sample; bench counters; reset on destroy). Gates: check 0 err;
+    territory 393/394 (pre-existing only) + 5 bridge tests; replay hash unchanged. Bench confirm pending
+    (default 0319 path gains only one early-returning call/frame). DEVIATION: kineticFrame sampled +
+    exposed but NOT threaded into the 7 family inputs (no consumer in K2c; K3a wires the Vector skin).
   - [ ] K3a: Vector skin v1 (registration checklist in §3c) → USER CHECKPOINT 1 (script in §3b).
   - [ ] K3b: feel tunables → USER CHECKPOINT 2 = vector-transition sign-off.
   - [ ] K4: lattice modes consume kinetic geometry → USER CHECKPOINT 3; then museum-branch retirement.
