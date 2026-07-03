@@ -182,6 +182,7 @@
         sampleKineticForFrame,
         resetKineticRuntimeBridge,
         getKineticDiagnostics,
+        getKineticPresentationNonce,
     } from "$lib/territory/geometry/powerCore/kineticRuntimeBridge";
     import type {
         OwnershipSnapshot,
@@ -1547,6 +1548,7 @@
         territoryPresentationFrameKey: string;
         pendingConquests: ReadonlyArray<import("@pax/common").ConquestEvent>;
         transitionPresentationSignature: string;
+        kineticNonce: number;
     }): string {
         const pendingConquestSig =
             params.pendingConquests.length > 0
@@ -1561,6 +1563,9 @@
             params.currentTick ?? -1,
             pendingConquestSig,
             params.transitionPresentationSignature,
+            // K2c/K3a: changes every frame while a kinetic morph is active so
+            // morph frames are not deduped/cached (else conquests "snap").
+            params.kineticNonce,
             params.territoryPresentationFrameKey,
             params.territoryConfigFp,
         ].join("::");
@@ -4995,6 +5000,7 @@
                     pendingConquests: pendingTickEvents?.conquests ?? [],
                     transitionPresentationSignature:
                         renderFamilyTransitionState.transitionPresentationSignature,
+                    kineticNonce: getKineticPresentationNonce(),
                 });
             const pausedPresentationAlreadyCurrent =
                 isPausedNow &&

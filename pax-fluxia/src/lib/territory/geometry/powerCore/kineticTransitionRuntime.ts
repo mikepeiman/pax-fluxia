@@ -46,6 +46,8 @@ export interface KineticCommitParams {
     readonly durationMs: number;
     /** Capture epicenter for the ripple stagger (usually the captured star). */
     readonly rippleOrigin?: { x: number; y: number } | null;
+    /** Captured starId → attacker position, for directional conquest sweeps. */
+    readonly conquestOrigins?: ReadonlyMap<string, { x: number; y: number }>;
 }
 
 interface ActiveMorph {
@@ -95,6 +97,7 @@ export class KineticTransitionRuntime {
                 s0: from,
                 s1: params.state,
                 rippleOrigin: params.rippleOrigin ?? null,
+                conquestOrigins: params.conquestOrigins,
             }),
             clip: params.clip,
         };

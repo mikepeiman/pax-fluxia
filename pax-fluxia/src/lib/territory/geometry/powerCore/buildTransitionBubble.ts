@@ -75,6 +75,13 @@ export interface BuildTransitionBubbleParams {
     readonly rippleOrigin?: { x: number; y: number } | null;
     /** Fraction of the timeline a single site's ramp occupies when rippling. */
     readonly rippleSpan?: number;
+    /**
+     * Captured-star attack origins: starId → the attacker's position (the new
+     * owner's star the conquest came from). A handoff ramp whose starId is here
+     * becomes a 'conquest' SWEEP (incoming owner grows from the attack side).
+     * Handoffs not in this map (e.g. disconnect owner remap) stay a plain flip.
+     */
+    readonly conquestOrigins?: ReadonlyMap<string, { x: number; y: number }>;
 }
 
 export function buildTransitionBubble(
@@ -327,17 +334,50 @@ export function buildTransitionBubble(
             siteIdentityKey(a.site) < siteIdentityKey(b.site) ? -1 : 1,
         );
 
+    // ── Conquest sweeps: captured-star handoffs → directional sweeps ────────
+    const conquestOrigins = params.conquestOrigins;
+    const conquestRamps: SiteRamp[] =
+        conquestOrigins && conquestOrigins.size > 0
+            ? ramps.map((r) => {
+                  if (r.kind !== 'handoff') return r;
+                  const origin = conquestOrigins.get(r.starId);
+                  if (!origin) return r;
+                  const dirX = r.x - origin.x;
+                  const dirY = r.y - origin.y;
+                  const len = Math.hypot(dirX, dirY);
+                  if (len < 1e-6) return r; // attacker coincident — keep the flip
+                  // Sweep span = outradius of the captured cell in S0.
+                  let radius = 0;
+                  for (const cell of params.s0.cells) {
+                      if (cell.siteId !== r.starId) continue;
+                      for (const [px, py] of cell.points) {
+                          const d = Math.hypot(px - r.x, py - r.y);
+                          if (d > radius) radius = d;
+                      }
+                      break;
+                  }
+                  if (radius <= 0) return r;
+                  return {
+                      ...r,
+                      kind: 'conquest' as const,
+                      attackDirX: dirX / len,
+                      attackDirY: dirY / len,
+                      cellRadius: radius,
+                  };
+              })
+            : ramps;
+
     // ── Ripple stagger ─────────────────────────────────────────────────────
-    let staggered = ramps;
-    if (params.rippleOrigin && ramps.length > 1) {
+    let staggered = conquestRamps;
+    if (params.rippleOrigin && conquestRamps.length > 1) {
         let maxDist = 0;
-        const dists = ramps.map((r) => {
+        const dists = conquestRamps.map((r) => {
             const d = Math.hypot(r.x - params.rippleOrigin!.x, r.y - params.rippleOrigin!.y);
             if (d > maxDist) maxDist = d;
             return d;
         });
         const window = Math.max(0, 1 - rippleSpan);
-        staggered = ramps.map((r, i) => ({
+        staggered = conquestRamps.map((r, i) => ({
             ...r,
             delay: maxDist > 0 ? (dists[i]! / maxDist) * window : 0,
             span: rippleSpan,

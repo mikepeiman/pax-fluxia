@@ -61,15 +61,43 @@ function rampSites(ramp: SiteRamp, p: number, index: number): PowerCoreSite[] {
                     starId: id,
                 },
             ];
+        case 'conquest': {
+            // The conquest SWEEP: two EQUAL-weight power sites for the captured
+            // cell, kept exactly R apart along the attack direction. The
+            // incoming site (ownerB) slides from the attack-side cell edge to
+            // the star center as q: 0→1; the outgoing site (ownerA) slides from
+            // the center out to the far edge. Their (equal-weight) boundary is
+            // the perpendicular bisector — it sweeps across the cell, so the
+            // incoming owner's SOLID region grows. Equal weight ⇒ the sweep
+            // magnitude is GEOMETRIC (cell radius), independent of the star's
+            // power weight (which is far too small to sweep a whole cell), and
+            // the two sites are always distance R apart (never degenerate). No
+            // color blend — each side is one owner; the boundary MOVES.
+            const ux = ramp.attackDirX ?? 0;
+            const uy = ramp.attackDirY ?? 0;
+            const r = ramp.cellRadius ?? 40;
+            const w = (ramp.w0 + ramp.w1) / 2;
+            return [
+                {
+                    x: ramp.x - ux * r * (1 - q),
+                    y: ramp.y - uy * r * (1 - q),
+                    weight: w,
+                    ownerId: ramp.ownerB,
+                    starId: `${id}~in`,
+                },
+                {
+                    x: ramp.x + ux * r * q,
+                    y: ramp.y + uy * r * q,
+                    weight: w,
+                    ownerId: ramp.ownerA,
+                    starId: `${id}~out`,
+                },
+            ];
+        }
         case 'handoff':
-            // Owner change with (near-)unchanged geometry. A co-located ghost
-            // pair is WRONG here: between co-located power sites the heavier
-            // one wins EVERYWHERE (binary switch, not a sweep) and the extreme
-            // near-coincident weight ratios break the diagram library. The
-            // GEOMETRY morphs as a single site (weight lerp); the ownership
-            // FLIP is presentation's job — skins wipe the fill color across
-            // the cell using this ramp's q (KineticFrame keeps ownerA at
-            // q<0.5, ownerB after; the wipe metadata is the ramp itself).
+            // Owner change with NO attack direction (e.g. disconnect owner
+            // remap). No sweep is possible without a direction, so flip the
+            // single site's owner at the midpoint (geometry unchanged).
             return [
                 {
                     x: ramp.x, y: ramp.y,

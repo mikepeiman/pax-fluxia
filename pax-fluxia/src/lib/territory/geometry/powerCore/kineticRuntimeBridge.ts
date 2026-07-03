@@ -51,6 +51,36 @@ function pickRippleOrigin(
     return star ? { x: star.x, y: star.y } : null;
 }
 
+/**
+ * Per captured star, the attacker's position for the directional conquest
+ * sweep. Proxy for the attack source: the NEW owner's star nearest the
+ * captured star (the conquest almost always comes from an adjacent same-owner
+ * holding). `stars` reflects the POST-capture ownership, so the captured star
+ * is itself new-owner-owned — excluded by id.
+ */
+function buildConquestOrigins(
+    active: RenderFamilyActiveTransition | null,
+    stars: readonly StarState[],
+): Map<string, { x: number; y: number }> {
+    const origins = new Map<string, { x: number; y: number }>();
+    for (const event of active?.conquestEvents ?? []) {
+        const captured = stars.find((s) => s.id === event.starId);
+        if (!captured) continue;
+        let best: StarState | null = null;
+        let bestDist = Infinity;
+        for (const s of stars) {
+            if (s.id === event.starId || s.ownerId !== event.newOwner) continue;
+            const d = (s.x - captured.x) ** 2 + (s.y - captured.y) ** 2;
+            if (d < bestDist) {
+                bestDist = d;
+                best = s;
+            }
+        }
+        if (best) origins.set(event.starId, { x: best.x, y: best.y });
+    }
+    return origins;
+}
+
 /** Full reset (source switched away from power_core, or teardown). */
 export function resetKineticRuntimeBridge(): void {
     runtime = null;
@@ -82,6 +112,7 @@ export function commitKineticEndpoint(params: {
     const active = params.activeTransition;
     const transitionKey = active?.sessionKey ?? null;
     const rippleOrigin = pickRippleOrigin(active, params.stars);
+    const conquestOrigins = buildConquestOrigins(active, params.stars);
 
     runtime.commit({
         state: { sites: params.endpoint.sites, cells: params.endpoint.cells },
@@ -91,6 +122,7 @@ export function commitKineticEndpoint(params: {
         nowMs: params.nowMs,
         durationMs: params.durationMs,
         rippleOrigin,
+        conquestOrigins,
     });
     lastCommitFp = fp;
     log.transition('runtime', transitionKey ? 'commit' : 'snap', {
@@ -164,6 +196,16 @@ export function getActiveKineticFrame(): KineticFrame | null {
 export function getKineticRenderCells(): readonly PowerCell[] | null {
     if (lastFrame) return [...lastFrame.frozenCells, ...lastFrame.bubbleCells];
     return runtime?.settledState?.cells ?? null;
+}
+
+/**
+ * A value that CHANGES every frame while a morph is active and is STABLE while
+ * idle — appended to the territory presentation signature so morph frames are
+ * not deduped/cached (the fix for "conquest snaps"). Idle → 0 (no spurious
+ * repaints); active → the sampled-frame counter.
+ */
+export function getKineticPresentationNonce(): number {
+    return activeKey ? framesSampled : 0;
 }
 
 /** Counters for getBenchmarkTerritorySchedulerSnapshot. */

@@ -1,0 +1,29 @@
+{
+  "metadata": {
+    "name": "Kinetic Capture Test",
+    "createdAt": "2026-07-03T00:00:00.000Z",
+    "version": 2,
+    "description": "Transition test fixture: overwhelming attackers → captures land in 1-2 ticks (NOT 45). human-player holds huge garrisons next to tiny ai stars along every lane. Watch the frontier SWEEP on each capture."
+  },
+  "stars": [
+    { "id": "star-0", "x": 240, "y": 400, "ownerId": "human-player", "starType": "yellow", "activeShips": 300, "damagedShips": 0 },
+    { "id": "star-1", "x": 620, "y": 400, "ownerId": "ai-1", "starType": "grey", "activeShips": 5, "damagedShips": 0 },
+    { "id": "star-2", "x": 1000, "y": 400, "ownerId": "ai-1", "starType": "grey", "activeShips": 5, "damagedShips": 0 },
+    { "id": "star-3", "x": 240, "y": 180, "ownerId": "human-player", "starType": "yellow", "activeShips": 250, "damagedShips": 0 },
+    { "id": "star-4", "x": 620, "y": 180, "ownerId": "ai-2", "starType": "grey", "activeShips": 5, "damagedShips": 0 },
+    { "id": "star-5", "x": 1000, "y": 180, "ownerId": "ai-2", "starType": "grey", "activeShips": 5, "damagedShips": 0 },
+    { "id": "star-6", "x": 240, "y": 620, "ownerId": "human-player", "starType": "yellow", "activeShips": 250, "damagedShips": 0 },
+    { "id": "star-7", "x": 620, "y": 620, "ownerId": "ai-1", "starType": "grey", "activeShips": 5, "damagedShips": 0 }
+  ],
+  "connections": [
+    { "sourceId": "star-0", "targetId": "star-1", "distance": 380 },
+    { "sourceId": "star-1", "targetId": "star-2", "distance": 380 },
+    { "sourceId": "star-3", "targetId": "star-4", "distance": 380 },
+    { "sourceId": "star-4", "targetId": "star-5", "distance": 380 },
+    { "sourceId": "star-6", "targetId": "star-7", "distance": 380 },
+    { "sourceId": "star-0", "targetId": "star-3", "distance": 220 },
+    { "sourceId": "star-0", "targetId": "star-6", "distance": 220 },
+    { "sourceId": "star-1", "targetId": "star-4", "distance": 220 },
+    { "sourceId": "star-1", "targetId": "star-7", "distance": 220 }
+  ]
+}

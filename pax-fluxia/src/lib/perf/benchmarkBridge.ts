@@ -130,6 +130,8 @@ interface BenchmarkBridgeApi {
     ensureTerritoryMode: (
         mode: string,
     ) => Promise<Record<string, unknown>>;
+    /** Set a single GAME_CONFIG key (A/B benches: e.g. PERIMETER_FIELD_GEOMETRY_SOURCE). */
+    setConfigValue: (key: string, value: unknown) => Promise<unknown>;
     getOrderPointerPath: () => Promise<BenchmarkOrderPointerPath | null>;
     getStarClientPoint: (
         starId: string,
@@ -700,6 +702,12 @@ export function installBenchmarkBridge(params: {
             GAME_CONFIG.TERRITORY_RENDER_MODE = mode as never;
             await settleFrames();
             return GAME_CONFIG.TERRITORY_RENDER_MODE;
+        },
+        setConfigValue: async (key, value) => {
+            const { GAME_CONFIG } = await loadRuntimeDeps();
+            (GAME_CONFIG as unknown as Record<string, unknown>)[key] = value;
+            await settleFrames();
+            return (GAME_CONFIG as unknown as Record<string, unknown>)[key];
         },
         waitForRenderMode,
         ensureTerritoryMode: async (mode) => {

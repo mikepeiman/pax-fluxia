@@ -34,16 +34,28 @@ export interface KineticEndpointState {
 }
 
 /**
- * How one site participates in the morph. Exactly one of the five cases:
+ * How one site participates in the morph:
  * - 'constant'   — same weight + owner in S0 and S1 (participates in the mini
  *                  diagram unchanged; only present if its CELL changed shape).
  * - 'weight'     — same owner, weight w0 → w1.
- * - 'handoff'    — same position, owner changed: rendered as a GHOST PAIR
- *                  (old-owner site fading out, new-owner site fading in).
+ * - 'conquest'   — a captured star (ownerA → ownerB) with a known attack
+ *                  direction: rendered as a SWEEP — two offset power sites
+ *                  (incoming owner on the attack side, outgoing on the far
+ *                  side) whose shared radical axis sweeps across the cell, so
+ *                  the incoming owner's SOLID-colored region grows across the
+ *                  cell. No color blend; the SHAPE of the boundary moves.
+ * - 'handoff'    — owner changed but no attack direction (e.g. disconnect
+ *                  owner remap): a single site whose owner flips at q≥0.5.
  * - 'appear'     — only in S1: weight ramps ε → w1.
  * - 'vanish'     — only in S0: weight ramps w0 → ε.
  */
-export type SiteRampKind = 'constant' | 'weight' | 'handoff' | 'appear' | 'vanish';
+export type SiteRampKind =
+    | 'constant'
+    | 'weight'
+    | 'conquest'
+    | 'handoff'
+    | 'appear'
+    | 'vanish';
 
 export interface SiteRamp {
     readonly kind: SiteRampKind;
@@ -66,6 +78,15 @@ export interface SiteRamp {
      */
     readonly delay: number;
     readonly span: number;
+    /**
+     * 'conquest' only: unit attack direction (from the attacker toward the
+     * captured star) and the cell's outradius. sampleKineticFrame places the
+     * incoming site at (x,y) − dir·R and the outgoing at (x,y) + dir·R, so the
+     * incoming owner's region advances from the attack side.
+     */
+    readonly attackDirX?: number;
+    readonly attackDirY?: number;
+    readonly cellRadius?: number;
 }
 
 export interface TransitionBubble {

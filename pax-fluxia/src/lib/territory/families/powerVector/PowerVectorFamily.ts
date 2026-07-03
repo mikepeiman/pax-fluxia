@@ -6,10 +6,11 @@
  * they are the settled endpoint cells; when the runtime is inactive (source ≠
  * power_core) it falls back to the resolved snapshot's regions.
  *
- * v1 scope (per plan §3a/§3c): ownership flips at the ramp's own timing (a cell
- * changes color when the diagram says it changed owner). No crossfade/wipe yet
- * — that is v2, added only after the SWEEP itself reads right. Cell edges are
- * visible (Voronoi-mesh look) — accepted for v1; owner-only borders are polish.
+ * Territories MERGE: cells are FILL-ONLY (no per-cell stroke), so adjacent
+ * same-owner cells read as one region and owner boundaries appear as the color
+ * change between owners. Conquest shows as pure SHAPE change (the kinetic
+ * engine sweeps the boundary; the incoming owner's solid region grows) — no
+ * color blending, per the conquest spec.
  *
  * Coordinate space: kinetic cells are MAP/world coords; the caller positions
  * this family's container at (frame.minX, frame.minY), so cells are drawn at
@@ -26,9 +27,7 @@ import type {
     RenderFamilyOutput,
 } from '../RenderFamilyTypes';
 
-const FILL_ALPHA = 0.55;
-const STROKE_ALPHA = 0.9;
-const STROKE_WIDTH = 1;
+const FILL_ALPHA = 0.85;
 
 export class PowerVectorFamily implements RenderFamily {
     readonly id = 'power_vector';
@@ -64,9 +63,7 @@ export class PowerVectorFamily implements RenderFamily {
                 for (const [px, py] of cell.points) {
                     flat.push(px + dx, py + dy);
                 }
-                g.poly(flat)
-                    .fill({ color, alpha: FILL_ALPHA })
-                    .stroke({ width: STROKE_WIDTH, color, alpha: STROKE_ALPHA });
+                g.poly(flat).fill({ color, alpha: FILL_ALPHA });
             }
             return { container: this.root };
         }
@@ -81,13 +78,7 @@ export class PowerVectorFamily implements RenderFamily {
                 for (const [px, py] of region.points) {
                     flat.push(px, py);
                 }
-                g.poly(flat)
-                    .fill({ color, alpha: FILL_ALPHA })
-                    .stroke({
-                        width: STROKE_WIDTH + 0.5,
-                        color,
-                        alpha: STROKE_ALPHA,
-                    });
+                g.poly(flat).fill({ color, alpha: FILL_ALPHA });
             }
         }
         return { container: this.root };
