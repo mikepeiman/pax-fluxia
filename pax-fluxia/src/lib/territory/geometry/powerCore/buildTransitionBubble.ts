@@ -82,6 +82,8 @@ export interface BuildTransitionBubbleParams {
      * Handoffs not in this map (e.g. disconnect owner remap) stay a plain flip.
      */
     readonly conquestOrigins?: ReadonlyMap<string, { x: number; y: number }>;
+    /** Conquest front field mode (splitCellByFront). Default 'linear' (mode 1). */
+    readonly conquestFrontMode?: import('./conquestFrontField').ConquestFrontMode;
 }
 
 export function buildTransitionBubble(
@@ -365,6 +367,9 @@ export function buildTransitionBubble(
                       kind: 'conquest' as const,
                       attackDirX: dirX / len,
                       attackDirY: dirY / len,
+                      attackOriginX: origin.x,
+                      attackOriginY: origin.y,
+                      frontMode: params.conquestFrontMode ?? 'linear',
                       cellRadius: radius,
                   };
               })

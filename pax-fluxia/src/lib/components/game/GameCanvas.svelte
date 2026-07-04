@@ -2456,6 +2456,7 @@
     let kineticFrameActiveTransition: RenderFamilyActiveTransition | null = null;
     let kineticFrameNowMs = 0;
     let kineticFrameDurationMs = 0;
+    let kineticFrameConquestFrontMode: "linear" | "radial" = "linear";
     let renderFamilyStableGeometryKey: string | null = null;
     let renderFamilyStableGeometry: ResolvedGeometrySnapshot | null = null;
     let renderFamilyStableOwnership: OwnershipSnapshot | null = null;
@@ -2557,6 +2558,7 @@
                         activeTransition: kineticFrameActiveTransition,
                         nowMs: kineticFrameNowMs,
                         durationMs: kineticFrameDurationMs,
+                        conquestFrontMode: kineticFrameConquestFrontMode,
                     });
                 },
             });
@@ -4984,6 +4986,10 @@
         kineticFrameDurationMs = resolveTerritoryTransitionDurationMs(
             activeGameStore.effectiveTickMs,
         );
+        kineticFrameConquestFrontMode =
+            GAME_CONFIG.TERRITORY_CONQUEST_FRONT_MODE === "radial"
+                ? "radial"
+                : "linear";
         sampleKineticForFrame(
             fxOrchestrator.gameTime,
             normalizePerimeterFieldGeometrySource(

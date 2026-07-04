@@ -495,6 +495,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'TERRITORY_TRANSITION_MS' },
     { configKey: 'TERRITORY_TRANSITION_SETTLE_PCT' },
     { configKey: 'TERRITORY_TRANSITION_BIND_TO_TICK' },
+    { panelKey: 'territoryConquestFrontMode', configKey: 'TERRITORY_CONQUEST_FRONT_MODE' },
     { configKey: 'BORDER_TRANS_RESAMPLE_N' },
     { configKey: 'BORDER_TRANS_EASING' },
     { configKey: 'BORDER_TRANS_OVERSHOOT' },

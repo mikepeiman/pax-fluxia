@@ -16,6 +16,7 @@
  */
 
 import { buildPowerCellsFromSites, type PowerCoreSite } from './buildPowerCellsFromSites';
+import { splitCellByFront, type ConquestFront } from './conquestFrontField';
 import type { PowerCell, Point } from './powerCoreTypes';
 import {
     KINETIC_EPSILON_WEIGHT,
@@ -208,10 +209,20 @@ export function sampleKineticFrame(params: SampleKineticFrameParams): KineticFra
             }
         }
         if (ramp?.kind === 'conquest') {
-            // Visible sweep: split the captured cell by the traveling line.
+            // Visible sweep: split the captured cell by the arrival-time front.
             const q = rampProgress(ramp, p);
-            for (const part of splitConquestCell(cell, ramp, q)) {
-                bubbleCells.push(part);
+            const front: ConquestFront = {
+                mode: ramp.frontMode ?? 'linear',
+                dirX: ramp.attackDirX ?? 0,
+                dirY: ramp.attackDirY ?? 0,
+                originX: ramp.attackOriginX ?? ramp.x,
+                originY: ramp.attackOriginY ?? ramp.y,
+                starId: ramp.starId,
+                ownerIn: ramp.ownerB,
+                ownerOld: ramp.ownerA,
+            };
+            for (const partCell of splitCellByFront(cell, front, q)) {
+                bubbleCells.push(partCell);
             }
             continue;
         }
@@ -219,66 +230,6 @@ export function sampleKineticFrame(params: SampleKineticFrameParams): KineticFra
     }
 
     return { p, frozenCells: bubble.frozenCells, bubbleCells, miniSites: usedSites };
-}
-
-/**
- * Split the captured (convex) cell by the sweep line — perpendicular to the
- * attack direction, positioned at fraction q between the cell's attack-side
- * extreme and its far extreme. The attack side (lowest projection onto the
- * attack direction, i.e. nearest the attacker) belongs to the INCOMING owner;
- * the far side keeps the OLD owner. Exact full-cell coverage for any size or
- * shape (incl. world-bound cells): q=0 → all old owner (== S0), q=1 → all new
- * (== S1). Both parts carry the same siteId/sourceSiteIndex — retarget's
- * mid-state materializer then emits near-coincident sites, which the mini's
- * dedupe handles (rare path; the plain diff re-classifies them).
- */
-function splitConquestCell(
-    cell: PowerCell,
-    ramp: SiteRamp,
-    q: number,
-): PowerCell[] {
-    const ux = ramp.attackDirX ?? 0;
-    const uy = ramp.attackDirY ?? 0;
-    if (ux === 0 && uy === 0) {
-        // No direction (shouldn't happen — builder guards): flip at midpoint.
-        return [{ ...cell, siteId: ramp.starId, ownerId: q < 0.5 ? ramp.ownerA : ramp.ownerB }];
-    }
-    let minP = Infinity;
-    let maxP = -Infinity;
-    for (const [x, y] of cell.points) {
-        const proj = x * ux + y * uy;
-        if (proj < minP) minP = proj;
-        if (proj > maxP) maxP = proj;
-    }
-    const c = minP + (maxP - minP) * q;
-    const low: Point[] = []; // attack side → incoming owner
-    const high: Point[] = []; // far side → old owner
-    const n = cell.points.length;
-    for (let i = 0; i < n; i++) {
-        const a = cell.points[i]!;
-        const b = cell.points[(i + 1) % n]!;
-        const pa = a[0] * ux + a[1] * uy;
-        const pb = b[0] * ux + b[1] * uy;
-        if (pa <= c) low.push(a);
-        if (pa >= c) high.push(a);
-        if ((pa < c && pb > c) || (pa > c && pb < c)) {
-            const t = (c - pa) / (pb - pa);
-            const ip: Point = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
-            low.push(ip);
-            high.push(ip);
-        }
-    }
-    const parts: PowerCell[] = [];
-    if (low.length >= 3) {
-        parts.push({ ...cell, siteId: ramp.starId, ownerId: ramp.ownerB, points: low });
-    }
-    if (high.length >= 3) {
-        parts.push({ ...cell, siteId: ramp.starId, ownerId: ramp.ownerA, points: high });
-    }
-    if (parts.length === 0) {
-        parts.push({ ...cell, siteId: ramp.starId, ownerId: q >= 0.5 ? ramp.ownerB : ramp.ownerA });
-    }
-    return parts;
 }
 
 /**

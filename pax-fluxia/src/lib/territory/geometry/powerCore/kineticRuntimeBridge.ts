@@ -106,6 +106,7 @@ export function commitKineticEndpoint(params: {
     activeTransition: RenderFamilyActiveTransition | null;
     nowMs: number;
     durationMs: number;
+    conquestFrontMode?: import('./conquestFrontField').ConquestFrontMode;
 }): void {
     const fp = ownershipFingerprint(params.stars);
     if (fp === lastCommitFp) return;
@@ -125,6 +126,7 @@ export function commitKineticEndpoint(params: {
         durationMs: params.durationMs,
         rippleOrigin,
         conquestOrigins,
+        conquestFrontMode: params.conquestFrontMode,
     });
     lastCommitFp = fp;
     const retarget = Boolean(activeKey) && runtime.activeKey !== activeKey;

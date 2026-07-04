@@ -335,6 +335,23 @@
     </div>
 {/each}
 
+<PaxSettingsSegmentedRow
+    label="Conquest Front"
+    hint="Shape of the conquest sweep (PowerCore / Power Vector). Linear = straight windshield-wiper sweep (mode 1). Radial = curved front advancing from the attacker — toward the water-wave feel."
+    settingConfigKey="TERRITORY_CONQUEST_FRONT_MODE"
+    value={panel.territoryConquestFrontMode ??
+        GAME_CONFIG.TERRITORY_CONQUEST_FRONT_MODE ??
+        "linear"}
+    options={[
+        { value: "linear", label: "Linear" },
+        { value: "radial", label: "Radial" },
+    ]}
+    onValueChange={(value) => {
+        GAME_CONFIG.TERRITORY_CONQUEST_FRONT_MODE = value as "linear" | "radial";
+        updatePanel("territoryConquestFrontMode", value);
+    }}
+/>
+
 {#if showMetaballBurstBoundaryBasis}
     <PaxSettingsSegmentedRow
         label="Burst Boundary Basis"

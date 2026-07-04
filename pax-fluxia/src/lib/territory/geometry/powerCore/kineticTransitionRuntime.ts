@@ -52,6 +52,8 @@ export interface KineticCommitParams {
     readonly rippleOrigin?: { x: number; y: number } | null;
     /** Captured starId → attacker position, for directional conquest sweeps. */
     readonly conquestOrigins?: ReadonlyMap<string, { x: number; y: number }>;
+    /** Conquest front field mode (splitCellByFront). Default 'linear'. */
+    readonly conquestFrontMode?: import('./conquestFrontField').ConquestFrontMode;
 }
 
 interface ActiveMorph {
@@ -119,6 +121,7 @@ export class KineticTransitionRuntime {
             s1: params.state,
             rippleOrigin: params.rippleOrigin ?? null,
             conquestOrigins: params.conquestOrigins,
+            conquestFrontMode: params.conquestFrontMode,
         });
         const changedSiteIds = changedSiteIdsOf(bubble);
         if (changedSiteIds.size === 0) return; // no visible delta; keep morphs
@@ -154,6 +157,7 @@ export class KineticTransitionRuntime {
             s1: params.state,
             rippleOrigin: params.rippleOrigin ?? null,
             conquestOrigins: params.conquestOrigins,
+            conquestFrontMode: params.conquestFrontMode,
         });
         this.morphs = [
             {

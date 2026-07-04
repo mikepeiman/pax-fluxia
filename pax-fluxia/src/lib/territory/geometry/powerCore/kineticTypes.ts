@@ -82,15 +82,16 @@ export interface SiteRamp {
     readonly delay: number;
     readonly span: number;
     /**
-     * 'conquest' only: unit attack direction (from the attacker toward the
-     * captured star) and the cell's outradius. splitConquestCell projects the
-     * cell's vertices onto this direction and cuts at fraction q between the
-     * attack-side extreme (incoming owner) and the far extreme (old owner), so
-     * the incoming owner's region advances from the attack side. cellRadius is
-     * retained for diagnostics / future feel tuning.
+     * 'conquest' only: the arrival-time front (splitCellByFront). 'linear' uses
+     * the unit attack direction (attacker → captured star) — the mode-1 straight
+     * sweep; 'radial' uses the attack ORIGIN point for a curved front. cellRadius
+     * is retained for diagnostics / feel tuning.
      */
     readonly attackDirX?: number;
     readonly attackDirY?: number;
+    readonly attackOriginX?: number;
+    readonly attackOriginY?: number;
+    readonly frontMode?: import('./conquestFrontField').ConquestFrontMode;
     readonly cellRadius?: number;
 }
 
