@@ -372,7 +372,6 @@ const SCOPE_LABEL_META: LabelScopeMap = {
             key: 'PERIMETER_FIELD_TRANSITION_RAY_COUNT',
         },
         'Transition Duration': { key: 'TERRITORY_TRANSITION_MS' },
-        'Conquest Front': { key: 'TERRITORY_CONQUEST_FRONT_MODE' },
         'Hold Base State During Transition': {
             key: 'PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION',
         },
@@ -615,6 +614,8 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Border Alpha': { key: 'VORONOI_BORDER_ALPHA' },
         'Geometry Smooth Passes': { key: 'VORONOI_BORDER_SMOOTH' },
         'Blended Opponent Borders': { key: 'TERRITORY_SURFACE_BORDER_BLEND' },
+        'Conquest Front': { key: 'TERRITORY_CONQUEST_FRONT_MODE' },
+        'Front Shape': { key: 'TERRITORY_CONQUEST_FRONT_MODE' },
         Saturation: { key: 'VORONOI_SATURATION' },
         Lightness: { key: 'VORONOI_LIGHTNESS' },
         'MSR (Star Margin)': { key: 'MODIFIED_VORONOI_STAR_MARGIN' },

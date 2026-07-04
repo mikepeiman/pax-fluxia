@@ -505,6 +505,33 @@
                             value,
                         )}
                 />
+                <div class="sub-heading territory-style-subheading">
+                    Conquest Front
+                    <PaxInfoHint text="Shape of the conquest sweep (PowerCore geometry source). Linear = straight windshield-wiper sweep. Radial = curved front advancing from the attacker — toward the water-wave feel." />
+                </div>
+                <PaxSettingsSegmentedRow
+                    label="Front Shape"
+                    value={stringVal(
+                        "territoryConquestFrontMode",
+                        "TERRITORY_CONQUEST_FRONT_MODE",
+                        "linear",
+                    )}
+                    options={[
+                        { value: "linear", label: "Linear" },
+                        { value: "radial", label: "Radial" },
+                    ]}
+                    settingConfigKey="TERRITORY_CONQUEST_FRONT_MODE"
+                    onValueChange={(value) => {
+                        GAME_CONFIG.TERRITORY_CONQUEST_FRONT_MODE = value as
+                            | "linear"
+                            | "radial";
+                        onUpdate(
+                            "TERRITORY_CONQUEST_FRONT_MODE",
+                            "territoryConquestFrontMode",
+                            value,
+                        );
+                    }}
+                />
             {/if}
 
             {#if isCellGridFamily()}
