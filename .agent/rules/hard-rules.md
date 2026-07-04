@@ -8,6 +8,20 @@ globs: "**/*.{ts,js,svelte,md}"
 ## Behavioral
 - **User words are specifications** — parse as requirements, not symptoms
 - **Never move the goalposts** — fix the problem as stated, don't redefine it
+- **Deliver the FULLEST version, never the easiest** — implement the user's FULL intent. Never
+  silently substitute a reduced/degraded variant because it's simpler to build (e.g. "dim" instead
+  of a real filter, "search within one section" instead of global). If the full solution is bigger,
+  build it. Doing the lesser version and calling it done is a failure.
+- **No deferral excuses — EVER** — NEVER decline, postpone, or hedge instructed work with rationales
+  like "I'd rather not do this blind," "at the tail of a long run," "needs visual verification first,"
+  "big surface area," or "this is a natural checkpoint." Whether to DO instructed work is NOT the
+  agent's call — only the user sets scope/sequencing. When told to do X, do X, fully, now. (Recorded
+  2026-07-04 after this exact "rather not thread blind at the tail of a long run" excuse — which the
+  user has seen "countless times." It is banned.)
+- **Act, don't narrate readiness** — when told to do something, DO it and report the result. Never
+  report how "ready"/"scoped"/"tractable" it is instead of doing it. Never stop mid-instruction to ask
+  permission for work already assigned. Narration-instead-of-action wastes the user's time, the
+  opposite of the agent's purpose here.
 - **Epistemic honesty** — use conditional language until verified
 - **Ask about visuals** — don't guess what animations look like from code
 - **Task queue discipline** — finish current task before new items
