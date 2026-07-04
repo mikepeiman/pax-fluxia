@@ -1108,6 +1108,18 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             ? new Set(settingsSearchResults.map((result) => result.sectionId))
             : null,
     );
+    // Live filter: the config keys matching the current query (null = not
+    // searching). Applied by the effect below as a DIM on non-matching rows —
+    // layout-safe (no display:none / no view-mode change), works in any view.
+    let matchedConfigKeys = $derived.by(() =>
+        settingsSearchQuery.trim()
+            ? new Set(
+                  settingsSearchResults
+                      .map((result) => result.configKey)
+                      .filter((key): key is string => Boolean(key)),
+              )
+            : null,
+    );
 
     $effect(() => {
         let next = activeSubsections;
@@ -1123,6 +1135,30 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         if (changed) {
             activeSubsections = next;
         }
+    });
+
+    // Live search filter: dim every keyed control that does NOT match the query
+    // so matches stand out (a layout-safe "filter down"). Re-runs when the query
+    // OR the visible view changes (new rows mount on section/subsection switch).
+    $effect(() => {
+        const keys = matchedConfigKeys;
+        // Register view deps so the dim re-applies to freshly-mounted rows.
+        void activeSectionId;
+        void activeSubsections;
+        void showAllSections;
+        queueMicrotask(() => {
+            for (const node of sectionBodyNodes.values()) {
+                node.classList.toggle("is-search-filtering", keys != null);
+                for (const row of node.querySelectorAll<HTMLElement>(
+                    "[data-setting-config-key]",
+                )) {
+                    const dim =
+                        keys != null &&
+                        !keys.has(row.dataset.settingConfigKey ?? "");
+                    row.classList.toggle("settings-search-dimmed", dim);
+                }
+            }
+        });
     });
 
     function getSectionDefinition(sectionId: SectionId): SettingsSectionDefinition {
@@ -2033,6 +2069,12 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     :global(.settings-search-hit) {
         animation: settings-search-hit-flash 1.5s ease-out;
         border-radius: var(--pax-radius-sm, 6px);
+    }
+    /* Live search filter: non-matching controls fade so matches stand out.
+       Layout-safe (no display:none), still interactive. */
+    :global(.settings-search-dimmed) {
+        opacity: 0.26;
+        transition: opacity 0.12s ease;
     }
     .section-head-wrap {
         display: flex;
