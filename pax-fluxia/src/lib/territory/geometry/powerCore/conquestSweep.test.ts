@@ -107,4 +107,34 @@ describe('conquest sweep', () => {
         expect(sampleKineticFrame({ bubble, p: 0, clip: S0.clip }).bubbleCells).toBe(bubble.bubbleCells0);
         expect(sampleKineticFrame({ bubble, p: 1, clip: S0.clip }).bubbleCells).toBe(bubble.bubbleCells1);
     });
+
+    it('sweep covers the FULL captured cell — no early finish, no end pop', () => {
+        // The 2026-07-03 defect: the sweep boundary travelled only HALF the
+        // cell, finished early, and the far strip POPPED at settle. Lock the
+        // fix: the new-owner share of the captured cell must go ~0 → ~1 across
+        // the morph, strictly increasing, with both parts present mid-sweep.
+        const capturedShare = (p: number): { share: number; parts: number } => {
+            const frame = sampleKineticFrame({ bubble, p, clip: S0.clip });
+            const parts = frame.bubbleCells.filter((c) => c.siteId === CAPTURED);
+            let total = 0;
+            let newArea = 0;
+            for (const part of parts) {
+                const a = polyArea(part.points);
+                total += a;
+                if (part.ownerId === NEW_OWNER) newArea += a;
+            }
+            expect(total).toBeGreaterThan(0);
+            return { share: newArea / total, parts: parts.length };
+        };
+        const early = capturedShare(0.1);
+        const mid = capturedShare(0.5);
+        const late = capturedShare(0.9);
+        const nearEnd = capturedShare(0.98);
+        expect(early.share).toBeLessThan(0.25); // starts near zero
+        expect(mid.parts).toBe(2); // both owners visible mid-sweep
+        expect(mid.share).toBeGreaterThan(early.share);
+        expect(late.share).toBeGreaterThan(mid.share);
+        expect(late.share).toBeGreaterThan(0.75); // reaches the far side
+        expect(nearEnd.share).toBeGreaterThan(0.95); // no residual strip at settle
+    });
 });
