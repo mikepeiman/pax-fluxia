@@ -114,6 +114,55 @@ function regionEnclosedBy(inner: Ring, outer: Ring): boolean {
     return true;
 }
 
+const WORLD_OWNER = '__world__';
+
+interface BorderEdge {
+    readonly a: readonly [number, number];
+    readonly b: readonly [number, number];
+    readonly ownerA: string;
+    readonly ownerB: string;
+}
+
+/**
+ * Owner-boundary edges of a cell set: an edge shared by two DIFFERENT owners, or
+ * an outer/world edge (reported by a single cell). Used to draw borders from the
+ * live kinetic cells during a morph so the frontier moves WITH the fills instead
+ * of snapping to the settled snapshot. The conquest split edge (incoming vs old
+ * within one cell) is such a boundary → it animates with the sweep.
+ */
+function ownerBoundaryEdges(cells: readonly PowerCell[]): BorderEdge[] {
+    const Q = 100; // 0.01px quantization for exact-share matching
+    const map = new Map<
+        string,
+        { a: readonly [number, number]; b: readonly [number, number]; owners: string[] }
+    >();
+    for (const cell of cells) {
+        const pts = cell.points;
+        const n = pts.length;
+        if (n < 2) continue;
+        for (let i = 0; i < n; i++) {
+            const a = pts[i]!;
+            const b = pts[(i + 1) % n]!;
+            const ka = `${Math.round(a[0] * Q)},${Math.round(a[1] * Q)}`;
+            const kb = `${Math.round(b[0] * Q)},${Math.round(b[1] * Q)}`;
+            const key = ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
+            const e = map.get(key);
+            if (e) e.owners.push(cell.ownerId);
+            else map.set(key, { a, b, owners: [cell.ownerId] });
+        }
+    }
+    const out: BorderEdge[] = [];
+    for (const e of map.values()) {
+        if (e.owners.length === 1) {
+            out.push({ a: e.a, b: e.b, ownerA: e.owners[0]!, ownerB: WORLD_OWNER });
+        } else if (e.owners[0] !== e.owners[1]) {
+            out.push({ a: e.a, b: e.b, ownerA: e.owners[0]!, ownerB: e.owners[1]! });
+        }
+        // same-owner interior edges are dropped.
+    }
+    return out;
+}
+
 export class PowerVectorFamily implements RenderFamily {
     readonly id = 'power_vector';
     readonly label = 'Power Vector';
@@ -248,12 +297,49 @@ export class PowerVectorFamily implements RenderFamily {
             this.dynamicG.clear();
         }
 
-        // ── Borders (snapshot polylines — Chaikin-smoothed upstream) ────────
+        // ── Borders ─────────────────────────────────────────────────────────
         if (!style.borderEnabled || !geometry) {
             if (this.borderKey !== 'off') {
                 this.borderG.clear();
                 this.borderKey = 'off';
             }
+        } else if (frame) {
+            // MORPH: derive borders from the SAME animating cells as the fills so
+            // the frontier moves WITH the sweep (instead of snapping to the
+            // settled snapshot). Redraw every frame; batch by color for perf.
+            this.borderG.clear();
+            const edgeColor = (edge: BorderEdge): number =>
+                style.borderBlend && edge.ownerB !== WORLD_OWNER
+                    ? blendColors(
+                          this.borderColor(edge.ownerA, style),
+                          this.borderColor(edge.ownerB, style),
+                          0.5,
+                      )
+                    : this.borderColor(edge.ownerA, style);
+            const byColor = new Map<number, BorderEdge[]>();
+            for (const edge of ownerBoundaryEdges([
+                ...frame.frozenCells,
+                ...frame.bubbleCells,
+            ])) {
+                const c = edgeColor(edge);
+                const bucket = byColor.get(c);
+                if (bucket) bucket.push(edge);
+                else byColor.set(c, [edge]);
+            }
+            for (const [color, edges] of byColor) {
+                for (const edge of edges) {
+                    this.borderG.moveTo(edge.a[0] + dx, edge.a[1] + dy);
+                    this.borderG.lineTo(edge.b[0] + dx, edge.b[1] + dy);
+                }
+                this.borderG.stroke({
+                    width: style.borderWidth,
+                    color,
+                    alpha: style.borderAlpha,
+                    join: 'round',
+                    cap: 'round',
+                });
+            }
+            this.borderKey = 'morph';
         } else {
             const key = `border:${sKey}:${geometry.version}`;
             if (this.borderKey !== key) {
