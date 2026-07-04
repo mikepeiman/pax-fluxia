@@ -82,6 +82,35 @@ const POWER_VECTOR_TUNABLE_KEYS = [
     'TERRITORY_SURFACE_BORDER_ALPHA',
 ] as const;
 
+type Ring = readonly (readonly [number, number])[];
+
+/** Ray-cast point-in-polygon test. */
+function pointInRing(x: number, y: number, ring: Ring): boolean {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const xi = ring[i]![0];
+        const yi = ring[i]![1];
+        const xj = ring[j]![0];
+        const yj = ring[j]![1];
+        if (
+            yi > y !== yj > y &&
+            x < ((xj - xi) * (y - yi)) / (yj - yi) + xi
+        ) {
+            inside = !inside;
+        }
+    }
+    return inside;
+}
+
+/** True iff EVERY vertex of `inner` lies inside `outer` (fully enclosed). */
+function regionEnclosedBy(inner: Ring, outer: Ring): boolean {
+    if (inner.length === 0) return false;
+    for (const [x, y] of inner) {
+        if (!pointInRing(x, y, outer)) return false;
+    }
+    return true;
+}
+
 export class PowerVectorFamily implements RenderFamily {
     readonly id = 'power_vector';
     readonly label = 'Power Vector';
@@ -187,14 +216,29 @@ export class PowerVectorFamily implements RenderFamily {
             if (this.staticKey !== key) {
                 (this as unknown as { _lastFrozen?: unknown })._lastFrozen = undefined;
                 this.staticG.clear();
-                for (const region of geometry.territoryRegions) {
-                    if (region.points.length < 3) continue;
+                const regions = geometry.territoryRegions.filter(
+                    (r) => r.points.length >= 3,
+                );
+                for (const region of regions) {
                     const flat: number[] = [];
                     for (const [px, py] of region.points) flat.push(px, py);
                     this.staticG.poly(flat).fill({
                         color: this.fillColor(region.ownerId, style),
                         alpha: style.fillAlpha,
                     });
+                    // Cut any DIFFERENT-owner region fully enclosed in this one
+                    // so colors stay pure under alpha — the merged region is an
+                    // outer ring that would otherwise paint over an enclosed
+                    // enemy island (both fills compositing).
+                    for (const other of regions) {
+                        if (other === region || other.ownerId === region.ownerId) {
+                            continue;
+                        }
+                        if (!regionEnclosedBy(other.points, region.points)) continue;
+                        const hole: number[] = [];
+                        for (const [px, py] of other.points) hole.push(px, py);
+                        this.staticG.poly(hole).cut();
+                    }
                 }
                 this.staticKey = key;
             }
