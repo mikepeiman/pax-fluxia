@@ -1121,6 +1121,41 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             : null,
     );
 
+    // GLOBAL search: a non-empty query switches the whole panel into a flat,
+    // cross-category/cross-tier results view — every section (regardless of the
+    // active tier or open category) that contains a match is rendered here, with
+    // non-matching controls hidden, so ANY setting is reachable from the search
+    // box alone (no manual navigation).
+    let searchActive = $derived(settingsSearchQuery.trim().length > 0);
+
+    /** All matched sections as nav chips, across every tier + category. */
+    let searchSectionChips = $derived.by<NavChip[]>(() => {
+        if (!matchedSectionIds) return [];
+        const seen = new Set<string>();
+        const chips: NavChip[] = [];
+        // Preserve search-result ranking order (most relevant sections first).
+        for (const result of settingsSearchResults) {
+            const id = result.sectionId as ActiveSectionId;
+            if (seen.has(id)) continue;
+            seen.add(id);
+            const s = sections.find((x) => x.id === id);
+            if (s) {
+                chips.push({ id: s.id, label: s.label, icon: s.icon });
+                continue;
+            }
+            const special = [
+                ...UTILITY_PANELS,
+                ...INTERFACE_PANELS,
+                ...TYPOGRAPHY_PANELS,
+            ].find((p) => p.id === id);
+            if (special) {
+                chips.push({ id: special.id, label: special.label, icon: special.icon });
+            }
+        }
+        return chips;
+    });
+
+
     $effect(() => {
         let next = activeSubsections;
         let changed = false;
@@ -1142,20 +1177,35 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     // OR the visible view changes (new rows mount on section/subsection switch).
     $effect(() => {
         const keys = matchedConfigKeys;
-        // Register view deps so the dim re-applies to freshly-mounted rows.
+        // Register view deps so the filter re-applies to freshly-mounted rows.
         void activeSectionId;
         void activeSubsections;
         void showAllSections;
+        void searchSectionChips;
         queueMicrotask(() => {
             for (const node of sectionBodyNodes.values()) {
                 node.classList.toggle("is-search-filtering", keys != null);
                 for (const row of node.querySelectorAll<HTMLElement>(
                     "[data-setting-config-key]",
                 )) {
-                    const dim =
+                    const hide =
                         keys != null &&
                         !keys.has(row.dataset.settingConfigKey ?? "");
-                    row.classList.toggle("settings-search-dimmed", dim);
+                    row.classList.toggle("is-hidden-by-search", hide);
+                }
+                // Collapse subsection groups / headings left with no visible
+                // matches so the results view stays tight.
+                for (const group of node.querySelectorAll<HTMLElement>(
+                    "[data-subsection-id], section",
+                )) {
+                    if (keys == null) {
+                        group.classList.remove("is-hidden-by-search");
+                        continue;
+                    }
+                    const hasVisibleMatch = group.querySelector(
+                        "[data-setting-config-key]:not(.is-hidden-by-search)",
+                    );
+                    group.classList.toggle("is-hidden-by-search", !hasVisibleMatch);
                 }
             }
         });
@@ -1270,7 +1320,11 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         sectionId: ActiveSectionId,
         activeSubsection: string,
     ) {
-        const active = activeSubsections[sectionId] ?? activeSubsection ?? "all";
+        // While searching, show every subsection so a match in any of them is
+        // visible (the search filter hides non-matching rows instead).
+        const active = searchActive
+            ? "all"
+            : (activeSubsections[sectionId] ?? activeSubsection ?? "all");
         for (const child of Array.from(node.children) as HTMLElement[]) {
             const subsectionId = child.dataset.subsectionId;
             const hidden =
@@ -1449,26 +1503,34 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                 <HudIcon name="close" size={11} />
             </button>
         {/if}
-        {#if settingsSearchQuery.trim()}
-            <div class="settings-search__dropdown">
-                {#if settingsSearchResults.length === 0}
-                    <p class="settings-search__empty">No matching settings.</p>
-                {:else}
-                    {#each settingsSearchResults as result (result.id)}
-                        <button
-                            class="settings-search__result"
-                            type="button"
-                            onclick={() => { void navigateToSearchResult(result); clearSettingsSearch(); }}
-                        >
-                            <span class="settings-search__result-title">{result.title}</span>
-                            <span class="settings-search__result-section">{result.sectionLabel}</span>
-                        </button>
-                    {/each}
-                {/if}
-            </div>
-        {/if}
     </div>
-    {#if openCategoryId}
+    {#if searchActive}
+        <div class="section-panel section-panel--search" transition:fade={{ duration: 120 }}>
+            <div class="section-body section-body--all section-body--search">
+                {#if searchSectionChips.length === 0}
+                    <p class="section-empty-hint">No settings match &ldquo;{settingsSearchQuery.trim()}&rdquo;.</p>
+                {/if}
+                {#each searchSectionChips as chip (chip.id)}
+                    <div
+                        class="section-all-group"
+                        use:registerSectionBody={{
+                            sectionId: chip.id,
+                            activeSubsection: "all",
+                        }}
+                        use:enhanceSettingMetadata={{
+                            scope: isUtilityPanelId(chip.id) ? null : getSectionDefinition(chip.id).scope,
+                        }}
+                    >
+                        <div class="section-all-group__title">
+                            <span class="subsection-chip__icon"><HudIcon name={chip.icon} size={13} /></span>
+                            <span>{chip.label}</span>
+                        </div>
+                        {@render sectionContent(chip)}
+                    </div>
+                {/each}
+            </div>
+        </div>
+    {:else if openCategoryId}
         <div class="section-panel" data-accent-id={activeCategoryId} transition:fade={{ duration: 120 }}>
             <div class="section-head-wrap">
                 <PaxHudButton class="section-head" onclick={closeCategoryPanel} title={`Close ${activeCategory?.label ?? "settings"}`}>
@@ -1720,8 +1782,10 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         syncFromConfig={syncAllFromConfig}
                         view="styles"
                         showCategoryThemeBar={true}
-                        activeSubsection={activeSubsections[sec?.id] ??
-                            (activeTerritoryRenderMode ?? "all")}
+                        activeSubsection={searchActive
+                            ? "all"
+                            : (activeSubsections[sec?.id] ??
+                              (activeTerritoryRenderMode ?? "all"))}
                     />
                 {:else if sec?.id === "frontier_fx"}
                     <ControlsSectionFrontierFx
@@ -1864,60 +1928,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     .settings-search__clear:hover {
         color: var(--pax-ui-text);
     }
-    .settings-search__dropdown {
-        position: absolute;
-        top: calc(100% + 4px);
-        left: 0;
-        right: 0;
-        z-index: 40;
-        max-height: 320px;
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-        padding: var(--pax-space-1);
-        border: 1px solid var(--pax-ui-border);
-        border-radius: var(--pax-ui-radius-sm);
-        background: var(--pax-ui-panel-bg-strong, var(--pax-color-void-mid));
-        box-shadow: var(--pax-ui-shadow-soft, 0 12px 32px color-mix(in srgb, var(--pax-color-void) 50%, transparent));
-    }
-    .settings-search__empty {
-        margin: 0;
-        padding: var(--pax-space-2);
-        color: var(--pax-ui-text-dim);
-        font-size: var(--pax-type-xs);
-    }
-    .settings-search__result {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: var(--pax-gap-sm);
-        padding: 7px 9px;
-        border: 0;
-        border-radius: var(--pax-ui-radius-xs);
-        background: transparent;
-        color: var(--pax-ui-text);
-        font-family: var(--pax-ui-font-ui);
-        text-align: left;
-        cursor: pointer;
-    }
-    .settings-search__result:hover {
-        background: color-mix(in srgb, var(--pax-ui-accent-warm) 10%, transparent);
-    }
-    .settings-search__result-title {
-        min-width: 0;
-        overflow: hidden;
-        font-size: var(--pax-type-xs);
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-    .settings-search__result-section {
-        flex: 0 0 auto;
-        color: var(--pax-ui-text-dim);
-        font-size: var(--pax-type-3xs);
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-    }
-
     /* Category rail icons read as a full-spectrum gradient top → bottom. */
     :global(.icon-toolbar .icon-btn .icon-symbol--spectrum) {
         color: hsl(var(--rail-hue, 200) 80% 66%);
@@ -2070,11 +2080,10 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         animation: settings-search-hit-flash 1.5s ease-out;
         border-radius: var(--pax-radius-sm, 6px);
     }
-    /* Live search filter: non-matching controls fade so matches stand out.
-       Layout-safe (no display:none), still interactive. */
-    :global(.settings-search-dimmed) {
-        opacity: 0.26;
-        transition: opacity 0.12s ease;
+    /* Live search filter: hide non-matching controls (and now-empty subsection
+       groups) so only matches show, across every category in the results view. */
+    :global(.is-hidden-by-search) {
+        display: none !important;
     }
     .section-head-wrap {
         display: flex;
