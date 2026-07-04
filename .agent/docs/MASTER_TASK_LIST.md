@@ -31,19 +31,13 @@ superseding docs:
 ## 2026-07-04
 
 ### Open
-- [ ] **SHARED transition retrigger root cause (cross-mode)** `[territory][transitions][ARCH]` —
-  user observed conquest transitions "retriggered by other conquests next tick" in BOTH Grid Gradient
-  AND PowerCore (different render paths) → suspected a shared/engine cause. VERDICT (code-grounded):
-  NOT the deterministic sim (conquest.ts emits one event per real ownership change, unique identity
-  tick:starId:prev:new, deduped). The shared cause is the transition PRESENTATION layer:
-  `renderFamilyTransitionLifecycle.ts:175` exposes `activeTransition = activeSessions[last]` — ONLY the
-  latest tick's session. Families key their single global animation clock on it:
-  GridGradientFamily `beginVisualTransition` (:282-287) resets startedAtMs whenever the plan re-keys
-  (:363) → a next-tick conquest RESTARTS the whole field animation → earlier conquest visually REPEATS.
-  PowerCore committed on a GLOBAL ownership fingerprint → retargeted the whole morph on any change
-  (corruption fixed e20ad2d04, but the restart trigger is the same). FIX DIRECTION: per-conquest
-  (independent) transition clocks — a new capture ADDS an animation, never re-keys/restarts in-flight
-  ones. Blast radius: shared lifecycle + family consumption. AWAITING USER GO/NO-GO before rework.
+- [ ] **Grid Gradient transition retrigger (per-conquest clock)** `[territory][transitions][gridGradient]`
+  — same cross-mode root as PowerCore (below) but via Grid Gradient's ONE global progress scalar +
+  `beginVisualTransition` clock reset on plan re-key + binary `prevGeometry` freeze. NEEDS VISUAL
+  VERIFICATION (GPU shader / worker plan) — NOT shipped. Full mechanism + ranked fix options (incl.
+  exact file:line) in `.agent/docs/sessions/2026-07-04/2026-07-04_GRID_GRADIENT_RETRIGGER_FIX_PLAN.md`.
+  Recommended: option 2 (per-event startedAtMs in the plan, per-cell clock in CPU+GLSL envelope) in a
+  supervised pass with a screenshot diff across overlapping conquests.
 - [ ] **Settings Search: literal panel FILTER (optional)** `[ui][settings]` — user #1 "does not filter
   down to that result." Reliable navigate+scroll-to-top+1.5s-highlight shipped (290155f91). OPEN
   question: do they also want VS-Code-style live filtering (hide non-matching rows as you type)? The
@@ -78,6 +72,13 @@ superseding docs:
   idle fills + borders (snapshot); morphing bubble cells are raw polygons.
 
 ### Done (2026-07-04)
+- [x] **SHARED transition retrigger — per-conquest independent clocks (PowerCore)** `[territory][transitions]`
+  — the cross-mode root: conquests animated on ONE global clock that restarted on every ownership
+  commit ("retriggered by the next tick's conquest"). `KineticTransitionRuntime` now holds MULTIPLE
+  concurrent morphs, each on its own clock; disjoint conquests are independent (no restart), overlapping
+  ones merge continuously. New test (kinetic_independent_conquests.json wide chain): first conquest
+  settles on its ORIGINAL clock, not delayed by a later independent capture. `a297366c6`. Grid Gradient
+  analog scoped separately (Open, needs visual verification).
 - [x] **Settings Search select lands on the exact control (top + 1.5s highlight)** `[ui][settings]` —
   selection used fuzzy DOM text matching → mis-hit/missed rows → scrolled whole section to center,
   glow on wrong element. Fixed: exact `data-setting-config-key === result.configKey` first (fuzzy
