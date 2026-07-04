@@ -1,0 +1,27 @@
+{
+  "metadata": {
+    "name": "kinetic_independent_conquests",
+    "createdAt": "2026-07-04T00:00:00.000Z",
+    "version": 2,
+    "note": "8-star zigzag chain (non-collinear, wide spacing) so a conquest at each END has DISJOINT changed regions (cell + flex neighbour) — used to exercise the KineticTransitionRuntime's concurrent independent-morph path (star-0 and star-7 do not share a Voronoi neighbour)."
+  },
+  "stars": [
+    { "id": "star-0", "x": 200,  "y": 300, "ownerId": "ai-1",         "starType": "red",  "activeShips": 5,   "damagedShips": 0 },
+    { "id": "star-1", "x": 450,  "y": 345, "ownerId": "human-player", "starType": "blue", "activeShips": 300, "damagedShips": 0 },
+    { "id": "star-2", "x": 700,  "y": 300, "ownerId": "ai-1",         "starType": "red",  "activeShips": 5,   "damagedShips": 0 },
+    { "id": "star-3", "x": 950,  "y": 345, "ownerId": "ai-1",         "starType": "red",  "activeShips": 5,   "damagedShips": 0 },
+    { "id": "star-4", "x": 1200, "y": 300, "ownerId": "ai-1",         "starType": "red",  "activeShips": 5,   "damagedShips": 0 },
+    { "id": "star-5", "x": 1450, "y": 345, "ownerId": "ai-1",         "starType": "red",  "activeShips": 5,   "damagedShips": 0 },
+    { "id": "star-6", "x": 1700, "y": 300, "ownerId": "human-player", "starType": "blue", "activeShips": 300, "damagedShips": 0 },
+    { "id": "star-7", "x": 1950, "y": 345, "ownerId": "ai-1",         "starType": "red",  "activeShips": 5,   "damagedShips": 0 }
+  ],
+  "connections": [
+    { "sourceId": "star-0", "targetId": "star-1", "distance": 254 },
+    { "sourceId": "star-1", "targetId": "star-2", "distance": 254 },
+    { "sourceId": "star-2", "targetId": "star-3", "distance": 254 },
+    { "sourceId": "star-3", "targetId": "star-4", "distance": 254 },
+    { "sourceId": "star-4", "targetId": "star-5", "distance": 254 },
+    { "sourceId": "star-5", "targetId": "star-6", "distance": 254 },
+    { "sourceId": "star-6", "targetId": "star-7", "distance": 254 }
+  ]
+}

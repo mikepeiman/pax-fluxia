@@ -288,4 +288,88 @@ describe('KineticTransitionRuntime', () => {
         expect(ownerOf(A)).toBe(NEW);
         expect(ownerOf(B)).toBe(NEW);
     });
+
+    it('an INDEPENDENT later capture runs concurrently and does NOT restart/delay the first (per-conquest clocks)', () => {
+        // The systemic cross-mode fix: each conquest animates on its OWN clock.
+        // A capture on a later tick must not re-key/restart an in-flight one —
+        // it runs as a SECOND concurrent morph. Needs stars whose changed
+        // regions (cell + flex neighbour) are DISJOINT; the 6-star corridor's
+        // ring depth spans the whole map, so use the wide 8-star chain where the
+        // two ENDS share no Voronoi neighbour.
+        const wide = loadWideChain();
+        const A = 'star-0'; // ai-1 → human-player (left end)
+        const B = 'star-7'; // ai-1 → human-player (right end) — independent
+        const A_OLD = 'ai-1';
+        const NEW = 'human-player';
+
+        const base = wide.endpoint({});
+        const afterA = wide.endpoint({ [A]: NEW });
+        const afterAB = wide.endpoint({ [A]: NEW, [B]: NEW });
+        const aStar = wide.stars.find((s) => s.id === A)!;
+        const bStar = wide.stars.find((s) => s.id === B)!;
+
+        const rt = new KineticTransitionRuntime();
+        rt.commit({ state: base.state, clip: base.clip, ownershipVersion: 'v0', transitionKey: null, nowMs: 0, durationMs: DUR });
+        // A captured at t=1000 → settles at 1600.
+        rt.commit({
+            state: afterA.state, clip: afterA.clip, ownershipVersion: 'vA',
+            transitionKey: `1:${A}:${A_OLD}:${NEW}`, nowMs: 1000, durationMs: DUR,
+            rippleOrigin: { x: aStar.x, y: aStar.y }, conquestOrigins: new Map([[A, wide.nearest(A, NEW)]]),
+        });
+        rt.sample(1000 + DUR * 0.5); // A ~halfway
+
+        // Independent capture B fires at t=1300, well before A's 1600 settle.
+        rt.commit({
+            state: afterAB.state, clip: afterAB.clip, ownershipVersion: 'vAB',
+            transitionKey: `2:${B}:ai-1:${NEW}`, nowMs: 1300, durationMs: DUR,
+            rippleOrigin: { x: bStar.x, y: bStar.y }, conquestOrigins: new Map([[B, wide.nearest(B, NEW)]]),
+        });
+        // Two concurrent morphs (join key), NOT a merge — proves independence.
+        expect(rt.activeKey).toContain('|');
+
+        // At A's ORIGINAL settle time (1600), A is fully conquered — its clock
+        // was never reset by B (a restart would push A's finish to 1900).
+        const atAsettle = rt.sample(1600)!;
+        expect(atAsettle).not.toBeNull(); // B still animating
+        expect(cellOwnerArea(atAsettle, A, A_OLD)).toBeLessThan(1); // A done on time
+
+        // B finishes on ITS clock (1300 + DUR = 1900); everything settled after.
+        expect(rt.sample(1900)).toBeNull();
+        const settled = rt.settledState!;
+        const ownerOf = (id: string) => settled.cells.find((c) => c.siteId === id)?.ownerId;
+        expect(ownerOf(A)).toBe(NEW);
+        expect(ownerOf(B)).toBe(NEW);
+    });
 });
+
+/** Loader for the wide 8-star chain fixture (disjoint end conquests). */
+function loadWideChain() {
+    const raw = JSON.parse(
+        readFileSync(path.join(REPO_ROOT, 'common', 'resources', 'fixture-maps', 'kinetic_independent_conquests.json'), 'utf-8'),
+    ) as { stars: StarState[]; connections: StarConnection[] };
+    let maxX = 0, maxY = 0;
+    for (const s of raw.stars) { if (s.x > maxX) maxX = s.x; if (s.y > maxY) maxY = s.y; }
+    const worldWidth = maxX + 200, worldHeight = maxY + 200;
+    const endpoint = (overrides: Record<string, string>) => {
+        const stars = raw.stars.map((s) => (overrides[s.id] ? ({ ...s, ownerId: overrides[s.id] } as StarState) : s));
+        const config = buildPowerVoronoi0319Settings({
+            lanes: raw.connections, worldWidth, worldHeight,
+            configSource: GAME_CONFIG as unknown as Record<string, unknown>,
+        });
+        const r = computePowerCoreEndpoint({ stars, connections: raw.connections, config });
+        if ('kind' in r) throw new Error(r.message);
+        return { state: { sites: r.sites, cells: r.cells }, clip: r.clip };
+    };
+    const nearest = (targetId: string, owner: string) => {
+        const target = raw.stars.find((s) => s.id === targetId)!;
+        let best: { x: number; y: number } | null = null;
+        let bestD = Infinity;
+        for (const s of raw.stars) {
+            if (s.id === targetId || s.ownerId !== owner) continue;
+            const d = (s.x - target.x) ** 2 + (s.y - target.y) ** 2;
+            if (d < bestD) { bestD = d; best = { x: s.x, y: s.y }; }
+        }
+        return best ?? { x: target.x + 100, y: target.y };
+    };
+    return { stars: raw.stars, endpoint, nearest };
+}

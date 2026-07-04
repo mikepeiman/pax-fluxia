@@ -1,19 +1,23 @@
 /**
  * KineticTransitionRuntime — K2: conquest lifecycle over the kinetic core.
  *
- * Owns the settled endpoint state and the active morph. Presentation asks
- * `sample(nowMs)` every frame: null means "draw the settled snapshot"
- * (nothing moving); a KineticFrame means "draw frozen cells + these moving
- * bubble cells".
+ * Owns the settled endpoint state and the set of ACTIVE morphs. Each ownership
+ * commit adds a morph animating THAT commit's delta on its OWN clock, so
+ * independent (non-overlapping) conquests run CONCURRENTLY and a later capture
+ * never restarts an earlier one — the shared cross-mode defect "conquest
+ * transitions retriggered by the next tick's conquest". Only commits whose
+ * changed cells OVERLAP an in-flight morph (a cell recaptured mid-sweep, or an
+ * adjacent region sharing a flex/ring cell) collapse into ONE retargeted morph,
+ * so a shared cell stays single-valued and continuous (T4 recapture) with no
+ * coincident-owner corruption.
  *
- * T4 (recapture/retarget): because transition state is INPUTS (sites,
- * weights, progress) rather than shapes, a mid-flight ownership change simply
- * materializes the current frame as a brand-new endpoint state and diffs it
- * against the new target — the morph re-aims continuously, no restart, no
- * stale ownership, no correspondence heuristics.
+ * sample(now) composites: the settled state is the base; every active morph
+ * overlays its moving cells. null = idle (draw the settled snapshot). frozen
+ * cells are reference-stable while the morph set is unchanged (the Vector skin
+ * keys its static-layer redraw on that identity).
  *
- * T5 (tick-bound): the caller supplies startedAtMs + durationMs per commit
- * (resolved from tick timing upstream); p = clamp((now − started)/duration).
+ * T5 (tick-bound): each commit carries startedAtMs + durationMs (resolved from
+ * tick timing upstream); a morph's local p = clamp((now − started)/duration).
  *
  * Pure TS: no PIXI, no Svelte, no config reads — fully offline-testable.
  */
@@ -56,20 +60,44 @@ interface ActiveMorph {
     readonly durationMs: number;
     readonly bubble: TransitionBubble;
     readonly clip: [number, number][];
+    /** siteIds this morph moves (owner or shape) — for overlap + compositing. */
+    readonly changedSiteIds: ReadonlySet<string>;
+}
+
+function clamp01(v: number): number {
+    return v < 0 ? 0 : v > 1 ? 1 : v;
+}
+
+/** The siteIds a bubble touches at either endpoint (the moving region). */
+function changedSiteIdsOf(bubble: TransitionBubble): Set<string> {
+    const ids = new Set<string>();
+    for (const cell of bubble.bubbleCells0) ids.add(cell.siteId);
+    for (const cell of bubble.bubbleCells1) ids.add(cell.siteId);
+    return ids;
+}
+
+function intersects(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
+    const [small, large] = a.size <= b.size ? [a, b] : [b, a];
+    for (const id of small) if (large.has(id)) return true;
+    return false;
 }
 
 export class KineticTransitionRuntime {
     private settled: KineticEndpointState | null = null;
     private settledVersion: string | null = null;
-    private active: ActiveMorph | null = null;
+    private morphs: ActiveMorph[] = [];
+    /** Reference-stable frozen-cell array cache (Vector skin static-layer key). */
+    private frozenCache: { signature: string; cells: PowerCell[] } | null = null;
 
     /** The state presentation should draw when sample() returns null. */
     get settledState(): KineticEndpointState | null {
         return this.settled;
     }
 
+    /** Non-null while any morph is active; a stable join of the active keys. */
     get activeKey(): string | null {
-        return this.active?.key ?? null;
+        if (this.morphs.length === 0) return null;
+        return this.morphs.map((m) => m.key).join('|');
     }
 
     commit(params: KineticCommitParams): void {
@@ -78,67 +106,168 @@ export class KineticTransitionRuntime {
         const previous = this.settled;
         this.settled = params.state;
         this.settledVersion = params.ownershipVersion;
+        this.frozenCache = null;
 
         if (!previous || params.transitionKey === null) {
             // Initial load or explicit snap: no animation.
-            this.active = null;
+            this.morphs = [];
             return;
         }
 
-        // Retarget (T4): a morph in flight re-aims from its CURRENT frame.
-        const from = this.active
-            ? this.materializeMidState(params.nowMs)
-            : previous;
-        this.active = {
-            key: params.transitionKey,
-            startedAtMs: params.nowMs,
-            durationMs: Math.max(1, params.durationMs),
-            bubble: buildTransitionBubble({
-                s0: from,
-                s1: params.state,
-                rippleOrigin: params.rippleOrigin ?? null,
-                conquestOrigins: params.conquestOrigins,
-            }),
-            clip: params.clip,
-        };
+        const bubble = buildTransitionBubble({
+            s0: previous,
+            s1: params.state,
+            rippleOrigin: params.rippleOrigin ?? null,
+            conquestOrigins: params.conquestOrigins,
+        });
+        const changedSiteIds = changedSiteIdsOf(bubble);
+        if (changedSiteIds.size === 0) return; // no visible delta; keep morphs
+
+        const durationMs = Math.max(1, params.durationMs);
+        const overlaps = this.morphs.some((m) =>
+            intersects(m.changedSiteIds, changedSiteIds),
+        );
+
+        if (!overlaps) {
+            // Independent conquest → its OWN clock; existing morphs untouched.
+            this.morphs = [
+                ...this.morphs,
+                {
+                    key: params.transitionKey,
+                    startedAtMs: params.nowMs,
+                    durationMs,
+                    bubble,
+                    clip: params.clip,
+                    changedSiteIds,
+                },
+            ];
+            return;
+        }
+
+        // Overlap (recapture / adjacent shared cell): materialize the CURRENT
+        // screen of all active morphs and re-diff into ONE continuous morph, so
+        // shared cells stay single-valued (no coincident-owner corruption) and
+        // the compositing invariant "no two active morphs share a site" holds.
+        const from = this.materializeComposite(params.nowMs, previous);
+        const merged = buildTransitionBubble({
+            s0: from,
+            s1: params.state,
+            rippleOrigin: params.rippleOrigin ?? null,
+            conquestOrigins: params.conquestOrigins,
+        });
+        this.morphs = [
+            {
+                key: params.transitionKey,
+                startedAtMs: params.nowMs,
+                durationMs,
+                bubble: merged,
+                clip: params.clip,
+                changedSiteIds: changedSiteIdsOf(merged),
+            },
+        ];
     }
 
     /** Per-frame sample; null = idle (draw the settled state). */
     sample(nowMs: number): KineticFrame | null {
-        if (!this.active) return null;
-        const p =
-            (nowMs - this.active.startedAtMs) / this.active.durationMs;
-        if (p >= 1) {
-            // Settle: emit nothing further; settled state is the truth.
-            this.active = null;
-            return null;
+        if (this.morphs.length === 0 || !this.settled) return null;
+
+        // Retire settled morphs (local p ≥ 1).
+        const stillActive = this.morphs.filter(
+            (m) => (nowMs - m.startedAtMs) / m.durationMs < 1,
+        );
+        if (stillActive.length !== this.morphs.length) {
+            this.morphs = stillActive;
+            this.frozenCache = null;
         }
-        return sampleKineticFrame({
-            bubble: this.active.bubble,
-            p: Math.max(0, p),
-            clip: this.active.clip,
-        });
+        if (this.morphs.length === 0) return null;
+
+        // Moving cells: each morph's sampled bubble cells. Morphs are disjoint
+        // (overlaps were merged at commit), so the union has no site conflicts.
+        const bubbleCells: PowerCell[] = [];
+        let maxP = 0;
+        for (const morph of this.morphs) {
+            const p = clamp01((nowMs - morph.startedAtMs) / morph.durationMs);
+            if (p > maxP) maxP = p;
+            const frame = sampleKineticFrame({
+                bubble: morph.bubble,
+                p,
+                clip: morph.clip,
+            });
+            for (const cell of frame.bubbleCells) bubbleCells.push(cell);
+        }
+
+        // Frozen base = settled cells no morph is moving. Reference-stable while
+        // the morph set + settled are unchanged (Vector skin redraw key).
+        const signature = `${this.settledVersion}#${this.morphs
+            .map((m) => m.key)
+            .join('|')}`;
+        let frozenCells: PowerCell[];
+        if (this.frozenCache && this.frozenCache.signature === signature) {
+            frozenCells = this.frozenCache.cells;
+        } else {
+            const movingSiteIds = new Set<string>();
+            for (const morph of this.morphs) {
+                for (const id of morph.changedSiteIds) movingSiteIds.add(id);
+            }
+            frozenCells = this.settled.cells.filter(
+                (c) => !movingSiteIds.has(c.siteId),
+            );
+            this.frozenCache = { signature, cells: frozenCells };
+        }
+
+        return { p: maxP, frozenCells, bubbleCells };
     }
 
     /**
-     * Materialize the in-flight frame as an endpoint state: frozen pairs stay
-     * as-is; each moving cell pairs with its (deduped) mini site, carried at
-     * its CURRENT interpolated weight/owner. sourceSiteIndex is re-based onto
-     * the combined array so the bubble diff gets exact cell↔site links.
-     *
-     * A conquest SWEEP splits ONE captured cell into two owner-parts (a render
-     * overlay — not a diagram state) that share a sourceSiteIndex. A faithful
-     * endpoint has exactly ONE owner per site, so each such group is collapsed
-     * to its DOMINANT (larger-area) part before emitting. Without this, the two
-     * parts become two coincident different-owner sites (siteIdentityKey is
-     * owner-keyed) and the re-diff re-animates a spurious old→new flip on an
-     * already-conquered cell — the "half snaps back to old owner" retarget
-     * corruption (kineticTransitionRuntime.test: UNRELATED capture mid-sweep).
+     * Materialize the CURRENT screen (settled base + every morph's mid-frame)
+     * as one endpoint state, for the overlap/recapture retarget. Frozen rest
+     * comes from `base` (settled truth); each morph contributes its moving
+     * cells (dominant-collapsed, see materializeMorphMoving). sourceSiteIndex is
+     * re-based onto the combined array so the re-diff gets exact cell↔site links.
      */
-    private materializeMidState(nowMs: number): KineticEndpointState {
-        const morph = this.active!;
+    private materializeComposite(
+        nowMs: number,
+        base: KineticEndpointState,
+    ): KineticEndpointState {
+        const movingSiteIds = new Set<string>();
+        for (const morph of this.morphs) {
+            for (const id of morph.changedSiteIds) movingSiteIds.add(id);
+        }
+        const sites: PowerCoreSite[] = [];
+        const cells: PowerCell[] = [];
+        for (const cell of base.cells) {
+            if (movingSiteIds.has(cell.siteId)) continue;
+            if (cell.sourceSiteIndex === undefined) continue;
+            const site = base.sites[cell.sourceSiteIndex];
+            if (!site) continue;
+            sites.push(site);
+            cells.push({ ...cell, sourceSiteIndex: sites.length - 1 });
+        }
+        for (const morph of this.morphs) {
+            const moving = this.materializeMorphMoving(morph, nowMs);
+            for (let i = 0; i < moving.sites.length; i++) {
+                sites.push(moving.sites[i]!);
+                cells.push({ ...moving.cells[i]!, sourceSiteIndex: sites.length - 1 });
+            }
+        }
+        return { sites, cells };
+    }
+
+    /**
+     * One morph's moving cells at nowMs, as (site, cell) pairs. A conquest
+     * SWEEP splits ONE captured cell into two owner-parts (a render overlay, not
+     * a diagram state) that share a sourceSiteIndex; a faithful endpoint has one
+     * owner per site, so each such group collapses to its DOMINANT (larger-area)
+     * part. Without this, the two parts become coincident different-owner sites
+     * (siteIdentityKey is owner-keyed) and the re-diff re-animates a spurious
+     * old→new flip on an already-conquered cell ("half snaps back to old owner").
+     */
+    private materializeMorphMoving(
+        morph: ActiveMorph,
+        nowMs: number,
+    ): { sites: PowerCoreSite[]; cells: PowerCell[] } {
         const p = Math.min(
-            0.999, // stay strictly mid-flight; p≥1 settles via sample()
+            0.999, // strictly mid-flight; p≥1 retires via sample()
             Math.max(0.001, (nowMs - morph.startedAtMs) / morph.durationMs),
         );
         const frame = sampleKineticFrame({
@@ -146,17 +275,11 @@ export class KineticTransitionRuntime {
             p,
             clip: morph.clip,
         });
-
         const sites: PowerCoreSite[] = [];
         const cells: PowerCell[] = [];
-        for (const { site, cell } of morph.bubble.frozenPairs) {
-            sites.push(site);
-            cells.push({ ...cell, sourceSiteIndex: sites.length - 1 });
-        }
-        // Group moving cells by their mini-site: >1 cell ⇒ a split conquest.
         const groups = new Map<number, PowerCell[]>();
         for (const cell of frame.bubbleCells) {
-            if (cell.sourceSiteIndex === undefined) continue; // ramp with no cell
+            if (cell.sourceSiteIndex === undefined) continue;
             const g = groups.get(cell.sourceSiteIndex);
             if (g) g.push(cell);
             else groups.set(cell.sourceSiteIndex, [cell]);
@@ -164,13 +287,15 @@ export class KineticTransitionRuntime {
         for (const [sourceSiteIndex, group] of groups) {
             const miniSite = frame.miniSites?.[sourceSiteIndex];
             if (!miniSite) continue; // ε-dominated ramp with no cell — absent
-            // Dominant part = the owner that currently holds the cell.
             let dominant = group[0]!;
             if (group.length > 1) {
                 let bestArea = polyArea(dominant.points);
                 for (let i = 1; i < group.length; i++) {
                     const a = polyArea(group[i]!.points);
-                    if (a > bestArea) { bestArea = a; dominant = group[i]!; }
+                    if (a > bestArea) {
+                        bestArea = a;
+                        dominant = group[i]!;
+                    }
                 }
             }
             sites.push({
@@ -180,7 +305,7 @@ export class KineticTransitionRuntime {
                 ownerId: dominant.ownerId,
                 starId: dominant.siteId,
             });
-            cells.push({ ...dominant, sourceSiteIndex: sites.length - 1 });
+            cells.push({ ...dominant }); // sourceSiteIndex re-based by caller
         }
         return { sites, cells };
     }
