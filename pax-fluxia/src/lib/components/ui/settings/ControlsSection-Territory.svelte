@@ -177,7 +177,11 @@
 
   function supportsSharedSurfaceStyleCard(): boolean {
     const activeStyle = resolveActiveStyleId();
-    return activeStyle === "perimeter_field" || isCellGridStyle();
+    return (
+      activeStyle === "perimeter_field" ||
+      activeStyle === "power_vector" ||
+      isCellGridStyle()
+    );
   }
 
   function supportsGridGradientStyleCard(): boolean {
@@ -221,6 +225,9 @@
     }
     if (isCellGridStyle()) {
       return "Cell Grid Surface";
+    }
+    if (resolveActiveStyleId() === "power_vector") {
+      return "Power Vector Surface";
     }
     return "Perimeter Field Surface";
   }
@@ -1686,21 +1693,27 @@
               ? "phase_edges"
               : isCellGridStyle()
                 ? "cell_grid"
-                : "perimeter_field"}
+                : resolveActiveStyleId() === "power_vector"
+                  ? "power_vector"
+                  : "perimeter_field"}
           fillHelp={isCellGridStyle()
             ? isEmberLatticeStyle()
               ? "Fill visibility, color energy, cell paint, and boundary inset for the Ember Lattice surface."
               : isCellGridPhaseEdgesStyle()
                 ? "Fill visibility, color energy, cell paint, and boundary inset for the Phase Edges surface."
                 : "Fill visibility, color energy, cell paint, and boundary inset for the Cell Grid surface."
-            : "Fill visibility, color energy, and perimeter placement for the Perimeter Field surface."}
+            : resolveActiveStyleId() === "power_vector"
+              ? "Fill visibility, color energy, and alpha for the Power Vector surface (hue stays player-owned)."
+              : "Fill visibility, color energy, and perimeter placement for the Perimeter Field surface."}
           borderHelp={isCellGridStyle()
             ? isEmberLatticeStyle()
               ? "Border visibility, width, color energy, geometry family, contour seam, smoothing, and trim for the Ember Lattice surface."
               : isCellGridPhaseEdgesStyle()
                 ? "Border visibility, width, color energy, and paint strategy for the Phase Edges surface."
                 : "Border visibility, width, color energy, and paint strategy for the Cell Grid surface."
-            : "Border visibility, width, color energy, and finish for the Perimeter Field surface."} />
+            : resolveActiveStyleId() === "power_vector"
+              ? "Border visibility, width, color energy, alpha, and rounding (Chaikin smooth passes) for the Power Vector surface."
+              : "Border visibility, width, color energy, and finish for the Perimeter Field surface."} />
       </div>
     {/if}
   {/if}

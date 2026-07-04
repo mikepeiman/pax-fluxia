@@ -19,7 +19,8 @@
         | "cell_grid"
         | "phase_edges"
         | "ember_lattice"
-        | "perimeter_field";
+        | "perimeter_field"
+        | "power_vector";
 
     interface Props {
         panel: Record<string, unknown>;
@@ -121,6 +122,10 @@
 
     function isEmberLatticeFamily(): boolean {
         return styleFamily === "ember_lattice";
+    }
+
+    function isPowerVectorFamily(): boolean {
+        return styleFamily === "power_vector";
     }
 
     function usesEdgeForwardDefaults(): boolean {
@@ -464,6 +469,27 @@
                 panelAlpha="territorySurfaceBorderAlpha"
                 defaultAlpha={1}
             />
+
+            {#if isPowerVectorFamily()}
+                <div class="sub-heading territory-style-subheading">
+                    Border Rounding
+                    <PaxInfoHint text="Chaikin smoothing passes applied to the vector borders and merged fills. 0 = crisp straight edges; higher = rounder." />
+                </div>
+                <PaxSettingsRangeRow
+                    label="Geometry Smooth Passes"
+                    value={numVal("voronoiBorderSmooth", "VORONOI_BORDER_SMOOTH", 0)}
+                    min={0}
+                    max={5}
+                    step={1}
+                    settingConfigKey="VORONOI_BORDER_SMOOTH"
+                    onInput={(value) =>
+                        onUpdate(
+                            "VORONOI_BORDER_SMOOTH",
+                            "voronoiBorderSmooth",
+                            value,
+                        )}
+                />
+            {/if}
 
             {#if isCellGridFamily()}
                 <div class="sub-heading territory-style-subheading">
