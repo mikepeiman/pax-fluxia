@@ -1459,6 +1459,25 @@
   font-size: calc(1.02rem * var(--pax-ui-title-scale, 1));
 }
 
+/* Current-map label beside the brand title (muted, secondary). */
+.pf-hud-topbar__map-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 0.28rem 0;
+  background: color-mix(in srgb, var(--pax-ui-text-strong, #e8edf5) 24%, transparent);
+}
+
+.pf-hud-topbar__map {
+  color: var(--pax-ui-text-muted, #9aa4b2);
+  font-weight: var(--pax-weight-medium, 500);
+  font-size: calc(0.82rem * var(--pax-ui-title-scale, 1));
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .pf-hud-topbar__status-item strong,
 .pf-hud-topbar__summary-cell strong,
 .pf-standings__summary,

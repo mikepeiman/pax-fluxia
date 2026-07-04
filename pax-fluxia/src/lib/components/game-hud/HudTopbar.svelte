@@ -17,6 +17,7 @@
     currentTick: number;
     speed: GameSpeed;
     isPaused: boolean;
+    mapName: string | null;
     modeOptions: TerritoryModeShortcutOption[];
     activeModeId: string;
     onMenuClick: () => void;
@@ -33,6 +34,7 @@
     currentTick,
     speed,
     isPaused,
+    mapName,
     modeOptions,
     activeModeId,
     onMenuClick,
@@ -60,6 +62,10 @@
     <HudIconButton icon="menu" title="Main menu" onclick={onMenuClick} />
     <span class="pf-hud-topbar__mark"><HudIcon name="yellow" size={19} /></span>
     <span class="pf-hud-topbar__title">Pax Fluxia</span>
+    {#if mapName}
+      <span class="pf-hud-topbar__map-divider" aria-hidden="true"></span>
+      <span class="pf-hud-topbar__map" title={`Map: ${mapName}`}>{mapName}</span>
+    {/if}
   </div>
 
   {#if localPlayer && !standingsCollapsed}

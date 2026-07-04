@@ -1061,6 +1061,8 @@ function initStandardMap(playerIds: string[]): void {
 
 let lastMapDefinition: MapDefinition | null = null;
 let pendingSavedMap: MapDefinition | null = null;
+/** Name of the map currently loaded into the game (reactive, for the HUD). */
+let activeMapName = $state<string | null>(null);
 let savedMaps: MapDefinition[] = $state(loadSavedMaps());
 
 // F-148: Default map preference — auto-load a saved map on game start
@@ -1638,13 +1640,15 @@ function initializeState(): void {
     measurePerf('game.initializeState.mapInit', () => {
         if (mapType === 'debug' || mapType === 'debug-b') {
             initDebugMap(playerIds, mapType);
+            activeMapName = mapType === 'debug-b' ? 'Debug B' : 'Debug';
         } else if (pendingSavedMap) {
+            activeMapName = pendingSavedMap.metadata?.name ?? null;
             initSavedMap(playerIds, pendingSavedMap);
             pendingSavedMap = null;
         } else if (defaultMapName) {
             const defaultMap = savedMaps.find(m => m.metadata.name === defaultMapName);
             if (defaultMap) {
-
+                activeMapName = defaultMap.metadata?.name ?? null;
                 initSavedMap(playerIds, defaultMap);
             } else {
                 log.error(
@@ -1656,9 +1660,11 @@ function initializeState(): void {
                     },
                 );
                 initStandardMap(playerIds);
+                activeMapName = null;
             }
         } else {
             initStandardMap(playerIds);
+            activeMapName = null;
         }
     });
 
@@ -2125,6 +2131,7 @@ export const gameStore = {
     // Map save/load (F-70)
     get savedMaps() { return savedMaps; },
     get lastMapDefinition() { return lastMapDefinition; },
+    get activeMapName() { return activeMapName; },
     saveCurrentMap,
     upsertSavedMapDefinition,
     deleteSavedMap,

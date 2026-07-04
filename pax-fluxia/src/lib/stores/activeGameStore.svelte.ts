@@ -539,6 +539,8 @@ export const activeGameStore = {
     get localPlayerId() { return getLocalPlayerId(); },
     get isPaused() { return getIsPaused(); },
     get speed() { return getSpeed(); },
+    /** Name of the loaded map for the HUD (single-player; null in MP until set). */
+    get activeMapName() { return gameStore.activeMapName ?? null; },
     get effectiveTickMs() {
         const speed = getSpeed() || 1;
         return Math.max(GAME_CONFIG.MIN_TICK_MS, GAME_CONFIG.BASE_TICK_MS / speed);

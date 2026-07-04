@@ -761,6 +761,7 @@
           currentTick={activeGameStore.currentTick ?? 0}
           speed={activeGameStore.speed}
           isPaused={activeGameStore.isPaused}
+          mapName={activeGameStore.activeMapName}
           modeOptions={topbarTerritoryModeOptions}
           activeModeId={topbarActiveTerritoryModeId}
           onMenuClick={() => gameStore.setView("menu")}
