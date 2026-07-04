@@ -179,12 +179,14 @@ function resolveSectionTarget(
                 };
             }
             if (record.key.startsWith("GRID_GRADIENT_")) {
-                return { sectionId: "territory_styles" };
+                return { sectionId: "territory_styles", subsectionId: "all" };
             }
-            // UNIFIED SURFACE: cell-grid / metaball / voronoi surface records
-            // route to the stable Styles section regardless of the active render
-            // mode (no per-mode chip targeting — the chip set never changes).
-            return { sectionId: "territory_styles" };
+            // UNIFIED SURFACE: cell-grid / metaball / voronoi / power-vector
+            // surface records. Route to the Styles section with the "all"
+            // subsection so resolveActiveStyleId() follows the LIVE render mode
+            // (not whatever per-mode chip was last open) — otherwise clicking a
+            // result leaves you on a stale mode's card and the control is absent.
+            return { sectionId: "territory_styles", subsectionId: "all" };
         case "timing":
         case "rules":
             return { sectionId: "match_flow" };
