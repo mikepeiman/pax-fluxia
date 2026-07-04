@@ -31,6 +31,24 @@ superseding docs:
 ## 2026-07-04
 
 ### Open
+- [ ] **SHARED transition retrigger root cause (cross-mode)** `[territory][transitions][ARCH]` —
+  user observed conquest transitions "retriggered by other conquests next tick" in BOTH Grid Gradient
+  AND PowerCore (different render paths) → suspected a shared/engine cause. VERDICT (code-grounded):
+  NOT the deterministic sim (conquest.ts emits one event per real ownership change, unique identity
+  tick:starId:prev:new, deduped). The shared cause is the transition PRESENTATION layer:
+  `renderFamilyTransitionLifecycle.ts:175` exposes `activeTransition = activeSessions[last]` — ONLY the
+  latest tick's session. Families key their single global animation clock on it:
+  GridGradientFamily `beginVisualTransition` (:282-287) resets startedAtMs whenever the plan re-keys
+  (:363) → a next-tick conquest RESTARTS the whole field animation → earlier conquest visually REPEATS.
+  PowerCore committed on a GLOBAL ownership fingerprint → retargeted the whole morph on any change
+  (corruption fixed e20ad2d04, but the restart trigger is the same). FIX DIRECTION: per-conquest
+  (independent) transition clocks — a new capture ADDS an animation, never re-keys/restarts in-flight
+  ones. Blast radius: shared lifecycle + family consumption. AWAITING USER GO/NO-GO before rework.
+- [ ] **Settings Search: literal panel FILTER (optional)** `[ui][settings]` — user #1 "does not filter
+  down to that result." Reliable navigate+scroll-to-top+1.5s-highlight shipped (290155f91). OPEN
+  question: do they also want VS-Code-style live filtering (hide non-matching rows as you type)? The
+  dead `matchedSectionIds` derived (GameSettingsPanel.svelte:1106) is an abandoned start at this.
+  Awaiting user confirmation before building (large, complex panel structure).
 - [ ] **Conquest transition is NOT the spec** `[territory][transitions]` — the clip-sweep is a
   straight-line "windshield-wiper" SHAPE overlay, kept as a DEV ALTERNATIVE / coverage-completion
   baseline per user (2026-07-04), explicitly NOT the water/ripple/rope vector-morph target
@@ -60,6 +78,11 @@ superseding docs:
   idle fills + borders (snapshot); morphing bubble cells are raw polygons.
 
 ### Done (2026-07-04)
+- [x] **Settings Search select lands on the exact control (top + 1.5s highlight)** `[ui][settings]` —
+  selection used fuzzy DOM text matching → mis-hit/missed rows → scrolled whole section to center,
+  glow on wrong element. Fixed: exact `data-setting-config-key === result.configKey` first (fuzzy
+  fallback); row-level `closest([data-setting-config-key], …)`; scrollIntoView `center`→`start`.
+  Reliable for every Pax*Row-based control incl. TERRITORY_SURFACE_* SLA. `290155f91`.
 - [x] **Retarget corruption: unrelated capture resurrected an already-conquered cell's old owner**
   `[territory][transitions]` — user: "completed correct, then NEXT tick half snapped back to old
   owner, 2-3 ticks LATER it disappeared; only fill, no borders." Root cause: the sweep splits one
