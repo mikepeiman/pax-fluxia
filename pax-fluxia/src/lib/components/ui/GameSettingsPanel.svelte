@@ -1151,6 +1151,17 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         node: HTMLElement,
         result: SettingsSearchResult,
     ): HTMLElement | null {
+        // Reliable path first: an EXACT match on the stable config key. Fuzzy
+        // text matching (below) silently mis-hits (one label is a substring of
+        // another) or misses entirely when a row's visible label differs from
+        // the search anchor — the cause of "search doesn't take me to / doesn't
+        // highlight the setting" on rows the fuzzy pass can't resolve.
+        if (result.configKey) {
+            const exact = node.querySelector<HTMLElement>(
+                `[data-setting-config-key="${CSS.escape(result.configKey)}"]`,
+            );
+            if (exact) return exact;
+        }
         const anchorNeedle = normalizeSearchLookup(
             `${result.anchorText ?? ""} ${result.configKey ?? ""}`,
         );
@@ -1197,11 +1208,13 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             resolveSearchTargetElement(sectionNode, result) ?? sectionNode;
         const scrollTarget =
             target.closest(
-                ".var-row, .toggle-row, .engine-control-group, .theme-card, section",
+                "[data-setting-config-key], .var-row, .toggle-row, .engine-control-group, .theme-card, section",
             ) ?? target;
+        // Bring the matched control to the TOP of the panel view (not centered)
+        // so it lands where the eye expects it, then flash it for ~1.5s.
         (scrollTarget as HTMLElement).scrollIntoView({
             behavior: "smooth",
-            block: "center",
+            block: "start",
         });
         flashSearchTarget(scrollTarget as HTMLElement);
     }
