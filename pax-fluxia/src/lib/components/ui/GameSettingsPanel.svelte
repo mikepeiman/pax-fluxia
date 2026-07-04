@@ -1103,58 +1103,9 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     let settingsSearchResults = $derived.by(() =>
         searchSettings(settingsSearchQuery, 24, activeTerritoryRenderMode),
     );
-    let matchedSectionIds = $derived.by(() =>
-        settingsSearchQuery.trim()
-            ? new Set(settingsSearchResults.map((result) => result.sectionId))
-            : null,
-    );
-    // Live filter: the config keys matching the current query (null = not
-    // searching). Applied by the effect below as a DIM on non-matching rows —
-    // layout-safe (no display:none / no view-mode change), works in any view.
-    let matchedConfigKeys = $derived.by(() =>
-        settingsSearchQuery.trim()
-            ? new Set(
-                  settingsSearchResults
-                      .map((result) => result.configKey)
-                      .filter((key): key is string => Boolean(key)),
-              )
-            : null,
-    );
-
-    // GLOBAL search: a non-empty query switches the whole panel into a flat,
-    // cross-category/cross-tier results view — every section (regardless of the
-    // active tier or open category) that contains a match is rendered here, with
-    // non-matching controls hidden, so ANY setting is reachable from the search
-    // box alone (no manual navigation).
+    // GLOBAL search: a non-empty query switches the panel to a flat results
+    // LIST (every match, ranked); clicking a result opens its native location.
     let searchActive = $derived(settingsSearchQuery.trim().length > 0);
-
-    /** All matched sections as nav chips, across every tier + category. */
-    let searchSectionChips = $derived.by<NavChip[]>(() => {
-        if (!matchedSectionIds) return [];
-        const seen = new Set<string>();
-        const chips: NavChip[] = [];
-        // Preserve search-result ranking order (most relevant sections first).
-        for (const result of settingsSearchResults) {
-            const id = result.sectionId as ActiveSectionId;
-            if (seen.has(id)) continue;
-            seen.add(id);
-            const s = sections.find((x) => x.id === id);
-            if (s) {
-                chips.push({ id: s.id, label: s.label, icon: s.icon });
-                continue;
-            }
-            const special = [
-                ...UTILITY_PANELS,
-                ...INTERFACE_PANELS,
-                ...TYPOGRAPHY_PANELS,
-            ].find((p) => p.id === id);
-            if (special) {
-                chips.push({ id: special.id, label: special.label, icon: special.icon });
-            }
-        }
-        return chips;
-    });
-
 
     $effect(() => {
         let next = activeSubsections;
@@ -1172,45 +1123,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         }
     });
 
-    // Live search filter: dim every keyed control that does NOT match the query
-    // so matches stand out (a layout-safe "filter down"). Re-runs when the query
-    // OR the visible view changes (new rows mount on section/subsection switch).
-    $effect(() => {
-        const keys = matchedConfigKeys;
-        // Register view deps so the filter re-applies to freshly-mounted rows.
-        void activeSectionId;
-        void activeSubsections;
-        void showAllSections;
-        void searchSectionChips;
-        queueMicrotask(() => {
-            for (const node of sectionBodyNodes.values()) {
-                node.classList.toggle("is-search-filtering", keys != null);
-                for (const row of node.querySelectorAll<HTMLElement>(
-                    "[data-setting-config-key]",
-                )) {
-                    const hide =
-                        keys != null &&
-                        !keys.has(row.dataset.settingConfigKey ?? "");
-                    row.classList.toggle("is-hidden-by-search", hide);
-                }
-                // Collapse subsection groups / headings left with no visible
-                // matches so the results view stays tight.
-                for (const group of node.querySelectorAll<HTMLElement>(
-                    "[data-subsection-id], section",
-                )) {
-                    if (keys == null) {
-                        group.classList.remove("is-hidden-by-search");
-                        continue;
-                    }
-                    const hasVisibleMatch = group.querySelector(
-                        "[data-setting-config-key]:not(.is-hidden-by-search)",
-                    );
-                    group.classList.toggle("is-hidden-by-search", !hasVisibleMatch);
-                }
-            }
-        });
-    });
-
     function getSectionDefinition(sectionId: SectionId): SettingsSectionDefinition {
         return sections.find((section) => section.id === sectionId) ?? sections[0];
     }
@@ -1222,15 +1134,6 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             .replace(/[^\p{L}\p{N}\s.]/gu, " ")
             .replace(/\s+/g, " ")
             .trim();
-    }
-
-    function revealSearchSection(sectionId: SectionId) {
-        const section = getSectionDefinition(sectionId);
-        if (TIER_RANK[section.tier] > TIER_RANK[activeTier]) {
-            setTier(section.tier);
-        }
-        activeSectionId = sectionId;
-        persistActiveSection();
     }
 
     function resolveSearchTargetElement(
@@ -1279,13 +1182,22 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     }
 
     async function navigateToSearchResult(result: SettingsSearchResult) {
-        revealSearchSection(result.sectionId);
+        // Open the native location: tier → category → section → subsection.
+        const section = getSectionDefinition(result.sectionId);
+        if (TIER_RANK[section.tier] > TIER_RANK[activeTier]) setTier(section.tier);
+        const category = categoryOf(result.sectionId);
+        if (category) openCategoryId = category;
+        activeSectionId = result.sectionId;
+        showAllSections = false;
         if (result.subsectionId) {
             activeSubsections = {
                 ...activeSubsections,
                 [result.sectionId]: result.subsectionId,
             };
         }
+        persistActiveSection();
+        // Leave the search view so the native panel renders, then scroll+flash.
+        clearSettingsSearch();
         await tick();
         await tick();
         const sectionNode = sectionBodyNodes.get(result.sectionId);
@@ -1320,11 +1232,7 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         sectionId: ActiveSectionId,
         activeSubsection: string,
     ) {
-        // While searching, show every subsection so a match in any of them is
-        // visible (the search filter hides non-matching rows instead).
-        const active = searchActive
-            ? "all"
-            : (activeSubsections[sectionId] ?? activeSubsection ?? "all");
+        const active = activeSubsections[sectionId] ?? activeSubsection ?? "all";
         for (const child of Array.from(node.children) as HTMLElement[]) {
             const subsectionId = child.dataset.subsectionId;
             const hidden =
@@ -1506,28 +1414,26 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     </div>
     {#if searchActive}
         <div class="section-panel section-panel--search" transition:fade={{ duration: 120 }}>
-            <div class="section-body section-body--all section-body--search">
-                {#if searchSectionChips.length === 0}
+            <div class="search-results">
+                {#if settingsSearchResults.length === 0}
                     <p class="section-empty-hint">No settings match &ldquo;{settingsSearchQuery.trim()}&rdquo;.</p>
-                {/if}
-                {#each searchSectionChips as chip (chip.id)}
-                    <div
-                        class="section-all-group"
-                        use:registerSectionBody={{
-                            sectionId: chip.id,
-                            activeSubsection: "all",
-                        }}
-                        use:enhanceSettingMetadata={{
-                            scope: isUtilityPanelId(chip.id) ? null : getSectionDefinition(chip.id).scope,
-                        }}
-                    >
-                        <div class="section-all-group__title">
-                            <span class="subsection-chip__icon"><HudIcon name={chip.icon} size={13} /></span>
-                            <span>{chip.label}</span>
-                        </div>
-                        {@render sectionContent(chip)}
+                {:else}
+                    <div class="search-results__count">
+                        {settingsSearchResults.length} result{settingsSearchResults.length === 1 ? "" : "s"}
                     </div>
-                {/each}
+                    {#each settingsSearchResults as result (result.id)}
+                        <button
+                            type="button"
+                            class="search-result-row"
+                            onclick={() => void navigateToSearchResult(result)}
+                            title={`Open in ${result.sectionLabel}`}
+                        >
+                            <span class="search-result-row__title">{result.title}</span>
+                            <span class="search-result-row__crumb">{result.sectionLabel}</span>
+                            <span class="search-result-row__go" aria-hidden="true">→</span>
+                        </button>
+                    {/each}
+                {/if}
             </div>
         </div>
     {:else if openCategoryId}
@@ -1782,10 +1688,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         syncFromConfig={syncAllFromConfig}
                         view="styles"
                         showCategoryThemeBar={true}
-                        activeSubsection={searchActive
-                            ? "all"
-                            : (activeSubsections[sec?.id] ??
-                              (activeTerritoryRenderMode ?? "all"))}
+                        activeSubsection={activeSubsections[sec?.id] ??
+                            (activeTerritoryRenderMode ?? "all")}
                     />
                 {:else if sec?.id === "frontier_fx"}
                     <ControlsSectionFrontierFx
@@ -2080,10 +1984,61 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         animation: settings-search-hit-flash 1.5s ease-out;
         border-radius: var(--pax-radius-sm, 6px);
     }
-    /* Live search filter: hide non-matching controls (and now-empty subsection
-       groups) so only matches show, across every category in the results view. */
-    :global(.is-hidden-by-search) {
-        display: none !important;
+    /* Flat search results list — every match as a clickable row (setting +
+       breadcrumb → opens its native location). */
+    .search-results {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: var(--pax-space-2);
+        overflow-y: auto;
+    }
+    .search-results__count {
+        padding: 2px 6px var(--pax-gap-sm);
+        color: var(--pax-ui-text-dim, #9aa4b2);
+        font-size: var(--pax-type-3xs, 0.68rem);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+    .search-result-row {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        align-items: baseline;
+        gap: var(--pax-gap-sm);
+        width: 100%;
+        padding: 8px 10px;
+        border: 0;
+        border-radius: var(--pax-ui-radius-xs, 5px);
+        background: color-mix(in srgb, var(--pax-ui-panel-bg-strong, #0b1120) 55%, transparent);
+        color: var(--pax-ui-text, #dbe3ef);
+        font-family: var(--pax-ui-font-ui, inherit);
+        text-align: left;
+        cursor: pointer;
+        transition: background 0.1s ease;
+    }
+    .search-result-row:hover,
+    .search-result-row:focus-visible {
+        background: color-mix(in srgb, var(--pax-ui-accent-warm, #e0b062) 16%, transparent);
+        outline: none;
+    }
+    .search-result-row__title {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: var(--pax-type-sm, 0.86rem);
+        font-weight: var(--pax-weight-medium, 500);
+    }
+    .search-result-row__crumb {
+        color: var(--pax-ui-text-dim, #9aa4b2);
+        font-size: var(--pax-type-2xs, 0.72rem);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        white-space: nowrap;
+    }
+    .search-result-row__go {
+        color: var(--pax-ui-accent-warm, #e0b062);
+        opacity: 0.65;
     }
     .section-head-wrap {
         display: flex;
