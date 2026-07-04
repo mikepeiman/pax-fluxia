@@ -28,6 +28,34 @@ superseding docs:
 
 ---
 
+## 2026-07-04
+
+### Open
+- [ ] **Map name in UI** `[ui]` — active map name is not displayed anywhere; show it alongside the
+  top-left game title (GameHudTopBar brand block). Needs plumbing: the loaded map's metadata.name
+  is not exposed as reactive store state (gameStore.loadSavedMap stores pendingSavedMap only).
+- [ ] **Kinetic transition perf jank** `[territory][perf]` — user reports mostly-smooth with
+  lag spikes on the complex map. Static/dynamic Graphics split landed (`bd0458eaf`); if spikes
+  remain, next suspects: first-morph bubble build on the render frame (move to commit time),
+  per-frame presentation-run overhead under the kinetic nonce, snapshot rebuild on capture.
+- [ ] **Morph start/end smoothing seam** `[territory][render]` — Power Vector idle fills = smoothed
+  regions; morph fills = raw cells. With VORONOI_BORDER_SMOOTH > 0 there is a small shape seam at
+  morph start/end. Options: smooth kinetic cell polygons per frame (cost), or fade the seam.
+- [ ] **Fill-shape rounding during morph** `[territory][render]` — rounding currently applies to
+  idle fills + borders (snapshot); morphing bubble cells are raw polygons.
+
+### Done (2026-07-04)
+- [x] **Conquest sweep FULL-cell coverage (the "pops 1-2 ticks late" defect)** `[territory][transitions]`
+  — root cause: equal-weight ghost-pair boundary = pair midpoint → swept only HALF the cell; far
+  strip popped at settle. Fixed with a geometric clip-sweep (one diagram site + polygon split by a
+  travelling line; exact 0→1 coverage, any cell size incl. world-bound). Locked by test. `bd0458eaf`.
+  NOTE the diagnosis-failure on record: the previous attempt INVENTED a tick value (claimed ~600ms;
+  the tick is 1450ms) to force a wrong duration theory — distorting the user's report. Never again:
+  restate the user's numbers verbatim before diagnosing.
+- [x] **Power Vector live surface controls** `[settings]` — Show fill/border, saturation/lightness/
+  alpha, border width now WORK (were entirely dead); borders from smoothed snapshot polylines →
+  VORONOI_BORDER_SMOOTH rounding is live; idle fills = merged smoothed regions. `bd0458eaf`.
+
 ## 2026-07-02
 
 ### Open
