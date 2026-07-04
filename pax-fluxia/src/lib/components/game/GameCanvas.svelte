@@ -4978,10 +4978,9 @@
         kineticFrameActiveTransition = renderFamilyTransitionState.activeTransition;
         kineticFrameNowMs = fxOrchestrator.gameTime;
         // Duration is ALWAYS the tick-bound value (min of TERRITORY_TRANSITION_MS
-        // and the tick when BIND_TO_TICK). Do NOT use activeTransition.durationMs
-        // — that fx-lifecycle value is NOT tick-capped, so a 1450ms transition on
-        // a ~600ms tick made the morph span 2-3 ticks: the sweep finished early
-        // and the true final "popped" ticks later when the morph finally settled.
+        // and the tick when BIND_TO_TICK) so the sweep spans exactly one tick and
+        // its end coincides with the settle. Do NOT use activeTransition.durationMs
+        // — that fx-lifecycle value is not tick-capped.
         kineticFrameDurationMs = resolveTerritoryTransitionDurationMs(
             activeGameStore.effectiveTickMs,
         );

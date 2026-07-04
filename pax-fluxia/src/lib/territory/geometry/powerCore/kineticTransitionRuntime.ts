@@ -26,7 +26,7 @@ import type {
     TransitionBubble,
 } from './kineticTypes';
 import { sampleKineticFrame } from './sampleKineticFrame';
-import type { PowerCell } from './powerCoreTypes';
+import type { PowerCell, Point } from './powerCoreTypes';
 
 export interface KineticCommitParams {
     /** The new settled state (post-ownership-change endpoint). */
@@ -125,6 +125,15 @@ export class KineticTransitionRuntime {
      * as-is; each moving cell pairs with its (deduped) mini site, carried at
      * its CURRENT interpolated weight/owner. sourceSiteIndex is re-based onto
      * the combined array so the bubble diff gets exact cell↔site links.
+     *
+     * A conquest SWEEP splits ONE captured cell into two owner-parts (a render
+     * overlay — not a diagram state) that share a sourceSiteIndex. A faithful
+     * endpoint has exactly ONE owner per site, so each such group is collapsed
+     * to its DOMINANT (larger-area) part before emitting. Without this, the two
+     * parts become two coincident different-owner sites (siteIdentityKey is
+     * owner-keyed) and the re-diff re-animates a spurious old→new flip on an
+     * already-conquered cell — the "half snaps back to old owner" retarget
+     * corruption (kineticTransitionRuntime.test: UNRELATED capture mid-sweep).
      */
     private materializeMidState(nowMs: number): KineticEndpointState {
         const morph = this.active!;
@@ -144,21 +153,46 @@ export class KineticTransitionRuntime {
             sites.push(site);
             cells.push({ ...cell, sourceSiteIndex: sites.length - 1 });
         }
+        // Group moving cells by their mini-site: >1 cell ⇒ a split conquest.
+        const groups = new Map<number, PowerCell[]>();
         for (const cell of frame.bubbleCells) {
-            const miniSite =
-                cell.sourceSiteIndex !== undefined
-                    ? frame.miniSites?.[cell.sourceSiteIndex]
-                    : undefined;
+            if (cell.sourceSiteIndex === undefined) continue; // ramp with no cell
+            const g = groups.get(cell.sourceSiteIndex);
+            if (g) g.push(cell);
+            else groups.set(cell.sourceSiteIndex, [cell]);
+        }
+        for (const [sourceSiteIndex, group] of groups) {
+            const miniSite = frame.miniSites?.[sourceSiteIndex];
             if (!miniSite) continue; // ε-dominated ramp with no cell — absent
+            // Dominant part = the owner that currently holds the cell.
+            let dominant = group[0]!;
+            if (group.length > 1) {
+                let bestArea = polyArea(dominant.points);
+                for (let i = 1; i < group.length; i++) {
+                    const a = polyArea(group[i]!.points);
+                    if (a > bestArea) { bestArea = a; dominant = group[i]!; }
+                }
+            }
             sites.push({
                 x: miniSite.x,
                 y: miniSite.y,
                 weight: miniSite.weight,
-                ownerId: cell.ownerId,
-                starId: cell.siteId,
+                ownerId: dominant.ownerId,
+                starId: dominant.siteId,
             });
-            cells.push({ ...cell, sourceSiteIndex: sites.length - 1 });
+            cells.push({ ...dominant, sourceSiteIndex: sites.length - 1 });
         }
         return { sites, cells };
     }
+}
+
+/** Shoelace area (absolute) of a polygon ring. */
+function polyArea(points: readonly Point[]): number {
+    let s = 0;
+    for (let i = 0; i < points.length; i++) {
+        const [ax, ay] = points[i]!;
+        const [bx, by] = points[(i + 1) % points.length]!;
+        s += ax * by - bx * ay;
+    }
+    return Math.abs(s / 2);
 }

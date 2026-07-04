@@ -39,11 +39,14 @@ export interface KineticEndpointState {
  *                  diagram unchanged; only present if its CELL changed shape).
  * - 'weight'     — same owner, weight w0 → w1.
  * - 'conquest'   — a captured star (ownerA → ownerB) with a known attack
- *                  direction: rendered as a SWEEP — two offset power sites
- *                  (incoming owner on the attack side, outgoing on the far
- *                  side) whose shared radical axis sweeps across the cell, so
- *                  the incoming owner's SOLID-colored region grows across the
- *                  cell. No color blend; the SHAPE of the boundary moves.
+ *                  direction: ONE ordinary diagram site (so neighbors are
+ *                  untouched at any cell size), rendered as a SWEEP by
+ *                  geometrically SPLITTING the kept cell with a line that
+ *                  travels attack-edge → far-edge with q (splitConquestCell):
+ *                  the incoming owner's SOLID region grows across the cell.
+ *                  No color blend; the SHAPE of the boundary moves. (Earlier
+ *                  ghost-pair / radical-axis mechanisms are retired — a ghost
+ *                  pair only swept HALF the cell; see splitConquestCell.)
  * - 'handoff'    — owner changed but no attack direction (e.g. disconnect
  *                  owner remap): a single site whose owner flips at q≥0.5.
  * - 'appear'     — only in S1: weight ramps ε → w1.
@@ -80,9 +83,11 @@ export interface SiteRamp {
     readonly span: number;
     /**
      * 'conquest' only: unit attack direction (from the attacker toward the
-     * captured star) and the cell's outradius. sampleKineticFrame places the
-     * incoming site at (x,y) − dir·R and the outgoing at (x,y) + dir·R, so the
-     * incoming owner's region advances from the attack side.
+     * captured star) and the cell's outradius. splitConquestCell projects the
+     * cell's vertices onto this direction and cuts at fraction q between the
+     * attack-side extreme (incoming owner) and the far extreme (old owner), so
+     * the incoming owner's region advances from the attack side. cellRadius is
+     * retained for diagnostics / future feel tuning.
      */
     readonly attackDirX?: number;
     readonly attackDirY?: number;
