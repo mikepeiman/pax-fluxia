@@ -22,6 +22,16 @@ globs: "**/*.{ts,js,svelte,md}"
   report how "ready"/"scoped"/"tractable" it is instead of doing it. Never stop mid-instruction to ask
   permission for work already assigned. Narration-instead-of-action wastes the user's time, the
   opposite of the agent's purpose here.
+- **NEVER assert a UI target exists / is reachable unless VERIFIED — no UI hallucination** — writing
+  code that adds a control does NOT mean it is reachable in the running app (conditional `{#if}` gates,
+  an unmounted component, a wrong panel name). NEVER tell the user "in the X panel", "toggle Y", "set Z"
+  unless you have verified the element exists AND its render path actually mounts in the current UI.
+  Previews are banned here, so you usually CANNOT verify in-app — therefore do NOT state in-app
+  locations as fact. Instead: trace the full render/mount path in CODE (component → where it's imported/
+  mounted → the exact `{#if}` conditions that gate it) and either (a) state it as a code path explicitly
+  flagged "unverified in the running app — confirm on screen", or (b) don't claim a location at all.
+  (Recorded 2026-07-04: claimed a "Conquest Transition panel" + Radial control the user could not find —
+  the control's mount path was never traced. This wasted the user's time hunting a phantom.)
 - **Epistemic honesty** — use conditional language until verified
 - **Ask about visuals** — don't guess what animations look like from code
 - **Task queue discipline** — finish current task before new items
