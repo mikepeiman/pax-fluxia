@@ -489,6 +489,22 @@
                             value,
                         )}
                 />
+                <PaxSettingsToggleRow
+                    label="Blended Opponent Borders"
+                    checked={boolVal(
+                        "territorySurfaceBorderBlend",
+                        "TERRITORY_SURFACE_BORDER_BLEND",
+                        false,
+                    )}
+                    description="Draw a shared frontier between two players as a single stroke in the 50/50 mix of both owners' colors. World edges keep the single owner color."
+                    settingConfigKey="TERRITORY_SURFACE_BORDER_BLEND"
+                    onChange={(value) =>
+                        onUpdate(
+                            "TERRITORY_SURFACE_BORDER_BLEND",
+                            "territorySurfaceBorderBlend",
+                            value,
+                        )}
+                />
             {/if}
 
             {#if isCellGridFamily()}

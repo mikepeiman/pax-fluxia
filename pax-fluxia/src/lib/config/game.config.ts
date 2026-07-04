@@ -654,6 +654,7 @@ interface GameConfigType {
     TERRITORY_SURFACE_BORDER_WIDTH: number;       // Border line width between territories (default 1.5)
     TERRITORY_SURFACE_BORDER_ALPHA: number;       // Border line alpha (default 0.6)
     TERRITORY_SURFACE_BORDER_ENABLED: boolean;   // Master border visibility gate for metaball-style territory surfaces
+    TERRITORY_SURFACE_BORDER_BLEND?: boolean;    // Draw an inter-owner frontier as a single stroke in the 50/50 mix of both owners' colors (opponent-blended borders)
     METABALL_COVERAGE: number;           // Grid padding factor (0=compact, 0.3=extended, default 0.3)
     TERRITORY_SURFACE_SATURATION: number;         // Saturation multiplier (0=grey, 1=normal, 2=vivid, default 1.0)
     TERRITORY_SURFACE_LIGHTNESS: number;          // Lightness multiplier (0=dark, 1=normal, 2=bright, default 1.0)

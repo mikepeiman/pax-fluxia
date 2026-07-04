@@ -392,6 +392,7 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'TERRITORY_SURFACE_LIGHTNESS' },
     { panelKey: 'territorySurfaceFillEnabled', configKey: 'TERRITORY_SURFACE_FILL_ENABLED' },
     { panelKey: 'territorySurfaceBorderEnabled', configKey: 'TERRITORY_SURFACE_BORDER_ENABLED' },
+    { panelKey: 'territorySurfaceBorderBlend', configKey: 'TERRITORY_SURFACE_BORDER_BLEND' },
     { configKey: 'TERRITORY_SURFACE_BORDER_SATURATION' },
     { configKey: 'TERRITORY_SURFACE_BORDER_LIGHTNESS' },
     { configKey: 'METABALL_CHAIKIN_PASSES' },

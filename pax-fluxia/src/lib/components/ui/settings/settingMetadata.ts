@@ -613,6 +613,7 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Border Width': { key: 'VORONOI_BORDER_WIDTH' },
         'Border Alpha': { key: 'VORONOI_BORDER_ALPHA' },
         'Geometry Smooth Passes': { key: 'VORONOI_BORDER_SMOOTH' },
+        'Blended Opponent Borders': { key: 'TERRITORY_SURFACE_BORDER_BLEND' },
         Saturation: { key: 'VORONOI_SATURATION' },
         Lightness: { key: 'VORONOI_LIGHTNESS' },
         'MSR (Star Margin)': { key: 'MODIFIED_VORONOI_STAR_MARGIN' },

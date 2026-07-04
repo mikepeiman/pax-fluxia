@@ -21,7 +21,7 @@
 
 import * as PIXI from 'pixi.js';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
-import { adjustColorHSL } from '$lib/utils/colorUtils';
+import { adjustColorHSL, blendColors } from '$lib/utils/colorUtils';
 import {
     getActiveKineticFrame,
 } from '../../geometry/powerCore/kineticRuntimeBridge';
@@ -46,6 +46,7 @@ interface SurfaceStyle {
     borderSat: number;
     borderLight: number;
     borderAlpha: number;
+    borderBlend: boolean;
 }
 
 function readSurfaceStyle(input: RenderFamilyInput): SurfaceStyle {
@@ -59,6 +60,7 @@ function readSurfaceStyle(input: RenderFamilyInput): SurfaceStyle {
         borderSat: readTunableNumber(input, 'TERRITORY_SURFACE_BORDER_SATURATION', 1),
         borderLight: readTunableNumber(input, 'TERRITORY_SURFACE_BORDER_LIGHTNESS', 1),
         borderAlpha: Math.max(0, Math.min(1, readTunableNumber(input, 'TERRITORY_SURFACE_BORDER_ALPHA', 1))),
+        borderBlend: readTunableBoolean(input, 'TERRITORY_SURFACE_BORDER_BLEND', false),
     };
 }
 
@@ -66,7 +68,7 @@ function styleKey(style: SurfaceStyle): string {
     return [
         style.fillEnabled ? 1 : 0, style.fillSat, style.fillLight, style.fillAlpha,
         style.borderEnabled ? 1 : 0, style.borderWidth, style.borderSat,
-        style.borderLight, style.borderAlpha,
+        style.borderLight, style.borderAlpha, style.borderBlend ? 1 : 0,
     ].join(':');
 }
 
@@ -80,6 +82,7 @@ const POWER_VECTOR_TUNABLE_KEYS = [
     'TERRITORY_SURFACE_BORDER_SATURATION',
     'TERRITORY_SURFACE_BORDER_LIGHTNESS',
     'TERRITORY_SURFACE_BORDER_ALPHA',
+    'TERRITORY_SURFACE_BORDER_BLEND',
 ] as const;
 
 type Ring = readonly (readonly [number, number])[];
@@ -258,25 +261,38 @@ export class PowerVectorFamily implements RenderFamily {
                 const strokeChain = (
                     points: readonly (readonly [number, number])[],
                     ownerA: string,
+                    ownerB: string,
                 ) => {
                     if (points.length < 2) return;
+                    // Opponent-blended borders: an inter-owner frontier is drawn
+                    // in the 50/50 mix of BOTH owners' border colors (a single
+                    // shared stroke) instead of just side A. World edges
+                    // (ownerB '__world__') keep the single owner color.
+                    const color =
+                        style.borderBlend && ownerB && ownerB !== '__world__'
+                            ? blendColors(
+                                  this.borderColor(ownerA, style),
+                                  this.borderColor(ownerB, style),
+                                  0.5,
+                              )
+                            : this.borderColor(ownerA, style);
                     this.borderG.moveTo(points[0]![0], points[0]![1]);
                     for (let i = 1; i < points.length; i++) {
                         this.borderG.lineTo(points[i]![0], points[i]![1]);
                     }
                     this.borderG.stroke({
                         width: style.borderWidth,
-                        color: this.borderColor(ownerA, style),
+                        color,
                         alpha: style.borderAlpha,
                         join: 'round',
                         cap: 'round',
                     });
                 };
                 for (const polyline of geometry.frontierPolylines) {
-                    strokeChain(polyline.points, polyline.ownerA);
+                    strokeChain(polyline.points, polyline.ownerA, polyline.ownerB);
                 }
                 for (const polyline of geometry.worldBorderPolylines) {
-                    strokeChain(polyline.points, polyline.ownerA);
+                    strokeChain(polyline.points, polyline.ownerA, polyline.ownerB);
                 }
                 this.borderKey = key;
             }
