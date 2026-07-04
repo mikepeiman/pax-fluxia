@@ -31,6 +31,21 @@ superseding docs:
 ## 2026-07-04
 
 ### Open
+- [ ] **Conquest transition is NOT the spec** `[territory][transitions]` — the clip-sweep is a
+  straight-line "windshield-wiper" SHAPE overlay, kept as a DEV ALTERNATIVE / coverage-completion
+  baseline per user (2026-07-04), explicitly NOT the water/ripple/rope vector-morph target
+  (see memory transition-design-history). It also VIOLATES the PowerCore "transition = diagram
+  INPUTS, never output shapes" invariant (kineticTypes header) — which is exactly why it breaks
+  the retarget/materialize path. Next: (a) fix remaining edge cases below; (b) explore variance
+  (multiple attack vectors — currently one straight slide only); (c) the real vector-morph spec.
+- [ ] **Half-cell gap during sweep** `[territory][transitions]` — user saw a transition leave a
+  half-cell gap (rare). Likely the same retarget dual-site corruption (now fixed `e20ad2d04`) OR a
+  forward-sweep mismatch between the interpolated-weight cell and its FROZEN neighbor (frozen cells
+  sit at S1 while the morphing cell uses interpolated weight). Watch for recurrence after the fix.
+- [ ] **Over-frequent retarget (global fingerprint)** `[territory][perf]` — `commitKineticEndpoint`
+  fires on ANY owned-star change anywhere (global ownership fingerprint), and each fires a FULL
+  bubble rebuild + clock restart of ALL in-flight morphs. Now benign (no corruption) but wasteful
+  and it slows genuine in-flight sweeps. Consider per-conquest morph clocks / scoped retarget.
 - [ ] **Map name in UI** `[ui]` — active map name is not displayed anywhere; show it alongside the
   top-left game title (GameHudTopBar brand block). Needs plumbing: the loaded map's metadata.name
   is not exposed as reactive store state (gameStore.loadSavedMap stores pendingSavedMap only).
@@ -45,6 +60,15 @@ superseding docs:
   idle fills + borders (snapshot); morphing bubble cells are raw polygons.
 
 ### Done (2026-07-04)
+- [x] **Retarget corruption: unrelated capture resurrected an already-conquered cell's old owner**
+  `[territory][transitions]` — user: "completed correct, then NEXT tick half snapped back to old
+  owner, 2-3 ticks LATER it disappeared; only fill, no borders." Root cause: the sweep splits one
+  cell into two owner-parts (a render overlay); on retarget (any map ownership change while a sweep
+  is live), materializeMidState emitted BOTH parts as two coincident different-owner sites → re-diff
+  spurious old→new flip (435→115479px², a 265× resurrection); full-tick duration + clock restart →
+  the 2-3-tick persistence; fill-only because borders draw from the settled snapshot. FIX: collapse
+  split-conquest groups to the dominant-owner part in materializeMidState. Reproducing test added.
+  `e20ad2d04`.
 - [x] **Conquest sweep FULL-cell coverage (the "pops 1-2 ticks late" defect)** `[territory][transitions]`
   — root cause: equal-weight ghost-pair boundary = pair midpoint → swept only HALF the cell; far
   strip popped at settle. Fixed with a geometric clip-sweep (one diagram site + polygon split by a
