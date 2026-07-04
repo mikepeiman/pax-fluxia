@@ -38,11 +38,10 @@ superseding docs:
   exact file:line) in `.agent/docs/sessions/2026-07-04/2026-07-04_GRID_GRADIENT_RETRIGGER_FIX_PLAN.md`.
   Recommended: option 2 (per-event startedAtMs in the plan, per-cell clock in CPU+GLSL envelope) in a
   supervised pass with a screenshot diff across overlapping conquests.
-- [ ] **Settings Search: literal panel FILTER (optional)** `[ui][settings]` — user #1 "does not filter
-  down to that result." Reliable navigate+scroll-to-top+1.5s-highlight shipped (290155f91). OPEN
-  question: do they also want VS-Code-style live filtering (hide non-matching rows as you type)? The
-  dead `matchedSectionIds` derived (GameSettingsPanel.svelte:1106) is an abandoned start at this.
-  Awaiting user confirmation before building (large, complex panel structure).
+- [ ] **Settings Search: promote live filter dim → hide (optional)** `[ui][settings]` — v1 DIMS
+  non-matching controls (a19e2671e, layout-safe). User asked for VS-Code-style filtering; a full
+  hide needs empty-group/empty-section handling + forcing the All view when the match is elsewhere +
+  responsive checks — do it once the dim version is visually confirmed as the right direction.
 - [ ] **Conquest transition is NOT the spec** `[territory][transitions]` — the clip-sweep is a
   straight-line "windshield-wiper" SHAPE overlay, kept as a DEV ALTERNATIVE / coverage-completion
   baseline per user (2026-07-04), explicitly NOT the water/ripple/rope vector-morph target
@@ -54,13 +53,12 @@ superseding docs:
   half-cell gap (rare). Likely the same retarget dual-site corruption (now fixed `e20ad2d04`) OR a
   forward-sweep mismatch between the interpolated-weight cell and its FROZEN neighbor (frozen cells
   sit at S1 while the morphing cell uses interpolated weight). Watch for recurrence after the fix.
-- [ ] **Over-frequent retarget (global fingerprint)** `[territory][perf]` — `commitKineticEndpoint`
-  fires on ANY owned-star change anywhere (global ownership fingerprint), and each fires a FULL
-  bubble rebuild + clock restart of ALL in-flight morphs. Now benign (no corruption) but wasteful
-  and it slows genuine in-flight sweeps. Consider per-conquest morph clocks / scoped retarget.
-- [ ] **Map name in UI** `[ui]` — active map name is not displayed anywhere; show it alongside the
-  top-left game title (GameHudTopBar brand block). Needs plumbing: the loaded map's metadata.name
-  is not exposed as reactive store state (gameStore.loadSavedMap stores pendingSavedMap only).
+- [ ] **Over-frequent retarget — perf tail** `[territory][perf]` — RESTART fixed by per-conquest
+  independent morphs (a297366c6): disjoint conquests no longer restart each other. Remaining: the
+  commit still fires on ANY owned-star change (global fingerprint) and OVERLAPPING conquests still do
+  a full materialize+rebuild (rare). Perf-only now; revisit if jank persists (needs profiling).
+- [ ] **Map name in Multiplayer** `[ui]` — `activeMapName` is single-player only (gameStore init);
+  null in MP so the HUD label hides. Wire a MP map name if MP games should show it (c0559b5b3).
 - [ ] **Kinetic transition perf jank** `[territory][perf]` — user reports mostly-smooth with
   lag spikes on the complex map. Static/dynamic Graphics split landed (`bd0458eaf`); if spikes
   remain, next suspects: first-morph bubble build on the render frame (move to commit time),
@@ -72,6 +70,11 @@ superseding docs:
   idle fills + borders (snapshot); morphing bubble cells are raw polygons.
 
 ### Done (2026-07-04)
+- [x] **Map name in the HUD** `[ui]` — reactive `gameStore.activeMapName` (set on map load) →
+  activeGameStore facade → HudTopbar renders it as a muted label after the "Pax Fluxia" title with a
+  divider (ellipsis + hover for long names). `c0559b5b3`.
+- [x] **Settings Search live filter (dim v1)** `[ui][settings]` — non-matching keyed controls dim as
+  you type so matches stand out; layout-safe (opacity, no display:none / view change). `a19e2671e`.
 - [x] **SHARED transition retrigger — per-conquest independent clocks (PowerCore)** `[territory][transitions]`
   — the cross-mode root: conquests animated on ONE global clock that restarted on every ownership
   commit ("retriggered by the next tick's conquest"). `KineticTransitionRuntime` now holds MULTIPLE
