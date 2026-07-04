@@ -31,6 +31,20 @@ superseding docs:
 ## 2026-07-04
 
 ### Open
+- [ ] **#3 Opponent-blended borders (option)** `[territory][render][settings]` — READY. Frontier
+  polylines carry BOTH owners (`ResolvedFrontierPolyline.ownerA`/`ownerB`/`ownerPairKey`); world borders
+  use ownerB `__world__`. Plan: add a `TERRITORY_SURFACE_BORDER_BLEND` boolean (plumb like
+  TERRITORY_SURFACE_BORDER_ENABLED across game.config / categoryThemes / settingsDefs / settingMetadata /
+  TerritorySurfaceStyleTuning), and in PowerVectorFamily's border stroke, when on, stroke each inter-owner
+  frontier with the mid-mix of the two owners' colors (skip `__world__`). Simple color-mix first; a
+  gradient-along-stroke is a fancier follow-up. Needs visual verification.
+- [ ] **#5 Arrival-time-field transition engine ("water wave")** `[territory][transitions][ARCH]` —
+  USER-APPROVED direction (2026-07-04). Represent the conquest front as a scalar arrival-time field T(x)
+  over the captured region; render the boundary at progress q as the iso-contour T(x)=q. Modes fall out:
+  linear T = straight line (mode 1, current); distance-from-attack-edge = curved front; min over attackers
+  = multi-vector merge; scale/smooth T = variable-speed + rounded "beach wave". Replaces splitConquestCell
+  with a field sampler + iso-contour extractor; stays deterministic. Build test-first offline, per-mode
+  visual sign-off. Do AFTER #3.
 - [ ] **Grid Gradient transition retrigger (per-conquest clock)** `[territory][transitions][gridGradient]`
   — same cross-mode root as PowerCore (below) but via Grid Gradient's ONE global progress scalar +
   `beginVisualTransition` clock reset on plan re-key + binary `prevGeometry` freeze. NEEDS VISUAL
@@ -70,6 +84,14 @@ superseding docs:
   idle fills + borders (snapshot); morphing bubble cells are raw polygons.
 
 ### Done (2026-07-04)
+- [x] **#4 Chaikin/smoothing search-reveal** `[ui][settings]` — `power_vector` was in NO surface-card
+  predicate, so Power Vector rendered no style card and the smoothing control was never mounted.
+  Added power_vector to supportsSharedSurfaceStyleCard() (renders TerritorySurfaceStyleTuning; cell-grid
+  controls stay gated) + a Geometry Smooth Passes (VORONOI_BORDER_SMOOTH) row. `c1c3de844`.
+- [x] **#2 Enclosed enemy fill layering** `[territory][render]` — territoryRegions are flat outer-ring
+  polygons (no holes), so a surrounding owner's fill painted over an enclosed enemy island (muddy alpha
+  blend). Power Vector idle fill now graphics.cut()s any different-owner region fully enclosed within
+  another → pure colors. `c799fa8cc`. (Morph path draws tiling cells; no overlap there.)
 - [x] **Map name in the HUD** `[ui]` — reactive `gameStore.activeMapName` (set on map load) →
   activeGameStore facade → HudTopbar renders it as a muted label after the "Pax Fluxia" title with a
   divider (ellipsis + hover for long names). `c0559b5b3`.
