@@ -31,20 +31,12 @@ superseding docs:
 ## 2026-07-04
 
 ### Open
-- [ ] **#3 Opponent-blended borders (option)** `[territory][render][settings]` — READY. Frontier
-  polylines carry BOTH owners (`ResolvedFrontierPolyline.ownerA`/`ownerB`/`ownerPairKey`); world borders
-  use ownerB `__world__`. Plan: add a `TERRITORY_SURFACE_BORDER_BLEND` boolean (plumb like
-  TERRITORY_SURFACE_BORDER_ENABLED across game.config / categoryThemes / settingsDefs / settingMetadata /
-  TerritorySurfaceStyleTuning), and in PowerVectorFamily's border stroke, when on, stroke each inter-owner
-  frontier with the mid-mix of the two owners' colors (skip `__world__`). Simple color-mix first; a
-  gradient-along-stroke is a fancier follow-up. Needs visual verification.
-- [ ] **#5 Arrival-time-field transition engine ("water wave")** `[territory][transitions][ARCH]` —
-  USER-APPROVED direction (2026-07-04). Represent the conquest front as a scalar arrival-time field T(x)
-  over the captured region; render the boundary at progress q as the iso-contour T(x)=q. Modes fall out:
-  linear T = straight line (mode 1, current); distance-from-attack-edge = curved front; min over attackers
-  = multi-vector merge; scale/smooth T = variable-speed + rounded "beach wave". Replaces splitConquestCell
-  with a field sampler + iso-contour extractor; stays deterministic. Build test-first offline, per-mode
-  visual sign-off. Do AFTER #3.
+- [ ] **Field-front modes 3+ (multi-attacker, variable-speed, rounding)** `[territory][transitions]` —
+  The arrival-time-field engine (conquestFrontField, ca8636aac) ships mode 1 (linear, default) + radial.
+  Next field evaluators, each a small addition with NO caller change: min-over-attackers (multi-vector
+  merge), scaled T (variable-speed fronts), smoothed T / smoothed iso-contour (the rounded "beach wave").
+  Radial currently emits marched triangles — if perf/visual needs it, merge to 2 clean parts. Needs the
+  user's visual sign-off per mode (set Conquest Front = Radial in the Conquest Transition panel to see it).
 - [ ] **Grid Gradient transition retrigger (per-conquest clock)** `[territory][transitions][gridGradient]`
   — same cross-mode root as PowerCore (below) but via Grid Gradient's ONE global progress scalar +
   `beginVisualTransition` clock reset on plan re-key + binary `prevGeometry` freeze. NEEDS VISUAL
@@ -84,6 +76,18 @@ superseding docs:
   idle fills + borders (snapshot); morphing bubble cells are raw polygons.
 
 ### Done (2026-07-04)
+- [x] **#5 Arrival-time-field conquest engine** `[territory][transitions][ARCH]` — the conquest front is
+  now a scalar field's iso-contour (conquestFrontField.splitCellByFront): 'linear' = exact mode-1 sweep
+  (default, byte-for-byte), 'radial' = curved marched front from the attacker. Threaded end-to-end +
+  Linear/Radial selector (TERRITORY_CONQUEST_FRONT_MODE) + tests. Foundation for the water-wave modes.
+  `ca8636aac`.
+- [x] **#1 GLOBAL settings search** `[ui][settings]` — a query now switches the whole panel to a flat
+  cross-category/cross-tier results view (matches from any category surface in place, non-matches +
+  empty groups hidden, no navigation, works with no category open). Removed the navigate-away dropdown.
+  Fulfils the "fullest not easiest" rule. `67c70daef`.
+- [x] **#3 Opponent-blended borders** `[territory][render][settings]` — TERRITORY_SURFACE_BORDER_BLEND
+  toggle; inter-owner frontier stroked in the 50/50 blend of both owners' colors (blendColors); world
+  edges keep single color. Full plumbing + search. `735ec7216`.
 - [x] **#4 Chaikin/smoothing search-reveal** `[ui][settings]` — `power_vector` was in NO surface-card
   predicate, so Power Vector rendered no style card and the smoothing control was never mounted.
   Added power_vector to supportsSharedSurfaceStyleCard() (renders TerritorySurfaceStyleTuning; cell-grid
