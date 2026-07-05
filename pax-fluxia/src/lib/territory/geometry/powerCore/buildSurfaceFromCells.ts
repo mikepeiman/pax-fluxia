@@ -49,6 +49,34 @@ export interface CellSurface {
     readonly worldBorders: SurfaceFrontier[];
 }
 
+/**
+ * The clip rect the cells were built with, derived from their OWN bounding box.
+ * Critical: onWorldBoundary uses a 1e-6 tolerance, so the rect MUST match where
+ * the cells were actually clipped (the live kinetic clip is PADDED past the
+ * presentation frame). Passing the presentation frame instead classifies zero
+ * world edges ⇒ boundary owner faces never close ⇒ walkRegionLoops returns no
+ * regions ⇒ fills vanish during the morph. Cells tile the clip, so the union
+ * bbox is exactly the clip and every outer edge lands on it.
+ */
+function worldRectFromCells(cells: readonly PowerCell[]): WorldRect {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const cell of cells) {
+        for (const [x, y] of cell.points) {
+            if (x < minX) minX = x;
+            if (y < minY) minY = y;
+            if (x > maxX) maxX = x;
+            if (y > maxY) maxY = y;
+        }
+    }
+    if (!Number.isFinite(minX)) {
+        return { width: 0, height: 0, minX: 0, minY: 0, maxX: 0, maxY: 0 };
+    }
+    return { width: maxX - minX, height: maxY - minY, minX, minY, maxX, maxY };
+}
+
 function chainByGroup(
     entries: Map<string, { edgeId: string; points: readonly Point[] }[]>,
     split: (key: string) => [string, string],
@@ -65,10 +93,9 @@ function chainByGroup(
 
 export function buildSurfaceFromCells(
     cells: PowerCell[],
-    world: WorldRect,
     passes: number,
 ): CellSurface {
-    const graph = buildSharedEdgeGraph(cells, world);
+    const graph = buildSharedEdgeGraph(cells, worldRectFromCells(cells));
     smoothSharedEdges(graph, passes);
     const loops = walkRegionLoops(graph, cells);
 

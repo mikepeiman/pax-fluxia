@@ -32,7 +32,6 @@ import { buildSurfaceFromCells } from '../../geometry/powerCore/buildSurfaceFrom
 import {
     WORLD_OWNER,
     type PowerCell,
-    type WorldRect,
 } from '../../geometry/powerCore/powerCoreTypes';
 import {
     readTunableBoolean,
@@ -262,18 +261,12 @@ export class PowerVectorFamily implements RenderFamily {
         if (frame) {
             // ── MORPH: one smoothed surface per frame (same assembly as idle),
             // so the sweep is a complete, watertight, rounded, owner-merged map.
-            const minX = input.world.minX ?? 0;
-            const minY = input.world.minY ?? 0;
-            const world: WorldRect = {
-                width: input.world.width,
-                height: input.world.height,
-                minX,
-                minY,
-                maxX: minX + input.world.width,
-                maxY: minY + input.world.height,
-            };
+            // buildSurfaceFromCells derives the clip rect from the cells' own
+            // bbox (the live kinetic clip is PADDED past input.world — passing the
+            // frame here would classify no world edges ⇒ empty regions ⇒ fills
+            // vanish mid-morph). dx/dy still localizes rendering to the container.
             const cells: PowerCell[] = [...frame.frozenCells, ...frame.bubbleCells];
-            const surface = buildSurfaceFromCells(cells, world, smoothPasses);
+            const surface = buildSurfaceFromCells(cells, smoothPasses);
 
             if (style.fillEnabled) this.drawFills(surface.regions, dx, dy, style);
             else this.fillG.clear();

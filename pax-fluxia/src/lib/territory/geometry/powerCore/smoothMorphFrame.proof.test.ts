@@ -32,6 +32,7 @@ import {
 } from './sharedEdgeGraph';
 import { smoothSharedEdges } from './smoothSharedEdges';
 import { buildSurfaceFromCells } from './buildSurfaceFromCells';
+import { KineticTransitionRuntime } from './kineticTransitionRuntime';
 import { WORLD_OWNER, type Point, type PowerCell, type WorldRect } from './powerCoreTypes';
 import type { KineticEndpointState } from './kineticTypes';
 
@@ -223,12 +224,11 @@ describe('buildSurfaceFromCells: the render-ready morph surface (idle + morph sh
         const frame = sampleKineticFrame({ bubble, p, clip: S0.clip });
         return [...frame.frozenCells, ...frame.bubbleCells];
     };
-    const world = clipBounds(S0.clip);
-
-    it('region fills tile the clip and frontiers are rounded (single call)', () => {
-        const surface = buildSurfaceFromCells(frameCells(0.4), world, 3);
+    it('region fills tile the clip and frontiers are rounded (self-derived rect)', () => {
+        const surface = buildSurfaceFromCells(frameCells(0.4), 3);
         let fillArea = 0;
         for (const r of surface.regions) fillArea += shoelace(r.points);
+        expect(surface.regions.length).toBeGreaterThan(0);
         expect(fillArea / CLIP_AREA).toBeGreaterThan(0.98);
         expect(fillArea / CLIP_AREA).toBeLessThan(1.02);
         // Some frontier polyline gained interior points ⇒ actually rounded.
@@ -238,17 +238,65 @@ describe('buildSurfaceFromCells: the render-ready morph surface (idle + morph sh
     });
 
     it('passes=0 gives straight frontiers; passes>0 rounds them (slider works)', () => {
-        const flat = buildSurfaceFromCells(frameCells(0.4), world, 0);
-        const round = buildSurfaceFromCells(frameCells(0.4), world, 3);
+        const flat = buildSurfaceFromCells(frameCells(0.4), 0);
+        const round = buildSurfaceFromCells(frameCells(0.4), 3);
         const flatPts = flat.frontiers.reduce((n, f) => n + f.points.length, 0);
         const roundPts = round.frontiers.reduce((n, f) => n + f.points.length, 0);
         expect(roundPts).toBeGreaterThan(flatPts);
     });
 
     it('is deterministic — identical cells give byte-identical surface', () => {
-        const a = buildSurfaceFromCells(frameCells(0.4), world, 3);
-        const b = buildSurfaceFromCells(frameCells(0.4), world, 3);
+        const a = buildSurfaceFromCells(frameCells(0.4), 3);
+        const b = buildSurfaceFromCells(frameCells(0.4), 3);
         expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    });
+});
+
+// The LIVE path: drive the actual runtime (commit + sample) exactly as the game
+// does, then render the frame with buildSurfaceFromCells the way the family now
+// does. Reproduces the "all fills disappear mid-conquest" regression: the clip
+// is PADDED, so an external presentation-frame rect classified zero world edges;
+// self-deriving the rect from the cells fixes it.
+describe('LIVE runtime path: fills must NOT disappear during the conquest', () => {
+    const CLIP_AREA = shoelace(S0.clip.map((p) => [p[0], p[1]] as Point));
+
+    it('clip is padded past the origin (so the world-rect bug is exercised)', () => {
+        const b = clipBounds(S0.clip);
+        // computePowerCoreEndpoint pads the clip — min is negative / max exceeds
+        // the map — which is precisely why a presentation-frame rect fails.
+        expect(b.minX! < 0 || b.minY! < 0).toBe(true);
+    });
+
+    it('every mid-conquest runtime frame has full-coverage smoothed regions', () => {
+        const runtime = new KineticTransitionRuntime();
+        runtime.commit({
+            state: S0.state,
+            clip: S0.clip,
+            ownershipVersion: 'v0',
+            transitionKey: null, // initial snap
+            nowMs: 0,
+            durationMs: 1000,
+        });
+        runtime.commit({
+            state: S1.state,
+            clip: S1.clip,
+            ownershipVersion: 'v1',
+            transitionKey: 'sess:star-0:human-player:ai-1',
+            nowMs: 0,
+            durationMs: 1000,
+            conquestOrigins: CONQUEST_ORIGINS,
+        });
+        for (const nowMs of [50, 200, 500, 800, 950]) {
+            const frame = runtime.sample(nowMs);
+            expect(frame).not.toBeNull();
+            const cells = [...frame!.frozenCells, ...frame!.bubbleCells];
+            const surface = buildSurfaceFromCells(cells, 3);
+            expect(surface.regions.length).toBeGreaterThan(0); // fills present!
+            let fillArea = 0;
+            for (const r of surface.regions) fillArea += shoelace(r.points);
+            expect(fillArea / CLIP_AREA).toBeGreaterThan(0.98);
+            expect(fillArea / CLIP_AREA).toBeLessThan(1.02);
+        }
     });
 });
 
