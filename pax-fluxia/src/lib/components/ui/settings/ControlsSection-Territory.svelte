@@ -12,7 +12,6 @@
   } from "$lib/territory/transitions/territoryTransitionModes";
   import CategoryThemeBar from "./CategoryThemeBar.svelte";
   import TerritoryTransitionTuning from "./TerritoryTransitionTuning.svelte";
-  import PerimeterFieldTuning from "./PerimeterFieldTuning.svelte";
   import CellGridTuning from "./CellGridTuning.svelte";
   import GridGradientTuning from "./GridGradientTuning.svelte";
   import {
@@ -177,11 +176,8 @@
 
   function supportsSharedSurfaceStyleCard(): boolean {
     const activeStyle = resolveActiveStyleId();
-    return (
-      activeStyle === "perimeter_field" ||
-      activeStyle === "power_vector" ||
-      isCellGridStyle()
-    );
+    // perimeter_field quarantined (Stage A) — no longer renders a settings card.
+    return activeStyle === "power_vector" || isCellGridStyle();
   }
 
   function supportsGridGradientStyleCard(): boolean {
@@ -1678,8 +1674,6 @@
         </div>
         {#if isCellGridStyle()}
           <CellGridTuning {panel} {updatePanel} />
-        {:else if resolveActiveStyleId() === "perimeter_field"}
-          <PerimeterFieldTuning {panel} {updatePanel} />
         {/if}
         <TerritorySurfaceStyleTuning
           {panel}
