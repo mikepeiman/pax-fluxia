@@ -149,21 +149,42 @@ describe('PROOF: a morph frame flows through the idle smoothing pipeline seamles
         expect(coverage / CLIP_AREA).toBeLessThan(1.001);
     });
 
-    it('smoothing preserves the watertight tiling — but is a NO-OP on atomic edges (IDENTIFIED GAP)', () => {
+    it('chain-aware smoothing ROUNDS the live frontier AND stays watertight (single-source)', () => {
         const { loops, graph } = morphFrameRegions(0.4, 3);
-        // The watertight invariant holds regardless of smoothing — this is what
-        // lets us smooth the frontier safely as a single source for both sides.
-        const coverage = ownerCoverage(loops, graph);
-        expect(coverage / CLIP_AREA).toBeGreaterThan(0.999);
-        expect(coverage / CLIP_AREA).toBeLessThan(1.001);
-        // GAP (the remaining engineering): buildSharedEdgeGraph emits one 2-point
-        // edge per cell-boundary segment, and smoothSharedEdges runs Chaikin PER
-        // EDGE — a 2-point segment has no interior corner, so it adds nothing.
-        // Rounding the frontier requires coalescing degree-2 same-owner-pair edge
-        // chains into one multi-point SharedEdge first (single-source, so fills +
-        // borders round identically, idle AND morph). Flip to >0 when that lands.
+        // Rounding now happens: multi-segment same-owner-pair chains gained
+        // interior points (the old per-atomic-edge Chaikin was a no-op here).
         const smoothed = graph.sharedEdges.filter((e) => e.smoothedPts.length > 2);
-        expect(smoothed.length).toBe(0);
+        expect(smoothed.length).toBeGreaterThan(0);
+        // ...and the watertight tiling is preserved — junction pinning keeps the
+        // smoothed regions gap-free, so every morph frame is still a complete map.
+        const coverage = ownerCoverage(loops, graph);
+        expect(coverage / CLIP_AREA).toBeGreaterThan(0.98);
+        expect(coverage / CLIP_AREA).toBeLessThan(1.02);
+    });
+
+    it('SMOOTHED loops reconstruct as clean closed rings (single-source seams stitch exactly)', () => {
+        // The single-source guarantee is structural: a SharedEdge is ONE object
+        // referenced by BOTH adjacent region loops, so fills (reconstructLoopPolygon)
+        // and borders read the exact same smoothedPts — they cannot diverge. Prove
+        // it renders watertight: every smoothed owner loop is a valid closed ring
+        // with no consecutive duplicate vertices (a duplicate would mean a seam
+        // failed to share its point exactly).
+        const { loops, graph } = morphFrameRegions(0.4, 3);
+        let ownerLoops = 0;
+        for (const loop of loops) {
+            if (loop.ownerId === WORLD_OWNER) continue;
+            ownerLoops++;
+            const ring = reconstructLoopPolygon(loop, graph);
+            expect(ring.length).toBeGreaterThanOrEqual(3);
+            expect(shoelace(ring)).toBeGreaterThan(1e-6);
+            for (let i = 0; i < ring.length; i++) {
+                const a = ring[i]!;
+                const b = ring[(i + 1) % ring.length]!;
+                expect(a[0] === b[0] && a[1] === b[1]).toBe(false);
+            }
+        }
+        expect(ownerLoops).toBeGreaterThan(0);
+        for (const e of graph.sharedEdges) expect(e.ownerA).not.toBe(e.ownerB);
     });
 
     it('the frontier is OWNER-MERGED, not per-cell (far fewer, longer edges)', () => {
