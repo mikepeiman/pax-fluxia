@@ -67,7 +67,7 @@ function endpointKey(p: Point): string {
     return `${Math.round(p[0] * 1000)},${Math.round(p[1] * 1000)}`;
 }
 
-interface ChainableEdge {
+export interface ChainableEdge {
     readonly edgeId: string;
     readonly points: readonly Point[]; // smoothed; first/last are junction vertices
 }
@@ -78,8 +78,11 @@ interface ChainableEdge {
  * endpoints in sorted key order; leftover closed loops start at the unused
  * edge with the smallest edgeId. Junction endpoints (degree ≥ 3) terminate
  * chains — a polyline never runs through a junction.
+ *
+ * Exported so the morph path (buildSurfaceFromCells) chains its per-frame
+ * frontier the IDENTICAL way as the idle snapshot — one chaining source.
  */
-function chainEdgesIntoPolylines(edges: readonly ChainableEdge[]): {
+export function chainEdgesIntoPolylines(edges: readonly ChainableEdge[]): {
     points: [number, number][];
     closed: boolean;
 }[] {

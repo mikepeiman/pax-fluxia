@@ -1,31 +1,39 @@
 /**
  * PowerVectorFamily — the PowerCore vector skin.
  *
- * IDLE: fills from the resolved snapshot's territoryRegions (merged per owner,
- * Chaikin-smoothed → the VORONOI_BORDER_SMOOTH rounding slider WORKS) and
- * borders from its frontier/world polylines. MORPH (kinetic frame active):
- * frozen cells drawn ONCE into a static layer; only the moving bubble cells
- * redraw per frame (jank fix). Conquest shows as pure SHAPE change — the
- * incoming owner's solid region grows (clip-sweep in the kinetic sampler); no
- * color blending, per the conquest spec.
+ * ONE representation for idle AND morph: per-owner region rings (fills) + chained
+ * frontier / world-border polylines (borders), all Chaikin-smoothed from a SINGLE
+ * source (the shared-edge graph). A conquest sweep is NOT drawn as raw moving
+ * cells — each frame's cell set (frozen + moving bubble) is run through
+ * buildSurfaceFromCells (the same buildSharedEdgeGraph → smoothSharedEdges →
+ * walkRegionLoops assembly the idle snapshot uses), so every transition frame is
+ * a complete, watertight, owner-MERGED, ROUNDED map. Fills and borders read the
+ * identical smoothed boundary, so they cannot tear or mismatch — and any VFX that
+ * works on the idle surface works on the sweep, because they are the same thing.
  *
- * Live controls (the unified Territory surface settings — previously dead in
- * this mode): TERRITORY_SURFACE_FILL_ENABLED / SATURATION / LIGHTNESS / ALPHA
- * and TERRITORY_SURFACE_BORDER_ENABLED / WIDTH / SATURATION / LIGHTNESS /
- * ALPHA. Owner hue comes from the player color; sat/light are multipliers via
- * adjustColorHSL (same semantics as the cell-grid family).
+ * IDLE takes the resolved snapshot (already smoothed at source by the kernel's
+ * chain-aware smoothSharedEdges) and draws it raw — no family-level re-smoothing
+ * (that would double-round). MORPH rebuilds + smooths the surface per frame.
  *
- * Coordinate spaces: kinetic cells are MAP coords (offset by −world.min);
- * the resolved snapshot is ALREADY localized by the caller (no offset).
+ * Live controls (unified Territory surface): TERRITORY_SURFACE_FILL_ENABLED /
+ * SATURATION / LIGHTNESS / ALPHA, TERRITORY_SURFACE_BORDER_ENABLED / WIDTH /
+ * SATURATION / LIGHTNESS / ALPHA / BORDER_BLEND, and VORONOI_BORDER_SMOOTH
+ * (corner rounding — applied at source for idle, per-frame for morph).
+ *
+ * Coordinate spaces: kinetic cells are WORLD coords; the resolved snapshot is
+ * ALREADY localized by the caller. dx/dy = −world.min localizes the morph cells.
  */
 
 import * as PIXI from 'pixi.js';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 import { adjustColorHSL, blendColors } from '$lib/utils/colorUtils';
+import { getActiveKineticFrame } from '../../geometry/powerCore/kineticRuntimeBridge';
+import { buildSurfaceFromCells } from '../../geometry/powerCore/buildSurfaceFromCells';
 import {
-    getActiveKineticFrame,
-} from '../../geometry/powerCore/kineticRuntimeBridge';
-import type { PowerCell } from '../../geometry/powerCore/powerCoreTypes';
+    WORLD_OWNER,
+    type PowerCell,
+    type WorldRect,
+} from '../../geometry/powerCore/powerCoreTypes';
 import {
     readTunableBoolean,
     readTunableNumber,
@@ -72,6 +80,11 @@ function styleKey(style: SurfaceStyle): string {
     ].join(':');
 }
 
+/** Corner-rounding passes (VORONOI_BORDER_SMOOTH), clamped to a sane range. */
+function readSmoothPasses(input: RenderFamilyInput): number {
+    return Math.max(0, Math.min(6, Math.round(readTunableNumber(input, 'VORONOI_BORDER_SMOOTH', 0))));
+}
+
 const POWER_VECTOR_TUNABLE_KEYS = [
     'TERRITORY_SURFACE_FILL_ENABLED',
     'TERRITORY_SURFACE_SATURATION',
@@ -86,56 +99,6 @@ const POWER_VECTOR_TUNABLE_KEYS = [
     'VORONOI_BORDER_SMOOTH',
 ] as const;
 
-type Pt = readonly [number, number];
-
-/** Clamp the rounding slider to a sane pass range. */
-function readSmoothPasses(input: RenderFamilyInput): number {
-    const raw = readTunableNumber(input, 'VORONOI_BORDER_SMOOTH', 0);
-    return Math.max(0, Math.min(6, Math.round(raw)));
-}
-
-/**
- * Chaikin corner-cutting on a CLOSED ring: each edge (a,b) is replaced by the
- * ¼/¾ pair, so every pass halves corner sharpness and doubles the vertex count.
- * This is what makes the VORONOI_BORDER_SMOOTH slider round Power Vector's
- * territory outlines (the family previously drew raw polygon edges — the slider
- * was inert). Same math as the cell-grid families' chaikinSmooth.
- */
-function chaikinRingClosed(pts: readonly Pt[], passes: number): Pt[] {
-    let ring: Pt[] = pts.map((p) => [p[0], p[1]] as Pt);
-    for (let k = 0; k < passes && ring.length >= 3; k++) {
-        const out: Pt[] = [];
-        const n = ring.length;
-        for (let i = 0; i < n; i++) {
-            const a = ring[i]!;
-            const b = ring[(i + 1) % n]!;
-            out.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25]);
-            out.push([a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]);
-        }
-        ring = out;
-    }
-    return ring;
-}
-
-/** Chaikin on an OPEN chain — endpoints are pinned so shared frontiers still
- *  meet the world border / triple points they terminate at. */
-function chaikinChainOpen(pts: readonly Pt[], passes: number): Pt[] {
-    let chain: Pt[] = pts.map((p) => [p[0], p[1]] as Pt);
-    for (let k = 0; k < passes && chain.length >= 3; k++) {
-        const n = chain.length;
-        const out: Pt[] = [chain[0]!];
-        for (let i = 0; i < n - 1; i++) {
-            const a = chain[i]!;
-            const b = chain[i + 1]!;
-            out.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25]);
-            out.push([a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]);
-        }
-        out.push(chain[n - 1]!);
-        chain = out;
-    }
-    return chain;
-}
-
 type Ring = readonly (readonly [number, number])[];
 
 /** Ray-cast point-in-polygon test. */
@@ -146,10 +109,7 @@ function pointInRing(x: number, y: number, ring: Ring): boolean {
         const yi = ring[i]![1];
         const xj = ring[j]![0];
         const yj = ring[j]![1];
-        if (
-            yi > y !== yj > y &&
-            x < ((xj - xi) * (y - yi)) / (yj - yi) + xi
-        ) {
+        if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) {
             inside = !inside;
         }
     }
@@ -165,53 +125,15 @@ function regionEnclosedBy(inner: Ring, outer: Ring): boolean {
     return true;
 }
 
-const WORLD_OWNER = '__world__';
-
-interface BorderEdge {
-    readonly a: readonly [number, number];
-    readonly b: readonly [number, number];
+/** Minimal shapes the draw methods accept (idle snapshot + morph surface). */
+interface FillRegion {
+    readonly ownerId: string;
+    readonly points: Ring;
+}
+interface BorderLine {
     readonly ownerA: string;
     readonly ownerB: string;
-}
-
-/**
- * Owner-boundary edges of a cell set: an edge shared by two DIFFERENT owners, or
- * an outer/world edge (reported by a single cell). Used to draw borders from the
- * live kinetic cells during a morph so the frontier moves WITH the fills instead
- * of snapping to the settled snapshot. The conquest split edge (incoming vs old
- * within one cell) is such a boundary → it animates with the sweep.
- */
-function ownerBoundaryEdges(cells: readonly PowerCell[]): BorderEdge[] {
-    const Q = 100; // 0.01px quantization for exact-share matching
-    const map = new Map<
-        string,
-        { a: readonly [number, number]; b: readonly [number, number]; owners: string[] }
-    >();
-    for (const cell of cells) {
-        const pts = cell.points;
-        const n = pts.length;
-        if (n < 2) continue;
-        for (let i = 0; i < n; i++) {
-            const a = pts[i]!;
-            const b = pts[(i + 1) % n]!;
-            const ka = `${Math.round(a[0] * Q)},${Math.round(a[1] * Q)}`;
-            const kb = `${Math.round(b[0] * Q)},${Math.round(b[1] * Q)}`;
-            const key = ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
-            const e = map.get(key);
-            if (e) e.owners.push(cell.ownerId);
-            else map.set(key, { a, b, owners: [cell.ownerId] });
-        }
-    }
-    const out: BorderEdge[] = [];
-    for (const e of map.values()) {
-        if (e.owners.length === 1) {
-            out.push({ a: e.a, b: e.b, ownerA: e.owners[0]!, ownerB: WORLD_OWNER });
-        } else if (e.owners[0] !== e.owners[1]) {
-            out.push({ a: e.a, b: e.b, ownerA: e.owners[0]!, ownerB: e.owners[1]! });
-        }
-        // same-owner interior edges are dropped.
-    }
-    return out;
+    readonly points: Ring;
 }
 
 export class PowerVectorFamily implements RenderFamily {
@@ -220,14 +142,12 @@ export class PowerVectorFamily implements RenderFamily {
     readonly tunableKeys: readonly string[] = POWER_VECTOR_TUNABLE_KEYS;
 
     private readonly root = new PIXI.Container();
-    /** Idle fills OR frozen morph cells — redrawn only when its key changes. */
-    private readonly staticG = new PIXI.Graphics();
-    /** Moving bubble cells — redrawn every morph frame. */
-    private readonly dynamicG = new PIXI.Graphics();
-    /** Borders (snapshot polylines) — redrawn only when its key changes. */
+    /** Fills (idle: cached by key; morph: redrawn per frame). */
+    private readonly fillG = new PIXI.Graphics();
+    /** Borders (idle: cached by key; morph: redrawn per frame). */
     private readonly borderG = new PIXI.Graphics();
     private readonly colorUtils: ColorUtils;
-    private staticKey: string | null = null;
+    private fillKey: string | null = null;
     private borderKey: string | null = null;
     private fillHexCache = new Map<string, number>();
     private borderHexCache = new Map<string, number>();
@@ -235,7 +155,7 @@ export class PowerVectorFamily implements RenderFamily {
 
     constructor(colorUtils: ColorUtils) {
         this.colorUtils = colorUtils;
-        this.root.addChild(this.staticG, this.dynamicG, this.borderG);
+        this.root.addChild(this.fillG, this.borderG);
     }
 
     get displayRoot(): PIXI.Container {
@@ -260,22 +180,68 @@ export class PowerVectorFamily implements RenderFamily {
         return hex;
     }
 
-    private drawCells(
-        g: PIXI.Graphics,
-        cells: readonly PowerCell[],
+    /** Fills each region + cuts any different-owner region fully enclosed in it,
+     *  so colours stay pure under alpha (rounded island inside rounded outer). */
+    private drawFills(
+        regions: readonly FillRegion[],
         dx: number,
         dy: number,
         style: SurfaceStyle,
     ): void {
-        for (const cell of cells) {
-            if (cell.points.length < 3) continue;
+        this.fillG.clear();
+        const valid = regions.filter((r) => r.points.length >= 3);
+        for (const region of valid) {
             const flat: number[] = [];
-            for (const [px, py] of cell.points) flat.push(px + dx, py + dy);
-            g.poly(flat).fill({
-                color: this.fillColor(cell.ownerId, style),
+            for (const [px, py] of region.points) flat.push(px + dx, py + dy);
+            this.fillG.poly(flat).fill({
+                color: this.fillColor(region.ownerId, style),
                 alpha: style.fillAlpha,
             });
+            for (const other of valid) {
+                if (other === region || other.ownerId === region.ownerId) continue;
+                if (!regionEnclosedBy(other.points, region.points)) continue;
+                const hole: number[] = [];
+                for (const [px, py] of other.points) hole.push(px + dx, py + dy);
+                this.fillG.poly(hole).cut();
+            }
         }
+    }
+
+    /** Strokes inter-owner frontiers (optionally 50/50 opponent-blended) and
+     *  owner↔world borders (single owner colour). One stroke per polyline. */
+    private drawBorders(
+        frontiers: readonly BorderLine[],
+        worldBorders: readonly BorderLine[],
+        dx: number,
+        dy: number,
+        style: SurfaceStyle,
+    ): void {
+        this.borderG.clear();
+        const strokeOne = (line: BorderLine) => {
+            const pts = line.points;
+            if (pts.length < 2) return;
+            const color =
+                style.borderBlend && line.ownerB && line.ownerB !== WORLD_OWNER
+                    ? blendColors(
+                          this.borderColor(line.ownerA, style),
+                          this.borderColor(line.ownerB, style),
+                          0.5,
+                      )
+                    : this.borderColor(line.ownerA, style);
+            this.borderG.moveTo(pts[0]![0] + dx, pts[0]![1] + dy);
+            for (let i = 1; i < pts.length; i++) {
+                this.borderG.lineTo(pts[i]![0] + dx, pts[i]![1] + dy);
+            }
+            this.borderG.stroke({
+                width: style.borderWidth,
+                color,
+                alpha: style.borderAlpha,
+                join: 'round',
+                cap: 'round',
+            });
+        };
+        for (const f of frontiers) strokeOne(f);
+        for (const w of worldBorders) strokeOne(w);
     }
 
     update(input: RenderFamilyInput): RenderFamilyOutput {
@@ -293,152 +259,65 @@ export class PowerVectorFamily implements RenderFamily {
         const dy = -(input.world.minY ?? 0);
         const smoothPasses = readSmoothPasses(input);
 
-        // ── Fills ───────────────────────────────────────────────────────────
-        if (!style.fillEnabled) {
-            if (this.staticKey !== 'off') {
-                this.staticG.clear();
-                this.staticKey = 'off';
-            }
-            this.dynamicG.clear();
-        } else if (frame) {
-            // MORPH: frozen once per (morph frame set + style); bubble per frame.
-            const frozenKey = `frozen:${sKey}:${frame.frozenCells.length}:${frame.frozenCells === (this as unknown as { _lastFrozen?: unknown })._lastFrozen ? 1 : 0}`;
-            // frozenCells is reference-stable for the whole morph (T3), so key
-            // on identity via a stashed ref rather than content.
-            const self = this as unknown as { _lastFrozen?: readonly PowerCell[] };
-            if (self._lastFrozen !== frame.frozenCells || this.staticKey !== frozenKey) {
-                self._lastFrozen = frame.frozenCells;
-                this.staticG.clear();
-                this.drawCells(this.staticG, frame.frozenCells, dx, dy, style);
-                this.staticKey = frozenKey;
-            }
-            this.dynamicG.clear();
-            this.drawCells(this.dynamicG, frame.bubbleCells, dx, dy, style);
-        } else if (geometry) {
-            // IDLE: merged regions, Chaikin-rounded by VORONOI_BORDER_SMOOTH.
-            const key = `idle:${sKey}:sm${smoothPasses}:${geometry.version}`;
-            if (this.staticKey !== key) {
-                (this as unknown as { _lastFrozen?: unknown })._lastFrozen = undefined;
-                this.staticG.clear();
-                const regions = geometry.territoryRegions.filter(
-                    (r) => r.points.length >= 3,
-                );
-                // Enclosure test uses RAW rings (smoothing preserves topology);
-                // both the outer fill and the cut hole are smoothed so the
-                // rounded island still lines up inside the rounded outer ring.
-                for (const region of regions) {
-                    const ring = chaikinRingClosed(region.points, smoothPasses);
-                    const flat: number[] = [];
-                    for (const [px, py] of ring) flat.push(px, py);
-                    this.staticG.poly(flat).fill({
-                        color: this.fillColor(region.ownerId, style),
-                        alpha: style.fillAlpha,
-                    });
-                    // Cut any DIFFERENT-owner region fully enclosed in this one
-                    // so colors stay pure under alpha — the merged region is an
-                    // outer ring that would otherwise paint over an enclosed
-                    // enemy island (both fills compositing).
-                    for (const other of regions) {
-                        if (other === region || other.ownerId === region.ownerId) {
-                            continue;
-                        }
-                        if (!regionEnclosedBy(other.points, region.points)) continue;
-                        const holeRing = chaikinRingClosed(other.points, smoothPasses);
-                        const hole: number[] = [];
-                        for (const [px, py] of holeRing) hole.push(px, py);
-                        this.staticG.poly(hole).cut();
-                    }
-                }
-                this.staticKey = key;
-            }
-            this.dynamicG.clear();
+        if (frame) {
+            // ── MORPH: one smoothed surface per frame (same assembly as idle),
+            // so the sweep is a complete, watertight, rounded, owner-merged map.
+            const minX = input.world.minX ?? 0;
+            const minY = input.world.minY ?? 0;
+            const world: WorldRect = {
+                width: input.world.width,
+                height: input.world.height,
+                minX,
+                minY,
+                maxX: minX + input.world.width,
+                maxY: minY + input.world.height,
+            };
+            const cells: PowerCell[] = [...frame.frozenCells, ...frame.bubbleCells];
+            const surface = buildSurfaceFromCells(cells, world, smoothPasses);
+
+            if (style.fillEnabled) this.drawFills(surface.regions, dx, dy, style);
+            else this.fillG.clear();
+
+            if (style.borderEnabled) {
+                this.drawBorders(surface.frontiers, surface.worldBorders, dx, dy, style);
+            } else this.borderG.clear();
+
+            // Morph redraws every frame — invalidate the idle caches.
+            this.fillKey = 'morph';
+            this.borderKey = 'morph';
+            return { container: this.root };
         }
 
-        // ── Borders ─────────────────────────────────────────────────────────
+        // ── IDLE: draw the resolved snapshot (already smoothed at source). No
+        // family re-smoothing — that would double-round.
+        if (!style.fillEnabled || !geometry) {
+            if (this.fillKey !== 'off') {
+                this.fillG.clear();
+                this.fillKey = 'off';
+            }
+        } else {
+            const key = `idle:${sKey}:${geometry.version}`;
+            if (this.fillKey !== key) {
+                this.drawFills(geometry.territoryRegions, 0, 0, style);
+                this.fillKey = key;
+            }
+        }
+
         if (!style.borderEnabled || !geometry) {
             if (this.borderKey !== 'off') {
                 this.borderG.clear();
                 this.borderKey = 'off';
             }
-        } else if (frame) {
-            // MORPH: derive borders from the SAME animating cells as the fills so
-            // the frontier moves WITH the sweep (instead of snapping to the
-            // settled snapshot). Redraw every frame; batch by color for perf.
-            this.borderG.clear();
-            const edgeColor = (edge: BorderEdge): number =>
-                style.borderBlend && edge.ownerB !== WORLD_OWNER
-                    ? blendColors(
-                          this.borderColor(edge.ownerA, style),
-                          this.borderColor(edge.ownerB, style),
-                          0.5,
-                      )
-                    : this.borderColor(edge.ownerA, style);
-            const byColor = new Map<number, BorderEdge[]>();
-            for (const edge of ownerBoundaryEdges([
-                ...frame.frozenCells,
-                ...frame.bubbleCells,
-            ])) {
-                const c = edgeColor(edge);
-                const bucket = byColor.get(c);
-                if (bucket) bucket.push(edge);
-                else byColor.set(c, [edge]);
-            }
-            for (const [color, edges] of byColor) {
-                for (const edge of edges) {
-                    this.borderG.moveTo(edge.a[0] + dx, edge.a[1] + dy);
-                    this.borderG.lineTo(edge.b[0] + dx, edge.b[1] + dy);
-                }
-                this.borderG.stroke({
-                    width: style.borderWidth,
-                    color,
-                    alpha: style.borderAlpha,
-                    join: 'round',
-                    cap: 'round',
-                });
-            }
-            this.borderKey = 'morph';
         } else {
-            const key = `border:${sKey}:sm${smoothPasses}:${geometry.version}`;
+            const key = `border:${sKey}:${geometry.version}`;
             if (this.borderKey !== key) {
-                this.borderG.clear();
-                const strokeChain = (
-                    rawPoints: readonly (readonly [number, number])[],
-                    ownerA: string,
-                    ownerB: string,
-                ) => {
-                    if (rawPoints.length < 2) return;
-                    // Round the frontier to match the Chaikin-rounded fills.
-                    const points = chaikinChainOpen(rawPoints, smoothPasses);
-                    // Opponent-blended borders: an inter-owner frontier is drawn
-                    // in the 50/50 mix of BOTH owners' border colors (a single
-                    // shared stroke) instead of just side A. World edges
-                    // (ownerB '__world__') keep the single owner color.
-                    const color =
-                        style.borderBlend && ownerB && ownerB !== '__world__'
-                            ? blendColors(
-                                  this.borderColor(ownerA, style),
-                                  this.borderColor(ownerB, style),
-                                  0.5,
-                              )
-                            : this.borderColor(ownerA, style);
-                    this.borderG.moveTo(points[0]![0], points[0]![1]);
-                    for (let i = 1; i < points.length; i++) {
-                        this.borderG.lineTo(points[i]![0], points[i]![1]);
-                    }
-                    this.borderG.stroke({
-                        width: style.borderWidth,
-                        color,
-                        alpha: style.borderAlpha,
-                        join: 'round',
-                        cap: 'round',
-                    });
-                };
-                for (const polyline of geometry.frontierPolylines) {
-                    strokeChain(polyline.points, polyline.ownerA, polyline.ownerB);
-                }
-                for (const polyline of geometry.worldBorderPolylines) {
-                    strokeChain(polyline.points, polyline.ownerA, polyline.ownerB);
-                }
+                this.drawBorders(
+                    geometry.frontierPolylines,
+                    geometry.worldBorderPolylines,
+                    0,
+                    0,
+                    style,
+                );
                 this.borderKey = key;
             }
         }
@@ -447,8 +326,7 @@ export class PowerVectorFamily implements RenderFamily {
     }
 
     dispose(): void {
-        this.staticG.destroy();
-        this.dynamicG.destroy();
+        this.fillG.destroy();
         this.borderG.destroy();
         this.root.destroy({ children: true });
     }

@@ -31,6 +31,7 @@ import {
     walkRegionLoops,
 } from './sharedEdgeGraph';
 import { smoothSharedEdges } from './smoothSharedEdges';
+import { buildSurfaceFromCells } from './buildSurfaceFromCells';
 import { WORLD_OWNER, type Point, type PowerCell, type WorldRect } from './powerCoreTypes';
 import type { KineticEndpointState } from './kineticTypes';
 
@@ -208,6 +209,46 @@ describe('PROOF: a morph frame flows through the idle smoothing pipeline seamles
         // (a,b kept meaningful so the tiling invariant is exercised at both.)
         expect(a / CLIP_AREA).toBeGreaterThan(0.999);
         expect(b / CLIP_AREA).toBeGreaterThan(0.999);
+    });
+});
+
+describe('buildSurfaceFromCells: the render-ready morph surface (idle + morph share this)', () => {
+    const CLIP_AREA = shoelace(S0.clip.map((p) => [p[0], p[1]] as Point));
+    const bubble = buildTransitionBubble({
+        s0: S0.state,
+        s1: S1.state,
+        conquestOrigins: CONQUEST_ORIGINS,
+    });
+    const frameCells = (p: number): PowerCell[] => {
+        const frame = sampleKineticFrame({ bubble, p, clip: S0.clip });
+        return [...frame.frozenCells, ...frame.bubbleCells];
+    };
+    const world = clipBounds(S0.clip);
+
+    it('region fills tile the clip and frontiers are rounded (single call)', () => {
+        const surface = buildSurfaceFromCells(frameCells(0.4), world, 3);
+        let fillArea = 0;
+        for (const r of surface.regions) fillArea += shoelace(r.points);
+        expect(fillArea / CLIP_AREA).toBeGreaterThan(0.98);
+        expect(fillArea / CLIP_AREA).toBeLessThan(1.02);
+        // Some frontier polyline gained interior points ⇒ actually rounded.
+        expect(surface.frontiers.some((f) => f.points.length > 2)).toBe(true);
+        expect(surface.frontiers.every((f) => f.ownerA !== f.ownerB)).toBe(true);
+        expect(surface.worldBorders.length).toBeGreaterThan(0);
+    });
+
+    it('passes=0 gives straight frontiers; passes>0 rounds them (slider works)', () => {
+        const flat = buildSurfaceFromCells(frameCells(0.4), world, 0);
+        const round = buildSurfaceFromCells(frameCells(0.4), world, 3);
+        const flatPts = flat.frontiers.reduce((n, f) => n + f.points.length, 0);
+        const roundPts = round.frontiers.reduce((n, f) => n + f.points.length, 0);
+        expect(roundPts).toBeGreaterThan(flatPts);
+    });
+
+    it('is deterministic — identical cells give byte-identical surface', () => {
+        const a = buildSurfaceFromCells(frameCells(0.4), world, 3);
+        const b = buildSurfaceFromCells(frameCells(0.4), world, 3);
+        expect(JSON.stringify(a)).toBe(JSON.stringify(b));
     });
 });
 
