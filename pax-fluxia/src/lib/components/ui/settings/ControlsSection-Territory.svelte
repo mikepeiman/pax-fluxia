@@ -813,6 +813,75 @@
             helperText="Timing and influence tuning for the active conquest transition mode."
           />
         {/if}
+
+        {#if !showReferenceVsTransitionModeSelector()}
+          <h5 class="territory-inline-heading">Conquest Transition</h5>
+          <div class="var-row">
+            <PaxSettingsSegmentedRow
+              label="Front Shape"
+              hint="Conquest sweep shape (PowerCore geometry source). Linear = straight windshield-wiper sweep. Radial = curved front advancing from the attacker (toward the water-wave feel)."
+              value={panel.territoryConquestFrontMode ??
+                GAME_CONFIG.TERRITORY_CONQUEST_FRONT_MODE ??
+                "linear"}
+              options={[
+                { value: "linear", label: "Linear" },
+                { value: "radial", label: "Radial" },
+              ]}
+              settingConfigKey="TERRITORY_CONQUEST_FRONT_MODE"
+              onValueChange={(value) =>
+                debouncedConfigUpdate(
+                  "TERRITORY_CONQUEST_FRONT_MODE",
+                  "territoryConquestFrontMode",
+                  value,
+                )} />
+          </div>
+          <div class="var-row">
+            <PaxSettingsRangeRow
+              label="Border Rounding (Chaikin passes)"
+              value={panel.voronoiBorderSmooth ??
+                GAME_CONFIG.VORONOI_BORDER_SMOOTH}
+              min={0}
+              max={5}
+              step={1}
+              settingConfigKey="VORONOI_BORDER_SMOOTH"
+              onInput={(value) =>
+                debouncedConfigUpdate(
+                  "VORONOI_BORDER_SMOOTH",
+                  "voronoiBorderSmooth",
+                  value,
+                )} />
+          </div>
+          <div class="var-row">
+            <PaxSettingsRangeRow
+              label="Transition Duration"
+              value={panel.territoryTransitionMs ??
+                GAME_CONFIG.TERRITORY_TRANSITION_MS}
+              min={0}
+              max={3000}
+              step={50}
+              suffix="ms"
+              settingConfigKey="TERRITORY_TRANSITION_MS"
+              onInput={(value) =>
+                debouncedConfigUpdate(
+                  "TERRITORY_TRANSITION_MS",
+                  "territoryTransitionMs",
+                  value,
+                )} />
+          </div>
+          <div class="var-row">
+            <PaxSettingsToggleRow
+              label="Bind duration to tick"
+              checked={panel.territoryTransitionBindToTick ??
+                GAME_CONFIG.TERRITORY_TRANSITION_BIND_TO_TICK}
+              settingConfigKey="TERRITORY_TRANSITION_BIND_TO_TICK"
+              onChange={(value) =>
+                debouncedConfigUpdate(
+                  "TERRITORY_TRANSITION_BIND_TO_TICK",
+                  "territoryTransitionBindToTick",
+                  value,
+                )} />
+          </div>
+        {/if}
       </div>
 
   </div>

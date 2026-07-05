@@ -154,6 +154,17 @@ function resolveSectionTarget(
         case "surge":
             return { sectionId: "effects" };
         case "territory":
+            // Universal conquest-transition controls live in the Transition
+            // section (modern modes) — route them there so clicking lands on the
+            // real, always-visible control (not a per-mode surface card).
+            if (
+                record.key === "TERRITORY_CONQUEST_FRONT_MODE" ||
+                record.key === "VORONOI_BORDER_SMOOTH" ||
+                record.key === "TERRITORY_TRANSITION_MS" ||
+                record.key === "TERRITORY_TRANSITION_BIND_TO_TICK"
+            ) {
+                return { sectionId: "transition" };
+            }
             if (isTerritoryTopologyRecord(record)) {
                 return { sectionId: "territory_tuning" };
             }
