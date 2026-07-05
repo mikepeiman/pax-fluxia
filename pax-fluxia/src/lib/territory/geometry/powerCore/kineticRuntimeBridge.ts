@@ -129,9 +129,22 @@ export function commitKineticEndpoint(params: {
         conquestFrontMode: params.conquestFrontMode,
     });
     lastCommitFp = fp;
+
+    // Render-order snap fix: sampleKineticForFrame() runs EARLY in the frame,
+    // BEFORE this commit (which fires later, inside the geometry build). Without
+    // re-sampling here, the conquest frame has no morph frame yet, so the Vector
+    // skin's getActiveKineticFrame() is null and it falls back to drawing the
+    // freshly-built FINAL snapshot — a one-frame SNAP to the finished map before
+    // the sweep begins ("snap the new borders, then the transition moves to meet
+    // them"). Sampling now at nowMs == startedAt ⇒ p=0 ⇒ the OLD endpoint, so the
+    // conquest frame is continuous with the pre-conquest frame and the sweep
+    // starts from the old state. null when this commit is a snap (no morph).
+    lastFrame = runtime.sample(params.nowMs);
+
     const retarget = Boolean(activeKey) && runtime.activeKey !== activeKey;
     activeStartedAtMs = params.nowMs;
     activeDurationMs = params.durationMs;
+    if (runtime.activeKey) activeKey = runtime.activeKey;
     log.transition('runtime', transitionKey ? 'commit' : 'snap', {
         key: transitionKey,
         retarget,

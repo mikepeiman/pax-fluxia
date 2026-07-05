@@ -362,13 +362,23 @@ export function buildTransitionBubble(
                       break;
                   }
                   if (radius <= 0) return r;
+                  const ux = dirX / len;
+                  const uy = dirY / len;
+                  // Radial wave SOURCE = the captured cell's near edge (one
+                  // outradius back toward the attacker from the star), NOT the
+                  // distant attacker star. The arrival-time field is distance-
+                  // from-source, so the iso-contour is a circle of that radius;
+                  // sourcing from the far star gave radius ≈ inter-star distance
+                  // ⇒ an almost-flat arc ("weak radial"). Sourcing at the near
+                  // edge gives radius ≈ cell size ⇒ a front that visibly curves
+                  // across the cell (the water-on-beach feel).
                   return {
                       ...r,
                       kind: 'conquest' as const,
-                      attackDirX: dirX / len,
-                      attackDirY: dirY / len,
-                      attackOriginX: origin.x,
-                      attackOriginY: origin.y,
+                      attackDirX: ux,
+                      attackDirY: uy,
+                      attackOriginX: r.x - ux * radius,
+                      attackOriginY: r.y - uy * radius,
                       frontMode: params.conquestFrontMode ?? 'linear',
                       cellRadius: radius,
                   };

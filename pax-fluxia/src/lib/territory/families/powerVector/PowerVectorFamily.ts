@@ -83,7 +83,58 @@ const POWER_VECTOR_TUNABLE_KEYS = [
     'TERRITORY_SURFACE_BORDER_LIGHTNESS',
     'TERRITORY_SURFACE_BORDER_ALPHA',
     'TERRITORY_SURFACE_BORDER_BLEND',
+    'VORONOI_BORDER_SMOOTH',
 ] as const;
+
+type Pt = readonly [number, number];
+
+/** Clamp the rounding slider to a sane pass range. */
+function readSmoothPasses(input: RenderFamilyInput): number {
+    const raw = readTunableNumber(input, 'VORONOI_BORDER_SMOOTH', 0);
+    return Math.max(0, Math.min(6, Math.round(raw)));
+}
+
+/**
+ * Chaikin corner-cutting on a CLOSED ring: each edge (a,b) is replaced by the
+ * ¼/¾ pair, so every pass halves corner sharpness and doubles the vertex count.
+ * This is what makes the VORONOI_BORDER_SMOOTH slider round Power Vector's
+ * territory outlines (the family previously drew raw polygon edges — the slider
+ * was inert). Same math as the cell-grid families' chaikinSmooth.
+ */
+function chaikinRingClosed(pts: readonly Pt[], passes: number): Pt[] {
+    let ring: Pt[] = pts.map((p) => [p[0], p[1]] as Pt);
+    for (let k = 0; k < passes && ring.length >= 3; k++) {
+        const out: Pt[] = [];
+        const n = ring.length;
+        for (let i = 0; i < n; i++) {
+            const a = ring[i]!;
+            const b = ring[(i + 1) % n]!;
+            out.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25]);
+            out.push([a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]);
+        }
+        ring = out;
+    }
+    return ring;
+}
+
+/** Chaikin on an OPEN chain — endpoints are pinned so shared frontiers still
+ *  meet the world border / triple points they terminate at. */
+function chaikinChainOpen(pts: readonly Pt[], passes: number): Pt[] {
+    let chain: Pt[] = pts.map((p) => [p[0], p[1]] as Pt);
+    for (let k = 0; k < passes && chain.length >= 3; k++) {
+        const n = chain.length;
+        const out: Pt[] = [chain[0]!];
+        for (let i = 0; i < n - 1; i++) {
+            const a = chain[i]!;
+            const b = chain[i + 1]!;
+            out.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25]);
+            out.push([a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]);
+        }
+        out.push(chain[n - 1]!);
+        chain = out;
+    }
+    return chain;
+}
 
 type Ring = readonly (readonly [number, number])[];
 
@@ -240,6 +291,7 @@ export class PowerVectorFamily implements RenderFamily {
         const geometry = input.geometry ?? null;
         const dx = -(input.world.minX ?? 0);
         const dy = -(input.world.minY ?? 0);
+        const smoothPasses = readSmoothPasses(input);
 
         // ── Fills ───────────────────────────────────────────────────────────
         if (!style.fillEnabled) {
@@ -263,17 +315,21 @@ export class PowerVectorFamily implements RenderFamily {
             this.dynamicG.clear();
             this.drawCells(this.dynamicG, frame.bubbleCells, dx, dy, style);
         } else if (geometry) {
-            // IDLE: merged, smoothed regions (rounding slider applies).
-            const key = `idle:${sKey}:${geometry.version}`;
+            // IDLE: merged regions, Chaikin-rounded by VORONOI_BORDER_SMOOTH.
+            const key = `idle:${sKey}:sm${smoothPasses}:${geometry.version}`;
             if (this.staticKey !== key) {
                 (this as unknown as { _lastFrozen?: unknown })._lastFrozen = undefined;
                 this.staticG.clear();
                 const regions = geometry.territoryRegions.filter(
                     (r) => r.points.length >= 3,
                 );
+                // Enclosure test uses RAW rings (smoothing preserves topology);
+                // both the outer fill and the cut hole are smoothed so the
+                // rounded island still lines up inside the rounded outer ring.
                 for (const region of regions) {
+                    const ring = chaikinRingClosed(region.points, smoothPasses);
                     const flat: number[] = [];
-                    for (const [px, py] of region.points) flat.push(px, py);
+                    for (const [px, py] of ring) flat.push(px, py);
                     this.staticG.poly(flat).fill({
                         color: this.fillColor(region.ownerId, style),
                         alpha: style.fillAlpha,
@@ -287,8 +343,9 @@ export class PowerVectorFamily implements RenderFamily {
                             continue;
                         }
                         if (!regionEnclosedBy(other.points, region.points)) continue;
+                        const holeRing = chaikinRingClosed(other.points, smoothPasses);
                         const hole: number[] = [];
-                        for (const [px, py] of other.points) hole.push(px, py);
+                        for (const [px, py] of holeRing) hole.push(px, py);
                         this.staticG.poly(hole).cut();
                     }
                 }
@@ -341,15 +398,17 @@ export class PowerVectorFamily implements RenderFamily {
             }
             this.borderKey = 'morph';
         } else {
-            const key = `border:${sKey}:${geometry.version}`;
+            const key = `border:${sKey}:sm${smoothPasses}:${geometry.version}`;
             if (this.borderKey !== key) {
                 this.borderG.clear();
                 const strokeChain = (
-                    points: readonly (readonly [number, number])[],
+                    rawPoints: readonly (readonly [number, number])[],
                     ownerA: string,
                     ownerB: string,
                 ) => {
-                    if (points.length < 2) return;
+                    if (rawPoints.length < 2) return;
+                    // Round the frontier to match the Chaikin-rounded fills.
+                    const points = chaikinChainOpen(rawPoints, smoothPasses);
                     // Opponent-blended borders: an inter-owner frontier is drawn
                     // in the 50/50 mix of BOTH owners' border colors (a single
                     // shared stroke) instead of just side A. World edges

@@ -220,6 +220,7 @@ export function sampleKineticFrame(params: SampleKineticFrameParams): KineticFra
                 starId: ramp.starId,
                 ownerIn: ramp.ownerB,
                 ownerOld: ramp.ownerA,
+                subdiv: 6,
             };
             for (const partCell of splitCellByFront(cell, front, q)) {
                 bubbleCells.push(partCell);
