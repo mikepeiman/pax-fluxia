@@ -38,6 +38,35 @@ per-mode keys (METABALL_*, PERIMETER_FIELD_*, GRID_GRADIENT_*, CELL_GRID_*, DF_*
   entries. Archive under `src/lib/territory/_quarantine/` (or a branch) — NOT deleted; they may return as
   PowerCore skins (per the PowerCore plan).
 
+## Keep set (confirmed 2026-07-04): power_vector + grid_gradient + ember_lattice + phase_field + PowerCore
+
+Quarantine: metaball, perimeter_field, cell_grid, phase_edges, power_voronoi, pvv2_dy4,
+territory_engine, territory_runtime, pixel, graph, contour + legacy renderers.
+
+## ⚠️ Stage A needs PER-KEY classification (pattern-matching by prefix is UNSAFE)
+
+A blind "remove all `PERIMETER_FIELD_*` / `METABALL_*`" strip would break UNIVERSAL settings whose
+key is misnamed. Confirmed landmine: **`PERIMETER_FIELD_GEOMETRY_SOURCE`** is the universal Geometry
+Source selector (PowerCore vs others) — label "Geometry Source", memory says don't touch its default;
+it is NOT a Perimeter-mode setting. So Stage A must classify each territory key:
+
+- **UNIVERSAL — KEEP** (apply to the PowerCore/Power-Vector path regardless of mode): geometry source
+  (`PERIMETER_FIELD_GEOMETRY_SOURCE`), topology (CX/CL/SB/DX, MSR, min-dominance, world boundary,
+  `MODIFIED_VORONOI_*`), the unified Surface (`TERRITORY_SURFACE_*`, `VORONOI_BORDER_SMOOTH`,
+  `TERRITORY_SURFACE_BORDER_BLEND`, `TERRITORY_CONQUEST_FRONT_MODE`), transition timing
+  (`TERRITORY_TRANSITION_*`), neutral/alpha basics.
+- **KEPT-MODE — KEEP**: `GRID_GRADIENT_*`, `CELL_GRID_*` (serve grid_gradient / ember_lattice /
+  phase_field, all kept).
+- **QUARANTINE — REMOVE** (card + search entry + config, together): metaball-render (`METABALL_*`
+  except any shared), perimeter-render-specific `PERIMETER_FIELD_*` (sampling, inward offset, debug,
+  transition-engine — but NOT `_GEOMETRY_SOURCE`), legacy voronoi/pvv2/engine (`DF_*`, `VORONOI_ALPHA`,
+  `TERRITORY_ENGINE_*`, `MODIFIED_VORONOI_STAR_MARGIN` if legacy-only), pixel/graph/contour.
+
+Stage A = build that keep/quarantine key list explicitly, then remove each quarantined key's card block
++ search entry + config together, guarded by the wiring-invariant test after each removal. Card removal
+in ControlsSection-Territory is entangled (metaball block ~826-966; perimeter woven through the shared
+card) — do it one mode at a time with `bun run check` between, NOT in one sweep.
+
 ## Staging (each stage keeps the build GREEN + Power Vector working + is test/typecheck verifiable)
 
 - **Stage A — Settings strip (contained, biggest immediate relief).** In ControlsSection-Territory +
