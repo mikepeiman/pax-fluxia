@@ -209,8 +209,14 @@ export class PowerVectorFamily implements RenderFamily {
     /** Per-cell fills for the MORPH: each cell/region is exactly one owner and the
      *  cells tile the map, so the fill is complete and can NEVER bucket-fill or
      *  leave a captured region unfilled. Fed the SMOOTHED per-cell fills
-     *  (owner-boundary edges rounded to match the borders), so no fill/border
-     *  discontinuity — while staying single-owner (no fragile face walk). */
+     *  (owner-boundary edges rounded to match the borders).
+     *
+     *  Filled per OWNER in a SINGLE operation: the conquest split fans the captured
+     *  cell into many sub-cells, and drawing each separately leaves hairline
+     *  anti-aliasing seams radiating from the centroid (the "star" artifact) and
+     *  compounds alpha on any overlap. One fill per owner, with every polygon wound
+     *  the SAME way, merges them into a clean union under the nonzero rule — no
+     *  internal seams, no alpha doubling. */
     private drawCellFills(
         regions: readonly FillRegion[],
         dx: number,
@@ -218,14 +224,31 @@ export class PowerVectorFamily implements RenderFamily {
         style: SurfaceStyle,
     ): void {
         this.fillG.clear();
+        const byOwner = new Map<string, number[][]>();
         for (const region of regions) {
-            if (region.points.length < 3) continue;
+            const pts = region.points;
+            if (pts.length < 3) continue;
+            // Signed area (shoelace) → normalize orientation so the per-owner union
+            // fills correctly (mixed winding would punch holes under nonzero).
+            let area2 = 0;
+            for (let i = 0; i < pts.length; i++) {
+                const a = pts[i]!;
+                const b = pts[(i + 1) % pts.length]!;
+                area2 += a[0] * b[1] - b[0] * a[1];
+            }
             const flat: number[] = [];
-            for (const [px, py] of region.points) flat.push(px + dx, py + dy);
-            this.fillG.poly(flat).fill({
-                color: this.fillColor(region.ownerId, style),
-                alpha: style.fillAlpha,
-            });
+            if (area2 >= 0) {
+                for (const [px, py] of pts) flat.push(px + dx, py + dy);
+            } else {
+                for (let i = pts.length - 1; i >= 0; i--) flat.push(pts[i]![0] + dx, pts[i]![1] + dy);
+            }
+            const bucket = byOwner.get(region.ownerId);
+            if (bucket) bucket.push(flat);
+            else byOwner.set(region.ownerId, [flat]);
+        }
+        for (const [ownerId, polys] of byOwner) {
+            for (const flat of polys) this.fillG.poly(flat);
+            this.fillG.fill({ color: this.fillColor(ownerId, style), alpha: style.fillAlpha });
         }
     }
 
