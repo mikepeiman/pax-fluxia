@@ -206,24 +206,24 @@ export class PowerVectorFamily implements RenderFamily {
         }
     }
 
-    /** Per-cell fills for the MORPH: each cell is exactly one owner and the cells
-     *  tile the map, so the fill is complete and can NEVER bucket-fill or leave a
-     *  captured region unfilled. (Merged/smoothed region fills via walkRegionLoops
-     *  are not robust against the conquest split's T-junctions; borders stay
-     *  merged+smoothed separately.) */
+    /** Per-cell fills for the MORPH: each cell/region is exactly one owner and the
+     *  cells tile the map, so the fill is complete and can NEVER bucket-fill or
+     *  leave a captured region unfilled. Fed the SMOOTHED per-cell fills
+     *  (owner-boundary edges rounded to match the borders), so no fill/border
+     *  discontinuity — while staying single-owner (no fragile face walk). */
     private drawCellFills(
-        cells: readonly PowerCell[],
+        regions: readonly FillRegion[],
         dx: number,
         dy: number,
         style: SurfaceStyle,
     ): void {
         this.fillG.clear();
-        for (const cell of cells) {
-            if (cell.points.length < 3) continue;
+        for (const region of regions) {
+            if (region.points.length < 3) continue;
             const flat: number[] = [];
-            for (const [px, py] of cell.points) flat.push(px + dx, py + dy);
+            for (const [px, py] of region.points) flat.push(px + dx, py + dy);
             this.fillG.poly(flat).fill({
-                color: this.fillColor(cell.ownerId, style),
+                color: this.fillColor(region.ownerId, style),
                 alpha: style.fillAlpha,
             });
         }
@@ -289,15 +289,15 @@ export class PowerVectorFamily implements RenderFamily {
             // frame here would classify no world edges ⇒ empty regions ⇒ fills
             // vanish mid-morph). dx/dy still localizes rendering to the container.
             const cells: PowerCell[] = [...frame.frozenCells, ...frame.bubbleCells];
+            const surface = buildSurfaceFromCells(cells, smoothPasses);
 
-            // Fills: per-cell (bulletproof correct colour, complete tiling).
-            if (style.fillEnabled) this.drawCellFills(cells, dx, dy, style);
+            // Fills: SMOOTHED per-cell (single-owner ⇒ no bucket-fill; owner edges
+            // rounded to match the borders ⇒ no fill/border discontinuity).
+            if (style.fillEnabled) this.drawCellFills(surface.cellFills, dx, dy, style);
             else this.fillG.clear();
 
-            // Borders: merged + smoothed inter-owner frontiers (from the shared-edge
-            // graph, independent of the fragile face assignment).
+            // Borders: merged + smoothed inter-owner frontiers (same smoothed graph).
             if (style.borderEnabled) {
-                const surface = buildSurfaceFromCells(cells, smoothPasses);
                 this.drawBorders(surface.frontiers, surface.worldBorders, dx, dy, style);
             } else this.borderG.clear();
 

@@ -374,6 +374,39 @@ describe('ONE-DIAGRAM morph (runtime.sampleFull): per-cell fills tile completely
                 if (t >= 250 && t <= 750) expect(capturedOwners.size).toBe(2);
             }
         });
+
+        it(`${front}: SMOOTHED per-cell fills — rounded, area-conserved per owner, no bucket-fill`, () => {
+            const rt = runtimeFor(front);
+            for (const t of [250, 500, 750]) {
+                const cells = rt.sampleFull(t)!.bubbleCells;
+                const surface = buildSurfaceFromCells(cells, 3);
+                expect(surface.cellFills.length).toBeGreaterThan(0);
+
+                // Per-owner area is conserved between raw cells and smoothed cell
+                // fills ⇒ no area moved between owners ⇒ no bucket-fill. (Smoothing
+                // only shaves corners, so allow a small per-owner delta.)
+                const rawByOwner = new Map<string, number>();
+                for (const c of cells) {
+                    rawByOwner.set(c.ownerId, (rawByOwner.get(c.ownerId) ?? 0) + shoelace(c.points));
+                }
+                const fillByOwner = new Map<string, number>();
+                for (const f of surface.cellFills) {
+                    fillByOwner.set(f.ownerId, (fillByOwner.get(f.ownerId) ?? 0) + shoelace(f.points));
+                }
+                for (const [owner, raw] of rawByOwner) {
+                    const filled = fillByOwner.get(owner) ?? 0;
+                    expect(Math.abs(filled - raw) / CLIP_AREA).toBeLessThan(0.02);
+                }
+                // Fills still tile the clip (complete map).
+                let cover = 0;
+                for (const f of surface.cellFills) cover += shoelace(f.points);
+                expect(cover / CLIP_AREA).toBeGreaterThan(0.97);
+                expect(cover / CLIP_AREA).toBeLessThan(1.03);
+                // Actually rounded: some fill has more vertices than any raw cell
+                // could (owner-boundary edges were swapped for smoothed polylines).
+                expect(surface.cellFills.some((f) => f.points.length > 8)).toBe(true);
+            }
+        });
     }
 });
 

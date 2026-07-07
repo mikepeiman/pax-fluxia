@@ -43,10 +43,29 @@ export interface SurfaceFrontier {
 
 export interface CellSurface {
     readonly regions: SurfaceRegion[];
+    /**
+     * PER-CELL fills (one owner each — never bucket-fill), but each cell's
+     * OWNER-BOUNDARY edges are swapped for the SAME smoothed polylines the borders
+     * use, so the fill rounds to match the border and adjacent cells share the
+     * exact boundary (no gap/overlap). Same-owner interior edges stay raw. This is
+     * the robust smooth fill: single-owner (like raw cells) + smoothed (like the
+     * merged regions), without the fragile face walk.
+     */
+    readonly cellFills: SurfaceRegion[];
     /** Inter-owner frontiers (ownerA < ownerB). */
     readonly frontiers: SurfaceFrontier[];
     /** Owner↔world borders (ownerB === WORLD_OWNER). */
     readonly worldBorders: SurfaceFrontier[];
+}
+
+const PAIR_Q = 1000;
+function pairVkey(p: Point): string {
+    return `${Math.round(p[0] * PAIR_Q)}:${Math.round(p[1] * PAIR_Q)}`;
+}
+function undirectedPairKey(a: Point, b: Point): string {
+    const ka = pairVkey(a);
+    const kb = pairVkey(b);
+    return ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
 }
 
 /**
@@ -91,7 +110,7 @@ function worldRectFromCells(cells: readonly PowerCell[]): WorldRect {
  * real vertex is a shared corner), so this only ever inserts the split's own
  * crossings. A 64px vertex grid keeps it near-linear.
  */
-function conformCellBoundaries(cells: PowerCell[]): PowerCell[] {
+function conformCellBoundaries(cells: readonly PowerCell[]): PowerCell[] {
     const vkey = (x: number, y: number) => `${Math.round(x * 1000)}:${Math.round(y * 1000)}`;
     const verts = new Map<string, Point>();
     for (const c of cells) {
@@ -176,7 +195,7 @@ function chainByGroup(
 }
 
 export function buildSurfaceFromCells(
-    cells: PowerCell[],
+    cells: readonly PowerCell[],
     passes: number,
 ): CellSurface {
     // Conform first: splice the conquest front's crossing points into the
@@ -215,5 +234,47 @@ export function buildSurfaceFromCells(
     }
     const worldBorders = chainByGroup(byOwner, (owner) => [owner, WORLD_OWNER]);
 
-    return { regions, frontiers, worldBorders };
+    // Smoothed per-cell fills: index every graph edge (shared + world) by its
+    // undirected endpoint pair, then rebuild each conformed cell, replacing its
+    // owner-boundary edges with the smoothed polyline (canonically oriented) and
+    // leaving same-owner interior edges raw. Both cells sharing an inter-owner edge
+    // read the identical smoothedPts, so their fills meet exactly on the curve and
+    // match the stroked border.
+    const smoothByPair = new Map<string, { pts: readonly Point[]; startKey: string }>();
+    const indexEdge = (pts: readonly Point[], smoothed: readonly Point[]) => {
+        smoothByPair.set(undirectedPairKey(pts[0]!, pts[pts.length - 1]!), {
+            pts: smoothed,
+            startKey: pairVkey(pts[0]!),
+        });
+    };
+    for (const e of graph.sharedEdges) indexEdge(e.pts, e.smoothedPts);
+    for (const e of graph.worldEdges) indexEdge(e.pts, e.smoothedPts);
+
+    const cellFills: SurfaceRegion[] = [];
+    for (const cell of conformed) {
+        const pts = cell.points;
+        const n = pts.length;
+        if (n < 3) continue;
+        const ring: Point[] = [];
+        const push = (p: Point) => {
+            if (ring.length > 0 && pairVkey(ring[ring.length - 1]!) === pairVkey(p)) return;
+            ring.push([p[0], p[1]]);
+        };
+        for (let i = 0; i < n; i++) {
+            const a = pts[i]!;
+            const b = pts[(i + 1) % n]!;
+            const sm = smoothByPair.get(undirectedPairKey(a, b));
+            if (sm) {
+                const seq = pairVkey(a) === sm.startKey ? sm.pts : [...sm.pts].reverse();
+                for (const p of seq) push(p);
+            } else {
+                push(a);
+                push(b);
+            }
+        }
+        if (ring.length >= 2 && pairVkey(ring[0]!) === pairVkey(ring[ring.length - 1]!)) ring.pop();
+        if (ring.length >= 3) cellFills.push({ ownerId: cell.ownerId, points: ring });
+    }
+
+    return { regions, cellFills, frontiers, worldBorders };
 }
