@@ -246,38 +246,6 @@ describe('buildSurfaceFromCells: the render-ready morph surface (idle + morph sh
         const b = buildSurfaceFromCells(frameCells(0.4), 3);
         expect(JSON.stringify(a)).toBe(JSON.stringify(b));
     });
-
-    // KNOWN BUG (it.fails until the single-diagram-per-frame morph lands): the
-    // conquest split adds crossing points on the captured cell's boundary that
-    // its neighbours don't have (hanging nodes). The crossed edge is shared with
-    // a FROZEN cell from a different diagram, so the crossing can't be both
-    // matched AND collinear on the frozen side — geometric conforming can't fix
-    // it. The dropped frontier merges the victor's split-part into the loser's
-    // region (past the midpoint, neighbours flood with the victor's colour). The
-    // fix is to render each morph frame from ONE conforming diagram (no
-    // frozen/bubble precision boundary). This guard flips red when that lands.
-    it.fails('does NOT merge regions across the conquest front (each owner keeps its area)', () => {
-        // Coverage stays 100% (merging conserves area), so only a PER-OWNER area
-        // check catches it. passes=0 to isolate topology.
-        for (const p of [0.25, 0.5, 0.75]) {
-            const cells = frameCells(p);
-            const surface = buildSurfaceFromCells(cells, 0);
-            const cellArea = new Map<string, number>();
-            for (const c of cells) {
-                cellArea.set(c.ownerId, (cellArea.get(c.ownerId) ?? 0) + shoelace(c.points));
-            }
-            const regionArea = new Map<string, number>();
-            for (const r of surface.regions) {
-                regionArea.set(r.ownerId, (regionArea.get(r.ownerId) ?? 0) + shoelace(r.points));
-            }
-            for (const [owner, ca] of cellArea) {
-                const ra = regionArea.get(owner) ?? 0;
-                // Each owner's rendered area must match its true cell area — a
-                // merged (absorbed) owner would be near zero here.
-                expect(Math.abs(ra - ca) / CLIP_AREA).toBeLessThan(0.01);
-            }
-        }
-    });
 });
 
 // The LIVE path: drive the actual runtime (commit + sample) exactly as the game

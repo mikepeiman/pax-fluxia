@@ -14,11 +14,7 @@
  * Pure: no PIXI, no config, no Svelte. Offline-testable.
  */
 
-import {
-    buildSharedEdgeGraph,
-    reconstructLoopPolygon,
-    walkRegionLoops,
-} from './sharedEdgeGraph';
+import { buildSharedEdgeGraph } from './sharedEdgeGraph';
 import { smoothSharedEdges } from './smoothSharedEdges';
 import { chainEdgesIntoPolylines } from './buildPowerCoreAuthoritySnapshot';
 import {
@@ -42,7 +38,6 @@ export interface SurfaceFrontier {
 }
 
 export interface CellSurface {
-    readonly regions: SurfaceRegion[];
     /**
      * PER-CELL fills (one owner each — never bucket-fill), but each cell's
      * OWNER-BOUNDARY edges are swapped for the SAME smoothed polylines the borders
@@ -56,16 +51,6 @@ export interface CellSurface {
     readonly frontiers: SurfaceFrontier[];
     /** Owner↔world borders (ownerB === WORLD_OWNER). */
     readonly worldBorders: SurfaceFrontier[];
-}
-
-const PAIR_Q = 1000;
-function pairVkey(p: Point): string {
-    return `${Math.round(p[0] * PAIR_Q)}:${Math.round(p[1] * PAIR_Q)}`;
-}
-function undirectedPairKey(a: Point, b: Point): string {
-    const ka = pairVkey(a);
-    const kb = pairVkey(b);
-    return ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
 }
 
 /**
@@ -110,25 +95,42 @@ function worldRectFromCells(cells: readonly PowerCell[]): WorldRect {
  * real vertex is a shared corner), so this only ever inserts the split's own
  * crossings. A 64px vertex grid keeps it near-linear.
  */
+const PT_Q = 1000;
+/** Numeric point key (1e-3 grid) — no collisions for |coord*1e3| < 5e6, and far
+ *  faster than string keys in the per-frame hot loops. */
+function ptKey(x: number, y: number): number {
+    return Math.round(x * PT_Q) * 1e7 + Math.round(y * PT_Q);
+}
+
 function conformCellBoundaries(cells: readonly PowerCell[]): PowerCell[] {
-    const vkey = (x: number, y: number) => `${Math.round(x * 1000)}:${Math.round(y * 1000)}`;
-    const verts = new Map<string, Point>();
+    // ONLY the conquest split creates hanging nodes, and its parts are the only
+    // cells that share a siteId (every real power-diagram cell has a unique one).
+    // So the candidate crossings are just the split cells' vertices — a handful,
+    // not the whole map. Far cells then query empty grid buckets and return
+    // immediately, so this is O(edges) with a tiny constant instead of scanning
+    // every vertex on every frame.
+    const siteCount = new Map<string, number>();
+    for (const c of cells) siteCount.set(c.siteId, (siteCount.get(c.siteId) ?? 0) + 1);
+    const cand = new Map<number, Point>();
     for (const c of cells) {
+        if ((siteCount.get(c.siteId) ?? 0) < 2) continue;
         for (const pt of c.points) {
-            const k = vkey(pt[0], pt[1]);
-            if (!verts.has(k)) verts.set(k, [pt[0], pt[1]]);
+            const k = ptKey(pt[0], pt[1]);
+            if (!cand.has(k)) cand.set(k, [pt[0], pt[1]]);
         }
     }
+    if (cand.size === 0) return [...cells]; // no split this frame → nothing to conform
+
     const GRID = 64;
-    const gk = (gx: number, gy: number) => `${gx}:${gy}`;
-    const grid = new Map<string, Point[]>();
-    for (const v of verts.values()) {
+    const gk = (gx: number, gy: number) => gx * 1e6 + gy;
+    const grid = new Map<number, Point[]>();
+    for (const v of cand.values()) {
         const k = gk(Math.floor(v[0] / GRID), Math.floor(v[1] / GRID));
         const bucket = grid.get(k);
         if (bucket) bucket.push(v);
         else grid.set(k, [v]);
     }
-    const EPS2 = 1e-9 * 1e-9; // squared perpendicular tolerance (exact-on-segment)
+    const EPS2 = 1e-9 * 1e-9;
     const out: PowerCell[] = [];
     for (const c of cells) {
         const pts = c.points;
@@ -138,8 +140,8 @@ function conformCellBoundaries(cells: readonly PowerCell[]): PowerCell[] {
             const a = pts[i]!;
             const b = pts[(i + 1) % n]!;
             newPts.push([a[0], a[1]]);
-            const ka = vkey(a[0], a[1]);
-            const kb = vkey(b[0], b[1]);
+            const ka = ptKey(a[0], a[1]);
+            const kb = ptKey(b[0], b[1]);
             const dx = b[0] - a[0];
             const dy = b[1] - a[1];
             const len2 = dx * dx + dy * dy;
@@ -154,7 +156,7 @@ function conformCellBoundaries(cells: readonly PowerCell[]): PowerCell[] {
                     const bucket = grid.get(gk(gx, gy));
                     if (!bucket) continue;
                     for (const v of bucket) {
-                        const kv = vkey(v[0], v[1]);
+                        const kv = ptKey(v[0], v[1]);
                         if (kv === ka || kv === kb) continue;
                         const t = ((v[0] - a[0]) * dx + (v[1] - a[1]) * dy) / len2;
                         if (t <= 1e-6 || t >= 1 - 1e-6) continue;
@@ -167,9 +169,9 @@ function conformCellBoundaries(cells: readonly PowerCell[]): PowerCell[] {
             }
             if (inserts.length === 0) continue;
             inserts.sort((x, y) => x.t - y.t);
-            let lastK = '';
+            let lastK = NaN;
             for (const ins of inserts) {
-                const k = vkey(ins.p[0], ins.p[1]);
+                const k = ptKey(ins.p[0], ins.p[1]);
                 if (k === lastK) continue;
                 lastK = k;
                 newPts.push([ins.p[0], ins.p[1]]);
@@ -204,13 +206,6 @@ export function buildSurfaceFromCells(
     const conformed = conformCellBoundaries(cells);
     const graph = buildSharedEdgeGraph(conformed, worldRectFromCells(conformed));
     smoothSharedEdges(graph, passes);
-    const loops = walkRegionLoops(graph, conformed);
-
-    const regions: SurfaceRegion[] = [];
-    for (const loop of loops) {
-        if (loop.ownerId === WORLD_OWNER) continue;
-        regions.push({ ownerId: loop.ownerId, points: reconstructLoopPolygon(loop, graph) });
-    }
 
     const byPair = new Map<string, { edgeId: string; points: readonly Point[] }[]>();
     for (const e of graph.sharedEdges) {
@@ -240,15 +235,26 @@ export function buildSurfaceFromCells(
     // leaving same-owner interior edges raw. Both cells sharing an inter-owner edge
     // read the identical smoothedPts, so their fills meet exactly on the curve and
     // match the stroked border.
-    const smoothByPair = new Map<string, { pts: readonly Point[]; startKey: string }>();
+    // Index every graph edge (shared + world) by its undirected endpoint pair
+    // (numeric nested map — no string keys in the hot loop). startKey is the
+    // canonical smoothedPts[0] key so we know when to reverse.
+    const smoothByPair = new Map<number, Map<number, { pts: readonly Point[]; startKey: number }>>();
     const indexEdge = (pts: readonly Point[], smoothed: readonly Point[]) => {
-        smoothByPair.set(undirectedPairKey(pts[0]!, pts[pts.length - 1]!), {
-            pts: smoothed,
-            startKey: pairVkey(pts[0]!),
-        });
+        const ka = ptKey(pts[0]![0], pts[0]![1]);
+        const kb = ptKey(pts[pts.length - 1]![0], pts[pts.length - 1]![1]);
+        const lo = ka < kb ? ka : kb;
+        const hi = ka < kb ? kb : ka;
+        let inner = smoothByPair.get(lo);
+        if (!inner) smoothByPair.set(lo, (inner = new Map()));
+        inner.set(hi, { pts: smoothed, startKey: ka });
     };
     for (const e of graph.sharedEdges) indexEdge(e.pts, e.smoothedPts);
     for (const e of graph.worldEdges) indexEdge(e.pts, e.smoothedPts);
+    const lookupEdge = (ka: number, kb: number) => {
+        const lo = ka < kb ? ka : kb;
+        const hi = ka < kb ? kb : ka;
+        return smoothByPair.get(lo)?.get(hi);
+    };
 
     const cellFills: SurfaceRegion[] = [];
     for (const cell of conformed) {
@@ -256,25 +262,31 @@ export function buildSurfaceFromCells(
         const n = pts.length;
         if (n < 3) continue;
         const ring: Point[] = [];
+        let lastKey = NaN;
         const push = (p: Point) => {
-            if (ring.length > 0 && pairVkey(ring[ring.length - 1]!) === pairVkey(p)) return;
+            const k = ptKey(p[0], p[1]);
+            if (k === lastKey) return;
+            lastKey = k;
             ring.push([p[0], p[1]]);
         };
         for (let i = 0; i < n; i++) {
             const a = pts[i]!;
             const b = pts[(i + 1) % n]!;
-            const sm = smoothByPair.get(undirectedPairKey(a, b));
+            const ka = ptKey(a[0], a[1]);
+            const sm = lookupEdge(ka, ptKey(b[0], b[1]));
             if (sm) {
-                const seq = pairVkey(a) === sm.startKey ? sm.pts : [...sm.pts].reverse();
+                const seq = ka === sm.startKey ? sm.pts : [...sm.pts].reverse();
                 for (const p of seq) push(p);
             } else {
                 push(a);
                 push(b);
             }
         }
-        if (ring.length >= 2 && pairVkey(ring[0]!) === pairVkey(ring[ring.length - 1]!)) ring.pop();
+        if (ring.length >= 2 && ptKey(ring[0]![0], ring[0]![1]) === ptKey(ring[ring.length - 1]![0], ring[ring.length - 1]![1])) {
+            ring.pop();
+        }
         if (ring.length >= 3) cellFills.push({ ownerId: cell.ownerId, points: ring });
     }
 
-    return { regions, cellFills, frontiers, worldBorders };
+    return { cellFills, frontiers, worldBorders };
 }
