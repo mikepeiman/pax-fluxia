@@ -171,6 +171,34 @@ export class KineticTransitionRuntime {
         ];
     }
 
+    /**
+     * FULL-diagram per-frame sample: for a SINGLE active morph, render the whole
+     * map as ONE power diagram at p (no frozen/bubble stitch), so the conquest
+     * split's crossings resolve on exact same-diagram edges — the fix for the
+     * bucket-fill / dropped-front-segment. Returns null for 0 or >1 active morphs
+     * (idle, or the rare concurrent-disjoint-conquest case) so the caller falls
+     * back to sample(). No frozenCells (everything is in bubbleCells).
+     */
+    sampleFull(nowMs: number): KineticFrame | null {
+        if (this.morphs.length === 0 || !this.settled) return null;
+        const stillActive = this.morphs.filter(
+            (m) => (nowMs - m.startedAtMs) / m.durationMs < 1,
+        );
+        if (stillActive.length !== this.morphs.length) {
+            this.morphs = stillActive;
+            this.frozenCache = null;
+        }
+        if (this.morphs.length !== 1) return null;
+        const morph = this.morphs[0]!;
+        const p = clamp01((nowMs - morph.startedAtMs) / morph.durationMs);
+        return sampleKineticFrame({
+            bubble: morph.bubble,
+            p,
+            clip: morph.clip,
+            full: true,
+        });
+    }
+
     /** Per-frame sample; null = idle (draw the settled state). */
     sample(nowMs: number): KineticFrame | null {
         if (this.morphs.length === 0 || !this.settled) return null;

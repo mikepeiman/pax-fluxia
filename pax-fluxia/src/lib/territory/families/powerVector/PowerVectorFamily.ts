@@ -206,6 +206,29 @@ export class PowerVectorFamily implements RenderFamily {
         }
     }
 
+    /** Per-cell fills for the MORPH: each cell is exactly one owner and the cells
+     *  tile the map, so the fill is complete and can NEVER bucket-fill or leave a
+     *  captured region unfilled. (Merged/smoothed region fills via walkRegionLoops
+     *  are not robust against the conquest split's T-junctions; borders stay
+     *  merged+smoothed separately.) */
+    private drawCellFills(
+        cells: readonly PowerCell[],
+        dx: number,
+        dy: number,
+        style: SurfaceStyle,
+    ): void {
+        this.fillG.clear();
+        for (const cell of cells) {
+            if (cell.points.length < 3) continue;
+            const flat: number[] = [];
+            for (const [px, py] of cell.points) flat.push(px + dx, py + dy);
+            this.fillG.poly(flat).fill({
+                color: this.fillColor(cell.ownerId, style),
+                alpha: style.fillAlpha,
+            });
+        }
+    }
+
     /** Strokes inter-owner frontiers (optionally 50/50 opponent-blended) and
      *  owner↔world borders (single owner colour). One stroke per polyline. */
     private drawBorders(
@@ -266,12 +289,15 @@ export class PowerVectorFamily implements RenderFamily {
             // frame here would classify no world edges ⇒ empty regions ⇒ fills
             // vanish mid-morph). dx/dy still localizes rendering to the container.
             const cells: PowerCell[] = [...frame.frozenCells, ...frame.bubbleCells];
-            const surface = buildSurfaceFromCells(cells, smoothPasses);
 
-            if (style.fillEnabled) this.drawFills(surface.regions, dx, dy, style);
+            // Fills: per-cell (bulletproof correct colour, complete tiling).
+            if (style.fillEnabled) this.drawCellFills(cells, dx, dy, style);
             else this.fillG.clear();
 
+            // Borders: merged + smoothed inter-owner frontiers (from the shared-edge
+            // graph, independent of the fragile face assignment).
             if (style.borderEnabled) {
+                const surface = buildSurfaceFromCells(cells, smoothPasses);
                 this.drawBorders(surface.frontiers, surface.worldBorders, dx, dy, style);
             } else this.borderG.clear();
 

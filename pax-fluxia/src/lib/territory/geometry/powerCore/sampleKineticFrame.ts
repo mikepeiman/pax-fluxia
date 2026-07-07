@@ -126,11 +126,22 @@ export interface SampleKineticFrameParams {
     readonly clip: [number, number][];
     /** Safety margin (px) for the bounds assertion. */
     readonly boundsMarginPx?: number;
+    /**
+     * FULL mode: build ONE power diagram of EVERY site at p (ramps + all frozen
+     * sites) instead of the mini-diagram + frozen-S1 stitch. The whole map is a
+     * single conforming diagram, so the conquest split's crossing points land on
+     * EXACT same-diagram neighbour edges (resolvable) rather than across the
+     * frozen/bubble precision boundary (unresolvable ⇒ dropped frontier ⇒
+     * bucket-fill). Returns everything in bubbleCells; frozenCells is empty.
+     */
+    readonly full?: boolean;
 }
 
 export function sampleKineticFrame(params: SampleKineticFrameParams): KineticFrame {
     const p = params.p <= 0 ? 0 : params.p >= 1 ? 1 : params.p;
     const { bubble } = params;
+
+    if (params.full) return sampleFullDiagram(bubble, params.p, params.clip);
 
     // T1: exact endpoint snap.
     if (p === 0) {
@@ -231,6 +242,90 @@ export function sampleKineticFrame(params: SampleKineticFrameParams): KineticFra
     }
 
     return { p, frozenCells: bubble.frozenCells, bubbleCells, miniSites: usedSites };
+}
+
+/**
+ * FULL-diagram frame: ONE power diagram of all sites at p (ramps + every frozen
+ * site), then the conquest split. No frozen/bubble seam, so the split's crossings
+ * land on exact same-diagram edges. Sites: ramp sites (synthetic `k<i>`) +
+ * frozen sites (synthetic `frozen<i>`). frozenPairs already includes the ring, so
+ * it is the complete frozen set; ramps carry every changed + flex site — together
+ * they are the whole map. p is clamped off the exact endpoints so appear/vanish
+ * ε-weights don't go fully degenerate.
+ */
+function sampleFullDiagram(
+    bubble: TransitionBubble,
+    rawP: number,
+    clip: [number, number][],
+): KineticFrame {
+    const p = rawP <= 0 ? 1e-4 : rawP >= 1 ? 1 - 1e-4 : rawP;
+
+    const sites: PowerCoreSite[] = [];
+    bubble.ramps.forEach((ramp, index) => {
+        for (const site of rampSites(ramp, p, index)) sites.push(site);
+    });
+    const rampSiteCount = sites.length; // jitter only these; frozen stay exact
+    bubble.frozenPairs.forEach((pair, i) => {
+        sites.push({ ...pair.site, starId: `frozen${i}` });
+    });
+
+    let cells: PowerCell[] | null = null;
+    let lastError: unknown = null;
+    for (let attempt = 0; attempt < 3 && !cells; attempt++) {
+        try {
+            const jitter = attempt * 2.5e-4;
+            const jittered =
+                attempt === 0
+                    ? sites
+                    : sites.map((site, i) =>
+                          i >= rampSiteCount
+                              ? site
+                              : {
+                                    ...site,
+                                    x: site.x + jitter * Math.cos(i * 2.399963229728653),
+                                    y: site.y + jitter * Math.sin(i * 2.399963229728653),
+                                },
+                      );
+            cells = buildPowerCellsFromSites(dedupeCoincident(jittered), clip);
+        } catch (error) {
+            lastError = error;
+        }
+    }
+    if (!cells) {
+        throw new Error(`sampleFullDiagram: diagram failed after retries at p=${rawP}: ${lastError}`);
+    }
+
+    const frozenPairs = bubble.frozenPairs;
+    const bubbleCells: PowerCell[] = [];
+    for (const cell of cells) {
+        const kMatch = /^k(\d+)/.exec(cell.siteId);
+        const ramp = kMatch ? bubble.ramps[Number(kMatch[1])] : undefined;
+        if (ramp?.kind === 'conquest') {
+            const q = rampProgress(ramp, p);
+            const front: ConquestFront = {
+                mode: ramp.frontMode ?? 'linear',
+                dirX: ramp.attackDirX ?? 0,
+                dirY: ramp.attackDirY ?? 0,
+                originX: ramp.attackOriginX ?? ramp.x,
+                originY: ramp.attackOriginY ?? ramp.y,
+                starId: ramp.starId,
+                ownerIn: ramp.ownerB,
+                ownerOld: ramp.ownerA,
+                subdiv: 6,
+            };
+            for (const partCell of splitCellByFront(cell, front, q)) bubbleCells.push(partCell);
+            continue;
+        }
+        if (ramp) {
+            bubbleCells.push({ ...cell, siteId: ramp.starId });
+            continue;
+        }
+        const fMatch = /^frozen(\d+)/.exec(cell.siteId);
+        const frozenStarId = fMatch ? frozenPairs[Number(fMatch[1])]?.site.starId : undefined;
+        bubbleCells.push({ ...cell, siteId: frozenStarId ?? cell.siteId });
+    }
+
+    return { p: rawP <= 0 ? 0 : rawP >= 1 ? 1 : rawP, frozenCells: [], bubbleCells };
 }
 
 /**

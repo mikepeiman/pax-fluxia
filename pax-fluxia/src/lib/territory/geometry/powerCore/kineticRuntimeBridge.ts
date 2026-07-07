@@ -139,7 +139,7 @@ export function commitKineticEndpoint(params: {
     // them"). Sampling now at nowMs == startedAt ⇒ p=0 ⇒ the OLD endpoint, so the
     // conquest frame is continuous with the pre-conquest frame and the sweep
     // starts from the old state. null when this commit is a snap (no morph).
-    lastFrame = runtime.sample(params.nowMs);
+    lastFrame = runtime.sampleFull(params.nowMs) ?? runtime.sample(params.nowMs);
 
     const retarget = Boolean(activeKey) && runtime.activeKey !== activeKey;
     activeStartedAtMs = params.nowMs;
@@ -175,7 +175,9 @@ export function sampleKineticForFrame(
     }
 
     const t0 = performance.now();
-    const frame = runtime.sample(nowMs);
+    // Prefer the FULL-diagram frame (single morph); fall back to the composite
+    // stitch for idle/multi-morph. Same KineticFrame shape either way.
+    const frame = runtime.sampleFull(nowMs) ?? runtime.sample(nowMs);
     const cost = performance.now() - t0;
     lastFrame = frame;
 

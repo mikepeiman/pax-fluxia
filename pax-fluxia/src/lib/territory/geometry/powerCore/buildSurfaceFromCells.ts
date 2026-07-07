@@ -77,6 +77,90 @@ function worldRectFromCells(cells: readonly PowerCell[]): WorldRect {
     return { width: maxX - minX, height: maxY - minY, minX, minY, maxX, maxY };
 }
 
+/**
+ * Splice the conquest split's crossing points into the neighbour edges they lie
+ * on, so the mesh is CONFORMING before the shared-edge graph is built. Without
+ * this, [A,ip] (a split part) and [A,B] (its neighbour) key differently, the
+ * frontier is dropped, and walkRegionLoops MERGES the two regions (bucket-fill).
+ *
+ * This is only reliable on a SINGLE-diagram frame (sampleKineticFrame full mode):
+ * every cell shares exact edges, so a crossing lies EXACTLY on the neighbour edge
+ * (tolerance 1e-9). On the legacy frozen/bubble stitch the crossed edge belongs to
+ * a different diagram and the crossing is off-collinear — which is exactly why the
+ * one-diagram frame is required. Power diagrams are otherwise conforming (every
+ * real vertex is a shared corner), so this only ever inserts the split's own
+ * crossings. A 64px vertex grid keeps it near-linear.
+ */
+function conformCellBoundaries(cells: PowerCell[]): PowerCell[] {
+    const vkey = (x: number, y: number) => `${Math.round(x * 1000)}:${Math.round(y * 1000)}`;
+    const verts = new Map<string, Point>();
+    for (const c of cells) {
+        for (const pt of c.points) {
+            const k = vkey(pt[0], pt[1]);
+            if (!verts.has(k)) verts.set(k, [pt[0], pt[1]]);
+        }
+    }
+    const GRID = 64;
+    const gk = (gx: number, gy: number) => `${gx}:${gy}`;
+    const grid = new Map<string, Point[]>();
+    for (const v of verts.values()) {
+        const k = gk(Math.floor(v[0] / GRID), Math.floor(v[1] / GRID));
+        const bucket = grid.get(k);
+        if (bucket) bucket.push(v);
+        else grid.set(k, [v]);
+    }
+    const EPS2 = 1e-9 * 1e-9; // squared perpendicular tolerance (exact-on-segment)
+    const out: PowerCell[] = [];
+    for (const c of cells) {
+        const pts = c.points;
+        const n = pts.length;
+        const newPts: Point[] = [];
+        for (let i = 0; i < n; i++) {
+            const a = pts[i]!;
+            const b = pts[(i + 1) % n]!;
+            newPts.push([a[0], a[1]]);
+            const ka = vkey(a[0], a[1]);
+            const kb = vkey(b[0], b[1]);
+            const dx = b[0] - a[0];
+            const dy = b[1] - a[1];
+            const len2 = dx * dx + dy * dy;
+            if (len2 <= 1e-12) continue;
+            const minGx = Math.floor(Math.min(a[0], b[0]) / GRID) - 1;
+            const maxGx = Math.floor(Math.max(a[0], b[0]) / GRID) + 1;
+            const minGy = Math.floor(Math.min(a[1], b[1]) / GRID) - 1;
+            const maxGy = Math.floor(Math.max(a[1], b[1]) / GRID) + 1;
+            const inserts: { t: number; p: Point }[] = [];
+            for (let gx = minGx; gx <= maxGx; gx++) {
+                for (let gy = minGy; gy <= maxGy; gy++) {
+                    const bucket = grid.get(gk(gx, gy));
+                    if (!bucket) continue;
+                    for (const v of bucket) {
+                        const kv = vkey(v[0], v[1]);
+                        if (kv === ka || kv === kb) continue;
+                        const t = ((v[0] - a[0]) * dx + (v[1] - a[1]) * dy) / len2;
+                        if (t <= 1e-6 || t >= 1 - 1e-6) continue;
+                        const px = a[0] + t * dx;
+                        const py = a[1] + t * dy;
+                        if ((v[0] - px) ** 2 + (v[1] - py) ** 2 > EPS2) continue;
+                        inserts.push({ t, p: v });
+                    }
+                }
+            }
+            if (inserts.length === 0) continue;
+            inserts.sort((x, y) => x.t - y.t);
+            let lastK = '';
+            for (const ins of inserts) {
+                const k = vkey(ins.p[0], ins.p[1]);
+                if (k === lastK) continue;
+                lastK = k;
+                newPts.push([ins.p[0], ins.p[1]]);
+            }
+        }
+        out.push({ ...c, points: newPts });
+    }
+    return out;
+}
+
 function chainByGroup(
     entries: Map<string, { edgeId: string; points: readonly Point[] }[]>,
     split: (key: string) => [string, string],
@@ -95,9 +179,13 @@ export function buildSurfaceFromCells(
     cells: PowerCell[],
     passes: number,
 ): CellSurface {
-    const graph = buildSharedEdgeGraph(cells, worldRectFromCells(cells));
+    // Conform first: splice the conquest front's crossing points into the
+    // neighbour edges (exact, single-diagram) so the frontier isn't dropped and
+    // regions don't flood into each other (bucket-fill).
+    const conformed = conformCellBoundaries(cells);
+    const graph = buildSharedEdgeGraph(conformed, worldRectFromCells(conformed));
     smoothSharedEdges(graph, passes);
-    const loops = walkRegionLoops(graph, cells);
+    const loops = walkRegionLoops(graph, conformed);
 
     const regions: SurfaceRegion[] = [];
     for (const loop of loops) {

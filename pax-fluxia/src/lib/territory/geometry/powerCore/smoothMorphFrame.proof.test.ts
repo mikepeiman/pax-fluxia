@@ -224,14 +224,10 @@ describe('buildSurfaceFromCells: the render-ready morph surface (idle + morph sh
         const frame = sampleKineticFrame({ bubble, p, clip: S0.clip });
         return [...frame.frozenCells, ...frame.bubbleCells];
     };
-    it('region fills tile the clip and frontiers are rounded (self-derived rect)', () => {
+    it('borders: frontiers are rounded, inter-owner, and present (what the family strokes)', () => {
         const surface = buildSurfaceFromCells(frameCells(0.4), 3);
-        let fillArea = 0;
-        for (const r of surface.regions) fillArea += shoelace(r.points);
-        expect(surface.regions.length).toBeGreaterThan(0);
-        expect(fillArea / CLIP_AREA).toBeGreaterThan(0.98);
-        expect(fillArea / CLIP_AREA).toBeLessThan(1.02);
-        // Some frontier polyline gained interior points ⇒ actually rounded.
+        // The family draws surface.frontiers/worldBorders as the smoothed borders
+        // (fills are per-cell). Some frontier gained interior points ⇒ rounded.
         expect(surface.frontiers.some((f) => f.points.length > 2)).toBe(true);
         expect(surface.frontiers.every((f) => f.ownerA !== f.ownerB)).toBe(true);
         expect(surface.worldBorders.length).toBeGreaterThan(0);
@@ -299,7 +295,7 @@ describe('LIVE runtime path: fills must NOT disappear during the conquest', () =
         expect(b.minX! < 0 || b.minY! < 0).toBe(true);
     });
 
-    it('every mid-conquest runtime frame has full-coverage smoothed regions', () => {
+    it('every mid-conquest runtime frame (sampleFull) tiles the clip — complete per-cell fill', () => {
         const runtime = new KineticTransitionRuntime();
         runtime.commit({
             state: S0.state,
@@ -319,17 +315,66 @@ describe('LIVE runtime path: fills must NOT disappear during the conquest', () =
             conquestOrigins: CONQUEST_ORIGINS,
         });
         for (const nowMs of [50, 200, 500, 800, 950]) {
-            const frame = runtime.sample(nowMs);
+            const frame = runtime.sampleFull(nowMs);
             expect(frame).not.toBeNull();
-            const cells = [...frame!.frozenCells, ...frame!.bubbleCells];
-            const surface = buildSurfaceFromCells(cells, 3);
-            expect(surface.regions.length).toBeGreaterThan(0); // fills present!
-            let fillArea = 0;
-            for (const r of surface.regions) fillArea += shoelace(r.points);
-            expect(fillArea / CLIP_AREA).toBeGreaterThan(0.98);
-            expect(fillArea / CLIP_AREA).toBeLessThan(1.02);
+            const cells = frame!.bubbleCells; // one diagram
+            let area = 0;
+            for (const c of cells) {
+                expect(c.ownerId).toBeTruthy();
+                area += shoelace(c.points);
+            }
+            expect(area / CLIP_AREA).toBeGreaterThan(0.999);
+            expect(area / CLIP_AREA).toBeLessThan(1.001);
         }
     });
+});
+
+// THE FIX (fills): the family fills the one-diagram frame PER CELL. Each cell is
+// exactly one owner and the cells tile the clip, so the fill is complete (no gaps)
+// and cannot bucket-fill or leave a captured region unfilled — regardless of the
+// conquest split's T-junctions. Drives the real runtime (commit + sample) and
+// asserts exactly that, for BOTH front modes, every frame.
+describe('ONE-DIAGRAM morph (runtime.sampleFull): per-cell fills tile completely', () => {
+    const CLIP_AREA = shoelace(S0.clip.map((p) => [p[0], p[1]] as Point));
+    const runtimeFor = (front: 'linear' | 'radial'): KineticTransitionRuntime => {
+        const rt = new KineticTransitionRuntime();
+        rt.commit({
+            state: S0.state, clip: S0.clip, ownershipVersion: 'v0',
+            transitionKey: null, nowMs: 0, durationMs: 1000,
+        });
+        rt.commit({
+            state: S1.state, clip: S1.clip, ownershipVersion: 'v1',
+            transitionKey: 'k', nowMs: 0, durationMs: 1000,
+            conquestOrigins: CONQUEST_ORIGINS, conquestFrontMode: front,
+        });
+        return rt;
+    };
+    for (const front of ['linear', 'radial'] as const) {
+        it(`${front}: cells tile the clip, every cell single-owner, every frame`, () => {
+            const rt = runtimeFor(front);
+            for (const t of [80, 250, 500, 750, 920]) {
+                const frame = rt.sampleFull(t);
+                expect(frame).not.toBeNull();
+                expect(frame!.frozenCells.length).toBe(0); // one diagram, all in bubbleCells
+                const cells = frame!.bubbleCells;
+                let area = 0;
+                for (const c of cells) {
+                    expect(c.ownerId).toBeTruthy(); // single, real owner ⇒ no bucket-fill
+                    expect(c.points.length).toBeGreaterThanOrEqual(3);
+                    area += shoelace(c.points);
+                }
+                // Cells tile the clip ⇒ the per-cell fill is a complete map, no gaps.
+                expect(area / CLIP_AREA).toBeGreaterThan(0.999);
+                expect(area / CLIP_AREA).toBeLessThan(1.001);
+                // Both owners of the captured cell are present mid-sweep (the split
+                // actually renders as a shape change, not a flip).
+                const capturedOwners = new Set(
+                    cells.filter((c) => c.siteId === CAPTURED).map((c) => c.ownerId),
+                );
+                if (t >= 250 && t <= 750) expect(capturedOwners.size).toBe(2);
+            }
+        });
+    }
 });
 
 function regionsForCoverage(
