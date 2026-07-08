@@ -124,6 +124,22 @@ function regionEnclosedBy(inner: Ring, outer: Ring): boolean {
     return true;
 }
 
+/** FNV-1a hash of a ring at 1/64px precision — stable frame-to-frame for a cell
+ *  whose geometry is unchanged (static), different the moment it moves (swept).
+ *  Used to skip re-tessellating the static cells every morph frame. */
+function hashRing(points: Ring): number {
+    let h = 2166136261;
+    for (const p of points) {
+        const qx = (p[0] * 64) | 0;
+        const qy = (p[1] * 64) | 0;
+        h = Math.imul(h ^ (qx & 0xffff), 16777619);
+        h = Math.imul(h ^ ((qx >>> 16) & 0xffff), 16777619);
+        h = Math.imul(h ^ (qy & 0xffff), 16777619);
+        h = Math.imul(h ^ ((qy >>> 16) & 0xffff), 16777619);
+    }
+    return (Math.imul(h ^ points.length, 16777619)) >>> 0;
+}
+
 /** Minimal shapes the draw methods accept (idle snapshot + morph surface). */
 interface FillRegion {
     readonly ownerId: string;
@@ -141,20 +157,29 @@ export class PowerVectorFamily implements RenderFamily {
     readonly tunableKeys: readonly string[] = POWER_VECTOR_TUNABLE_KEYS;
 
     private readonly root = new PIXI.Container();
-    /** Fills (idle: cached by key; morph: redrawn per frame). */
+    /** Idle fills, and the STATIC (non-swept) morph fills — redrawn only when its
+     *  content changes (rare), so most morph frames reuse it untouched. */
     private readonly fillG = new PIXI.Graphics();
+    /** DYNAMIC (swept) morph fills — the only fills re-tessellated per frame. */
+    private readonly dynamicFillG = new PIXI.Graphics();
     /** Borders (idle: cached by key; morph: redrawn per frame). */
     private readonly borderG = new PIXI.Graphics();
     private readonly colorUtils: ColorUtils;
     private fillKey: string | null = null;
     private borderKey: string | null = null;
+    /** Morph static-fill cache: per-frame cell-fill hashes, the drawn static-set
+     *  signature, and the frame key (style+offset) they were valid for. */
+    private morphPrevFillHashes = new Set<number>();
+    private morphStaticFillSig: string | null = null;
+    private morphFillFrameKey: string | null = null;
     private fillHexCache = new Map<string, number>();
     private borderHexCache = new Map<string, number>();
     private colorCacheKey = '';
 
     constructor(colorUtils: ColorUtils) {
         this.colorUtils = colorUtils;
-        this.root.addChild(this.fillG, this.borderG);
+        // z-order: static fills, dynamic fills, then borders on top.
+        this.root.addChild(this.fillG, this.dynamicFillG, this.borderG);
     }
 
     get displayRoot(): PIXI.Container {
@@ -206,32 +231,73 @@ export class PowerVectorFamily implements RenderFamily {
         }
     }
 
-    /** Per-cell fills for the MORPH: each cell/region is exactly one owner and the
-     *  cells tile the map, so the fill is complete and can NEVER bucket-fill or
-     *  leave a captured region unfilled. Fed the SMOOTHED per-cell fills
-     *  (owner-boundary edges rounded to match the borders).
-     *
-     *  Filled one SIMPLE polygon per fill() — NOT batched into a per-owner
-     *  multi-contour path: PIXI's earcut triangulates each fill, and a batched
-     *  many-contour path triggers its O(n²) self-intersection pass
-     *  (intersectsPolygon), which dominated the frame. The radial split now yields
-     *  2 clean polygons (no fan), so per-cell fills have no starburst. */
-    private drawCellFills(
-        regions: readonly FillRegion[],
+    /** One simple polygon per fill() — earcut stays linear (a batched multi-
+     *  contour path triggers earcut's O(n²) self-intersection pass). */
+    private fillOne(
+        g: PIXI.Graphics,
+        region: FillRegion,
         dx: number,
         dy: number,
         style: SurfaceStyle,
     ): void {
-        this.fillG.clear();
+        const flat: number[] = [];
+        for (const [px, py] of region.points) flat.push(px + dx, py + dy);
+        g.poly(flat).fill({
+            color: this.fillColor(region.ownerId, style),
+            alpha: style.fillAlpha,
+        });
+    }
+
+    /** Incremental morph fills: cells whose geometry is unchanged since last frame
+     *  (the static, non-swept map — the vast majority) stay in fillG UNTOUCHED;
+     *  only the swept cells re-tessellate into dynamicFillG. Cuts PIXI fill work
+     *  from O(map) to O(swept) per frame. Static content bakes in dx/dy + colours,
+     *  so a change in either (frameKey) forces a full static rebuild. */
+    private drawCellFillsIncremental(
+        regions: readonly FillRegion[],
+        dx: number,
+        dy: number,
+        sKey: string,
+        style: SurfaceStyle,
+    ): void {
+        const frameKey = `${sKey}:${Math.round(dx)}:${Math.round(dy)}`;
+        const sameFrame = this.morphFillFrameKey === frameKey;
+        const cur = new Set<number>();
+        const staticItems: FillRegion[] = [];
+        const dynamicItems: FillRegion[] = [];
+        let cnt = 0;
+        let sum = 0;
+        let xor = 0;
         for (const region of regions) {
             if (region.points.length < 3) continue;
-            const flat: number[] = [];
-            for (const [px, py] of region.points) flat.push(px + dx, py + dy);
-            this.fillG.poly(flat).fill({
-                color: this.fillColor(region.ownerId, style),
-                alpha: style.fillAlpha,
-            });
+            const h = hashRing(region.points);
+            cur.add(h);
+            if (sameFrame && this.morphPrevFillHashes.has(h)) {
+                staticItems.push(region);
+                cnt++;
+                sum = (sum + h) >>> 0;
+                xor = (xor ^ h) >>> 0;
+            } else {
+                dynamicItems.push(region);
+            }
         }
+        // Rebuild the static layer only when its content (or style/offset) changed.
+        const staticSig = `${frameKey}#${cnt}:${sum}:${xor}`;
+        if (staticSig !== this.morphStaticFillSig) {
+            this.fillG.clear();
+            for (const region of staticItems) this.fillOne(this.fillG, region, dx, dy, style);
+            this.morphStaticFillSig = staticSig;
+        }
+        this.dynamicFillG.clear();
+        for (const region of dynamicItems) this.fillOne(this.dynamicFillG, region, dx, dy, style);
+        this.morphPrevFillHashes = cur;
+        this.morphFillFrameKey = frameKey;
+    }
+
+    private resetMorphFillCache(): void {
+        this.morphPrevFillHashes = new Set();
+        this.morphStaticFillSig = null;
+        this.morphFillFrameKey = null;
     }
 
     /** Strokes inter-owner frontiers (optionally 50/50 opponent-blended) and
@@ -297,16 +363,22 @@ export class PowerVectorFamily implements RenderFamily {
             const surface = buildSurfaceFromCells(cells, smoothPasses);
 
             // Fills: SMOOTHED per-cell (single-owner ⇒ no bucket-fill; owner edges
-            // rounded to match the borders ⇒ no fill/border discontinuity).
-            if (style.fillEnabled) this.drawCellFills(surface.cellFills, dx, dy, style);
-            else this.fillG.clear();
+            // rounded to match the borders). INCREMENTAL: only the swept cells
+            // re-tessellate; the static map is reused.
+            if (style.fillEnabled) {
+                this.drawCellFillsIncremental(surface.cellFills, dx, dy, sKey, style);
+            } else {
+                this.fillG.clear();
+                this.dynamicFillG.clear();
+                this.resetMorphFillCache();
+            }
 
             // Borders: merged + smoothed inter-owner frontiers (same smoothed graph).
             if (style.borderEnabled) {
                 this.drawBorders(surface.frontiers, surface.worldBorders, dx, dy, style);
             } else this.borderG.clear();
 
-            // Morph redraws every frame — invalidate the idle caches.
+            // The idle caches are now stale (fillG holds morph static content).
             this.fillKey = 'morph';
             this.borderKey = 'morph';
             return { container: this.root };
@@ -314,6 +386,12 @@ export class PowerVectorFamily implements RenderFamily {
 
         // ── IDLE: draw the resolved snapshot (already smoothed at source). No
         // family re-smoothing — that would double-round.
+        // Leaving a morph: drop the dynamic swept-fill layer + the morph fill cache
+        // (fillG is rebuilt with idle regions below via the stale fillKey).
+        if (this.morphFillFrameKey !== null) {
+            this.dynamicFillG.clear();
+            this.resetMorphFillCache();
+        }
         if (!style.fillEnabled || !geometry) {
             if (this.fillKey !== 'off') {
                 this.fillG.clear();
@@ -351,6 +429,7 @@ export class PowerVectorFamily implements RenderFamily {
 
     dispose(): void {
         this.fillG.destroy();
+        this.dynamicFillG.destroy();
         this.borderG.destroy();
         this.root.destroy({ children: true });
     }
