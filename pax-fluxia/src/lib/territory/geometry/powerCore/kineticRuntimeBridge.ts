@@ -95,6 +95,16 @@ export function resetKineticRuntimeBridge(): void {
 }
 
 /**
+ * True iff `stars` carry an ownership the runtime has NOT committed yet — the
+ * caller can then run the CHEAP endpoint-only commit on the conquest frame and
+ * defer the expensive snapshot assembly to a light mid-morph frame (the
+ * conquest-frame spike fix). Mirrors commitKineticEndpoint's fingerprint guard.
+ */
+export function kineticEndpointNeedsCommit(stars: readonly StarState[]): boolean {
+    return ownershipFingerprint(stars) !== lastCommitFp;
+}
+
+/**
  * Commit a new settled state on ownership change. Called from the power_core
  * geometry build's `collectEndpoint`, so it runs exactly when a new endpoint
  * exists. Ownership-fingerprint guarded → idempotent within a frame and across
@@ -139,7 +149,11 @@ export function commitKineticEndpoint(params: {
     // them"). Sampling now at nowMs == startedAt ⇒ p=0 ⇒ the OLD endpoint, so the
     // conquest frame is continuous with the pre-conquest frame and the sweep
     // starts from the old state. null when this commit is a snap (no morph).
-    lastFrame = runtime.sampleFull(params.nowMs) ?? runtime.sample(params.nowMs);
+    // Use the STITCH here, not sampleFull: at p=0 the stitch returns the exact
+    // S0 endpoint arrays with NO diagram build (0ms), while sampleFull would run
+    // a full d3 diagram on the already-heaviest frame of the game (the conquest
+    // commit frame: geometry rebuild + bubble diff land on it too).
+    lastFrame = runtime.sample(params.nowMs);
 
     const retarget = Boolean(activeKey) && runtime.activeKey !== activeKey;
     activeStartedAtMs = params.nowMs;

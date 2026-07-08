@@ -14,6 +14,7 @@ import {
 } from '../geometry/geometrySource';
 import {
     buildPowerCoreAuthoritySnapshot,
+    computePowerCoreEndpoint,
     type PowerCoreEndpointComputation,
 } from '../geometry/powerCore/buildPowerCoreAuthoritySnapshot';
 import { readTerritoryRuntimeSettings } from '../integration/TerritorySettingsBridge';
@@ -137,6 +138,39 @@ function buildPowerVoronoi0319RenderFamilyGeometry(params: {
         worldHeight: params.worldHeight,
         requestedMarginPx: settings.starMargin,
     });
+}
+
+/**
+ * Conquest-frame spike fix: compute ONLY the power-core ENDPOINT (sites + cells
+ * + clip, ~1ms) — the piece the kinetic runtime needs to START the conquest
+ * sweep this frame — using the EXACT settings construction the full snapshot
+ * build uses (buildPowerVoronoi0319Settings on the same inputs), so the
+ * deferred snapshot's fingerprint-guarded collectEndpoint commit is a no-op and
+ * the morph's S1 matches the settled snapshot byte-for-byte. Returns null on a
+ * compile error (caller falls back to the full synchronous build).
+ */
+export function computePowerCoreEndpointForFamily(params: {
+    stars: ReadonlyArray<StarState>;
+    lanes: ReadonlyArray<StarConnection>;
+    worldWidth: number;
+    worldHeight: number;
+    configSource?: Record<string, unknown>;
+}): PowerCoreEndpointComputation | null {
+    const configSource =
+        params.configSource ??
+        (GAME_CONFIG as unknown as Record<string, unknown>);
+    const settings = buildPowerVoronoi0319Settings({
+        lanes: params.lanes,
+        worldWidth: params.worldWidth,
+        worldHeight: params.worldHeight,
+        configSource,
+    });
+    const result = computePowerCoreEndpoint({
+        stars: params.stars,
+        connections: params.lanes,
+        config: settings,
+    });
+    return 'kind' in result ? null : result;
 }
 
 function buildPowerCoreRenderFamilyGeometry(params: {

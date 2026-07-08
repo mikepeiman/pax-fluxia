@@ -158,6 +158,7 @@
     import {
         buildPerimeterFieldRenderFamilyGeometry,
         buildOwnershipSnapshotFromStars,
+        computePowerCoreEndpointForFamily,
     } from "$lib/territory/families/buildFamilyGeometry";
     import type {
         RenderFamilyActiveTransition,
@@ -179,8 +180,10 @@
     } from "$lib/territory/geometry/geometrySource";
     import {
         commitKineticEndpoint,
+        kineticEndpointNeedsCommit,
         sampleKineticForFrame,
         resetKineticRuntimeBridge,
+        getActiveKineticFrame,
         getKineticDiagnostics,
         getKineticPresentationNonce,
     } from "$lib/territory/geometry/powerCore/kineticRuntimeBridge";
@@ -2457,6 +2460,11 @@
     let kineticFrameNowMs = 0;
     let kineticFrameDurationMs = 0;
     let kineticFrameConquestFrontMode: "linear" | "radial" = "linear";
+    // Conquest-frame spike fix (power_vector): when an ownership change lands,
+    // only the CHEAP endpoint is committed on that frame (starts the sweep); the
+    // ~10ms snapshot assembly is deferred to this deadline (a light mid-morph
+    // frame), or to settle if the morph ends first. null = no rebuild pending.
+    let pvSnapshotRebuildDueMs: number | null = null;
     let renderFamilyStableGeometryKey: string | null = null;
     let renderFamilyStableGeometry: ResolvedGeometrySnapshot | null = null;
     let renderFamilyStableOwnership: OwnershipSnapshot | null = null;
@@ -5183,6 +5191,61 @@
                     geometryReady = true;
                     return geometry;
                 };
+                // Conquest-frame spike fix (power_vector + power_core source):
+                // the resolved snapshot costs ~10ms to assemble but is only
+                // DRAWN at settle — during a morph the family renders kinetic
+                // frames. On an ownership change: commit just the CHEAP endpoint
+                // (~1ms, starts the sweep THIS frame, byte-identical to what the
+                // snapshot build would commit), return the stale snapshot, and
+                // run the full rebuild on a light mid-morph frame (or at settle
+                // if the morph ends first). The rebuild's own collectEndpoint
+                // commit is fingerprint-guarded → no double commit, no restart.
+                const resolvePowerVectorGeometry =
+                    (): ResolvedGeometrySnapshot => {
+                        const powerCoreActive =
+                            normalizePerimeterFieldGeometrySource(
+                                renderFamilyConfigSource?.PERIMETER_FIELD_GEOMETRY_SOURCE ??
+                                    GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE,
+                            ) === POWER_CORE_GEOMETRY_SOURCE;
+                        const stale = renderFamilyGeometryCache;
+                        if (!powerCoreActive || !stale) {
+                            return readFamilyGeometry();
+                        }
+                        if (kineticEndpointNeedsCommit(stars)) {
+                            const endpoint = computePowerCoreEndpointForFamily({
+                                stars,
+                                lanes,
+                                worldWidth: GAME_WIDTH,
+                                worldHeight: GAME_HEIGHT,
+                                configSource: renderFamilyConfigSource,
+                            });
+                            if (!endpoint) return readFamilyGeometry();
+                            commitKineticEndpoint({
+                                endpoint,
+                                stars,
+                                activeTransition: kineticFrameActiveTransition,
+                                nowMs: kineticFrameNowMs,
+                                durationMs: kineticFrameDurationMs,
+                                conquestFrontMode: kineticFrameConquestFrontMode,
+                            });
+                            pvSnapshotRebuildDueMs = kineticFrameNowMs + 250;
+                            geometryReady = true;
+                            return stale;
+                        }
+                        if (pvSnapshotRebuildDueMs !== null) {
+                            const morphActive = getActiveKineticFrame() !== null;
+                            if (
+                                kineticFrameNowMs >= pvSnapshotRebuildDueMs ||
+                                !morphActive
+                            ) {
+                                pvSnapshotRebuildDueMs = null;
+                                return readFamilyGeometry();
+                            }
+                            geometryReady = true;
+                            return stale;
+                        }
+                        return readFamilyGeometry();
+                    };
                 let transitionDiagnosticFrameInput:
                     | TransitionDiagnosticFrameInput
                     | null = null;
@@ -6098,7 +6161,9 @@
                             territoryPresentationStars,
                             activeTransition,
                         );
-                        const geometry = readFamilyGeometry();
+                        // Deferred-snapshot resolve: cheap endpoint commit on the
+                        // conquest frame; full rebuild lands on a light frame.
+                        const geometry = resolvePowerVectorGeometry();
                         const pvInput = buildRenderFamilyInput({
                             stars: territoryPresentationStars,
                             lanes,

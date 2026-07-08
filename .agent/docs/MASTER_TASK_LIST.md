@@ -28,6 +28,39 @@ superseding docs:
 
 ---
 
+## 2026-07-08
+
+### Open
+- [ ] **⭐ PRIORITY (user directive 2026-07-07): DEFAULT-MODE perfection first** `[territory][transitions]`
+  — perfection + reliability + performance of the DEFAULT path (power_vector + linear front) before ANY
+  new modifications/features. Radial polish, field-front modes 3+, multi-morph one-diagram, and all
+  non-default work QUEUE behind this. User observation: lag is not random — it correlates with CONQUEST
+  EVENTS (the commit-frame spike: geometry rebuild + bubble diff + first-morph-frame full tessellation
+  all land on one frame).
+- [ ] **Conquest-event frame spike** `[territory][transitions][perf]` — profile+shave the commit frame:
+  (a) commit re-sample runs a FULL diagram (sampleFull) when the cheap p=0 stitch is exact and free;
+  (b) first morph frame tessellates ALL fills (no prev hashes), second frame re-tessellates the static
+  layer — two heavy frames at conquest start; (c) buildPowerCoreAuthoritySnapshot assembly runs at
+  commit though its output is only drawn at settle. Measure each headlessly, fix in cost order.
+- [ ] **Incremental morph BORDERS** `[territory][transitions][perf]` — borders still full-redraw every
+  morph frame (~40 chained polylines stroked); hash polylines static/dynamic like the fills (415c15dfb).
+- [ ] **End-settle PRE|POST sync (default/linear)** `[territory][transitions]` — user reports a
+  disjoint/snap from the last morph frame to the settled tick ("umbilical" pull on islands; likely
+  largely the radial lens garbage fixed in 949996b3d, but VERIFY in default linear mode): add a
+  convergence test (final morph frame vs settled snapshot, per-owner) + fix any real deviation.
+- [ ] **QUEUED behind default-mode perfection** `[territory][transitions]` — radial arc-density tunable
+  (front.subdiv now unused), multi-morph one-diagram path (concurrent disjoint conquests still use the
+  frozen/bubble stitch), settle-pop seam (morph per-cell-smoothed fill vs idle merged-region fill),
+  static-surface cache if re-profile still shows JS cost.
+
+### Done
+- [x] **Exact disk∩polygon radial split (world-edge lens glitch)** `[territory][transitions]` —
+  949996b3d; lens coverage error 88.6%→0.00%, exact endpoints, orientation-determined arcs.
+- [x] **Radial arc blotch + end jank (giant-arc direction flip)** — 611cdb82e (superseded by 949996b3d).
+- [x] **Incremental morph fills (O(swept) tessellation)** — 415c15dfb; ~4 of ~200 fills/frame.
+- [x] **Radial starburst + earcut O(n²) blowup** — 30e60af6d (clean 2-polygon split; unbatched fills).
+- [x] **Erase obsolete starMargin test expectation** — b13960b02; territory suite fully green.
+
 ## 2026-07-04
 
 ### Open
