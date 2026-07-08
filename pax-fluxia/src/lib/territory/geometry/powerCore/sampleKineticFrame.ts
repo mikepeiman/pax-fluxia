@@ -28,6 +28,21 @@ function smoothstep(q: number): number {
     return t * t * (3 - 2 * t);
 }
 
+/**
+ * The conquest FRONT finishes at this fraction of the morph timeline; the
+ * remaining tail renders the captured cell as a single settled-owner part.
+ * Why: smoothstep's velocity → 0 at the end, so the old owner's residual strip
+ * (measured 717px² at p≈0.97) lingers almost static and then pops when the
+ * morph retires — the reported "snap-settle on boundaries". Completing the
+ * front early lets the strip shrink to nothing WHILE animating; the p→1 shape
+ * is byte-identical to the settled snapshot, so retirement becomes invisible.
+ */
+const CONQUEST_FRONT_COMPLETE_AT = 0.92;
+
+function conquestFrontQ(ramp: SiteRamp, p: number): number {
+    return Math.min(1, rampProgress(ramp, p) / CONQUEST_FRONT_COMPLETE_AT);
+}
+
 /** Local progress of one ramp at global progress p (monotone in p). */
 export function rampProgress(ramp: SiteRamp, p: number): number {
     if (ramp.span <= 0) return p >= ramp.delay ? 1 : 0;
@@ -221,7 +236,7 @@ export function sampleKineticFrame(params: SampleKineticFrameParams): KineticFra
         }
         if (ramp?.kind === 'conquest') {
             // Visible sweep: split the captured cell by the arrival-time front.
-            const q = rampProgress(ramp, p);
+            const q = conquestFrontQ(ramp, p);
             const front: ConquestFront = {
                 mode: ramp.frontMode ?? 'linear',
                 dirX: ramp.attackDirX ?? 0,
@@ -244,28 +259,43 @@ export function sampleKineticFrame(params: SampleKineticFrameParams): KineticFra
     return { p, frozenCells: bubble.frozenCells, bubbleCells, miniSites: usedSites };
 }
 
+/** One morph's contribution to the combined full diagram: its bubble's ramps
+ *  animated at its OWN local progress (independent clocks). */
+export interface FullDiagramPart {
+    readonly bubble: TransitionBubble;
+    /** Local progress 0..1 for THIS morph. */
+    readonly p: number;
+}
+
 /**
- * FULL-diagram frame: ONE power diagram of all sites at p (ramps + every frozen
- * site), then the conquest split. No frozen/bubble seam, so the split's crossings
- * land on exact same-diagram edges. Sites: ramp sites (synthetic `k<i>`) +
- * frozen sites (synthetic `frozen<i>`). frozenPairs already includes the ring, so
- * it is the complete frozen set; ramps carry every changed + flex site — together
- * they are the whole map. p is clamped off the exact endpoints so appear/vanish
- * ε-weights don't go fully degenerate.
+ * FULL-diagram frame: ONE power diagram of every site — each part's ramps at
+ * that part's local p, plus every globally-frozen site — then the conquest
+ * splits. No frozen/bubble seam, so each split's crossings land on exact
+ * same-diagram edges. Handles ANY number of DISJOINT concurrent morphs (the
+ * runtime guarantees disjointness by merging overlaps at commit); with one part
+ * this is exactly the old single-morph full diagram. Synthetic ids: `m<part>k<ramp>`
+ * for ramps, `frozen<i>` for frozen sites. Local p is clamped off the exact
+ * endpoints so appear/vanish ε-weights don't go fully degenerate.
  */
-function sampleFullDiagram(
-    bubble: TransitionBubble,
-    rawP: number,
+export function sampleFullDiagramMulti(
+    parts: readonly FullDiagramPart[],
+    frozenSites: readonly { site: PowerCoreSite; starId: string }[],
     clip: [number, number][],
 ): KineticFrame {
-    const p = rawP <= 0 ? 1e-4 : rawP >= 1 ? 1 - 1e-4 : rawP;
+    const clampedP = parts.map((part) =>
+        part.p <= 0 ? 1e-4 : part.p >= 1 ? 1 - 1e-4 : part.p,
+    );
 
     const sites: PowerCoreSite[] = [];
-    bubble.ramps.forEach((ramp, index) => {
-        for (const site of rampSites(ramp, p, index)) sites.push(site);
+    parts.forEach((part, pi) => {
+        part.bubble.ramps.forEach((ramp, ri) => {
+            for (const site of rampSites(ramp, clampedP[pi]!, ri)) {
+                sites.push({ ...site, starId: `m${pi}${site.starId}` });
+            }
+        });
     });
     const rampSiteCount = sites.length; // jitter only these; frozen stay exact
-    bubble.frozenPairs.forEach((pair, i) => {
+    frozenSites.forEach((pair, i) => {
         sites.push({ ...pair.site, starId: `frozen${i}` });
     });
 
@@ -292,16 +322,16 @@ function sampleFullDiagram(
         }
     }
     if (!cells) {
-        throw new Error(`sampleFullDiagram: diagram failed after retries at p=${rawP}: ${lastError}`);
+        throw new Error(`sampleFullDiagramMulti: diagram failed after retries: ${lastError}`);
     }
 
-    const frozenPairs = bubble.frozenPairs;
     const bubbleCells: PowerCell[] = [];
     for (const cell of cells) {
-        const kMatch = /^k(\d+)/.exec(cell.siteId);
-        const ramp = kMatch ? bubble.ramps[Number(kMatch[1])] : undefined;
-        if (ramp?.kind === 'conquest') {
-            const q = rampProgress(ramp, p);
+        const kMatch = /^m(\d+)k(\d+)/.exec(cell.siteId);
+        const part = kMatch ? parts[Number(kMatch[1])] : undefined;
+        const ramp = kMatch && part ? part.bubble.ramps[Number(kMatch[2])] : undefined;
+        if (part && ramp?.kind === 'conquest') {
+            const q = conquestFrontQ(ramp, clampedP[Number(kMatch![1])]!);
             const front: ConquestFront = {
                 mode: ramp.frontMode ?? 'linear',
                 dirX: ramp.attackDirX ?? 0,
@@ -321,11 +351,30 @@ function sampleFullDiagram(
             continue;
         }
         const fMatch = /^frozen(\d+)/.exec(cell.siteId);
-        const frozenStarId = fMatch ? frozenPairs[Number(fMatch[1])]?.site.starId : undefined;
+        const frozenStarId = fMatch ? frozenSites[Number(fMatch[1])]?.starId : undefined;
         bubbleCells.push({ ...cell, siteId: frozenStarId ?? cell.siteId });
     }
 
-    return { p: rawP <= 0 ? 0 : rawP >= 1 ? 1 : rawP, frozenCells: [], bubbleCells };
+    let maxP = 0;
+    for (const part of parts) {
+        const p = part.p <= 0 ? 0 : part.p >= 1 ? 1 : part.p;
+        if (p > maxP) maxP = p;
+    }
+    return { p: maxP, frozenCells: [], bubbleCells };
+}
+
+/** Single-morph full diagram (the `full` param path) — one part, the bubble's
+ *  own frozenPairs as the globally-frozen set. */
+function sampleFullDiagram(
+    bubble: TransitionBubble,
+    rawP: number,
+    clip: [number, number][],
+): KineticFrame {
+    return sampleFullDiagramMulti(
+        [{ bubble, p: rawP }],
+        bubble.frozenPairs.map((pair) => ({ site: pair.site, starId: pair.site.starId })),
+        clip,
+    );
 }
 
 /**

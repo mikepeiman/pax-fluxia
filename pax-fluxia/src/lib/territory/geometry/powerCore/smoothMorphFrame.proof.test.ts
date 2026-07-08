@@ -213,6 +213,115 @@ describe('PROOF: a morph frame flows through the idle smoothing pipeline seamles
     });
 });
 
+// End-snap fix 1: the conquest front COMPLETES before the timeline ends, so the
+// old owner's residual strip shrinks to nothing while animating instead of
+// popping at retirement (smoothstep decelerates to zero exactly when the strip
+// is thinnest — the measured 717px² lingering sliver).
+describe('conquest front completes early (no settle pop)', () => {
+    const rt = new KineticTransitionRuntime();
+    rt.commit({
+        state: S0.state, clip: S0.clip, ownershipVersion: 'v0',
+        transitionKey: null, nowMs: 0, durationMs: 1000,
+    });
+    rt.commit({
+        state: S1.state, clip: S1.clip, ownershipVersion: 'v1',
+        transitionKey: 'k', nowMs: 0, durationMs: 1000,
+        conquestOrigins: CONQUEST_ORIGINS,
+    });
+
+    it('by p=0.95 the captured cell is a SINGLE settled-owner part (front done)', () => {
+        const frame = rt.sampleFull(950)!;
+        const parts = frame.bubbleCells.filter((c) => c.siteId === CAPTURED);
+        expect(parts.length).toBe(1);
+        expect(parts[0]!.ownerId).toBe(NEW_OWNER);
+    });
+
+    it('mid-sweep still shows both owners (the sweep itself is unchanged)', () => {
+        const frame = rt.sampleFull(500)!;
+        const owners = new Set(
+            frame.bubbleCells.filter((c) => c.siteId === CAPTURED).map((c) => c.ownerId),
+        );
+        expect(owners.size).toBe(2);
+    });
+});
+
+// End-snap fix 2: multi-conquest ticks previously fell back to the frozen/bubble
+// STITCH (sampleFull was single-morph only) with its hanging-node artifacts —
+// the "occasional, different" snap. Two disjoint concurrent morphs must now
+// render through the one-diagram path with full coverage.
+describe('MULTI-morph one-diagram (disjoint concurrent conquests)', () => {
+    const MAP2 = (() => {
+        const raw2 = JSON.parse(
+            readFileSync(
+                path.join(REPO_ROOT, 'common', 'resources', 'fixture-maps', 'kinetic_independent_conquests.json'),
+                'utf-8',
+            ),
+        ) as { stars: StarState[]; connections: StarConnection[] };
+        let maxX = 0;
+        let maxY = 0;
+        for (const s of raw2.stars) {
+            if (s.x > maxX) maxX = s.x;
+            if (s.y > maxY) maxY = s.y;
+        }
+        return { stars: raw2.stars, connections: raw2.connections, w: maxX + 200, h: maxY + 200 };
+    })();
+    const ep2 = (ov: Record<string, string>) => {
+        const stars = MAP2.stars.map((s) =>
+            ov[s.id] ? ({ ...s, ownerId: ov[s.id] } as StarState) : s,
+        );
+        const config = buildPowerVoronoi0319Settings({
+            lanes: MAP2.connections, worldWidth: MAP2.w, worldHeight: MAP2.h,
+            configSource: GAME_CONFIG as unknown as Record<string, unknown>,
+        });
+        const r = computePowerCoreEndpoint({ stars, connections: MAP2.connections, config });
+        if ('kind' in r) throw new Error(r.message);
+        return { stars, state: { sites: r.sites, cells: r.cells }, clip: r.clip };
+    };
+
+    it('two disjoint conquests render as ONE diagram, tiling the clip, own clocks', () => {
+        const owner = (id: string) => MAP2.stars.find((s) => s.id === id)!.ownerId!;
+        const cap0 = ep2({ 'star-0': owner('star-1') === 'ai-1' ? 'ai-1' : owner('star-1') });
+        const both = ep2({ 'star-0': cap0.stars.find((s) => s.id === 'star-0')!.ownerId!, 'star-7': owner('star-6') });
+        const base = ep2({});
+        const rt = new KineticTransitionRuntime();
+        rt.commit({
+            state: base.state, clip: base.clip, ownershipVersion: 'v0',
+            transitionKey: null, nowMs: 0, durationMs: 1000,
+        });
+        rt.commit({
+            state: cap0.state, clip: cap0.clip, ownershipVersion: 'v1',
+            transitionKey: 'k1', nowMs: 0, durationMs: 1000,
+            conquestOrigins: new Map([[
+                'star-0',
+                { x: MAP2.stars[1]!.x, y: MAP2.stars[1]!.y },
+            ]]),
+        });
+        rt.commit({
+            state: both.state, clip: both.clip, ownershipVersion: 'v2',
+            transitionKey: 'k2', nowMs: 400, durationMs: 1000,
+            conquestOrigins: new Map([[
+                'star-7',
+                { x: MAP2.stars[6]!.x, y: MAP2.stars[6]!.y },
+            ]]),
+        });
+        // Two independent morphs must be active (disjoint ends of the chain).
+        expect(rt.activeKey).toBe('k1|k2');
+        const CLIP_AREA2 = shoelace(both.clip.map((p) => [p[0], p[1]] as Point));
+        for (const t of [450, 700, 950]) {
+            const frame = rt.sampleFull(t);
+            expect(frame).not.toBeNull(); // one-diagram path, NOT the stitch
+            expect(frame!.frozenCells.length).toBe(0);
+            let area = 0;
+            for (const c of frame!.bubbleCells) {
+                expect(c.ownerId).toBeTruthy();
+                area += shoelace(c.points);
+            }
+            expect(area / CLIP_AREA2).toBeGreaterThan(0.999);
+            expect(area / CLIP_AREA2).toBeLessThan(1.001);
+        }
+    });
+});
+
 describe('buildSurfaceFromCells: the render-ready morph surface (idle + morph share this)', () => {
     const CLIP_AREA = shoelace(S0.clip.map((p) => [p[0], p[1]] as Point));
     const bubble = buildTransitionBubble({

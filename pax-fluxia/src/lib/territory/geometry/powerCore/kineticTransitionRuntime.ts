@@ -29,7 +29,8 @@ import type {
     KineticFrame,
     TransitionBubble,
 } from './kineticTypes';
-import { sampleKineticFrame } from './sampleKineticFrame';
+import { sampleKineticFrame, sampleFullDiagramMulti } from './sampleKineticFrame';
+import { siteIdentityKey } from './kineticTypes';
 import type { PowerCell, Point } from './powerCoreTypes';
 
 export interface KineticCommitParams {
@@ -172,12 +173,16 @@ export class KineticTransitionRuntime {
     }
 
     /**
-     * FULL-diagram per-frame sample: for a SINGLE active morph, render the whole
-     * map as ONE power diagram at p (no frozen/bubble stitch), so the conquest
-     * split's crossings resolve on exact same-diagram edges — the fix for the
-     * bucket-fill / dropped-front-segment. Returns null for 0 or >1 active morphs
-     * (idle, or the rare concurrent-disjoint-conquest case) so the caller falls
-     * back to sample(). No frozenCells (everything is in bubbleCells).
+     * FULL-diagram per-frame sample: render the whole map as ONE power diagram
+     * (no frozen/bubble stitch), so every conquest split's crossings resolve on
+     * exact same-diagram edges — the fix for the bucket-fill / dropped-front-
+     * segment. Handles ANY number of concurrent DISJOINT morphs (each at its own
+     * local p; disjointness is guaranteed at commit, where overlaps merge) — the
+     * old single-morph-only limit made multi-conquest ticks fall back to the
+     * stitch and its hanging-node artifacts (the "occasional different end-snap").
+     * Globally-frozen sites = the intersection of every morph's frozenPairs (by
+     * site identity), i.e. the settled map minus every moving region. Returns
+     * null when idle. No frozenCells (everything is in bubbleCells).
      */
     sampleFull(nowMs: number): KineticFrame | null {
         if (this.morphs.length === 0 || !this.settled) return null;
@@ -188,15 +193,32 @@ export class KineticTransitionRuntime {
             this.morphs = stillActive;
             this.frozenCache = null;
         }
-        if (this.morphs.length !== 1) return null;
-        const morph = this.morphs[0]!;
-        const p = clamp01((nowMs - morph.startedAtMs) / morph.durationMs);
-        return sampleKineticFrame({
+        if (this.morphs.length === 0) return null;
+
+        const parts = this.morphs.map((morph) => ({
             bubble: morph.bubble,
-            p,
-            clip: morph.clip,
-            full: true,
-        });
+            p: clamp01((nowMs - morph.startedAtMs) / morph.durationMs),
+        }));
+
+        // Globally-frozen = frozen in EVERY morph (identity-keyed so duplicate
+        // starIds — contest virtuals — stay distinct). For one morph this is
+        // exactly its frozenPairs.
+        let frozen = this.morphs[0]!.bubble.frozenPairs.map((pair) => ({
+            site: pair.site,
+            starId: pair.site.starId,
+        }));
+        for (let i = 1; i < this.morphs.length; i++) {
+            const keys = new Set(
+                this.morphs[i]!.bubble.frozenPairs.map((pair) =>
+                    siteIdentityKey(pair.site),
+                ),
+            );
+            frozen = frozen.filter((entry) => keys.has(siteIdentityKey(entry.site)));
+        }
+
+        // Clip from the most recent commit (matches the settled state).
+        const clip = this.morphs[this.morphs.length - 1]!.clip;
+        return sampleFullDiagramMulti(parts, frozen, clip);
     }
 
     /** Per-frame sample; null = idle (draw the settled state). */
