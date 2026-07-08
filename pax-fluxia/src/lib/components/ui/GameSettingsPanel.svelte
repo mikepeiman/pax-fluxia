@@ -55,7 +55,6 @@
     import ControlsSectionConquest from "./settings/ControlsSection-Conquest.svelte";
     import ControlsSectionTerritory from "./settings/ControlsSection-Territory.svelte";
     import ControlsSectionFrontierFx from "./settings/ControlsSection-FrontierFx.svelte";
-    import TerritoryGeometrySourceTuning from "./settings/TerritoryGeometrySourceTuning.svelte";
     import ControlsSectionShips from "./settings/ControlsSection-Ships.svelte";
     import ControlsSectionPlayers from "./settings/ControlsSection-Players.svelte";
     import ControlsSectionVisuals from "./settings/ControlsSection-Visuals.svelte";
@@ -1669,10 +1668,8 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
                         syncFromConfig={syncAllFromConfig}
                         view="tuning"
                     />
-                    <TerritoryGeometrySourceTuning
-                        {panel}
-                        {updatePanel}
-                    />
+                    <!-- Geometry Source selector RETIRED (2026-07-08): geometry is
+                         unified on PowerCore; all saved values auto-migrate. -->
                 {:else if sec?.id === "territory_styles"}
                     <ControlsSectionTerritory
                         {panel}

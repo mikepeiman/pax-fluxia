@@ -1,6 +1,6 @@
 export const perimeterFieldFamilyConfigDefaults = {
     PERIMETER_FIELD_TRANSITION_ENGINE: 'plan' as const,
-    PERIMETER_FIELD_GEOMETRY_SOURCE: 'power_voronoi_0319' as const,
+    PERIMETER_FIELD_GEOMETRY_SOURCE: 'power_core' as const, // UNIFIED on PowerCore (2026-07-08)
     PERIMETER_FIELD_SAMPLE_SPACING: 28,
     PERIMETER_FIELD_INWARD_OFFSET_PX: 10,
     PERIMETER_FIELD_INFLUENCE_RADIUS: 52,

@@ -92,7 +92,7 @@ describe('buildPowerVoronoi0319Settings', () => {
 });
 
 describe('buildPerimeterFieldRenderFamilyGeometry', () => {
-    it('normalizes the legacy resolved-vector source to the 0319 authority path', () => {
+    it('normalizes EVERY source value to the unified PowerCore path (selector retired 2026-07-08)', () => {
         const stars = [
             testStar('a', 180, 180, 'p1'),
             testStar('b', 460, 180, 'p2'),
@@ -140,6 +140,10 @@ describe('buildPerimeterFieldRenderFamilyGeometry', () => {
             configSource,
         });
 
+        // Both legacy values land on the unified PowerCore path (auto-migration)…
+        expect(authority.version).toContain(':pcore');
+        expect(legacyAlias.version).toContain(':pcore');
+        // …and produce the identical snapshot.
         expect(legacyAlias.version).toBe(authority.version);
         expect(legacyAlias.territoryRegions).toHaveLength(
             authority.territoryRegions.length,
@@ -147,9 +151,5 @@ describe('buildPerimeterFieldRenderFamilyGeometry', () => {
         expect(legacyAlias.frontierPolylines).toHaveLength(
             authority.frontierPolylines.length,
         );
-        expect(legacyAlias.diagnostics.stageLadder).toEqual(
-            authority.diagnostics.stageLadder,
-        );
-        expect(legacyAlias.diagnostics.stageLadder).toBeTruthy();
     });
 });

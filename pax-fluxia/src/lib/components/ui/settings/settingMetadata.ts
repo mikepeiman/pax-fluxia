@@ -332,7 +332,7 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Resample Points': { key: 'BORDER_TRANS_RESAMPLE_N' },
         'Back Overshoot': { key: 'BORDER_TRANS_OVERSHOOT' },
         'Burst Boundary Basis': { key: 'METABALL_BURST_BOUNDARY_BASIS' },
-        'Geometry Source': { key: 'PERIMETER_FIELD_GEOMETRY_SOURCE' },
+        // 'Geometry Source' selector RETIRED (2026-07-08): unified on PowerCore.
         'Minimum Star Margin': { key: 'MODIFIED_VORONOI_STAR_MARGIN' },
   'MSR as star power': { key: 'TERRITORY_MSR_STAR_BIAS' },
   'Star Bias': { key: 'TERRITORY_MSR_STAR_BIAS' },

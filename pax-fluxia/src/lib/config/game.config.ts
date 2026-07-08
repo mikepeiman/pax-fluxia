@@ -397,7 +397,7 @@ interface GameConfigType {
     VS_TRANSITION_MODE: VsTransitionModeId; // Shared transition-mode selector; UI options are contextual to the active renderer
     METABALL_BURST_BOUNDARY_BASIS: MetaballBurstBoundaryBasis; // How six-slice burst measures common loser travel distance
     PERIMETER_FIELD_TRANSITION_ENGINE: 'legacy' | 'plan'; // Which transition implementation perimeter_field uses
-    PERIMETER_FIELD_GEOMETRY_SOURCE: 'power_voronoi_0319'; // Legacy sources are normalized to 0319 authority at read boundaries
+    PERIMETER_FIELD_GEOMETRY_SOURCE: 'power_core' | 'power_voronoi_0319'; // UNIFIED on PowerCore (2026-07-08); every value normalizes to power_core at read boundaries (selector retired)
     PERIMETER_FIELD_SAMPLE_SPACING: number; // Arc-length spacing between derived perimeter samples (px)
     PERIMETER_FIELD_INWARD_OFFSET_PX: number; // Inward offset applied to derived perimeter samples so they sit inside the source boundary
     PERIMETER_FIELD_INFLUENCE_RADIUS: number; // Displayed field radius for each perimeter sample (px)

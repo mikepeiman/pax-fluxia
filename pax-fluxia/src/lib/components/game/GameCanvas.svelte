@@ -1708,12 +1708,12 @@
         return {
             // Geometry + presentation mode-defaults are FALLBACKS only; live GAME_CONFIG
             // wins LAST so user-saved values persist (matches phase_field/ember and the
-            // edge-forward builder above). PERIMETER_FIELD_GEOMETRY_SOURCE stays pinned
-            // after GAME_CONFIG because this mode requires the 0319 source specifically.
+            // edge-forward builder above). The old 0319 geometry-source pin is retired:
+            // geometry is UNIFIED on PowerCore across all modes (2026-07-08,
+            // user-verified in every render mode).
             ...cellGridPhaseEdgesGeometryDefaults,
             ...cellGridPhaseEdgesModeDefaults,
             ...(GAME_CONFIG as unknown as Record<string, unknown>),
-            PERIMETER_FIELD_GEOMETRY_SOURCE: "power_voronoi_0319",
         };
     }
 
