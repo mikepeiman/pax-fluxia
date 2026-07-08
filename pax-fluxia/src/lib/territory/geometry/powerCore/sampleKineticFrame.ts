@@ -29,24 +29,34 @@ function smoothstep(q: number): number {
 }
 
 /**
- * The conquest FRONT finishes at this fraction of the morph timeline; the
- * remaining tail renders the captured cell as a single settled-owner part.
- * Why: smoothstep's velocity → 0 at the end, so the old owner's residual strip
- * (measured 717px² at p≈0.97) lingers almost static and then pops when the
- * morph retires — the reported "snap-settle on boundaries". Completing the
- * front early lets the strip shrink to nothing WHILE animating; the p→1 shape
- * is byte-identical to the settled snapshot, so retirement becomes invisible.
+ * ALL geometric motion finishes at this fraction of the morph timeline; the
+ * remaining tail HOLDS the settled geometry (byte-identical to the snapshot),
+ * so retirement swaps identical pixels and is invisible.
+ *
+ * Why (the transition "physics"): every moving element — the conquest front,
+ * weight-ramped cell bisectors (neighbour and third-party borders), APPEARING
+ * virtual cells (a growing bulge pushing into its neighbours), and VANISHING
+ * virtual cells (a shrinking bump collapsing toward a point) — converges to the
+ * settled shape exactly AT p=1, under smoothstep whose velocity → 0 at the end.
+ * So the last visible remnants (a thin conquest strip; a vanishing cell's final
+ * point; the bulge of a replaced contest virtual on a border) sit almost static
+ * on screen and then POP when the morph retires — the reported "bulge or small
+ * point that snaps back", on the conquered border AND on adjacent/third-party
+ * borders alike. Completing ALL motion early lets every remnant animate to
+ * nothing while the clock still runs. Applied INSIDE rampProgress so every
+ * consumer (weights, appear/vanish scaling, the front split) shares it.
  */
-const CONQUEST_FRONT_COMPLETE_AT = 0.92;
+const MORPH_COMPLETE_AT = 0.92;
 
 function conquestFrontQ(ramp: SiteRamp, p: number): number {
-    return Math.min(1, rampProgress(ramp, p) / CONQUEST_FRONT_COMPLETE_AT);
+    return rampProgress(ramp, p); // early-completion lives in rampProgress
 }
 
-/** Local progress of one ramp at global progress p (monotone in p). */
+/** Local progress of one ramp at global progress p (monotone in p; reaches 1
+ *  at MORPH_COMPLETE_AT of the ramp's window and holds — see note above). */
 export function rampProgress(ramp: SiteRamp, p: number): number {
     if (ramp.span <= 0) return p >= ramp.delay ? 1 : 0;
-    return smoothstep((p - ramp.delay) / ramp.span);
+    return Math.min(1, smoothstep((p - ramp.delay) / ramp.span) / MORPH_COMPLETE_AT);
 }
 
 /**

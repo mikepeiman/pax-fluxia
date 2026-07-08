@@ -64,6 +64,10 @@ export const territoryConfigDefaults = {
     VORONOI_BORDER_ALPHA: 0.35,
     VORONOI_BORDER_BRIGHTEN: 20,
     VORONOI_BORDER_SMOOTH: 2,
+    // Opponent-blended borders ON by default — USER-CONFIRMED improvement
+    // (2026-07-08): shared frontiers render as the 50/50 mix of both owners'
+    // colors instead of one side's (lexicographic ownerA) color.
+    TERRITORY_SURFACE_BORDER_BLEND: true,
     CHAIKIN_BOUNDARY_PAD: 50,
     CHAIKIN_BOUNDARY_EPS: 6,
     BORDER_TRANS_EASING: 'elastic',

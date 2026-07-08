@@ -138,6 +138,55 @@ describe('conquestFrontField', () => {
         }
     });
 
+    it('radial tiling invariant under dense sweep INCLUDING exact vertex hits (degeneracy guard)', () => {
+        // The user-observed 1-frame overlap fragment: when the sweep threshold c
+        // lands within float noise of a vertex's distance, entry/exit pairing can
+        // misfire. The area guard must make the tiling invariant hold on EVERY
+        // frame — including q values engineered to hit each vertex exactly.
+        const segD = (sx: number, sy: number, a: Point, b: Point) => {
+            const dx = b[0] - a[0];
+            const dy = b[1] - a[1];
+            const l2 = dx * dx + dy * dy;
+            let t = l2 < 1e-12 ? 0 : ((sx - a[0]) * dx + (sy - a[1]) * dy) / l2;
+            t = t < 0 ? 0 : t > 1 ? 1 : t;
+            return Math.hypot(a[0] + t * dx - sx, a[1] + t * dy - sy);
+        };
+        const TALL: Point[] = [[0, 0], [60, 0], [60, 500], [0, 500]];
+        for (const [shape, cellPts] of [['square', SQUARE], ['tall', TALL]] as const) {
+            for (const [ox, oy] of [[-40, -40], [50, -40], [-80, 250], [10, 10]] as Point[]) {
+                const front: ConquestFront = {
+                    mode: 'radial', dirX: 1, dirY: 0, originX: ox, originY: oy,
+                    starId: 'star-x', ownerIn: 'new', ownerOld: 'old', subdiv: 8,
+                };
+                const cellArea = polyArea(cellPts);
+                let minD = Infinity;
+                let maxD = -Infinity;
+                for (let i = 0; i < cellPts.length; i++) {
+                    const d = segD(ox, oy, cellPts[i]!, cellPts[(i + 1) % cellPts.length]!);
+                    if (d < minD) minD = d;
+                    const dv = Math.hypot(cellPts[i]![0] - ox, cellPts[i]![1] - oy);
+                    if (dv > maxD) maxD = dv;
+                }
+                const qs: number[] = [];
+                for (let q = 0; q <= 1; q += 0.01) qs.push(q);
+                // Exact vertex hits: q such that c === T(vertex).
+                for (const v of cellPts) {
+                    const tv = Math.hypot(v[0] - ox, v[1] - oy);
+                    const q = (tv - minD) / (maxD - minD);
+                    if (q > 0 && q < 1) qs.push(q, q - 1e-12, q + 1e-12);
+                }
+                for (const q of qs) {
+                    const parts = splitCellByFront(cell(cellPts), front, q);
+                    const total = parts.reduce((s, p) => s + polyArea(p.points), 0);
+                    expect(
+                        Math.abs(total - cellArea) / cellArea,
+                        `${shape} origin=(${ox},${oy}) q=${q}`,
+                    ).toBeLessThan(0.006);
+                }
+            }
+        }
+    });
+
     it('radial front genuinely CURVES (arc bows away from the entry–exit chord)', () => {
         // Area-vs-linear was a weak curvature proxy (distance fronts track plane
         // fronts closely in area). Measure the SHAPE: the incoming part's front

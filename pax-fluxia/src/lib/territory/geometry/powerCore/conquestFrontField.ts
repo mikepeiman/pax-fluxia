@@ -319,5 +319,33 @@ function splitRadial(cell: PowerCell, front: ConquestFront, q: number): PowerCel
     if (parts.length === 0) {
         parts.push(part(cell, front.starId, q >= 0.5 ? front.ownerIn : front.ownerOld, [...pts]));
     }
+
+    // INVARIANT GUARD (the 1% degeneracy the walk can't rule out): the sweep's
+    // threshold c passes through EVERY vertex's T at some frame; on the frame
+    // where c lands within float noise of a vertex, entry/exit pairing can
+    // misfire even with alternation intact — producing self-intersecting parts
+    // that render as a one-frame overlap fragment. The split is exact, so the
+    // parts MUST tile the cell: if their total area deviates from the cell's by
+    // more than 0.5%, discard and fall back to the watertight linear split for
+    // this frame (a one-frame straight front, visually invisible).
+    const cellArea = Math.abs(ringArea2(pts)) / 2;
+    if (cellArea > 1e-9) {
+        let partArea = 0;
+        for (const piece of parts) partArea += Math.abs(ringArea2(piece.points)) / 2;
+        if (Math.abs(partArea - cellArea) / cellArea > 0.005) {
+            return splitLinear(cell, front, q);
+        }
+    }
     return parts;
+}
+
+/** Twice the signed area of a ring (shoelace). */
+function ringArea2(ring: readonly Point[]): number {
+    let s = 0;
+    for (let i = 0; i < ring.length; i++) {
+        const a = ring[i]!;
+        const b = ring[(i + 1) % ring.length]!;
+        s += a[0] * b[1] - b[0] * a[1];
+    }
+    return s;
 }
