@@ -67,7 +67,7 @@ describe('readTerritoryRuntimeSettings', () => {
             boundaryPad: 44,
             boundaryEps: 8,
             starCoreGuardRadius: 20,
-            starMargin: 75,
+            starMargin: 0, // DEFAULT_STAR_MARGIN (constraints shelved, 0700e81d7)
             msrStarBias: 0,
             corridorEnabled: true,
             corridorSpacing: 10,
