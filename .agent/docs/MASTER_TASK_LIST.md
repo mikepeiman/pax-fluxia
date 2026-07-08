@@ -31,23 +31,21 @@ superseding docs:
 ## 2026-07-08
 
 ### Open
-- [ ] **Default to power_core geometry; retire the 0319 SELECTION (user directive)** `[territory][geometry]`
-  — user confirmed unified geometry works across render modes ("we have unified geometry, finally!").
-  Flip PERIMETER_FIELD_GEOMETRY_SOURCE default → power_core; normalize legacy saved values to
-  power_core at read boundaries (auto-migrate persisted configs); REMOVE the Geometry Source selector
-  from all modes' UI. NOTE: 0319 Stage-0 (buildGeometry0319SitesAndClip) is SHARED by power_core —
-  retire the selection, not the compiler; keep the compile-error fallback path.
+- [x] **Default to power_core geometry; retire the 0319 SELECTION (user directive)** `[territory][geometry]`
+  — DONE b9f2f7d8c: normalize→power_core always (auto-migrates persisted configs), defaults flipped,
+  phase_edges 0319 pin removed, Geometry Source selector removed from UI, parity suite repurposed to
+  the ground-truth oracle. 0319 Stage-0 retained (shared inside PowerCore) + compile-error fallback.
 - [ ] **Stress-test low-tier hardware + perf config flags** `[territory][perf]` — default-mode perf
   reads flawless on the RTX 4080 box; verify on weak GPUs/laptops and add flags (e.g., arc density,
   smoothing passes at morph time, pool limits, transition duration) so low-end users can trade
   fidelity for smoothness.
-- [ ] **End-snap: remaining occasional pop — investigate BEYOND the sliver-timing theory (user
-  caution: don't tunnel)** `[territory][transitions]` — candidates to discriminate WITH DATA:
-  (a) old-owner sliver + smoothstep deceleration (measured 33.75px residual boundary at p=0.999);
-  (b) VANISH-ramp virtual cells (contest midpoints) leaving ε-weight residue that pops at settle —
-  independent of the front; (c) multi-morph ticks falling back to the frozen/bubble STITCH (sampleFull
-  is single-morph only) with its hanging-node artifacts; (d) per-cell AA hairlines vs merged idle fill.
-  Identify WHICH cells carry the residual divergence, then fix the real one(s).
+- [x] **End-snap: remaining occasional pop — discriminated with data, TWO culprits fixed**
+  `[territory][transitions]` — DONE feac1633d: per-cell divergence analysis named (a) the old-owner
+  residual strip lingering under smoothstep deceleration (717px² at p≈0.97) → conquest front now
+  completes at 92% of the timeline (strip animates to nothing; tail = settled shape, byte-identical);
+  (c) multi-conquest ticks falling back to the STITCH → sampleFullDiagramMulti renders any number of
+  disjoint morphs in ONE diagram (identity-keyed frozen intersection). Candidates (b) vanish-ramp
+  residue and (d) AA hairlines showed no divergence in data — watch for them if a pop remains.
 - [ ] **⭐ PRIORITY (user directive 2026-07-07): DEFAULT-MODE perfection first** `[territory][transitions]`
   — perfection + reliability + performance of the DEFAULT path (power_vector + linear front) before ANY
   new modifications/features. Radial polish, field-front modes 3+, multi-morph one-diagram, and all
