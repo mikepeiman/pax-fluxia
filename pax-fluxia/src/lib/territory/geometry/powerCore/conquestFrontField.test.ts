@@ -1,8 +1,8 @@
 /**
  * conquestFrontField.test — the arrival-time-field conquest front. Validates the
  * geometry offline (no visuals): both modes cover the cell 0→1 monotonically
- * with single-owner parts and exact endpoints; radial actually curves (it is the
- * marched iso-contour, not a straight chord).
+ * with single-owner parts and exact endpoints; radial actually curves (its
+ * boundary is a sampled circle arc, not a straight chord).
  */
 
 import { describe, expect, it } from 'vitest';
@@ -61,7 +61,7 @@ describe('conquestFrontField', () => {
         expect(splitCellByFront(cell(SQUARE), front, 0.5).length).toBe(2);
     });
 
-    it('radial: curved marched front, full coverage 0→1, monotone', () => {
+    it('radial: curved arc front, full coverage 0→1, monotone', () => {
         const front: ConquestFront = {
             mode: 'radial', dirX: 1, dirY: 1, originX: -40, originY: -40,
             starId: 'star-x', ownerIn: 'new', ownerOld: 'old', subdiv: 6,
@@ -76,8 +76,13 @@ describe('conquestFrontField', () => {
         }
         expect(incomingShare(splitCellByFront(cell(SQUARE), front, 0), 'new')).toBeLessThan(0.03);
         expect(incomingShare(splitCellByFront(cell(SQUARE), front, 1), 'new')).toBeGreaterThan(0.97);
-        // Radial marches the iso-contour → many sub-parts (a curve), not one chord.
-        expect(splitCellByFront(cell(SQUARE), front, 0.5).length).toBeGreaterThan(2);
+        // Radial builds ONE clean polygon per side (no fan). Curvature shows as
+        // the sampled circle arc on the boundary → far more vertices than a
+        // straight chord split (which would give a 3–5 vertex polygon).
+        const parts = splitCellByFront(cell(SQUARE), front, 0.5);
+        expect(parts.length).toBe(2);
+        const incoming = parts.find((p) => p.ownerId === 'new')!;
+        expect(incoming.points.length).toBeGreaterThan(6);
     });
 
     it('radial front differs from linear at the same progress (it curves)', () => {

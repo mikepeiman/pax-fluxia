@@ -101,7 +101,28 @@ function splitLinear(cell: PowerCell, front: ConquestFront, q: number): PowerCel
     return parts;
 }
 
-// ── Mode 2: radial (curved arrival-time front, marching triangles) ──────────
+// ── Mode 2: radial (curved arrival-time front, ONE clean polygon per side) ──
+//
+// The captured cell is convex, so {T ≤ c} = cell ∩ disk(source, c) is a single
+// convex region bounded by the near cell edges + one circle arc. We build BOTH
+// sides as ONE polygon each by walking the boundary, inserting the exact circle
+// crossings, then replacing the straight cut between the two crossings with a
+// sampled arc. NO fan triangulation — that produced dozens of thin sub-cells
+// that rendered as a radiating "star" and blew up PIXI's earcut fill.
+
+function pointInPoly(p: Point, ring: readonly Point[]): boolean {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const xi = ring[i]![0];
+        const yi = ring[i]![1];
+        const xj = ring[j]![0];
+        const yj = ring[j]![1];
+        if (yi > p[1] !== yj > p[1] && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) {
+            inside = !inside;
+        }
+    }
+    return inside;
+}
 
 function splitRadial(cell: PowerCell, front: ConquestFront, q: number): PowerCell[] {
     const pts = cell.points;
@@ -110,8 +131,6 @@ function splitRadial(cell: PowerCell, front: ConquestFront, q: number): PowerCel
     const sy = front.originY;
     const T = (p: Point) => Math.hypot(p[0] - sx, p[1] - sy);
 
-    // Threshold sweeps the cell's full distance span, so q=0 ⇒ nothing captured,
-    // q=1 ⇒ everything captured (exact coverage endpoints, like linear).
     let minD = Infinity;
     let maxD = -Infinity;
     for (const p of pts) {
@@ -124,87 +143,92 @@ function splitRadial(cell: PowerCell, front: ConquestFront, q: number): PowerCel
     }
     const c = minD + (maxD - minD) * q;
 
-    // Fan-triangulate around the centroid, subdividing edges so the arc reads
-    // as a smooth curve rather than a single chord.
-    const sub = Math.max(1, front.subdiv ?? 4);
-    let cx = 0;
-    let cy = 0;
-    for (const p of pts) {
-        cx += p[0];
-        cy += p[1];
-    }
-    cx /= pts.length;
-    cy /= pts.length;
-    const centroid: Point = [cx, cy];
+    // Exact circle-segment crossing at distance c from the source (t ∈ (0,1)).
+    const crossSeg = (a: Point, b: Point): Point | null => {
+        const dx = b[0] - a[0];
+        const dy = b[1] - a[1];
+        const A = dx * dx + dy * dy;
+        if (A < 1e-12) return null;
+        const fx = a[0] - sx;
+        const fy = a[1] - sy;
+        const B = 2 * (fx * dx + fy * dy);
+        const C = fx * fx + fy * fy - c * c;
+        const disc = B * B - 4 * A * C;
+        if (disc < 0) return null;
+        const sq = Math.sqrt(disc);
+        for (const t of [(-B - sq) / (2 * A), (-B + sq) / (2 * A)]) {
+            if (t > 1e-9 && t < 1 - 1e-9) return [a[0] + t * dx, a[1] + t * dy];
+        }
+        return null;
+    };
 
-    const inParts: Point[][] = [];
-    const oldParts: Point[][] = [];
+    // Walk the boundary → incoming (T≤c) / old (T>c) vertex rings, inserting the
+    // exact crossings into BOTH at each transition.
+    const low: Point[] = [];
+    const high: Point[] = [];
+    const lowCross: number[] = [];
+    const highCross: number[] = [];
     const n = pts.length;
     for (let i = 0; i < n; i++) {
         const a = pts[i]!;
         const b = pts[(i + 1) % n]!;
-        for (let s = 0; s < sub; s++) {
-            const e0: Point = [a[0] + ((b[0] - a[0]) * s) / sub, a[1] + ((b[1] - a[1]) * s) / sub];
-            const e1: Point = [
-                a[0] + ((b[0] - a[0]) * (s + 1)) / sub,
-                a[1] + ((b[1] - a[1]) * (s + 1)) / sub,
-            ];
-            marchTriangle(centroid, e0, e1, T, c, inParts, oldParts);
+        const aIn = T(a) <= c;
+        if (aIn) low.push([a[0], a[1]]);
+        else high.push([a[0], a[1]]);
+        if (aIn !== (T(b) <= c)) {
+            const cp = crossSeg(a, b);
+            if (cp) {
+                lowCross.push(low.length);
+                low.push(cp);
+                highCross.push(high.length);
+                high.push(cp);
+            }
         }
     }
 
+    // Circle arc between two crossings, on the side inside the cell, endpoints
+    // exclusive (they're already the crossing points in the ring).
+    const sampleArc = (pA: Point, pB: Point): Point[] => {
+        const aA = Math.atan2(pA[1] - sy, pA[0] - sx);
+        const aB = Math.atan2(pB[1] - sy, pB[0] - sx);
+        let d = aB - aA;
+        while (d <= -Math.PI) d += 2 * Math.PI;
+        while (d > Math.PI) d -= 2 * Math.PI;
+        const mid: Point = [sx + c * Math.cos(aA + d / 2), sy + c * Math.sin(aA + d / 2)];
+        if (!pointInPoly(mid, pts)) d = d > 0 ? d - 2 * Math.PI : d + 2 * Math.PI;
+        const steps = Math.max(8, front.subdiv ?? 8);
+        const out: Point[] = [];
+        for (let k = 1; k < steps; k++) {
+            const a = aA + (d * k) / steps;
+            out.push([sx + c * Math.cos(a), sy + c * Math.sin(a)]);
+        }
+        return out;
+    };
+
+    // Splice the arc into a side's ring (its own verts are contiguous, bracketed
+    // by the two crossings; the arc replaces the straight cut on the other side).
+    const spliceArc = (ring: Point[], crossIdx: number[]): Point[] => {
+        const [i0, i1] = crossIdx as [number, number];
+        if (i1 - i0 - 1 > 0) {
+            return [...ring.slice(i0, i1 + 1), ...sampleArc(ring[i1]!, ring[i0]!)];
+        }
+        return [...ring.slice(i1), ...ring.slice(0, i0 + 1), ...sampleArc(ring[i0]!, ring[i1]!)];
+    };
+
     const parts: PowerCell[] = [];
-    for (const poly of inParts) if (poly.length >= 3) parts.push(part(cell, front.starId, front.ownerIn, poly));
-    for (const poly of oldParts) if (poly.length >= 3) parts.push(part(cell, front.starId, front.ownerOld, poly));
+    if (lowCross.length === 2 && highCross.length === 2) {
+        const lowPoly = spliceArc(low, lowCross);
+        const highPoly = spliceArc(high, highCross);
+        if (lowPoly.length >= 3) parts.push(part(cell, front.starId, front.ownerIn, lowPoly));
+        if (highPoly.length >= 3) parts.push(part(cell, front.starId, front.ownerOld, highPoly));
+    } else {
+        // Rare: circle meets the cell boundary at ≠2 points. Clean straight
+        // chords (no fan) — occasionally less curved, never a starburst.
+        if (low.length >= 3) parts.push(part(cell, front.starId, front.ownerIn, low));
+        if (high.length >= 3) parts.push(part(cell, front.starId, front.ownerOld, high));
+    }
     if (parts.length === 0) {
         parts.push(part(cell, front.starId, q >= 0.5 ? front.ownerIn : front.ownerOld, [...pts]));
     }
     return parts;
-}
-
-/** Split one triangle by the iso-line T=c into ≤ incoming + ≤ old sub-polys. */
-function marchTriangle(
-    p0: Point,
-    p1: Point,
-    p2: Point,
-    T: (p: Point) => number,
-    c: number,
-    inParts: Point[][],
-    oldParts: Point[][],
-): void {
-    const tri = [p0, p1, p2];
-    const below = tri.map((p) => T(p) <= c); // "below" = incoming (T ≤ c)
-    const count = (below[0] ? 1 : 0) + (below[1] ? 1 : 0) + (below[2] ? 1 : 0);
-    if (count === 3) {
-        inParts.push([p0, p1, p2]);
-        return;
-    }
-    if (count === 0) {
-        oldParts.push([p0, p1, p2]);
-        return;
-    }
-    // Mixed: the iso-line crosses two edges. Interpolate the crossings (linear
-    // in T along the edge — exact enough at this subdivision).
-    const cross = (a: Point, b: Point): Point => {
-        const ta = T(a);
-        const tb = T(b);
-        const t = Math.abs(tb - ta) < 1e-9 ? 0.5 : (c - ta) / (tb - ta);
-        return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
-    };
-    // Identify the lone vertex (the one on its own side).
-    const lone = below[0] === below[1] ? 2 : below[1] === below[2] ? 0 : 1;
-    const loneP = tri[lone]!;
-    const o1 = tri[(lone + 1) % 3]!;
-    const o2 = tri[(lone + 2) % 3]!;
-    const x1 = cross(loneP, o1);
-    const x2 = cross(loneP, o2);
-    const loneTri: Point[] = [loneP, x1, x2];
-    const quad: Point[] = [x1, o1, o2, x2];
-    if (below[lone]) {
-        inParts.push(loneTri);
-        oldParts.push(quad);
-    } else {
-        oldParts.push(loneTri);
-        inParts.push(quad);
-    }
 }
