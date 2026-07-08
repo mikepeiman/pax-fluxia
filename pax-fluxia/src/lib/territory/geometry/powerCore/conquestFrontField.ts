@@ -186,23 +186,36 @@ function splitRadial(cell: PowerCell, front: ConquestFront, q: number): PowerCel
         }
     }
 
-    // Circle arc between two crossings, on the side inside the cell, endpoints
-    // exclusive (they're already the crossing points in the ring).
+    // Circle arc between two crossings, on the side INSIDE the cell, endpoints
+    // exclusive (they're already the crossing points in the ring). There are two
+    // candidate arcs (the two ways around the circle); pick the one whose sampled
+    // points actually lie inside the cell. A single-midpoint test is unreliable
+    // when the crossings converge near q→1 (the midpoint sits on the boundary) and
+    // can flip to the LONG way ⇒ a giant arc spanning the whole circle ⇒ a bloated
+    // blotch + an earcut stall. Sampling both directions is robust.
+    const steps = Math.max(8, front.subdiv ?? 8);
+    const buildArc = (aStart: number, span: number): Point[] => {
+        const out: Point[] = [];
+        for (let k = 1; k < steps; k++) {
+            const a = aStart + (span * k) / steps;
+            out.push([sx + c * Math.cos(a), sy + c * Math.sin(a)]);
+        }
+        return out;
+    };
+    const insideCount = (arc: Point[]): number => {
+        let n = 0;
+        for (const p of arc) if (pointInPoly(p, pts)) n++;
+        return n;
+    };
     const sampleArc = (pA: Point, pB: Point): Point[] => {
         const aA = Math.atan2(pA[1] - sy, pA[0] - sx);
         const aB = Math.atan2(pB[1] - sy, pB[0] - sx);
         let d = aB - aA;
         while (d <= -Math.PI) d += 2 * Math.PI;
         while (d > Math.PI) d -= 2 * Math.PI;
-        const mid: Point = [sx + c * Math.cos(aA + d / 2), sy + c * Math.sin(aA + d / 2)];
-        if (!pointInPoly(mid, pts)) d = d > 0 ? d - 2 * Math.PI : d + 2 * Math.PI;
-        const steps = Math.max(8, front.subdiv ?? 8);
-        const out: Point[] = [];
-        for (let k = 1; k < steps; k++) {
-            const a = aA + (d * k) / steps;
-            out.push([sx + c * Math.cos(a), sy + c * Math.sin(a)]);
-        }
-        return out;
+        const shortArc = buildArc(aA, d);
+        const longArc = buildArc(aA, d > 0 ? d - 2 * Math.PI : d + 2 * Math.PI);
+        return insideCount(shortArc) >= insideCount(longArc) ? shortArc : longArc;
     };
 
     // Splice the arc into a side's ring (its own verts are contiguous, bracketed

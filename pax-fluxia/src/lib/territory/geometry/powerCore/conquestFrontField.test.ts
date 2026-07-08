@@ -85,6 +85,32 @@ describe('conquestFrontField', () => {
         expect(incoming.points.length).toBeGreaterThan(6);
     });
 
+    it('radial split never bloats past the cell (arc picks the INSIDE direction, no giant-arc blotch)', () => {
+        // Regression for the ~q→1 blotch: a wrong arc direction spanned the whole
+        // circle, ballooning a part to many× the cell (area 117k / bbox 290 for a
+        // 100×100 cell) and stalling earcut. incoming+old must stay ≈ the cell.
+        const CELL_AREA = 100 * 100;
+        for (const [ox, oy] of [[-40, -40], [50, -40], [-40, 50], [120, 50], [50, 140], [140, 50], [10, 10]] as Point[]) {
+            const front: ConquestFront = {
+                mode: 'radial', dirX: 1, dirY: 1, originX: ox, originY: oy,
+                starId: 'x', ownerIn: 'new', ownerOld: 'old', subdiv: 8,
+            };
+            for (const q of [0.1, 0.5, 0.9, 0.95, 0.99, 0.999]) {
+                const parts = splitCellByFront(cell(SQUARE), front, q);
+                const total = parts.reduce((s, p) => s + polyArea(p.points), 0);
+                expect(total).toBeLessThan(CELL_AREA * 1.3);
+                for (const p of parts) {
+                    for (const [x, y] of p.points) {
+                        expect(x).toBeGreaterThan(-30);
+                        expect(x).toBeLessThan(130);
+                        expect(y).toBeGreaterThan(-30);
+                        expect(y).toBeLessThan(130);
+                    }
+                }
+            }
+        }
+    });
+
     it('radial front differs from linear at the same progress (it curves)', () => {
         const common = {
             dirX: 1, dirY: 0, originX: -40, originY: 50,
