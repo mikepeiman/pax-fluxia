@@ -27,6 +27,9 @@ import {
 export interface SurfaceRegion {
     readonly ownerId: string;
     readonly points: Point[];
+    /** The generating cell's siteId (cellFills only) — lets presentation
+     *  overlays (the conquest front clip) find a specific cell's smoothed fill. */
+    readonly siteId?: string;
 }
 
 export interface SurfaceFrontier {
@@ -285,7 +288,9 @@ export function buildSurfaceFromCells(
         if (ring.length >= 2 && ptKey(ring[0]![0], ring[0]![1]) === ptKey(ring[ring.length - 1]![0], ring[ring.length - 1]![1])) {
             ring.pop();
         }
-        if (ring.length >= 3) cellFills.push({ ownerId: cell.ownerId, points: ring });
+        if (ring.length >= 3) {
+            cellFills.push({ ownerId: cell.ownerId, points: ring, siteId: cell.siteId });
+        }
     }
 
     return { cellFills, frontiers, worldBorders };

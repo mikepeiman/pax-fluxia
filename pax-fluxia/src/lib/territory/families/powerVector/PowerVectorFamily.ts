@@ -29,6 +29,7 @@ import type { ColorUtils } from '$lib/renderers/RenderContext';
 import { adjustColorHSL, blendColors } from '$lib/utils/colorUtils';
 import { getActiveKineticFrame } from '../../geometry/powerCore/kineticRuntimeBridge';
 import { buildSurfaceFromCells } from '../../geometry/powerCore/buildSurfaceFromCells';
+import { splitCellByFront } from '../../geometry/powerCore/conquestFrontField';
 import {
     WORLD_OWNER,
     type PowerCell,
@@ -144,6 +145,8 @@ function hashRing(points: Ring): number {
 interface FillRegion {
     readonly ownerId: string;
     readonly points: Ring;
+    /** Present on morph cell fills; used by the conquest-front overlay. */
+    readonly siteId?: string;
 }
 interface BorderLine {
     readonly ownerA: string;
@@ -352,6 +355,44 @@ export class PowerVectorFamily implements RenderFamily {
             const cells: PowerCell[] = [...frame.frozenCells, ...frame.bubbleCells];
             const surface = buildSurfaceFromCells(cells, smoothPasses);
 
+            // SPLIT-AFTER-SMOOTHING overlay: the cells (and therefore the graph,
+            // chains, and borders) are UNSPLIT — settled topology all morph long.
+            // Each in-flight conquest clips the captured cell's SMOOTHED fill into
+            // an old-owner (ahead) piece + new-owner (behind) piece here, at the
+            // presentation layer. The front travels across the final rounded
+            // shape, so completion changes nothing — no reorganization snap.
+            let fills: readonly FillRegion[] = surface.cellFills;
+            const aheadPieces: FillRegion[] = [];
+            if (frame.fronts && frame.fronts.length > 0) {
+                const mutable: FillRegion[] = [...surface.cellFills];
+                fills = mutable;
+                for (const af of frame.fronts) {
+                    const idx = mutable.findIndex((f) => f.siteId === af.siteId);
+                    if (idx < 0) continue;
+                    const smoothedFill = mutable[idx]!;
+                    const pieces = splitCellByFront(
+                        {
+                            siteId: af.siteId,
+                            ownerId: af.front.ownerIn,
+                            points: smoothedFill.points as [number, number][],
+                        } as PowerCell,
+                        af.front,
+                        af.q,
+                    );
+                    const replacement: FillRegion[] = [];
+                    for (const piece of pieces) {
+                        const region: FillRegion = {
+                            ownerId: piece.ownerId,
+                            points: piece.points,
+                            siteId: `${af.siteId}§${piece.ownerId}`,
+                        } as FillRegion;
+                        replacement.push(region);
+                        if (piece.ownerId === af.front.ownerOld) aheadPieces.push(region);
+                    }
+                    mutable.splice(idx, 1, ...replacement);
+                }
+            }
+
             // Fills: SMOOTHED per-cell (single-owner ⇒ no bucket-fill; owner edges
             // rounded to match the borders). POOLED: unchanged cells keep their
             // tessellation; only changed cells earcut — O(changed) per frame.
@@ -361,14 +402,45 @@ export class PowerVectorFamily implements RenderFamily {
                 this.fillG.clear();
             }
             if (style.fillEnabled) {
-                this.drawCellFillsPooled(surface.cellFills, dx, dy, sKey, style);
+                this.drawCellFillsPooled(fills, dx, dy, sKey, style);
             } else {
                 this.resetMorphFillPool();
             }
 
-            // Borders: merged + smoothed inter-owner frontiers (same smoothed graph).
+            // Borders: merged + smoothed inter-owner frontiers (same smoothed
+            // graph — settled chains, stable all morph). The old-owner AHEAD
+            // piece additionally gets its outline stroked (its rim + the moving
+            // front), so the shrinking old territory reads bordered until it
+            // animates away — the stroke vanishes WITH the piece, no pop.
             if (style.borderEnabled) {
                 this.drawBorders(surface.frontiers, surface.worldBorders, dx, dy, style);
+                for (const piece of aheadPieces) {
+                    const pts = piece.points;
+                    if (pts.length < 3) continue;
+                    this.borderG.moveTo(pts[0]![0] + dx, pts[0]![1] + dy);
+                    for (let i = 1; i < pts.length; i++) {
+                        this.borderG.lineTo(pts[i]![0] + dx, pts[i]![1] + dy);
+                    }
+                    this.borderG.closePath();
+                    this.borderG.stroke({
+                        width: style.borderWidth,
+                        color: style.borderBlend
+                            ? blendColors(
+                                  this.borderColor(piece.ownerId, style),
+                                  this.borderColor(
+                                      frame.fronts!.find((af) =>
+                                          piece.siteId!.startsWith(af.siteId),
+                                      )?.front.ownerIn ?? piece.ownerId,
+                                      style,
+                                  ),
+                                  0.5,
+                              )
+                            : this.borderColor(piece.ownerId, style),
+                        alpha: style.borderAlpha,
+                        join: 'round',
+                        cap: 'round',
+                    });
+                }
             } else this.borderG.clear();
 
             // The idle caches are now stale (fillG holds morph static content).

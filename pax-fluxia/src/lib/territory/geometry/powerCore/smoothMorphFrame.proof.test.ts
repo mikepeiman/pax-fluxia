@@ -32,6 +32,7 @@ import {
 } from './sharedEdgeGraph';
 import { smoothSharedEdges } from './smoothSharedEdges';
 import { buildSurfaceFromCells } from './buildSurfaceFromCells';
+import { splitCellByFront } from './conquestFrontField';
 import { KineticTransitionRuntime } from './kineticTransitionRuntime';
 import { WORLD_OWNER, type Point, type PowerCell, type WorldRect } from './powerCoreTypes';
 import type { KineticEndpointState } from './kineticTypes';
@@ -229,19 +230,76 @@ describe('conquest front completes early (no settle pop)', () => {
         conquestOrigins: CONQUEST_ORIGINS,
     });
 
-    it('by p=0.95 the captured cell is a SINGLE settled-owner part (front done)', () => {
+    it('by p=0.95 the front is DONE: no overlay, captured cell settled-owner', () => {
         const frame = rt.sampleFull(950)!;
         const parts = frame.bubbleCells.filter((c) => c.siteId === CAPTURED);
         expect(parts.length).toBe(1);
         expect(parts[0]!.ownerId).toBe(NEW_OWNER);
+        expect(frame.fronts ?? []).toHaveLength(0);
     });
 
-    it('mid-sweep still shows both owners (the sweep itself is unchanged)', () => {
+    it('mid-sweep: cell UNSPLIT (settled owner) + an overlay front with 0<q<1', () => {
         const frame = rt.sampleFull(500)!;
-        const owners = new Set(
-            frame.bubbleCells.filter((c) => c.siteId === CAPTURED).map((c) => c.ownerId),
+        const parts = frame.bubbleCells.filter((c) => c.siteId === CAPTURED);
+        expect(parts.length).toBe(1); // split-after-smoothing: graph never sees a split
+        expect(parts[0]!.ownerId).toBe(NEW_OWNER);
+        const front = (frame.fronts ?? []).find((f) => f.siteId === CAPTURED);
+        expect(front).toBeTruthy();
+        expect(front!.q).toBeGreaterThan(0);
+        expect(front!.q).toBeLessThan(1);
+        // The overlay clip on the SMOOTHED fill yields both owners mid-sweep.
+        const surface = buildSurfaceFromCells([...frame.frozenCells, ...frame.bubbleCells], 2);
+        const fill = surface.cellFills.find((f) => f.siteId === CAPTURED)!;
+        const pieces = splitCellByFront(
+            { siteId: CAPTURED, ownerId: front!.front.ownerIn, points: fill.points } as never,
+            front!.front,
+            front!.q,
         );
+        const owners = new Set(pieces.map((p) => p.ownerId));
         expect(owners.size).toBe(2);
+    });
+
+    it('ACCEPTANCE GATE: no border reorganization at front completion (was 33.75px in one frame)', () => {
+        // The user-visible "overshoot that snaps back": the split's junctions used
+        // to reorganize the smoothing chains in ONE frame at the completion
+        // crossing (~p=0.828). With split-after-smoothing the chains are settled-
+        // topology all morph long — the frontier jump across the crossing must be
+        // motion-scale, never a reorganization.
+        const lines = (t: number): [number, number][][] => {
+            const f = rt.sampleFull(t)!;
+            const s = buildSurfaceFromCells([...f.frozenCells, ...f.bubbleCells], 2);
+            return [...s.frontiers, ...s.worldBorders].map((x) => x.points as [number, number][]);
+        };
+        const ptSegD = (px: number, py: number, ax: number, ay: number, bx: number, by: number) => {
+            const dx = bx - ax;
+            const dy = by - ay;
+            const l2 = dx * dx + dy * dy;
+            if (l2 < 1e-12) return Math.hypot(px - ax, py - ay);
+            let t = ((px - ax) * dx + (py - ay) * dy) / l2;
+            t = t < 0 ? 0 : t > 1 ? 1 : t;
+            return Math.hypot(ax + t * dx - px, ay + t * dy - py);
+        };
+        const maxDev = (A: [number, number][][], B: [number, number][][]) => {
+            let worst = 0;
+            for (const L of A) {
+                for (const p of L) {
+                    let best = Infinity;
+                    for (const M of B) {
+                        for (let i = 0; i < M.length - 1; i++) {
+                            const d = ptSegD(p[0], p[1], M[i]![0], M[i]![1], M[i + 1]![0], M[i + 1]![1]);
+                            if (d < best) best = d;
+                        }
+                    }
+                    if (best > worst) worst = best;
+                }
+            }
+            return worst;
+        };
+        for (const [a, b] of [[810, 820], [820, 825], [825, 830], [830, 835], [835, 840]] as const) {
+            expect(maxDev(lines(a), lines(b)), `jump ${a}→${b}`).toBeLessThan(2);
+        }
+        // After completion: byte-stable.
+        expect(maxDev(lines(850), lines(900))).toBeLessThan(1e-6);
     });
 });
 
@@ -443,12 +501,14 @@ describe('ONE-DIAGRAM morph (runtime.sampleFull): per-cell fills tile completely
                 // Cells tile the clip ⇒ the per-cell fill is a complete map, no gaps.
                 expect(area / CLIP_AREA).toBeGreaterThan(0.999);
                 expect(area / CLIP_AREA).toBeLessThan(1.001);
-                // Both owners of the captured cell are present mid-sweep (the split
-                // actually renders as a shape change, not a flip).
-                const capturedOwners = new Set(
-                    cells.filter((c) => c.siteId === CAPTURED).map((c) => c.ownerId),
-                );
-                if (t >= 250 && t <= 750) expect(capturedOwners.size).toBe(2);
+                // Split-after-smoothing: the cell is UNSPLIT (settled owner) and
+                // the in-flight conquest is an overlay FRONT descriptor mid-sweep.
+                if (t >= 250 && t <= 750) {
+                    const front = (frame!.fronts ?? []).find((f) => f.siteId === CAPTURED);
+                    expect(front).toBeTruthy();
+                    expect(front!.q).toBeGreaterThan(0);
+                    expect(front!.q).toBeLessThan(1);
+                }
             }
         });
 

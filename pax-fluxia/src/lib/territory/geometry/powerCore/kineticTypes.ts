@@ -122,6 +122,22 @@ export interface TransitionBubble {
     readonly bounds: { minX: number; minY: number; maxX: number; maxY: number };
 }
 
+/**
+ * An in-flight conquest front as a PRESENTATION OVERLAY descriptor
+ * (split-after-smoothing): the geometry/graph domain renders the captured cell
+ * UNSPLIT under its settled owner (so smoothing-chain topology never changes
+ * mid-morph — the fix for the one-frame border-reorganization snap at front
+ * completion), and the renderer clips the cell's SMOOTHED fill by this front to
+ * paint the old owner's shrinking side.
+ */
+export interface ActiveConquestFront {
+    /** The captured cell's siteId (matches the surface cell fill). */
+    readonly siteId: string;
+    readonly front: import('./conquestFrontField').ConquestFront;
+    /** Front progress 0..1 (1 ⇒ fully captured; overlay is a no-op). */
+    readonly q: number;
+}
+
 /** One sampled frame: frozen cells (S1 refs) + the morphing bubble cells. */
 export interface KineticFrame {
     /** p passed in, clamped to [0,1]. */
@@ -136,4 +152,9 @@ export interface KineticFrame {
      * (p=0/1), which return the endpoint cells directly.
      */
     readonly miniSites?: readonly import('./buildPowerCellsFromSites').PowerCoreSite[];
+    /**
+     * FULL-diagram frames only: in-flight conquest fronts to apply as fill
+     * overlays on the SMOOTHED surface (cells in bubbleCells are UNSPLIT).
+     */
+    readonly fronts?: readonly ActiveConquestFront[];
 }

@@ -31,6 +31,26 @@ superseding docs:
 ## 2026-07-08
 
 ### Open
+- [ ] **Territory architecture cleanup + refactor (user-directed, "soon")** `[territory][arch]` —
+  execute on the 2026-07-08 audit findings: consolidate the 6 Chaikin + 6 shoelace + assorted geo
+  duplicates into one geometry kernel; fix upward imports (geometry→families
+  buildPowerVoronoiFrontierTopology, geometry→renderers DISCONNECT_OWNER_ID); quarantine/retire
+  legacy-mode-only renderers + adapters + abandoned experiments (orchestrator DY4OT, layers/);
+  thin GameCanvas's family-lifecycle orchestration into a coordinator. Verify audit claims
+  before acting (audit ran on an unverified model).
+- [ ] **Settings Search: click-through STILL broken + highlight NEVER seen (user, 3rd report)**
+  `[ui][settings]` — clicking a result does not reliably reveal it; panels open with a sub-panel
+  selected when they should not; the result highlight/flash was specified and DECLARED DELIVERED
+  repeatedly but the user has NEVER seen it once. Treat as un-delivered: trace the real mount/reveal
+  path end-to-end (no-UI-hallucination rule), fix subsection selection, and prove the highlight
+  fires with a test + exact repro steps for the user.
+- [ ] **ACTIVE: split-after-smoothing (the snap fix)** `[territory][transitions]` — the conquest
+  split is the ONE element spliced into and removed from the PRE|POST interpolation (proven:
+  33.75px single-frame chain reorganization at front completion, 0.00px after). Move the split out
+  of the geometry/graph domain: graph+smoothing run on UNSPLIT cells (settled chain topology all
+  morph long); the front becomes a presentation overlay clipping the captured cell's SMOOTHED fill;
+  ahead piece = old colour + outline stroke; acceptance gate = frontier jump across the completion
+  crossing ≈ 0px.
 - [x] **Default to power_core geometry; retire the 0319 SELECTION (user directive)** `[territory][geometry]`
   — DONE b9f2f7d8c: normalize→power_core always (auto-migrates persisted configs), defaults flipped,
   phase_edges 0319 pin removed, Geometry Source selector removed from UI, parity suite repurposed to
