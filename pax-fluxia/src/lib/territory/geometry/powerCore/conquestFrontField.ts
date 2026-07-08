@@ -101,27 +101,30 @@ function splitLinear(cell: PowerCell, front: ConquestFront, q: number): PowerCel
     return parts;
 }
 
-// ── Mode 2: radial (curved arrival-time front, ONE clean polygon per side) ──
+// ── Mode 2: radial (curved arrival-time front, exact disk∩polygon walk) ─────
 //
-// The captured cell is convex, so {T ≤ c} = cell ∩ disk(source, c) is a single
-// convex region bounded by the near cell edges + one circle arc. We build BOTH
-// sides as ONE polygon each by walking the boundary, inserting the exact circle
-// crossings, then replacing the straight cut between the two crossings with a
-// sampled arc. NO fan triangulation — that produced dozens of thin sub-cells
-// that rendered as a radiating "star" and blew up PIXI's earcut fill.
+// {T ≤ c} = cell ∩ disk(source, c). Both are convex, so the intersection is one
+// convex region whose boundary ALTERNATES cell-boundary runs (inside the disk)
+// and circle arcs (inside the cell). We walk the cell ring once, recording every
+// circle crossing in walk order (a long edge can carry TWO — a "lens" where the
+// disk pokes through its middle with both endpoints outside; routine for world-
+// edge columns). Crossings alternate entry/exit by construction; arcs connect
+// exit→next-entry traversed in the RING'S orientation (interior stays on the
+// same side — determined, not guessed; a sampled inside-test heuristic failed
+// twice). The old-owner side is the complement: one cap polygon per outside run,
+// its arc traversed opposite. No fan triangulation, no chord fallback — on any
+// numeric degeneracy (tangency breaking alternation) we fall back to the
+// watertight splitLinear, never to self-intersecting chord rings.
 
-function pointInPoly(p: Point, ring: readonly Point[]): boolean {
-    let inside = false;
-    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-        const xi = ring[i]![0];
-        const yi = ring[i]![1];
-        const xj = ring[j]![0];
-        const yj = ring[j]![1];
-        if (yi > p[1] !== yj > p[1] && p[0] < ((xj - xi) * (p[1] - yi)) / (yj - yi) + xi) {
-            inside = !inside;
-        }
-    }
-    return inside;
+/** Min distance from (sx,sy) to segment ab. */
+function segDist(sx: number, sy: number, a: Point, b: Point): number {
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const len2 = dx * dx + dy * dy;
+    if (len2 < 1e-12) return Math.hypot(a[0] - sx, a[1] - sy);
+    let t = ((sx - a[0]) * dx + (sy - a[1]) * dy) / len2;
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    return Math.hypot(a[0] + t * dx - sx, a[1] + t * dy - sy);
 }
 
 function splitRadial(cell: PowerCell, front: ConquestFront, q: number): PowerCell[] {
@@ -130,115 +133,188 @@ function splitRadial(cell: PowerCell, front: ConquestFront, q: number): PowerCel
     const sx = front.originX;
     const sy = front.originY;
     const T = (p: Point) => Math.hypot(p[0] - sx, p[1] - sy);
+    const n = pts.length;
 
+    // Ring orientation (shoelace sign) — arcs follow it so interiors stay left.
+    let area2 = 0;
+    for (let i = 0; i < n; i++) {
+        const a = pts[i]!;
+        const b = pts[(i + 1) % n]!;
+        area2 += a[0] * b[1] - b[0] * a[1];
+    }
+    const orient = area2 >= 0 ? 1 : -1;
+
+    // Threshold span: minD = nearest point of the BOUNDARY (edge interiors
+    // included — vertex-only minD made q=0 instantly swallow everything nearer
+    // than the first corner on long cells), maxD = farthest vertex (max distance
+    // to a convex polygon is at a vertex). q=0 ⇒ tangent, nothing captured;
+    // q=1 ⇒ everything.
     let minD = Infinity;
     let maxD = -Infinity;
-    for (const p of pts) {
-        const d = T(p);
+    for (let i = 0; i < n; i++) {
+        const d = segDist(sx, sy, pts[i]!, pts[(i + 1) % n]!);
         if (d < minD) minD = d;
-        if (d > maxD) maxD = d;
+        const dv = T(pts[i]!);
+        if (dv > maxD) maxD = dv;
     }
     if (maxD - minD < 1e-6) {
         return [part(cell, front.starId, q >= 0.5 ? front.ownerIn : front.ownerOld, [...pts])];
     }
     const c = minD + (maxD - minD) * q;
 
-    // Exact circle-segment crossing at distance c from the source (t ∈ (0,1)).
-    const crossSeg = (a: Point, b: Point): Point | null => {
+    // All circle crossings per segment, ascending t. Distance along a segment is
+    // convex ⇒ both-in: 0; opposite sides: 1; both-out: 0 or 2 (lens).
+    const crossSeg = (a: Point, b: Point, aIn: boolean, bIn: boolean): Point[] => {
+        if (aIn && bIn) return [];
         const dx = b[0] - a[0];
         const dy = b[1] - a[1];
         const A = dx * dx + dy * dy;
-        if (A < 1e-12) return null;
+        if (A < 1e-12) return [];
         const fx = a[0] - sx;
         const fy = a[1] - sy;
         const B = 2 * (fx * dx + fy * dy);
         const C = fx * fx + fy * fy - c * c;
         const disc = B * B - 4 * A * C;
-        if (disc < 0) return null;
+        if (disc <= 0) return [];
         const sq = Math.sqrt(disc);
+        const roots: number[] = [];
         for (const t of [(-B - sq) / (2 * A), (-B + sq) / (2 * A)]) {
-            if (t > 1e-9 && t < 1 - 1e-9) return [a[0] + t * dx, a[1] + t * dy];
+            if (t > 1e-9 && t < 1 - 1e-9) roots.push(t);
         }
-        return null;
+        if (aIn !== bIn) {
+            // Exactly one true crossing; if both roots survived numerically, the
+            // transition crossing is the exit (larger t) when leaving, the entry
+            // (smaller t) when entering.
+            if (roots.length === 0) return [];
+            const t = roots.length === 1 ? roots[0]! : aIn ? roots[1]! : roots[0]!;
+            return [[a[0] + t * dx, a[1] + t * dy]];
+        }
+        // both out: need the full lens pair or nothing (tangency).
+        if (roots.length !== 2) return [];
+        return roots.map((t) => [a[0] + t * dx, a[1] + t * dy] as Point);
     };
 
-    // Walk the boundary → incoming (T≤c) / old (T>c) vertex rings, inserting the
-    // exact crossings into BOTH at each transition.
-    const low: Point[] = [];
-    const high: Point[] = [];
-    const lowCross: number[] = [];
-    const highCross: number[] = [];
-    const n = pts.length;
+    // Single ordered boundary walk: vertices classified in/out; crossings in walk
+    // order. State flips at each crossing; verify vertex classes stay consistent
+    // (tangency degeneracy ⇒ watertight linear fallback).
+    interface Crossing {
+        readonly p: Point;
+        /** true = out→in (entry into the disk). */
+        entry: boolean;
+        /** Index into the walk position (after which vertex). */
+        readonly afterVertex: number;
+    }
+    const inV: boolean[] = [];
+    for (let i = 0; i < n; i++) inV.push(T(pts[i]!) <= c);
+    const crossings: Crossing[] = [];
     for (let i = 0; i < n; i++) {
-        const a = pts[i]!;
-        const b = pts[(i + 1) % n]!;
-        const aIn = T(a) <= c;
-        if (aIn) low.push([a[0], a[1]]);
-        else high.push([a[0], a[1]]);
-        if (aIn !== (T(b) <= c)) {
-            const cp = crossSeg(a, b);
-            if (cp) {
-                lowCross.push(low.length);
-                low.push(cp);
-                highCross.push(high.length);
-                high.push(cp);
-            }
+        const roots = crossSeg(pts[i]!, pts[(i + 1) % n]!, inV[i]!, inV[(i + 1) % n]!);
+        if (roots.length === 1) {
+            crossings.push({ p: roots[0]!, entry: !inV[i]!, afterVertex: i });
+        } else if (roots.length === 2) {
+            // lens on an out-out segment: entry then exit.
+            crossings.push({ p: roots[0]!, entry: true, afterVertex: i });
+            crossings.push({ p: roots[1]!, entry: false, afterVertex: i });
         }
     }
 
-    // Circle arc between two crossings, on the side INSIDE the cell, endpoints
-    // exclusive (they're already the crossing points in the ring). There are two
-    // candidate arcs (the two ways around the circle); pick the one whose sampled
-    // points actually lie inside the cell. A single-midpoint test is unreliable
-    // when the crossings converge near q→1 (the midpoint sits on the boundary) and
-    // can flip to the LONG way ⇒ a giant arc spanning the whole circle ⇒ a bloated
-    // blotch + an earcut stall. Sampling both directions is robust.
-    const steps = Math.max(8, front.subdiv ?? 8);
-    const buildArc = (aStart: number, span: number): Point[] => {
+    if (crossings.length === 0) {
+        // No boundary intersection: all-in or all-out (source is outside the
+        // cell — the attack origin sits a full outradius back — so a fully
+        // interior disk cannot occur).
+        const allIn = inV.every(Boolean);
+        return [
+            part(cell, front.starId, allIn ? front.ownerIn : front.ownerOld, [...pts]),
+        ];
+    }
+
+    // Alternation sanity (numeric tangency can break it) → linear fallback.
+    let alternates = crossings.length % 2 === 0;
+    for (let i = 0; alternates && i < crossings.length; i++) {
+        if (crossings[i]!.entry === crossings[(i + 1) % crossings.length]!.entry) {
+            alternates = false;
+        }
+    }
+    if (!alternates) return splitLinear(cell, front, q);
+
+    // Arc from `from` to `to` around the circle in direction `dir` (+1 = angle
+    // increasing). Endpoints exclusive. Density ~15°/step, adaptive to span.
+    const arcPts = (from: Point, to: Point, dir: number): Point[] => {
+        const aA = Math.atan2(from[1] - sy, from[0] - sx);
+        const aB = Math.atan2(to[1] - sy, to[0] - sx);
+        let d = aB - aA;
+        const TAU = Math.PI * 2;
+        if (dir > 0) {
+            while (d <= 0) d += TAU;
+            while (d > TAU) d -= TAU;
+        } else {
+            while (d >= 0) d -= TAU;
+            while (d < -TAU) d += TAU;
+        }
+        const steps = Math.max(2, Math.min(64, Math.ceil((Math.abs(d) * 24) / Math.PI)));
         const out: Point[] = [];
         for (let k = 1; k < steps; k++) {
-            const a = aStart + (span * k) / steps;
+            const a = aA + (d * k) / steps;
             out.push([sx + c * Math.cos(a), sy + c * Math.sin(a)]);
         }
         return out;
     };
-    const insideCount = (arc: Point[]): number => {
-        let n = 0;
-        for (const p of arc) if (pointInPoly(p, pts)) n++;
-        return n;
-    };
-    const sampleArc = (pA: Point, pB: Point): Point[] => {
-        const aA = Math.atan2(pA[1] - sy, pA[0] - sx);
-        const aB = Math.atan2(pB[1] - sy, pB[0] - sx);
-        let d = aB - aA;
-        while (d <= -Math.PI) d += 2 * Math.PI;
-        while (d > Math.PI) d -= 2 * Math.PI;
-        const shortArc = buildArc(aA, d);
-        const longArc = buildArc(aA, d > 0 ? d - 2 * Math.PI : d + 2 * Math.PI);
-        return insideCount(shortArc) >= insideCount(longArc) ? shortArc : longArc;
-    };
 
-    // Splice the arc into a side's ring (its own verts are contiguous, bracketed
-    // by the two crossings; the arc replaces the straight cut on the other side).
-    const spliceArc = (ring: Point[], crossIdx: number[]): Point[] => {
-        const [i0, i1] = crossIdx as [number, number];
-        if (i1 - i0 - 1 > 0) {
-            return [...ring.slice(i0, i1 + 1), ...sampleArc(ring[i1]!, ring[i0]!)];
+    /** Cell vertices strictly between two crossings, in walk order (cyclic). */
+    const vertsBetween = (a: Crossing, b: Crossing): Point[] => {
+        const out: Point[] = [];
+        let v = (a.afterVertex + 1) % n;
+        // walk vertices until we pass b's segment. b lies after vertex
+        // b.afterVertex, so vertices up to and including b.afterVertex qualify —
+        // unless a and b share a segment with a before b (lens): then none.
+        if (a.afterVertex === b.afterVertex && sameLensOrder(a, b)) return out;
+        for (let guard = 0; guard < n; guard++) {
+            out.push([pts[v]![0], pts[v]![1]]);
+            if (v === b.afterVertex) break;
+            v = (v + 1) % n;
         }
-        return [...ring.slice(i1), ...ring.slice(0, i0 + 1), ...sampleArc(ring[i0]!, ring[i1]!)];
+        return out;
+    };
+    const sameLensOrder = (a: Crossing, b: Crossing): boolean => {
+        // On the same segment, the walk meets a first iff its parameter along the
+        // segment is smaller — equivalent to being closer to the segment start.
+        const s = pts[a.afterVertex]!;
+        const da = (a.p[0] - s[0]) ** 2 + (a.p[1] - s[1]) ** 2;
+        const db = (b.p[0] - s[0]) ** 2 + (b.p[1] - s[1]) ** 2;
+        return da <= db;
     };
 
+    // Rotate so crossings[0] is an ENTRY.
+    const first = crossings.findIndex((x) => x.entry);
+    const ordered = [...crossings.slice(first), ...crossings.slice(0, first)];
+    const pairs = ordered.length / 2;
+
+    // INCOMING: entry_k → in-verts → exit_k, then arc exit_k → entry_{k+1}.
+    const incoming: Point[] = [];
+    for (let k = 0; k < pairs; k++) {
+        const entry = ordered[2 * k]!;
+        const exit = ordered[2 * k + 1]!;
+        const nextEntry = ordered[(2 * k + 2) % ordered.length]!;
+        incoming.push([entry.p[0], entry.p[1]]);
+        for (const v of vertsBetween(entry, exit)) incoming.push(v);
+        incoming.push([exit.p[0], exit.p[1]]);
+        for (const a of arcPts(exit.p, nextEntry.p, orient)) incoming.push(a);
+    }
+
+    // OLD caps: one per outside run — exit_k → out-verts → entry_{k+1}, then the
+    // shared arc back (opposite direction).
     const parts: PowerCell[] = [];
-    if (lowCross.length === 2 && highCross.length === 2) {
-        const lowPoly = spliceArc(low, lowCross);
-        const highPoly = spliceArc(high, highCross);
-        if (lowPoly.length >= 3) parts.push(part(cell, front.starId, front.ownerIn, lowPoly));
-        if (highPoly.length >= 3) parts.push(part(cell, front.starId, front.ownerOld, highPoly));
-    } else {
-        // Rare: circle meets the cell boundary at ≠2 points. Clean straight
-        // chords (no fan) — occasionally less curved, never a starburst.
-        if (low.length >= 3) parts.push(part(cell, front.starId, front.ownerIn, low));
-        if (high.length >= 3) parts.push(part(cell, front.starId, front.ownerOld, high));
+    if (incoming.length >= 3) {
+        parts.push(part(cell, front.starId, front.ownerIn, incoming));
+    }
+    for (let k = 0; k < pairs; k++) {
+        const exit = ordered[2 * k + 1]!;
+        const nextEntry = ordered[(2 * k + 2) % ordered.length]!;
+        const cap: Point[] = [[exit.p[0], exit.p[1]]];
+        for (const v of vertsBetween(exit, nextEntry)) cap.push(v);
+        cap.push([nextEntry.p[0], nextEntry.p[1]]);
+        for (const a of arcPts(nextEntry.p, exit.p, -orient)) cap.push(a);
+        if (cap.length >= 3) parts.push(part(cell, front.starId, front.ownerOld, cap));
     }
     if (parts.length === 0) {
         parts.push(part(cell, front.starId, q >= 0.5 ? front.ownerIn : front.ownerOld, [...pts]));
