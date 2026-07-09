@@ -44,18 +44,14 @@ superseding docs:
   repeatedly but the user has NEVER seen it once. Treat as un-delivered: trace the real mount/reveal
   path end-to-end (no-UI-hallucination rule), fix subsection selection, and prove the highlight
   fires with a test + exact repro steps for the user.
-- [ ] **ACTIVE: CAPSULE front field — the radial front must START as the full entry border (user
-  defect #1, root-caused)** `[territory][transitions]` — the radial field is distance-from-a-POINT,
-  so at q=0 the front is tangent to one rim point and "grows from a point" (user: 100% a defect).
-  Fix = distance-from-the-ENTRY-EDGE (capsule field): at q=0 the level set IS the shared
-  attacker↔defender border (full width — coincides with the pre-existing border, so it visually
-  detaches and sweeps: the design-history "water wave from the shore"), sweeping inward as an
-  expanding offset curve. Entry edge(s) = the PRE-graph captured-vs-victor rim edges (computable);
-  fall back to point-origin when the attacker is not adjacent. Needs: capsule value/crossing solvers
-  (bisection is robust + field-agnostic), a field-generic split walk (the radial walk is
-  circle-specific), chains + clip reuse the same field. NOTE: the "dissolving frontier" approach was
-  tried and FALSIFIED by test (the entry border classifies behind the front instantly — geometrically
-  correct); removed in favour of this.
+- [x] **Conquest border vanishing at start (user defect, CLOSED d5048b6c7)** `[territory][transitions]`
+  — user ruling: the ripple-from-a-point capture is FINE; the defect was the existing attacker↔
+  defender border VANISHING at conquest start and being redrawn outward from the ripple point.
+  Fixed: dissolvingFrontiers (PRE-graph-only rim borders) drawn clipped AHEAD of the front, matched
+  by rim proximity — one complete conquest border every frame. Gated in RADIAL mode (the earlier
+  "falsification" of this approach ran in linear mode — invalid; LESSON: gate in the mode the
+  feature serves). SHELVED: the "capsule field" front-shape idea (whole shared border advancing as
+  one wave — a possible future front-shape VARIANT, not a fix; user confirmed unneeded).
 - [x] **split-after-smoothing (the snap fix)** `[territory][transitions]` — DONE (see below) — the conquest
   split is the ONE element spliced into and removed from the PRE|POST interpolation (proven:
   33.75px single-frame chain reorganization at front completion, 0.00px after). Move the split out
