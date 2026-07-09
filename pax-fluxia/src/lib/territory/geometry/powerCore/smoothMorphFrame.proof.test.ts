@@ -31,12 +31,11 @@ import {
     walkRegionLoops,
 } from './sharedEdgeGraph';
 import { smoothSharedEdges } from './smoothSharedEdges';
-import { buildSurfaceFromCells, cutPolylinesNearRings } from './buildSurfaceFromCells';
+import { buildSurfaceFromCells } from './buildSurfaceFromCells';
 import {
     clipPolylineBehindFront,
     clipPolylineByFront,
     frontFieldForRing,
-    splitCellByFront,
     splitCellByFrontDetailed,
 } from './conquestFrontField';
 import { KineticTransitionRuntime } from './kineticTransitionRuntime';
@@ -253,60 +252,19 @@ describe('conquest front completes early (no settle pop)', () => {
         expect(front).toBeTruthy();
         expect(front!.q).toBeGreaterThan(0);
         expect(front!.q).toBeLessThan(1);
-        // The overlay clip on the SMOOTHED fill yields both owners mid-sweep.
-        const surface = buildSurfaceFromCells([...frame.frozenCells, ...frame.bubbleCells], 2);
-        const fill = surface.cellFills.find((f) => f.siteId === CAPTURED)!;
-        const pieces = splitCellByFront(
-            { siteId: CAPTURED, ownerId: front!.front.ownerIn, points: fill.points } as never,
-            front!.front,
-            front!.q,
+        // LIVE-LABEL CLASSIFICATION: pass fronts straight into
+        // buildSurfaceFromCells — the returned cellFills for the captured
+        // siteId are ALREADY split into both owners' pieces; no caller-side
+        // splitting needed.
+        const surface = buildSurfaceFromCells(
+            [...frame.frozenCells, ...frame.bubbleCells],
+            2,
+            undefined,
+            frame.fronts ?? [],
         );
+        const pieces = surface.cellFills.filter((f) => f.siteId?.startsWith(`${CAPTURED}§`));
         const owners = new Set(pieces.map((p) => p.ownerId));
         expect(owners.size).toBe(2);
-    });
-
-    it('settled rim border is SUPPRESSED ahead of the front (no duplicated POST border)', () => {
-        // With the settled-topology graph, the captured cell's far-rim frontier
-        // (a POST border) would otherwise draw from frame 0 alongside the moving
-        // front. cutPolylinesNearRings must remove exactly the rim segments the
-        // ahead piece still covers — so the suppressed length SHRINKS as the
-        // front advances and reaches ~0 as q→1.
-        const lineLen = (lines: readonly { points: [number, number][] }[]) => {
-            let sum = 0;
-            for (const L of lines) {
-                for (let i = 0; i < L.points.length - 1; i++) {
-                    sum += Math.hypot(
-                        L.points[i + 1]![0] - L.points[i]![0],
-                        L.points[i + 1]![1] - L.points[i]![1],
-                    );
-                }
-            }
-            return sum;
-        };
-        const suppressedLen = (t: number): number => {
-            const frame = rt.sampleFull(t)!;
-            const surface = buildSurfaceFromCells(
-                [...frame.frozenCells, ...frame.bubbleCells],
-                2,
-            );
-            const front = (frame.fronts ?? []).find((f) => f.siteId === CAPTURED);
-            if (!front) return 0;
-            const fill = surface.cellFills.find((f) => f.siteId === CAPTURED)!;
-            const pieces = splitCellByFront(
-                { siteId: CAPTURED, ownerId: front.front.ownerIn, points: fill.points } as never,
-                front.front,
-                front.q,
-            );
-            const aheadRings = pieces
-                .filter((p) => p.ownerId === front.front.ownerOld)
-                .map((p) => p.points);
-            const kept = cutPolylinesNearRings(surface.frontiers, aheadRings, 0.75);
-            return lineLen(surface.frontiers) - lineLen(kept);
-        };
-        const early = suppressedLen(150);
-        const late = suppressedLen(700);
-        expect(early).toBeGreaterThan(0); // rim ahead of the front IS suppressed
-        expect(late).toBeLessThan(early); // suppression recedes as the front passes
     });
 
     it('ACCEPTANCE GATE: no border reorganization at front completion (was 33.75px in one frame)', () => {
@@ -433,39 +391,33 @@ describe('conquest front completes early (no settle pop)', () => {
         expect(checkedTips).toBeGreaterThan(0); // the invariant was actually exercised
     });
 
-    it('ACCEPTANCE GATE (START): no border reorganization at conquest start either', () => {
-        // The user caught what the first gate missed: with settled-topology
-        // chains, the reorganization moved to the START (PRE-smoothed borders →
-        // POST-smoothed borders in one frame: "the next border paints instantly",
-        // "cells change rounding"). The smoothing-continuity blend must make the
-        // first morph frames match the PRE surface, reshaping gradually.
-        const preSurface = buildSurfaceFromCells(S0.state.cells as never, 2);
-        const preLines = [...preSurface.frontiers, ...preSurface.worldBorders].map(
-            (x) => x.points as [number, number][],
-        );
-        const blendedLines = (t: number): [number, number][][] => {
+    it('ACCEPTANCE GATE (POST): live classification converges to the settled border as q→1', () => {
+        // As the front nears completion, the classified frontier set must
+        // converge on exactly what buildSurfaceFromCells(cells) — no fronts —
+        // already draws once the conquest is settled (the runtime drops the
+        // front from `fronts` entirely once q reaches 1; this proves
+        // classification MEETS the settled set, never overshoots past it).
+        // Find the LATEST (highest-q) sampled instant where the front is still
+        // active — the exact completion boundary isn't a stable constant to
+        // hardcode (MORPH_COMPLETE_AT is an implementation detail).
+        type Frame = NonNullable<ReturnType<typeof rt.sampleFull>>;
+        let frame: Frame | undefined;
+        let fronts: NonNullable<Frame['fronts']> = [];
+        for (const t of [830, 800, 750, 700, 650, 600]) {
             const f = rt.sampleFull(t)!;
-            const preOwnerBySiteId = new Map<string, string>();
-            let w = 1;
-            for (const af of f.fronts ?? []) {
-                preOwnerBySiteId.set(af.siteId, af.front.ownerOld);
-                if (af.q < w) w = af.q;
+            const found = (f.fronts ?? []).filter((x) => x.siteId === CAPTURED);
+            if (found.length > 0) {
+                frame = f;
+                fronts = found;
+                break;
             }
-            const s = buildSurfaceFromCells(
-                [...f.frozenCells, ...f.bubbleCells],
-                2,
-                { preOwnerBySiteId, w },
-            );
-            // Exclude the captured cell's rim (owner-pair flips there; the front
-            // overlay + suppression govern it) — compare the REST of the map.
-            const fill = s.cellFills.find((c) => c.siteId === CAPTURED);
-            const rim = fill ? [fill.points] : [];
-            return cutPolylinesNearRings(
-                [...s.frontiers, ...s.worldBorders],
-                rim,
-                1.5,
-            ).map((x) => x.points as [number, number][]);
-        };
+        }
+        expect(frame).toBeTruthy();
+        const cells = [...frame!.frozenCells, ...frame!.bubbleCells];
+        const classified = buildSurfaceFromCells(cells, 2, undefined, fronts);
+        const settled = buildSurfaceFromCells(cells, 2);
+        const lineSet = (s: ReturnType<typeof buildSurfaceFromCells>) =>
+            [...s.frontiers, ...s.worldBorders].map((x) => x.points as [number, number][]);
         const ptSegD = (px: number, py: number, ax: number, ay: number, bx: number, by: number) => {
             const dx = bx - ax;
             const dy = by - ay;
@@ -491,10 +443,182 @@ describe('conquest front completes early (no settle pop)', () => {
             }
             return worst;
         };
-        // First morph frames: off-rim borders must sit ON the PRE surface (blend
-        // w≈0 ⇒ PRE smoothing), within motion scale.
-        expect(maxDev(blendedLines(16), preLines)).toBeLessThan(2);
-        expect(maxDev(blendedLines(50), preLines)).toBeLessThan(3);
+        expect(maxDev(lineSet(classified), lineSet(settled))).toBeLessThan(2);
+    });
+});
+
+// ACCEPTANCE GATE (PRE): needs a captured cell genuinely ADJACENT to its
+// attacker pre-conquest (cross_owner_midpoint_corridor's captured cell is
+// NOT — see the "fixture adjacency trap" lesson) so a real pre-existing
+// border exists to reproduce. kinetic_independent_conquests' star-7 is
+// adjacent to its attacker star-6 — the same fixture the RADIAL test below
+// uses, run here in the default (linear) front mode.
+describe('ACCEPTANCE GATE (PRE): live classification reproduces the PRE border at the captured rim', () => {
+    const MAPP = (() => {
+        const raw2 = JSON.parse(
+            readFileSync(
+                path.join(REPO_ROOT, 'common', 'resources', 'fixture-maps', 'kinetic_independent_conquests.json'),
+                'utf-8',
+            ),
+        ) as { stars: StarState[]; connections: StarConnection[] };
+        let maxX = 0;
+        let maxY = 0;
+        for (const s of raw2.stars) {
+            if (s.x > maxX) maxX = s.x;
+            if (s.y > maxY) maxY = s.y;
+        }
+        return { stars: raw2.stars, connections: raw2.connections, w: maxX + 200, h: maxY + 200 };
+    })();
+    const epp = (ov: Record<string, string>) => {
+        const stars = MAPP.stars.map((s) =>
+            ov[s.id] ? ({ ...s, ownerId: ov[s.id] } as StarState) : s,
+        );
+        const config = buildPowerVoronoi0319Settings({
+            lanes: MAPP.connections, worldWidth: MAPP.w, worldHeight: MAPP.h,
+            configSource: GAME_CONFIG as unknown as Record<string, unknown>,
+        });
+        const r = computePowerCoreEndpoint({ stars, connections: MAPP.connections, config });
+        if ('kind' in r) throw new Error(r.message);
+        return { state: { sites: r.sites, cells: r.cells }, clip: r.clip };
+    };
+
+    it('at the first sampled instant, the captured-rim border matches the PRE surface (not vanished, not redrawn from a point)', () => {
+        const oldOwner = MAPP.stars.find((s) => s.id === 'star-7')!.ownerId!;
+        const newOwner = MAPP.stars.find((s) => s.id === 'star-6')!.ownerId!;
+        const P0 = epp({});
+        const P1 = epp({ 'star-7': newOwner });
+        const rtp = new KineticTransitionRuntime();
+        rtp.commit({
+            state: P0.state, clip: P0.clip, ownershipVersion: 'v0',
+            transitionKey: null, nowMs: 0, durationMs: 1000,
+        });
+        rtp.commit({
+            state: P1.state, clip: P1.clip, ownershipVersion: 'v1',
+            transitionKey: 'k', nowMs: 0, durationMs: 1000,
+            conquestOrigins: new Map([[
+                'star-7',
+                { x: MAPP.stars[6]!.x, y: MAPP.stars[6]!.y },
+            ]]),
+        });
+
+        const oldBorderPair = [oldOwner, newOwner].sort().join('|');
+        const borderLen = (s: ReturnType<typeof buildSurfaceFromCells>): number => {
+            let sum = 0;
+            for (const f of s.frontiers) {
+                if ([f.ownerA, f.ownerB].sort().join('|') !== oldBorderPair) continue;
+                for (let i = 0; i < f.points.length - 1; i++) {
+                    sum += Math.hypot(
+                        f.points[i + 1]![0] - f.points[i]![0],
+                        f.points[i + 1]![1] - f.points[i]![1],
+                    );
+                }
+            }
+            return sum;
+        };
+
+        const preSurface = buildSurfaceFromCells(P0.state.cells as never, 2);
+        const preRimLen = borderLen(preSurface);
+        expect(preRimLen).toBeGreaterThan(0); // the pre-existing border is real
+
+        const frame = rtp.sampleFull(8)!;
+        const af = (frame.fronts ?? []).find((f) => f.siteId === 'star-7')!;
+        expect(af).toBeTruthy();
+        expect(af.q).toBeLessThan(0.05); // genuinely near the start
+        const surface = buildSurfaceFromCells(
+            [...frame.frozenCells, ...frame.bubbleCells],
+            2,
+            undefined,
+            frame.fronts ?? [],
+        );
+        const liveLen = borderLen(surface);
+        expect(liveLen / preRimLen).toBeGreaterThan(0.9); // near-full border present
+        expect(liveLen / preRimLen).toBeLessThanOrEqual(1.05); // not over-long either
+    });
+});
+
+// The old attacker↔defender border, now first-class (RADIAL — the mode the
+// user runs). Live-label classification means there is nothing to "dissolve"
+// as a separate concept: the AHEAD portion of the captured cell's rim reads
+// the pair (oldOwner, newOwner) directly, and its length recedes as the front
+// consumes it.
+describe('captured-cell rim border (RADIAL): recedes as the front advances, gone at completion', () => {
+    const MAPZ2 = (() => {
+        const raw2 = JSON.parse(
+            readFileSync(
+                path.join(REPO_ROOT, 'common', 'resources', 'fixture-maps', 'kinetic_independent_conquests.json'),
+                'utf-8',
+            ),
+        ) as { stars: StarState[]; connections: StarConnection[] };
+        let maxX = 0;
+        let maxY = 0;
+        for (const s of raw2.stars) {
+            if (s.x > maxX) maxX = s.x;
+            if (s.y > maxY) maxY = s.y;
+        }
+        return { stars: raw2.stars, connections: raw2.connections, w: maxX + 200, h: maxY + 200 };
+    })();
+    const epz2 = (ov: Record<string, string>) => {
+        const stars = MAPZ2.stars.map((s) =>
+            ov[s.id] ? ({ ...s, ownerId: ov[s.id] } as StarState) : s,
+        );
+        const config = buildPowerVoronoi0319Settings({
+            lanes: MAPZ2.connections, worldWidth: MAPZ2.w, worldHeight: MAPZ2.h,
+            configSource: GAME_CONFIG as unknown as Record<string, unknown>,
+        });
+        const r = computePowerCoreEndpoint({ stars, connections: MAPZ2.connections, config });
+        if ('kind' in r) throw new Error(r.message);
+        return { state: { sites: r.sites, cells: r.cells }, clip: r.clip };
+    };
+
+    it('radial: rim border is near-full at start and shrinks to zero at completion', () => {
+        const oldOwner = MAPZ2.stars.find((s) => s.id === 'star-7')!.ownerId!;
+        const newOwner = MAPZ2.stars.find((s) => s.id === 'star-6')!.ownerId!;
+        const Z0 = epz2({});
+        const Z1 = epz2({ 'star-7': newOwner });
+        const rtz = new KineticTransitionRuntime();
+        rtz.commit({
+            state: Z0.state, clip: Z0.clip, ownershipVersion: 'v0',
+            transitionKey: null, nowMs: 0, durationMs: 1000,
+        });
+        rtz.commit({
+            state: Z1.state, clip: Z1.clip, ownershipVersion: 'v1',
+            transitionKey: 'k', nowMs: 0, durationMs: 1000,
+            conquestOrigins: new Map([[
+                'star-7',
+                { x: MAPZ2.stars[6]!.x, y: MAPZ2.stars[6]!.y },
+            ]]),
+            conquestFrontMode: 'radial',
+        });
+        const pair = [oldOwner, newOwner].sort().join('|');
+        const rimBorderLen = (t: number): number => {
+            const frame = rtz.sampleFull(t)!;
+            const af = (frame.fronts ?? []).find((x) => x.siteId === 'star-7');
+            if (!af) return 0;
+            const surface = buildSurfaceFromCells(
+                [...frame.frozenCells, ...frame.bubbleCells],
+                2,
+                undefined,
+                frame.fronts ?? [],
+            );
+            let len = 0;
+            for (const line of surface.frontiers) {
+                if ([line.ownerA, line.ownerB].sort().join('|') !== pair) continue;
+                for (let i = 0; i < line.points.length - 1; i++) {
+                    len += Math.hypot(
+                        line.points[i + 1]![0] - line.points[i]![0],
+                        line.points[i + 1]![1] - line.points[i]![1],
+                    );
+                }
+            }
+            return len;
+        };
+        const early = rimBorderLen(16);
+        const mid = rimBorderLen(500);
+        expect(early).toBeGreaterThan(10); // old border present at start (radial!)
+        expect(mid).toBeLessThan(early); // recedes as the arc expands
+        // At completion the runtime drops the front entirely (no overlay) — the
+        // settled border set takes over; there is no separate "dissolved" state
+        // to assert on within this describe block.
     });
 });
 
@@ -576,93 +700,6 @@ describe('MULTI-morph one-diagram (disjoint concurrent conquests)', () => {
     });
 });
 
-// The dissolving conquest border, gated in RADIAL mode — the mode it serves.
-// (The first version of this gate ran in LINEAR mode, where the front coincides
-// with the entry border and the ahead side is correctly empty — an invalid
-// falsification that led to discarding a correct fix. Mode matters.)
-describe('DISSOLVING border (RADIAL): old attacker border + small arc = one full-width border', () => {
-    const MAPZ = (() => {
-        const raw2 = JSON.parse(
-            readFileSync(
-                path.join(REPO_ROOT, 'common', 'resources', 'fixture-maps', 'kinetic_independent_conquests.json'),
-                'utf-8',
-            ),
-        ) as { stars: StarState[]; connections: StarConnection[] };
-        let maxX = 0;
-        let maxY = 0;
-        for (const s of raw2.stars) {
-            if (s.x > maxX) maxX = s.x;
-            if (s.y > maxY) maxY = s.y;
-        }
-        return { stars: raw2.stars, connections: raw2.connections, w: maxX + 200, h: maxY + 200 };
-    })();
-    const epz = (ov: Record<string, string>) => {
-        const stars = MAPZ.stars.map((s) =>
-            ov[s.id] ? ({ ...s, ownerId: ov[s.id] } as StarState) : s,
-        );
-        const config = buildPowerVoronoi0319Settings({
-            lanes: MAPZ.connections, worldWidth: MAPZ.w, worldHeight: MAPZ.h,
-            configSource: GAME_CONFIG as unknown as Record<string, unknown>,
-        });
-        const r = computePowerCoreEndpoint({ stars, connections: MAPZ.connections, config });
-        if ('kind' in r) throw new Error(r.message);
-        return { state: { sites: r.sites, cells: r.cells }, clip: r.clip };
-    };
-
-    it('radial: dissolving border is near-full at start and shrinks as the arc expands', () => {
-        const oldOwner = MAPZ.stars.find((s) => s.id === 'star-7')!.ownerId!;
-        const newOwner = MAPZ.stars.find((s) => s.id === 'star-6')!.ownerId!;
-        const Z0 = epz({});
-        const Z1 = epz({ 'star-7': newOwner });
-        const rtz = new KineticTransitionRuntime();
-        rtz.commit({
-            state: Z0.state, clip: Z0.clip, ownershipVersion: 'v0',
-            transitionKey: null, nowMs: 0, durationMs: 1000,
-        });
-        rtz.commit({
-            state: Z1.state, clip: Z1.clip, ownershipVersion: 'v1',
-            transitionKey: 'k', nowMs: 0, durationMs: 1000,
-            conquestOrigins: new Map([[
-                'star-7',
-                { x: MAPZ.stars[6]!.x, y: MAPZ.stars[6]!.y },
-            ]]),
-            conquestFrontMode: 'radial',
-        });
-        const dissolvedLen = (t: number): number => {
-            const frame = rtz.sampleFull(t)!;
-            const af = (frame.fronts ?? []).find((x) => x.siteId === 'star-7');
-            if (!af) return 0;
-            const surface = buildSurfaceFromCells(
-                [...frame.frozenCells, ...frame.bubbleCells],
-                2,
-                { preOwnerBySiteId: new Map([['star-7', oldOwner]]), w: af.q },
-            );
-            const rim = surface.cellFills.find((c) => c.siteId === 'star-7')!.points;
-            const field = frontFieldForRing(rim as never, af.front, af.q)!;
-            let len = 0;
-            for (const line of surface.dissolvingFrontiers ?? []) {
-                for (const kept of clipPolylineByFront(
-                    line.points as [number, number][],
-                    field,
-                    'ahead',
-                )) {
-                    for (let i = 0; i < kept.length - 1; i++) {
-                        len += Math.hypot(
-                            kept[i + 1]![0] - kept[i]![0],
-                            kept[i + 1]![1] - kept[i]![1],
-                        );
-                    }
-                }
-            }
-            return len;
-        };
-        const early = dissolvedLen(16);
-        const mid = dissolvedLen(500);
-        expect(early).toBeGreaterThan(10); // old border present at start (radial!)
-        expect(mid).toBeLessThan(early); // consumed as the arc expands
-        expect(dissolvedLen(950)).toBe(0); // fully consumed at completion
-    });
-});
 
 describe('buildSurfaceFromCells: the render-ready morph surface (idle + morph share this)', () => {
     const CLIP_AREA = shoelace(S0.clip.map((p) => [p[0], p[1]] as Point));

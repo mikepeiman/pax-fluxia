@@ -11,6 +11,16 @@
  * frontiers, frame by frame, with fills and borders reading the identical
  * smoothed boundary (no per-cell tearing, no fill/border mismatch).
  *
+ * LIVE-LABEL CLASSIFICATION (the `fronts` param): kinetic-frame cells carry
+ * their SETTLED (final) owner throughout an entire conquest morph — that is
+ * what keeps the smoothing-chain topology stable and the snap gone. But it
+ * also means the raw graph reads as the FINISHED map from frame 1. `fronts`
+ * reclassifies the captured cell's rim (and adds the interior front chord)
+ * from THIS FRAME's true ownership before frontiers/fills are assembled, so
+ * the surface this function returns is simply correct — the caller draws it
+ * with no conquest-specific presentation logic at all. See
+ * .agent/docs/game/design/2026-07-09_TRANSITION_BORDER_CLASSIFICATION_PROPOSAL.md.
+ *
  * Pure: no PIXI, no config, no Svelte. Offline-testable.
  */
 
@@ -18,11 +28,18 @@ import { buildSharedEdgeGraph } from './sharedEdgeGraph';
 import { smoothSharedEdges } from './smoothSharedEdges';
 import { chainEdgesIntoPolylines } from './buildPowerCoreAuthoritySnapshot';
 import {
+    clipPolylineByFront,
+    frontFieldForRing,
+    splitCellByFrontDetailed,
+} from './conquestFrontField';
+import {
     WORLD_OWNER,
     type Point,
     type PowerCell,
+    type SharedEdgeGraph,
     type WorldRect,
 } from './powerCoreTypes';
+import type { ActiveConquestFront } from './kineticTypes';
 
 export interface SurfaceRegion {
     readonly ownerId: string;
@@ -47,25 +64,14 @@ export interface CellSurface {
      * use, so the fill rounds to match the border and adjacent cells share the
      * exact boundary (no gap/overlap). Same-owner interior edges stay raw. This is
      * the robust smooth fill: single-owner (like raw cells) + smoothed (like the
-     * merged regions), without the fragile face walk.
+     * merged regions), without the fragile face walk. Cells with an active front
+     * (see `fronts`) are split into their ahead/behind pieces here.
      */
     readonly cellFills: SurfaceRegion[];
     /** Inter-owner frontiers (ownerA < ownerB). */
     readonly frontiers: SurfaceFrontier[];
     /** Owner↔world borders (ownerB === WORLD_OWNER). */
     readonly worldBorders: SurfaceFrontier[];
-    /**
-     * MORPH-only (smoothing blend active): PRE-graph-only frontiers — the
-     * captured cell's rim borders facing the NEW owner's own cells (the
-     * pre-existing attacker↔defender border; same-owner interior in the POST
-     * graph). RADIAL fronts start as a small arc at the impact point, and the
-     * old implementation looked right because these borders stayed drawn AHEAD
-     * of the front, forming ONE full-width continuously-deforming conquest
-     * border. Render clipped to the AHEAD side of the front (in radial mode
-     * most of this border is genuinely ahead of the small arc; in linear mode
-     * the front coincides with it and the ahead side is empty — correctly).
-     */
-    readonly dissolvingFrontiers?: SurfaceFrontier[];
 }
 
 /**
@@ -98,17 +104,11 @@ function worldRectFromCells(cells: readonly PowerCell[]): WorldRect {
 
 /**
  * Splice the conquest split's crossing points into the neighbour edges they lie
- * on, so the mesh is CONFORMING before the shared-edge graph is built. Without
- * this, [A,ip] (a split part) and [A,B] (its neighbour) key differently, the
- * frontier is dropped, and walkRegionLoops MERGES the two regions (bucket-fill).
- *
- * This is only reliable on a SINGLE-diagram frame (sampleKineticFrame full mode):
- * every cell shares exact edges, so a crossing lies EXACTLY on the neighbour edge
- * (tolerance 1e-9). On the legacy frozen/bubble stitch the crossed edge belongs to
- * a different diagram and the crossing is off-collinear — which is exactly why the
- * one-diagram frame is required. Power diagrams are otherwise conforming (every
- * real vertex is a shared corner), so this only ever inserts the split's own
- * crossings. A 64px vertex grid keeps it near-linear.
+ * on, so the mesh is CONFORMING before the shared-edge graph is built. A no-op
+ * on the current architecture (kinetic-frame cells are always UNSPLIT — see the
+ * module doc), kept for any caller that still passes pre-split cells (e.g. an
+ * idle snapshot with legacy split geometry): those cells share a siteId, which
+ * is otherwise unique per real power-diagram cell.
  */
 const PT_Q = 1000;
 /** Numeric point key (1e-3 grid) — no collisions for |coord*1e3| < 5e6, and far
@@ -118,12 +118,6 @@ function ptKey(x: number, y: number): number {
 }
 
 function conformCellBoundaries(cells: readonly PowerCell[]): PowerCell[] {
-    // ONLY the conquest split creates hanging nodes, and its parts are the only
-    // cells that share a siteId (every real power-diagram cell has a unique one).
-    // So the candidate crossings are just the split cells' vertices — a handful,
-    // not the whole map. Far cells then query empty grid buckets and return
-    // immediately, so this is O(edges) with a tiny constant instead of scanning
-    // every vertex on every frame.
     const siteCount = new Map<string, number>();
     for (const c of cells) siteCount.set(c.siteId, (siteCount.get(c.siteId) ?? 0) + 1);
     const cand = new Map<number, Point>();
@@ -134,7 +128,7 @@ function conformCellBoundaries(cells: readonly PowerCell[]): PowerCell[] {
             if (!cand.has(k)) cand.set(k, [pt[0], pt[1]]);
         }
     }
-    if (cand.size === 0) return [...cells]; // no split this frame → nothing to conform
+    if (cand.size === 0) return [...cells]; // no split cells this frame → nothing to conform
 
     const GRID = 64;
     const gk = (gx: number, gy: number) => gx * 1e6 + gy;
@@ -212,96 +206,14 @@ function chainByGroup(
 }
 
 /**
- * Cut polyline segments that lie ON any of the given rings (within eps) —
- * used by the conquest-front overlay to suppress the SETTLED frontier along the
- * captured cell's rim AHEAD of the front (the ahead piece's own outline draws
- * that rim in the old-owner pairing; without suppression the POST border shows
- * simultaneously with the moving front — a duplicated border). Returns the
- * kept sub-polylines (a line may split into several). Pure.
- */
-export function cutPolylinesNearRings(
-    lines: readonly SurfaceFrontier[],
-    rings: ReadonlyArray<ReadonlyArray<readonly [number, number]>>,
-    eps: number,
-): SurfaceFrontier[] {
-    if (rings.length === 0) return [...lines];
-    // Precompute ring bboxes (+eps) for a cheap prefilter.
-    const boxes = rings.map((ring) => {
-        let minX = Infinity;
-        let minY = Infinity;
-        let maxX = -Infinity;
-        let maxY = -Infinity;
-        for (const [x, y] of ring) {
-            if (x < minX) minX = x;
-            if (y < minY) minY = y;
-            if (x > maxX) maxX = x;
-            if (y > maxY) maxY = y;
-        }
-        return { minX: minX - eps, minY: minY - eps, maxX: maxX + eps, maxY: maxY + eps };
-    });
-    const segDist = (
-        px: number,
-        py: number,
-        a: readonly [number, number],
-        b: readonly [number, number],
-    ): number => {
-        const dx = b[0] - a[0];
-        const dy = b[1] - a[1];
-        const l2 = dx * dx + dy * dy;
-        let t = l2 < 1e-12 ? 0 : ((px - a[0]) * dx + (py - a[1]) * dy) / l2;
-        t = t < 0 ? 0 : t > 1 ? 1 : t;
-        return Math.hypot(a[0] + t * dx - px, a[1] + t * dy - py);
-    };
-    const nearAnyRing = (x: number, y: number): boolean => {
-        for (let r = 0; r < rings.length; r++) {
-            const box = boxes[r]!;
-            if (x < box.minX || x > box.maxX || y < box.minY || y > box.maxY) continue;
-            const ring = rings[r]!;
-            for (let i = 0; i < ring.length; i++) {
-                if (segDist(x, y, ring[i]!, ring[(i + 1) % ring.length]!) <= eps) return true;
-            }
-        }
-        return false;
-    };
-
-    const out: SurfaceFrontier[] = [];
-    for (const line of lines) {
-        const pts = line.points;
-        if (pts.length < 2) continue;
-        let run: [number, number][] = [];
-        const flush = () => {
-            if (run.length >= 2) {
-                out.push({ ...line, points: run, closed: false });
-            }
-            run = [];
-        };
-        for (let i = 0; i < pts.length - 1; i++) {
-            const a = pts[i]!;
-            const b = pts[i + 1]!;
-            const suppressed = nearAnyRing((a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
-            if (suppressed) {
-                if (run.length > 0) run.push([a[0], a[1]]);
-                flush();
-            } else {
-                if (run.length === 0) run.push([a[0], a[1]]);
-                run.push([b[0], b[1]]);
-            }
-        }
-        flush();
-    }
-    return out;
-}
-
-/**
  * Smoothing-continuity blend for in-flight conquests: the chain DECOMPOSITION
  * depends on ownership (chains break where owner pairs change), so an owner
- * flip re-smooths nearby borders in one frame — PRE-shaped curves snap to
- * POST-shaped curves (visible as "cells change rounding at conquest start" /
- * "the next border paints instantly"). Fix: smooth the SAME raw edges under
- * BOTH ownerships and lerp each shared edge's smoothed polyline PRE→POST by w,
- * so every border RESHAPES continuously across the morph. Edges whose owner
- * pair itself changes (the captured cell's rim) keep POST smoothing — the
- * front overlay governs their presentation.
+ * flip re-smooths nearby borders in one frame. Fix: smooth the SAME raw edges
+ * under BOTH ownerships and lerp each shared edge's smoothed polyline PRE→POST
+ * by w, so every border RESHAPES continuously across the morph. HELD IN
+ * RESERVE — not invoked by the family by default (live-label classification
+ * makes the captured cell's own rim correct without it); available if a
+ * reshape defect resurfaces elsewhere on the map.
  */
 export interface SmoothingBlend {
     /** captured siteId → its PRE (old) ownerId. */
@@ -349,90 +261,291 @@ function lerpPolylines(a: readonly Point[], b: readonly Point[], w: number): Poi
     return out;
 }
 
+// ── Live-label classification ────────────────────────────────────────────────
+
+/** Index edges by their undirected RAW endpoint pair (1e-3 grid, matches
+ *  sharedEdgeGraph's own quantization) — lets a captured cell's raw ring edges
+ *  find their graph entry directly, no string keys in the hot loop. */
+function indexByEndpoints<T extends { readonly pts: readonly Point[] }>(
+    edges: readonly T[],
+): Map<number, Map<number, T>> {
+    const index = new Map<number, Map<number, T>>();
+    for (const e of edges) {
+        const a = e.pts[0]!;
+        const b = e.pts[e.pts.length - 1]!;
+        const ka = ptKey(a[0], a[1]);
+        const kb = ptKey(b[0], b[1]);
+        const lo = ka < kb ? ka : kb;
+        const hi = ka < kb ? kb : ka;
+        let inner = index.get(lo);
+        if (!inner) index.set(lo, (inner = new Map()));
+        inner.set(hi, e);
+    }
+    return index;
+}
+
+function lookupByEndpoints<T>(
+    index: Map<number, Map<number, T>>,
+    a: readonly [number, number],
+    b: readonly [number, number],
+): T | undefined {
+    const ka = ptKey(a[0], a[1]);
+    const kb = ptKey(b[0], b[1]);
+    const lo = ka < kb ? ka : kb;
+    const hi = ka < kb ? kb : ka;
+    return index.get(lo)?.get(hi);
+}
+
+function pairKey(a: string, b: string): string {
+    return a < b ? `${a}|${b}` : `${b}|${a}`;
+}
+
+interface ClassificationResult {
+    readonly claimedSharedEdgeIds: ReadonlySet<string>;
+    readonly claimedWorldEdgeIds: ReadonlySet<string>;
+    readonly extraByPair: ReadonlyMap<string, { edgeId: string; points: readonly Point[] }[]>;
+    readonly extraByOwner: ReadonlyMap<string, { edgeId: string; points: readonly Point[] }[]>;
+    readonly fillOverrideBySite: ReadonlyMap<string, { ownerId: string; points: Point[] }[]>;
+}
+
+const NO_CLASSIFICATION: ClassificationResult = {
+    claimedSharedEdgeIds: new Set(),
+    claimedWorldEdgeIds: new Set(),
+    extraByPair: new Map(),
+    extraByOwner: new Map(),
+    fillOverrideBySite: new Map(),
+};
+
+/**
+ * Reclassify every active front's captured-cell rim from THIS FRAME's true
+ * ownership, and emit the interior front chord. `cells` carry the SETTLED
+ * owner throughout the morph, so the POST graph (`graph`) already reads as the
+ * finished map — the captured cell's rim edge to a same-(new)-owner neighbor
+ * (the attacker's own territory) is same-owner-internal there and DROPPED
+ * entirely. To find its geometry, a PRE graph is built with every active
+ * front's captured cell reverted to its OLD owner: that edge becomes a real
+ * shared edge in the PRE graph (different owners), absent from the POST graph
+ * — exactly the persisting old attacker↔defender border.
+ *
+ * For each captured cell's raw rim edge, in order:
+ *   1. Found in the POST graph (a real edge there) → split by the front field;
+ *      BEHIND keeps the existing (new-owner, neighbor) pair; AHEAD becomes
+ *      (old-owner, neighbor) unless neighbor === old-owner (same owner, drop).
+ *   2. Not in POST, found in the PRE graph (the attacker-adjacent edge) →
+ *      AHEAD becomes (old-owner, neighbor) — the real, persisting border;
+ *      BEHIND is dropped unless neighbor !== new-owner.
+ *   3. Found as a world edge → AHEAD reassigned to old-owner, BEHIND stays.
+ *
+ * At q→0 this reproduces the PRE settled frontier set exactly (everything is
+ * "ahead"); once a front leaves `fronts` (q reaches 1) this function isn't
+ * called for that cell at all, so the POST settled set is untouched — the
+ * classification cannot introduce a start or end discontinuity by construction.
+ *
+ * KNOWN LIMITATION: two ADJACENT captured cells sharing a rim edge — the first
+ * front processed claims that edge; the second front's own pass sees it
+ * already claimed and skips it (first-processed wins). Rare (both neighbors
+ * mid-conquest simultaneously); a joint two-field split is a follow-up, not
+ * required for the single/typical-multi-conquest cases this fixes.
+ */
+function classifyActiveFronts(
+    conformed: readonly PowerCell[],
+    graph: SharedEdgeGraph,
+    world: WorldRect,
+    passes: number,
+    fronts: readonly ActiveConquestFront[],
+    buildCellRing: (cell: PowerCell) => Point[],
+): ClassificationResult {
+    if (fronts.length === 0) return NO_CLASSIFICATION;
+
+    const cellBySite = new Map(conformed.map((c) => [c.siteId, c] as const));
+    const activeBySite = new Map(fronts.map((af) => [af.siteId, af] as const));
+
+    const preCells = conformed.map((c) => {
+        const af = activeBySite.get(c.siteId);
+        return af ? { ...c, ownerId: af.front.ownerOld } : c;
+    });
+    const preGraph = buildSharedEdgeGraph(preCells, world);
+    smoothSharedEdges(preGraph, passes);
+
+    const postSharedIndex = indexByEndpoints(graph.sharedEdges);
+    const postWorldIndex = indexByEndpoints(graph.worldEdges);
+    const preSharedIndex = indexByEndpoints(preGraph.sharedEdges);
+
+    const claimedSharedEdgeIds = new Set<string>();
+    const claimedWorldEdgeIds = new Set<string>();
+    const extraByPair = new Map<string, { edgeId: string; points: readonly Point[] }[]>();
+    const extraByOwner = new Map<string, { edgeId: string; points: readonly Point[] }[]>();
+    const fillOverrideBySite = new Map<string, { ownerId: string; points: Point[] }[]>();
+
+    const pushEntry = (
+        map: Map<string, { edgeId: string; points: readonly Point[] }[]>,
+        key: string,
+        edgeId: string,
+        points: readonly Point[],
+    ) => {
+        if (points.length < 2) return;
+        let bucket = map.get(key);
+        if (!bucket) map.set(key, (bucket = []));
+        bucket.push({ edgeId, points });
+    };
+
+    for (const af of fronts) {
+        const cell = cellBySite.get(af.siteId);
+        if (!cell) continue;
+        const rim = buildCellRing(cell);
+        if (rim.length < 3) continue;
+        const field = frontFieldForRing(rim, af.front, af.q);
+        if (!field) continue; // degenerate cell — leave settled classification
+
+        const split = splitCellByFrontDetailed(
+            { ...cell, ownerId: af.front.ownerIn, points: rim },
+            af.front,
+            af.q,
+        );
+        fillOverrideBySite.set(
+            af.siteId,
+            split.parts.map((p) => ({ ownerId: p.ownerId, points: p.points as Point[] })),
+        );
+
+        const ringPts = cell.points;
+        const n = ringPts.length;
+        for (let i = 0; i < n; i++) {
+            const a = ringPts[i]!;
+            const b = ringPts[(i + 1) % n]!;
+
+            const postEdge = lookupByEndpoints(postSharedIndex, a, b);
+            if (postEdge && !claimedSharedEdgeIds.has(postEdge.edgeId)) {
+                claimedSharedEdgeIds.add(postEdge.edgeId);
+                const neighborOwner =
+                    postEdge.ownerA === af.front.ownerIn
+                        ? postEdge.ownerB
+                        : postEdge.ownerB === af.front.ownerIn
+                          ? postEdge.ownerA
+                          : null;
+                if (neighborOwner) {
+                    let bi = 0;
+                    for (const run of clipPolylineByFront(postEdge.smoothedPts, field, 'behind')) {
+                        pushEntry(
+                            extraByPair,
+                            pairKey(af.front.ownerIn, neighborOwner),
+                            `${postEdge.edgeId}#b${bi++}`,
+                            run,
+                        );
+                    }
+                    if (neighborOwner !== af.front.ownerOld) {
+                        let ai = 0;
+                        for (const run of clipPolylineByFront(postEdge.smoothedPts, field, 'ahead')) {
+                            pushEntry(
+                                extraByPair,
+                                pairKey(af.front.ownerOld, neighborOwner),
+                                `${postEdge.edgeId}#a${ai++}`,
+                                run,
+                            );
+                        }
+                    }
+                }
+                continue;
+            }
+
+            const worldEdge = lookupByEndpoints(postWorldIndex, a, b);
+            if (worldEdge && !claimedWorldEdgeIds.has(worldEdge.edgeId)) {
+                claimedWorldEdgeIds.add(worldEdge.edgeId);
+                let bi = 0;
+                for (const run of clipPolylineByFront(worldEdge.smoothedPts, field, 'behind')) {
+                    pushEntry(extraByOwner, af.front.ownerIn, `${worldEdge.edgeId}#wb${bi++}`, run);
+                }
+                let ai = 0;
+                for (const run of clipPolylineByFront(worldEdge.smoothedPts, field, 'ahead')) {
+                    pushEntry(extraByOwner, af.front.ownerOld, `${worldEdge.edgeId}#wa${ai++}`, run);
+                }
+                continue;
+            }
+
+            // Not in the POST graph (same-owner internal there) — the
+            // attacker-adjacent edge, real only before capture.
+            const preEdge = lookupByEndpoints(preSharedIndex, a, b);
+            if (preEdge && !claimedSharedEdgeIds.has(preEdge.edgeId)) {
+                claimedSharedEdgeIds.add(preEdge.edgeId);
+                const neighborOwner =
+                    preEdge.ownerA === af.front.ownerOld
+                        ? preEdge.ownerB
+                        : preEdge.ownerB === af.front.ownerOld
+                          ? preEdge.ownerA
+                          : null;
+                if (neighborOwner) {
+                    let ai = 0;
+                    for (const run of clipPolylineByFront(preEdge.smoothedPts, field, 'ahead')) {
+                        pushEntry(
+                            extraByPair,
+                            pairKey(af.front.ownerOld, neighborOwner),
+                            `${preEdge.edgeId}#pa${ai++}`,
+                            run,
+                        );
+                    }
+                    if (neighborOwner !== af.front.ownerIn) {
+                        let bi = 0;
+                        for (const run of clipPolylineByFront(preEdge.smoothedPts, field, 'behind')) {
+                            pushEntry(
+                                extraByPair,
+                                pairKey(af.front.ownerIn, neighborOwner),
+                                `${preEdge.edgeId}#pb${bi++}`,
+                                run,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        // The interior front chord: a first-class frontier, full length from
+        // frame 1, exact endpoints shared with the rim clips above (same field).
+        for (let idx = 0; idx < split.frontChains.length; idx++) {
+            pushEntry(
+                extraByPair,
+                pairKey(af.front.ownerOld, af.front.ownerIn),
+                `${af.siteId}#front#${idx}`,
+                split.frontChains[idx]!,
+            );
+        }
+    }
+
+    return { claimedSharedEdgeIds, claimedWorldEdgeIds, extraByPair, extraByOwner, fillOverrideBySite };
+}
+
 export function buildSurfaceFromCells(
     cells: readonly PowerCell[],
     passes: number,
     blend?: SmoothingBlend,
+    fronts: readonly ActiveConquestFront[] = [],
 ): CellSurface {
-    // Conform first: splice the conquest front's crossing points into the
-    // neighbour edges (exact, single-diagram) so the frontier isn't dropped and
-    // regions don't flood into each other (bucket-fill).
+    // Conform first: splice any pre-split cell's crossing points into the
+    // neighbour edges (a no-op on the current architecture — see the function
+    // doc — kept for legacy-split callers).
     const conformed = conformCellBoundaries(cells);
-    const graph = buildSharedEdgeGraph(conformed, worldRectFromCells(conformed));
+    const world = worldRectFromCells(conformed);
+    const graph = buildSharedEdgeGraph(conformed, world);
     smoothSharedEdges(graph, passes);
 
-    // Smoothing-continuity blend (see SmoothingBlend): lerp shared edges'
-    // smoothed polylines between the PRE-ownership and POST-ownership chain
-    // decompositions. edgeIds are endpoint-keyed (geometry-only), so the same
-    // raw edge matches across both graphs; owner-pair-changed edges (the rim)
-    // are skipped and keep POST smoothing.
-    let dissolvingFrontiers: SurfaceFrontier[] = [];
+    // Smoothing-continuity blend — HELD IN RESERVE (see SmoothingBlend doc).
     if (blend && blend.w < 1 && blend.preOwnerBySiteId.size > 0) {
         const preCells = conformed.map((c) => {
             const pre = blend.preOwnerBySiteId.get(c.siteId);
             return pre ? { ...c, ownerId: pre } : c;
         });
-        const preGraph = buildSharedEdgeGraph(preCells, worldRectFromCells(preCells));
+        const preGraph = buildSharedEdgeGraph(preCells, world);
         smoothSharedEdges(preGraph, passes);
         const preById = new Map(preGraph.sharedEdges.map((e) => [e.edgeId, e]));
         for (const e of graph.sharedEdges) {
             const pre = preById.get(e.edgeId);
-            if (!pre) continue; // POST-only edge (rim) — front overlay governs
+            if (!pre) continue;
             if (pre.ownerA !== e.ownerA || pre.ownerB !== e.ownerB) continue;
             e.smoothedPts = lerpPolylines(pre.smoothedPts, e.smoothedPts, blend.w);
         }
-        // PRE-only edges (absent from the POST graph by edgeId) = the captured
-        // cells' rim borders facing the new owner's own cells — the dissolving
-        // conquest borders (see CellSurface.dissolvingFrontiers).
-        const postIds = new Set(graph.sharedEdges.map((e) => e.edgeId));
-        const preOnly = preGraph.sharedEdges.filter((e) => !postIds.has(e.edgeId));
-        if (preOnly.length > 0) {
-            const preByPair = new Map<string, { edgeId: string; points: readonly Point[] }[]>();
-            for (const e of preOnly) {
-                const key = `${e.ownerA}|${e.ownerB}`;
-                const bucket = preByPair.get(key);
-                const entry = { edgeId: e.edgeId, points: e.smoothedPts };
-                if (bucket) bucket.push(entry);
-                else preByPair.set(key, [entry]);
-            }
-            dissolvingFrontiers = chainByGroup(
-                preByPair,
-                (key) => key.split('|') as [string, string],
-            );
-        }
     }
 
-    const byPair = new Map<string, { edgeId: string; points: readonly Point[] }[]>();
-    for (const e of graph.sharedEdges) {
-        const key = `${e.ownerA}|${e.ownerB}`;
-        const bucket = byPair.get(key);
-        const entry = { edgeId: e.edgeId, points: e.smoothedPts };
-        if (bucket) bucket.push(entry);
-        else byPair.set(key, [entry]);
-    }
-    const frontiers = chainByGroup(
-        byPair,
-        (key) => key.split('|') as [string, string],
-    );
-
-    const byOwner = new Map<string, { edgeId: string; points: readonly Point[] }[]>();
-    for (const e of graph.worldEdges) {
-        const bucket = byOwner.get(e.owner);
-        const entry = { edgeId: e.edgeId, points: e.smoothedPts };
-        if (bucket) bucket.push(entry);
-        else byOwner.set(e.owner, [entry]);
-    }
-    const worldBorders = chainByGroup(byOwner, (owner) => [owner, WORLD_OWNER]);
-
-    // Smoothed per-cell fills: index every graph edge (shared + world) by its
-    // undirected endpoint pair, then rebuild each conformed cell, replacing its
-    // owner-boundary edges with the smoothed polyline (canonically oriented) and
-    // leaving same-owner interior edges raw. Both cells sharing an inter-owner edge
-    // read the identical smoothedPts, so their fills meet exactly on the curve and
-    // match the stroked border.
-    // Index every graph edge (shared + world) by its undirected endpoint pair
-    // (numeric nested map — no string keys in the hot loop). startKey is the
-    // canonical smoothedPts[0] key so we know when to reverse.
+    // Index every graph edge (shared + world) by its undirected endpoint pair —
+    // used both to reconstruct a cell's smoothed rim (below, and by live-label
+    // classification) and for the final per-cell fill loop.
     const smoothByPair = new Map<number, Map<number, { pts: readonly Point[]; startKey: number }>>();
     const indexEdge = (pts: readonly Point[], smoothed: readonly Point[]) => {
         const ka = ptKey(pts[0]![0], pts[0]![1]);
@@ -450,12 +563,9 @@ export function buildSurfaceFromCells(
         const hi = ka < kb ? kb : ka;
         return smoothByPair.get(lo)?.get(hi);
     };
-
-    const cellFills: SurfaceRegion[] = [];
-    for (const cell of conformed) {
+    const buildCellRing = (cell: PowerCell): Point[] => {
         const pts = cell.points;
         const n = pts.length;
-        if (n < 3) continue;
         const ring: Point[] = [];
         let lastKey = NaN;
         const push = (p: Point) => {
@@ -477,13 +587,78 @@ export function buildSurfaceFromCells(
                 push(b);
             }
         }
-        if (ring.length >= 2 && ptKey(ring[0]![0], ring[0]![1]) === ptKey(ring[ring.length - 1]![0], ring[ring.length - 1]![1])) {
+        if (
+            ring.length >= 2 &&
+            ptKey(ring[0]![0], ring[0]![1]) === ptKey(ring[ring.length - 1]![0], ring[ring.length - 1]![1])
+        ) {
             ring.pop();
         }
+        return ring;
+    };
+
+    // Live-label border classification (see classifyActiveFronts doc).
+    const classification = classifyActiveFronts(conformed, graph, world, passes, fronts, buildCellRing);
+
+    const byPair = new Map<string, { edgeId: string; points: readonly Point[] }[]>();
+    for (const e of graph.sharedEdges) {
+        if (classification.claimedSharedEdgeIds.has(e.edgeId)) continue;
+        const key = `${e.ownerA}|${e.ownerB}`;
+        const bucket = byPair.get(key);
+        const entry = { edgeId: e.edgeId, points: e.smoothedPts };
+        if (bucket) bucket.push(entry);
+        else byPair.set(key, [entry]);
+    }
+    for (const [key, entries] of classification.extraByPair) {
+        const bucket = byPair.get(key);
+        if (bucket) bucket.push(...entries);
+        else byPair.set(key, [...entries]);
+    }
+    const frontiers = chainByGroup(
+        byPair,
+        (key) => key.split('|') as [string, string],
+    );
+
+    const byOwner = new Map<string, { edgeId: string; points: readonly Point[] }[]>();
+    for (const e of graph.worldEdges) {
+        if (classification.claimedWorldEdgeIds.has(e.edgeId)) continue;
+        const bucket = byOwner.get(e.owner);
+        const entry = { edgeId: e.edgeId, points: e.smoothedPts };
+        if (bucket) bucket.push(entry);
+        else byOwner.set(e.owner, [entry]);
+    }
+    for (const [owner, entries] of classification.extraByOwner) {
+        const bucket = byOwner.get(owner);
+        if (bucket) bucket.push(...entries);
+        else byOwner.set(owner, [...entries]);
+    }
+    const worldBorders = chainByGroup(byOwner, (owner) => [owner, WORLD_OWNER]);
+
+    // Smoothed per-cell fills: swap each cell's owner-boundary edges for the
+    // smoothed polyline (both cells sharing an inter-owner edge read the
+    // identical smoothedPts, so their fills meet exactly on the curve and
+    // match the stroked border). Cells with an active front are replaced by
+    // their ahead/behind split pieces.
+    const cellFills: SurfaceRegion[] = [];
+    for (const cell of conformed) {
+        if (cell.points.length < 3) continue;
+        const override = classification.fillOverrideBySite.get(cell.siteId);
+        if (override) {
+            for (const piece of override) {
+                if (piece.points.length >= 3) {
+                    cellFills.push({
+                        ownerId: piece.ownerId,
+                        points: piece.points,
+                        siteId: `${cell.siteId}§${piece.ownerId}`,
+                    });
+                }
+            }
+            continue;
+        }
+        const ring = buildCellRing(cell);
         if (ring.length >= 3) {
             cellFills.push({ ownerId: cell.ownerId, points: ring, siteId: cell.siteId });
         }
     }
 
-    return { cellFills, frontiers, worldBorders, dissolvingFrontiers };
+    return { cellFills, frontiers, worldBorders };
 }

@@ -31,16 +31,13 @@ superseding docs:
 ## 2026-07-09
 
 ### Open
-- [ ] **⭐ Transition rebuild: pre-split border semantics on the post-split backend (user ruling)**
-  `[territory][transitions]` — user verified 2eecc5564 (pre-split) and a2ff7ed5e (split-after-
-  smoothing commit) are BOTH visually superior to current and all intermediates. Keep: post-split
-  backend (unsplit one-diagram frames + fronts-as-data + settled chains), exact front math,
-  acceptance gates, today's 4 non-transition commits. Discard: the presentation border overlays
-  layered on after a2ff7ed5e (rim-suppression clip, front-only stroke pass, dissolvingFrontiers +
-  rim-proximity matching + radial gate; continuity blend held in reserve). Rebuild: live-label
-  border CLASSIFICATION after smoothing — proposal at
-  .agent/docs/game/design/2026-07-09_TRANSITION_BORDER_CLASSIFICATION_PROPOSAL.md. AWAITING USER
-  APPROVAL of the proposal before any code change.
+- [ ] **User visual verification of the live-label classification rebuild** `[territory][transitions]`
+  — implemented per the approved proposal (see Done entry below). Casebook to check against
+  2eecc5564/a2ff7ed5e memory: conquest start (border occupies the whole front immediately, no
+  point-growth), completion (no snap/pop), third-party borders, island capture, multi-conquest tick,
+  RADIAL mode (the mode the user runs). If the "cells reshape at conquest start" defect (the reason
+  bb2ad073c's smoothing-continuity blend existed) reappears, re-enable that blend (kept in reserve,
+  `buildSurfaceFromCells`'s 3rd `blend` param — currently unpassed by PowerVectorFamily).
 - [ ] **Verify restart-reset fix in-game (user visual check)** `[territory][lifecycle]` — after
   5c17e8210: restart mid-game → map must redraw immediately (no old conquest shapes lingering),
   and re-executing a conquest from the previous match must animate normally. If any symptom
@@ -66,6 +63,22 @@ superseding docs:
 - [x] **Settings panel forgets the open section between panel changes (user)** `[ui][settings]` —
   8f343c5de: per-category last-selected-section memory in localStorage; selectCategory restores
   it instead of snapping to the first chip.
+- [x] **Transition rebuild: pre-split border semantics on the post-split backend** `[territory][transitions]`
+  — user-approved proposal implemented. `buildSurfaceFromCells` gained live-label border
+  CLASSIFICATION: for each in-flight conquest, the captured cell's rim is reclassified from THIS
+  FRAME's true ownership (not the settled/POST owner the cells carry) before frontiers/fills are
+  assembled — a PRE-graph (captured cell temporarily reverted to its old owner) recovers the
+  attacker-adjacent edge that's same-owner-internal in the POST graph, so the old attacker↔defender
+  border falls out automatically instead of via a separate "dissolving" concept. The interior front
+  chord is a first-class frontier entry (pair old↔new), so the same border-blend rule applies to it
+  as every other border. `PowerVectorFamily` returned to the pre-split shape: draw
+  `surface.cellFills` + `surface.frontiers` + `surface.worldBorders`, zero conquest-specific
+  presentation logic. Discarded: rim-suppression clip, front-only stroke pass,
+  `dissolvingFrontiers`/`cutPolylinesNearRings`/rim-proximity matching. Smoothing-continuity blend
+  kept in reserve (param still exists, unused by default). New acceptance gates: PRE (border at
+  q≈0 matches the pre-conquest surface at the captured rim) and POST (classified frontier converges
+  on the settled surface as q→1) — smoothMorphFrame.proof.test.ts, 23/23 green; full territory+fx
+  suite 423/423 green. Awaiting user visual sign-off (see Open entry above).
 
 ## 2026-07-08
 

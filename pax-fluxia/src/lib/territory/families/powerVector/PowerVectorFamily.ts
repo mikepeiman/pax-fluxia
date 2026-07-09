@@ -30,11 +30,6 @@ import { adjustColorHSL, blendColors } from '$lib/utils/colorUtils';
 import { getActiveKineticFrame } from '../../geometry/powerCore/kineticRuntimeBridge';
 import { buildSurfaceFromCells } from '../../geometry/powerCore/buildSurfaceFromCells';
 import {
-    clipPolylineByFront,
-    frontFieldForRing,
-    splitCellByFrontDetailed,
-} from '../../geometry/powerCore/conquestFrontField';
-import {
     WORLD_OWNER,
     type PowerCell,
 } from '../../geometry/powerCore/powerCoreTypes';
@@ -238,27 +233,6 @@ export class PowerVectorFamily implements RenderFamily {
         }
     }
 
-    /** True iff any point of the polyline lies within eps of the ring — used to
-     *  identify which same-pair frontier polylines are THIS captured cell's rim
-     *  (the exact front-field clip applies only to those; far borders between
-     *  the same two owners elsewhere on the map are never touched). */
-    private static polylineTouchesRing(line: Ring, ring: Ring, eps: number): boolean {
-        const segD = (px: number, py: number, a: readonly [number, number], b: readonly [number, number]) => {
-            const dx = b[0] - a[0];
-            const dy = b[1] - a[1];
-            const l2 = dx * dx + dy * dy;
-            let t = l2 < 1e-12 ? 0 : ((px - a[0]) * dx + (py - a[1]) * dy) / l2;
-            t = t < 0 ? 0 : t > 1 ? 1 : t;
-            return Math.hypot(a[0] + t * dx - px, a[1] + t * dy - py);
-        };
-        for (const p of line) {
-            for (let i = 0; i < ring.length; i++) {
-                if (segD(p[0], p[1], ring[i]!, ring[(i + 1) % ring.length]!) <= eps) return true;
-            }
-        }
-        return false;
-    }
-
     /** FNV string hash (for the owner id, mixed into the cell-fill key). */
     private static hashStr(s: string): number {
         let h = 2166136261;
@@ -377,67 +351,18 @@ export class PowerVectorFamily implements RenderFamily {
             // bbox (the live kinetic clip is PADDED past input.world — passing the
             // frame here would classify no world edges ⇒ empty regions ⇒ fills
             // vanish mid-morph). dx/dy still localizes rendering to the container.
+            // LIVE-LABEL CLASSIFICATION (the `fronts` arg): buildSurfaceFromCells
+            // reclassifies each in-flight conquest's captured-cell rim from THIS
+            // FRAME's true ownership and splits its fill — the surface returned
+            // is simply correct, so the family draws it exactly like idle: no
+            // conquest-specific presentation logic here at all.
             const cells: PowerCell[] = [...frame.frozenCells, ...frame.bubbleCells];
-            // Smoothing-continuity blend: while conquests are in flight, borders
-            // near the captured cell RESHAPE continuously from their PRE-ownership
-            // smoothing to their POST-ownership smoothing (w = front progress) —
-            // without this, the chain re-decomposition at the ownership flip
-            // repaints POST-shaped borders instantly at conquest START.
-            let blend: import('../../geometry/powerCore/buildSurfaceFromCells').SmoothingBlend | undefined;
-            if (frame.fronts && frame.fronts.length > 0) {
-                const preOwnerBySiteId = new Map<string, string>();
-                let w = 1;
-                for (const af of frame.fronts) {
-                    preOwnerBySiteId.set(af.siteId, af.front.ownerOld);
-                    if (af.q < w) w = af.q;
-                }
-                blend = { preOwnerBySiteId, w };
-            }
-            const surface = buildSurfaceFromCells(cells, smoothPasses, blend);
-
-            // SPLIT-AFTER-SMOOTHING overlay: the cells (and therefore the graph,
-            // chains, and borders) are UNSPLIT — settled topology all morph long.
-            // Each in-flight conquest clips the captured cell's SMOOTHED fill into
-            // an old-owner (ahead) piece + new-owner (behind) piece here, at the
-            // presentation layer. The front travels across the final rounded
-            // shape, so completion changes nothing — no reorganization snap.
-            let fills: readonly FillRegion[] = surface.cellFills;
-            const aheadPieces: FillRegion[] = [];
-            /** Captured cell's smoothed rim per front (for the exact frontier clip). */
-            const rimByFront = new Map<string, Ring>();
-            /** The moving front polylines per front (exact crossing endpoints). */
-            const chainsByFront = new Map<string, [number, number][][]>();
-            if (frame.fronts && frame.fronts.length > 0) {
-                const mutable: FillRegion[] = [...surface.cellFills];
-                fills = mutable;
-                for (const af of frame.fronts) {
-                    const idx = mutable.findIndex((f) => f.siteId === af.siteId);
-                    if (idx < 0) continue;
-                    const smoothedFill = mutable[idx]!;
-                    rimByFront.set(af.siteId, smoothedFill.points);
-                    const split = splitCellByFrontDetailed(
-                        {
-                            siteId: af.siteId,
-                            ownerId: af.front.ownerIn,
-                            points: smoothedFill.points as [number, number][],
-                        } as PowerCell,
-                        af.front,
-                        af.q,
-                    );
-                    chainsByFront.set(af.siteId, split.frontChains as [number, number][][]);
-                    const replacement: FillRegion[] = [];
-                    for (const piece of split.parts) {
-                        const region: FillRegion = {
-                            ownerId: piece.ownerId,
-                            points: piece.points,
-                            siteId: `${af.siteId}§${piece.ownerId}`,
-                        } as FillRegion;
-                        replacement.push(region);
-                        if (piece.ownerId === af.front.ownerOld) aheadPieces.push(region);
-                    }
-                    mutable.splice(idx, 1, ...replacement);
-                }
-            }
+            const surface = buildSurfaceFromCells(
+                cells,
+                smoothPasses,
+                undefined,
+                frame.fronts ?? [],
+            );
 
             // Fills: SMOOTHED per-cell (single-owner ⇒ no bucket-fill; owner edges
             // rounded to match the borders). POOLED: unchanged cells keep their
@@ -448,138 +373,16 @@ export class PowerVectorFamily implements RenderFamily {
                 this.fillG.clear();
             }
             if (style.fillEnabled) {
-                this.drawCellFillsPooled(fills, dx, dy, sKey, style);
+                this.drawCellFillsPooled(surface.cellFills, dx, dy, sKey, style);
             } else {
                 this.resetMorphFillPool();
             }
 
-            // Borders: merged + smoothed inter-owner frontiers (settled chains,
-            // stable all morph) + ONLY the moving front curve per conquest.
-            // Never the ahead piece's rim outline — at q≈0 that outline IS the
-            // whole captured cell's rim, which was INTERIOR pre-conquest and is
-            // exactly where the POST border lands: stroking it painted "the next
-            // border" instantly at conquest start (user report), with jagged
-            // notches at the split corners and cap-stacking marks at the joins.
+            // Borders: merged + smoothed inter-owner frontiers AND the front
+            // chord itself — all first-class entries in surface.frontiers, same
+            // blend rule as every other border.
             if (style.borderEnabled) {
-                // Reveal the captured-vs-old-owner settled frontier EXACTLY up to
-                // the front's rim crossings: clip its rim polylines by the same
-                // arrival-time field the split uses, so the revealed border's
-                // tips and the front chain's endpoints are the IDENTICAL points
-                // — a clean moving T-junction (eps/segment-quantized cutting
-                // visibly bit into the frontier at the anchors). Third-party rim
-                // borders (existed pre-conquest) are never cut. Far borders of
-                // the same owner pair (elsewhere on the map, off this rim) are
-                // never cut either — the clip applies only to rim polylines.
-                let frontiers = surface.frontiers;
-                if (frame.fronts && frame.fronts.length > 0) {
-                    for (const af of frame.fronts) {
-                        const rim = rimByFront.get(af.siteId);
-                        if (!rim) continue;
-                        const field = frontFieldForRing(
-                            rim as unknown as [number, number][],
-                            af.front,
-                            af.q,
-                        );
-                        if (!field) continue;
-                        const pair = [af.front.ownerIn, af.front.ownerOld]
-                            .sort()
-                            .join('|');
-                        const next: typeof frontiers = [];
-                        for (const line of frontiers) {
-                            if ([line.ownerA, line.ownerB].sort().join('|') !== pair) {
-                                next.push(line);
-                                continue;
-                            }
-                            // Rim polyline? (any point near the captured rim)
-                            const onRim = PowerVectorFamily.polylineTouchesRing(
-                                line.points,
-                                rim,
-                                1.0,
-                            );
-                            if (!onRim) {
-                                next.push(line);
-                                continue;
-                            }
-                            for (const kept of clipPolylineByFront(
-                                line.points as [number, number][],
-                                field,
-                                'behind',
-                            )) {
-                                next.push({ ...line, points: kept as [number, number][], closed: false });
-                            }
-                        }
-                        frontiers = next;
-                    }
-                    // DISSOLVING conquest borders: the pre-existing attacker↔
-                    // defender border (PRE-graph-only edges), drawn on the AHEAD
-                    // side of the front so the small radial arc + this border
-                    // form ONE full-width, continuously-deforming conquest
-                    // border from frame 1 (the pre-refactor quality). Matched to
-                    // its front by RIM PROXIMITY — never by owner pair (two
-                    // same-pair conquests would both match the first front and
-                    // clip by the wrong cell's field).
-                    for (const line of surface.dissolvingFrontiers ?? []) {
-                        const af = frame.fronts.find((x) => {
-                            const r = rimByFront.get(x.siteId);
-                            return (
-                                r &&
-                                PowerVectorFamily.polylineTouchesRing(line.points, r, 1.0)
-                            );
-                        });
-                        if (!af) continue;
-                        const rim = rimByFront.get(af.siteId)!;
-                        const field = frontFieldForRing(
-                            rim as unknown as [number, number][],
-                            af.front,
-                            af.q,
-                        );
-                        if (!field) continue;
-                        for (const kept of clipPolylineByFront(
-                            line.points as [number, number][],
-                            field,
-                            'ahead',
-                        )) {
-                            frontiers = [
-                                ...frontiers,
-                                { ...line, points: kept as [number, number][], closed: false },
-                            ];
-                        }
-                    }
-                }
-                this.drawBorders(frontiers, surface.worldBorders, dx, dy, style);
-
-                // The moving front: stroke the split's OWN front chains — full
-                // coverage of the front from the FIRST frame (the previous
-                // off-rim-distance extraction left the front bare at start and
-                // "grew it from a point"), with endpoints exactly on the rim
-                // crossings shared with the clip above.
-                if (frame.fronts) {
-                    for (const af of frame.fronts) {
-                        const chains = chainsByFront.get(af.siteId);
-                        if (!chains || chains.length === 0) continue;
-                        const color = style.borderBlend
-                            ? blendColors(
-                                  this.borderColor(af.front.ownerOld, style),
-                                  this.borderColor(af.front.ownerIn, style),
-                                  0.5,
-                              )
-                            : this.borderColor(af.front.ownerOld, style);
-                        for (const chain of chains) {
-                            if (chain.length < 2) continue;
-                            this.borderG.moveTo(chain[0]![0] + dx, chain[0]![1] + dy);
-                            for (let i = 1; i < chain.length; i++) {
-                                this.borderG.lineTo(chain[i]![0] + dx, chain[i]![1] + dy);
-                            }
-                            this.borderG.stroke({
-                                width: style.borderWidth,
-                                color,
-                                alpha: style.borderAlpha,
-                                join: 'round',
-                                cap: 'round',
-                            });
-                        }
-                    }
-                }
+                this.drawBorders(surface.frontiers, surface.worldBorders, dx, dy, style);
             } else this.borderG.clear();
 
             // The idle caches are now stale (fillG holds morph static content).
