@@ -4873,6 +4873,33 @@
                     if ((child as any).clear) (child as any).clear();
                 }
             }
+            // Restart-reset (the session block predates the PowerCore/kinetic
+            // pipeline — every piece of it must reset here too, or the old
+            // game leaks into the new one):
+            // 1. The kinetic runtime singleton. fxOrchestrator.reset() above
+            //    zeroed the FX game clock, so any surviving runtime/morph
+            //    timestamps are from the old clock and never retire.
+            resetKineticRuntimeBridge();
+            kineticFrameActiveTransition = null;
+            pvSnapshotRebuildDueMs = null;
+            // 2. In-flight transition entries. cleanup() removes entries when
+            //    nowMs >= startTimeMs + durationMs — impossible against the
+            //    reset clock, so old-game entries would stay "active" forever
+            //    and win the active-transition pick (highest tick), making
+            //    every new-game conquest commit with the WRONG session — the
+            //    "conquest snaps instead of animating after restart" defect.
+            territoryTransitions.reset();
+            renderFamilyPendingPreviewStartedAtMsByKey.clear();
+            // 3. The resolved-geometry cache. Serving the old game's snapshot
+            //    as the "stale" commit-frame geometry keeps the family's
+            //    version-keyed idle caches matched to the old drawing — the
+            //    "territory not redrawn until first conquest" defect.
+            renderFamilyGeometryCache = null;
+            renderFamilyGeometryCacheKey = null;
+            // 4. The render families themselves (pooled morph fills, idle
+            //    fill/border caches). They are lazily recreated on the next
+            //    presentation, exactly like after onDestroy.
+            disposeAllRenderFamilies();
             // Reset runtime bridge so it rebuilds for new map geometry
             runtimeBridge?.reset();
             runtimeBridge = null;
