@@ -22,14 +22,11 @@
     );
 
     function setPulseBindToTick(value: boolean) {
+        // The binding itself is resolved live in ShipRenderer from the
+        // effective tick — only the flag is stored; the free-run duration
+        // below is preserved for when the binding is turned off.
         GAME_CONFIG.SURGE_PULSE_BIND_TO_TICK = value;
         updatePanel("surgePulseBindToTick", value);
-
-        if (value) {
-            const tickMs = panel.tickInterval ?? GAME_CONFIG.BASE_TICK_MS;
-            GAME_CONFIG.SURGE_PULSE_DURATION_MS = tickMs;
-            updatePanel("surgePulseDurationMs", tickMs);
-        }
     }
 </script>
 

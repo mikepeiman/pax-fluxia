@@ -10,7 +10,7 @@ import { GAME_CONFIG } from '$lib/config/game.config';
 import { gameplayConfigDefaults } from '$lib/config/gameplay.config';
 import { normalizeBgImagePath } from '$lib/config/bgManifest';
 import { normalizeTerritoryRenderModeId } from '$lib/territory/ui/territoryRenderModeCatalog';
-import { RESOLVED_PANEL_CONFIG_MAP, CONFIG_TO_PANEL_KEY, type AnimSliderDef } from './settingsDefs';
+import { ANIM_SLIDERS, RESOLVED_PANEL_CONFIG_MAP, CONFIG_TO_PANEL_KEY, type AnimSliderDef } from './settingsDefs';
 import { dumpSettings } from '$lib/utils/settingsDump';
 
 function isTickRelativeUnit(unit?: string): boolean {
@@ -429,9 +429,10 @@ export function hydrateConfigFromPersistedUiSettings(): {
         GAME_CONFIG.TERRITORY_TRANSITION_MS = panel.territoryTransitionMs;
     }
 
-    if (panel.surgePulseBindToTick ?? GAME_CONFIG.SURGE_PULSE_BIND_TO_TICK ?? true) {
-        GAME_CONFIG.SURGE_PULSE_DURATION_MS = tickInterval;
-    } else if (
+    // Surge pulse: the tick binding is resolved live in ShipRenderer
+    // (resolveSurgePulseDurationMs) — never overwrite the saved free-run
+    // duration here, or toggling the bind off loses the user's value.
+    if (
         typeof panel.surgePulseDurationMs === 'number'
         && Number.isFinite(panel.surgePulseDurationMs)
     ) {
@@ -505,6 +506,72 @@ export function saveAnimLockModes(modes: Record<string, AnimLockMode>): void {
     } catch {
         /* ignore */
     }
+}
+
+/** Fired (on window) whenever the tick interval changes from ANY control
+ *  surface, so every tick display (settings panel, HUD Game Speed widget)
+ *  can re-read GAME_CONFIG.BASE_TICK_MS. */
+export const TICK_INTERVAL_CHANGED_EVENT = 'pax-tick-interval-changed';
+
+/**
+ * Apply a tick-interval change from a control surface OUTSIDE the settings
+ * panel (e.g. the HUD Game Speed widget) as one data-layer operation:
+ * GAME_CONFIG, persisted panel settings, and every tick-bound value
+ * (animation speed, territory transition, tick-locked anim sliders).
+ *
+ * Stores stay out of this module — the caller must push the returned values
+ * into the live game:
+ *   activeGameStore.updateTickInterval(result.tickMs)
+ *   animationStore.setAnimationSpeed(result.animSpeedMs)
+ *
+ * Dispatches 'pax-settings-config-sync-requested' (an open settings panel
+ * re-reads config) and TICK_INTERVAL_CHANGED_EVENT (tick displays refresh),
+ * so control surfaces never have to know about each other.
+ */
+export function applyTickIntervalChange(valueMs: number): {
+    tickMs: number;
+    animSpeedMs: number;
+} {
+    const panel = loadPanelSettings(panelDefaultsFromConfig());
+    panel.tickInterval = valueMs;
+    GAME_CONFIG.BASE_TICK_MS = valueMs;
+
+    if (panel.bindAnimToTick) {
+        GAME_CONFIG.ANIMATION_SPEED_MS = valueMs;
+        panel.animSpeed = valueMs;
+    }
+    if (panel.territoryTransitionBindToTick) {
+        GAME_CONFIG.TERRITORY_TRANSITION_MS = valueMs;
+        panel.territoryTransitionMs = valueMs;
+    }
+
+    const lockUpdates = recalcAnimLocksOnTickChange(
+        valueMs,
+        loadAnimLockModes(),
+        loadAnimLockRatios(),
+        ANIM_SLIDERS,
+    );
+    for (const [configKey, value] of Object.entries(lockUpdates)) {
+        const panelKey = CONFIG_TO_PANEL_KEY[configKey];
+        if (panelKey) panel[panelKey] = value;
+    }
+
+    savePanelSettings(panel);
+
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+            new CustomEvent('pax-settings-config-sync-requested', {
+                detail: { source: 'tick-interval-change', valueMs },
+            }),
+        );
+        window.dispatchEvent(
+            new CustomEvent(TICK_INTERVAL_CHANGED_EVENT, {
+                detail: { valueMs },
+            }),
+        );
+    }
+
+    return { tickMs: valueMs, animSpeedMs: GAME_CONFIG.ANIMATION_SPEED_MS };
 }
 
 /** Recalculate tick-locked/pinned values when tick interval changes */

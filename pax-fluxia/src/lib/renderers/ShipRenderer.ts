@@ -48,6 +48,25 @@ import {
 
 // ── Ship Render State ───────────────────────────────────────────────────────
 
+/** One surge pulse spans exactly one tick when SURGE_PULSE_BIND_TO_TICK is on
+ *  (the default) — resolved HERE from the live effective tick, so the binding
+ *  holds no matter which UI last touched the config (settings are data: the
+ *  old scheme had the settings panel overwrite SURGE_PULSE_DURATION_MS, which
+ *  clobbered the saved free-run value and only applied when the panel synced).
+ *  Unbound: the configured duration, speed-scaled like other surge timings. */
+export function resolveSurgePulseDurationMs(
+    effectiveTickMs: number,
+    speedScale: number,
+): number {
+    if (GAME_CONFIG.SURGE_PULSE_BIND_TO_TICK ?? true) {
+        return effectiveTickMs || GAME_CONFIG.BASE_TICK_MS;
+    }
+    return (
+        (GAME_CONFIG.SURGE_PULSE_DURATION_MS || GAME_CONFIG.BASE_TICK_MS) *
+        speedScale
+    );
+}
+
 /** Per-star surge animation state — created from CombatEvent at tick boundary */
 export interface SurgeState {
     /** Game time when this surge pulse started */
@@ -892,9 +911,10 @@ export function renderShips(
             let surgeDirY = 0;
             let clearCompletedSurge = false;
             if (surge && isAttack && targetStar) {
-                const surgeDur =
-                    (GAME_CONFIG.SURGE_PULSE_DURATION_MS ||
-                        GAME_CONFIG.BASE_TICK_MS) * speedScale;
+                const surgeDur = resolveSurgePulseDurationMs(
+                    state.effectiveTickMs,
+                    speedScale,
+                );
                 const surgeElapsed = now - surge.startTime;
                 const progress = Math.min(1, surgeElapsed / surgeDur);
                 const rampMs =
@@ -955,7 +975,7 @@ export function renderShips(
                 if (surge && isAttack && targetStar) {
                     // Speed-scale surge timing
                     const surgeSpeedScale = (state.effectiveTickMs || GAME_CONFIG.BASE_TICK_MS) / GAME_CONFIG.BASE_TICK_MS;
-                    const surgeDur = (GAME_CONFIG.SURGE_PULSE_DURATION_MS || GAME_CONFIG.BASE_TICK_MS) * surgeSpeedScale;
+                    const surgeDur = resolveSurgePulseDurationMs(state.effectiveTickMs, surgeSpeedScale);
                     const elapsed = state.gameNowMs - surge.startTime;
                     const progress = Math.min(1, elapsed / surgeDur);
 
@@ -1348,9 +1368,10 @@ function renderShipsOptimized(
                     let surgeDirY = 0;
                     let clearCompletedSurge = false;
                     if (surge && isAttack && targetStar) {
-                        const surgeDur =
-                            (GAME_CONFIG.SURGE_PULSE_DURATION_MS ||
-                                GAME_CONFIG.BASE_TICK_MS) * speedScale;
+                        const surgeDur = resolveSurgePulseDurationMs(
+                            state.effectiveTickMs,
+                            speedScale,
+                        );
                         const surgeElapsed = now - surge.startTime;
                         const progress = Math.min(1, surgeElapsed / surgeDur);
                         const rampMs =
