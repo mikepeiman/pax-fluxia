@@ -28,6 +28,35 @@ superseding docs:
 
 ---
 
+## 2026-07-09
+
+### Open
+- [ ] **Verify restart-reset fix in-game (user visual check)** `[territory][lifecycle]` — after
+  5c17e8210: restart mid-game → map must redraw immediately (no old conquest shapes lingering),
+  and re-executing a conquest from the previous match must animate normally. If any symptom
+  remains, the next suspects are the presentation-signature dedup while paused and the family
+  idle-cache keying (both traced, neither proven guilty).
+- [ ] **Territory transition + animation tick-bindings still panel-side** `[settings][arch]` —
+  TERRITORY_TRANSITION_MS and ANIMATION_SPEED_MS bindings still work by the settings panel
+  overwriting the config value (same clobber family the surge fix removed in 2a389a7e1).
+  TERRITORY_TRANSITION even has BOTH implementations (panel write + live
+  resolveTerritoryTransitionDurationMs cap). Consolidate on consumer-side resolution.
+
+### Done
+- [x] **Restart does not fully reset map / re-executed conquests snap (user)** `[territory][lifecycle]`
+  — 5c17e8210: session-change block now resets the kinetic runtime bridge, territoryTransitions
+  (old-clock zombie entries could never expire after the FX-clock reset and poisoned the
+  active-transition pick), the resolved-geometry cache, and the render families.
+- [x] **Attack surge bound to tick duration by default (user)** `[fx][settings]` — 2a389a7e1:
+  binding resolved live in ShipRenderer (resolveSurgePulseDurationMs) from the effective tick;
+  all three panel-side SURGE_PULSE_DURATION_MS clobbers removed (settings-are-data).
+- [x] **Tick Duration slider in the Game Speed HUD widget (user)** `[hud][settings]` — 8f343c5de:
+  slider in GameSpeedPanel via panelSync.applyTickIntervalChange (one data-layer tick-change
+  entry point); surfaces sync via TICK_INTERVAL_CHANGED_EVENT.
+- [x] **Settings panel forgets the open section between panel changes (user)** `[ui][settings]` —
+  8f343c5de: per-category last-selected-section memory in localStorage; selectCategory restores
+  it instead of snapping to the first chip.
+
 ## 2026-07-08
 
 ### Open
