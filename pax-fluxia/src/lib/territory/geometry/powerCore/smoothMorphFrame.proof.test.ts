@@ -345,6 +345,70 @@ describe('conquest front completes early (no settle pop)', () => {
         // After completion: byte-stable.
         expect(maxDev(lines(850), lines(900))).toBeLessThan(1e-6);
     });
+
+    it('ACCEPTANCE GATE (START): no border reorganization at conquest start either', () => {
+        // The user caught what the first gate missed: with settled-topology
+        // chains, the reorganization moved to the START (PRE-smoothed borders →
+        // POST-smoothed borders in one frame: "the next border paints instantly",
+        // "cells change rounding"). The smoothing-continuity blend must make the
+        // first morph frames match the PRE surface, reshaping gradually.
+        const preSurface = buildSurfaceFromCells(S0.state.cells as never, 2);
+        const preLines = [...preSurface.frontiers, ...preSurface.worldBorders].map(
+            (x) => x.points as [number, number][],
+        );
+        const blendedLines = (t: number): [number, number][][] => {
+            const f = rt.sampleFull(t)!;
+            const preOwnerBySiteId = new Map<string, string>();
+            let w = 1;
+            for (const af of f.fronts ?? []) {
+                preOwnerBySiteId.set(af.siteId, af.front.ownerOld);
+                if (af.q < w) w = af.q;
+            }
+            const s = buildSurfaceFromCells(
+                [...f.frozenCells, ...f.bubbleCells],
+                2,
+                { preOwnerBySiteId, w },
+            );
+            // Exclude the captured cell's rim (owner-pair flips there; the front
+            // overlay + suppression govern it) — compare the REST of the map.
+            const fill = s.cellFills.find((c) => c.siteId === CAPTURED);
+            const rim = fill ? [fill.points] : [];
+            return cutPolylinesNearRings(
+                [...s.frontiers, ...s.worldBorders],
+                rim,
+                1.5,
+            ).map((x) => x.points as [number, number][]);
+        };
+        const ptSegD = (px: number, py: number, ax: number, ay: number, bx: number, by: number) => {
+            const dx = bx - ax;
+            const dy = by - ay;
+            const l2 = dx * dx + dy * dy;
+            if (l2 < 1e-12) return Math.hypot(px - ax, py - ay);
+            let t = ((px - ax) * dx + (py - ay) * dy) / l2;
+            t = t < 0 ? 0 : t > 1 ? 1 : t;
+            return Math.hypot(ax + t * dx - px, ay + t * dy - py);
+        };
+        const maxDev = (A: [number, number][][], B: [number, number][][]) => {
+            let worst = 0;
+            for (const L of A) {
+                for (const p of L) {
+                    let best = Infinity;
+                    for (const M of B) {
+                        for (let i = 0; i < M.length - 1; i++) {
+                            const d = ptSegD(p[0], p[1], M[i]![0], M[i]![1], M[i + 1]![0], M[i + 1]![1]);
+                            if (d < best) best = d;
+                        }
+                    }
+                    if (best > worst) worst = best;
+                }
+            }
+            return worst;
+        };
+        // First morph frames: off-rim borders must sit ON the PRE surface (blend
+        // w≈0 ⇒ PRE smoothing), within motion scale.
+        expect(maxDev(blendedLines(16), preLines)).toBeLessThan(2);
+        expect(maxDev(blendedLines(50), preLines)).toBeLessThan(3);
+    });
 });
 
 // End-snap fix 2: multi-conquest ticks previously fell back to the frozen/bubble

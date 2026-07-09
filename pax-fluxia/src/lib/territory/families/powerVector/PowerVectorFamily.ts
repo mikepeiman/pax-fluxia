@@ -356,7 +356,22 @@ export class PowerVectorFamily implements RenderFamily {
             // frame here would classify no world edges ⇒ empty regions ⇒ fills
             // vanish mid-morph). dx/dy still localizes rendering to the container.
             const cells: PowerCell[] = [...frame.frozenCells, ...frame.bubbleCells];
-            const surface = buildSurfaceFromCells(cells, smoothPasses);
+            // Smoothing-continuity blend: while conquests are in flight, borders
+            // near the captured cell RESHAPE continuously from their PRE-ownership
+            // smoothing to their POST-ownership smoothing (w = front progress) —
+            // without this, the chain re-decomposition at the ownership flip
+            // repaints POST-shaped borders instantly at conquest START.
+            let blend: import('../../geometry/powerCore/buildSurfaceFromCells').SmoothingBlend | undefined;
+            if (frame.fronts && frame.fronts.length > 0) {
+                const preOwnerBySiteId = new Map<string, string>();
+                let w = 1;
+                for (const af of frame.fronts) {
+                    preOwnerBySiteId.set(af.siteId, af.front.ownerOld);
+                    if (af.q < w) w = af.q;
+                }
+                blend = { preOwnerBySiteId, w };
+            }
+            const surface = buildSurfaceFromCells(cells, smoothPasses, blend);
 
             // SPLIT-AFTER-SMOOTHING overlay: the cells (and therefore the graph,
             // chains, and borders) are UNSPLIT — settled topology all morph long.

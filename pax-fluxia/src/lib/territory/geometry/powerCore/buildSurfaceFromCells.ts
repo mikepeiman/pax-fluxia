@@ -280,9 +280,67 @@ export function cutPolylinesNearRings(
     return out;
 }
 
+/**
+ * Smoothing-continuity blend for in-flight conquests: the chain DECOMPOSITION
+ * depends on ownership (chains break where owner pairs change), so an owner
+ * flip re-smooths nearby borders in one frame — PRE-shaped curves snap to
+ * POST-shaped curves (visible as "cells change rounding at conquest start" /
+ * "the next border paints instantly"). Fix: smooth the SAME raw edges under
+ * BOTH ownerships and lerp each shared edge's smoothed polyline PRE→POST by w,
+ * so every border RESHAPES continuously across the morph. Edges whose owner
+ * pair itself changes (the captured cell's rim) keep POST smoothing — the
+ * front overlay governs their presentation.
+ */
+export interface SmoothingBlend {
+    /** captured siteId → its PRE (old) ownerId. */
+    readonly preOwnerBySiteId: ReadonlyMap<string, string>;
+    /** 0 = PRE smoothing, 1 = POST smoothing. */
+    readonly w: number;
+}
+
+/** Resample an open polyline to n points by arc length (linear). */
+function resamplePolyline(pts: readonly Point[], n: number): Point[] {
+    if (pts.length === n) return pts.map((p) => [p[0], p[1]] as Point);
+    const cum: number[] = [0];
+    for (let i = 1; i < pts.length; i++) {
+        cum.push(cum[i - 1]! + Math.hypot(pts[i]![0] - pts[i - 1]![0], pts[i]![1] - pts[i - 1]![1]));
+    }
+    const total = cum[cum.length - 1]!;
+    const out: Point[] = [];
+    for (let k = 0; k < n; k++) {
+        const target = total * (k / (n - 1));
+        let i = 1;
+        while (i < cum.length - 1 && cum[i]! < target) i++;
+        const t0 = cum[i - 1]!;
+        const t1 = cum[i]!;
+        const f = t1 - t0 < 1e-12 ? 0 : (target - t0) / (t1 - t0);
+        out.push([
+            pts[i - 1]![0] + (pts[i]![0] - pts[i - 1]![0]) * f,
+            pts[i - 1]![1] + (pts[i]![1] - pts[i - 1]![1]) * f,
+        ]);
+    }
+    return out;
+}
+
+/** Pointwise lerp of two open polylines (resampled to a common count). */
+function lerpPolylines(a: readonly Point[], b: readonly Point[], w: number): Point[] {
+    const n = Math.max(a.length, b.length);
+    const ra = resamplePolyline(a, n);
+    const rb = resamplePolyline(b, n);
+    const out: Point[] = [];
+    for (let i = 0; i < n; i++) {
+        out.push([
+            ra[i]![0] + (rb[i]![0] - ra[i]![0]) * w,
+            ra[i]![1] + (rb[i]![1] - ra[i]![1]) * w,
+        ]);
+    }
+    return out;
+}
+
 export function buildSurfaceFromCells(
     cells: readonly PowerCell[],
     passes: number,
+    blend?: SmoothingBlend,
 ): CellSurface {
     // Conform first: splice the conquest front's crossing points into the
     // neighbour edges (exact, single-diagram) so the frontier isn't dropped and
@@ -290,6 +348,27 @@ export function buildSurfaceFromCells(
     const conformed = conformCellBoundaries(cells);
     const graph = buildSharedEdgeGraph(conformed, worldRectFromCells(conformed));
     smoothSharedEdges(graph, passes);
+
+    // Smoothing-continuity blend (see SmoothingBlend): lerp shared edges'
+    // smoothed polylines between the PRE-ownership and POST-ownership chain
+    // decompositions. edgeIds are endpoint-keyed (geometry-only), so the same
+    // raw edge matches across both graphs; owner-pair-changed edges (the rim)
+    // are skipped and keep POST smoothing.
+    if (blend && blend.w < 1 && blend.preOwnerBySiteId.size > 0) {
+        const preCells = conformed.map((c) => {
+            const pre = blend.preOwnerBySiteId.get(c.siteId);
+            return pre ? { ...c, ownerId: pre } : c;
+        });
+        const preGraph = buildSharedEdgeGraph(preCells, worldRectFromCells(preCells));
+        smoothSharedEdges(preGraph, passes);
+        const preById = new Map(preGraph.sharedEdges.map((e) => [e.edgeId, e]));
+        for (const e of graph.sharedEdges) {
+            const pre = preById.get(e.edgeId);
+            if (!pre) continue; // POST-only edge (rim) — front overlay governs
+            if (pre.ownerA !== e.ownerA || pre.ownerB !== e.ownerB) continue;
+            e.smoothedPts = lerpPolylines(pre.smoothedPts, e.smoothedPts, blend.w);
+        }
+    }
 
     const byPair = new Map<string, { edgeId: string; points: readonly Point[] }[]>();
     for (const e of graph.sharedEdges) {
