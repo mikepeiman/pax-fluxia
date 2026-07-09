@@ -31,6 +31,16 @@ superseding docs:
 ## 2026-07-09
 
 ### Open
+- [ ] **⭐ Transition rebuild: pre-split border semantics on the post-split backend (user ruling)**
+  `[territory][transitions]` — user verified 2eecc5564 (pre-split) and a2ff7ed5e (split-after-
+  smoothing commit) are BOTH visually superior to current and all intermediates. Keep: post-split
+  backend (unsplit one-diagram frames + fronts-as-data + settled chains), exact front math,
+  acceptance gates, today's 4 non-transition commits. Discard: the presentation border overlays
+  layered on after a2ff7ed5e (rim-suppression clip, front-only stroke pass, dissolvingFrontiers +
+  rim-proximity matching + radial gate; continuity blend held in reserve). Rebuild: live-label
+  border CLASSIFICATION after smoothing — proposal at
+  .agent/docs/game/design/2026-07-09_TRANSITION_BORDER_CLASSIFICATION_PROPOSAL.md. AWAITING USER
+  APPROVAL of the proposal before any code change.
 - [ ] **Verify restart-reset fix in-game (user visual check)** `[territory][lifecycle]` — after
   5c17e8210: restart mid-game → map must redraw immediately (no old conquest shapes lingering),
   and re-executing a conquest from the previous match must animate normally. If any symptom
