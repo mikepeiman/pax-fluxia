@@ -28,11 +28,12 @@ import * as PIXI from 'pixi.js';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 import { adjustColorHSL, blendColors } from '$lib/utils/colorUtils';
 import { getActiveKineticFrame } from '../../geometry/powerCore/kineticRuntimeBridge';
+import { buildSurfaceFromCells } from '../../geometry/powerCore/buildSurfaceFromCells';
 import {
-    buildSurfaceFromCells,
-    cutPolylinesNearRings,
-} from '../../geometry/powerCore/buildSurfaceFromCells';
-import { splitCellByFront } from '../../geometry/powerCore/conquestFrontField';
+    clipPolylineBehindFront,
+    frontFieldForRing,
+    splitCellByFrontDetailed,
+} from '../../geometry/powerCore/conquestFrontField';
 import {
     WORLD_OWNER,
     type PowerCell,
@@ -237,16 +238,11 @@ export class PowerVectorFamily implements RenderFamily {
         }
     }
 
-    /**
-     * Extract the FRONT CURVE from an ahead-piece ring: maximal cyclic runs of
-     * points farther than `eps` from the cell's smoothed rim, extended by one
-     * point on each side (the split crossings, which lie ON the rim). Rim
-     * portions of the piece are excluded — stroking them painted the future
-     * POST border instantly at conquest start.
-     */
-    private static offRimRuns(piece: Ring, rim: Ring, eps: number): [number, number][][] {
-        const n = piece.length;
-        if (n < 2) return [];
+    /** True iff any point of the polyline lies within eps of the ring — used to
+     *  identify which same-pair frontier polylines are THIS captured cell's rim
+     *  (the exact front-field clip applies only to those; far borders between
+     *  the same two owners elsewhere on the map are never touched). */
+    private static polylineTouchesRing(line: Ring, ring: Ring, eps: number): boolean {
         const segD = (px: number, py: number, a: readonly [number, number], b: readonly [number, number]) => {
             const dx = b[0] - a[0];
             const dy = b[1] - a[1];
@@ -255,35 +251,12 @@ export class PowerVectorFamily implements RenderFamily {
             t = t < 0 ? 0 : t > 1 ? 1 : t;
             return Math.hypot(a[0] + t * dx - px, a[1] + t * dy - py);
         };
-        const onRim = (p: readonly [number, number]): boolean => {
-            for (let i = 0; i < rim.length; i++) {
-                if (segD(p[0], p[1], rim[i]!, rim[(i + 1) % rim.length]!) <= eps) return true;
-            }
-            return false;
-        };
-        const off = piece.map((p) => !onRim(p));
-        if (!off.some(Boolean)) return [];
-        if (off.every(Boolean)) return [piece.map((p) => [p[0], p[1]] as [number, number])];
-        const runs: [number, number][][] = [];
-        // Start scanning from an ON-rim point so runs never wrap awkwardly.
-        let start = off.findIndex((v) => !v);
-        let run: [number, number][] | null = null;
-        for (let k = 0; k <= n; k++) {
-            const i = (start + k) % n;
-            if (off[i]) {
-                if (!run) {
-                    // Include the preceding ON-rim point (the crossing).
-                    const prev = piece[(i - 1 + n) % n]!;
-                    run = [[prev[0], prev[1]]];
-                }
-                run.push([piece[i]![0], piece[i]![1]]);
-            } else if (run) {
-                run.push([piece[i]![0], piece[i]![1]]); // trailing crossing
-                runs.push(run);
-                run = null;
+        for (const p of line) {
+            for (let i = 0; i < ring.length; i++) {
+                if (segD(p[0], p[1], ring[i]!, ring[(i + 1) % ring.length]!) <= eps) return true;
             }
         }
-        return runs;
+        return false;
     }
 
     /** FNV string hash (for the owner id, mixed into the cell-fill key). */
@@ -430,8 +403,10 @@ export class PowerVectorFamily implements RenderFamily {
             // shape, so completion changes nothing — no reorganization snap.
             let fills: readonly FillRegion[] = surface.cellFills;
             const aheadPieces: FillRegion[] = [];
-            /** Captured cell's smoothed rim per front (for front-curve extraction). */
+            /** Captured cell's smoothed rim per front (for the exact frontier clip). */
             const rimByFront = new Map<string, Ring>();
+            /** The moving front polylines per front (exact crossing endpoints). */
+            const chainsByFront = new Map<string, [number, number][][]>();
             if (frame.fronts && frame.fronts.length > 0) {
                 const mutable: FillRegion[] = [...surface.cellFills];
                 fills = mutable;
@@ -440,7 +415,7 @@ export class PowerVectorFamily implements RenderFamily {
                     if (idx < 0) continue;
                     const smoothedFill = mutable[idx]!;
                     rimByFront.set(af.siteId, smoothedFill.points);
-                    const pieces = splitCellByFront(
+                    const split = splitCellByFrontDetailed(
                         {
                             siteId: af.siteId,
                             ownerId: af.front.ownerIn,
@@ -449,8 +424,9 @@ export class PowerVectorFamily implements RenderFamily {
                         af.front,
                         af.q,
                     );
+                    chainsByFront.set(af.siteId, split.frontChains as [number, number][][]);
                     const replacement: FillRegion[] = [];
-                    for (const piece of pieces) {
+                    for (const piece of split.parts) {
                         const region: FillRegion = {
                             ownerId: piece.ownerId,
                             points: piece.points,
@@ -485,47 +461,66 @@ export class PowerVectorFamily implements RenderFamily {
             // border" instantly at conquest start (user report), with jagged
             // notches at the split corners and cap-stacking marks at the joins.
             if (style.borderEnabled) {
-                // Suppress ONLY the captured-vs-old-owner settled frontier where
-                // the ahead piece still covers it (it appears progressively
-                // BEHIND the front). Third-party rim borders (old|third pre,
-                // new|third post — pair changed but border EXISTED pre-conquest)
-                // must persist, so they are never cut.
+                // Reveal the captured-vs-old-owner settled frontier EXACTLY up to
+                // the front's rim crossings: clip its rim polylines by the same
+                // arrival-time field the split uses, so the revealed border's
+                // tips and the front chain's endpoints are the IDENTICAL points
+                // — a clean moving T-junction (eps/segment-quantized cutting
+                // visibly bit into the frontier at the anchors). Third-party rim
+                // borders (existed pre-conquest) are never cut. Far borders of
+                // the same owner pair (elsewhere on the map, off this rim) are
+                // never cut either — the clip applies only to rim polylines.
                 let frontiers = surface.frontiers;
-                if (aheadPieces.length > 0 && frame.fronts) {
-                    const conquestPairs = new Set(
-                        frame.fronts.map((af) =>
-                            [af.front.ownerIn, af.front.ownerOld].sort().join('|'),
-                        ),
-                    );
-                    const cuttable: typeof surface.frontiers = [];
-                    const untouched: typeof surface.frontiers = [];
-                    for (const line of surface.frontiers) {
-                        const pair = [line.ownerA, line.ownerB].sort().join('|');
-                        (conquestPairs.has(pair) ? cuttable : untouched).push(line);
+                if (frame.fronts && frame.fronts.length > 0) {
+                    for (const af of frame.fronts) {
+                        const rim = rimByFront.get(af.siteId);
+                        if (!rim) continue;
+                        const field = frontFieldForRing(
+                            rim as unknown as [number, number][],
+                            af.front,
+                            af.q,
+                        );
+                        if (!field) continue;
+                        const pair = [af.front.ownerIn, af.front.ownerOld]
+                            .sort()
+                            .join('|');
+                        const next: typeof frontiers = [];
+                        for (const line of frontiers) {
+                            if ([line.ownerA, line.ownerB].sort().join('|') !== pair) {
+                                next.push(line);
+                                continue;
+                            }
+                            // Rim polyline? (any point near the captured rim)
+                            const onRim = PowerVectorFamily.polylineTouchesRing(
+                                line.points,
+                                rim,
+                                1.0,
+                            );
+                            if (!onRim) {
+                                next.push(line);
+                                continue;
+                            }
+                            for (const kept of clipPolylineBehindFront(
+                                line.points as [number, number][],
+                                field,
+                            )) {
+                                next.push({ ...line, points: kept as [number, number][], closed: false });
+                            }
+                        }
+                        frontiers = next;
                     }
-                    frontiers = [
-                        ...untouched,
-                        ...cutPolylinesNearRings(
-                            cuttable,
-                            aheadPieces.map((piece) => piece.points),
-                            Math.max(0.75, style.borderWidth * 0.25),
-                        ),
-                    ];
                 }
                 this.drawBorders(frontiers, surface.worldBorders, dx, dy, style);
 
-                // The moving front: stroke ONLY the split boundary — the runs of
-                // ahead-piece points that lie OFF the captured cell's smoothed
-                // rim (crossing endpoints ON the rim included), in the old|new
-                // pairing. Vanishes with the piece; joins the rim with one clean
-                // cap per end.
+                // The moving front: stroke the split's OWN front chains — full
+                // coverage of the front from the FIRST frame (the previous
+                // off-rim-distance extraction left the front bare at start and
+                // "grew it from a point"), with endpoints exactly on the rim
+                // crossings shared with the clip above.
                 if (frame.fronts) {
                     for (const af of frame.fronts) {
-                        const piece = aheadPieces.find((p) =>
-                            p.siteId!.startsWith(af.siteId),
-                        );
-                        const rim = rimByFront.get(af.siteId);
-                        if (!piece || !rim) continue;
+                        const chains = chainsByFront.get(af.siteId);
+                        if (!chains || chains.length === 0) continue;
                         const color = style.borderBlend
                             ? blendColors(
                                   this.borderColor(af.front.ownerOld, style),
@@ -533,7 +528,7 @@ export class PowerVectorFamily implements RenderFamily {
                                   0.5,
                               )
                             : this.borderColor(af.front.ownerOld, style);
-                        for (const chain of PowerVectorFamily.offRimRuns(piece.points, rim, 0.5)) {
+                        for (const chain of chains) {
                             if (chain.length < 2) continue;
                             this.borderG.moveTo(chain[0]![0] + dx, chain[0]![1] + dy);
                             for (let i = 1; i < chain.length; i++) {

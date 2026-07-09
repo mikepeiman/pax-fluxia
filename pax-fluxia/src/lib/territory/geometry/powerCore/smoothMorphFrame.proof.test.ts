@@ -32,7 +32,12 @@ import {
 } from './sharedEdgeGraph';
 import { smoothSharedEdges } from './smoothSharedEdges';
 import { buildSurfaceFromCells, cutPolylinesNearRings } from './buildSurfaceFromCells';
-import { splitCellByFront } from './conquestFrontField';
+import {
+    clipPolylineBehindFront,
+    frontFieldForRing,
+    splitCellByFront,
+    splitCellByFrontDetailed,
+} from './conquestFrontField';
 import { KineticTransitionRuntime } from './kineticTransitionRuntime';
 import { WORLD_OWNER, type Point, type PowerCell, type WorldRect } from './powerCoreTypes';
 import type { KineticEndpointState } from './kineticTypes';
@@ -344,6 +349,87 @@ describe('conquest front completes early (no settle pop)', () => {
         }
         // After completion: byte-stable.
         expect(maxDev(lines(850), lines(900))).toBeLessThan(1e-6);
+    });
+
+    it('front chains cover the WHOLE front from the FIRST frame, endpoints ON the rim', () => {
+        // User requirement 1: the front stroke must occupy the entire front —
+        // the old off-rim-distance extraction left it bare at start ("grows
+        // from a point").
+        for (const t of [8, 30, 300, 700]) {
+            const f = rt.sampleFull(t)!;
+            const af = (f.fronts ?? []).find((x) => x.siteId === CAPTURED);
+            if (!af) continue; // post-completion
+            const surface = buildSurfaceFromCells([...f.frozenCells, ...f.bubbleCells], 2);
+            const rim = surface.cellFills.find((c) => c.siteId === CAPTURED)!.points;
+            const split = splitCellByFrontDetailed(
+                { siteId: CAPTURED, ownerId: af.front.ownerIn, points: rim } as never,
+                af.front,
+                af.q,
+            );
+            expect(split.frontChains.length, `t=${t}`).toBeGreaterThan(0);
+            const segD = (px: number, py: number, a: [number, number], b: [number, number]) => {
+                const dx = b[0] - a[0];
+                const dy = b[1] - a[1];
+                const l2 = dx * dx + dy * dy;
+                let s = l2 < 1e-12 ? 0 : ((px - a[0]) * dx + (py - a[1]) * dy) / l2;
+                s = s < 0 ? 0 : s > 1 ? 1 : s;
+                return Math.hypot(a[0] + s * dx - px, a[1] + s * dy - py);
+            };
+            const distToRim = (p: [number, number]) => {
+                let best = Infinity;
+                for (let i = 0; i < rim.length; i++) {
+                    const d = segD(p[0], p[1], rim[i]! as [number, number], rim[(i + 1) % rim.length]! as [number, number]);
+                    if (d < best) best = d;
+                }
+                return best;
+            };
+            for (const chain of split.frontChains) {
+                expect(chain.length).toBeGreaterThanOrEqual(2);
+                // Both endpoints anchor exactly on the rim (the crossings).
+                expect(distToRim(chain[0]! as [number, number])).toBeLessThan(1e-6);
+                expect(distToRim(chain[chain.length - 1]! as [number, number])).toBeLessThan(1e-6);
+            }
+        }
+    });
+
+    it('EXACT anchors: revealed rim frontier tips coincide with front chain endpoints', () => {
+        // User requirement 2: the settled-frontier clip must terminate at the
+        // SAME points where the front meets the rim (no bites into the frontier).
+        const f = rt.sampleFull(400)!;
+        const af = (f.fronts ?? []).find((x) => x.siteId === CAPTURED)!;
+        const surface = buildSurfaceFromCells([...f.frozenCells, ...f.bubbleCells], 2);
+        const rim = surface.cellFills.find((c) => c.siteId === CAPTURED)!.points;
+        const split = splitCellByFrontDetailed(
+            { siteId: CAPTURED, ownerId: af.front.ownerIn, points: rim } as never,
+            af.front,
+            af.q,
+        );
+        const anchors = split.frontChains.flatMap((chain) => [
+            chain[0]!,
+            chain[chain.length - 1]!,
+        ]);
+        expect(anchors.length).toBeGreaterThan(0);
+        const field = frontFieldForRing(rim as never, af.front, af.q)!;
+        const pair = [af.front.ownerIn, af.front.ownerOld].sort().join('|');
+        let checkedTips = 0;
+        for (const line of surface.frontiers) {
+            if ([line.ownerA, line.ownerB].sort().join('|') !== pair) continue;
+            for (const kept of clipPolylineBehindFront(line.points as [number, number][], field)) {
+                for (const tip of [kept[0]!, kept[kept.length - 1]!]) {
+                    // A tip is either an original chain junction (unclipped end)
+                    // or an EXACT crossing — if it lies on the field threshold,
+                    // it must coincide with a front-chain anchor.
+                    if (Math.abs(field.value(tip) - field.c) < 1e-6) {
+                        const nearest = Math.min(
+                            ...anchors.map((a) => Math.hypot(a[0] - tip[0], a[1] - tip[1])),
+                        );
+                        expect(nearest).toBeLessThan(1e-6);
+                        checkedTips++;
+                    }
+                }
+            }
+        }
+        expect(checkedTips).toBeGreaterThan(0); // the invariant was actually exercised
     });
 
     it('ACCEPTANCE GATE (START): no border reorganization at conquest start either', () => {
