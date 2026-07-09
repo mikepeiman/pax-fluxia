@@ -54,6 +54,18 @@ export interface CellSurface {
     readonly frontiers: SurfaceFrontier[];
     /** Owner↔world borders (ownerB === WORLD_OWNER). */
     readonly worldBorders: SurfaceFrontier[];
+    /**
+     * MORPH-only (smoothing blend active): PRE-graph-only frontiers — the
+     * captured cell's rim borders facing the NEW owner's own cells (the
+     * pre-existing attacker↔defender border; same-owner interior in the POST
+     * graph). RADIAL fronts start as a small arc at the impact point, and the
+     * old implementation looked right because these borders stayed drawn AHEAD
+     * of the front, forming ONE full-width continuously-deforming conquest
+     * border. Render clipped to the AHEAD side of the front (in radial mode
+     * most of this border is genuinely ahead of the small arc; in linear mode
+     * the front coincides with it and the ahead side is empty — correctly).
+     */
+    readonly dissolvingFrontiers?: SurfaceFrontier[];
 }
 
 /**
@@ -354,6 +366,7 @@ export function buildSurfaceFromCells(
     // decompositions. edgeIds are endpoint-keyed (geometry-only), so the same
     // raw edge matches across both graphs; owner-pair-changed edges (the rim)
     // are skipped and keep POST smoothing.
+    let dissolvingFrontiers: SurfaceFrontier[] = [];
     if (blend && blend.w < 1 && blend.preOwnerBySiteId.size > 0) {
         const preCells = conformed.map((c) => {
             const pre = blend.preOwnerBySiteId.get(c.siteId);
@@ -367,6 +380,25 @@ export function buildSurfaceFromCells(
             if (!pre) continue; // POST-only edge (rim) — front overlay governs
             if (pre.ownerA !== e.ownerA || pre.ownerB !== e.ownerB) continue;
             e.smoothedPts = lerpPolylines(pre.smoothedPts, e.smoothedPts, blend.w);
+        }
+        // PRE-only edges (absent from the POST graph by edgeId) = the captured
+        // cells' rim borders facing the new owner's own cells — the dissolving
+        // conquest borders (see CellSurface.dissolvingFrontiers).
+        const postIds = new Set(graph.sharedEdges.map((e) => e.edgeId));
+        const preOnly = preGraph.sharedEdges.filter((e) => !postIds.has(e.edgeId));
+        if (preOnly.length > 0) {
+            const preByPair = new Map<string, { edgeId: string; points: readonly Point[] }[]>();
+            for (const e of preOnly) {
+                const key = `${e.ownerA}|${e.ownerB}`;
+                const bucket = preByPair.get(key);
+                const entry = { edgeId: e.edgeId, points: e.smoothedPts };
+                if (bucket) bucket.push(entry);
+                else preByPair.set(key, [entry]);
+            }
+            dissolvingFrontiers = chainByGroup(
+                preByPair,
+                (key) => key.split('|') as [string, string],
+            );
         }
     }
 
@@ -453,5 +485,5 @@ export function buildSurfaceFromCells(
         }
     }
 
-    return { cellFills, frontiers, worldBorders };
+    return { cellFills, frontiers, worldBorders, dissolvingFrontiers };
 }

@@ -576,6 +576,94 @@ describe('MULTI-morph one-diagram (disjoint concurrent conquests)', () => {
     });
 });
 
+// The dissolving conquest border, gated in RADIAL mode — the mode it serves.
+// (The first version of this gate ran in LINEAR mode, where the front coincides
+// with the entry border and the ahead side is correctly empty — an invalid
+// falsification that led to discarding a correct fix. Mode matters.)
+describe('DISSOLVING border (RADIAL): old attacker border + small arc = one full-width border', () => {
+    const MAPZ = (() => {
+        const raw2 = JSON.parse(
+            readFileSync(
+                path.join(REPO_ROOT, 'common', 'resources', 'fixture-maps', 'kinetic_independent_conquests.json'),
+                'utf-8',
+            ),
+        ) as { stars: StarState[]; connections: StarConnection[] };
+        let maxX = 0;
+        let maxY = 0;
+        for (const s of raw2.stars) {
+            if (s.x > maxX) maxX = s.x;
+            if (s.y > maxY) maxY = s.y;
+        }
+        return { stars: raw2.stars, connections: raw2.connections, w: maxX + 200, h: maxY + 200 };
+    })();
+    const epz = (ov: Record<string, string>) => {
+        const stars = MAPZ.stars.map((s) =>
+            ov[s.id] ? ({ ...s, ownerId: ov[s.id] } as StarState) : s,
+        );
+        const config = buildPowerVoronoi0319Settings({
+            lanes: MAPZ.connections, worldWidth: MAPZ.w, worldHeight: MAPZ.h,
+            configSource: GAME_CONFIG as unknown as Record<string, unknown>,
+        });
+        const r = computePowerCoreEndpoint({ stars, connections: MAPZ.connections, config });
+        if ('kind' in r) throw new Error(r.message);
+        return { state: { sites: r.sites, cells: r.cells }, clip: r.clip };
+    };
+
+    it('radial: dissolving border is near-full at start and shrinks as the arc expands', () => {
+        const oldOwner = MAPZ.stars.find((s) => s.id === 'star-7')!.ownerId!;
+        const newOwner = MAPZ.stars.find((s) => s.id === 'star-6')!.ownerId!;
+        const Z0 = epz({});
+        const Z1 = epz({ 'star-7': newOwner });
+        const rtz = new KineticTransitionRuntime();
+        rtz.commit({
+            state: Z0.state, clip: Z0.clip, ownershipVersion: 'v0',
+            transitionKey: null, nowMs: 0, durationMs: 1000,
+        });
+        rtz.commit({
+            state: Z1.state, clip: Z1.clip, ownershipVersion: 'v1',
+            transitionKey: 'k', nowMs: 0, durationMs: 1000,
+            conquestOrigins: new Map([[
+                'star-7',
+                { x: MAPZ.stars[6]!.x, y: MAPZ.stars[6]!.y },
+            ]]),
+            conquestFrontMode: 'radial',
+        });
+        const dissolvedLen = (t: number): number => {
+            const frame = rtz.sampleFull(t)!;
+            const af = (frame.fronts ?? []).find((x) => x.siteId === 'star-7');
+            if (!af) return 0;
+            const surface = buildSurfaceFromCells(
+                [...frame.frozenCells, ...frame.bubbleCells],
+                2,
+                { preOwnerBySiteId: new Map([['star-7', oldOwner]]), w: af.q },
+            );
+            const rim = surface.cellFills.find((c) => c.siteId === 'star-7')!.points;
+            const field = frontFieldForRing(rim as never, af.front, af.q)!;
+            let len = 0;
+            for (const line of surface.dissolvingFrontiers ?? []) {
+                for (const kept of clipPolylineByFront(
+                    line.points as [number, number][],
+                    field,
+                    'ahead',
+                )) {
+                    for (let i = 0; i < kept.length - 1; i++) {
+                        len += Math.hypot(
+                            kept[i + 1]![0] - kept[i]![0],
+                            kept[i + 1]![1] - kept[i]![1],
+                        );
+                    }
+                }
+            }
+            return len;
+        };
+        const early = dissolvedLen(16);
+        const mid = dissolvedLen(500);
+        expect(early).toBeGreaterThan(10); // old border present at start (radial!)
+        expect(mid).toBeLessThan(early); // consumed as the arc expands
+        expect(dissolvedLen(950)).toBe(0); // fully consumed at completion
+    });
+});
+
 describe('buildSurfaceFromCells: the render-ready morph surface (idle + morph share this)', () => {
     const CLIP_AREA = shoelace(S0.clip.map((p) => [p[0], p[1]] as Point));
     const bubble = buildTransitionBubble({

@@ -510,6 +510,41 @@ export class PowerVectorFamily implements RenderFamily {
                         }
                         frontiers = next;
                     }
+                    // DISSOLVING conquest borders: the pre-existing attacker↔
+                    // defender border (PRE-graph-only edges), drawn on the AHEAD
+                    // side of the front so the small radial arc + this border
+                    // form ONE full-width, continuously-deforming conquest
+                    // border from frame 1 (the pre-refactor quality). Matched to
+                    // its front by RIM PROXIMITY — never by owner pair (two
+                    // same-pair conquests would both match the first front and
+                    // clip by the wrong cell's field).
+                    for (const line of surface.dissolvingFrontiers ?? []) {
+                        const af = frame.fronts.find((x) => {
+                            const r = rimByFront.get(x.siteId);
+                            return (
+                                r &&
+                                PowerVectorFamily.polylineTouchesRing(line.points, r, 1.0)
+                            );
+                        });
+                        if (!af) continue;
+                        const rim = rimByFront.get(af.siteId)!;
+                        const field = frontFieldForRing(
+                            rim as unknown as [number, number][],
+                            af.front,
+                            af.q,
+                        );
+                        if (!field) continue;
+                        for (const kept of clipPolylineByFront(
+                            line.points as [number, number][],
+                            field,
+                            'ahead',
+                        )) {
+                            frontiers = [
+                                ...frontiers,
+                                { ...line, points: kept as [number, number][], closed: false },
+                            ];
+                        }
+                    }
                 }
                 this.drawBorders(frontiers, surface.worldBorders, dx, dy, style);
 
