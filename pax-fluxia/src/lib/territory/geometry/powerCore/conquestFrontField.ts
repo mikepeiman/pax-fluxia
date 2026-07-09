@@ -160,13 +160,15 @@ export function frontFieldForRing(
 }
 
 /**
- * Keep the sub-polylines of an OPEN polyline lying BEHIND the front
- * (value ≤ c), each cut end terminating EXACTLY at the field crossing — the
- * shared anchor with the front chain.
+ * Keep the sub-polylines of an OPEN polyline on ONE side of the front —
+ * 'behind' (value ≤ c, captured) or 'ahead' (value > c, not yet captured) —
+ * each cut end terminating EXACTLY at the field crossing: the shared anchor
+ * with the front chain.
  */
-export function clipPolylineBehindFront(
+export function clipPolylineByFront(
     points: readonly Point[],
     field: FrontClipField,
+    keep: 'behind' | 'ahead',
 ): Point[][] {
     const out: Point[][] = [];
     let run: Point[] = [];
@@ -177,7 +179,8 @@ export function clipPolylineBehindFront(
     for (let i = 0; i < points.length; i++) {
         const p = points[i]!;
         const behind = field.value(p) <= field.c;
-        if (behind) {
+        const wanted = keep === 'behind' ? behind : !behind;
+        if (wanted) {
             if (run.length === 0 && i > 0) {
                 const cp = field.crossing(points[i - 1]!, p);
                 if (cp) run.push(cp);
@@ -193,6 +196,14 @@ export function clipPolylineBehindFront(
     }
     flush();
     return out;
+}
+
+/** Back-compat alias: keep the BEHIND side (see clipPolylineByFront). */
+export function clipPolylineBehindFront(
+    points: readonly Point[],
+    field: FrontClipField,
+): Point[][] {
+    return clipPolylineByFront(points, field, 'behind');
 }
 
 function part(cell: PowerCell, starId: string, ownerId: string, points: Point[]): PowerCell {

@@ -34,6 +34,7 @@ import { smoothSharedEdges } from './smoothSharedEdges';
 import { buildSurfaceFromCells, cutPolylinesNearRings } from './buildSurfaceFromCells';
 import {
     clipPolylineBehindFront,
+    clipPolylineByFront,
     frontFieldForRing,
     splitCellByFront,
     splitCellByFrontDetailed,
@@ -558,6 +559,7 @@ describe('MULTI-morph one-diagram (disjoint concurrent conquests)', () => {
         });
         // Two independent morphs must be active (disjoint ends of the chain).
         expect(rt.activeKey).toBe('k1|k2');
+
         const CLIP_AREA2 = shoelace(both.clip.map((p) => [p[0], p[1]] as Point));
         for (const t of [450, 700, 950]) {
             const frame = rt.sampleFull(t);

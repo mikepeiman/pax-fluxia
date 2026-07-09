@@ -30,7 +30,7 @@ import { adjustColorHSL, blendColors } from '$lib/utils/colorUtils';
 import { getActiveKineticFrame } from '../../geometry/powerCore/kineticRuntimeBridge';
 import { buildSurfaceFromCells } from '../../geometry/powerCore/buildSurfaceFromCells';
 import {
-    clipPolylineBehindFront,
+    clipPolylineByFront,
     frontFieldForRing,
     splitCellByFrontDetailed,
 } from '../../geometry/powerCore/conquestFrontField';
@@ -500,9 +500,10 @@ export class PowerVectorFamily implements RenderFamily {
                                 next.push(line);
                                 continue;
                             }
-                            for (const kept of clipPolylineBehindFront(
+                            for (const kept of clipPolylineByFront(
                                 line.points as [number, number][],
                                 field,
+                                'behind',
                             )) {
                                 next.push({ ...line, points: kept as [number, number][], closed: false });
                             }
