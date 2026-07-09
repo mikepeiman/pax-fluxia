@@ -30,8 +30,6 @@ let costWindow: number[] = [];
 let activeKey: string | null = null;
 let activeStartedAtMs = 0;
 let activeDurationMs = 0;
-/** Log the full-diagram failure once per session, not per frame. */
-let fullDiagramFailureLogged = false;
 
 function round2(n: number): number {
     return Math.round(n * 100) / 100;
@@ -94,7 +92,6 @@ export function resetKineticRuntimeBridge(): void {
     lastCostMs = 0;
     costWindow = [];
     activeKey = null;
-    fullDiagramFailureLogged = false;
 }
 
 /**
@@ -192,34 +189,9 @@ export function sampleKineticForFrame(
     }
 
     const t0 = performance.now();
-    // Prefer the FULL-diagram frame; NEVER let a diagram failure break the
-    // render frame — fall back to the stitch and SAY SO in the console
-    // (log.canvas is on by default): a silent throw here is exactly the failure
-    // mode where the morph never renders, fills stay stale-PRE all morph, and
-    // the settled POST border "pops in" at conquest start.
-    let frame: KineticFrame | null = null;
-    try {
-        frame = runtime.sampleFull(nowMs);
-    } catch (error) {
-        if (!fullDiagramFailureLogged) {
-            fullDiagramFailureLogged = true;
-            log.canvas(
-                'kinetic',
-                `FULL-diagram morph frame FAILED — falling back to stitch (morph may not render smoothly): ${String(error)}`,
-            );
-        }
-    }
-    if (!frame) frame = runtime.sample(nowMs);
-    // One line per morph so the live pipeline is verifiable by eye: fronts
-    // present ⇒ the overlay (sweep fill + border suppression) is active.
-    if (frame && runtime.activeKey !== activeKey) {
-        log.canvas(
-            'kinetic',
-            `morph ACTIVE key=${runtime.activeKey} fronts=${frame.fronts?.length ?? 0} q=${
-                frame.fronts?.[0]?.q?.toFixed(3) ?? 'n/a'
-            } cells=${frame.bubbleCells.length} frozen=${frame.frozenCells.length}`,
-        );
-    }
+    // Prefer the FULL-diagram frame (single morph); fall back to the composite
+    // stitch for idle/multi-morph. Same KineticFrame shape either way.
+    const frame = runtime.sampleFull(nowMs) ?? runtime.sample(nowMs);
     const cost = performance.now() - t0;
     lastFrame = frame;
 

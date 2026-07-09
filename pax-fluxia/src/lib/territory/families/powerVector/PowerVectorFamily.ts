@@ -237,55 +237,6 @@ export class PowerVectorFamily implements RenderFamily {
         }
     }
 
-    /**
-     * Extract the FRONT CURVE from an ahead-piece ring: maximal cyclic runs of
-     * points farther than `eps` from the cell's smoothed rim, extended by one
-     * point on each side (the split crossings, which lie ON the rim). Rim
-     * portions of the piece are excluded — stroking them painted the future
-     * POST border instantly at conquest start.
-     */
-    private static offRimRuns(piece: Ring, rim: Ring, eps: number): [number, number][][] {
-        const n = piece.length;
-        if (n < 2) return [];
-        const segD = (px: number, py: number, a: readonly [number, number], b: readonly [number, number]) => {
-            const dx = b[0] - a[0];
-            const dy = b[1] - a[1];
-            const l2 = dx * dx + dy * dy;
-            let t = l2 < 1e-12 ? 0 : ((px - a[0]) * dx + (py - a[1]) * dy) / l2;
-            t = t < 0 ? 0 : t > 1 ? 1 : t;
-            return Math.hypot(a[0] + t * dx - px, a[1] + t * dy - py);
-        };
-        const onRim = (p: readonly [number, number]): boolean => {
-            for (let i = 0; i < rim.length; i++) {
-                if (segD(p[0], p[1], rim[i]!, rim[(i + 1) % rim.length]!) <= eps) return true;
-            }
-            return false;
-        };
-        const off = piece.map((p) => !onRim(p));
-        if (!off.some(Boolean)) return [];
-        if (off.every(Boolean)) return [piece.map((p) => [p[0], p[1]] as [number, number])];
-        const runs: [number, number][][] = [];
-        // Start scanning from an ON-rim point so runs never wrap awkwardly.
-        let start = off.findIndex((v) => !v);
-        let run: [number, number][] | null = null;
-        for (let k = 0; k <= n; k++) {
-            const i = (start + k) % n;
-            if (off[i]) {
-                if (!run) {
-                    // Include the preceding ON-rim point (the crossing).
-                    const prev = piece[(i - 1 + n) % n]!;
-                    run = [[prev[0], prev[1]]];
-                }
-                run.push([piece[i]![0], piece[i]![1]]);
-            } else if (run) {
-                run.push([piece[i]![0], piece[i]![1]]); // trailing crossing
-                runs.push(run);
-                run = null;
-            }
-        }
-        return runs;
-    }
-
     /** FNV string hash (for the owner id, mixed into the cell-fill key). */
     private static hashStr(s: string): number {
         let h = 2166136261;
@@ -430,8 +381,6 @@ export class PowerVectorFamily implements RenderFamily {
             // shape, so completion changes nothing — no reorganization snap.
             let fills: readonly FillRegion[] = surface.cellFills;
             const aheadPieces: FillRegion[] = [];
-            /** Captured cell's smoothed rim per front (for front-curve extraction). */
-            const rimByFront = new Map<string, Ring>();
             if (frame.fronts && frame.fronts.length > 0) {
                 const mutable: FillRegion[] = [...surface.cellFills];
                 fills = mutable;
@@ -439,7 +388,6 @@ export class PowerVectorFamily implements RenderFamily {
                     const idx = mutable.findIndex((f) => f.siteId === af.siteId);
                     if (idx < 0) continue;
                     const smoothedFill = mutable[idx]!;
-                    rimByFront.set(af.siteId, smoothedFill.points);
                     const pieces = splitCellByFront(
                         {
                             siteId: af.siteId,
@@ -477,77 +425,53 @@ export class PowerVectorFamily implements RenderFamily {
                 this.resetMorphFillPool();
             }
 
-            // Borders: merged + smoothed inter-owner frontiers (settled chains,
-            // stable all morph) + ONLY the moving front curve per conquest.
-            // Never the ahead piece's rim outline — at q≈0 that outline IS the
-            // whole captured cell's rim, which was INTERIOR pre-conquest and is
-            // exactly where the POST border lands: stroking it painted "the next
-            // border" instantly at conquest start (user report), with jagged
-            // notches at the split corners and cap-stacking marks at the joins.
+            // Borders: merged + smoothed inter-owner frontiers (same smoothed
+            // graph — settled chains, stable all morph). The old-owner AHEAD
+            // piece additionally gets its outline stroked (its rim + the moving
+            // front), so the shrinking old territory reads bordered until it
+            // animates away — the stroke vanishes WITH the piece, no pop.
             if (style.borderEnabled) {
-                // Suppress ONLY the captured-vs-old-owner settled frontier where
-                // the ahead piece still covers it (it appears progressively
-                // BEHIND the front). Third-party rim borders (old|third pre,
-                // new|third post — pair changed but border EXISTED pre-conquest)
-                // must persist, so they are never cut.
-                let frontiers = surface.frontiers;
-                if (aheadPieces.length > 0 && frame.fronts) {
-                    const conquestPairs = new Set(
-                        frame.fronts.map((af) =>
-                            [af.front.ownerIn, af.front.ownerOld].sort().join('|'),
-                        ),
-                    );
-                    const cuttable: typeof surface.frontiers = [];
-                    const untouched: typeof surface.frontiers = [];
-                    for (const line of surface.frontiers) {
-                        const pair = [line.ownerA, line.ownerB].sort().join('|');
-                        (conquestPairs.has(pair) ? cuttable : untouched).push(line);
-                    }
-                    frontiers = [
-                        ...untouched,
-                        ...cutPolylinesNearRings(
-                            cuttable,
-                            aheadPieces.map((piece) => piece.points),
-                            Math.max(0.75, style.borderWidth * 0.25),
-                        ),
-                    ];
-                }
+                // Suppress the SETTLED (POST) frontier along the rim segments the
+                // ahead pieces still cover — otherwise the final border shows
+                // simultaneously with the moving front (duplicated border). The
+                // ahead piece's own outline draws those rim segments in the
+                // old-owner pairing; as the front passes, suppression recedes and
+                // the settled border takes over seamlessly (same curve).
+                const frontiers =
+                    aheadPieces.length > 0
+                        ? cutPolylinesNearRings(
+                              surface.frontiers,
+                              aheadPieces.map((piece) => piece.points),
+                              Math.max(0.75, style.borderWidth * 0.25),
+                          )
+                        : surface.frontiers;
                 this.drawBorders(frontiers, surface.worldBorders, dx, dy, style);
-
-                // The moving front: stroke ONLY the split boundary — the runs of
-                // ahead-piece points that lie OFF the captured cell's smoothed
-                // rim (crossing endpoints ON the rim included), in the old|new
-                // pairing. Vanishes with the piece; joins the rim with one clean
-                // cap per end.
-                if (frame.fronts) {
-                    for (const af of frame.fronts) {
-                        const piece = aheadPieces.find((p) =>
-                            p.siteId!.startsWith(af.siteId),
-                        );
-                        const rim = rimByFront.get(af.siteId);
-                        if (!piece || !rim) continue;
-                        const color = style.borderBlend
+                for (const piece of aheadPieces) {
+                    const pts = piece.points;
+                    if (pts.length < 3) continue;
+                    this.borderG.moveTo(pts[0]![0] + dx, pts[0]![1] + dy);
+                    for (let i = 1; i < pts.length; i++) {
+                        this.borderG.lineTo(pts[i]![0] + dx, pts[i]![1] + dy);
+                    }
+                    this.borderG.closePath();
+                    this.borderG.stroke({
+                        width: style.borderWidth,
+                        color: style.borderBlend
                             ? blendColors(
-                                  this.borderColor(af.front.ownerOld, style),
-                                  this.borderColor(af.front.ownerIn, style),
+                                  this.borderColor(piece.ownerId, style),
+                                  this.borderColor(
+                                      frame.fronts!.find((af) =>
+                                          piece.siteId!.startsWith(af.siteId),
+                                      )?.front.ownerIn ?? piece.ownerId,
+                                      style,
+                                  ),
                                   0.5,
                               )
-                            : this.borderColor(af.front.ownerOld, style);
-                        for (const chain of PowerVectorFamily.offRimRuns(piece.points, rim, 0.5)) {
-                            if (chain.length < 2) continue;
-                            this.borderG.moveTo(chain[0]![0] + dx, chain[0]![1] + dy);
-                            for (let i = 1; i < chain.length; i++) {
-                                this.borderG.lineTo(chain[i]![0] + dx, chain[i]![1] + dy);
-                            }
-                            this.borderG.stroke({
-                                width: style.borderWidth,
-                                color,
-                                alpha: style.borderAlpha,
-                                join: 'round',
-                                cap: 'round',
-                            });
-                        }
-                    }
+                            : this.borderColor(piece.ownerId, style),
+                        alpha: style.borderAlpha,
+                        join: 'round',
+                        cap: 'round',
+                    });
                 }
             } else this.borderG.clear();
 

@@ -316,20 +316,14 @@ export function sampleFullDiagramMulti(
 
     let cells: PowerCell[] | null = null;
     let lastError: unknown = null;
-    for (let attempt = 0; attempt < 4 && !cells; attempt++) {
+    for (let attempt = 0; attempt < 3 && !cells; attempt++) {
         try {
             const jitter = attempt * 2.5e-4;
-            // FULL mode has no stitched seam (no ring discard), so on retries it
-            // is safe to jitter EVERY site — including frozen ones. Real maps
-            // carry near-coincident contest virtuals in the FROZEN set; the old
-            // ramp-only jitter could not resolve those, the diagram failed all
-            // retries, the frame THREW, and the morph never rendered (stale PRE
-            // fills all morph + a POST pop at settle).
             const jittered =
                 attempt === 0
                     ? sites
                     : sites.map((site, i) =>
-                          i >= rampSiteCount && attempt < 2
+                          i >= rampSiteCount
                               ? site
                               : {
                                     ...site,
