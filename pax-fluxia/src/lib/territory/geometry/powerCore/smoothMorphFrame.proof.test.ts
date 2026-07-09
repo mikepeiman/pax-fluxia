@@ -31,7 +31,7 @@ import {
     walkRegionLoops,
 } from './sharedEdgeGraph';
 import { smoothSharedEdges } from './smoothSharedEdges';
-import { buildSurfaceFromCells } from './buildSurfaceFromCells';
+import { buildSurfaceFromCells, cutPolylinesNearRings } from './buildSurfaceFromCells';
 import { splitCellByFront } from './conquestFrontField';
 import { KineticTransitionRuntime } from './kineticTransitionRuntime';
 import { WORLD_OWNER, type Point, type PowerCell, type WorldRect } from './powerCoreTypes';
@@ -257,6 +257,50 @@ describe('conquest front completes early (no settle pop)', () => {
         );
         const owners = new Set(pieces.map((p) => p.ownerId));
         expect(owners.size).toBe(2);
+    });
+
+    it('settled rim border is SUPPRESSED ahead of the front (no duplicated POST border)', () => {
+        // With the settled-topology graph, the captured cell's far-rim frontier
+        // (a POST border) would otherwise draw from frame 0 alongside the moving
+        // front. cutPolylinesNearRings must remove exactly the rim segments the
+        // ahead piece still covers — so the suppressed length SHRINKS as the
+        // front advances and reaches ~0 as q→1.
+        const lineLen = (lines: readonly { points: [number, number][] }[]) => {
+            let sum = 0;
+            for (const L of lines) {
+                for (let i = 0; i < L.points.length - 1; i++) {
+                    sum += Math.hypot(
+                        L.points[i + 1]![0] - L.points[i]![0],
+                        L.points[i + 1]![1] - L.points[i]![1],
+                    );
+                }
+            }
+            return sum;
+        };
+        const suppressedLen = (t: number): number => {
+            const frame = rt.sampleFull(t)!;
+            const surface = buildSurfaceFromCells(
+                [...frame.frozenCells, ...frame.bubbleCells],
+                2,
+            );
+            const front = (frame.fronts ?? []).find((f) => f.siteId === CAPTURED);
+            if (!front) return 0;
+            const fill = surface.cellFills.find((f) => f.siteId === CAPTURED)!;
+            const pieces = splitCellByFront(
+                { siteId: CAPTURED, ownerId: front.front.ownerIn, points: fill.points } as never,
+                front.front,
+                front.q,
+            );
+            const aheadRings = pieces
+                .filter((p) => p.ownerId === front.front.ownerOld)
+                .map((p) => p.points);
+            const kept = cutPolylinesNearRings(surface.frontiers, aheadRings, 0.75);
+            return lineLen(surface.frontiers) - lineLen(kept);
+        };
+        const early = suppressedLen(150);
+        const late = suppressedLen(700);
+        expect(early).toBeGreaterThan(0); // rim ahead of the front IS suppressed
+        expect(late).toBeLessThan(early); // suppression recedes as the front passes
     });
 
     it('ACCEPTANCE GATE: no border reorganization at front completion (was 33.75px in one frame)', () => {

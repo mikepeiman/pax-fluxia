@@ -199,6 +199,87 @@ function chainByGroup(
     return out;
 }
 
+/**
+ * Cut polyline segments that lie ON any of the given rings (within eps) —
+ * used by the conquest-front overlay to suppress the SETTLED frontier along the
+ * captured cell's rim AHEAD of the front (the ahead piece's own outline draws
+ * that rim in the old-owner pairing; without suppression the POST border shows
+ * simultaneously with the moving front — a duplicated border). Returns the
+ * kept sub-polylines (a line may split into several). Pure.
+ */
+export function cutPolylinesNearRings(
+    lines: readonly SurfaceFrontier[],
+    rings: ReadonlyArray<ReadonlyArray<readonly [number, number]>>,
+    eps: number,
+): SurfaceFrontier[] {
+    if (rings.length === 0) return [...lines];
+    // Precompute ring bboxes (+eps) for a cheap prefilter.
+    const boxes = rings.map((ring) => {
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+        for (const [x, y] of ring) {
+            if (x < minX) minX = x;
+            if (y < minY) minY = y;
+            if (x > maxX) maxX = x;
+            if (y > maxY) maxY = y;
+        }
+        return { minX: minX - eps, minY: minY - eps, maxX: maxX + eps, maxY: maxY + eps };
+    });
+    const segDist = (
+        px: number,
+        py: number,
+        a: readonly [number, number],
+        b: readonly [number, number],
+    ): number => {
+        const dx = b[0] - a[0];
+        const dy = b[1] - a[1];
+        const l2 = dx * dx + dy * dy;
+        let t = l2 < 1e-12 ? 0 : ((px - a[0]) * dx + (py - a[1]) * dy) / l2;
+        t = t < 0 ? 0 : t > 1 ? 1 : t;
+        return Math.hypot(a[0] + t * dx - px, a[1] + t * dy - py);
+    };
+    const nearAnyRing = (x: number, y: number): boolean => {
+        for (let r = 0; r < rings.length; r++) {
+            const box = boxes[r]!;
+            if (x < box.minX || x > box.maxX || y < box.minY || y > box.maxY) continue;
+            const ring = rings[r]!;
+            for (let i = 0; i < ring.length; i++) {
+                if (segDist(x, y, ring[i]!, ring[(i + 1) % ring.length]!) <= eps) return true;
+            }
+        }
+        return false;
+    };
+
+    const out: SurfaceFrontier[] = [];
+    for (const line of lines) {
+        const pts = line.points;
+        if (pts.length < 2) continue;
+        let run: [number, number][] = [];
+        const flush = () => {
+            if (run.length >= 2) {
+                out.push({ ...line, points: run, closed: false });
+            }
+            run = [];
+        };
+        for (let i = 0; i < pts.length - 1; i++) {
+            const a = pts[i]!;
+            const b = pts[i + 1]!;
+            const suppressed = nearAnyRing((a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
+            if (suppressed) {
+                if (run.length > 0) run.push([a[0], a[1]]);
+                flush();
+            } else {
+                if (run.length === 0) run.push([a[0], a[1]]);
+                run.push([b[0], b[1]]);
+            }
+        }
+        flush();
+    }
+    return out;
+}
+
 export function buildSurfaceFromCells(
     cells: readonly PowerCell[],
     passes: number,

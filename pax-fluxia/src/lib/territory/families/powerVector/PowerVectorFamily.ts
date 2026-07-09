@@ -28,7 +28,10 @@ import * as PIXI from 'pixi.js';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 import { adjustColorHSL, blendColors } from '$lib/utils/colorUtils';
 import { getActiveKineticFrame } from '../../geometry/powerCore/kineticRuntimeBridge';
-import { buildSurfaceFromCells } from '../../geometry/powerCore/buildSurfaceFromCells';
+import {
+    buildSurfaceFromCells,
+    cutPolylinesNearRings,
+} from '../../geometry/powerCore/buildSurfaceFromCells';
 import { splitCellByFront } from '../../geometry/powerCore/conquestFrontField';
 import {
     WORLD_OWNER,
@@ -413,7 +416,21 @@ export class PowerVectorFamily implements RenderFamily {
             // front), so the shrinking old territory reads bordered until it
             // animates away — the stroke vanishes WITH the piece, no pop.
             if (style.borderEnabled) {
-                this.drawBorders(surface.frontiers, surface.worldBorders, dx, dy, style);
+                // Suppress the SETTLED (POST) frontier along the rim segments the
+                // ahead pieces still cover — otherwise the final border shows
+                // simultaneously with the moving front (duplicated border). The
+                // ahead piece's own outline draws those rim segments in the
+                // old-owner pairing; as the front passes, suppression recedes and
+                // the settled border takes over seamlessly (same curve).
+                const frontiers =
+                    aheadPieces.length > 0
+                        ? cutPolylinesNearRings(
+                              surface.frontiers,
+                              aheadPieces.map((piece) => piece.points),
+                              Math.max(0.75, style.borderWidth * 0.25),
+                          )
+                        : surface.frontiers;
+                this.drawBorders(frontiers, surface.worldBorders, dx, dy, style);
                 for (const piece of aheadPieces) {
                     const pts = piece.points;
                     if (pts.length < 3) continue;
