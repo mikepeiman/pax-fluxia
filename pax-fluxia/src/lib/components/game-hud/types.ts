@@ -81,8 +81,11 @@ export interface GameSpeedPanelActions {
   speed: GameSpeed;
   isPaused: boolean;
   hasStarted: boolean;
+  /** Base tick duration in ms (the simulation heartbeat at 1x speed). */
+  tickIntervalMs: number;
   onSpeedChange: (speed: GameSpeed) => void;
   onPause: () => void;
   onResume: () => void;
   onStart: () => void;
+  onTickIntervalChange: (ms: number) => void;
 }

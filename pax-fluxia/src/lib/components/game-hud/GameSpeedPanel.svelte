@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { GameSpeed } from "$lib/types/game.types";
-  import { PaxHudSegmentedControl, type PaxHudSegmentedOption } from "$lib/design-system";
+  import { PaxHudRange, PaxHudSegmentedControl, type PaxHudSegmentedOption } from "$lib/design-system";
   import HudPanel from "./HudPanel.svelte";
   import type { GameSpeedPanelActions } from "./types";
 
@@ -8,10 +8,12 @@
     speed,
     isPaused,
     hasStarted,
+    tickIntervalMs,
     onSpeedChange,
     onPause,
     onResume,
     onStart,
+    onTickIntervalChange,
   }: GameSpeedPanelActions = $props();
 
   const speedOptions: Array<PaxHudSegmentedOption & { value: `${GameSpeed}` }> = [
@@ -50,5 +52,15 @@
     class="pf-game-speed__buttons"
     iconSize={17}
     onValueChange={(value) => setSpeed(Number(value) as GameSpeed)}
+  />
+  <PaxHudRange
+    label="Tick Duration"
+    value={tickIntervalMs}
+    min={100}
+    max={5000}
+    step={50}
+    output={`${tickIntervalMs} ms`}
+    ariaLabel="Tick duration in milliseconds"
+    onInput={onTickIntervalChange}
   />
 </HudPanel>

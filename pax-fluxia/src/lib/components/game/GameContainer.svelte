@@ -44,7 +44,12 @@
   import type { PlayerState, StarState } from "$lib/types/game.types";
   import { audioManager } from "$lib/services/audioManager.svelte";
   import { authoredMeasurementsUi } from "$lib/territory/devtools/authoredMeasurementsUi";
-  import { hydrateConfigFromPersistedUiSettings } from "$lib/components/ui/panelSync";
+  import {
+    applyTickIntervalChange,
+    hydrateConfigFromPersistedUiSettings,
+    TICK_INTERVAL_CHANGED_EVENT,
+  } from "$lib/components/ui/panelSync";
+  import { animationStore } from "$lib/stores/animationStore.svelte";
   import { pushHomeRouteDiagEvent } from "$lib/utils/homeRouteDiagnostics";
   import { GAME_CONFIG } from "$lib/config/game.config";
   import {
@@ -57,6 +62,23 @@
   }
 
   let gameCanvasRef: any = $state(null);
+
+  // Tick duration for the HUD Game Speed widget. GAME_CONFIG is a plain
+  // Proxy (not reactive), so this mirrors BASE_TICK_MS and refreshes via
+  // TICK_INTERVAL_CHANGED_EVENT when any other surface (settings panel,
+  // theme apply) changes the tick.
+  let hudTickIntervalMs = $state(GAME_CONFIG.BASE_TICK_MS);
+
+  function refreshHudTickInterval() {
+    hudTickIntervalMs = GAME_CONFIG.BASE_TICK_MS;
+  }
+
+  function handleHudTickIntervalChange(ms: number) {
+    hudTickIntervalMs = ms;
+    const applied = applyTickIntervalChange(ms);
+    activeGameStore.updateTickInterval(applied.tickMs);
+    animationStore.setAnimationSpeed(applied.animSpeedMs);
+  }
 
   $effect(() => {
     paxThemeState.hydrate();
@@ -707,6 +729,10 @@
     });
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("pax-game-container-mounted"));
+      window.addEventListener(
+        TICK_INTERVAL_CHANGED_EVENT,
+        refreshHudTickInterval,
+      );
     }
   });
 
@@ -721,6 +747,10 @@
     if (typeof window !== "undefined") {
       window.removeEventListener("popstate", handleBackPopstate);
       window.removeEventListener("beforeunload", handleGameBeforeUnload);
+      window.removeEventListener(
+        TICK_INTERVAL_CHANGED_EVENT,
+        refreshHudTickInterval,
+      );
       window.dispatchEvent(new CustomEvent("pax-game-container-unmounted"));
     }
   });
@@ -897,10 +927,12 @@
               speed={activeGameStore.speed}
               isPaused={activeGameStore.isPaused}
               hasStarted={true}
+              tickIntervalMs={hudTickIntervalMs}
               onSpeedChange={(speed) => activeGameStore.setSpeed(speed)}
               onPause={() => activeGameStore.pauseGame()}
               onResume={() => activeGameStore.resumeGame()}
-              onStart={() => activeGameStore.startGame()} />
+              onStart={() => activeGameStore.startGame()}
+              onTickIntervalChange={handleHudTickIntervalChange} />
           </div>
 
           <div class="sidebar-starnav">

@@ -44,6 +44,7 @@
         loadTier,
         saveTier,
         exportConfigJSON as exportConfigJSONBase,
+        TICK_INTERVAL_CHANGED_EVENT,
         type AnimLockMode,
     } from "./panelSync";
     import ControlsSectionTiming from "./settings/ControlsSection-Timing.svelte";
@@ -169,10 +170,8 @@
             panel = { ...panel, territoryTransitionMs: nextTick };
         }
 
-        if (panel.surgePulseBindToTick ?? GAME_CONFIG.SURGE_PULSE_BIND_TO_TICK ?? true) {
-            GAME_CONFIG.SURGE_PULSE_DURATION_MS = nextTick;
-            panel = { ...panel, surgePulseDurationMs: nextTick };
-        }
+        // Surge pulse tick-binding is resolved live in ShipRenderer — no
+        // config/panel write here (writing clobbered the saved free-run value).
 
         const tickUpdates = recalcAnimLocksOnTickChange(nextTick) ?? {};
         if (Object.keys(tickUpdates).length > 0) {
@@ -202,6 +201,7 @@
         activeGameStore.updateTickInterval(nextTick);
         animationStore.setAnimationSpeed(GAME_CONFIG.ANIMATION_SPEED_MS);
         syncAnimValuesFromConfig();
+        notifyTickIntervalChanged(nextTick);
     }
 
     function updatePanel(key: string, value: any) {
@@ -332,6 +332,17 @@
     function updateTickInterval(value: number) {
         tickInterval = value;
         activeGameStore.updateTickInterval(value);
+        notifyTickIntervalChanged(value);
+    }
+
+    /** Let tick displays outside this panel (HUD Game Speed widget) refresh. */
+    function notifyTickIntervalChanged(valueMs: number) {
+        if (typeof window === "undefined") return;
+        window.dispatchEvent(
+            new CustomEvent(TICK_INTERVAL_CHANGED_EVENT, {
+                detail: { valueMs },
+            }),
+        );
     }
 
     let transferRate = $state(
@@ -801,6 +812,11 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     const ACTIVE_SECTION_KEY = "pax-fluxia-active-section";
     const SHOW_ALL_KEY = "pax-fluxia-settings-show-all";
     const ACTIVE_SUBSECTIONS_KEY = "pax-fluxia-settings-subsections";
+    // Per-category memory of the last selected section, so switching
+    // categories and coming back restores the section you were on (e.g.
+    // Timing) instead of snapping to the category's first chip. null = the
+    // user had deliberately collapsed the section body.
+    const SECTION_BY_CATEGORY_KEY = "pax-fluxia-settings-section-by-category";
 
     function isUtilityPanelId(value: string | null): value is UtilityPanelId {
         return UTILITY_PANELS.some((panel) => panel.id === value);
@@ -859,6 +875,56 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
 
     let openCategoryId = $state<SettingsCategoryId | null>(loadOpenCategory());
 
+    function loadSectionMemory(): Partial<
+        Record<SettingsCategoryId, ActiveSectionId | null>
+    > {
+        if (typeof window === "undefined") return {};
+        try {
+            const parsed = JSON.parse(
+                localStorage.getItem(SECTION_BY_CATEGORY_KEY) ?? "{}",
+            );
+            if (!parsed || typeof parsed !== "object") return {};
+            const memory: Partial<
+                Record<SettingsCategoryId, ActiveSectionId | null>
+            > = {};
+            for (const [cat, value] of Object.entries(parsed)) {
+                if (!SETTINGS_CATEGORIES.some((c) => c.id === cat)) continue;
+                if (value === null) {
+                    memory[cat as SettingsCategoryId] = null;
+                    continue;
+                }
+                if (typeof value !== "string") continue;
+                const section = isUtilityPanelId(value)
+                    ? value
+                    : normalizeSettingsSectionId(value);
+                if (section) memory[cat as SettingsCategoryId] = section;
+            }
+            return memory;
+        } catch {
+            return {};
+        }
+    }
+
+    let sectionMemoryByCategory = $state(loadSectionMemory());
+
+    function rememberSectionForCategory(
+        category: SettingsCategoryId,
+        sectionId: ActiveSectionId | null,
+    ) {
+        sectionMemoryByCategory = {
+            ...sectionMemoryByCategory,
+            [category]: sectionId,
+        };
+    }
+
+    $effect(() => {
+        if (typeof window === "undefined") return;
+        localStorage.setItem(
+            SECTION_BY_CATEGORY_KEY,
+            JSON.stringify(sectionMemoryByCategory),
+        );
+    });
+
     // The panel chrome is open whenever a category is open (even with no section
     // selected), so layout/activity tracks the category, not the section.
     let activeToolHasPanel = $derived(openCategoryId !== null);
@@ -906,11 +972,17 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             // Deselect: hide the sub-content only — keep the category panel +
             // chips open (do NOT clear openCategoryId).
             activeSectionId = null;
+            if (openCategoryId) {
+                rememberSectionForCategory(openCategoryId, null);
+            }
         } else {
             // Toggling the active chip deselects it (hides body); otherwise open it.
             activeSectionId = activeSectionId === id ? null : id;
             const category = categoryOf(id);
-            if (category) openCategoryId = category;
+            if (category) {
+                openCategoryId = category;
+                rememberSectionForCategory(category, activeSectionId);
+            }
         }
         persistActiveSection();
     }
@@ -1013,7 +1085,20 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
             return;
         }
         openCategoryId = catId;
-        selectSection(chipsForCategory(catId)[0]?.id ?? null);
+        showAllSections = false;
+        // Restore this category's remembered section (the one the user was on
+        // last time — e.g. Timing), not blindly the first chip. Set directly
+        // instead of via selectSection: its toggle semantics could deselect
+        // the remembered section instead of opening it.
+        const chips = chipsForCategory(catId);
+        const remembered = sectionMemoryByCategory[catId];
+        activeSectionId =
+            remembered === null
+                ? null
+                : remembered && chips.some((chip) => chip.id === remembered)
+                  ? remembered
+                  : (chips[0]?.id ?? null);
+        persistActiveSection();
     }
 
     // Selecting a render mode (or any reactive change) can hide the open
@@ -1057,7 +1142,10 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
         }
         activeSectionId = normalizeSettingsSectionId(forceOpenSection) ?? forceOpenSection;
         const category = categoryOf(activeSectionId);
-        if (category) openCategoryId = category;
+        if (category) {
+            openCategoryId = category;
+            rememberSectionForCategory(category, activeSectionId);
+        }
         persistActiveSection();
     });
 
