@@ -25,15 +25,7 @@
 
 import type { PowerCell, Point } from './powerCoreTypes';
 
-/**
- * 'push' (default) — the pre-conquest border ITSELF travels across the cell
- * (see pushedBorderFront.ts); built in buildSurfaceFromCells from the smoothed
- * ring + PRE/POST graphs, NOT from this field module. The field modes remain
- * as variants: 'linear' = straight sweep, 'radial' = arc from the attack
- * origin. Field functions in this module treat 'push' as 'linear' (they are
- * only reached on the stitch fallback path).
- */
-export type ConquestFrontMode = 'push' | 'linear' | 'radial';
+export type ConquestFrontMode = 'linear' | 'radial';
 
 export interface ConquestFront {
     readonly mode: ConquestFrontMode;
@@ -53,165 +45,14 @@ export interface ConquestFront {
     readonly subdiv?: number;
 }
 
-/** The split plus the FRONT ITSELF as explicit polylines (single source for the
- *  renderer's front stroke and exact frontier-clip anchors). */
-export interface FrontSplitResult {
-    readonly parts: PowerCell[];
-    /**
-     * The moving front: one polyline per boundary chain, each ENDING exactly at
-     * its rim crossing points. Empty when the cell isn't split (q≤0 / q≥1 /
-     * degenerate). Deriving the stroke from these (instead of re-classifying
-     * piece points against the rim by distance) means the stroke covers the
-     * WHOLE front from the first frame — the eps-classification left the front
-     * bare at start and "grew it from a point".
-     */
-    readonly frontChains: Point[][];
-}
-
 /** Split the captured (convex) cell at progress q. Returns single-owner parts. */
 export function splitCellByFront(
     cell: PowerCell,
     front: ConquestFront,
     q: number,
 ): PowerCell[] {
-    return splitCellByFrontDetailed(cell, front, q).parts;
-}
-
-/** Split + front chains (see FrontSplitResult). */
-export function splitCellByFrontDetailed(
-    cell: PowerCell,
-    front: ConquestFront,
-    q: number,
-): FrontSplitResult {
     if (front.mode === 'radial') return splitRadial(cell, front, q);
     return splitLinear(cell, front, q);
-}
-
-/**
- * The arrival-time field over a ring, for EXACT frontier clipping at the front:
- * value(p) ≤ c ⇔ p is BEHIND the front (captured). crossing(a,b) returns the
- * exact point where a straddling segment meets value == c — the SAME math the
- * split uses, so clip anchors coincide with the front chains' endpoints (the
- * moving T-junction closes exactly; eps/segment-quantized cutting visibly "cut
- * into the existing frontier" at the anchors).
- */
-export interface FrontClipField {
-    readonly c: number;
-    value(p: readonly [number, number]): number;
-    crossing(a: readonly [number, number], b: readonly [number, number]): Point | null;
-}
-
-export function frontFieldForRing(
-    ring: readonly Point[],
-    front: ConquestFront,
-    q: number,
-): FrontClipField | null {
-    if (ring.length < 3) return null;
-    if (front.mode === 'radial') {
-        const sx = front.originX;
-        const sy = front.originY;
-        let minD = Infinity;
-        let maxD = -Infinity;
-        for (let i = 0; i < ring.length; i++) {
-            const d = segDist(sx, sy, ring[i]!, ring[(i + 1) % ring.length]!);
-            if (d < minD) minD = d;
-            const dv = Math.hypot(ring[i]![0] - sx, ring[i]![1] - sy);
-            if (dv > maxD) maxD = dv;
-        }
-        if (maxD - minD < 1e-6) return null;
-        const c = minD + (maxD - minD) * q;
-        return {
-            c,
-            value: (p) => Math.hypot(p[0] - sx, p[1] - sy),
-            crossing: (a, b) => {
-                const dx = b[0] - a[0];
-                const dy = b[1] - a[1];
-                const A = dx * dx + dy * dy;
-                if (A < 1e-12) return null;
-                const fx = a[0] - sx;
-                const fy = a[1] - sy;
-                const B = 2 * (fx * dx + fy * dy);
-                const C = fx * fx + fy * fy - c * c;
-                const disc = B * B - 4 * A * C;
-                if (disc < 0) return null;
-                const sq = Math.sqrt(disc);
-                for (const t of [(-B - sq) / (2 * A), (-B + sq) / (2 * A)]) {
-                    if (t >= 0 && t <= 1) return [a[0] + t * dx, a[1] + t * dy];
-                }
-                return null;
-            },
-        };
-    }
-    const ux = front.dirX;
-    const uy = front.dirY;
-    if (ux === 0 && uy === 0) return null;
-    let minP = Infinity;
-    let maxP = -Infinity;
-    for (const [x, y] of ring) {
-        const proj = x * ux + y * uy;
-        if (proj < minP) minP = proj;
-        if (proj > maxP) maxP = proj;
-    }
-    if (maxP - minP < 1e-6) return null;
-    const c = minP + (maxP - minP) * q;
-    return {
-        c,
-        value: (p) => p[0] * ux + p[1] * uy,
-        crossing: (a, b) => {
-            const pa = a[0] * ux + a[1] * uy;
-            const pb = b[0] * ux + b[1] * uy;
-            if ((pa - c) * (pb - c) > 0 || pa === pb) return null;
-            const t = (c - pa) / (pb - pa);
-            return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
-        },
-    };
-}
-
-/**
- * Keep the sub-polylines of an OPEN polyline on ONE side of the front —
- * 'behind' (value ≤ c, captured) or 'ahead' (value > c, not yet captured) —
- * each cut end terminating EXACTLY at the field crossing: the shared anchor
- * with the front chain.
- */
-export function clipPolylineByFront(
-    points: readonly Point[],
-    field: FrontClipField,
-    keep: 'behind' | 'ahead',
-): Point[][] {
-    const out: Point[][] = [];
-    let run: Point[] = [];
-    const flush = () => {
-        if (run.length >= 2) out.push(run);
-        run = [];
-    };
-    for (let i = 0; i < points.length; i++) {
-        const p = points[i]!;
-        const behind = field.value(p) <= field.c;
-        const wanted = keep === 'behind' ? behind : !behind;
-        if (wanted) {
-            if (run.length === 0 && i > 0) {
-                const cp = field.crossing(points[i - 1]!, p);
-                if (cp) run.push(cp);
-            }
-            run.push([p[0], p[1]]);
-        } else {
-            if (run.length > 0) {
-                const cp = field.crossing(points[i - 1]!, p);
-                if (cp) run.push(cp);
-                flush();
-            }
-        }
-    }
-    flush();
-    return out;
-}
-
-/** Back-compat alias: keep the BEHIND side (see clipPolylineByFront). */
-export function clipPolylineBehindFront(
-    points: readonly Point[],
-    field: FrontClipField,
-): Point[][] {
-    return clipPolylineByFront(points, field, 'behind');
 }
 
 function part(cell: PowerCell, starId: string, ownerId: string, points: Point[]): PowerCell {
@@ -220,14 +61,11 @@ function part(cell: PowerCell, starId: string, ownerId: string, points: Point[])
 
 // ── Mode 1: linear (exact original two-part convex split) ───────────────────
 
-function splitLinear(cell: PowerCell, front: ConquestFront, q: number): FrontSplitResult {
+function splitLinear(cell: PowerCell, front: ConquestFront, q: number): PowerCell[] {
     const ux = front.dirX;
     const uy = front.dirY;
     if (ux === 0 && uy === 0) {
-        return {
-            parts: [part(cell, front.starId, q < 0.5 ? front.ownerOld : front.ownerIn, [...cell.points])],
-            frontChains: [],
-        };
+        return [part(cell, front.starId, q < 0.5 ? front.ownerOld : front.ownerIn, [...cell.points])];
     }
     let minP = Infinity;
     let maxP = -Infinity;
@@ -239,7 +77,6 @@ function splitLinear(cell: PowerCell, front: ConquestFront, q: number): FrontSpl
     const c = minP + (maxP - minP) * q;
     const low: Point[] = []; // attack side → incoming owner
     const high: Point[] = []; // far side → old owner
-    const crossings: Point[] = [];
     const n = cell.points.length;
     for (let i = 0; i < n; i++) {
         const a = cell.points[i]!;
@@ -253,26 +90,15 @@ function splitLinear(cell: PowerCell, front: ConquestFront, q: number): FrontSpl
             const ip: Point = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
             low.push(ip);
             high.push(ip);
-            crossings.push(ip);
         }
     }
     const parts: PowerCell[] = [];
     if (low.length >= 3) parts.push(part(cell, front.starId, front.ownerIn, low));
     if (high.length >= 3) parts.push(part(cell, front.starId, front.ownerOld, high));
     if (parts.length === 0) {
-        return {
-            parts: [part(cell, front.starId, q >= 0.5 ? front.ownerIn : front.ownerOld, [...cell.points])],
-            frontChains: [],
-        };
+        parts.push(part(cell, front.starId, q >= 0.5 ? front.ownerIn : front.ownerOld, [...cell.points]));
     }
-    // Straight front: consecutive crossing pairs (a convex cell yields one).
-    const frontChains: Point[][] = [];
-    if (parts.length === 2) {
-        for (let i = 0; i + 1 < crossings.length; i += 2) {
-            frontChains.push([crossings[i]!, crossings[i + 1]!]);
-        }
-    }
-    return { parts, frontChains };
+    return parts;
 }
 
 // ── Mode 2: radial (curved arrival-time front, exact disk∩polygon walk) ─────
@@ -301,11 +127,9 @@ function segDist(sx: number, sy: number, a: Point, b: Point): number {
     return Math.hypot(a[0] + t * dx - sx, a[1] + t * dy - sy);
 }
 
-function splitRadial(cell: PowerCell, front: ConquestFront, q: number): FrontSplitResult {
+function splitRadial(cell: PowerCell, front: ConquestFront, q: number): PowerCell[] {
     const pts = cell.points;
-    if (pts.length < 3) {
-        return { parts: [part(cell, front.starId, front.ownerOld, [...pts])], frontChains: [] };
-    }
+    if (pts.length < 3) return [part(cell, front.starId, front.ownerOld, [...pts])];
     const sx = front.originX;
     const sy = front.originY;
     const T = (p: Point) => Math.hypot(p[0] - sx, p[1] - sy);
@@ -334,10 +158,7 @@ function splitRadial(cell: PowerCell, front: ConquestFront, q: number): FrontSpl
         if (dv > maxD) maxD = dv;
     }
     if (maxD - minD < 1e-6) {
-        return {
-            parts: [part(cell, front.starId, q >= 0.5 ? front.ownerIn : front.ownerOld, [...pts])],
-            frontChains: [],
-        };
+        return [part(cell, front.starId, q >= 0.5 ? front.ownerIn : front.ownerOld, [...pts])];
     }
     const c = minD + (maxD - minD) * q;
 
@@ -402,10 +223,9 @@ function splitRadial(cell: PowerCell, front: ConquestFront, q: number): FrontSpl
         // cell — the attack origin sits a full outradius back — so a fully
         // interior disk cannot occur).
         const allIn = inV.every(Boolean);
-        return {
-            parts: [part(cell, front.starId, allIn ? front.ownerIn : front.ownerOld, [...pts])],
-            frontChains: [],
-        };
+        return [
+            part(cell, front.starId, allIn ? front.ownerIn : front.ownerOld, [...pts]),
+        ];
     }
 
     // Alternation sanity (numeric tangency can break it) → linear fallback.
@@ -470,9 +290,7 @@ function splitRadial(cell: PowerCell, front: ConquestFront, q: number): FrontSpl
     const pairs = ordered.length / 2;
 
     // INCOMING: entry_k → in-verts → exit_k, then arc exit_k → entry_{k+1}.
-    // Each arc IS a front chain: exact crossing endpoints + sampled arc interior.
     const incoming: Point[] = [];
-    const frontChains: Point[][] = [];
     for (let k = 0; k < pairs; k++) {
         const entry = ordered[2 * k]!;
         const exit = ordered[2 * k + 1]!;
@@ -480,13 +298,7 @@ function splitRadial(cell: PowerCell, front: ConquestFront, q: number): FrontSpl
         incoming.push([entry.p[0], entry.p[1]]);
         for (const v of vertsBetween(entry, exit)) incoming.push(v);
         incoming.push([exit.p[0], exit.p[1]]);
-        const arc = arcPts(exit.p, nextEntry.p, orient);
-        for (const a of arc) incoming.push(a);
-        frontChains.push([
-            [exit.p[0], exit.p[1]],
-            ...arc,
-            [nextEntry.p[0], nextEntry.p[1]],
-        ]);
+        for (const a of arcPts(exit.p, nextEntry.p, orient)) incoming.push(a);
     }
 
     // OLD caps: one per outside run — exit_k → out-verts → entry_{k+1}, then the
@@ -505,10 +317,7 @@ function splitRadial(cell: PowerCell, front: ConquestFront, q: number): FrontSpl
         if (cap.length >= 3) parts.push(part(cell, front.starId, front.ownerOld, cap));
     }
     if (parts.length === 0) {
-        return {
-            parts: [part(cell, front.starId, q >= 0.5 ? front.ownerIn : front.ownerOld, [...pts])],
-            frontChains: [],
-        };
+        parts.push(part(cell, front.starId, q >= 0.5 ? front.ownerIn : front.ownerOld, [...pts]));
     }
 
     // INVARIANT GUARD (the 1% degeneracy the walk can't rule out): the sweep's
@@ -527,7 +336,7 @@ function splitRadial(cell: PowerCell, front: ConquestFront, q: number): FrontSpl
             return splitLinear(cell, front, q);
         }
     }
-    return { parts, frontChains };
+    return parts;
 }
 
 /** Twice the signed area of a ring (shoelace). */

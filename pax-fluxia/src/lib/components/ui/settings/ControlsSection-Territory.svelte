@@ -819,14 +819,13 @@
           <div class="var-row">
             <PaxSettingsSegmentedRow
               label="Front Shape"
-              hint="How the border moves during a conquest. Push (default) = the existing border itself travels across the territory like a wave, its ends sliding along the neighbouring borders. Linear = straight sweep. Radial = arc expanding from the attack origin."
+              hint="Shape of the conquest split applied in the geometry. Radial (default) = curved front advancing from the attack origin. Linear = straight sweep."
               value={panel.territoryConquestFrontMode ??
                 GAME_CONFIG.TERRITORY_CONQUEST_FRONT_MODE ??
-                "push"}
+                "radial"}
               options={[
-                { value: "push", label: "Push" },
-                { value: "linear", label: "Linear" },
                 { value: "radial", label: "Radial" },
+                { value: "linear", label: "Linear" },
               ]}
               settingConfigKey="TERRITORY_CONQUEST_FRONT_MODE"
               onValueChange={(value) =>

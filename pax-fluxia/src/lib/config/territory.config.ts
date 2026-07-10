@@ -23,8 +23,7 @@ export const territoryConfigDefaults = {
     TERRITORY_TRANSITION_MS: gameplayConfigDefaults.BASE_TICK_MS,
     TERRITORY_TRANSITION_SETTLE_PCT: 0,
     TERRITORY_TRANSITION_BIND_TO_TICK: true,
-    // The conquest front default: the border itself is pushed like a wave.
-    TERRITORY_CONQUEST_FRONT_MODE: 'push' as const,
+    TERRITORY_CONQUEST_FRONT_MODE: 'radial' as const,
     VS_VICTOR_TRAVEL_MS: 0,
     VS_LOSER_TRAVEL_MS: 0,
     VS_POWER_LERP_START: 0,

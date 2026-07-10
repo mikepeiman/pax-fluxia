@@ -144,8 +144,6 @@ function hashRing(points: Ring): number {
 interface FillRegion {
     readonly ownerId: string;
     readonly points: Ring;
-    /** Present on morph cell fills; used by the conquest-front overlay. */
-    readonly siteId?: string;
 }
 interface BorderLine {
     readonly ownerA: string;
@@ -351,18 +349,8 @@ export class PowerVectorFamily implements RenderFamily {
             // bbox (the live kinetic clip is PADDED past input.world — passing the
             // frame here would classify no world edges ⇒ empty regions ⇒ fills
             // vanish mid-morph). dx/dy still localizes rendering to the container.
-            // LIVE-LABEL CLASSIFICATION (the `fronts` arg): buildSurfaceFromCells
-            // reclassifies each in-flight conquest's captured-cell rim from THIS
-            // FRAME's true ownership and splits its fill — the surface returned
-            // is simply correct, so the family draws it exactly like idle: no
-            // conquest-specific presentation logic here at all.
             const cells: PowerCell[] = [...frame.frozenCells, ...frame.bubbleCells];
-            const surface = buildSurfaceFromCells(
-                cells,
-                smoothPasses,
-                undefined,
-                frame.fronts ?? [],
-            );
+            const surface = buildSurfaceFromCells(cells, smoothPasses);
 
             // Fills: SMOOTHED per-cell (single-owner ⇒ no bucket-fill; owner edges
             // rounded to match the borders). POOLED: unchanged cells keep their
@@ -378,9 +366,7 @@ export class PowerVectorFamily implements RenderFamily {
                 this.resetMorphFillPool();
             }
 
-            // Borders: merged + smoothed inter-owner frontiers AND the front
-            // chord itself — all first-class entries in surface.frontiers, same
-            // blend rule as every other border.
+            // Borders: merged + smoothed inter-owner frontiers (same smoothed graph).
             if (style.borderEnabled) {
                 this.drawBorders(surface.frontiers, surface.worldBorders, dx, dy, style);
             } else this.borderG.clear();

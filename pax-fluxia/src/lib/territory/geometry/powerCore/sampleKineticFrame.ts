@@ -21,12 +21,7 @@ import type { PowerCell, Point } from './powerCoreTypes';
 import {
     KINETIC_EPSILON_WEIGHT,
 } from './buildTransitionBubble';
-import type {
-    ActiveConquestFront,
-    KineticFrame,
-    SiteRamp,
-    TransitionBubble,
-} from './kineticTypes';
+import type { KineticFrame, SiteRamp, TransitionBubble } from './kineticTypes';
 
 function smoothstep(q: number): number {
     const t = q < 0 ? 0 : q > 1 ? 1 : q;
@@ -316,20 +311,14 @@ export function sampleFullDiagramMulti(
 
     let cells: PowerCell[] | null = null;
     let lastError: unknown = null;
-    for (let attempt = 0; attempt < 4 && !cells; attempt++) {
+    for (let attempt = 0; attempt < 3 && !cells; attempt++) {
         try {
             const jitter = attempt * 2.5e-4;
-            // FULL mode has no stitched seam (no ring discard), so on retries it
-            // is safe to jitter EVERY site — including frozen ones. Real maps
-            // carry near-coincident contest virtuals in the FROZEN set; the old
-            // ramp-only jitter could not resolve those, the diagram failed all
-            // retries, the frame THREW, and the morph never rendered (stale PRE
-            // fills all morph + a POST pop at settle).
             const jittered =
                 attempt === 0
                     ? sites
                     : sites.map((site, i) =>
-                          i >= rampSiteCount && attempt < 2
+                          i >= rampSiteCount
                               ? site
                               : {
                                     ...site,
@@ -346,37 +335,25 @@ export function sampleFullDiagramMulti(
         throw new Error(`sampleFullDiagramMulti: diagram failed after retries: ${lastError}`);
     }
 
-    // SPLIT-AFTER-SMOOTHING: cells stay UNSPLIT under the settled (new) owner —
-    // the graph/smoothing domain never sees the conquest split, so chain
-    // topology is the settled one for the whole morph (no reorganization snap
-    // at front completion). Each in-flight conquest is emitted as an overlay
-    // FRONT descriptor; the renderer clips the captured cell's SMOOTHED fill.
     const bubbleCells: PowerCell[] = [];
-    const fronts: ActiveConquestFront[] = [];
     for (const cell of cells) {
         const kMatch = /^m(\d+)k(\d+)/.exec(cell.siteId);
         const part = kMatch ? parts[Number(kMatch[1])] : undefined;
         const ramp = kMatch && part ? part.bubble.ramps[Number(kMatch[2])] : undefined;
         if (part && ramp?.kind === 'conquest') {
             const q = conquestFrontQ(ramp, clampedP[Number(kMatch![1])]!);
-            if (q < 1) {
-                fronts.push({
-                    siteId: ramp.starId,
-                    q,
-                    front: {
-                        mode: ramp.frontMode ?? 'linear',
-                        dirX: ramp.attackDirX ?? 0,
-                        dirY: ramp.attackDirY ?? 0,
-                        originX: ramp.attackOriginX ?? ramp.x,
-                        originY: ramp.attackOriginY ?? ramp.y,
-                        starId: ramp.starId,
-                        ownerIn: ramp.ownerB,
-                        ownerOld: ramp.ownerA,
-                        subdiv: 6,
-                    },
-                });
-            }
-            bubbleCells.push({ ...cell, siteId: ramp.starId });
+            const front: ConquestFront = {
+                mode: ramp.frontMode ?? 'linear',
+                dirX: ramp.attackDirX ?? 0,
+                dirY: ramp.attackDirY ?? 0,
+                originX: ramp.attackOriginX ?? ramp.x,
+                originY: ramp.attackOriginY ?? ramp.y,
+                starId: ramp.starId,
+                ownerIn: ramp.ownerB,
+                ownerOld: ramp.ownerA,
+                subdiv: 6,
+            };
+            for (const partCell of splitCellByFront(cell, front, q)) bubbleCells.push(partCell);
             continue;
         }
         if (ramp) {
@@ -393,7 +370,7 @@ export function sampleFullDiagramMulti(
         const p = part.p <= 0 ? 0 : part.p >= 1 ? 1 : part.p;
         if (p > maxP) maxP = p;
     }
-    return { p: maxP, frozenCells: [], bubbleCells, fronts };
+    return { p: maxP, frozenCells: [], bubbleCells };
 }
 
 /** Single-morph full diagram (the `full` param path) — one part, the bubble's

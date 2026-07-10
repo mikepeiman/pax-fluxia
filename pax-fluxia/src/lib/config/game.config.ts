@@ -384,11 +384,10 @@ interface GameConfigType {
     TERRITORY_TRANSITION_SETTLE_PCT: number; // Metaball conquest end-settle easing, percent (0 = off)
     /** When true, territory conquest transition duration tracks BASE_TICK_MS (Timing panel) */
     TERRITORY_TRANSITION_BIND_TO_TICK: boolean;
-    /** PowerCore conquest FRONT shape: 'push' (default) = the pre-conquest
-     *  border ITSELF is pushed across the cell like a wave, endpoints sliding
-     *  along the bounding borders; 'linear' = straight windshield-wiper sweep;
-     *  'radial' = curved front advancing from the attack origin. */
-    TERRITORY_CONQUEST_FRONT_MODE: 'push' | 'linear' | 'radial';
+    /** PowerCore conquest FRONT shape — the split applied to the captured cell
+     *  IN THE GEOMETRY (one-graph pipeline): 'radial' (default) = curved front
+     *  advancing from the attack origin; 'linear' = straight sweep. */
+    TERRITORY_CONQUEST_FRONT_MODE: 'linear' | 'radial';
     // ── Virtual Star Transition (F-165) ──────────────────────────────────────
     VS_VICTOR_TRAVEL_MS: number;          // Duration of victor VS travel (ms, 0 = use TERRITORY_TRANSITION_MS)
     VS_LOSER_TRAVEL_MS: number;           // Duration of loser VS travel (ms, 0 = use TERRITORY_TRANSITION_MS)

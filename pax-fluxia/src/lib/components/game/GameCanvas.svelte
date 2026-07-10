@@ -2459,7 +2459,7 @@
     let kineticFrameActiveTransition: RenderFamilyActiveTransition | null = null;
     let kineticFrameNowMs = 0;
     let kineticFrameDurationMs = 0;
-    let kineticFrameConquestFrontMode: "push" | "linear" | "radial" = "push";
+    let kineticFrameConquestFrontMode: "linear" | "radial" = "radial";
     // Conquest-frame spike fix (power_vector): when an ownership change lands,
     // only the CHEAP endpoint is committed on that frame (starts the sweep); the
     // ~10ms snapshot assembly is deferred to this deadline (a light mid-morph
@@ -5022,10 +5022,9 @@
             activeGameStore.effectiveTickMs,
         );
         kineticFrameConquestFrontMode =
-            GAME_CONFIG.TERRITORY_CONQUEST_FRONT_MODE === "radial" ||
             GAME_CONFIG.TERRITORY_CONQUEST_FRONT_MODE === "linear"
-                ? GAME_CONFIG.TERRITORY_CONQUEST_FRONT_MODE
-                : "push"; // default: the border itself is pushed like a wave
+                ? "linear"
+                : "radial";
         sampleKineticForFrame(
             fxOrchestrator.gameTime,
             normalizePerimeterFieldGeometrySource(

@@ -230,14 +230,11 @@ export function sampleKineticForFrame(
         }
     }
     if (!frame) frame = runtime.sample(nowMs);
-    // One line per morph so the live pipeline is verifiable by eye: fronts
-    // present ⇒ the overlay (sweep fill + border suppression) is active.
+    // One line per morph so the live pipeline is verifiable by eye.
     if (frame && runtime.activeKey !== activeKey) {
         log.canvas(
             'kinetic',
-            `morph ACTIVE key=${runtime.activeKey} fronts=${frame.fronts?.length ?? 0} q=${
-                frame.fronts?.[0]?.q?.toFixed(3) ?? 'n/a'
-            } cells=${frame.bubbleCells.length} frozen=${frame.frozenCells.length}`,
+            `morph ACTIVE key=${runtime.activeKey} cells=${frame.bubbleCells.length} frozen=${frame.frozenCells.length}`,
         );
     }
     const cost = performance.now() - t0;
