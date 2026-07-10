@@ -85,6 +85,26 @@ superseding docs:
   q≈0 matches the pre-conquest surface at the captured rim) and POST (classified frontier converges
   on the settled surface as q→1) — smoothMorphFrame.proof.test.ts, 23/23 green; full territory+fx
   suite 423/423 green. Awaiting user visual sign-off (see Open entry above).
+- [x] **Conquest is a MAP STATE, not an overlay — one geometry domain for the captured cell (user)**
+  `[territory][transitions]` — user re-report after 1d29f7a3b: border-fronts still not matching
+  fill-fronts; ruling: "a conquest is not a thing, it is an event… it should push the border along
+  like a wave and smear it into the bounding borders." REAL root cause (proven by falsification):
+  the captured cell's pieces were drawn from MIXED geometry domains — the entry border
+  (attacker↔captured, absent from the POST graph as same-owner-internal) was STROKED from the
+  PRE-graph SMOOTHED chain while the FILL ring fell back to the RAW polygon edge there → colour
+  seam and border diverge by px wherever the entry border is a multi-edge chain with a real corner
+  (chain-aware Chaikin rounds it; single-edge/collinear chains smooth to themselves, which is why
+  runtime fixtures never caught it). Fix: PRE graph hoisted into buildSurfaceFromCells; its
+  PRE-ONLY edges' smoothedPts folded into the SAME ring lookup the cell fills use → fill seam, rim
+  border, front field, and front chord all read ONE smoothed curve; an intermediate frame is one
+  coherent map whose old border is pushed across the cell as a single wave. Gates: (a) every colour
+  seam touching a captured piece is stroked verbatim (subsequence match); (b) GLOBAL COINCIDENCE —
+  every frontier point lies on a fill boundary (<1e-6); (c) hand-built multi-edge-corner fixture
+  where the fix-disabled code measurably FAILS at 1.23px (falsification verified both ways).
+  25/25 proof suite, 425/425 territory+fx, typecheck clean. LESSON (also admitted to user): the
+  same thinking error corrupted both the renderer (conquest as overlay object) and my screenshot
+  reading (looking for a special "conquest artifact" in stills — a correct mid-conquest frame is
+  indistinguishable from a settled map).
 - [x] **Front border didn't match fill front + originate the sweep from the attack lane (user)**
   `[territory][transitions]` — user report: fill front correct, stroked BORDER front a different shape
   and not covering the full front. Rigorous cause (border and fill of the captured cell come from ONE

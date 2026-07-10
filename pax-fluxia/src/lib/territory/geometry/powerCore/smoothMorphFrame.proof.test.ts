@@ -391,46 +391,168 @@ describe('conquest front completes early (no settle pop)', () => {
         expect(checkedTips).toBeGreaterThan(0); // the invariant was actually exercised
     });
 
-    it('BORDER == FILL: the stroked front chord is byte-identical to the fill split arc (not chained)', () => {
+    it('BORDER == FILL: every colour seam touching a captured piece is stroked verbatim', () => {
         // The user-reported glitch: the stroked border front took a different
-        // shape from the fill colour boundary. Cause: the front chord was
-        // routed through chainEdgesIntoPolylines (the fill was not), which can
-        // merge/reshape it. Fix: the front chord is appended to frontiers
-        // PRE-FORMED. This proves it: every frontChain the fill split produces
-        // must appear VERBATIM as a frontier polyline in the with-fronts
-        // surface — same points, same order — so the drawn front traces exactly
-        // the colour boundary the fill draws.
+        // shape from the fill colour boundary. THE user-visible invariant,
+        // asserted directly: wherever a captured-cell fill piece meets a fill
+        // of a DIFFERENT owner (the interior front chord AND the rim seams to
+        // neighbour cells — the entry border was the diverging one), the shared
+        // vertex run must appear point-for-point inside some stroked frontier.
+        // One geometry domain — fill and border cannot diverge.
+        const q6 = (p: readonly [number, number]) =>
+            `${Math.round(p[0] * 1e6)}:${Math.round(p[1] * 1e6)}`;
+        // `run` must appear as a contiguous slice of some frontier (either
+        // orientation) — frontiers may extend past the seam via chaining.
+        const isSubRun = (fk: string[], rk: string[]) => {
+            if (rk.length > fk.length) return false;
+            outer: for (let s = 0; s + rk.length <= fk.length; s++) {
+                for (let j = 0; j < rk.length; j++) {
+                    if (fk[s + j] !== rk[j]) continue outer;
+                }
+                return true;
+            }
+            return false;
+        };
         for (const t of [120, 400, 700]) {
             const f = rt.sampleFull(t)!;
             const af = (f.fronts ?? []).find((x) => x.siteId === CAPTURED);
             if (!af) continue;
             const cells = [...f.frozenCells, ...f.bubbleCells];
-            // The smoothed rim classifyActiveFronts splits (settled build → the
-            // captured cell's unsplit fill == buildCellRing(cell)).
-            const settled = buildSurfaceFromCells(cells, 2);
-            const rim = settled.cellFills.find((c) => c.siteId === CAPTURED)!.points;
-            const split = splitCellByFrontDetailed(
-                { siteId: CAPTURED, ownerId: af.front.ownerIn, points: rim } as never,
-                af.front,
-                af.q,
+            const surface = buildSurfaceFromCells(cells, 2, undefined, f.fronts ?? []);
+            const pieces = surface.cellFills.filter((c) =>
+                c.siteId?.startsWith(`${CAPTURED}§`),
             );
-            expect(split.frontChains.length).toBeGreaterThan(0);
+            // ≥2: one incoming (new-owner) piece + one or more old-owner caps.
+            expect(pieces.length, `t=${t}: split fill pieces present`).toBeGreaterThanOrEqual(2);
 
-            const withFronts = buildSurfaceFromCells(cells, 2, undefined, f.fronts ?? []);
-            const eq = (a: readonly [number, number][], b: readonly [number, number][]) => {
-                if (a.length !== b.length) return false;
-                for (let i = 0; i < a.length; i++) {
-                    if (Math.abs(a[i]![0] - b[i]![0]) > 1e-9 || Math.abs(a[i]![1] - b[i]![1]) > 1e-9) return false;
-                }
-                return true;
-            };
-            for (const chain of split.frontChains) {
-                const asPts = chain.map((p) => [p[0], p[1]] as [number, number]);
-                const found = withFronts.frontiers.some(
-                    (fr) => eq(fr.points, asPts) || eq(fr.points, [...asPts].reverse()),
+            const frontierKeySets = surface.frontiers.map((fr) =>
+                (fr.points as [number, number][]).map(q6),
+            );
+            const runMatches = (run: [number, number][]) => {
+                const keys = run.map(q6);
+                const rev = [...keys].reverse();
+                return frontierKeySets.some(
+                    (fk) => isSubRun(fk, keys) || isSubRun(fk, rev),
                 );
-                expect(found, `t=${t}: front chord must appear verbatim in frontiers`).toBe(true);
+            };
+            /** Maximal cyclic runs of `ring` vertices present in `otherKeys`. */
+            const sharedRuns = (
+                ring: [number, number][],
+                otherKeys: ReadonlySet<string>,
+            ): [number, number][][] => {
+                const n = ring.length;
+                const shared = ring.map((p) => otherKeys.has(q6(p)));
+                if (shared.every(Boolean)) return [[...ring]];
+                const runs: [number, number][][] = [];
+                let i = 0;
+                while (shared[i]) i++;
+                let run: [number, number][] = [];
+                for (let step = 0; step <= n; step++) {
+                    const idx = (i + step) % n;
+                    if (shared[idx]) run.push(ring[idx]!);
+                    else {
+                        if (run.length >= 2) runs.push(run);
+                        run = [];
+                    }
+                }
+                return runs;
+            };
+
+            let checkedSeams = 0;
+            for (const piece of pieces) {
+                const ring = piece.points as [number, number][];
+                for (const other of surface.cellFills) {
+                    if (other === piece || other.ownerId === piece.ownerId) continue;
+                    const otherKeys = new Set(
+                        (other.points as [number, number][]).map(q6),
+                    );
+                    for (const run of sharedRuns(ring, otherKeys)) {
+                        expect(
+                            runMatches(run),
+                            `t=${t}: seam ${piece.ownerId}|${other.ownerId} (${run.length} pts) stroked verbatim`,
+                        ).toBe(true);
+                        checkedSeams++;
+                    }
+                }
             }
+            // The chord (piece↔piece) plus at least one rim seam must have
+            // been exercised — the invariant can't pass vacuously.
+            expect(checkedSeams, `t=${t}: seams exercised`).toBeGreaterThanOrEqual(2);
+
+            // GLOBAL COINCIDENCE: every stroked frontier point lies ON a fill
+            // boundary (<1e-6 px). THIS catches the raw-vs-smoothed domain
+            // divergence: pre-fix, the entry border was stroked on the
+            // PRE-smoothed curve while the fills met on the RAW polygon edge —
+            // a px-scale gap invisible to vertex-sharing checks (a raw segment
+            // has no interior vertices to share).
+            const fillBoxes = surface.cellFills.map((c) => {
+                const pts = c.points as [number, number][];
+                let minX = Infinity;
+                let minY = Infinity;
+                let maxX = -Infinity;
+                let maxY = -Infinity;
+                for (const [x, y] of pts) {
+                    if (x < minX) minX = x;
+                    if (y < minY) minY = y;
+                    if (x > maxX) maxX = x;
+                    if (y > maxY) maxY = y;
+                }
+                return { pts, minX, minY, maxX, maxY };
+            });
+            const segD = (
+                px: number,
+                py: number,
+                a: readonly [number, number],
+                b: readonly [number, number],
+            ) => {
+                const dx = b[0] - a[0];
+                const dy = b[1] - a[1];
+                const l2 = dx * dx + dy * dy;
+                let s = l2 < 1e-12 ? 0 : ((px - a[0]) * dx + (py - a[1]) * dy) / l2;
+                s = s < 0 ? 0 : s > 1 ? 1 : s;
+                return Math.hypot(a[0] + s * dx - px, a[1] + s * dy - py);
+            };
+            const onAnyFillBoundary = (p: [number, number]) => {
+                const EPS = 1e-6;
+                for (const box of fillBoxes) {
+                    if (
+                        p[0] < box.minX - EPS ||
+                        p[0] > box.maxX + EPS ||
+                        p[1] < box.minY - EPS ||
+                        p[1] > box.maxY + EPS
+                    ) {
+                        continue;
+                    }
+                    const ring = box.pts;
+                    for (let i = 0; i < ring.length; i++) {
+                        if (segD(p[0], p[1], ring[i]!, ring[(i + 1) % ring.length]!) <= EPS) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            };
+            let worstOff = 0;
+            for (const fr of surface.frontiers) {
+                for (const p of fr.points as [number, number][]) {
+                    if (!onAnyFillBoundary(p)) {
+                        // Measure how far off for the failure message.
+                        let best = Infinity;
+                        for (const box of fillBoxes) {
+                            const ring = box.pts;
+                            for (let i = 0; i < ring.length; i++) {
+                                const d = segD(p[0], p[1], ring[i]!, ring[(i + 1) % ring.length]!);
+                                if (d < best) best = d;
+                            }
+                        }
+                        if (best > worstOff) worstOff = best;
+                    }
+                }
+            }
+            expect(
+                worstOff,
+                `t=${t}: every frontier point on a fill boundary (worst off-boundary distance)`,
+            ).toBeLessThan(1e-6);
         }
     });
 
@@ -487,6 +609,89 @@ describe('conquest front completes early (no settle pop)', () => {
             return worst;
         };
         expect(maxDev(lineSet(classified), lineSet(settled))).toBeLessThan(2);
+    });
+});
+
+// ONE GEOMETRY DOMAIN falsification fixture: the raw-vs-smoothed divergence
+// only exists when the ENTRY border (captured↔attacker) is a MULTI-EDGE chain
+// with a real corner — chain-aware Chaikin rounds it, while a single-edge or
+// collinear chain smooths to itself (no-op), which is why the runtime fixtures
+// above can't catch it. Hand-built map: captured cell C bordered below by TWO
+// attacker cells A1, A2 whose shared boundary with C bends at (50,45).
+describe('ONE GEOMETRY DOMAIN: rounded multi-edge entry border keeps fill == border', () => {
+    const C = { siteId: 'c', ownerId: 'N', points: [[0, 0], [100, 0], [100, 55], [50, 45], [0, 55]] } as PowerCell;
+    const A1 = { siteId: 'a1', ownerId: 'N', points: [[0, 55], [50, 45], [50, 100], [0, 100]] } as PowerCell;
+    const A2 = { siteId: 'a2', ownerId: 'N', points: [[50, 45], [100, 55], [100, 100], [50, 100]] } as PowerCell;
+    // q SMALL + origin OFF-CENTRE (below A1's left side): the front has bitten
+    // a notch out of the entry border near x≈10, while the ROUNDED CORNER at
+    // (50,45) — where the smoothed chain deviates from the raw edges by px —
+    // is still AHEAD and therefore drawn as the persisting old border. That is
+    // the exact divergence configuration (a centred origin consumes the corner
+    // first, hiding it).
+    const fronts = [
+        {
+            siteId: 'c',
+            q: 0.1,
+            front: {
+                mode: 'radial' as const,
+                dirX: 0,
+                dirY: -1,
+                originX: 10,
+                originY: 90,
+                starId: 'c',
+                ownerIn: 'N',
+                ownerOld: 'O',
+            },
+        },
+    ];
+
+    const segD = (
+        px: number,
+        py: number,
+        a: readonly [number, number],
+        b: readonly [number, number],
+    ) => {
+        const dx = b[0] - a[0];
+        const dy = b[1] - a[1];
+        const l2 = dx * dx + dy * dy;
+        let s = l2 < 1e-12 ? 0 : ((px - a[0]) * dx + (py - a[1]) * dy) / l2;
+        s = s < 0 ? 0 : s > 1 ? 1 : s;
+        return Math.hypot(a[0] + s * dx - px, a[1] + s * dy - py);
+    };
+    /** Worst distance of any frontier point from the nearest fill-ring segment. */
+    const worstFrontierOffFillBoundary = (
+        s: ReturnType<typeof buildSurfaceFromCells>,
+    ): number => {
+        let worst = 0;
+        for (const fr of s.frontiers) {
+            for (const p of fr.points as [number, number][]) {
+                let best = Infinity;
+                for (const c of s.cellFills) {
+                    const ring = c.points as [number, number][];
+                    for (let i = 0; i < ring.length; i++) {
+                        const d = segD(p[0], p[1], ring[i]!, ring[(i + 1) % ring.length]!);
+                        if (d < best) best = d;
+                    }
+                }
+                if (best > worst) worst = best;
+            }
+        }
+        return worst;
+    };
+
+    it('the (old|new) border is genuinely rounded AND every frontier point lies on a fill boundary', () => {
+        const s = buildSurfaceFromCells([C, A1, A2], 2, undefined, fronts as never);
+        const pair = ['N', 'O'].sort().join('|');
+        const onPair = s.frontiers.filter(
+            (f) => [f.ownerA, f.ownerB].sort().join('|') === pair,
+        );
+        expect(onPair.length).toBeGreaterThan(0);
+        // The entry chain has a real corner at (50,45): after 2 Chaikin passes
+        // its border polyline must carry interior points (rounded, not raw) —
+        // this is the configuration the runtime fixtures cannot produce.
+        expect(onPair.some((f) => f.points.length > 2)).toBe(true);
+        // ONE DOMAIN: fill seam and stroked border coincide exactly.
+        expect(worstFrontierOffFillBoundary(s)).toBeLessThan(1e-6);
     });
 });
 

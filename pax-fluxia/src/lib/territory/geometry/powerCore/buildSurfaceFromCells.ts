@@ -36,6 +36,7 @@ import {
     WORLD_OWNER,
     type Point,
     type PowerCell,
+    type SharedEdge,
     type SharedEdgeGraph,
     type WorldRect,
 } from './powerCoreTypes';
@@ -335,10 +336,18 @@ const NO_CLASSIFICATION: ClassificationResult = {
  * owner throughout the morph, so the POST graph (`graph`) already reads as the
  * finished map — the captured cell's rim edge to a same-(new)-owner neighbor
  * (the attacker's own territory) is same-owner-internal there and DROPPED
- * entirely. To find its geometry, a PRE graph is built with every active
- * front's captured cell reverted to its OLD owner: that edge becomes a real
- * shared edge in the PRE graph (different owners), absent from the POST graph
- * — exactly the persisting old attacker↔defender border.
+ * entirely. Its geometry comes from the PRE graph (built by the caller with
+ * every active front's captured cell reverted to its OLD owner): that edge is
+ * a real shared edge there (different owners), absent from the POST graph —
+ * exactly the persisting old attacker↔defender border.
+ *
+ * ONE GEOMETRY DOMAIN (the conquest-is-a-map-state invariant): the caller has
+ * already folded the PRE-only edges' smoothedPts into the SAME ring lookup the
+ * cell fills use, so `buildCellRing(cell)` — the ring split for the fill — and
+ * the edge polylines clipped here are the IDENTICAL smoothed curves. Fill
+ * seam, rim border, and front chord cannot diverge: an intermediate frame is
+ * one coherent map whose (old↔new) border is pushed across the cell like a
+ * wave, its ends sliding along the bounding borders.
  *
  * For each captured cell's raw rim edge, in order:
  *   1. Found in the POST graph (a real edge there) → split by the front field;
@@ -363,26 +372,16 @@ const NO_CLASSIFICATION: ClassificationResult = {
 function classifyActiveFronts(
     conformed: readonly PowerCell[],
     graph: SharedEdgeGraph,
-    world: WorldRect,
-    passes: number,
+    preSharedIndex: Map<number, Map<number, SharedEdge>>,
     fronts: readonly ActiveConquestFront[],
     buildCellRing: (cell: PowerCell) => Point[],
 ): ClassificationResult {
     if (fronts.length === 0) return NO_CLASSIFICATION;
 
     const cellBySite = new Map(conformed.map((c) => [c.siteId, c] as const));
-    const activeBySite = new Map(fronts.map((af) => [af.siteId, af] as const));
-
-    const preCells = conformed.map((c) => {
-        const af = activeBySite.get(c.siteId);
-        return af ? { ...c, ownerId: af.front.ownerOld } : c;
-    });
-    const preGraph = buildSharedEdgeGraph(preCells, world);
-    smoothSharedEdges(preGraph, passes);
 
     const postSharedIndex = indexByEndpoints(graph.sharedEdges);
     const postWorldIndex = indexByEndpoints(graph.worldEdges);
-    const preSharedIndex = indexByEndpoints(preGraph.sharedEdges);
 
     const claimedSharedEdgeIds = new Set<string>();
     const claimedWorldEdgeIds = new Set<string>();
@@ -592,6 +591,40 @@ export function buildSurfaceFromCells(
         const hi = ka < kb ? kb : ka;
         return smoothByPair.get(lo)?.get(hi);
     };
+
+    // PRE graph (only while conquests are in flight): every active front's
+    // captured cell reverted to its OLD owner — the pre-conquest ownership.
+    // Two jobs:
+    //  1. classifyActiveFronts reads its edges for live-label rim attribution.
+    //  2. ONE GEOMETRY DOMAIN: its PRE-ONLY edges (the attacker↔captured entry
+    //     border — same-owner-internal in the POST graph, so absent from the
+    //     lookup above) are folded into the SAME ring lookup the cell fills
+    //     use. Without this, the fill ring falls back to the RAW polygon edge
+    //     there while the drawn border uses the PRE-SMOOTHED curve — the fill
+    //     seam and the stroked border visibly diverge from frame 1 of every
+    //     conquest (the "border front doesn't match fill front" defect). With
+    //     it, fill seam, rim border, front field, and front chord all read the
+    //     identical smoothed curve: an intermediate frame is ONE map state and
+    //     the old border is pushed across the cell as a single coherent wave.
+    //     Neighbor (attacker) cells' rings pick up the same curve, so adjacent
+    //     fills stay watertight.
+    let preSharedIndex = new Map<number, Map<number, SharedEdge>>();
+    if (fronts.length > 0) {
+        const activeBySite = new Map(fronts.map((af) => [af.siteId, af] as const));
+        const preCells = conformed.map((c) => {
+            const af = activeBySite.get(c.siteId);
+            return af ? { ...c, ownerId: af.front.ownerOld } : c;
+        });
+        const preGraph = buildSharedEdgeGraph(preCells, world);
+        smoothSharedEdges(preGraph, passes);
+        preSharedIndex = indexByEndpoints(preGraph.sharedEdges);
+        for (const e of preGraph.sharedEdges) {
+            const ka = ptKey(e.pts[0]![0], e.pts[0]![1]);
+            const kb = ptKey(e.pts[e.pts.length - 1]![0], e.pts[e.pts.length - 1]![1]);
+            if (!lookupEdge(ka, kb)) indexEdge(e.pts, e.smoothedPts);
+        }
+    }
+
     const buildCellRing = (cell: PowerCell): Point[] => {
         const pts = cell.points;
         const n = pts.length;
@@ -626,7 +659,7 @@ export function buildSurfaceFromCells(
     };
 
     // Live-label border classification (see classifyActiveFronts doc).
-    const classification = classifyActiveFronts(conformed, graph, world, passes, fronts, buildCellRing);
+    const classification = classifyActiveFronts(conformed, graph, preSharedIndex, fronts, buildCellRing);
 
     const byPair = new Map<string, { edgeId: string; points: readonly Point[] }[]>();
     for (const e of graph.sharedEdges) {
