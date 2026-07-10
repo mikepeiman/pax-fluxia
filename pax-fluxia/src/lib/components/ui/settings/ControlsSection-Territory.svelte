@@ -853,6 +853,24 @@
           </div>
           <div class="var-row">
             <PaxSettingsRangeRow
+              label="Motion Completion (% of window)"
+              value={panel.territoryMorphCompletePct ??
+                GAME_CONFIG.TERRITORY_MORPH_COMPLETE_PCT ??
+                92}
+              min={50}
+              max={100}
+              step={1}
+              format="percent"
+              settingConfigKey="TERRITORY_MORPH_COMPLETE_PCT"
+              onInput={(value) =>
+                debouncedConfigUpdate(
+                  "TERRITORY_MORPH_COMPLETE_PCT",
+                  "territoryMorphCompletePct",
+                  value,
+                )} />
+          </div>
+          <div class="var-row">
+            <PaxSettingsRangeRow
               label="Transition Duration"
               value={panel.territoryTransitionMs ??
                 GAME_CONFIG.TERRITORY_TRANSITION_MS}

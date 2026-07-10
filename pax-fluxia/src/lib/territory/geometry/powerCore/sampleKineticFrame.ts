@@ -46,17 +46,38 @@ function smoothstep(q: number): number {
  * nothing while the clock still runs. Applied INSIDE rampProgress so every
  * consumer (weights, appear/vanish scaling, the front split) shares it.
  */
-const MORPH_COMPLETE_AT = 0.92;
+const MORPH_COMPLETE_AT_DEFAULT = 0.92;
+
+/**
+ * Live-tunable completion fraction (Territory → Motion Completion slider).
+ * Module-mutable rather than a config import so this module stays pure /
+ * offline-testable; the frame boundary (GameCanvas) injects the config value
+ * via setMorphCompleteAt each frame. At 1.0 motion runs the FULL window (no
+ * early-completion hold) — snap-free only once topology-stable smoothing lands;
+ * until then higher values place the completion snap closer to the tick edge.
+ */
+let morphCompleteAt = MORPH_COMPLETE_AT_DEFAULT;
+
+/** Inject the completion fraction (clamped to a sane 0.5–1.0). */
+export function setMorphCompleteAt(fraction: number): void {
+    if (!Number.isFinite(fraction)) return;
+    morphCompleteAt = fraction < 0.5 ? 0.5 : fraction > 1 ? 1 : fraction;
+}
+
+/** Current completion fraction (for diagnostics/tests). */
+export function getMorphCompleteAt(): number {
+    return morphCompleteAt;
+}
 
 function conquestFrontQ(ramp: SiteRamp, p: number): number {
     return rampProgress(ramp, p); // early-completion lives in rampProgress
 }
 
 /** Local progress of one ramp at global progress p (monotone in p; reaches 1
- *  at MORPH_COMPLETE_AT of the ramp's window and holds — see note above). */
+ *  at morphCompleteAt of the ramp's window and holds — see note above). */
 export function rampProgress(ramp: SiteRamp, p: number): number {
     if (ramp.span <= 0) return p >= ramp.delay ? 1 : 0;
-    return Math.min(1, smoothstep((p - ramp.delay) / ramp.span) / MORPH_COMPLETE_AT);
+    return Math.min(1, smoothstep((p - ramp.delay) / ramp.span) / morphCompleteAt);
 }
 
 /**

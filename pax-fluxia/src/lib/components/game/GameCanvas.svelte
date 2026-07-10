@@ -187,6 +187,7 @@
         getKineticDiagnostics,
         getKineticPresentationNonce,
     } from "$lib/territory/geometry/powerCore/kineticRuntimeBridge";
+    import { setMorphCompleteAt } from "$lib/territory/geometry/powerCore/sampleKineticFrame";
     import type {
         OwnershipSnapshot,
         TerritoryConquestEvent,
@@ -5025,6 +5026,11 @@
             GAME_CONFIG.TERRITORY_CONQUEST_FRONT_MODE === "linear"
                 ? "linear"
                 : "radial";
+        // Live-tune where conquest motion completes within the window (Territory
+        // → Motion Completion). Injected into the pure kinetic sampler here.
+        setMorphCompleteAt(
+            (GAME_CONFIG.TERRITORY_MORPH_COMPLETE_PCT ?? 92) / 100,
+        );
         sampleKineticForFrame(
             fxOrchestrator.gameTime,
             normalizePerimeterFieldGeometrySource(

@@ -616,6 +616,7 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Blended Opponent Borders': { key: 'TERRITORY_SURFACE_BORDER_BLEND' },
         'Conquest Front': { key: 'TERRITORY_CONQUEST_FRONT_MODE' },
         'Front Shape': { key: 'TERRITORY_CONQUEST_FRONT_MODE' },
+        'Motion Completion': { key: 'TERRITORY_MORPH_COMPLETE_PCT' },
         Saturation: { key: 'VORONOI_SATURATION' },
         Lightness: { key: 'VORONOI_LIGHTNESS' },
         'MSR (Star Margin)': { key: 'MODIFIED_VORONOI_STAR_MARGIN' },

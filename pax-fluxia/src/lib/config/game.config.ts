@@ -388,6 +388,10 @@ interface GameConfigType {
      *  IN THE GEOMETRY (one-graph pipeline): 'radial' (default) = curved front
      *  advancing from the attack origin; 'linear' = straight sweep. */
     TERRITORY_CONQUEST_FRONT_MODE: 'linear' | 'radial';
+    /** Percent of the transition window at which all conquest motion completes
+     *  (50–100, default 92). Lower = more end-hold; 100 = motion runs the full
+     *  tick-bound window. Injected into rampProgress via setMorphCompleteAt. */
+    TERRITORY_MORPH_COMPLETE_PCT: number;
     // ── Virtual Star Transition (F-165) ──────────────────────────────────────
     VS_VICTOR_TRAVEL_MS: number;          // Duration of victor VS travel (ms, 0 = use TERRITORY_TRANSITION_MS)
     VS_LOSER_TRAVEL_MS: number;           // Duration of loser VS travel (ms, 0 = use TERRITORY_TRANSITION_MS)
