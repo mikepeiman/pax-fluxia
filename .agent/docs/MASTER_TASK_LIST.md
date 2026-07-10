@@ -31,20 +31,32 @@ superseding docs:
 ## 2026-07-10
 
 ### Open
-- [ ] **End-of-transition discrepancy = FILL DRAW-METHOD, not geometry (diagnosed, fix pending user pick)**
-  `[territory][transitions]` — user: "slight discrepancy between the animation endstate and the settled
-  map state" at the end. PROVEN by measurement (all fixtures, tail vs snapshot): borders 0.00px,
-  per-owner fill AREA delta 0.0 — geometry is EXACT at handoff. The residual: the morph draws fills
-  PER-CELL (drawCellFillsPooled, e.g. 8 polys) while idle draws MERGED owner-regions (drawFills, 4
-  polys). Under semi-transparent fill alpha the per-cell path shows faint anti-aliased SEAMS along
-  same-owner internal cell edges; at settle the merged path has no internal edges → seams vanish (the
-  "adjustment"). Scales with transparency (invisible at fill alpha 1.0). Test map: arena-further,
-  star-13 → star-7 (green AI). FIX OPTIONS: (A) draw merged owner-regions in the morph too (unifies
-  fill w/ idle, zero handoff change) — RISK: reintroduces per-frame whole-map tessellation the pooled
-  path was built to avoid (conquest-event lag spike) unless pooled per-merged-region by owner+hash;
-  (B) render per-owner cells opaque into a per-owner RenderTexture then composite at alpha (removes
-  seams, keeps per-cell pooling) — adds a texture pass; (C) accept. No side effects to borders in any
-  option (geometry already identical). AWAITING user pick.
+- [ ] **End-of-transition BORDER SNAP — RETRACTION + real diagnosis (2026-07-10, fix designed, not built)**
+  `[territory][transitions]` — RETRACTION: the earlier "fill draw-method / alpha seams, borders 0.00px"
+  entry was a MISDIAGNOSIS (it measured only frames AFTER the snap — settled vs settled). REPRODUCED on
+  the user's exact case (arena-further, star-13/ai-5 captures star-7/human): border deviation from the
+  post-rollover settled map goes 4.9px (t=700) → 7.2 → 8.1 → 8.9 → 9.3px (t=825), then 0.00px at t=828
+  — a 9.3px SINGLE-FRAME SNAP. Timing is mathematically exact: rampProgress = smoothstep(p)/0.92 hits
+  q=1 at smoothstep(p)=0.92 ⇒ p≈0.828 — the split's last frame. CAUSE: near completion the shrinking
+  old-owner remnant's same-owner edges DROP from the border graph and the front's crossings pin the
+  neighbouring chain fragments → those fragments smooth ≈ raw (short, pinned) while the settled map
+  smooths the SAME edges as one long chain that ROUNDS the corner — the gap equals the corner-rounding
+  depth (9.3px here; sharp corner ⇒ angular "point", shallow ⇒ round bulge — matches both user-observed
+  variants). Same mechanism at conquest START (entry chain fragmented at q≈0) and for the user's
+  THIRD-PARTY variant (pair flip old→new breaks a continuing chain at a vertex). FIX (designed, one-graph
+  safe): TOPOLOGY-STABLE SMOOTHING — chain coalescing treats a split cell's parts as ONE cell (bridge the
+  dropped same-owner seam pieces as smoothing-only geometry; crossings become interior chain points, not
+  pins); real owner pairs still decide existence/colour/stroke grouping. Curves then equal settled
+  smoothing asymptotically ⇒ q=1 removal is a no-op ⇒ no snap at either endpoint, third-party flips
+  covered by the same rule. Locus: smoothSharedEdges chain-grouping input (+ index phantom curves for
+  fill rings); trigger = existing duplicate-siteId split detection. Side-effect analysis: idle builds
+  have no split cells ⇒ byte-identical (no settled regression); mid-sweep borders near crossings get
+  slightly rounder (likely improvement, needs eyes); front-line tips may sit ≤ rounding-depth off the
+  rounded border near corners at extreme q (contained follow-up: project tips onto the smoothed curve);
+  Chaikin vertex-insertion residual sub-pixel (gate: rebuild the arena harness, assert max frame jump
+  <1.5px and monotone convergence). Perf negligible. REJECTED alternative: temporal blend toward S0/S1
+  smoothed references (needs geometric correspondence + affected-chain selection — the case-enumeration
+  family that failed). AWAITING user go.
 - [ ] **Islands must COLLAPSE to the star centre (not radial)** `[territory][transitions]` — when a
   captured cell is an island (fully enclosed, no shared border with the attacker/defender frontier to
   push), the radial/linear front is wrong; the region should shrink to its star centre as it's taken.
