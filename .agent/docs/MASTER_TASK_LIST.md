@@ -28,6 +28,39 @@ superseding docs:
 
 ---
 
+## 2026-07-10
+
+### Open
+- [ ] **User visual verification: restored one-graph conquest transitions** `[territory][transitions]`
+  — after eb5d28e53 the transition mechanism is EXACTLY 2eecc5564 (the state the user ranked best).
+  Expected look: coherent map every frame, radial front from the attack-lane origin (origin fix
+  kept), borders/fills one source. KNOWN accepted blemish returning: the localized border reshape
+  at conquest start/completion (the "snap" that motivated the failed pivot). If it still offends
+  after living with it, fix it INSIDE the one-graph architecture (temporal smoothing-output easing
+  near q=0/1 — post-processing of smoothed geometry, never a presentation reconstruction).
+- [ ] **"Push the border like a wave" ideal — future, in-geometry only** `[territory][transitions]`
+  — the user's wave ideal stands, but any implementation must be a SPLIT SHAPE in the geometry
+  domain (a new splitCellByFront mode whose cut line morphs entry→exit), flowing through the one
+  graph like linear/radial. NEVER as presentation classification/overlays (that family is proven
+  structurally unable to guarantee border coherence — see Done entry below).
+
+### Done
+- [x] **EMERGENCY: push front shattered live-map borders → architecture verdict + full revert to
+  one-graph (user directive)** `[territory][transitions]` — eb5d28e53. Verdict: split-after-smoothing
+  (a2ff7ed5e and all six repair commits on it, incl. live-label classification, one-domain
+  substitution, and the push front) is REMOVED. Reasoning: pre-split derives the border network by
+  one graph walk over actual cell adjacency — fragmentation impossible by construction; post-split
+  re-derives it by hand-enumerated classification — coherence limited by anticipated cases. Proof:
+  final diagnostic showed push fully coherent on the fixture (0 dangling border tips, exact PRE
+  match) while shattering on the live map. Restored VERBATIM from 2eecc5564: sampleKineticFrame
+  (split cells in geometry), buildSurfaceFromCells (plain), PowerVectorFamily (plain),
+  kineticTypes, conquestFrontField (linear/radial), proof suite. Deleted pushedBorderFront.ts.
+  Front mode back to 'linear'|'radial', default radial; panel migration v2 maps force-written
+  'push'→'radial'. KEPT (orthogonal): attack-lane origins, restart reset, perf commit path,
+  multi-morph+early-completion (predate 2eecc5564), surge/tick/settings. TERMINOLOGY RULING (user):
+  "rim" is BANISHED — naming the cell outline as an object licensed computing one border as
+  independent pieces, which is the root disease. 431/431, typecheck clean.
+
 ## 2026-07-09
 
 ### Open
