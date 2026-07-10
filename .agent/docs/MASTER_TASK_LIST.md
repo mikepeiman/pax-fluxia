@@ -31,6 +31,45 @@ superseding docs:
 ## 2026-07-10
 
 ### Open
+- [ ] **End-of-transition discrepancy = FILL DRAW-METHOD, not geometry (diagnosed, fix pending user pick)**
+  `[territory][transitions]` — user: "slight discrepancy between the animation endstate and the settled
+  map state" at the end. PROVEN by measurement (all fixtures, tail vs snapshot): borders 0.00px,
+  per-owner fill AREA delta 0.0 — geometry is EXACT at handoff. The residual: the morph draws fills
+  PER-CELL (drawCellFillsPooled, e.g. 8 polys) while idle draws MERGED owner-regions (drawFills, 4
+  polys). Under semi-transparent fill alpha the per-cell path shows faint anti-aliased SEAMS along
+  same-owner internal cell edges; at settle the merged path has no internal edges → seams vanish (the
+  "adjustment"). Scales with transparency (invisible at fill alpha 1.0). Test map: arena-further,
+  star-13 → star-7 (green AI). FIX OPTIONS: (A) draw merged owner-regions in the morph too (unifies
+  fill w/ idle, zero handoff change) — RISK: reintroduces per-frame whole-map tessellation the pooled
+  path was built to avoid (conquest-event lag spike) unless pooled per-merged-region by owner+hash;
+  (B) render per-owner cells opaque into a per-owner RenderTexture then composite at alpha (removes
+  seams, keeps per-cell pooling) — adds a texture pass; (C) accept. No side effects to borders in any
+  option (geometry already identical). AWAITING user pick.
+- [ ] **Islands must COLLAPSE to the star centre (not radial)** `[territory][transitions]` — when a
+  captured cell is an island (fully enclosed, no shared border with the attacker/defender frontier to
+  push), the radial/linear front is wrong; the region should shrink to its star centre as it's taken.
+  In-geometry: a new splitCellByFront 'collapse' mode (scale the cell ring toward the site by 1−q) OR
+  a fill-only shrink. Detect island = captured cell has no inter-owner shared edge with a non-new
+  owner in S0. Fits the one-graph pipeline (still emits cells).
+- [ ] **Multi-attacker → multi-vector sweep (feasibility: YES, in-geometry)** `[territory][transitions]`
+  — event.attackerStarIds already carries ALL attackers. Feasible as a field-front variant: the split
+  threshold field T(x) = MIN over attackers of per-attacker arrival time (radial from each attacker
+  origin) — the captured region falls to whichever attacker's wave reaches each point first, giving a
+  multi-lobe front from one split. Flows through the existing splitCellByFront/one-graph path (just a
+  new field evaluator; the disk∩polygon walk generalizes to a union-of-disks boundary). NOT a
+  presentation overlay. Design + prototype needed.
+- [ ] **Sweep option: WAVE front + UI tuning (vertices, stagger distance, stagger timing, stagger
+  coherence)** `[territory][transitions][ui]` — new Front Shape option 'wave': the front line gains N
+  vertices each given a staggered local progress so the border ripples across (water feel). Controls:
+  vertex count, stagger distance (amplitude), stagger timing (phase spread), stagger coherence (how
+  correlated adjacent vertices' offsets are). Build as a splitCellByFront field variant in the
+  geometry (per-vertex phase-offset arrival field), add the Front Shape chip + 4 sliders to the
+  Territory settings (TERRITORY_CONQUEST_FRONT_MODE already the mode key). One-graph safe.
+- [ ] **GG (Grid Gradient) + Phase Edges: apply the PowerCore geometry + one-graph transition engine**
+  `[territory][render][perf]` — investigate whether GG and Phase Edges can consume the same PowerCore
+  cells + kinetic frames for correctness (GG has glitches) and performance. Determine feasibility
+  first (their current geometry sources + transition paths), then plan. Do NOT port blindly.
+
 - [ ] **User visual verification: restored one-graph conquest transitions** `[territory][transitions]`
   — after eb5d28e53 the transition mechanism is EXACTLY 2eecc5564 (the state the user ranked best).
   Expected look: coherent map every frame, radial front from the attack-lane origin (origin fix
@@ -45,6 +84,12 @@ superseding docs:
   structurally unable to guarantee border coherence — see Done entry below).
 
 ### Done
+- [x] **Standings HUD: active player highlight + enemy-star secondary highlight (user)** `[ui][hud]` —
+  active/local player row already had the primary --local warm highlight; added a SECONDARY highlight
+  (.pf-standings__row--selected, glows in the clicked player's own colour) driven by
+  selectedEnemyStandingId in GameContainer (the owner of a clicked enemy star; null for empty
+  space / neutral / own star, so it clears exactly as specified). PlayerStandingsPanel gained a
+  highlightedPlayerId prop. Typecheck clean.
 - [x] **EMERGENCY: push front shattered live-map borders → architecture verdict + full revert to
   one-graph (user directive)** `[territory][transitions]` — eb5d28e53. Verdict: split-after-smoothing
   (a2ff7ed5e and all six repair commits on it, incl. live-label classification, one-domain

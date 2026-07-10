@@ -242,6 +242,21 @@
   color: var(--pax-ui-text-strong);
 }
 
+/* Secondary highlight: the owner of a clicked ENEMY star, glowing in their own
+   colour so it reads as "this is who owns the star you selected". Cleared when
+   selection clears (empty space) or a self/neutral star is picked. Layers over
+   --local via box-shadow so a selected enemy that is somehow local still reads. */
+.pf-standings__row--selected {
+  border-color: color-mix(in srgb, var(--player-color) 72%, transparent);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--player-color) 26%, transparent), color-mix(in srgb, var(--pax-color-void) 70%, transparent) 60%),
+    color-mix(in srgb, var(--pax-color-void) 88%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--player-color) 60%, transparent),
+    0 0 12px -2px color-mix(in srgb, var(--player-color) 65%, transparent);
+  color: var(--pax-ui-text-strong);
+}
+
 
 
 

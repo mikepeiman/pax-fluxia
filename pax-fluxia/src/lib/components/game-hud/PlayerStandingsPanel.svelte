@@ -11,6 +11,9 @@
     players: PlayerStandingViewModel[];
     dockSide: HudDockSide;
     currentTick: number;
+    /** Enemy standing id to secondary-highlight (a clicked enemy star's owner);
+     *  null when nothing/neutral/own star is selected. */
+    highlightedPlayerId?: string | null;
     onToggleDockSide: () => void;
     onCollapse: () => void;
   }
@@ -21,6 +24,7 @@
     players,
     dockSide,
     currentTick,
+    highlightedPlayerId = null,
     onToggleDockSide,
     onCollapse,
   }: Props = $props();
@@ -103,6 +107,8 @@
       <li
         class="pf-standings__row"
         class:pf-standings__row--local={player.isLocal}
+        class:pf-standings__row--selected={highlightedPlayerId != null &&
+          player.id === highlightedPlayerId}
         style:--player-color={player.color}
       >
         <span class="pf-standings__player">

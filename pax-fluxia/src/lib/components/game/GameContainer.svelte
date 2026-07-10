@@ -435,6 +435,25 @@
     ),
   );
 
+  // Standings secondary highlight: the owner of a clicked ENEMY star. null when
+  // nothing is selected (empty space), a neutral/unowned star, or one of your
+  // own stars — those need no secondary highlight (your row already shows the
+  // primary --local highlight).
+  const selectedEnemyStandingId = $derived.by(() => {
+    const id = selectedStarStore.id;
+    if (!id) return null;
+    const star = (activeGameStore.stars as StarState[]).find((s) => s.id === id);
+    const ownerId = star?.ownerId;
+    if (!ownerId) return null;
+    const standing = playerStandings.find(
+      (p) =>
+        p.id === ownerId ||
+        (p.source as PlayerState & { sessionId?: string }).sessionId === ownerId,
+    );
+    if (!standing || standing.isLocal) return null;
+    return standing.id;
+  });
+
   const localPlayerForHud = $derived.by(() => {
     const localId = activeGameStore.localPlayerId;
     return (
@@ -915,6 +934,7 @@
             <PlayerStandingsPanel
               players={playerStandings}
               dockSide={sidebarSide}
+              highlightedPlayerId={selectedEnemyStandingId}
               onToggleDockSide={toggleSidebarSide}
               onCollapse={toggleLeaderboardCollapsed}
               currentTick={activeGameStore.currentTick ?? 0} />
