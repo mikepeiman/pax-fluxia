@@ -306,6 +306,18 @@ interface ClassificationResult {
     readonly extraByPair: ReadonlyMap<string, { edgeId: string; points: readonly Point[] }[]>;
     readonly extraByOwner: ReadonlyMap<string, { edgeId: string; points: readonly Point[] }[]>;
     readonly fillOverrideBySite: ReadonlyMap<string, { ownerId: string; points: Point[] }[]>;
+    /**
+     * The moving front chords, PRE-FORMED — appended to `frontiers` AFTER the
+     * chaining pass, never routed through chainEdgesIntoPolylines. This is what
+     * guarantees the drawn front border is byte-identical to the fill split's
+     * arc: the fill pieces (fillOverrideBySite) and these chords come from the
+     * SAME splitCellByFrontDetailed call, and the fill never touches chaining,
+     * so the border must not either — chaining could otherwise merge the front
+     * arc into an adjacent same-owner-pair rim border (when their crossing
+     * endpoints coincide) and reshape it, making the stroked front diverge from
+     * the color boundary the fill draws.
+     */
+    readonly frontChords: SurfaceFrontier[];
 }
 
 const NO_CLASSIFICATION: ClassificationResult = {
@@ -314,6 +326,7 @@ const NO_CLASSIFICATION: ClassificationResult = {
     extraByPair: new Map(),
     extraByOwner: new Map(),
     fillOverrideBySite: new Map(),
+    frontChords: [],
 };
 
 /**
@@ -376,6 +389,7 @@ function classifyActiveFronts(
     const extraByPair = new Map<string, { edgeId: string; points: readonly Point[] }[]>();
     const extraByOwner = new Map<string, { edgeId: string; points: readonly Point[] }[]>();
     const fillOverrideBySite = new Map<string, { ownerId: string; points: Point[] }[]>();
+    const frontChords: SurfaceFrontier[] = [];
 
     const pushEntry = (
         map: Map<string, { edgeId: string; points: readonly Point[] }[]>,
@@ -497,19 +511,34 @@ function classifyActiveFronts(
             }
         }
 
-        // The interior front chord: a first-class frontier, full length from
-        // frame 1, exact endpoints shared with the rim clips above (same field).
-        for (let idx = 0; idx < split.frontChains.length; idx++) {
-            pushEntry(
-                extraByPair,
-                pairKey(af.front.ownerOld, af.front.ownerIn),
-                `${af.siteId}#front#${idx}`,
-                split.frontChains[idx]!,
-            );
+        // The interior front chord: emitted PRE-FORMED (not into extraByPair),
+        // so it is appended after chaining and stays byte-identical to the fill
+        // split's arc (see ClassificationResult.frontChords). Chaining is what
+        // would otherwise reshape the stroked front away from the fill's colour
+        // boundary. Pair is old↔new so the 50/50 border blend applies to it.
+        const [fa, fb] =
+            af.front.ownerOld < af.front.ownerIn
+                ? [af.front.ownerOld, af.front.ownerIn]
+                : [af.front.ownerIn, af.front.ownerOld];
+        for (const chain of split.frontChains) {
+            if (chain.length < 2) continue;
+            frontChords.push({
+                ownerA: fa,
+                ownerB: fb,
+                points: chain.map((p) => [p[0], p[1]] as [number, number]),
+                closed: false,
+            });
         }
     }
 
-    return { claimedSharedEdgeIds, claimedWorldEdgeIds, extraByPair, extraByOwner, fillOverrideBySite };
+    return {
+        claimedSharedEdgeIds,
+        claimedWorldEdgeIds,
+        extraByPair,
+        extraByOwner,
+        fillOverrideBySite,
+        frontChords,
+    };
 }
 
 export function buildSurfaceFromCells(
@@ -617,6 +646,10 @@ export function buildSurfaceFromCells(
         byPair,
         (key) => key.split('|') as [string, string],
     );
+    // Append the pre-formed front chords AFTER chaining — never chained, so the
+    // stroked front is byte-identical to the fill split's arc (the whole point
+    // of live-label classification: fill and border are the same geometry).
+    for (const chord of classification.frontChords) frontiers.push(chord);
 
     const byOwner = new Map<string, { edgeId: string; points: readonly Point[] }[]>();
     for (const e of graph.worldEdges) {

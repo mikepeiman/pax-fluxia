@@ -57,10 +57,17 @@ function pickRippleOrigin(
 
 /**
  * Per captured star, the attacker's position for the directional conquest
- * sweep. Proxy for the attack source: the NEW owner's star nearest the
- * captured star (the conquest almost always comes from an adjacent same-owner
- * holding). `stars` reflects the POST-capture ownership, so the captured star
- * is itself new-owner-owned — excluded by id.
+ * sweep — the ACTUAL attack source: the star at the far end of the lane the
+ * ships came through (`event.attackerStarIds[0]`, the primary attacker). The
+ * radial front then radiates from that real attack vector, and the linear
+ * front's direction (attacker → captured) is the true lane direction, so the
+ * sweep visibly enters along the connection it was launched from — better feel
+ * and far easier to debug/tune than a geometric proxy.
+ *
+ * Fallback (only when the attacker star can't be located — it was itself just
+ * conquered, or the event lacks attacker ids): the NEW owner's star nearest
+ * the captured star. `stars` reflects POST-capture ownership, so the captured
+ * star is itself new-owner-owned — excluded by id.
  */
 function buildConquestOrigins(
     active: RenderFamilyActiveTransition | null,
@@ -70,6 +77,19 @@ function buildConquestOrigins(
     for (const event of active?.conquestEvents ?? []) {
         const captured = stars.find((s) => s.id === event.starId);
         if (!captured) continue;
+
+        // Primary attacker = the lane source. attackerStarIds is the current
+        // field; attackerStarId is the deprecated single-value alias.
+        const attackerId = event.attackerStarIds?.[0] ?? event.attackerStarId;
+        const attacker = attackerId
+            ? stars.find((s) => s.id === attackerId)
+            : undefined;
+        if (attacker) {
+            origins.set(event.starId, { x: attacker.x, y: attacker.y });
+            continue;
+        }
+
+        // Fallback: nearest same-new-owner star.
         let best: StarState | null = null;
         let bestDist = Infinity;
         for (const s of stars) {

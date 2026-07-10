@@ -391,6 +391,49 @@ describe('conquest front completes early (no settle pop)', () => {
         expect(checkedTips).toBeGreaterThan(0); // the invariant was actually exercised
     });
 
+    it('BORDER == FILL: the stroked front chord is byte-identical to the fill split arc (not chained)', () => {
+        // The user-reported glitch: the stroked border front took a different
+        // shape from the fill colour boundary. Cause: the front chord was
+        // routed through chainEdgesIntoPolylines (the fill was not), which can
+        // merge/reshape it. Fix: the front chord is appended to frontiers
+        // PRE-FORMED. This proves it: every frontChain the fill split produces
+        // must appear VERBATIM as a frontier polyline in the with-fronts
+        // surface — same points, same order — so the drawn front traces exactly
+        // the colour boundary the fill draws.
+        for (const t of [120, 400, 700]) {
+            const f = rt.sampleFull(t)!;
+            const af = (f.fronts ?? []).find((x) => x.siteId === CAPTURED);
+            if (!af) continue;
+            const cells = [...f.frozenCells, ...f.bubbleCells];
+            // The smoothed rim classifyActiveFronts splits (settled build → the
+            // captured cell's unsplit fill == buildCellRing(cell)).
+            const settled = buildSurfaceFromCells(cells, 2);
+            const rim = settled.cellFills.find((c) => c.siteId === CAPTURED)!.points;
+            const split = splitCellByFrontDetailed(
+                { siteId: CAPTURED, ownerId: af.front.ownerIn, points: rim } as never,
+                af.front,
+                af.q,
+            );
+            expect(split.frontChains.length).toBeGreaterThan(0);
+
+            const withFronts = buildSurfaceFromCells(cells, 2, undefined, f.fronts ?? []);
+            const eq = (a: readonly [number, number][], b: readonly [number, number][]) => {
+                if (a.length !== b.length) return false;
+                for (let i = 0; i < a.length; i++) {
+                    if (Math.abs(a[i]![0] - b[i]![0]) > 1e-9 || Math.abs(a[i]![1] - b[i]![1]) > 1e-9) return false;
+                }
+                return true;
+            };
+            for (const chain of split.frontChains) {
+                const asPts = chain.map((p) => [p[0], p[1]] as [number, number]);
+                const found = withFronts.frontiers.some(
+                    (fr) => eq(fr.points, asPts) || eq(fr.points, [...asPts].reverse()),
+                );
+                expect(found, `t=${t}: front chord must appear verbatim in frontiers`).toBe(true);
+            }
+        }
+    });
+
     it('ACCEPTANCE GATE (POST): live classification converges to the settled border as q→1', () => {
         // As the front nears completion, the classified frontier set must
         // converge on exactly what buildSurfaceFromCells(cells) — no fronts —

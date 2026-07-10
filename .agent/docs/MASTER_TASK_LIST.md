@@ -31,13 +31,19 @@ superseding docs:
 ## 2026-07-09
 
 ### Open
-- [ ] **User visual verification of the live-label classification rebuild** `[territory][transitions]`
-  — implemented per the approved proposal (see Done entry below). Casebook to check against
-  2eecc5564/a2ff7ed5e memory: conquest start (border occupies the whole front immediately, no
-  point-growth), completion (no snap/pop), third-party borders, island capture, multi-conquest tick,
-  RADIAL mode (the mode the user runs). If the "cells reshape at conquest start" defect (the reason
-  bb2ad073c's smoothing-continuity blend existed) reappears, re-enable that blend (kept in reserve,
-  `buildSurfaceFromCells`'s 3rd `blend` param — currently unpassed by PowerVectorFamily).
+- [ ] **User visual verification of the live-label classification rebuild + front-chord/attack-vector fixes**
+  `[territory][transitions]` — casebook vs 2eecc5564/a2ff7ed5e memory: conquest start (border occupies
+  the whole front immediately, no point-growth), completion (no snap/pop), third-party borders, island
+  capture, multi-conquest tick, RADIAL mode. NEW to verify: (a) the stroked front border now traces the
+  fill colour boundary exactly (front-chord no longer chained); (b) the sweep now originates from the
+  actual attack lane (attacker star), so it visibly enters along the connection it was launched from.
+  If the "cells reshape at conquest start" defect (the reason bb2ad073c's smoothing-continuity blend
+  existed) reappears, re-enable that blend (kept in reserve, `buildSurfaceFromCells`'s 3rd `blend`
+  param — currently unpassed by PowerVectorFamily).
+- [ ] **Adjacent-double-conquest rim edge (known limitation)** `[territory][transitions]` — two captured
+  cells sharing a rim edge: first front processed claims the shared edge, second skips it
+  (`classifyActiveFronts`, first-processed-wins). Rare; a joint two-field split of the shared edge is
+  the proper fix if it ever shows visually.
 - [ ] **Verify restart-reset fix in-game (user visual check)** `[territory][lifecycle]` — after
   5c17e8210: restart mid-game → map must redraw immediately (no old conquest shapes lingering),
   and re-executing a conquest from the previous match must animate normally. If any symptom
@@ -79,6 +85,19 @@ superseding docs:
   q≈0 matches the pre-conquest surface at the captured rim) and POST (classified frontier converges
   on the settled surface as q→1) — smoothMorphFrame.proof.test.ts, 23/23 green; full territory+fx
   suite 423/423 green. Awaiting user visual sign-off (see Open entry above).
+- [x] **Front border didn't match fill front + originate the sweep from the attack lane (user)**
+  `[territory][transitions]` — user report: fill front correct, stroked BORDER front a different shape
+  and not covering the full front. Rigorous cause (border and fill of the captured cell come from ONE
+  splitCellByFrontDetailed; the ONLY thing that reshapes the border but not the fill was routing the
+  front chord through chainEdgesIntoPolylines, which can merge/reorder it against a same-owner-pair rim
+  border when their crossing endpoints coincide). Fix: `classifyActiveFronts` now returns the front
+  chords PRE-FORMED and `buildSurfaceFromCells` appends them to `frontiers` AFTER chaining — so the
+  stroked front is byte-identical to the fill split arc. New regression gate: BORDER==FILL (every
+  frontChain appears verbatim in surface.frontiers). Also: `buildConquestOrigins` now uses the ACTUAL
+  attacker star (`event.attackerStarIds[0]`, the lane source) as the front origin instead of the
+  nearest-same-new-owner-star proxy — the sweep radiates from the real attack vector (linear direction
+  = true lane direction), better feel + debug/tuning. 424/424 green, typecheck clean. Awaiting user
+  visual sign-off.
 
 ## 2026-07-08
 
