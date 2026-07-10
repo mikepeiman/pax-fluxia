@@ -37,26 +37,27 @@ superseding docs:
   the user's exact case (arena-further, star-13/ai-5 captures star-7/human): border deviation from the
   post-rollover settled map goes 4.9px (t=700) → 7.2 → 8.1 → 8.9 → 9.3px (t=825), then 0.00px at t=828
   — a 9.3px SINGLE-FRAME SNAP. Timing is mathematically exact: rampProgress = smoothstep(p)/0.92 hits
-  q=1 at smoothstep(p)=0.92 ⇒ p≈0.828 — the split's last frame. CAUSE: near completion the shrinking
-  old-owner remnant's same-owner edges DROP from the border graph and the front's crossings pin the
-  neighbouring chain fragments → those fragments smooth ≈ raw (short, pinned) while the settled map
-  smooths the SAME edges as one long chain that ROUNDS the corner — the gap equals the corner-rounding
-  depth (9.3px here; sharp corner ⇒ angular "point", shallow ⇒ round bulge — matches both user-observed
-  variants). Same mechanism at conquest START (entry chain fragmented at q≈0) and for the user's
-  THIRD-PARTY variant (pair flip old→new breaks a continuing chain at a vertex). FIX (designed, one-graph
-  safe): TOPOLOGY-STABLE SMOOTHING — chain coalescing treats a split cell's parts as ONE cell (bridge the
-  dropped same-owner seam pieces as smoothing-only geometry; crossings become interior chain points, not
-  pins); real owner pairs still decide existence/colour/stroke grouping. Curves then equal settled
-  smoothing asymptotically ⇒ q=1 removal is a no-op ⇒ no snap at either endpoint, third-party flips
-  covered by the same rule. Locus: smoothSharedEdges chain-grouping input (+ index phantom curves for
-  fill rings); trigger = existing duplicate-siteId split detection. Side-effect analysis: idle builds
-  have no split cells ⇒ byte-identical (no settled regression); mid-sweep borders near crossings get
-  slightly rounder (likely improvement, needs eyes); front-line tips may sit ≤ rounding-depth off the
-  rounded border near corners at extreme q (contained follow-up: project tips onto the smoothed curve);
-  Chaikin vertex-insertion residual sub-pixel (gate: rebuild the arena harness, assert max frame jump
-  <1.5px and monotone convergence). Perf negligible. REJECTED alternative: temporal blend toward S0/S1
-  smoothed references (needs geometric correspondence + affected-chain selection — the case-enumeration
-  family that failed). AWAITING user go.
+  q=1 at smoothstep(p)=0.92 ⇒ p≈0.828 — the split's last frame. **SECOND RETRACTION (mechanism
+  confirmed by instrumentation, 2026-07-10): the "topology-stable smoothing / degree-3 chain
+  fragmentation / corner-rounding-depth" cause below was ALSO WRONG.** Measured on the pre-snap frame:
+  the captured cell IS split (2 cells: old+new), the front seam's endpoints are DEGREE-1 (dangling in
+  the shared-border graph), NOT degree-3. DECISIVE test — seam(t=820) deviation vs settled at passes=2
+  (rounded) = 8.90px, vs passes=0 (RAW) = 10.96px: the gap does NOT collapse without rounding, so it is
+  NOT a smoothing/rounding discontinuity. REAL CAUSE: the radial front is a CIRCLE ARC centred on the
+  attacker; the border it must reconcile with at completion is the power-diagram BISECTOR (a different
+  curve). As q→1 the arc leaves a thin sliver of old-owner along the far cell boundary (arc ∥ bisector
+  but ~9px offset); splitCellByFront is DISCONTINUOUS at q=1 (arc present at q≈0.994 → whole cell at
+  q=1), so that ~9px sliver COLLAPSES in one frame = the snap. Linear front = same (straight line vs
+  bisector). It is inherent to using an artificial sweep shape that does not converge to the cell's
+  settled boundary. MORPH_COMPLETE_AT interaction: <1 makes q approach 1 fast (compressed) so the
+  sliver collapses at p≈0.83; =1 makes it creep (smoothstep vel→0) and pop at the tick edge — either
+  way it pops because the sliver is finite at the last split frame. FIX CANDIDATES (need user pick,
+  NOT yet chosen): (1) near q→1 blend the front curve toward the captured cell's own far boundary so
+  the sliver→0 exactly (vanish becomes a no-op); (2) collapse the split to whole-cell once the old
+  part's area/width < ε instead of at q=1 (reduces pop to ε, simplest); (3) drive the front as the
+  evolving bisector so it converges by construction (largest change). All are in splitCellByFront /
+  the split geometry — NOT smoothSharedEdges. Gate: rebuild the arena harness, assert max single-frame
+  border jump <1.5px + monotone convergence, and idle byte-identical. AWAITING user pick of candidate.
 - [ ] **Islands must COLLAPSE to the star centre (not radial)** `[territory][transitions]` — when a
   captured cell is an island (fully enclosed, no shared border with the attacker/defender frontier to
   push), the radial/linear front is wrong; the region should shrink to its star centre as it's taken.
