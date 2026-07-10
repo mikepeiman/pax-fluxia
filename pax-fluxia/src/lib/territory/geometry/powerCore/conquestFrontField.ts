@@ -25,7 +25,15 @@
 
 import type { PowerCell, Point } from './powerCoreTypes';
 
-export type ConquestFrontMode = 'linear' | 'radial';
+/**
+ * 'push' (default) — the pre-conquest border ITSELF travels across the cell
+ * (see pushedBorderFront.ts); built in buildSurfaceFromCells from the smoothed
+ * ring + PRE/POST graphs, NOT from this field module. The field modes remain
+ * as variants: 'linear' = straight sweep, 'radial' = arc from the attack
+ * origin. Field functions in this module treat 'push' as 'linear' (they are
+ * only reached on the stitch fallback path).
+ */
+export type ConquestFrontMode = 'push' | 'linear' | 'radial';
 
 export interface ConquestFront {
     readonly mode: ConquestFrontMode;

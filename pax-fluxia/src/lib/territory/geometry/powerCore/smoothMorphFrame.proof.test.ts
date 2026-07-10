@@ -695,6 +695,110 @@ describe('ONE GEOMETRY DOMAIN: rounded multi-edge entry border keeps fill == bor
     });
 });
 
+// PUSH front (the default): the pre-conquest border ITSELF travels. Hand-built
+// 4-cell map: defender D on top (the exit border), captured C in the middle,
+// two attacker cells A1/A2 below whose shared border with C bends at (50,45)
+// (the entry border — a real compound line).
+describe('PUSH front: the old border travels from entry to exit, fill == border throughout', () => {
+    const D = { siteId: 'd', ownerId: 'O', points: [[0, 0], [100, 0], [100, 20], [0, 20]] } as PowerCell;
+    const C = { siteId: 'c', ownerId: 'N', points: [[0, 20], [100, 20], [100, 55], [50, 45], [0, 55]] } as PowerCell;
+    const A1 = { siteId: 'a1', ownerId: 'N', points: [[0, 55], [50, 45], [50, 100], [0, 100]] } as PowerCell;
+    const A2 = { siteId: 'a2', ownerId: 'N', points: [[50, 45], [100, 55], [100, 100], [50, 100]] } as PowerCell;
+    const CELLS = [D, C, A1, A2];
+    const frontAt = (q: number) => [
+        {
+            siteId: 'c',
+            q,
+            front: {
+                mode: 'push' as const,
+                dirX: 0,
+                dirY: -1,
+                originX: 50,
+                originY: 90,
+                starId: 'c',
+                ownerIn: 'N',
+                ownerOld: 'O',
+            },
+        },
+    ];
+    const segD = (px: number, py: number, a: readonly [number, number], b: readonly [number, number]) => {
+        const dx = b[0] - a[0];
+        const dy = b[1] - a[1];
+        const l2 = dx * dx + dy * dy;
+        let s = l2 < 1e-12 ? 0 : ((px - a[0]) * dx + (py - a[1]) * dy) / l2;
+        s = s < 0 ? 0 : s > 1 ? 1 : s;
+        return Math.hypot(a[0] + s * dx - px, a[1] + s * dy - py);
+    };
+    const frontOf = (s: ReturnType<typeof buildSurfaceFromCells>) => {
+        // The moving border: the longest N|O frontier that is NOT the settled
+        // exit border... simplest robust pick: the frontier containing the most
+        // points among pair N|O (the pushed front is resampled dense).
+        const pair = ['N', 'O'].sort().join('|');
+        const candidates = s.frontiers.filter(
+            (f) => [f.ownerA, f.ownerB].sort().join('|') === pair,
+        );
+        expect(candidates.length).toBeGreaterThan(0);
+        return candidates.reduce((a, b) => (b.points.length > a.points.length ? b : a));
+    };
+
+    it('q≈0: the front IS the entry border; q≈1: the front lands on the exit border', () => {
+        const early = frontOf(buildSurfaceFromCells(CELLS, 2, undefined, frontAt(0.02) as never));
+        // Entry border (raw): (100,55)→(50,45)→(0,55). Smoothed deviates ~2.5px
+        // at the corner; at q=0.02 the front sits essentially on it.
+        const entryRaw: [number, number][] = [[100, 55], [50, 45], [0, 55]];
+        for (const p of early.points as [number, number][]) {
+            let best = Infinity;
+            for (let i = 0; i < entryRaw.length - 1; i++) {
+                best = Math.min(best, segD(p[0], p[1], entryRaw[i]!, entryRaw[i + 1]!));
+            }
+            expect(best, `q=0.02 front point near entry border`).toBeLessThan(4);
+        }
+
+        const late = frontOf(buildSurfaceFromCells(CELLS, 2, undefined, frontAt(0.98) as never));
+        // Exit border: y = 20 (C|D). At q=0.98 the front is about to become it.
+        for (const p of late.points as [number, number][]) {
+            expect(Math.abs(p[1] - 20), `q=0.98 front point near exit border`).toBeLessThan(3);
+        }
+    });
+
+    it('mid-sweep: fill == border (every frontier point on a fill boundary) and pieces tile the cell', () => {
+        const s = buildSurfaceFromCells(CELLS, 2, undefined, frontAt(0.5) as never);
+        // Pieces present, both owners.
+        const pieces = s.cellFills.filter((c) => c.siteId?.startsWith('c§'));
+        expect(new Set(pieces.map((p) => p.ownerId)).size).toBe(2);
+        // Coincidence gate.
+        let worst = 0;
+        for (const fr of s.frontiers) {
+            for (const p of fr.points as [number, number][]) {
+                let best = Infinity;
+                for (const c of s.cellFills) {
+                    const ring = c.points as [number, number][];
+                    for (let i = 0; i < ring.length; i++) {
+                        const d = segD(p[0], p[1], ring[i]!, ring[(i + 1) % ring.length]!);
+                        if (d < best) best = d;
+                    }
+                }
+                if (best > worst) worst = best;
+            }
+        }
+        expect(worst, 'every frontier point on a fill boundary').toBeLessThan(1e-6);
+        // Pieces tile the (smoothed) cell: area sum ≈ raw cell area (smoothing
+        // shaves corners slightly — allow 5%).
+        const shoe = (ring: readonly (readonly number[])[]) => {
+            let a = 0;
+            for (let i = 0; i < ring.length; i++) {
+                const p = ring[i]!;
+                const r = ring[(i + 1) % ring.length]!;
+                a += p[0]! * r[1]! - r[0]! * p[1]!;
+            }
+            return Math.abs(a / 2);
+        };
+        const pieceArea = pieces.reduce((sum, p) => sum + shoe(p.points), 0);
+        const cellArea = shoe(C.points);
+        expect(Math.abs(pieceArea - cellArea) / cellArea).toBeLessThan(0.05);
+    });
+});
+
 // ACCEPTANCE GATE (PRE): needs a captured cell genuinely ADJACENT to its
 // attacker pre-conquest (cross_owner_midpoint_corridor's captured cell is
 // NOT — see the "fixture adjacency trap" lesson) so a real pre-existing

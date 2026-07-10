@@ -35,6 +35,7 @@ const SMOOTH_CELL_GRID_FLIP_WINDOW_JITTER = 0;
 const LEGACY_TERRITORY_TRANSITION_MS = 400;
 const TERRITORY_TRANSITION_POLICY_VERSION = 1;
 const TERRITORY_MODE_SPLIT_POLICY_VERSION = 1;
+const CONQUEST_FRONT_POLICY_VERSION = 1;
 
 function resolveStoredTickInterval(stored: Record<string, any>): number {
     if (
@@ -84,6 +85,18 @@ export function normalizeTerritoryTransitionTimingDefaults(
     if (bindingPolicyUnversioned) {
         stored.territoryTransitionBindingPolicyVersion =
             TERRITORY_TRANSITION_POLICY_VERSION;
+        changed = true;
+    }
+
+    // 2026-07-10: 'push' becomes the conquest-front default (the border itself
+    // is pushed like a wave — user directive). One-time migration of saved
+    // 'linear'/'radial' values; after the policy flag is stamped, re-selecting
+    // a field variant sticks.
+    if (stored.conquestFrontPolicyVersion !== CONQUEST_FRONT_POLICY_VERSION) {
+        if (stored.territoryConquestFrontMode !== 'push') {
+            stored.territoryConquestFrontMode = 'push';
+        }
+        stored.conquestFrontPolicyVersion = CONQUEST_FRONT_POLICY_VERSION;
         changed = true;
     }
 

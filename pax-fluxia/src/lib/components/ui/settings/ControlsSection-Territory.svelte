@@ -819,11 +819,12 @@
           <div class="var-row">
             <PaxSettingsSegmentedRow
               label="Front Shape"
-              hint="Conquest sweep shape (PowerCore geometry source). Linear = straight windshield-wiper sweep. Radial = curved front advancing from the attacker (toward the water-wave feel)."
+              hint="How the border moves during a conquest. Push (default) = the existing border itself travels across the territory like a wave, its ends sliding along the neighbouring borders. Linear = straight sweep. Radial = arc expanding from the attack origin."
               value={panel.territoryConquestFrontMode ??
                 GAME_CONFIG.TERRITORY_CONQUEST_FRONT_MODE ??
-                "linear"}
+                "push"}
               options={[
+                { value: "push", label: "Push" },
                 { value: "linear", label: "Linear" },
                 { value: "radial", label: "Radial" },
               ]}

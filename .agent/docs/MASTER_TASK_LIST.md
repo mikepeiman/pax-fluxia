@@ -85,6 +85,28 @@ superseding docs:
   q≈0 matches the pre-conquest surface at the captured rim) and POST (classified frontier converges
   on the settled surface as q→1) — smoothMorphFrame.proof.test.ts, 23/23 green; full territory+fx
   suite 423/423 green. Awaiting user visual sign-off (see Open entry above).
+- [x] **PUSH front: the border ITSELF travels (user design ruling — the real model)** `[territory][transitions]`
+  — user after c9f26574c: "You still failed… It MUST be a design issue… you MUST be applying the
+  wrong mental model." Semantics fixed by user: (1) front = the part of the boundary that MOVES,
+  period; (2) endpoints slide along bounding borders as moving junctions, colour blend travels with
+  the line; (3) boundary = the LINE wherever two owners touch, whatever compound shape. The protected
+  old concept (admitted): the field/iso-contour model — captured area GROWS from the attack point
+  while the old border sits still and gets eaten. The push model replaces it as DEFAULT: new
+  pushedBorderFront.ts builds the front as the ENTRY border (pre-conquest attacker↔defender chain)
+  morphing into the EXIT border (post-conquest far chain), endpoints A/B sliding along the side rim
+  by q; behind piece = new owner, ahead = old; F(0)==entry exactly, F(1)==exit exactly (no start/end
+  discontinuity by construction); no exit → wave collapses to the far pole and vanishes into the
+  bounding borders. Entry edges stroke NOTHING once the wave moves off them (the border has MOVED,
+  not been eaten). classifyActiveFronts dispatches push (default) vs field (linear/radial variants +
+  fallback when the attacker isn't rim-adjacent, e.g. corridor captures). Config:
+  TERRITORY_CONQUEST_FRONT_MODE now 'push'|'linear'|'radial', default 'push' (territory.config),
+  one-time panel migration flips saved linear/radial → push (conquestFrontPolicyVersion=1);
+  Front Shape selectors gained Push. Vertex-correspondence lerp is SAFE here (single convex cell,
+  endpoints pinned to rim) — the historical "never reliable" lesson was about whole-map morphs.
+  441/441 (incl. new push gates: q≈0 front==entry border, q≈0.98 front lands on exit border,
+  mid-sweep fill==border <1e-6, pieces tile cell), typecheck clean. Fixed latent settingsDefs
+  gate miss: TERRITORY_CONQUEST_FRONT_MODE was optional-only (`?:` dodged the declared-keys regex,
+  no default entry) — now required + defaulted. Awaiting user visual sign-off.
 - [x] **Conquest is a MAP STATE, not an overlay — one geometry domain for the captured cell (user)**
   `[territory][transitions]` — user re-report after 1d29f7a3b: border-fronts still not matching
   fill-fronts; ruling: "a conquest is not a thing, it is an event… it should push the border along

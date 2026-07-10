@@ -32,6 +32,7 @@ import {
     frontFieldForRing,
     splitCellByFrontDetailed,
 } from './conquestFrontField';
+import { buildPushedFront } from './pushedBorderFront';
 import {
     WORLD_OWNER,
     type Point,
@@ -402,13 +403,253 @@ function classifyActiveFronts(
         bucket.push({ edgeId, points });
     };
 
-    for (const af of fronts) {
-        const cell = cellBySite.get(af.siteId);
-        if (!cell) continue;
+    /** Sorted owner pair for the moving border (blend colour travels with it). */
+    const frontPair = (af: ActiveConquestFront): [string, string] =>
+        af.front.ownerOld < af.front.ownerIn
+            ? [af.front.ownerOld, af.front.ownerIn]
+            : [af.front.ownerIn, af.front.ownerOld];
+
+    /**
+     * PUSH front (the default): the pre-conquest border ITSELF travels — see
+     * pushedBorderFront.ts. Returns false when the configuration can't build
+     * it (no attacker-adjacent entry border, e.g. corridor conquests) — the
+     * caller then falls back to the field front.
+     */
+    const classifyWithPush = (af: ActiveConquestFront, cell: PowerCell): boolean => {
+        interface TaggedEdge {
+            readonly cls: 'entry' | 'exit' | 'side';
+            readonly neighbor: string | null; // null → unattributed (no stroke)
+            readonly isWorld: boolean;
+            readonly seq: readonly Point[]; // oriented along the ring walk
+            readonly claim?: { shared?: string; world?: string };
+        }
+        const rawPts = cell.points;
+        const n = rawPts.length;
+        if (n < 3) return false;
+
+        // 1. Classify every raw rim edge (post / world / pre-only) + claims.
+        const edges: TaggedEdge[] = [];
+        for (let i = 0; i < n; i++) {
+            const a = rawPts[i]!;
+            const b = rawPts[(i + 1) % n]!;
+            const orient = (pts: readonly Point[]): readonly Point[] => {
+                const ka = ptKey(a[0], a[1]);
+                return ptKey(pts[0]![0], pts[0]![1]) === ka ? pts : [...pts].reverse();
+            };
+            const postEdge = lookupByEndpoints(postSharedIndex, a, b);
+            if (postEdge) {
+                const claimed = claimedSharedEdgeIds.has(postEdge.edgeId);
+                const neighborOwner =
+                    postEdge.ownerA === af.front.ownerIn
+                        ? postEdge.ownerB
+                        : postEdge.ownerB === af.front.ownerIn
+                          ? postEdge.ownerA
+                          : null;
+                edges.push({
+                    cls: neighborOwner === af.front.ownerOld ? 'exit' : 'side',
+                    neighbor: claimed ? null : neighborOwner,
+                    isWorld: false,
+                    seq: orient(postEdge.smoothedPts),
+                    claim: claimed ? undefined : { shared: postEdge.edgeId },
+                });
+                continue;
+            }
+            const worldEdge = lookupByEndpoints(postWorldIndex, a, b);
+            if (worldEdge) {
+                const claimed = claimedWorldEdgeIds.has(worldEdge.edgeId);
+                edges.push({
+                    cls: 'side',
+                    neighbor: claimed ? null : WORLD_OWNER,
+                    isWorld: true,
+                    seq: orient(worldEdge.smoothedPts),
+                    claim: claimed ? undefined : { world: worldEdge.edgeId },
+                });
+                continue;
+            }
+            const preEdge = lookupByEndpoints(preSharedIndex, a, b);
+            if (preEdge) {
+                const claimed = claimedSharedEdgeIds.has(preEdge.edgeId);
+                edges.push({
+                    // PRE-only ⇒ same-owner-internal in POST ⇒ the neighbour is
+                    // the NEW owner's territory: the entry border.
+                    cls: 'entry',
+                    neighbor: claimed ? null : af.front.ownerIn,
+                    isWorld: false,
+                    seq: orient(preEdge.smoothedPts),
+                    claim: claimed ? undefined : { shared: preEdge.edgeId },
+                });
+                continue;
+            }
+            edges.push({ cls: 'side', neighbor: null, isWorld: false, seq: [a, b] });
+        }
+
+        // 2. Longest cyclic run of entry edges → the entry border. None ⇒ the
+        //    attacker isn't rim-adjacent (corridor capture) ⇒ field fallback.
+        let entryStart = -1;
+        let entryLen = 0;
+        {
+            let bestPts = -1;
+            for (let s = 0; s < n; s++) {
+                if (edges[s]!.cls !== 'entry' || edges[(s - 1 + n) % n]!.cls === 'entry') continue;
+                let len = 0;
+                let pts = 0;
+                while (len < n && edges[(s + len) % n]!.cls === 'entry') {
+                    pts += edges[(s + len) % n]!.seq.length;
+                    len++;
+                }
+                if (pts > bestPts) {
+                    bestPts = pts;
+                    entryStart = s;
+                    entryLen = len;
+                }
+            }
+        }
+        if (entryStart < 0 || entryLen >= n) return false;
+
+        // 3. Build the tagged smoothed ring, rotated so the entry border is
+        //    first. Per-edge arc spans recorded for the rim-run emission.
+        const ring: Point[] = [];
+        const segClass: ('entry' | 'exit' | 'side')[] = [];
+        const spans: { s: number; e: number }[] = [];
+        let runLen = 0;
+        let lastKey = NaN;
+        const orderedEdges: TaggedEdge[] = [];
+        for (let k = 0; k < n; k++) orderedEdges.push(edges[(entryStart + k) % n]!);
+        for (const edge of orderedEdges) {
+            const sPos = runLen;
+            for (const p of edge.seq) {
+                const key = ptKey(p[0], p[1]);
+                if (key === lastKey) continue;
+                if (ring.length > 0) {
+                    const prev = ring[ring.length - 1]!;
+                    runLen += Math.hypot(p[0] - prev[0], p[1] - prev[1]);
+                    segClass.push(edge.cls);
+                }
+                ring.push([p[0], p[1]]);
+                lastKey = key;
+            }
+            spans.push({ s: sPos, e: runLen });
+        }
+        // Close the ring: drop the duplicated closing vertex; its final segment
+        // (last → first) belongs to the last edge.
+        if (
+            ring.length >= 2 &&
+            ptKey(ring[0]![0], ring[0]![1]) === ptKey(ring[ring.length - 1]![0], ring[ring.length - 1]![1])
+        ) {
+            ring.pop();
+        } else if (ring.length >= 2) {
+            // Defensive: unclosed raw ring — account the wrap segment.
+            const a = ring[ring.length - 1]!;
+            const b = ring[0]!;
+            runLen += Math.hypot(b[0] - a[0], b[1] - a[1]);
+            segClass.push(orderedEdges[orderedEdges.length - 1]!.cls);
+            spans[spans.length - 1]!.e = runLen;
+        }
+        if (ring.length < 3 || segClass.length !== ring.length) return false;
+
+        const pushed = buildPushedFront({ ring, segClass, q: af.q });
+        if (!pushed) return false;
+
+        // Commit the claims only once the push construction succeeded.
+        for (const edge of edges) {
+            if (edge.claim?.shared) claimedSharedEdgeIds.add(edge.claim.shared);
+            if (edge.claim?.world) claimedWorldEdgeIds.add(edge.claim.world);
+        }
+
+        // 4. Fills: the two pieces bounded by the moving border.
+        const pieces: { ownerId: string; points: Point[] }[] = [];
+        if (pushed.behindRing.length >= 3) {
+            pieces.push({ ownerId: af.front.ownerIn, points: pushed.behindRing });
+        }
+        if (pushed.aheadRing.length >= 3) {
+            pieces.push({ ownerId: af.front.ownerOld, points: pushed.aheadRing });
+        }
+        if (pieces.length === 0) return false;
+        fillOverrideBySite.set(af.siteId, pieces);
+
+        // 5. The moving border itself — pre-formed, blend colour travels with it.
+        const [fa, fb] = frontPair(af);
+        frontChords.push({
+            ownerA: fa,
+            ownerB: fb,
+            points: pushed.front.map((p) => [p[0], p[1]] as [number, number]),
+            closed: false,
+        });
+
+        // 6. Rim runs: BEHIND rim (through the entry border) reads the NEW
+        //    owner; AHEAD rim reads the OLD owner; the junctions A/B slide, so
+        //    the colour change travels with the wave. Entry edges are always
+        //    fully behind ⇒ (new|new) ⇒ nothing drawn at the old position (the
+        //    border has MOVED, not been eaten). Exit edges are ahead ⇒
+        //    (old|old) ⇒ invisible until the front lands on them.
+        const L = pushed.cum[ring.length]!;
+        const pointAt = (pRaw: number): Point => {
+            let p = pRaw % L;
+            if (p < 0) p += L;
+            let i = 0;
+            while (i < ring.length - 1 && pushed.cum[i + 1]! < p) i++;
+            const segLen = pushed.cum[i + 1]! - pushed.cum[i]!;
+            const f = segLen < 1e-12 ? 0 : (p - pushed.cum[i]!) / segLen;
+            const a = ring[i]!;
+            const b = ring[(i + 1) % ring.length]!;
+            return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+        };
+        const subPolyline = (from: number, to: number): Point[] => {
+            const pts: Point[] = [pointAt(from)];
+            for (let v = 0; v < ring.length; v++) {
+                const p = pushed.cum[v]!;
+                if (p > from + 1e-9 && p < to - 1e-9) pts.push([ring[v]![0], ring[v]![1]]);
+            }
+            pts.push(pointAt(to));
+            return pts;
+        };
+        const behindIntervals: [number, number][] = [
+            [pushed.posB, L],
+            [0, pushed.posA],
+        ];
+        const aheadIntervals: [number, number][] = [[pushed.posA, pushed.posB]];
+        for (let k = 0; k < orderedEdges.length; k++) {
+            const edge = orderedEdges[k]!;
+            const neighbor = edge.neighbor;
+            if (!neighbor) continue;
+            const span = spans[k]!;
+            const emit = (
+                intervals: [number, number][],
+                owner: string,
+                tag: string,
+            ) => {
+                if (!edge.isWorld && owner === neighbor) return; // same owner — no border
+                let ri = 0;
+                for (const [x, y] of intervals) {
+                    const from = Math.max(span.s, x);
+                    const to = Math.min(span.e, y);
+                    if (to - from < 1e-9) continue;
+                    const run = subPolyline(from, to);
+                    if (run.length < 2) continue;
+                    if (edge.isWorld) {
+                        pushEntry(extraByOwner, owner, `${af.siteId}#${tag}${k}_${ri++}`, run);
+                    } else {
+                        pushEntry(
+                            extraByPair,
+                            pairKey(owner, neighbor),
+                            `${af.siteId}#${tag}${k}_${ri++}`,
+                            run,
+                        );
+                    }
+                }
+            };
+            emit(behindIntervals, af.front.ownerIn, 'pb');
+            emit(aheadIntervals, af.front.ownerOld, 'pa');
+        }
+        return true;
+    };
+
+    /** FIELD front (linear/radial variants + fallback): iso-contour split. */
+    const classifyWithField = (af: ActiveConquestFront, cell: PowerCell): void => {
         const rim = buildCellRing(cell);
-        if (rim.length < 3) continue;
+        if (rim.length < 3) return;
         const field = frontFieldForRing(rim, af.front, af.q);
-        if (!field) continue; // degenerate cell — leave settled classification
+        if (!field) return; // degenerate cell — leave settled classification
 
         const split = splitCellByFrontDetailed(
             { ...cell, ownerId: af.front.ownerIn, points: rim },
@@ -510,15 +751,9 @@ function classifyActiveFronts(
             }
         }
 
-        // The interior front chord: emitted PRE-FORMED (not into extraByPair),
-        // so it is appended after chaining and stays byte-identical to the fill
-        // split's arc (see ClassificationResult.frontChords). Chaining is what
-        // would otherwise reshape the stroked front away from the fill's colour
-        // boundary. Pair is old↔new so the 50/50 border blend applies to it.
-        const [fa, fb] =
-            af.front.ownerOld < af.front.ownerIn
-                ? [af.front.ownerOld, af.front.ownerIn]
-                : [af.front.ownerIn, af.front.ownerOld];
+        // The moving front, pre-formed (never chained — byte-identical to the
+        // fill split's boundary). Pair is old↔new for the travelling blend.
+        const [fa, fb] = frontPair(af);
         for (const chain of split.frontChains) {
             if (chain.length < 2) continue;
             frontChords.push({
@@ -528,6 +763,13 @@ function classifyActiveFronts(
                 closed: false,
             });
         }
+    };
+
+    for (const af of fronts) {
+        const cell = cellBySite.get(af.siteId);
+        if (!cell) continue;
+        if (af.front.mode === 'push' && classifyWithPush(af, cell)) continue;
+        classifyWithField(af, cell);
     }
 
     return {
