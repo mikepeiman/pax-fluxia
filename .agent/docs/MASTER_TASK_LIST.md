@@ -31,6 +31,38 @@ superseding docs:
 ## 2026-07-11
 
 ### Open
+- [ ] **End-snap MECHANISM ESTABLISHED BY MEASUREMENT (2026-07-11) — permanent harness committed**
+  `[territory][transitions]` File: `src/lib/territory/geometry/powerCore/endSnapFrameDelta.harness.test.ts`
+  (MUST NOT be deleted — locks the diagnosis and will prove the fix). Reproduces the user's exact case
+  (arena-further, star-13/ai-5 conquers star-7/human) through the REAL production assembly each frame:
+  morph = buildSurfaceFromCells (conforms), idle = buildPowerCoreAuthoritySnapshot — the two paths
+  PowerVectorFamily actually switches between at retirement. Metric = max border displacement between
+  CONSECUTIVE RENDERED FRAMES per owner-pair (Hausdorff, densified), across the whole timeline incl. the
+  retirement boundary, at morphCompleteAt = 0.92 AND 1.0. MEASURED VERDICT:
+  • RETIREMENT IS SEAMLESS — 0.00px on every pair (incl. third-party). Kills H-RETIRE, the pipeline-
+    switch "smoking gun", and the sliver-collapse-at-q=1 story. (Locked: retireMaxBoth<0.5, B<0.5, C<0.5.)
+  • THE SNAP IS MID-SWEEP, terminal, on the VICTOR's active frontier (ai-5|human-player): the front
+    decelerates smoothly (…0.5→0.4→0.2 px/frame) then TELEPORTS ~9px on the single frame the sweep
+    completes (rampProgress→1.0), then holds still. Magnitude ~9px is slider-INDEPENDENT (8.62px @0.92,
+    9.34px @1.0); the slider only moves WHERE on the timeline it fires. Spike = 50× its predecessor step.
+  • CAUSE (code-confirmed, conquestFrontField.ts): the radial front is a CIRCLE ARC centered on the
+    attacker; the settled border is the power-diagram BISECTOR — different curves, ~9px apart across the
+    cell even at full radius. splitCellByFront never converges arc→bisector; at q=1 inV.every()=true so
+    the whole cell replaces the split in ONE frame (arc→bisector lateral shift). Jump anatomy: 1 polyline
+    both sides, Δlen≈−8px, both directed Hausdorffs large ⇒ a local lateral curve shift, NOT hidden-edge
+    appearance, NOT topology change. This VINDICATES the 2026-07-10 arc-vs-bisector geometry insight but
+    corrects its LOCATION (sweep-completion, not retirement) and arithmetic (fixed-gap lateral shift, not
+    sub-px sliver). Also corrects the 2026-07-11 red-team, which wrongly demoted arc-vs-bisector.
+  • NOTE on "third-party worst": in THIS reproduction the true third-party pairs (ai-5|ai-4, ai-5|ai-3)
+    are 0.00px throughout; the 9px lives on victor|old-owner. Same arc-vs-bisector cause regardless of who
+    is on the far side — the user's live ownership around star-7 may differ. Confirm with user.
+  FIX (only ONE family survives measurement — candidates 2/3 and all retirement-based fixes are moot):
+    converge the front curve to the settled bisector as q→1 so the completion replacement is a no-op
+    (the arc's last-frame position must already be the cell's far boundary, ≤~1px). SUCCESS METRIC is
+    objective + in-harness: flip guard #4 from `worst.d>5` to `<1.5` while keeping retirement 0px, B/C<0.5,
+    and idle byte-identical. User floated "implement all three to evaluate" — measurement has pruned the
+    set; say so before building.
+
 - [ ] **End-snap RED-TEAM REVIEW (2026-07-11): the "arc-vs-bisector sliver collapse" mechanism is NOT
   established — its own numbers are impossible under the code; fix candidates 1–3 are near-placebo**
   `[territory][transitions]` — user-ordered red-team of the 2026-07-10 diagnosis. VERIFIED FROM CODE:
