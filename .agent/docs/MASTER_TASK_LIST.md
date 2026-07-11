@@ -28,6 +28,46 @@ superseding docs:
 
 ---
 
+## 2026-07-11
+
+### Open
+- [ ] **End-snap RED-TEAM REVIEW (2026-07-11): the "arc-vs-bisector sliver collapse" mechanism is NOT
+  established — its own numbers are impossible under the code; fix candidates 1–3 are near-placebo**
+  `[territory][transitions]` — user-ordered red-team of the 2026-07-10 diagnosis. VERIFIED FROM CODE:
+  (a) splitCellByFront converges CONTINUOUSLY to the whole cell as q→1 — radius law c=minD+(maxD−minD)q
+  (conquestFrontField.ts:163) bounds the old-owner remnant's thickness at (maxD−minD)(1−q); default
+  ramps are delay=0/span=1 (buildTransitionBubble.ts:96, rippleSpan default 1.0 = no stagger), so at
+  the recorded last split frame (q≈0.9987) the remnant is SUB-PIXEL. A "~9px sliver collapsing at q=1"
+  is arithmetically impossible. Only the part COUNT (2→1) is discontinuous, not the shape.
+  (b) The recorded deviation series itself is self-contradictory REGARDLESS of time mapping: dev GROWS
+  4.9→9.3px as q→1 then 0.00 — but the split's shape converges (Hausdorff → 0), so either q(825)≈1
+  (⇒ dev must be sub-px, contradiction) or q(828)<1 (⇒ dev(828)≈9px not 0.00, contradiction). The
+  deleted harness measured something else (likely chain-correspondence artifacts), and both
+  "falsifications" it produced are suspect: degree-1 tips are impossible in the PRODUCTION path
+  (conformCellBoundaries splices crossings BEFORE the graph, buildSurfaceFromCells.ts:105-206 ⇒ tips
+  are degree-3; the harness must have called buildSharedEdgeGraph directly), and the passes=0 test
+  (10.96px "raw") proves too much — raw split geometry cannot deviate 11px at q≈0.997.
+  (c) The arc mechanism never explained the USER'S STATED WORST CASE (third-party borders that become
+  victor-boundaries) — those are diagram bisectors + owner-pair flips, untouched by the front curve.
+  FIX-CANDIDATE VERDICTS: (1) blend-to-far-boundary targets a gap already sub-pixel — near-placebo;
+  (2) ε-collapse is incoherent (a one-frame 9px pop never passes through small ε; a smooth pass-through
+  means no visible pop existed); (3) evolving-bisector re-treads mechanisms RECORDED AS FAILED in
+  sampleKineticFrame.ts:111-122 (sliding-pair = half-cell travel "final pops late"; weight-delta =
+  neighbor bleed). LIVE HYPOTHESES (unproven, need measurement): H-RETIRE — retirement parity/stale
+  target: runtime commits endpoints ONLY on ownership change (ownershipFingerprint = id:owner pairs,
+  kineticRuntimeBridge.ts:40-46); if the idle draw after retirement uses a FRESHER authority snapshot
+  (weights/virtuals drifted over the ~1-tick window), the swap lands as a single-frame jump — fits the
+  user's literal symptom ("animation endstate vs actual settled map state"), occasional-ness,
+  third-party-worst, and front-mode-independence. H-CHAIN — smoothing-chain re-coalescence at
+  owner-pair flips: back on the table (its falsification was invalid). H-EPS — sampleFullDiagramMulti
+  clamps p to 1−1e-4 and keeps ε-weight vanish sites at q=1 (occasional sliver cells the settled map
+  lacks). REQUIRED NEXT (before ANY fix, including the user-floated build-all-three): a PERMANENT
+  harness measuring max border displacement between CONSECUTIVE RENDERED FRAMES across q=1 AND
+  retirement AND first post-rollover idle frame, decomposed into raw-cell delta vs smoothed-chain
+  delta vs source-switch delta — the max frame-pair IS the snap and its decomposition names the
+  mechanism. "Deviation from settled" is the wrong metric (conflates convergence with the snap;
+  produced 2 misdiagnoses). Harness must NOT be deleted this time.
+
 ## 2026-07-10
 
 ### Open
