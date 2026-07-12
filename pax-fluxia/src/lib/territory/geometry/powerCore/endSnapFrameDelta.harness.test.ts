@@ -58,7 +58,6 @@ import {
 import { buildPowerVoronoi0319Settings } from '../../families/buildFamilyGeometry';
 import {
     buildSurfaceFromCells,
-    convergeSurface,
     cutSurfaceByFront,
     type CellSurface,
 } from './buildSurfaceFromCells';
@@ -445,12 +444,26 @@ describe('END-SNAP frame-delta harness (arena-further star-13 → star-7)', () =
                 if (frame) {
                     p = frame.p;
                     const cells = [...frame.frozenCells, ...frame.bubbleCells];
-                    surface = buildSurfaceFromCells(cells, PASSES);
-                    if (mode === 'converge') {
-                        const blend = conquestConvergeBlend(frame.p);
-                        if (blend > 0) surface = convergeSurface(surface, { settled, blend });
-                    } else if (frame.conquestCuts?.length) {
+                    const blend = mode === 'converge' ? conquestConvergeBlend(frame.p) : 0;
+                    surface = buildSurfaceFromCells(
+                        cells,
+                        PASSES,
+                        blend > 0 ? { settled, blend } : undefined,
+                    );
+                    if (mode === 'round_cut' && frame.conquestCuts?.length) {
                         surface = cutSurfaceByFront(surface, frame.conquestCuts);
+                    }
+                    // FLY-AWAY GUARD (converge): no border point may travel farther
+                    // than the correspondence cap vs the unconverged surface.
+                    if (mode === 'converge' && blend > 0.5) {
+                        const plain = surfaceBorders(buildSurfaceFromCells(cells, PASSES));
+                        const conv = surfaceBorders(surface);
+                        for (const [key, polys] of conv) {
+                            const ref = plain.get(key);
+                            if (!ref) continue;
+                            const d = directedHausdorff(polys, ref, 4);
+                            expect(d, `fly-away on ${key} @p=${p.toFixed(3)}: ${d.toFixed(1)}px`).toBeLessThan(25);
+                        }
                     }
                 } else {
                     p = 1;

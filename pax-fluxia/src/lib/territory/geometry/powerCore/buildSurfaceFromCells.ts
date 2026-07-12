@@ -203,6 +203,9 @@ function chainByGroup(
 export function buildSurfaceFromCells(
     cells: readonly PowerCell[],
     passes: number,
+    /** END_SNAP_FIX_EVAL 'converge': converge the shared-edge single source
+     *  toward the settled surface (distance-capped) before deriving outputs. */
+    converge?: SurfaceConvergeTarget,
 ): CellSurface {
     // Conform first: splice the conquest front's crossing points into the
     // neighbour edges (exact, single-diagram) so the frontier isn't dropped and
@@ -210,6 +213,9 @@ export function buildSurfaceFromCells(
     const conformed = conformCellBoundaries(cells);
     const graph = buildSharedEdgeGraph(conformed, worldRectFromCells(conformed));
     smoothSharedEdges(graph, passes);
+    // END_SNAP_FIX_EVAL 'converge' v2: converge the SINGLE SOURCE (smoothedPts)
+    // so fills and borders downstream converge identically by construction.
+    if (converge && converge.blend > 0) convergeSharedEdgesInPlace(graph, converge);
 
     const byPair = new Map<string, { edgeId: string; points: readonly Point[] }[]>();
     for (const e of graph.sharedEdges) {
@@ -305,10 +311,16 @@ export function buildSurfaceFromCells(
 // this banner. Everything below this line is eval scaffolding.
 // ═════════════════════════════════════════════════════════════════════════════
 
-// ── Candidate 1: 'converge' — project the morph surface onto the SETTLED
-//    surface over the final approach (identity correspondence, LIKE-TO-LIKE:
-//    fills match per-siteId onto per-cell settled fills; frontiers per owner-
-//    pair; world borders per owner; same coordinate space, same assembly). ────
+// ── Candidate 1: 'converge' v2 — SYNTHESIS (user feedback 2026-07-12).
+//    v1 converged the OUTPUTS (fills and borders projected onto DIFFERENT
+//    target sets) — violating the single-source law and producing exactly the
+//    observed glitches: border fragments "flying away across the map" (nearest
+//    same-pair target could be a distant border) and slice-lines/black
+//    triangles (fill/border divergence). v2 converges the SINGLE SOURCE — the
+//    graph's shared-edge smoothedPts, AFTER Chaikin, BEFORE fills/frontiers
+//    are derived — so fills and borders converge IDENTICALLY by construction,
+//    and a DISTANCE CAP (the real rounding gap is ≤~10px; anything wanting to
+//    travel farther is a wrong correspondence) makes fly-away impossible. ────
 
 export interface SurfaceConvergeTarget {
     /** The SETTLED surface (buildSurfaceFromCells of the settled cells). */
@@ -316,6 +328,11 @@ export interface SurfaceConvergeTarget {
     /** 0 = pure morph surface; 1 = fully landed on the settled surface. */
     readonly blend: number;
 }
+
+/** Max distance (px) a point may converge across. Beyond this the nearest
+ *  same-pair settled border is a WRONG correspondence (the genuine rounding
+ *  gap is ≤~10px) and the point stays put — the fly-away guard. */
+const MAX_CONVERGE_SNAP_PX = 20;
 
 /** Nearest point to (px,py) on a polyline set; null if empty. */
 function nearestOnPolys(
@@ -346,68 +363,75 @@ function nearestOnPolys(
     return best;
 }
 
-function lerpPoly(
-    poly: readonly Point[],
-    target: readonly (readonly (readonly [number, number])[])[] | undefined,
+/** Capped, blended projection of one point onto target polylines. */
+function projectCapped(
+    p: readonly [number, number],
+    polys: readonly (readonly (readonly [number, number])[])[],
     blend: number,
-): Point[] {
-    if (!target || target.length === 0) return poly.map((p) => [p[0], p[1]] as Point);
-    const out: Point[] = [];
-    for (const p of poly) {
-        const t = nearestOnPolys(p[0], p[1], target);
-        if (t) out.push([p[0] + (t[0] - p[0]) * blend, p[1] + (t[1] - p[1]) * blend]);
-        else out.push([p[0], p[1]]);
-    }
-    return out;
+): Point {
+    if (polys.length === 0) return [p[0], p[1]];
+    const t = nearestOnPolys(p[0], p[1], polys);
+    if (!t) return [p[0], p[1]];
+    const d = Math.hypot(t[0] - p[0], t[1] - p[1]);
+    if (d > MAX_CONVERGE_SNAP_PX) return [p[0], p[1]]; // wrong correspondence — stay
+    return [p[0] + (t[0] - p[0]) * blend, p[1] + (t[1] - p[1]) * blend];
 }
 
 /**
- * Converge a morph surface toward the settled surface by `blend`. LIKE-TO-LIKE
- * only: each fill projects onto the settled fill with the SAME siteId (a split
- * part shares the captured siteId ⇒ both parts land on the settled captured
- * cell); anything without a same-siteId settled counterpart is left untouched.
- * Frontiers project per owner-pair; world borders per owner. All three surfaces
- * derive from the same settled assembly ⇒ fills and borders stay consistent.
+ * Converge the graph's shared-edge smoothedPts toward the SETTLED surface's
+ * borders (per owner-pair, distance-capped). Runs AFTER smoothSharedEdges and
+ * BEFORE any fills/frontiers are derived, so everything downstream reads the
+ * converged single source — fill/border divergence is impossible. Shared edge
+ * ENDPOINTS (junctions, chain-internal boundaries) are converged ONCE per
+ * unique point against the UNION of all incident pairs' targets, so every edge
+ * meeting that point moves it identically — watertightness is preserved.
+ * World edges are untouched (their geometry lies on the clip rect and is
+ * identical in morph and settled; only owner labels differ).
  */
-export function convergeSurface(
-    surface: CellSurface,
+function convergeSharedEdgesInPlace(
+    graph: import('./powerCoreTypes').SharedEdgeGraph,
     target: SurfaceConvergeTarget,
-): CellSurface {
+): void {
     const blend = target.blend < 0 ? 0 : target.blend > 1 ? 1 : target.blend;
-    if (blend <= 0) return surface;
-    const settled = target.settled;
+    if (blend <= 0) return;
 
-    const pairKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+    const pairKeyOf = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
     const byPair = new Map<string, [number, number][][]>();
-    for (const f of settled.frontiers) {
-        const k = pairKey(f.ownerA, f.ownerB);
+    for (const f of target.settled.frontiers) {
+        const k = pairKeyOf(f.ownerA, f.ownerB);
         (byPair.get(k) ?? byPair.set(k, []).get(k)!).push(f.points);
     }
-    const byWorldOwner = new Map<string, [number, number][][]>();
-    for (const w of settled.worldBorders) {
-        (byWorldOwner.get(w.ownerA) ?? byWorldOwner.set(w.ownerA, []).get(w.ownerA)!).push(w.points);
-    }
-    const bySite = new Map<string, Point[][]>();
-    for (const r of settled.cellFills) {
-        if (!r.siteId) continue;
-        (bySite.get(r.siteId) ?? bySite.set(r.siteId, []).get(r.siteId)!).push(r.points);
+
+    // Incident owner-pairs per shared endpoint (quantized key) — endpoints are
+    // converged once against the UNION so all incident edges agree.
+    const endpointPairs = new Map<number, Set<string>>();
+    for (const e of graph.sharedEdges) {
+        const k = pairKeyOf(e.ownerA, e.ownerB);
+        for (const end of [e.smoothedPts[0]!, e.smoothedPts[e.smoothedPts.length - 1]!]) {
+            const key = ptKey(end[0], end[1]);
+            (endpointPairs.get(key) ?? endpointPairs.set(key, new Set()).get(key)!).add(k);
+        }
     }
 
-    return {
-        frontiers: surface.frontiers.map((f) => ({
-            ...f,
-            points: lerpPoly(f.points, byPair.get(pairKey(f.ownerA, f.ownerB)), blend) as [number, number][],
-        })),
-        worldBorders: surface.worldBorders.map((w) => ({
-            ...w,
-            points: lerpPoly(w.points, byWorldOwner.get(w.ownerA), blend) as [number, number][],
-        })),
-        cellFills: surface.cellFills.map((r) => {
-            const t = r.siteId ? bySite.get(r.siteId) : undefined;
-            if (!t) return r; // no same-siteId counterpart → NEVER cross-project
-            return { ...r, points: lerpPoly(r.points, t, blend) };
-        }),
-    };
+    const endpointCache = new Map<number, Point>();
+    for (const e of graph.sharedEdges) {
+        const own = byPair.get(pairKeyOf(e.ownerA, e.ownerB)) ?? [];
+        const last = e.smoothedPts.length - 1;
+        e.smoothedPts = e.smoothedPts.map((p, i) => {
+            if (i === 0 || i === last) {
+                const key = ptKey(p[0], p[1]);
+                const cached = endpointCache.get(key);
+                if (cached) return [cached[0], cached[1]] as Point;
+                const pairs = endpointPairs.get(key);
+                const union: [number, number][][] = [];
+                if (pairs) for (const pk of pairs) union.push(...(byPair.get(pk) ?? []));
+                const out = projectCapped(p, union, blend);
+                endpointCache.set(key, out);
+                return out;
+            }
+            return projectCapped(p, own, blend);
+        });
+    }
 }
 
 // ── Candidate 2: 'round_cut' — the surface was built from UNSPLIT cells

@@ -34,7 +34,6 @@ import {
 } from '../../geometry/powerCore/kineticRuntimeBridge';
 import {
     buildSurfaceFromCells,
-    convergeSurface,
     cutSurfaceByFront,
 } from '../../geometry/powerCore/buildSurfaceFromCells';
 import { conquestConvergeBlend } from '../../geometry/powerCore/sampleKineticFrame';
@@ -366,14 +365,14 @@ export class PowerVectorFamily implements RenderFamily {
             //  round_cut— cells arrived UNSPLIT (idle-identical rounding); apply
             //             the conquest cut AFTER rounding (field classification)
             const endSnapMode = getEndSnapFixMode();
-            let surface = buildSurfaceFromCells(cells, smoothPasses);
+            let convergeTarget;
             if (endSnapMode === 'converge') {
                 const settled = getSettledSurfaceForConverge(smoothPasses);
                 const blend = settled ? conquestConvergeBlend(frame.p) : 0;
-                if (settled && blend > 0) {
-                    surface = convergeSurface(surface, { settled, blend });
-                }
-            } else if (endSnapMode === 'round_cut' && frame.conquestCuts?.length) {
+                if (settled && blend > 0) convergeTarget = { settled, blend };
+            }
+            let surface = buildSurfaceFromCells(cells, smoothPasses, convergeTarget);
+            if (endSnapMode === 'round_cut' && frame.conquestCuts?.length) {
                 surface = cutSurfaceByFront(surface, frame.conquestCuts);
             }
 

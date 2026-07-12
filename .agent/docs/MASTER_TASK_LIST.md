@@ -31,6 +31,28 @@ superseding docs:
 ## 2026-07-12
 
 ### Open
+- [ ] **END_SNAP_FIX_EVAL round 2 — user visual feedback on all 3 modes + CONVERGE v2 (synthesis) shipped**
+  `[territory][transitions]` USER FEEDBACK (2026-07-12, all three similar quality, different glitch classes):
+  OFF = best-current, minor end-snap on some transitions. CONV v1 = near-perfect transitions BUT
+  (1) border fragments "FLY AWAY across the map" in the final frames on some transitions, leaving the
+  still-moving front bare of borders; (2) "slice/cut lines" + blocks looking cut-pasted (unrounded cell
+  spliced) + cut triangles exposing black space at ends. CUT = similar class, hard to describe.
+  DIAGNOSIS (code-confirmed): v1 converged the OUTPUTS — borders projected onto nearest same-pair settled
+  border ANYWHERE on the map (no distance bound → fly-away when the local pair target is missing/far),
+  and fills projected onto a DIFFERENT target set than borders (per-cell rings vs pair polylines) →
+  single-source law violated → fill/border divergence = slice lines + black triangles.
+  SYNTHESIS SHIPPED (the user's "4th way" = CONV's convergence at CUT's layer): convergeSharedEdgesInPlace
+  in buildSurfaceFromCells — converge the GRAPH's shared-edge smoothedPts (the single source) AFTER
+  Chaikin, BEFORE fills/frontiers derive, with (a) a 20px DISTANCE CAP (real gap ≤~10px; farther =
+  wrong correspondence → point stays) and (b) endpoint-consistent projection (each unique shared point
+  converged ONCE against the union of incident pairs' targets → watertight preserved). Fills+borders
+  converge identically BY CONSTRUCTION. Harness: completion 0.43px (was 9.34), fills 0.00%, fly-away
+  guard (≤25px vs unconverged) green, baseline OFF byte-unchanged, 0 type errors.
+  KNOWN LIMIT: if the settled map has NO same-pair border within 20px of the front (old owner locally
+  eliminated), the arc doesn't converge there → local behavior = mode OFF (small end-snap), never a
+  fly-away. CUT unchanged (WIP: relabel flicker 3-10px; completion 8.9px) — debug pass still owed, or
+  retire it if CONV v2 passes the user's eyes.
+  NEXT: user re-evaluates CONV v2 visually on the same transitions that glitched.
 - [ ] **EMERGENCY TRIAGE + COLLECTIVE AUDIT of the end-snap fix arc (2026-07-12). All experiments REVERTED; tree clean at 4f9271d7c; user-ordered fresh start.**
   `[territory][transitions]` TRIAGE: the user-reported WHOLE-MAP defect at end of every transition came from
   UNCOMMITTED code hot-reloaded into the live dev server — the SurfaceConvergeTarget projection wired into
