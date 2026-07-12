@@ -15,7 +15,7 @@
  */
 
 import { buildSharedEdgeGraph } from './sharedEdgeGraph';
-import { smoothSharedEdges } from './smoothSharedEdges';
+import { smoothSharedEdges, chaikinOpenPinned } from './smoothSharedEdges';
 import { chainEdgesIntoPolylines } from './buildPowerCoreAuthoritySnapshot';
 import { splitCellByFront, frontFieldOn } from './conquestFrontField';
 import type { ConquestCut } from './kineticTypes';
@@ -206,6 +206,9 @@ export function buildSurfaceFromCells(
     /** END_SNAP_FIX_EVAL 'converge': converge the shared-edge single source
      *  toward the settled surface (distance-capped) before deriving outputs. */
     converge?: SurfaceConvergeTarget,
+    /** END_SNAP_FIX_EVAL 'soft_pins': scale-aware pin softening — sub-scale
+     *  topology features stop interrupting rounding, continuously. */
+    softPins?: boolean,
 ): CellSurface {
     // Conform first: splice the conquest front's crossing points into the
     // neighbour edges (exact, single-diagram) so the frontier isn't dropped and
@@ -216,6 +219,20 @@ export function buildSurfaceFromCells(
     // END_SNAP_FIX_EVAL 'converge' v2: converge the SINGLE SOURCE (smoothedPts)
     // so fills and borders downstream converge identically by construction.
     if (converge && converge.blend > 0) convergeSharedEdgesInPlace(graph, converge);
+    // END_SNAP_FIX_EVAL 'soft_pins': single-principle candidate (see banner).
+    // Only TRANSIENT clusters soften — those touching a conquest-split cell
+    // (the only cells sharing a siteId). Permanent tiny diagram features stay
+    // sharp exactly as idle/settled renders them, so retirement is seamless.
+    if (softPins) {
+        const siteCount = new Map<string, number>();
+        for (const c of conformed) siteCount.set(c.siteId, (siteCount.get(c.siteId) ?? 0) + 1);
+        const splitKeys = new Set<number>();
+        for (const c of conformed) {
+            if ((siteCount.get(c.siteId) ?? 0) < 2) continue;
+            for (const p of c.points) splitKeys.add(ptKey(p[0], p[1]));
+        }
+        if (splitKeys.size > 0) softenWeakPinClustersInPlace(graph, passes, splitKeys);
+    }
 
     const byPair = new Map<string, { edgeId: string; points: readonly Point[] }[]>();
     for (const e of graph.sharedEdges) {
@@ -431,6 +448,260 @@ function convergeSharedEdgesInPlace(
             }
             return projectCapped(p, own, blend);
         });
+    }
+}
+
+// ── Candidate 3: 'soft_pins' — the single-principle candidate. Keep the OFF
+//    pipeline exactly (split-in-graph = ownership topology evolves continuously
+//    — the property OFF got right and both other candidates discarded), and fix
+//    its ONE defect inside the smoothing: chain pins that exist only because of
+//    SUB-SCALE geometry (the shrinking old-owner cap: tiny crossing→corner
+//    edges, a tiny front arc) soften continuously as the feature shrinks, so
+//    rounding converges to the settled rounding instead of snapping to it.
+//    The equal-pair condition is not a tunable: settled rounds through
+//    same-pair vertices and pins at true junctions, so we soften exactly where
+//    settled rounds. No correspondence, no projection, no classification, no
+//    blend schedule — the feature's own size is the timer. Idle untouched
+//    (runs only on morph frames; large features and true junctions stay hard).
+
+/** Features smaller than this stop interrupting rounding (px). Chosen ≈ the
+ *  observed corner-rounding depth (~10px) with headroom; the softening is
+ *  proportional, so the exact value shifts WHEN convergence begins, not where
+ *  it lands. */
+const SOFT_PIN_SCALE_PX = 14;
+/** Arc length of real chain collected on each side of a cluster to compute the
+ *  coalesced through-rounding. */
+const SOFT_PIN_TAIL_PX = 3 * SOFT_PIN_SCALE_PX;
+
+function softenWeakPinClustersInPlace(
+    graph: import('./powerCoreTypes').SharedEdgeGraph,
+    passes: number,
+    /** Point keys of conquest-split cells: a cluster softens ONLY if it touches
+     *  one (transient), never a permanent tiny diagram feature. */
+    splitKeys: ReadonlySet<number>,
+): void {
+    type Edge = import('./powerCoreTypes').SharedEdge;
+    const edges = graph.sharedEdges;
+    if (edges.length === 0) return;
+
+    const pairOf = (e: Edge) => `${e.ownerA}|${e.ownerB}`;
+    const endKeysOf = (e: Edge): [number, number] => [
+        ptKey(e.pts[0]![0], e.pts[0]![1]),
+        ptKey(e.pts[e.pts.length - 1]![0], e.pts[e.pts.length - 1]![1]),
+    ];
+    const rawLen = (e: Edge) =>
+        Math.hypot(
+            e.pts[e.pts.length - 1]![0] - e.pts[0]![0],
+            e.pts[e.pts.length - 1]![1] - e.pts[0]![1],
+        );
+
+    // Incidence over RAW endpoint keys (the graph's exact topology keys).
+    const incident = new Map<number, Edge[]>();
+    for (const e of edges) {
+        for (const k of endKeysOf(e)) {
+            (incident.get(k) ?? incident.set(k, []).get(k)!).push(e);
+        }
+    }
+    // World-attach keys are hard everywhere — never soften a cluster touching them.
+    const worldKeys = new Set<number>();
+    for (const w of graph.worldEdges) {
+        worldKeys.add(ptKey(w.pts[0]![0], w.pts[0]![1]));
+        worldKeys.add(ptKey(w.pts[w.pts.length - 1]![0], w.pts[w.pts.length - 1]![1]));
+    }
+
+    const tiny = edges.filter((e) => rawLen(e) < SOFT_PIN_SCALE_PX);
+    if (tiny.length === 0) return;
+
+    // Clusters = connected components of tiny edges over shared endpoints.
+    const clusterOf = new Map<Edge, number>();
+    const clusters: Edge[][] = [];
+    for (const seed of tiny) {
+        if (clusterOf.has(seed)) continue;
+        const id = clusters.length;
+        const member: Edge[] = [];
+        const stack = [seed];
+        clusterOf.set(seed, id);
+        while (stack.length) {
+            const e = stack.pop()!;
+            member.push(e);
+            for (const k of endKeysOf(e)) {
+                for (const n of incident.get(k) ?? []) {
+                    if (rawLen(n) < SOFT_PIN_SCALE_PX && !clusterOf.has(n)) {
+                        clusterOf.set(n, id);
+                        stack.push(n);
+                    }
+                }
+            }
+        }
+        clusters.push(member);
+    }
+
+    /**
+     * Walk outward from `start` (entering at `fromKey`, the cluster side) along
+     * the same-pair degree-2 chain up to `maxLen` RAW arc length. Returns BOTH
+     * the RAW polyline (e.pts — what settled itself rounds; the through-curve
+     * must be built from this, NOT from smoothed points, which are already
+     * anchored at the sharp corner and would make the target equal the current
+     * position — the measured null result of v1) AND the visited edges with
+     * their raw arc-distance from the cluster (for the tapered apply pass).
+     */
+    const collectTail = (
+        start: Edge,
+        fromKey: number,
+        maxLen: number,
+    ): { raw: Point[]; visited: { edge: Edge; distAtEntry: number }[] } => {
+        const raw: Point[] = [];
+        const visited: { edge: Edge; distAtEntry: number }[] = [];
+        let e: Edge | null = start;
+        let entryKey = fromKey;
+        let length = 0;
+        let guard = 0;
+        while (e && length < maxLen && guard++ < 16) {
+            visited.push({ edge: e, distAtEntry: length });
+            const [a, b] = endKeysOf(e);
+            const forward = entryKey === a; // traverse pts[0]→pts[last]?
+            const pts = forward ? e.pts : [...e.pts].reverse();
+            for (let i = raw.length === 0 ? 0 : 1; i < pts.length; i++) {
+                const p = pts[i]!;
+                if (raw.length > 0) {
+                    length += Math.hypot(p[0] - raw[raw.length - 1]![0], p[1] - raw[raw.length - 1]![1]);
+                }
+                raw.push([p[0], p[1]]);
+            }
+            if (length >= maxLen) break;
+            const exitKey = forward ? b : a;
+            const inc: Edge[] = incident.get(exitKey) ?? [];
+            if (worldKeys.has(exitKey) || inc.length !== 2) break;
+            const next = inc.find((x) => x !== e) ?? null;
+            if (!next || pairOf(next) !== pairOf(e)) break;
+            e = next;
+            entryKey = exitKey;
+        }
+        return { raw, visited };
+    };
+
+    for (const member of clusters) {
+        // Cluster endpoint keys + points.
+        const keys = new Set<number>();
+        const pts: Point[] = [];
+        for (const e of member) {
+            for (const k of endKeysOf(e)) keys.add(k);
+            pts.push([e.pts[0]![0], e.pts[0]![1]]);
+            pts.push([e.pts[e.pts.length - 1]![0], e.pts[e.pts.length - 1]![1]]);
+        }
+        let touchesWorld = false;
+        let touchesSplit = false;
+        for (const k of keys) {
+            if (worldKeys.has(k)) touchesWorld = true;
+            if (splitKeys.has(k)) touchesSplit = true;
+        }
+        if (touchesWorld || !touchesSplit) continue; // transient clusters only
+
+        // Terminals: non-tiny edges attached to the cluster.
+        const terminals: { edge: Edge; clusterKey: number }[] = [];
+        for (const k of keys) {
+            for (const e of incident.get(k) ?? []) {
+                if (clusterOf.has(e)) continue;
+                terminals.push({ edge: e, clusterKey: k });
+            }
+        }
+        if (terminals.length !== 2) continue;
+        if (pairOf(terminals[0]!.edge) !== pairOf(terminals[1]!.edge)) continue;
+
+        // Extent (bbox diagonal) gates the softening: big feature = hard pin.
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (const p of pts) {
+            minX = Math.min(minX, p[0]); minY = Math.min(minY, p[1]);
+            maxX = Math.max(maxX, p[0]); maxY = Math.max(maxY, p[1]);
+        }
+        const extent = Math.hypot(maxX - minX, maxY - minY);
+        if (extent >= SOFT_PIN_SCALE_PX) continue;
+        const softness = 1 - extent / SOFT_PIN_SCALE_PX;
+
+        // The coalesced through-rounding: RAW chain geometry on each side (what
+        // settled itself rounds), cluster interior omitted, Chaikin'd as ONE
+        // polyline. Collected to the natural chain extent (same-pair degree-2),
+        // so this ≈ the settled chain's rounding through the corner.
+        const THROUGH_COLLECT_PX = 240;
+        const tA = collectTail(terminals[0]!.edge, terminals[0]!.clusterKey, THROUGH_COLLECT_PX);
+        const tB = collectTail(terminals[1]!.edge, terminals[1]!.clusterKey, THROUGH_COLLECT_PX);
+        if (tA.raw.length < 2 || tB.raw.length < 2) continue;
+        const rawA = [...tA.raw].reverse(); // now ENDS at the cluster
+        // WELD the junction: the through-curve models the chain AS IF the
+        // cluster were absent, so the two cluster-side endpoints (≈ extent
+        // apart) must collapse to ONE vertex — otherwise the near-coincident
+        // pair re-anchors Chaikin at the corner and the target equals the
+        // current (sharp) shape. Synthetic curve only; no real geometry moves.
+        const joined: Point[] = [...rawA, ...tB.raw];
+        const ia = rawA.length - 1;
+        const ja = rawA.length;
+        const gap = Math.hypot(
+            joined[ja]![0] - joined[ia]![0],
+            joined[ja]![1] - joined[ia]![1],
+        );
+        if (gap < SOFT_PIN_SCALE_PX) {
+            const mid: Point = [
+                (joined[ia]![0] + joined[ja]![0]) / 2,
+                (joined[ia]![1] + joined[ja]![1]) / 2,
+            ];
+            joined.splice(ia, 2, mid);
+        }
+        const through = chaikinOpenPinned(joined, passes);
+        const throughPolys: [number, number][][] = [
+            through.map((p) => [p[0], p[1]] as [number, number]),
+        ];
+
+        // Apply: move the cluster's points AND every smoothed point of the
+        // terminal chains within the influence region toward the through-curve,
+        // weighted by softness · taper(arc distance from the cluster). The
+        // taper blends back into the untouched chain; shared endpoints move
+        // once (keyed cache) so every incident edge agrees — watertight.
+        const APPLY_PX = SOFT_PIN_TAIL_PX;
+        const moved = new Map<number, Point>();
+        const moveTo = (p: readonly [number, number], weight: number): Point => {
+            const key = ptKey(p[0], p[1]);
+            const hit = moved.get(key);
+            if (hit) return [hit[0], hit[1]];
+            const t = nearestOnPolys(p[0], p[1], throughPolys);
+            let out: Point;
+            if (!t) {
+                out = [p[0], p[1]];
+            } else {
+                const w = softness * weight;
+                out = [p[0] + (t[0] - p[0]) * w, p[1] + (t[1] - p[1]) * w];
+            }
+            moved.set(key, out);
+            return out;
+        };
+        // Cluster points: full softness.
+        for (const e of member) {
+            e.smoothedPts = e.smoothedPts.map((p) => moveTo(p, 1));
+        }
+        // Terminal chains: tapered by raw arc distance from the cluster.
+        for (const side of [tA, tB]) {
+            for (const { edge, distAtEntry } of side.visited) {
+                if (distAtEntry >= APPLY_PX) break;
+                const [a] = endKeysOf(edge);
+                // Orient smoothed traversal from the cluster side outward.
+                const clusterSideFirst =
+                    side === tA
+                        ? terminals[0]!.clusterKey === a
+                        : terminals[1]!.clusterKey === a;
+                const n = edge.smoothedPts.length;
+                let dist = distAtEntry;
+                let prev: Point | null = null;
+                const next: Point[] = new Array(n);
+                for (let j = 0; j < n; j++) {
+                    const idx = clusterSideFirst ? j : n - 1 - j;
+                    const p = edge.smoothedPts[idx]!;
+                    if (prev) dist += Math.hypot(p[0] - prev[0], p[1] - prev[1]);
+                    prev = p;
+                    const taper = dist >= APPLY_PX ? 0 : 1 - dist / APPLY_PX;
+                    next[idx] = taper > 0 ? moveTo(p, taper) : [p[0], p[1]];
+                }
+                edge.smoothedPts = next;
+            }
+        }
     }
 }
 

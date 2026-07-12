@@ -62,11 +62,12 @@
   // END_SNAP_FIX_EVAL — cycle the two candidate end-snap fixes for visual
   // evaluation (OFF → CONV → CUT). Temporary: remove chip + config key + all
   // END_SNAP_FIX_EVAL scaffolding once a winner is chosen (2026-07-12 post-mortem §7).
-  const SNAP_FIX_CYCLE = ["off", "converge", "round_cut"] as const;
+  const SNAP_FIX_CYCLE = ["off", "converge", "round_cut", "soft_pins"] as const;
   const SNAP_FIX_LABEL: Record<string, string> = {
     off: "SNAPFIX: OFF",
     converge: "SNAPFIX: CONV",
     round_cut: "SNAPFIX: CUT (wip)", // borders flicker — measured, see harness EVAL MODES
+    soft_pins: "SNAPFIX: SOFT", // single-principle candidate: scale-aware pin softening
   };
   let snapFixMode = $state<string>(GAME_CONFIG.TERRITORY_END_SNAP_FIX ?? "off");
   function cycleSnapFix(): void {

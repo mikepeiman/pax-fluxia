@@ -428,7 +428,7 @@ describe('END-SNAP frame-delta harness (arena-further star-13 → star-7)', () =
             return out;
         };
 
-        for (const mode of ['converge', 'round_cut'] as const) {
+        for (const mode of ['converge', 'round_cut', 'soft_pins'] as const) {
             setMorphCompleteAt(1.0);
             const rt = new KineticTransitionRuntime();
             rt.commit({ state: S0.state, clip: S0.clip, ownershipVersion: 'v0', transitionKey: null, nowMs: 0, durationMs: DURATION });
@@ -449,6 +449,7 @@ describe('END-SNAP frame-delta harness (arena-further star-13 → star-7)', () =
                         cells,
                         PASSES,
                         blend > 0 ? { settled, blend } : undefined,
+                        mode === 'soft_pins',
                     );
                     if (mode === 'round_cut' && frame.conquestCuts?.length) {
                         surface = cutSurfaceByFront(surface, frame.conquestCuts);
@@ -496,10 +497,10 @@ describe('END-SNAP frame-delta harness (arena-further star-13 → star-7)', () =
                 `worst fill-coverage error = ${(worstFillErr * 100).toFixed(2)}% of map (must be ~0 — the fills-corruption guard)`,
                 `deltas >2px [p:Δ]: ${series.join('  ') || '(none)'}`,
             ]);
-            // Fills must stay whole in BOTH modes (the fills-corruption guard).
+            // Fills must stay whole in ALL modes (the fills-corruption guard).
             expect(worstFillErr).toBeLessThan(0.01);
-            if (mode === 'converge') {
-                // VALIDATED: terminal snap eliminated (0.43px vs 9.34px baseline).
+            if (mode === 'converge' || mode === 'soft_pins') {
+                // VALIDATED target: terminal snap eliminated vs 9.34px baseline.
                 expect(completionWorst).toBeLessThan(1.5);
             } else {
                 // round_cut: KNOWN-WIP (2026-07-12). Fills perfect (0.00%), but the
@@ -511,6 +512,31 @@ describe('END-SNAP frame-delta harness (arena-further star-13 → star-7)', () =
                 expect(completionWorst).toBeLessThan(12);
             }
         }
+    });
+
+    it('DEBUG soft_pins at the final split frame', () => {
+        setMorphCompleteAt(1.0);
+        const rt = new KineticTransitionRuntime();
+        rt.commit({ state: S0.state, clip: S0.clip, ownershipVersion: 'v0', transitionKey: null, nowMs: 0, durationMs: DURATION });
+        rt.commit({ state: S1.state, clip: S1.clip, ownershipVersion: 'v1', transitionKey: 'k', nowMs: 0, durationMs: DURATION, conquestOrigins: CONQUEST_ORIGINS, conquestFrontMode: 'radial' });
+        const frame = rt.sampleFull(983.3)!;
+        (globalThis as { __SOFT_PINS_DEBUG?: boolean }).__SOFT_PINS_DEBUG = true;
+        const surface = buildSurfaceFromCells([...frame.frozenCells, ...frame.bubbleCells], PASSES, undefined, true);
+        (globalThis as { __SOFT_PINS_DEBUG?: boolean }).__SOFT_PINS_DEBUG = false;
+        setMorphCompleteAt(getMorphCompleteAt());
+        // Where does the ai5|human border sit near the corner (778.8,516.5)?
+        const near: string[] = [];
+        for (const f of surface.frontiers) {
+            if (pairKey(f.ownerA, f.ownerB) !== 'ai-5|human-player') continue;
+            for (const [x, y] of f.points) {
+                if (Math.hypot(x - 778.8, y - 516.5) < 14) near.push(`(${x.toFixed(1)},${y.toFixed(1)})`);
+            }
+        }
+        report('SOFT_PINS DEBUG f59', [
+            `border pts near corner: ${near.join(' ') || '(none)'}`,
+            `settled corner is rounded through ≈(778.4,506.9); sharp corner ≈(778.8,516.5)`,
+        ]);
+        expect(surface.frontiers.length).toBeGreaterThan(0);
     });
 
     it('DUMP frames around the jump (mca=1.0)', () => {

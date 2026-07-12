@@ -38,11 +38,14 @@ let fullDiagramFailureLogged = false;
 // Mode toggle for the two candidate end-snap fixes (see buildSurfaceFromCells
 // banner + the 2026-07-12 post-mortem). Injected per-frame from GameCanvas
 // (same pattern as setMorphCompleteAt) so powerCore modules stay config-free.
-export type EndSnapFixMode = 'off' | 'converge' | 'round_cut';
+export type EndSnapFixMode = 'off' | 'converge' | 'round_cut' | 'soft_pins';
 let endSnapFixMode: EndSnapFixMode = 'off';
 
 export function setEndSnapFixMode(mode: EndSnapFixMode): void {
-    endSnapFixMode = mode === 'converge' || mode === 'round_cut' ? mode : 'off';
+    endSnapFixMode =
+        mode === 'converge' || mode === 'round_cut' || mode === 'soft_pins'
+            ? mode
+            : 'off';
 }
 export function getEndSnapFixMode(): EndSnapFixMode {
     return endSnapFixMode;

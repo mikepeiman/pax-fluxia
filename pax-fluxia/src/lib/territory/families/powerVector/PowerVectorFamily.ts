@@ -371,7 +371,12 @@ export class PowerVectorFamily implements RenderFamily {
                 const blend = settled ? conquestConvergeBlend(frame.p) : 0;
                 if (settled && blend > 0) convergeTarget = { settled, blend };
             }
-            let surface = buildSurfaceFromCells(cells, smoothPasses, convergeTarget);
+            let surface = buildSurfaceFromCells(
+                cells,
+                smoothPasses,
+                convergeTarget,
+                endSnapMode === 'soft_pins',
+            );
             if (endSnapMode === 'round_cut' && frame.conquestCuts?.length) {
                 surface = cutSurfaceByFront(surface, frame.conquestCuts);
             }

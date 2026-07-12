@@ -31,6 +31,29 @@ superseding docs:
 ## 2026-07-12
 
 ### Open
+- [ ] **END_SNAP_FIX_EVAL round 3 — architectural assessment + 'soft_pins' (the single-principle candidate) VALIDATED in harness; 4-way toggle live**
+  `[territory][transitions]` USER (2026-07-12): CONV near-perfect but FRAGILE (correct instinct — compensating
+  layer) + close-up radial slivers of overlapping fill (cap inversion vs mid-ramp cell edge). CUT "feels more
+  robust" but disappears borders at conquest start + de-rounds certain frontlines instantly (DIAGNOSED,
+  structural: deferring the cut makes the graph's owner topology flip instantly at frame 1 — PRE's old|old
+  dropped edges become victor|old borders, re-pinning chains; CUT fixed the END discontinuity and created a
+  mirror-image START discontinuity). KEY INSIGHT from that diagnosis: OFF's split-in-graph is CORRECT about
+  topology (the cap carries old ownership ⇒ the graph evolves continuously); OFF's only defect is Chaikin's
+  tessellation sensitivity (tiny segments ANCHOR corners — measured: not pin-topology; the corner chain is
+  degree-2 same-pair; the anchor is segment-length dependence).
+  NEW CANDIDATE 'soft_pins' (SNAPFIX: SOFT): OFF pipeline + softenWeakPinClustersInPlace in
+  buildSurfaceFromCells — TRANSIENT sub-scale same-pair clusters (touching a split cell, by the duplicate-
+  siteId test) blend toward the through-rounding of the coalesced RAW chain (junction welded — a synthetic
+  target curve only), tapered over ~42px, softness = 1 − extent/14px. No settled-target, no correspondence,
+  no cap heuristics, no blend schedule: the transient feature's own size is the timer; permanent tiny diagram
+  features stay sharp exactly as idle renders them (retirement seamless by construction).
+  HARNESS: completion 1.31px (baseline 9.34), tail ≤2px after p=0.7, fills 0.00%, worst delta = mid-sweep
+  front velocity 3.12px (same profile as CONV), baseline OFF byte-unchanged, 0 type errors.
+  Debug trail (recorded for method): v1 null-result (targets built from already-anchored smoothed points);
+  v2 through-curve re-anchored at the X1≈X2 junction doublet (welded); v3 leaked onto permanent tiny features
+  (8px retirement jump at a DIFFERENT map location — caught because the metric is whole-timeline) → transient-
+  only gate. NEXT: user eyes on all four modes; CUT retained per user instruction (start-discontinuity is
+  structural — would need PRE-owner rounding early + POST late, i.e. it converges toward soft_pins anyway).
 - [ ] **END_SNAP_FIX_EVAL round 2 — user visual feedback on all 3 modes + CONVERGE v2 (synthesis) shipped**
   `[territory][transitions]` USER FEEDBACK (2026-07-12, all three similar quality, different glitch classes):
   OFF = best-current, minor end-snap on some transitions. CONV v1 = near-perfect transitions BUT

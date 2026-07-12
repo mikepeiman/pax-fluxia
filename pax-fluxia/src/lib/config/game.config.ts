@@ -398,9 +398,10 @@ interface GameConfigType {
      *  ~9px terminal snap); 'converge' = final approach projects onto the
      *  settled surface (like-to-like identity correspondence); 'round_cut' =
      *  idle-identical rounding every frame, conquest cut applied AFTER rounding
-     *  (field-sign classification). Remove the loser + all END_SNAP_FIX_EVAL
-     *  scaffolding after the user picks (2026-07-12 post-mortem §7). */
-    TERRITORY_END_SNAP_FIX: 'off' | 'converge' | 'round_cut';
+     *  (field-sign classification); 'soft_pins' = OFF pipeline + scale-aware
+     *  pin softening in the smoothing (single-principle candidate). Remove the
+     *  losers + all END_SNAP_FIX_EVAL scaffolding after the user picks. */
+    TERRITORY_END_SNAP_FIX: 'off' | 'converge' | 'round_cut' | 'soft_pins';
     // ── Virtual Star Transition (F-165) ──────────────────────────────────────
     VS_VICTOR_TRAVEL_MS: number;          // Duration of victor VS travel (ms, 0 = use TERRITORY_TRANSITION_MS)
     VS_LOSER_TRAVEL_MS: number;           // Duration of loser VS travel (ms, 0 = use TERRITORY_TRANSITION_MS)
