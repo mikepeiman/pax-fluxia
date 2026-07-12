@@ -31,6 +31,41 @@ superseding docs:
 ## 2026-07-12
 
 ### Open
+- [ ] **EMERGENCY TRIAGE + COLLECTIVE AUDIT of the end-snap fix arc (2026-07-12). All experiments REVERTED; tree clean at 4f9271d7c; user-ordered fresh start.**
+  `[territory][transitions]` TRIAGE: the user-reported WHOLE-MAP defect at end of every transition came from
+  UNCOMMITTED code hot-reloaded into the live dev server — the SurfaceConvergeTarget projection wired into
+  PowerVectorFamily's morph branch. Proven defect in that code: cellFills (PER-CELL rings incl. same-owner
+  interior cells) were projected onto MERGED territoryRegions rings, so at blend→1 every interior cell's ring is
+  sucked to its region's OUTER boundary = whole-map fill corruption on every transition end. (Second unchecked
+  risk: possible coordinate-frame mismatch — morph surface drawn at dx/dy vs idle geometry at 0,0.) Reverted all
+  4 files; 126/126 powerCore tests green. NOTHING defective was committed; the ONLY committed production change
+  since the one-graph reversion (eb5d28e53) is the Motion Completion slider (inert at default 92).
+  COLLECTIVE AUDIT — patterns across ALL attempts (2 split-level blends, DP decimation, uniform resample,
+  projection-to-settled):
+  P1 PATCH-STACKING: every fix ADDED a compensating mechanism downstream of the defect instead of removing the
+     root asymmetry. None questioned whether the pipeline order itself was wrong.
+  P2 WRONG LAYER: the defect is "rounding depends on tessellation + chain fragmentation at the moving front";
+     fixes edited raw split geometry, the global smoother, or bolted on a projector — never the ORDER of
+     rounding vs splitting.
+  P3 REBUILT DOCUMENTED FAILURES: projection/lerp toward a target IS vertex-correspondence morphing — recorded
+     in project memory as "NEVER reliable" — rebuilt twice under new names.
+  P4 METRIC TUNNEL VISION: optimized ONE harness number (frontier Hausdorff on one pair) and declared
+     "validated" while fills/interior cells/idle rounding were unmeasured. The resample "win" (2.5px) actually
+     FLATTENED idle rounding 9.6→0.8px; the projection "win" (0.4px) corrupted fills invisibly to the metric.
+  P5 LIVE-WIRED AN EXPERIMENT: edited PowerVectorFamily (production render path) with HMR active — deploying
+     uncommitted experimental geometry to the user's screen, violating the visual-sign-off guardrail.
+  P6 CONFLATION: "endpoints byte-identical at q=1" (proven) was treated as "geometry unified every frame"
+     (false — mid-frames contain split-polluted tessellation with different rounding semantics).
+  ROOT CAUSE RESTATED (fully consistent with all measurements): Chaikin chains are FRAGMENTED at the moving
+  front's crossing points (owner-pair changes = pinned chain ends), and rounding depth depends on fragment
+  length/tessellation ⇒ the captured cell's corners round shallow mid-morph and deep at settle ⇒ ~9px pop.
+  THE CORRECT ARCHITECTURE (user-confirmed direction; NOT yet built): ROUND-THEN-SPLIT. Order of operations
+  today: diagram → SPLIT by front → conform → graph → round (rounding sees transition-polluted input). Correct
+  order: diagram → graph → round (IDENTICAL to idle, byte-for-byte, every frame) → THEN cut the rounded captured
+  cell by the front for presentation (fills + borders from the same cut). Rounding becomes frame-invariant BY
+  CONSTRUCTION; the final frame IS the settled rounded map with the cut vanished; no convergence/projection/
+  blending step exists. Answers the user's design question: morph settled-PRE→settled-POST directly; the front
+  split is the ONLY transition-specific step and it must run DOWNSTREAM of rounding.
 - [ ] **End-snap ROOT CAUSE PROVEN = differential Chaikin rounding (2026-07-12). Fix attempts reverted; needs a smoothing-model decision + visual sign-off.**
   `[territory][transitions]` Harness: `endSnapFrameDelta.harness.test.ts` (green, documents the 9.3px defect).
   User's exact symptom (their words): "a SHARP POINT that snaps back to the rounded settled border" — on #13→#7,
