@@ -52,6 +52,17 @@ superseding docs:
       BINARY at the eps threshold ⇒ relocates the pop, doesn't remove it.
     • conquestFrontField convergence blend (arc → cell boundary; arc-length map AND projection variants) +
       decimation: best ~6.5px, but the blend ONSET itself pops and the flip stays binary.
+    • UNIFORM ARC-LENGTH RESAMPLE (3px) before Chaikin: snap 9.3→2.5px AND residual moves to MID-sweep
+      (p≈0.5, spikeRatio 1.4 = peak velocity, NOT a pop) — numerically the best. BUT it works the WRONG way:
+      it makes Chaikin cut SHALLOWER everywhere, so the SETTLED corner rounding collapses 9.6px→0.8px — i.e.
+      it converges morph≈settled by FLATTENING the idle corners across the whole map. Regresses the near-perfect
+      idle look. Reverted. (Rounding depth is tied to native edge length, so any fixed resample finer than native
+      reduces idle rounding — fundamentally the wrong lever.)
+  TRADE-OFF WALL (verified): matching the moving corner to the settled corner requires EITHER changing the idle
+  look (resample/global smoothing) OR a localized crossfade. No split/smoothing tweak does both. The only
+  idle-PRESERVING complete fix is (2) the frontier/cell crossfade toward settled near q→1 — NOT yet built; its
+  risk is fill+border consistency (must blend the shared smoothed boundary, not just the border) + morph↔settled
+  correspondence. Needs a user decision + visual sign-off before building.
   WHY no clean localized fix: (a) fill+border share ONE smoothed source, so blending BORDER output alone tears the
   fill; (b) blending CELLS needs vertex correspondence (project history: NEVER reliable); (c) the curve↔sharp-vertex
   rounding depth is bimodal, so split/decimation tweaks only move the threshold. GUARDRAIL: territory geometry
