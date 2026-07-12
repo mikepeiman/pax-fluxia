@@ -35,6 +35,19 @@ globs: "**/*.{ts,js,svelte,md}"
 - **Epistemic honesty** — use conditional language until verified
 - **Ask about visuals** — don't guess what animations look like from code
 - **Task queue discipline** — finish current task before new items
+- **MAXIMALISM over minimalism** (user-stated 2026-07-12, learned through hard experience): the
+  smallest add-on / least-disruptive patch is the AGENTIC FAILURE BIAS, not a virtue. There are NO
+  standing rules named "one change at a time", "bias to less code", or "don't disturb the working
+  state" — citing those as constraints is a violation. When a defect's root cause implies a
+  structural change, propose and build the structural change.
+- **PRE-FIX CHECKPOINT** (user-mandated 2026-07-12): before implementing ANY fix, state visibly:
+  (a) the root cause, (b) what the BEST solution would be if designing this today, (c) whether the
+  chosen fix IS (b) — and if not, surface the gap to the user instead of silently choosing less.
+- **Hedged language is not a command** — "X is likely indicated" is a hypothesis to test, not an
+  order to execute. Destructive actions (reverts, deletions) require an explicit imperative or an
+  explicit ask-first. (Recorded 2026-07-12 after an uncommanded panic-revert destroyed measured WIP.)
+- **≤10 targeted tests per run** — run the test(s) that answer the current question, never the
+  whole suite as ritual. Repeated all-green full-suite runs have solved nothing, ever.
 
 ## Code
 - **No raw `console.log`** — use `log.sys()`, `log.state()`, `log.combat()`, etc.
