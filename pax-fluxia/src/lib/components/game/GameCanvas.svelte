@@ -186,6 +186,7 @@
         getActiveKineticFrame,
         getKineticDiagnostics,
         getKineticPresentationNonce,
+        setEndSnapFixMode,
     } from "$lib/territory/geometry/powerCore/kineticRuntimeBridge";
     import { setMorphCompleteAt } from "$lib/territory/geometry/powerCore/sampleKineticFrame";
     import type {
@@ -5031,6 +5032,8 @@
         setMorphCompleteAt(
             (GAME_CONFIG.TERRITORY_MORPH_COMPLETE_PCT ?? 92) / 100,
         );
+        // END_SNAP_FIX_EVAL: candidate-fix selector (topbar SNAPFIX toggle).
+        setEndSnapFixMode(GAME_CONFIG.TERRITORY_END_SNAP_FIX ?? "off");
         sampleKineticForFrame(
             fxOrchestrator.gameTime,
             normalizePerimeterFieldGeometrySource(

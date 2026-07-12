@@ -184,7 +184,10 @@ export class KineticTransitionRuntime {
      * site identity), i.e. the settled map minus every moving region. Returns
      * null when idle. No frozenCells (everything is in bubbleCells).
      */
-    sampleFull(nowMs: number): KineticFrame | null {
+    sampleFull(
+        nowMs: number,
+        options?: { readonly deferConquestCuts?: boolean },
+    ): KineticFrame | null {
         if (this.morphs.length === 0 || !this.settled) return null;
         const stillActive = this.morphs.filter(
             (m) => (nowMs - m.startedAtMs) / m.durationMs < 1,
@@ -218,7 +221,7 @@ export class KineticTransitionRuntime {
 
         // Clip from the most recent commit (matches the settled state).
         const clip = this.morphs[this.morphs.length - 1]!.clip;
-        return sampleFullDiagramMulti(parts, frozen, clip);
+        return sampleFullDiagramMulti(parts, frozen, clip, options);
     }
 
     /** Per-frame sample; null = idle (draw the settled state). */

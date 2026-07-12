@@ -392,6 +392,15 @@ interface GameConfigType {
      *  (50–100, default 92). Lower = more end-hold; 100 = motion runs the full
      *  tick-bound window. Injected into rampProgress via setMorphCompleteAt. */
     TERRITORY_MORPH_COMPLETE_PCT: number;
+    /** END_SNAP_FIX_EVAL (temporary; topbar SNAPFIX toggle cycles it): the two
+     *  candidate fixes for the end-of-transition border snap, side by side for
+     *  visual evaluation. 'off' = current pipeline (split-then-round; known
+     *  ~9px terminal snap); 'converge' = final approach projects onto the
+     *  settled surface (like-to-like identity correspondence); 'round_cut' =
+     *  idle-identical rounding every frame, conquest cut applied AFTER rounding
+     *  (field-sign classification). Remove the loser + all END_SNAP_FIX_EVAL
+     *  scaffolding after the user picks (2026-07-12 post-mortem §7). */
+    TERRITORY_END_SNAP_FIX: 'off' | 'converge' | 'round_cut';
     // ── Virtual Star Transition (F-165) ──────────────────────────────────────
     VS_VICTOR_TRAVEL_MS: number;          // Duration of victor VS travel (ms, 0 = use TERRITORY_TRANSITION_MS)
     VS_LOSER_TRAVEL_MS: number;           // Duration of loser VS travel (ms, 0 = use TERRITORY_TRANSITION_MS)

@@ -2,6 +2,9 @@
   import type { GameSpeed } from "$lib/types/game.types";
   import type { TerritoryModeShortcutOption } from "$lib/territory/ui/territoryModeShortcuts";
   import { getTerritoryRenderModeSelectOptions } from "$lib/territory/ui/territoryModeShortcuts";
+  import { GAME_CONFIG } from "$lib/config/game.config";
+  import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
+  import { log } from "$lib/utils/logger";
   import HudIcon from "$lib/components/ui/hud/HudIcon.svelte";
   import { PaxHudButton, PaxHudSelect } from "$lib/design-system";
   import HudIconButton from "./HudIconButton.svelte";
@@ -55,6 +58,24 @@
   const isKnownRenderMode = $derived(
     renderModeSelectOptions.some((option) => option.value === activeModeId),
   );
+
+  // END_SNAP_FIX_EVAL — cycle the two candidate end-snap fixes for visual
+  // evaluation (OFF → CONV → CUT). Temporary: remove chip + config key + all
+  // END_SNAP_FIX_EVAL scaffolding once a winner is chosen (2026-07-12 post-mortem §7).
+  const SNAP_FIX_CYCLE = ["off", "converge", "round_cut"] as const;
+  const SNAP_FIX_LABEL: Record<string, string> = {
+    off: "SNAPFIX: OFF",
+    converge: "SNAPFIX: CONV",
+    round_cut: "SNAPFIX: CUT (wip)", // borders flicker — measured, see harness EVAL MODES
+  };
+  let snapFixMode = $state<string>(GAME_CONFIG.TERRITORY_END_SNAP_FIX ?? "off");
+  function cycleSnapFix(): void {
+    const idx = SNAP_FIX_CYCLE.indexOf(snapFixMode as (typeof SNAP_FIX_CYCLE)[number]);
+    snapFixMode = SNAP_FIX_CYCLE[(idx + 1) % SNAP_FIX_CYCLE.length]!;
+    (GAME_CONFIG as { TERRITORY_END_SNAP_FIX: string }).TERRITORY_END_SNAP_FIX = snapFixMode;
+    bumpTerritoryVisualConfig();
+    log.ui("territory", `TERRITORY_END_SNAP_FIX = ${snapFixMode} (topbar SNAPFIX toggle)`);
+  }
 </script>
 
 <header class="pf-hud-topbar">
@@ -151,6 +172,15 @@
       ariaLabel="Territory render mode"
       onValueChange={(value) => onModeSelect(value)}
     />
+    <!-- END_SNAP_FIX_EVAL: temporary evaluation chip; remove with the loser. -->
+    <PaxHudButton
+      class="pf-hud-topbar__mode"
+      active={snapFixMode !== "off"}
+      onclick={cycleSnapFix}
+      title="End-snap fix evaluation: OFF = current pipeline; CONV = converge to settled; CUT = round-then-cut"
+    >
+      <span>{SNAP_FIX_LABEL[snapFixMode]}</span>
+    </PaxHudButton>
   </div>
 
   <div class="pf-hud-topbar__actions">

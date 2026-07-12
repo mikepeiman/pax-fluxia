@@ -25,6 +25,7 @@ export const territoryConfigDefaults = {
     TERRITORY_TRANSITION_BIND_TO_TICK: true,
     TERRITORY_CONQUEST_FRONT_MODE: 'radial' as const,
     TERRITORY_MORPH_COMPLETE_PCT: 92,
+    TERRITORY_END_SNAP_FIX: 'off' as const, // END_SNAP_FIX_EVAL — topbar SNAPFIX toggle
     VS_VICTOR_TRAVEL_MS: 0,
     VS_LOSER_TRAVEL_MS: 0,
     VS_POWER_LERP_START: 0,

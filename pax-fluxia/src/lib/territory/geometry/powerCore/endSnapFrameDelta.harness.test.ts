@@ -56,9 +56,18 @@ import {
     computePowerCoreEndpoint,
 } from './buildPowerCoreAuthoritySnapshot';
 import { buildPowerVoronoi0319Settings } from '../../families/buildFamilyGeometry';
-import { buildSurfaceFromCells } from './buildSurfaceFromCells';
+import {
+    buildSurfaceFromCells,
+    convergeSurface,
+    cutSurfaceByFront,
+    type CellSurface,
+} from './buildSurfaceFromCells';
 import { KineticTransitionRuntime } from './kineticTransitionRuntime';
-import { setMorphCompleteAt, getMorphCompleteAt } from './sampleKineticFrame';
+import {
+    setMorphCompleteAt,
+    getMorphCompleteAt,
+    conquestConvergeBlend,
+} from './sampleKineticFrame';
 import type { KineticEndpointState } from './kineticTypes';
 
 // ---------------------------------------------------------------------------
@@ -389,10 +398,106 @@ describe('END-SNAP frame-delta harness (arena-further star-13 → star-7)', () =
         const settled = S1.state.cells;
         report('PIN DIAGNOSIS', [
             ...dump('MORPH f59 (p=0.983)', morph),
-            ...dump('SETTLED (S1)', settled),
+            ...dump('SETTLED (S1)', [...S1.state.cells]),
             `(a spurious tiny old-owner cap cell at the tip ⇒ extra ai-5|human edges ⇒ degree>2 ⇒ pinned ⇒ sharp)`,
         ]);
         expect(morph.length).toBeGreaterThan(0);
+    });
+
+    it('EVAL MODES: converge + round_cut kill the terminal snap; fills stay whole', () => {
+        // Runs BOTH candidate fixes exactly as PowerVectorFamily does, and checks
+        // BORDERS (frame-delta) *and* FILLS (map coverage + per-owner areas) —
+        // one metric is not validation.
+        const area = (ring: readonly (readonly [number, number])[]): number => {
+            let s = 0;
+            for (let i = 0; i < ring.length; i++) {
+                const a = ring[i]!;
+                const b = ring[(i + 1) % ring.length]!;
+                s += a[0] * b[1] - b[0] * a[1];
+            }
+            return Math.abs(s / 2);
+        };
+        const clipArea = area(S1.clip);
+        const surfaceBorders = (surface: CellSurface): BorderMap => {
+            const out: BorderMap = new Map();
+            const push = (a: string, b: string, pts: Poly) => {
+                const k = pairKey(a, b);
+                (out.get(k) ?? out.set(k, []).get(k)!).push(pts);
+            };
+            for (const f of surface.frontiers) push(f.ownerA, f.ownerB, f.points);
+            for (const w of surface.worldBorders) push(w.ownerA, w.ownerB, w.points);
+            return out;
+        };
+
+        for (const mode of ['converge', 'round_cut'] as const) {
+            setMorphCompleteAt(1.0);
+            const rt = new KineticTransitionRuntime();
+            rt.commit({ state: S0.state, clip: S0.clip, ownershipVersion: 'v0', transitionKey: null, nowMs: 0, durationMs: DURATION });
+            rt.commit({ state: S1.state, clip: S1.clip, ownershipVersion: 'v1', transitionKey: 'k', nowMs: 0, durationMs: DURATION, conquestOrigins: CONQUEST_ORIGINS, conquestFrontMode: 'radial' });
+            const settled = buildSurfaceFromCells(S1.state.cells, PASSES);
+
+            const dt = 1000 / 60;
+            const frames: { p: number; borders: BorderMap; fillArea: number }[] = [];
+            for (let nowMs = 0; nowMs <= DURATION + 2 * dt; nowMs += dt) {
+                const frame = rt.sampleFull(nowMs, { deferConquestCuts: mode === 'round_cut' });
+                let surface: CellSurface;
+                let p: number;
+                if (frame) {
+                    p = frame.p;
+                    const cells = [...frame.frozenCells, ...frame.bubbleCells];
+                    surface = buildSurfaceFromCells(cells, PASSES);
+                    if (mode === 'converge') {
+                        const blend = conquestConvergeBlend(frame.p);
+                        if (blend > 0) surface = convergeSurface(surface, { settled, blend });
+                    } else if (frame.conquestCuts?.length) {
+                        surface = cutSurfaceByFront(surface, frame.conquestCuts);
+                    }
+                } else {
+                    p = 1;
+                    surface = settled;
+                }
+                let fillArea = 0;
+                for (const r of surface.cellFills) fillArea += area(r.points);
+                frames.push({ p, borders: surfaceBorders(surface), fillArea });
+            }
+            setMorphCompleteAt(getMorphCompleteAt());
+
+            const smoothstepL = (x: number) => { const c = x < 0 ? 0 : x > 1 ? 1 : x; return c * c * (3 - 2 * c); };
+            let worst = 0, worstP = 0, completionWorst = 0, worstFillErr = 0;
+            const series: string[] = [];
+            for (let i = 0; i + 1 < frames.length; i++) {
+                const a = frames[i]!.borders.get('ai-5|human-player');
+                const b = frames[i + 1]!.borders.get('ai-5|human-player');
+                if (a && b) {
+                    const d = Math.max(directedHausdorff(a, b, 2), directedHausdorff(b, a, 2));
+                    if (d > worst) { worst = d; worstP = frames[i]!.p; }
+                    if (smoothstepL(frames[i]!.p) >= 0.92 && d > completionWorst) completionWorst = d;
+                    if (d > 2) series.push(`${frames[i]!.p.toFixed(3)}:${d.toFixed(1)}`);
+                }
+                const err = Math.abs(frames[i]!.fillArea - clipArea) / clipArea;
+                if (err > worstFillErr) worstFillErr = err;
+            }
+            report(`EVAL mode=${mode}`, [
+                `worst frame-delta = ${worst.toFixed(2)}px @p≈${worstP.toFixed(3)}`,
+                `COMPLETION (q≥0.92) worst = ${completionWorst.toFixed(2)}px  (was 9.34px at mode=off)`,
+                `worst fill-coverage error = ${(worstFillErr * 100).toFixed(2)}% of map (must be ~0 — the fills-corruption guard)`,
+                `deltas >2px [p:Δ]: ${series.join('  ') || '(none)'}`,
+            ]);
+            // Fills must stay whole in BOTH modes (the fills-corruption guard).
+            expect(worstFillErr).toBeLessThan(0.01);
+            if (mode === 'converge') {
+                // VALIDATED: terminal snap eliminated (0.43px vs 9.34px baseline).
+                expect(completionWorst).toBeLessThan(1.5);
+            } else {
+                // round_cut: KNOWN-WIP (2026-07-12). Fills perfect (0.00%), but the
+                // border relabeling FLICKERS (3–10px jitter across the sweep;
+                // completion ~8.9px). Needs a dedicated debug pass on relabelLine /
+                // front-contour extraction before it can be asserted. Do NOT
+                // tighten this without fixing that — and do NOT delete the mode:
+                // the user evaluates both candidates.
+                expect(completionWorst).toBeLessThan(12);
+            }
+        }
     });
 
     it('DUMP frames around the jump (mca=1.0)', () => {

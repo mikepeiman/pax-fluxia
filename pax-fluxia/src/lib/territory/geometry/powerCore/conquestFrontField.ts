@@ -55,6 +55,48 @@ export function splitCellByFront(
     return splitLinear(cell, front, q);
 }
 
+/**
+ * The front's arrival-time field over a ring: T(x) and the threshold c at
+ * progress q, computed EXACTLY as the corresponding split does (linear:
+ * projection span over vertices; radial: boundary-segment minD → vertex maxD).
+ * Points with T(x) ≤ c are on the INCOMING owner's side. Exported so the
+ * deferred-cut path (round-then-cut, END_SNAP_FIX_EVAL) classifies border
+ * portions BY CONSTRUCTION from the same field that shapes the fill split —
+ * never by hand-enumerated rules.
+ */
+export function frontFieldOn(
+    ring: readonly Point[],
+    front: ConquestFront,
+    q: number,
+): { T: (p: readonly [number, number]) => number; c: number } {
+    if (front.mode === 'radial') {
+        const sx = front.originX;
+        const sy = front.originY;
+        const T = (p: readonly [number, number]) => Math.hypot(p[0] - sx, p[1] - sy);
+        let minD = Infinity;
+        let maxD = -Infinity;
+        const n = ring.length;
+        for (let i = 0; i < n; i++) {
+            const d = segDist(sx, sy, ring[i]!, ring[(i + 1) % n]!);
+            if (d < minD) minD = d;
+            const dv = T(ring[i]!);
+            if (dv > maxD) maxD = dv;
+        }
+        return { T, c: maxD - minD < 1e-6 ? maxD : minD + (maxD - minD) * q };
+    }
+    const ux = front.dirX;
+    const uy = front.dirY;
+    const T = (p: readonly [number, number]) => p[0] * ux + p[1] * uy;
+    let minP = Infinity;
+    let maxP = -Infinity;
+    for (const p of ring) {
+        const v = T(p);
+        if (v < minP) minP = v;
+        if (v > maxP) maxP = v;
+    }
+    return { T, c: maxP - minP < 1e-9 ? maxP : minP + (maxP - minP) * q };
+}
+
 function part(cell: PowerCell, starId: string, ownerId: string, points: Point[]): PowerCell {
     return { ...cell, siteId: starId, ownerId, points };
 }

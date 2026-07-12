@@ -17,6 +17,8 @@
 import { buildSharedEdgeGraph } from './sharedEdgeGraph';
 import { smoothSharedEdges } from './smoothSharedEdges';
 import { chainEdgesIntoPolylines } from './buildPowerCoreAuthoritySnapshot';
+import { splitCellByFront, frontFieldOn } from './conquestFrontField';
+import type { ConquestCut } from './kineticTypes';
 import {
     WORLD_OWNER,
     type Point,
@@ -26,6 +28,8 @@ import {
 
 export interface SurfaceRegion {
     readonly ownerId: string;
+    /** Generator cell's siteId — the per-cell identity (fills are PER-CELL). */
+    readonly siteId?: string;
     readonly points: Point[];
 }
 
@@ -285,7 +289,322 @@ export function buildSurfaceFromCells(
         if (ring.length >= 2 && ptKey(ring[0]![0], ring[0]![1]) === ptKey(ring[ring.length - 1]![0], ring[ring.length - 1]![1])) {
             ring.pop();
         }
-        if (ring.length >= 3) cellFills.push({ ownerId: cell.ownerId, points: ring });
+        if (ring.length >= 3) {
+            cellFills.push({ ownerId: cell.ownerId, siteId: cell.siteId, points: ring });
+        }
+    }
+
+    return { cellFills, frontiers, worldBorders };
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// END_SNAP_FIX_EVAL — two candidate fixes for the end-of-transition border snap
+// (root cause: differential Chaikin rounding; see the 2026-07-12 post-mortem +
+// endSnapFrameDelta.harness.test.ts). BOTH are behind the TERRITORY_END_SNAP_FIX
+// toggle for user evaluation; after a winner is chosen, remove the loser and
+// this banner. Everything below this line is eval scaffolding.
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ── Candidate 1: 'converge' — project the morph surface onto the SETTLED
+//    surface over the final approach (identity correspondence, LIKE-TO-LIKE:
+//    fills match per-siteId onto per-cell settled fills; frontiers per owner-
+//    pair; world borders per owner; same coordinate space, same assembly). ────
+
+export interface SurfaceConvergeTarget {
+    /** The SETTLED surface (buildSurfaceFromCells of the settled cells). */
+    readonly settled: CellSurface;
+    /** 0 = pure morph surface; 1 = fully landed on the settled surface. */
+    readonly blend: number;
+}
+
+/** Nearest point to (px,py) on a polyline set; null if empty. */
+function nearestOnPolys(
+    px: number,
+    py: number,
+    polys: readonly (readonly (readonly [number, number])[])[],
+): [number, number] | null {
+    let best: [number, number] | null = null;
+    let bestD2 = Infinity;
+    for (const poly of polys) {
+        for (let i = 0; i + 1 < poly.length; i++) {
+            const ax = poly[i]![0];
+            const ay = poly[i]![1];
+            const dx = poly[i + 1]![0] - ax;
+            const dy = poly[i + 1]![1] - ay;
+            const len2 = dx * dx + dy * dy;
+            let t = len2 > 1e-12 ? ((px - ax) * dx + (py - ay) * dy) / len2 : 0;
+            t = t < 0 ? 0 : t > 1 ? 1 : t;
+            const cx = ax + t * dx;
+            const cy = ay + t * dy;
+            const d2 = (px - cx) ** 2 + (py - cy) ** 2;
+            if (d2 < bestD2) {
+                bestD2 = d2;
+                best = [cx, cy];
+            }
+        }
+    }
+    return best;
+}
+
+function lerpPoly(
+    poly: readonly Point[],
+    target: readonly (readonly (readonly [number, number])[])[] | undefined,
+    blend: number,
+): Point[] {
+    if (!target || target.length === 0) return poly.map((p) => [p[0], p[1]] as Point);
+    const out: Point[] = [];
+    for (const p of poly) {
+        const t = nearestOnPolys(p[0], p[1], target);
+        if (t) out.push([p[0] + (t[0] - p[0]) * blend, p[1] + (t[1] - p[1]) * blend]);
+        else out.push([p[0], p[1]]);
+    }
+    return out;
+}
+
+/**
+ * Converge a morph surface toward the settled surface by `blend`. LIKE-TO-LIKE
+ * only: each fill projects onto the settled fill with the SAME siteId (a split
+ * part shares the captured siteId ⇒ both parts land on the settled captured
+ * cell); anything without a same-siteId settled counterpart is left untouched.
+ * Frontiers project per owner-pair; world borders per owner. All three surfaces
+ * derive from the same settled assembly ⇒ fills and borders stay consistent.
+ */
+export function convergeSurface(
+    surface: CellSurface,
+    target: SurfaceConvergeTarget,
+): CellSurface {
+    const blend = target.blend < 0 ? 0 : target.blend > 1 ? 1 : target.blend;
+    if (blend <= 0) return surface;
+    const settled = target.settled;
+
+    const pairKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+    const byPair = new Map<string, [number, number][][]>();
+    for (const f of settled.frontiers) {
+        const k = pairKey(f.ownerA, f.ownerB);
+        (byPair.get(k) ?? byPair.set(k, []).get(k)!).push(f.points);
+    }
+    const byWorldOwner = new Map<string, [number, number][][]>();
+    for (const w of settled.worldBorders) {
+        (byWorldOwner.get(w.ownerA) ?? byWorldOwner.set(w.ownerA, []).get(w.ownerA)!).push(w.points);
+    }
+    const bySite = new Map<string, Point[][]>();
+    for (const r of settled.cellFills) {
+        if (!r.siteId) continue;
+        (bySite.get(r.siteId) ?? bySite.set(r.siteId, []).get(r.siteId)!).push(r.points);
+    }
+
+    return {
+        frontiers: surface.frontiers.map((f) => ({
+            ...f,
+            points: lerpPoly(f.points, byPair.get(pairKey(f.ownerA, f.ownerB)), blend) as [number, number][],
+        })),
+        worldBorders: surface.worldBorders.map((w) => ({
+            ...w,
+            points: lerpPoly(w.points, byWorldOwner.get(w.ownerA), blend) as [number, number][],
+        })),
+        cellFills: surface.cellFills.map((r) => {
+            const t = r.siteId ? bySite.get(r.siteId) : undefined;
+            if (!t) return r; // no same-siteId counterpart → NEVER cross-project
+            return { ...r, points: lerpPoly(r.points, t, blend) };
+        }),
+    };
+}
+
+// ── Candidate 2: 'round_cut' — the surface was built from UNSPLIT cells
+//    (rounding is byte-identical to idle); apply the conquest cut AFTERWARDS.
+//    Classification is BY CONSTRUCTION: fills split by splitCellByFront on the
+//    ROUNDED ring; border portions relabel by the SAME field's sign (T(x) > c
+//    = old-owner side), restricted to points lying ON the captured ring. ─────
+
+const ON_RING_EPS = 0.75; // px — ring points and frontier points share smoothedPts exactly
+
+function distToRing(px: number, py: number, ring: readonly Point[]): number {
+    let best = Infinity;
+    const n = ring.length;
+    for (let i = 0; i < n; i++) {
+        const [ax, ay] = ring[i]!;
+        const [bx, by] = ring[(i + 1) % n]!;
+        const dx = bx - ax;
+        const dy = by - ay;
+        const len2 = dx * dx + dy * dy;
+        let t = len2 > 1e-12 ? ((px - ax) * dx + (py - ay) * dy) / len2 : 0;
+        t = t < 0 ? 0 : t > 1 ? 1 : t;
+        const d2 = (px - (ax + t * dx)) ** 2 + (py - (ay + t * dy)) ** 2;
+        if (d2 < best) best = d2;
+    }
+    return Math.sqrt(best);
+}
+
+/**
+ * Apply deferred conquest cuts to a ROUNDED surface. For each cut:
+ *  - the captured cell's rounded fill splits into victor/old parts (same
+ *    splitCellByFront, run on the rounded ring — convexity is preserved by
+ *    corner-cutting, so the exact walk applies);
+ *  - every frontier/world-border portion ON the captured ring with T(x) > c
+ *    flips to the OLD owner's pair (dropped entirely if that pair is
+ *    same-owner); crossings are interpolated so the flip point is exact;
+ *  - the front contour itself (the split parts' off-ring boundary) is added
+ *    as the victor|old frontier.
+ * At q→1 the old side vanishes ⇒ the surface IS the settled rounded map —
+ * nothing pops, by construction.
+ */
+export function cutSurfaceByFront(
+    surface: CellSurface,
+    cuts: readonly ConquestCut[],
+): CellSurface {
+    let frontiers = [...surface.frontiers];
+    let worldBorders = [...surface.worldBorders];
+    let cellFills = [...surface.cellFills];
+
+    for (const cut of cuts) {
+        const fillIdx = cellFills.findIndex((r) => r.siteId === cut.siteId);
+        if (fillIdx < 0) continue;
+        const fill = cellFills[fillIdx]!;
+        const ring = fill.points;
+        if (ring.length < 3) continue;
+
+        const { T, c } = frontFieldOn(ring, cut.front, cut.q);
+        const onRing = (p: readonly [number, number]) =>
+            distToRing(p[0], p[1], ring) < ON_RING_EPS;
+        const oldSide = (p: readonly [number, number]) => onRing(p) && T(p) > c;
+
+        // ── Fills: split the rounded ring by the front. ─────────────────────
+        const parts = splitCellByFront(
+            { ...fill, siteId: cut.siteId, ownerId: cut.front.ownerIn, points: ring.map((p) => [p[0], p[1]] as Point) } as PowerCell,
+            cut.front,
+            cut.q,
+        );
+        const newFills: SurfaceRegion[] = parts.map((part) => ({
+            ownerId: part.ownerId,
+            siteId: cut.siteId,
+            points: part.points,
+        }));
+        cellFills.splice(fillIdx, 1, ...newFills);
+
+        // ── Front contour: victor part's off-ring runs (+ their on-ring
+        //    neighbours as endpoints) = the moving victor|old border. ────────
+        const victorPart = parts.find((p) => p.ownerId === cut.front.ownerIn);
+        if (victorPart && parts.length > 1) {
+            const vp = victorPart.points;
+            const m = vp.length;
+            const off = vp.map((p) => !onRing(p));
+            for (let start = 0; start < m; start++) {
+                if (!off[start] || off[(start - 1 + m) % m]) continue;
+                // start of an off-ring run
+                const contour: Point[] = [vp[(start - 1 + m) % m]!];
+                let i = start;
+                while (off[i % m] && contour.length <= m) {
+                    contour.push(vp[i % m]!);
+                    i++;
+                }
+                contour.push(vp[i % m]!);
+                if (contour.length >= 2) {
+                    const a = cut.front.ownerIn < cut.front.ownerOld;
+                    frontiers.push({
+                        ownerA: a ? cut.front.ownerIn : cut.front.ownerOld,
+                        ownerB: a ? cut.front.ownerOld : cut.front.ownerIn,
+                        points: contour.map((p) => [p[0], p[1]] as [number, number]),
+                        closed: false,
+                    });
+                }
+            }
+        }
+
+        // ── Borders: relabel old-side portions of every line touching the
+        //    ring. Field-sign classification — zero hand-enumerated cases. ───
+        const relabelLine = (
+            pts: readonly (readonly [number, number])[],
+            emit: (run: [number, number][], toOld: boolean) => void,
+        ): void => {
+            let run: [number, number][] = [];
+            let runOld: boolean | null = null;
+            const flush = () => {
+                if (run.length >= 2 && runOld !== null) emit(run, runOld);
+                run = [];
+                runOld = null;
+            };
+            for (let i = 0; i < pts.length; i++) {
+                const p = pts[i]!;
+                const pOld = oldSide(p);
+                if (runOld === null) {
+                    run.push([p[0], p[1]]);
+                    runOld = pOld;
+                    continue;
+                }
+                if (pOld === runOld) {
+                    run.push([p[0], p[1]]);
+                    continue;
+                }
+                // classification flips between prev and p
+                const prev = run[run.length - 1]!;
+                const bothOn = onRing(prev) && onRing(p);
+                if (bothOn) {
+                    // T crossed c along the ring: interpolate the exact crossing.
+                    const ta = T(prev);
+                    const tb = T(p);
+                    const t = Math.abs(tb - ta) > 1e-12 ? (c - ta) / (tb - ta) : 0.5;
+                    const x: [number, number] = [
+                        prev[0] + (p[0] - prev[0]) * Math.max(0, Math.min(1, t)),
+                        prev[1] + (p[1] - prev[1]) * Math.max(0, Math.min(1, t)),
+                    ];
+                    run.push(x);
+                    flush();
+                    run = [x, [p[0], p[1]]];
+                    runOld = pOld;
+                } else {
+                    // Left/entered the ring: the previous vertex is the shared
+                    // break point — it ends the old run and starts the new one.
+                    flush();
+                    run = [
+                        [prev[0], prev[1]],
+                        [p[0], p[1]],
+                    ];
+                    runOld = pOld;
+                }
+            }
+            flush();
+        };
+
+        const nextFrontiers: SurfaceFrontier[] = [];
+        for (const f of frontiers) {
+            const touchesVictor = f.ownerA === cut.front.ownerIn || f.ownerB === cut.front.ownerIn;
+            if (!touchesVictor) {
+                nextFrontiers.push(f);
+                continue;
+            }
+            const other = f.ownerA === cut.front.ownerIn ? f.ownerB : f.ownerA;
+            relabelLine(f.points, (runPts, toOld) => {
+                if (!toOld) {
+                    nextFrontiers.push({ ...f, points: runPts, closed: false });
+                    return;
+                }
+                if (other === cut.front.ownerOld) return; // old|old → not a border
+                const a = cut.front.ownerOld < other;
+                nextFrontiers.push({
+                    ownerA: a ? cut.front.ownerOld : other,
+                    ownerB: a ? other : cut.front.ownerOld,
+                    points: runPts,
+                    closed: false,
+                });
+            });
+        }
+        frontiers = nextFrontiers;
+
+        const nextWorld: SurfaceFrontier[] = [];
+        for (const w of worldBorders) {
+            if (w.ownerA !== cut.front.ownerIn) {
+                nextWorld.push(w);
+                continue;
+            }
+            relabelLine(w.points, (runPts, toOld) => {
+                nextWorld.push(
+                    toOld
+                        ? { ...w, ownerA: cut.front.ownerOld, points: runPts, closed: false }
+                        : { ...w, points: runPts, closed: false },
+                );
+            });
+        }
+        worldBorders = nextWorld;
     }
 
     return { cellFills, frontiers, worldBorders };
