@@ -59,13 +59,37 @@ superseding docs:
   ROOT CAUSE RESTATED (fully consistent with all measurements): Chaikin chains are FRAGMENTED at the moving
   front's crossing points (owner-pair changes = pinned chain ends), and rounding depth depends on fragment
   length/tessellation ⇒ the captured cell's corners round shallow mid-morph and deep at settle ⇒ ~9px pop.
-  THE CORRECT ARCHITECTURE (user-confirmed direction; NOT yet built): ROUND-THEN-SPLIT. Order of operations
-  today: diagram → SPLIT by front → conform → graph → round (rounding sees transition-polluted input). Correct
-  order: diagram → graph → round (IDENTICAL to idle, byte-for-byte, every frame) → THEN cut the rounded captured
-  cell by the front for presentation (fills + borders from the same cut). Rounding becomes frame-invariant BY
-  CONSTRUCTION; the final frame IS the settled rounded map with the cut vanished; no convergence/projection/
-  blending step exists. Answers the user's design question: morph settled-PRE→settled-POST directly; the front
-  split is the ONLY transition-specific step and it must run DOWNSTREAM of rounding.
+  PROPOSED (NOT confirmed, NOT built — user ordered a red-team first): ROUND-THEN-SPLIT. Order today:
+  diagram → SPLIT by front → conform → graph → round (rounding sees transition-polluted input). Proposed:
+  diagram → graph → round (identical to idle every frame) → THEN cut the rounded captured cell by the front.
+  CORRECTIONS TO THIS ENTRY (2026-07-12, same day — user rulings + red-team):
+  • Triage-1 reclassified: live-reload of WIP is ORDINARY EXPECTED OPERATION, not a process failure. The real
+    failures: a fixable WIP bug (fills projected onto MERGED region rings instead of per-cell targets) +
+    declaring "validated" off one metric + misclassifying WIP breakage as architectural catastrophe.
+  • The reversion was NOT commanded. User's imperatives were STOP / CONDUCT triage / AUDIT / ANALYZE / answer;
+    "REVERSION and FRESH START are likely indicated" was a hedged hypothesis. Executing the revert violated
+    the standing ask-before-reverting rule. All reverted WIP is reconstructable byte-exact from the session
+    transcript (SurfaceConvergeTarget machinery, conquestConvergeBlend, family wiring, harness CONVERGENCE
+    test that measured 0.4px completion).
+  • Audit P1 line "not one attempt asked why the pipeline produces two different roundings" is FALSE — the
+    diagnosis phase asked and ANSWERED exactly that (passes=0 ⇒ zero snap; decimation/resample were attempts
+    at density-independent rounding). The true narrow failure: at FIX-SELECTION, never escalated from
+    input-normalization to reordering the pipeline, and the first two fixes predated the correct diagnosis.
+  • Audit P3 miscast: vertex-correspondence animation is NOT inherently unreliable (user correction — the
+    current engine IS identity-correspondence at site level; the historical failures were raw boundary-vertex
+    pairing pre-current-architecture). The projection's failure was the like-to-like mismatch bug, not the
+    principle.
+  • RED-TEAM of round-then-split (user: "sounds/smells like a previously-executed error" — CONFIRMED): it
+    re-enters the REVERTED split-after-smoothing family (cells unsplit through the graph, conquest as
+    presentation overlay) whose fatal step was border CLASSIFICATION — hand-enumerated pair rules shattered
+    on live maps (contest/corridor virtuals, shared siteIds). Also "settled map + knife" is wrong mid-frame
+    (frames are INTERPOLATED diagrams until ramps complete; endpoint identity still holds, B=C=0.00px).
+    Viable synthesis to evaluate: DUAL ASSEMBLY — geometry from the unsplit rounded graph (idle-identical
+    rounding) + classification/crossings from the split-cell graph (by construction, as today) mapped onto
+    the rounded chains via the existing raw-edge→smoothed-portion index (cellFills' lookupEdge). Cost: 2nd
+    graph build on morph frames. NOT chosen; awaiting user.
+  • New working rules (memorized): ≤10 targeted tests per run; pre-fix checkpoint (root cause → best-design
+    answer → does the fix match; surface gaps instead of silently minimizing).
 - [ ] **End-snap ROOT CAUSE PROVEN = differential Chaikin rounding (2026-07-12). Fix attempts reverted; needs a smoothing-model decision + visual sign-off.**
   `[territory][transitions]` Harness: `endSnapFrameDelta.harness.test.ts` (green, documents the 9.3px defect).
   User's exact symptom (their words): "a SHARP POINT that snaps back to the rounded settled border" — on #13→#7,
