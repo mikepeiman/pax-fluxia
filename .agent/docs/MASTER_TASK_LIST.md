@@ -28,6 +28,42 @@ superseding docs:
 
 ---
 
+## 2026-07-12
+
+### Open
+- [ ] **End-snap ROOT CAUSE PROVEN = differential Chaikin rounding (2026-07-12). Fix attempts reverted; needs a smoothing-model decision + visual sign-off.**
+  `[territory][transitions]` Harness: `endSnapFrameDelta.harness.test.ts` (green, documents the 9.3px defect).
+  User's exact symptom (their words): "a SHARP POINT that snaps back to the rounded settled border" — on #13→#7,
+  #10→#3, #3→#0. DEFINITIVE mechanism, measured (raw-vs-smoothed dump at the star-7 far corner 778.8,516.5):
+    • passes=0 ⇒ ZERO snap. morph-corner RAW (778.8,516.5) == settled-corner RAW (778.8,516.5). So the snap is
+      ENTIRELY in the smoothing, not the geometry/front/retirement/pipeline.
+    • passes=2 ⇒ Chaikin rounds the SETTLED corner (a single SHARP vertex, long neighbour edges) deeply →
+      (778.4,506.9), ~9.6px inward. But during the morph the SAME corner is presented as an OVER-SUBDIVIDED
+      CURVE (the conquest front arc + conformCellBoundaries crossing splices = many short segments), and
+      Chaikin's corner-cut DEPTH scales with segment length ⇒ the morph corner rounds only shallowly (stays
+      ~516) → the ~9px gap. When the front retires to the whole cell the corner finally rounds → the pop.
+    • NOT a pin (graph is degree-2 same-owner-pair at the tip in BOTH morph and settle). NOT the arc SHAPE per se
+      (linear front snaps WORSE, 15px). It is density-dependent rounding depth: curve (shallow) vs sharp vertex (deep).
+    • Corrects ALL prior diagnoses incl. the 2026-07-11 harness entry (which called it a terminal geometry
+      discontinuity): the geometry is fine; the SMOOTHING is the whole cause.
+  FIX ATTEMPTS (all REVERTED — kept transition clean; none clean-eliminated it):
+    • smoothSharedEdges Douglas-Peucker decimation before Chaikin (density-normalize): 9.3→~8.6px @eps1, plateaus
+      ~7px @eps5 (aggressive, global blast radius). Converges the LATE frames but the curve→sharp-vertex flip is
+      BINARY at the eps threshold ⇒ relocates the pop, doesn't remove it.
+    • conquestFrontField convergence blend (arc → cell boundary; arc-length map AND projection variants) +
+      decimation: best ~6.5px, but the blend ONSET itself pops and the flip stays binary.
+  WHY no clean localized fix: (a) fill+border share ONE smoothed source, so blending BORDER output alone tears the
+  fill; (b) blending CELLS needs vertex correspondence (project history: NEVER reliable); (c) the curve↔sharp-vertex
+  rounding depth is bimodal, so split/decimation tweaks only move the threshold. GUARDRAIL: territory geometry
+  changes need VISUAL sign-off — a global smoothing change can't ship on harness numbers alone.
+  REAL FIX CANDIDATES (need user pick + visual verify): (1) DENSITY-INDEPENDENT smoother — resample each chain to
+  uniform arc-length (or round by a fixed spatial radius/fillet) before/instead of Chaikin, so a subdivided curve
+  and a sharp vertex round to the SAME depth. Root-cause fix, but touches EVERY border (idle too) → must eyeball
+  idle look. (2) FRONTIER CROSSFADE — near q→1 blend the captured-cell surface toward input.geometry (settled);
+  converges by construction but must blend CELLS (fill+border consistency) → correspondence risk. (3) Accept the
+  decimation as a partial improvement (late frames converge; residual ~7px earlier in the sweep). Recommend (1),
+  gated by a side-by-side idle-border screenshot for the user.
+
 ## 2026-07-11
 
 ### Open

@@ -280,7 +280,7 @@ interface Frame {
     rawBorders: BorderMap;
 }
 
-function runTimeline(morphCompleteAt: number, fps = 60): Frame[] {
+function runTimeline(morphCompleteAt: number, fps = 60, frontMode: 'radial' | 'linear' = 'radial'): Frame[] {
     setMorphCompleteAt(morphCompleteAt);
     const rt = new KineticTransitionRuntime();
     rt.commit({
@@ -290,7 +290,7 @@ function runTimeline(morphCompleteAt: number, fps = 60): Frame[] {
     rt.commit({
         state: S1.state, clip: S1.clip, ownershipVersion: 'v1',
         transitionKey: 'sess:star-7:human-player:ai-5', nowMs: 0, durationMs: DURATION,
-        conquestOrigins: CONQUEST_ORIGINS, conquestFrontMode: 'radial',
+        conquestOrigins: CONQUEST_ORIGINS, conquestFrontMode: frontMode,
     });
 
     const dt = 1000 / fps;
@@ -317,6 +317,19 @@ function runTimeline(morphCompleteAt: number, fps = 60): Frame[] {
     return frames;
 }
 
+function cellsAt(nowMs: number, morphCompleteAt: number) {
+    setMorphCompleteAt(morphCompleteAt);
+    const rt = new KineticTransitionRuntime();
+    rt.commit({ state: S0.state, clip: S0.clip, ownershipVersion: 'v0', transitionKey: null, nowMs: 0, durationMs: DURATION });
+    rt.commit({
+        state: S1.state, clip: S1.clip, ownershipVersion: 'v1',
+        transitionKey: 'sess:star-7:human-player:ai-5', nowMs: 0, durationMs: DURATION,
+        conquestOrigins: CONQUEST_ORIGINS, conquestFrontMode: 'radial',
+    });
+    const frame = rt.sampleFull(nowMs);
+    return frame ? [...frame.frozenCells, ...frame.bubbleCells] : [];
+}
+
 function report(title: string, lines: string[]): void {
     // eslint-disable-next-line no-console
     console.log(`\n===== ${title} =====\n${lines.join('\n')}`);
@@ -339,6 +352,72 @@ describe('END-SNAP frame-delta harness (arena-further star-13 → star-7)', () =
         ]);
         expect(NEW_OWNER).toBe('ai-5');
         expect(OLD_OWNER).toBe('human-player');
+    });
+
+    it('COMPARE radial vs linear front — does the dense arc cause the deeper snap?', () => {
+        const worstOf = (mode: 'radial' | 'linear') => {
+            const frames = runTimeline(1.0, 60, mode);
+            let worst = 0;
+            for (let i = 0; i + 1 < frames.length; i++) {
+                const a = frames[i]!.borders.get('ai-5|human-player');
+                const b = frames[i + 1]!.borders.get('ai-5|human-player');
+                if (!a || !b) continue;
+                const d = Math.max(directedHausdorff(a, b, 2), directedHausdorff(b, a, 2));
+                if (d > worst) worst = d;
+            }
+            return worst;
+        };
+        report('RADIAL vs LINEAR worst active-front snap', [
+            `radial = ${worstOf('radial').toFixed(2)}px`,
+            `linear = ${worstOf('linear').toFixed(2)}px`,
+        ]);
+        expect(true).toBe(true);
+    });
+
+    it('DIAGNOSE the split at the tip (778.8,516.5) — the transient old-owner sliver', () => {
+        const TIP: [number, number] = [778.8, 516.5];
+        const dump = (label: string, cells: ReturnType<typeof cellsAt>) => {
+            const lines: string[] = [`--- ${label}: cells with a vertex within 1.5px of tip ---`];
+            for (const c of cells) {
+                const hit = c.points.filter((p) => Math.hypot(p[0] - TIP[0], p[1] - TIP[1]) < 1.5);
+                if (hit.length === 0) continue;
+                lines.push(`  site=${c.siteId} owner=${c.ownerId} vtxAtTip=${hit.map((p) => `(${p[0].toFixed(2)},${p[1].toFixed(2)})`).join(',')} nPts=${c.points.length}`);
+            }
+            return lines;
+        };
+        const morph = cellsAt(983.3, 1.0);
+        const settled = S1.state.cells;
+        report('PIN DIAGNOSIS', [
+            ...dump('MORPH f59 (p=0.983)', morph),
+            ...dump('SETTLED (S1)', settled),
+            `(a spurious tiny old-owner cap cell at the tip ⇒ extra ai-5|human edges ⇒ degree>2 ⇒ pinned ⇒ sharp)`,
+        ]);
+        expect(morph.length).toBeGreaterThan(0);
+    });
+
+    it('DUMP frames around the jump (mca=1.0)', () => {
+        const frames = runTimeline(1.0);
+        const key = 'ai-5|human-player';
+        const near = (polys: Poly[] | undefined) => {
+            if (!polys) return '(absent)';
+            const pts: string[] = [];
+            for (const poly of polys) for (const [x, y] of poly) {
+                if (Math.hypot(x - 779, y - 517) < 40) pts.push(`(${x.toFixed(1)},${y.toFixed(1)})`);
+            }
+            return pts.length ? pts.join(' ') : '(none near)';
+        };
+        const lines: string[] = [];
+        for (let i = 57; i < Math.min(frames.length, 63); i++) {
+            const f = frames[i]!;
+            lines.push(`f${i} p=${f.p.toFixed(4)} retired=${f.retired}`);
+            lines.push(`   smoothed: ${near(f.borders.get(key))}`);
+            lines.push(`   raw     : ${near(f.rawBorders.get(key))}`);
+        }
+        // Settled, both ways: does the RAW settled cell also have the sharp corner?
+        lines.push(`settled RAW (buildSurfaceFromCells(S1,0)): ${near(bordersFromCells(S1.state.cells, 0).get(key))}`);
+        lines.push(`settled SMOOTHED (buildSurfaceFromCells(S1,${PASSES})): ${near(bordersFromCells(S1.state.cells, PASSES).get(key))}`);
+        report('FRAME DUMP near (779,517) — raw vs smoothed', lines);
+        expect(frames.length).toBeGreaterThan(60);
     });
 
     for (const mca of [0.92, 1.0]) {
@@ -466,7 +545,15 @@ describe('END-SNAP frame-delta harness (arena-further star-13 → star-7)', () =
                         return `[${x0.toFixed(0)},${y0.toFixed(0)}..${x1.toFixed(0)},${y1.toFixed(0)}]`;
                     };
                     const ptCount = (polys: Poly[]) => polys.reduce((n, p) => n + p.length, 0);
+                    // WHERE is the worst point? (star-7 is at ~750,468)
+                    let wx = 0, wy = 0, wd = 0;
+                    for (const [px, py] of sample(pa, 2)) {
+                        const d = distPointToPolys(px, py, [...pb]);
+                        if (d > wd) { wd = d; wx = px; wy = py; }
+                    }
+                    const s7 = MAP.stars.find((s) => s.id === CAPTURED)!;
                     report(`morphCompleteAt=${mca} — JUMP ANATOMY (pair ${worst.key}, p ${fa.p.toFixed(3)}→${fb.p.toFixed(3)})`, [
+                        `worst point at (${wx.toFixed(0)},${wy.toFixed(0)}) dist=${wd.toFixed(2)}px — star-7 at (${s7.x.toFixed(0)},${s7.y.toFixed(0)}), attacker star-13 at (${ATTACKER_POS.x.toFixed(0)},${ATTACKER_POS.y.toFixed(0)})`,
                         `directed morph→settled = ${aToB.toFixed(2)}px   directed settled→morph = ${bToA.toFixed(2)}px`,
                         `morph(before): polylines=${pa.length} points=${ptCount(pa)} totalLen=${len(pa).toFixed(0)}px bbox=${bbox(pa)}`,
                         `settled(after): polylines=${pb.length} points=${ptCount(pb)} totalLen=${len(pb).toFixed(0)}px bbox=${bbox(pb)}`,
