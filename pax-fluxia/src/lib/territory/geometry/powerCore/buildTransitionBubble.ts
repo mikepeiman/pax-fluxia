@@ -340,14 +340,12 @@ export function buildTransitionBubble(
             siteIdentityKey(a.site) < siteIdentityKey(b.site) ? -1 : 1,
         );
 
-    // ── Island detection: a captured star whose OLD owner no longer borders its
-    //    SETTLED (S1) cell has no persistent frontier to sweep. It must COLLAPSE
+    // ── Island detection: a captured star whose SETTLED (S1) cell is surrounded
+    //    ENTIRELY by the new owner has no persistent border. It must COLLAPSE
     //    (the region recedes toward the star while the surrounding new owner
     //    grows in — the power-diagram analog of the grid's radial region-shrink),
-    //    NOT flip instantly (the "disappearing island" pop) nor sweep radially.
-    //    This mirrors the grid family's engulfed-island rule (postSeeds empty).
-    //    It needs NO attack axis, so it runs on EVERY handoff independent of
-    //    conquestOrigins (and takes precedence over them). The
+    //    NOT flip instantly (the "disappearing island" pop). This needs NO attack
+    //    axis, so it runs on EVERY handoff independent of conquestOrigins. The
     //    collapse is driven purely by the diagram: the captured site's weight
     //    ramps to w0 − dMin² (the exact weight at which its cell vanishes, dMin =
     //    nearest-neighbour site distance), so its cell shrinks radially to nothing
@@ -370,48 +368,25 @@ export function buildTransitionBubble(
         s1SegOwnersMemo = idx;
         return idx;
     };
-    const cellArea = (cell: PowerCell): number => {
-        let s = 0;
-        const p = cell.points;
-        for (let i = 0; i < p.length; i++) {
-            const a = p[i]!, b = p[(i + 1) % p.length]!;
-            s += a[0] * b[1] - b[0] * a[1];
-        }
-        return Math.abs(s / 2);
-    };
-    // A settled cell this small has no meaningful border to sweep (px²). The
-    // captured star was squeezed out by same-owner neighbours + corridor
-    // virtuals — the classic "vanishing island" whose own cell is already gone.
-    const DEGENERATE_CELL_AREA = 4;
     const islandCollapseWeight = (
         starId: string,
-        oldOwner: string,
+        newOwner: string,
         w0: number,
         starX: number,
         starY: number,
     ): number | null => {
-        // Island test mirrors the grid family's engulfed-island rule
-        // (resolvePreAndPostFrontierSeeds → postSeeds empty): a capture is an
-        // island iff NO adjacent cell still holds the captured star's OLD owner,
-        // i.e. there is no surviving old-owner frontier to sweep. This is looser
-        // (and correct) vs "every neighbour is the NEW owner": an island that
-        // also touches a THIRD player is still an island (its old-owner border
-        // vanished) — the earlier strict test mis-rejected those, dropping them
-        // to the directional radial branch (the in-game "islands still sweep").
-        const cell = params.s1.cells.find(
-            (c) => c.siteId === starId && !isVirtualSiteId(c.siteId),
-        );
-        // No settled cell (or a degenerate sliver) ⇒ no border exists to sweep ⇒
-        // collapse. With a real cell, only a SURVIVING old-owner neighbour (a
-        // genuine receding frontier) disqualifies it.
-        if (cell && cellArea(cell) > DEGENERATE_CELL_AREA) {
-            const idx = s1SegOwners();
-            for (const sk of segmentKeysOf(cell)) {
-                for (const owner of idx.get(sk) ?? []) {
-                    if (owner === oldOwner) return null; // real old-owner frontier
-                }
+        const cell = params.s1.cells.find((c) => c.siteId === starId);
+        if (!cell) return null;
+        const idx = s1SegOwners();
+        let neighbors = 0;
+        for (const sk of segmentKeysOf(cell)) {
+            for (const owner of idx.get(sk) ?? []) {
+                if (owner === newOwner) continue; // self / merged neighbour
+                return null; // a different-owner neighbour ⇒ real border ⇒ not island
             }
+            neighbors++;
         }
+        if (neighbors === 0) return null;
         // Nearest OTHER site — the cell vanishes at w0 − dMin². 1.15× margin
         // guarantees full collapse just before completion (holds gone; never a
         // remnant that pops) across small neighbour-weight variance.
@@ -432,9 +407,7 @@ export function buildTransitionBubble(
     const conquestRamps: SiteRamp[] = ramps.map((r) => {
                   if (r.kind !== 'handoff') return r;
                   // Island capture → radial collapse (no attack axis needed).
-                  // Pass the OLD owner (ownerA): island ⇔ that owner no longer
-                  // borders the settled cell.
-                  const collapseWeight = islandCollapseWeight(r.starId, r.ownerA, r.w0, r.x, r.y);
+                  const collapseWeight = islandCollapseWeight(r.starId, r.ownerB, r.w0, r.x, r.y);
                   if (collapseWeight !== null) {
                       return { ...r, kind: 'conquest' as const, collapse: true, collapseWeight };
                   }

@@ -72,26 +72,12 @@ describe('island capture — radial collapse (weight-vanish)', () => {
         expect(bubble.ramps.find((r) => r.starId === 'star-c')!.collapse).toBe(true);
     });
 
-    it('NOT an island when the OLD owner still borders it (a real receding frontier)', () => {
-        // star-n stays human (the captured star-c is not fully engulfed — its
-        // old owner survives adjacent), so there IS a frontier to sweep.
-        const s0 = endpoint({ 'star-c': 'human-player', 'star-n': 'human-player' });
-        const s1 = endpoint({ 'star-c': 'ai-1', 'star-n': 'human-player' });
+    it('NOT an island when a different-owner neighbour remains (stays a normal capture)', () => {
+        const s0 = endpoint({ 'star-c': 'human-player', 'star-n': 'ai-2' });
+        const s1 = endpoint({ 'star-c': 'ai-1', 'star-n': 'ai-2' }); // star-c → ai-1 but borders ai-2
         const bubble = buildTransitionBubble({ s0: s0.state, s1: s1.state });
         const ramp = bubble.ramps.find((r) => r.starId === 'star-c')!;
         expect(ramp.collapse).toBeFalsy();
-    });
-
-    it('IS an island when only a THIRD party (not the old owner) also borders it', () => {
-        // star-c (human) captured by ai-1; a ring star is ai-2. The OLD owner
-        // (human) no longer borders star-c ⇒ no old-owner frontier ⇒ engulfed
-        // island ⇒ collapse (mirrors the grid postSeeds-empty rule). The earlier
-        // strict "all neighbours == new owner" test wrongly rejected this.
-        const s0 = endpoint({ 'star-c': 'human-player', 'star-n': 'ai-2' });
-        const s1 = endpoint({ 'star-c': 'ai-1', 'star-n': 'ai-2' });
-        const bubble = buildTransitionBubble({ s0: s0.state, s1: s1.state });
-        const ramp = bubble.ramps.find((r) => r.starId === 'star-c')!;
-        expect(ramp.collapse).toBe(true);
     });
 
     it('FRAME BEHAVIOUR: captured cell shrinks radially, neighbours fill, tiling holds', () => {
