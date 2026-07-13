@@ -26,6 +26,7 @@
  */
 
 import * as PIXI from 'pixi.js';
+import { chaikinFlat } from '$lib/territory/geometry/kernel';
 import {
     compileHighShaderGlProgram,
     localUniformBitGl,
@@ -144,34 +145,7 @@ const HEX_VERTICES_POINTY: ReadonlyArray<readonly [number, number]> = (() => {
  *
  * Input/output format: flat `[x0, y0, x1, y1, ...]`.
  */
-function chaikinOnce(pts: number[], closed: boolean): number[] {
-    const n = pts.length >> 1;
-    if (n < 3) return pts.slice();
-    const out: number[] = [];
-    const last = closed ? n : n - 1;
-    if (!closed) out.push(pts[0], pts[1]);
-    for (let i = 0; i < last; i++) {
-        const i0 = i * 2;
-        const i1 = ((i + 1) % n) * 2;
-        const x0 = pts[i0], y0 = pts[i0 + 1];
-        const x1 = pts[i1], y1 = pts[i1 + 1];
-        out.push(
-            x0 + 0.25 * (x1 - x0),
-            y0 + 0.25 * (y1 - y0),
-            x0 + 0.75 * (x1 - x0),
-            y0 + 0.75 * (y1 - y0),
-        );
-    }
-    if (!closed) out.push(pts[pts.length - 2], pts[pts.length - 1]);
-    return out;
-}
-
-/** Run multiple Chaikin passes. */
-function chaikinSmooth(pts: number[], passes: number, closed: boolean): number[] {
-    let p = pts;
-    for (let i = 0; i < passes; i++) p = chaikinOnce(p, closed);
-    return p;
-}
+// Chaikin (flat-array form) now lives in the geometry kernel (cleanup Stage 1).
 type GridWaveEase =
     | 'linear'
     | 'ease_in'
@@ -4635,7 +4609,7 @@ export class CellGridPhaseEdgesFamily implements RenderFamily {
                         pts.push(coords[0], coords[1]);
                     }
                     if (totalBorderChaikinPasses > 0) {
-                        pts = chaikinSmooth(pts, totalBorderChaikinPasses, closed);
+                        pts = chaikinFlat(pts, totalBorderChaikinPasses, closed);
                     }
                     if (trimOpenEndpoints && !closed && endpointTrimPx > 0) {
                         pts = trimOpenPolylineEndpoints(pts, endpointTrimPx);

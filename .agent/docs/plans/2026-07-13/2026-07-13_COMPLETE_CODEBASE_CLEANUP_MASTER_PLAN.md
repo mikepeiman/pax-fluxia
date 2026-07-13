@@ -120,6 +120,40 @@ one grid-wave capture for the kept cellGrid path), LOC inventory, grep inventory
 **Gate:** all green, numbers recorded here. **Risk: none.**
 
 ### Stage 1 — Geometry kernel consolidation
+
+**EXECUTION LOG (2026-07-13, Opus 4.8).** Stage 0 baseline recorded: territory suite 60 files /
+426 tests green; `bun run check` 0 errors (1 pre-existing CSS warning); src/lib non-test = 176,165 LOC;
+legacy render-mode literals present in config/themes/tests: perimeter_field×8, territory_engine×5,
+metaball×5+2, voronoi, territory_runtime, graph, ember_lattice, cell_grid.
+
+**Variant equivalence matrix (preflight — the adversary's #4 trap):**
+- CHAIKIN — 3 genuinely-distinct kernel functions required (NOT one merge):
+  (a) `chaikinSmoothPolyline(tuple[], passes)` — canonical, `0.75a+0.25b`;
+  (b) `chaikinSmoothPolygon(tuple[], passes, worldW?, worldH?, pad?, pinnedPtKeys?, eps?)` — the
+  pinning SUPERSET (geometryUtils); default args reduce bit-exactly to the plain polygon;
+  (c) `chaikinFlat(number[], passes, closed)` — flat coord form used by cellGrid Phase/Ember/Field +
+  frontier, arithmetic `x0+0.25*(x1-x0)` which is algebraically equal but NOT bit-identical to (a),
+  so kept SEPARATE to preserve subpixel output. StarRenderer's roundness variant EXEMPT (Q19).
+  Legacy renderer copies (Voronoi/Modified/DY4/contour) + plain CellGridFamily die in Stage 3.
+  renderers/geometry/chaikin.ts → deferred to Stage 2 (Q21 folds renderers/geometry into geometry home).
+- AREA — 1 primitive covers all bit-exactly: `shoelace(ring)` = raw Σ(aₓbᵧ−bₓaᵧ) (=2× signed);
+  `signedArea` = shoelace/2 (≡ the `s*0.5` copies bitwise); `polygonArea` = |shoelace/2|.
+  conquestFrontField.ringArea2 → `shoelace`; sharedEdgeGraph/buildPV0319 → `signedArea`;
+  kineticTransitionRuntime/buildInset → `polygonArea`.
+
+**Stage 1 DONE (commits 686ff0919 area + [1b chaikin]).** Kernel at
+`src/lib/territory/geometry/kernel/` {polygonArea, chaikin, index, kernel.test}. Consolidated:
+- Shoelace ×5 kept copies → kernel (buildInset's local `polygonArea` was mis-named — returned
+  SIGNED; the caller's `Math.abs` wrapper dropped as redundant).
+- Chaikin: geometryUtils tuple pair (dead-but-exported) → re-export kernel; powerVoronoiTGG tuple
+  pair (byte-identical bar 1 comment; used internally @987) → import+re-export kernel; frontier/
+  chaikin flat + CellGridPhaseEdges/PhaseField flat → kernel `chaikinFlat`.
+- DEFERRED (correct sequencing, NOT skipped): `renderers/geometry/chaikin.ts` + renderer-layer copies
+  → Stage 2 (Q21 folds renderers/geometry into the geometry home); `families/buildPowerVoronoiFrontier
+  Topology` shoelace → Stage 2 (file relocates then); legacy renderer copies (Voronoi/Modified/DY4/
+  contour) + plain CellGridFamily → die in Stage 3. StarRenderer roundness variant EXEMPT (Q19).
+- Gate: territory suite 61 files/434 green (+8 kernel), `bun run check` 0 errors, build green.
+
 **Preflight (Fable-tier judgment): variant equivalence matrix** — classify the 11 in-scope Chaikin
 copies (StarRenderer excluded per Q19) as byte-identical / parameterized / genuinely different.
 Kernel = `territory/geometry/kernel/` exposing NAMED variants: **junction-pinned (canonical for

@@ -1,4 +1,5 @@
 import * as PIXI from 'pixi.js';
+import { chaikinFlat } from '$lib/territory/geometry/kernel';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 import type { StarState } from '$lib/types/game.types';
@@ -440,37 +441,7 @@ function drawStrokedGridCell(
     graphics.rect(x - half, y - half, size, size).stroke(strokeOpts);
 }
 
-function chaikinOnce(pts: number[], closed: boolean): number[] {
-    const n = pts.length >> 1;
-    if (n < 3) return pts.slice();
-    const out: number[] = [];
-    const last = closed ? n : n - 1;
-    if (!closed) out.push(pts[0], pts[1]);
-    for (let i = 0; i < last; i++) {
-        const i0 = i * 2;
-        const i1 = ((i + 1) % n) * 2;
-        const x0 = pts[i0];
-        const y0 = pts[i0 + 1];
-        const x1 = pts[i1];
-        const y1 = pts[i1 + 1];
-        out.push(
-            x0 + 0.25 * (x1 - x0),
-            y0 + 0.25 * (y1 - y0),
-            x0 + 0.75 * (x1 - x0),
-            y0 + 0.75 * (y1 - y0),
-        );
-    }
-    if (!closed) out.push(pts[pts.length - 2], pts[pts.length - 1]);
-    return out;
-}
-
-function chaikinSmooth(pts: number[], passes: number, closed: boolean): number[] {
-    let current = pts;
-    for (let i = 0; i < passes; i++) {
-        current = chaikinOnce(current, closed);
-    }
-    return current;
-}
+// Chaikin (flat-array form) now lives in the geometry kernel (cleanup Stage 1).
 
 function drawGeometryFill(params: {
     graphics: PIXI.Graphics;
@@ -1409,7 +1380,7 @@ export class CellGridPhaseFieldFamily implements RenderFamily {
                     points.push(vertexX(vertexId), vertexY(vertexId));
                 }
                 if (totalBorderChaikinPasses > 0) {
-                    points = chaikinSmooth(points, totalBorderChaikinPasses, closed);
+                    points = chaikinFlat(points, totalBorderChaikinPasses, closed);
                 }
                 if (!closed && params.edgeTrimPx > 0) {
                     points = trimOpenPolylineEndpoints(points, params.edgeTrimPx);

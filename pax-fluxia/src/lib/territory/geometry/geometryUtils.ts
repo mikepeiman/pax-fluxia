@@ -91,85 +91,9 @@ export function polygonCentroid(pts: readonly [number, number][]): [number, numb
 }
 
 // ── Chaikin Smoothing ───────────────────────────────────────────────────────
-
-/**
- * Chaikin corner-cutting subdivision for OPEN polylines.
- * Preserves endpoints. Interior corners smoothed by 25/75 cut pairs.
- * This is a GEOMETRY operation — it changes world-coordinate positions.
- */
-export function chaikinSmoothPolyline(pts: [number, number][], passes: number): [number, number][] {
-    if (passes <= 0 || pts.length < 3) return pts;
-    let current = pts;
-    for (let iter = 0; iter < passes; iter++) {
-        const n = current.length;
-        const next: [number, number][] = [current[0]];
-        for (let i = 0; i < n - 1; i++) {
-            const [ax, ay] = current[i];
-            const [bx, by] = current[i + 1];
-            if (i === 0) {
-                next.push([ax * 0.25 + bx * 0.75, ay * 0.25 + by * 0.75]);
-            } else if (i === n - 2) {
-                next.push([ax * 0.75 + bx * 0.25, ay * 0.75 + by * 0.25]);
-            } else {
-                next.push([ax * 0.75 + bx * 0.25, ay * 0.75 + by * 0.25]);
-                next.push([ax * 0.25 + bx * 0.75, ay * 0.25 + by * 0.75]);
-            }
-        }
-        next.push(current[n - 1]);
-        current = next;
-    }
-    return current;
-}
-
-/**
- * Chaikin corner-cutting for CLOSED polygons.
- * Every edge including last→first is uniformly cut.
- *
- * Boundary-pinned variant: vertices on the world-clip boundary
- * are preserved each pass instead of being replaced by cut points.
- *
- * Junction-pinned variant: caller may pass a Set of ptKey strings for
- * Voronoi junction vertices (shared by 3+ cells). These are also preserved,
- * preventing fill gaps at 3-way territory junctions.
- */
-export function chaikinSmoothPolygon(
-    pts: [number, number][],
-    passes: number,
-    worldW: number = Infinity,
-    worldH: number = Infinity,
-    pad: number = 50,
-    pinnedPtKeys?: Set<string>,
-    boundaryEps: number = 6,
-): [number, number][] {
-    if (passes <= 0 || pts.length < 3) return pts;
-    const hasBounds = isFinite(worldW) && isFinite(worldH);
-    const eps = boundaryEps;
-
-    function isPinned(x: number, y: number): boolean {
-        if (hasBounds && (
-            x <= -pad + eps || x >= worldW + pad - eps ||
-            y <= -pad + eps || y >= worldH + pad - eps
-        )) return true;
-        if (pinnedPtKeys?.has(ptKey(x, y))) return true;
-        return false;
-    }
-
-    let current = pts;
-    for (let iter = 0; iter < passes; iter++) {
-        const n = current.length;
-        const next: [number, number][] = [];
-        for (let i = 0; i < n; i++) {
-            const [ax, ay] = current[i];
-            const [bx, by] = current[(i + 1) % n];
-            const aPin = isPinned(ax, ay);
-            const bPin = isPinned(bx, by);
-            next.push(aPin ? [ax, ay] : [ax * 0.75 + bx * 0.25, ay * 0.75 + by * 0.25]);
-            next.push(bPin ? [bx, by] : [ax * 0.25 + bx * 0.75, ay * 0.25 + by * 0.75]);
-        }
-        current = next;
-    }
-    return current;
-}
+// Impl lives in the geometry kernel (cleanup Stage 1). Re-exported here so
+// existing `geometryUtils` importers are unaffected — the kernel is the home.
+export { chaikinSmoothPolyline, chaikinSmoothPolygon } from './kernel';
 
 // ── Polygon Resampling ──────────────────────────────────────────────────────
 
