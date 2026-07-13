@@ -6179,6 +6179,11 @@
                         });
                         break;
                     }
+                    // Fallback: any unrecognised mode renders Power Vector (the
+                    // default skin). Quarantined modes are already remapped to
+                    // power_vector at the config boundary (normalizeTerritoryRender
+                    // ModeId); this guards typos / stale ids so the map never blanks.
+                    default:
                     case "power_vector": {
                         // K3a: PowerCore Vector skin — draws the kinetic runtime's
                         // live cells (frozen + morphing bubble) so conquest

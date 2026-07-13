@@ -140,12 +140,42 @@ const TERRITORY_RENDER_MODE_ALIASES: Readonly<Record<string, string>> = {
     metaball_grid: 'cell_grid',
 };
 
-/** Resolve a possibly-legacy render-mode id to its current canonical id. */
+/**
+ * Quarantine fallback (cleanup campaign Stage 3): every render mode NOT in the
+ * kept set (power_vector, grid_gradient, ember_lattice, phase_edges, phase_field,
+ * plus `none`=Off) resolves to `power_vector` on read, so saved configs / imported
+ * themes referencing a quarantined mode keep working (never crash, never blank)
+ * after its dispatch + files are removed. `cell_grid` (the plain mode) is here per
+ * ruling Q4 — the Phase/Ember/Field looks live on as their own kept ids.
+ */
+const TERRITORY_RENDER_MODE_QUARANTINE_FALLBACK: Readonly<Record<string, string>> = {
+    territory_runtime: 'power_vector',
+    power_voronoi_runtime: 'power_vector',
+    territory_engine: 'power_vector',
+    vs_pvv3: 'power_vector',
+    power_voronoi: 'power_vector',
+    modified_voronoi: 'power_vector',
+    pvv2_dy4: 'power_vector',
+    voronoi: 'power_vector',
+    distance_field: 'power_vector',
+    perimeter_field: 'power_vector',
+    metaball: 'power_vector',
+    cell_grid: 'power_vector',
+    pixel: 'power_vector',
+    graph: 'power_vector',
+    contour: 'power_vector',
+};
+
+/**
+ * Resolve a possibly-legacy render-mode id to its current canonical id: apply the
+ * rename aliases first, then the Stage-3 quarantine fallback.
+ */
 export function normalizeTerritoryRenderModeId<T extends string | null | undefined>(
     modeId: T,
 ): T | string {
     if (!modeId) return modeId;
-    return TERRITORY_RENDER_MODE_ALIASES[modeId] ?? modeId;
+    const renamed = TERRITORY_RENDER_MODE_ALIASES[modeId] ?? modeId;
+    return TERRITORY_RENDER_MODE_QUARANTINE_FALLBACK[renamed] ?? renamed;
 }
 
 /** True if this mode id is omitted from the settings Render mode row (may still run from config). */

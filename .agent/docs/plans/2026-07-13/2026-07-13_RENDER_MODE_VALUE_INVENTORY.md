@@ -19,8 +19,16 @@ phase_field. QUARANTINE everything else, with absorption duties BEFORE each move
 - **cell_grid (plain)** → mode dies; SURGICAL keep-map for families/cellGrid/ (Phase/Ember/Field
   families + planGridWave IP stay).
 - **distance_field** → quarantined intact as the resurrection blueprint (no near-term intent).
-- **fg2SeedGraph** → DEAD, but a value-mining pass over its 5,380 LOC is REQUIRED before quarantine
-  (extract non-superseded work, file:line receipts, into this doc).
+- **fg2SeedGraph** → DEAD. **Value-mining DONE (2026-07-13, Stage 3 prep):** the 5,380 LOC expose
+  exactly TWO functions (`executeFG2Stage`, `resetFG2StageCaches` @ fg2SeedGraph.ts:5327/5332) — a
+  fully self-contained orchestrator pipeline stage; no other module imports its internals, so nothing
+  shared is lost. It builds per-owner-pair frontier topology from **lane-seed points with per-lane
+  bias** (`FG2SeedPoint` {t, biasA, biasB, laneDistance, sourceAngle…}) into a typed graph of
+  seed/junction/boundary/corner nodes and star_arc/boundary_extension/boundary_perimeter links.
+  **Unique concept to preserve (doc-only):** deriving frontiers from LANE MIDPOINTS + bias (a
+  1-D-along-lanes model) rather than from cell adjacency — orthogonal to PowerCore's shared-edge/
+  cell-adjacency frontier topology. Superseded by PowerCore (watertight owner-merged cells); no code
+  to salvage. Safe to quarantine with the orchestrator.
 - **territory_runtime + layers/** → architecture documented as reference; quarantined, not kept in-tree.
 - StarRenderer's roundness-Chaikin is map-display tuning — KEEP as-is, outside the territory kernel.
 
