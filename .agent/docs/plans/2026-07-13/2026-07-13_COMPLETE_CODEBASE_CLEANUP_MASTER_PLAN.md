@@ -95,6 +95,10 @@ Plus any additional upward imports E1 finds. **Gate:** suite + check; no behavio
 **Risk: low.**
 
 ### Stage 3 — Render quarantine, Stages B→D (A already executed 2026-07-04)
+**PRECONDITION (user directive 2026-07-13):** the RENDER_MODE_VALUE_INVENTORY
+(2026-07-13_RENDER_MODE_VALUE_INVENTORY.md) is user-reviewed — every ⚠ entry answered — before any
+mode is quarantined. Quarantine = move; the inventory's "cross-cutting valuable IP" list must be
+absorbed (kernel/docs) or explicitly user-waived before any later hard delete.
 Execute the confirmed RENDER_QUARANTINE_PLAN remainder against the keep-set
 (power_vector, grid_gradient, ember_lattice, phase_edges*, phase_field + PowerCore):
 - **B — dispatch fallback:** remove quarantined `case`s from the GameCanvas render switch;
@@ -117,10 +121,15 @@ selector shows exactly the keep-set and each kept mode renders. **Risk: medium**
 - Any TEMP/eval probes E3 surfaces.
 **Gate:** suite + check + user visual pass on conquest end-snap after the toggle strip. **Risk: low.**
 
-### Stage 5 — GameCanvas decomposition (the god-file; LAST because highest risk)
-Thin the ~8k-LOC GameCanvas into a coordinator: extract (per E3's responsibility map) the render-family
-lifecycle, geometry-build scheduling, and transition scheduling into dedicated modules with the
-component retaining only wiring. One extraction per commit, suite + manual smoke between.
+### Stage 5 — God-object decomposition (LAST because highest risk)
+Primary: thin the 8,555-LOC GameCanvas into a coordinator — extract render-family lifecycle,
+geometry-build scheduling, and transition scheduling into dedicated modules; component keeps wiring
+only. One extraction per commit, suite + manual smoke between.
+Census beyond GameCanvas (from E3 + inventory; each gets an existence-challenge + decomposition
+assessment, best-practice lens not just spec conformance): GameSettingsPanel 2,946; gameStore 2,168;
+GameContainer 2,145; ControlsSection-Territory 1,939; mapEditorStore 1,813; MainMenu 1,724; surviving
+cellGrid families (4,949/3,375/2,645) get single-responsibility extraction of their pure cores
+(classification / wave plan / scene already exist as pure functions — the adapters are the bloat).
 **Gate:** suite + check + user plays a full conquest cycle per extraction. **Risk: high — never batched.**
 
 ### Stage 6 — Docs/tests alignment + final audit
