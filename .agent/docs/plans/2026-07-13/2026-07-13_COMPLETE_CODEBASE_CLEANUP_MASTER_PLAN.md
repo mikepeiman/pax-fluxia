@@ -173,6 +173,28 @@ violations while in here.
 **Gate:** suite + check; replay hash unchanged. **Risk: low.**
 
 ### Stage 3 — Render quarantine (B→D+, per-mode sub-steps)
+
+**EXECUTION LOG (2026-07-13, Opus 4.8).**
+- **3B DONE (112e6b356):** functional quarantine — every non-kept mode id remaps to power_vector at
+  the config boundary (`normalizeTerritoryRenderModeId` quarantine-fallback map) + GameCanvas switch
+  `default:` → power_vector. Legacy render paths are now UNREACHABLE in the running game; the game is
+  correct without any further 3C work. Contract test + suite + check + build green.
+- **fg2 value-mining DONE** (see VALUE_INVENTORY): 2-export self-contained stage, superseded, safe.
+- **3C ENTANGLEMENT FINDING (revises the plan):** the legacy renderers are NOT independently movable.
+  `TerritoryLegacyBridge` dynamically imports Pixel/Lane/Contour/DistanceField; `GraphTerritoryRenderer`
+  imports LaneTerritoryRenderer; the orchestrator (`territory/orchestrator`, imported by GameCanvas as
+  renderTerritoryEngine/runFG2DataPipeline/extractTerritoryRenderData) feeds territory_engine/power_
+  voronoi/pvv2; `layers/`+`runtime/` back territory_runtime via GameCanvasBridge. So 3C's safe unit is
+  ONE ATOMIC cluster move, not per-mode: move every legacy renderer + orchestrator + layers + runtime
+  + TerritoryLegacyBridge to `_quarantine/`, and in the SAME commit strip all 11 GameCanvas arms +
+  their static imports (GameCanvas.svelte lines ~67-105) + reset-cache calls (~3948-3950 + heavier
+  modes) + the runtime-bridge wiring. Then tsconfig/vite exclude `_quarantine/**` + barrel cleanup.
+- **Sequencing note surfaced:** removing the 11 dead arms IS partial GameCanvas decomposition (Stage 5).
+  Recommend doing the cluster-move as a dedicated focused pass (fresh context) — it is the single
+  largest, most delicate operation in the campaign and must not be rushed against a usage-limit cutoff.
+  3D (catalog/config/settings strip) follows the cluster move.
+
+
 Keep-set: power_vector, grid_gradient, ember_lattice, phase_edges, phase_field.
 **Pre-step (Fable-tier): fg2SeedGraph value-mining** — one focused reading pass of the 5,380 LOC;
 extract non-superseded IP into the VALUE_INVENTORY with file:line receipts. Same absorption duty for
