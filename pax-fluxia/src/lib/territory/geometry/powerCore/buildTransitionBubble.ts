@@ -20,6 +20,7 @@
 import type { PowerCoreSite } from './buildPowerCellsFromSites';
 import type { PowerCell, Point } from './powerCoreTypes';
 import { isVirtualSiteId } from '../regionIdentity';
+import { log } from '$lib/utils/logger';
 import {
     siteIdentityKey,
     type KineticEndpointState,
@@ -376,17 +377,26 @@ export function buildTransitionBubble(
         starY: number,
     ): number | null => {
         const cell = params.s1.cells.find((c) => c.siteId === starId);
-        if (!cell) return null;
         const idx = s1SegOwners();
-        let neighbors = 0;
-        for (const sk of segmentKeysOf(cell)) {
-            for (const owner of idx.get(sk) ?? []) {
-                if (owner === newOwner) continue; // self / merged neighbour
-                return null; // a different-owner neighbour ⇒ real border ⇒ not island
+        // Gather ALL real neighbour owners (full scan, for the diagnostic) — a
+        // segment shared with a real cell carries THAT cell's owner + self.
+        const realNeighbourOwners = new Set<string>();
+        let segCount = 0;
+        if (cell) {
+            for (const sk of segmentKeysOf(cell)) {
+                segCount++;
+                for (const owner of idx.get(sk) ?? []) realNeighbourOwners.add(owner);
             }
-            neighbors++;
         }
-        if (neighbors === 0) return null;
+        const others = [...realNeighbourOwners].filter((o) => o !== newOwner);
+        // TEMP DIAGNOSTIC (island detection): capture an island and read this.
+        log.canvas(
+            'island?',
+            `star=${starId} newOwner=${newOwner} s1CellOwner=${cell?.ownerId ?? 'MISSING'} segs=${segCount} realNeighbourOwners=[${[...realNeighbourOwners].join(',')}] otherOwners=[${others.join(',')}] hasOrigin=${Boolean(params.conquestOrigins?.get(starId))}`,
+        );
+        if (!cell) return null;
+        if (others.length > 0) return null; // a real different-owner border ⇒ not island
+        if (segCount === 0) return null;
         // Nearest OTHER site — the cell vanishes at w0 − dMin². 1.15× margin
         // guarantees full collapse just before completion (holds gone; never a
         // remnant that pops) across small neighbour-weight variance.
