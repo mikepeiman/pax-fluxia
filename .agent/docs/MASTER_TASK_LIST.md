@@ -31,32 +31,6 @@ superseding docs:
 ## 2026-07-12
 
 ### Open
-- [ ] **ISLAND CAPTURE collapse — shipped (transient shrink overlay); + transitions roadmap (sliders/modes/VFX)**
-  `[territory][transitions]` USER: soft_pins "closest yet", tiny overshoot on a few conquests (EXPECTED —
-  softness=1−extent/14 leaves a px-tail; 3+-way junction corners are skipped by the 2-terminal gate; feel
-  passable). Priority "first thing regardless": island conquests (single stars surrounded) must SHRINK their
-  region/border to nothing at the star center or (preferred) perimeter.
-  ARCHITECTURAL FINDING: a captured island's SETTLED cell is a normal full cell (owner flips, border becomes
-  internal). Shrinking it to an interior disk is TOPOLOGICALLY incompatible with the shared-edge graph (disk's
-  complement = ring-with-hole, can't be one tiled cell) — the old "cannot apply radial effect" note. SOLUTION
-  (shipped): emit the captured cell as VICTOR from frame 1 (settled, watertight, zero pop/tear by construction);
-  render the shrinking OLD region as a TRANSIENT overlay (buildSurfaceFromCells.appendIslandCollapses): victor
-  ring scaled toward star by s=1−q, smoothed ONCE closed (fill+ring share the curve → no tear), owned by old
-  owner, drawn on top, VANISHES at ISLAND_VANISH_RADIUS_PX=14 (behind the star glyph = "disappears at
-  perimeter"). Detection: buildTransitionBubble.isIslandCapture — S1 cell surrounded ENTIRELY by new owner
-  (segment→owners index). Applies in ALL render modes (frame.islandCollapses, independent of SNAPFIX).
-  Tests: islandCollapse.test.ts (4, green) — victor coverage intact, overlay shrinks monotonically + vanishes,
-  fill/ring single-source, passthrough when absent. 0 type errors; runtime/proof suites green.
-  KNOWN LIMITS / follow-ups: (1) ISLAND_VANISH_RADIUS_PX should read the actual star-glyph radius from config,
-  not a 14px const. (2) mixed-surround captures (island bordered by 2+ owners, incl. the victor) are NOT
-  classified island (require ALL-new-owner) → they still sweep; revisit if the user wants partial-island
-  collapse. (3) overlay has no alpha fade (geometry-only); if the perimeter vanish pops, add fade later.
-- [ ] **TRANSITIONS ROADMAP (user-requested 2026-07-12, NOT started): tuning sliders + selectable transition
-  MODES + VFX/particles.** The user wants the transition system to become a tunable, multi-mode, VFX-capable
-  surface (mechanical variety + particles), and to support low-tier-hardware perf modes. The island overlay is
-  the first "transient effect" hook for particles. Also outstanding: end-snap winner selection (OFF/CONV/CUT/
-  SOFT — SOFT leading), then strip END_SNAP_FIX_EVAL scaffolding + the losing modes. Capture concrete slider
-  set + mode taxonomy with the user before building.
 - [ ] **END_SNAP_FIX_EVAL round 3 — architectural assessment + 'soft_pins' (the single-principle candidate) VALIDATED in harness; 4-way toggle live**
   `[territory][transitions]` USER (2026-07-12): CONV near-perfect but FRAGILE (correct instinct — compensating
   layer) + close-up radial slivers of overlapping fill (cap inversion vs mid-ramp cell edge). CUT "feels more

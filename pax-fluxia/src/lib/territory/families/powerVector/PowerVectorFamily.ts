@@ -376,7 +376,6 @@ export class PowerVectorFamily implements RenderFamily {
                 smoothPasses,
                 convergeTarget,
                 endSnapMode === 'soft_pins',
-                frame.islandCollapses,
             );
             if (endSnapMode === 'round_cut' && frame.conquestCuts?.length) {
                 surface = cutSurfaceByFront(surface, frame.conquestCuts);

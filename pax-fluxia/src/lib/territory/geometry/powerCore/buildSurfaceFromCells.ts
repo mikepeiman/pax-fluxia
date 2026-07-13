@@ -18,8 +18,7 @@ import { buildSharedEdgeGraph } from './sharedEdgeGraph';
 import { smoothSharedEdges, chaikinOpenPinned } from './smoothSharedEdges';
 import { chainEdgesIntoPolylines } from './buildPowerCoreAuthoritySnapshot';
 import { splitCellByFront, frontFieldOn } from './conquestFrontField';
-import { smoothTerritoryFrontierPolyline } from '../../frontier/chaikin';
-import type { ConquestCut, IslandCollapse } from './kineticTypes';
+import type { ConquestCut } from './kineticTypes';
 import {
     WORLD_OWNER,
     type Point,
@@ -32,9 +31,6 @@ export interface SurfaceRegion {
     /** Generator cell's siteId — the per-cell identity (fills are PER-CELL). */
     readonly siteId?: string;
     readonly points: Point[];
-    /** TRANSIENT overlay (island collapse) — drawn ON TOP of the tiling fills,
-     *  excluded from coverage/tiling invariants. */
-    readonly transient?: boolean;
 }
 
 export interface SurfaceFrontier {
@@ -213,8 +209,6 @@ export function buildSurfaceFromCells(
     /** END_SNAP_FIX_EVAL 'soft_pins': scale-aware pin softening — sub-scale
      *  topology features stop interrupting rounding, continuously. */
     softPins?: boolean,
-    /** Island captures in flight — append transient shrink overlays (all modes). */
-    islandCollapses?: readonly IslandCollapse[],
 ): CellSurface {
     // Conform first: splice the conquest front's crossing points into the
     // neighbour edges (exact, single-diagram) so the frontier isn't dropped and
@@ -323,64 +317,7 @@ export function buildSurfaceFromCells(
         }
     }
 
-    if (islandCollapses && islandCollapses.length > 0) {
-        appendIslandCollapses(cellFills, frontiers, islandCollapses, passes);
-    }
-
     return { cellFills, frontiers, worldBorders };
-}
-
-/** Star-glyph radius (px): the collapse overlay VANISHES once it shrinks to this
- *  size — the star sprite covers the remainder, so "disappears at the perimeter"
- *  reads clean. Keep ≈ the rendered star radius. */
-const ISLAND_VANISH_RADIUS_PX = 14;
-
-/**
- * Append the transient shrink overlays for island captures. Each is the VICTOR
- * cell's ring scaled toward its star by s = 1 − q, smoothed ONCE and shared by
- * the fill and its ring border (single source ⇒ no fill/border tear), owned by
- * the OLD owner and drawn on top of the settled victor fill. Vanishes at the
- * star perimeter. Purely additive: the tiling surface underneath is untouched.
- */
-function appendIslandCollapses(
-    cellFills: SurfaceRegion[],
-    frontiers: SurfaceFrontier[],
-    collapses: readonly IslandCollapse[],
-    passes: number,
-): void {
-    for (const c of collapses) {
-        const victor = cellFills.find((r) => r.siteId === c.siteId && r.ownerId === c.victorOwner && !r.transient);
-        if (!victor || victor.points.length < 3) continue;
-
-        let outR = 0;
-        for (const [x, y] of victor.points) {
-            const d = Math.hypot(x - c.starX, y - c.starY);
-            if (d > outR) outR = d;
-        }
-        const s = 1 - (c.q < 0 ? 0 : c.q > 1 ? 1 : c.q);
-        if (s * outR <= ISLAND_VANISH_RADIUS_PX) continue; // shrunk to the star → gone
-
-        const scaled: Point[] = victor.points.map((p) => [
-            c.starX + (p[0] - c.starX) * s,
-            c.starY + (p[1] - c.starY) * s,
-        ]);
-        // Round the ring ONCE (closed); fill and border read the identical curve.
-        const flat: number[] = [];
-        for (const p of scaled) flat.push(p[0], p[1]);
-        const sm = smoothTerritoryFrontierPolyline({ points: flat, closed: true }, passes);
-        const ring: Point[] = [];
-        for (let i = 0; i < sm.points.length; i += 2) ring.push([sm.points[i]!, sm.points[i + 1]!]);
-        if (ring.length < 3) continue;
-
-        cellFills.push({ ownerId: c.oldOwner, siteId: c.siteId, points: ring, transient: true });
-        const a = c.oldOwner < c.victorOwner;
-        frontiers.push({
-            ownerA: a ? c.oldOwner : c.victorOwner,
-            ownerB: a ? c.victorOwner : c.oldOwner,
-            points: [...ring, ring[0]!].map((p) => [p[0], p[1]] as [number, number]),
-            closed: true,
-        });
-    }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

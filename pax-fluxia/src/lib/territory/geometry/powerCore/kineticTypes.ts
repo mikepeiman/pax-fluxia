@@ -93,16 +93,6 @@ export interface SiteRamp {
     readonly attackOriginY?: number;
     readonly frontMode?: import('./conquestFrontField').ConquestFrontMode;
     readonly cellRadius?: number;
-    /**
-     * ISLAND CAPTURE: the captured star is surrounded ENTIRELY by the new owner,
-     * so its border ring becomes internal and vanishes at settle. A directional
-     * sweep looks wrong (no attack axis across a surrounded cell), and a radial
-     * collapse to an interior disk can't tile the shared-edge graph — so the cell
-     * is emitted as the VICTOR from frame one (settled, watertight) and the
-     * shrinking old region renders as a TRANSIENT overlay that vanishes near the
-     * star perimeter. See IslandCollapse + buildSurfaceFromCells.
-     */
-    readonly collapse?: boolean;
 }
 
 export interface TransitionBubble {
@@ -146,20 +136,6 @@ export interface ConquestCut {
     readonly q: number;
 }
 
-/**
- * An island capture in flight: the captured cell is already in the frame as the
- * VICTOR (settled geometry); this record drives the TRANSIENT shrinking overlay
- * of the old owner. q is the conquest progress (0 = full old region, 1 = gone).
- */
-export interface IslandCollapse {
-    readonly siteId: string;
-    readonly starX: number;
-    readonly starY: number;
-    readonly oldOwner: string;
-    readonly victorOwner: string;
-    readonly q: number;
-}
-
 /** One sampled frame: frozen cells (S1 refs) + the morphing bubble cells. */
 export interface KineticFrame {
     /** p passed in, clamped to [0,1]. */
@@ -179,7 +155,4 @@ export interface KineticFrame {
      * 'round_cut' end-snap fix): conquest splits NOT yet applied to bubbleCells.
      */
     readonly conquestCuts?: readonly ConquestCut[];
-    /** Island captures in flight (all render modes): captured cell is already
-     *  VICTOR in bubbleCells; drives the transient shrink overlay. */
-    readonly islandCollapses?: readonly IslandCollapse[];
 }

@@ -339,30 +339,6 @@ export function buildTransitionBubble(
             siteIdentityKey(a.site) < siteIdentityKey(b.site) ? -1 : 1,
         );
 
-    // ── Island detection: a captured star whose SETTLED (S1) cell is surrounded
-    //    ENTIRELY by the new owner has no persistent border — it collapses
-    //    (transient overlay) instead of sweeping. Segment→owners index over S1,
-    //    built once and shared by every conquest ramp. ─────────────────────────
-    const s1SegOwners = new Map<string, Set<string>>();
-    for (const cell of params.s1.cells) {
-        for (const sk of segmentKeysOf(cell)) {
-            (s1SegOwners.get(sk) ?? s1SegOwners.set(sk, new Set()).get(sk)!).add(cell.ownerId);
-        }
-    }
-    const isIslandCapture = (starId: string, newOwner: string): boolean => {
-        const cell = params.s1.cells.find((c) => c.siteId === starId);
-        if (!cell) return false;
-        let neighbors = 0;
-        for (const sk of segmentKeysOf(cell)) {
-            for (const owner of s1SegOwners.get(sk) ?? []) {
-                if (owner === newOwner) continue; // self / merged neighbour
-                return false; // a different-owner neighbour ⇒ real border ⇒ not island
-            }
-            neighbors++;
-        }
-        return neighbors > 0; // surrounded, all-new-owner ⇒ island
-    };
-
     // ── Conquest sweeps: captured-star handoffs → directional sweeps ────────
     const conquestOrigins = params.conquestOrigins;
     const conquestRamps: SiteRamp[] =
@@ -371,10 +347,6 @@ export function buildTransitionBubble(
                   if (r.kind !== 'handoff') return r;
                   const origin = conquestOrigins.get(r.starId);
                   if (!origin) return r;
-                  // Island capture → collapse overlay (no directional sweep).
-                  if (isIslandCapture(r.starId, r.ownerB)) {
-                      return { ...r, kind: 'conquest' as const, collapse: true };
-                  }
                   const dirX = r.x - origin.x;
                   const dirY = r.y - origin.y;
                   const len = Math.hypot(dirX, dirY);
