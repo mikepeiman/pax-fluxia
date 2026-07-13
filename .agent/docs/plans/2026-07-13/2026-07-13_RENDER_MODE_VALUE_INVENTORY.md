@@ -8,6 +8,24 @@ grounding: file headers + dispatch arms read 2026-07-13; catalog (themeRouting.t
 
 # Render mode value inventory (all 15 dispatch modes)
 
+## ⚑ FINAL DISPOSITIONS — user rulings 2026-07-13 (all ⚠ items below RESOLVED)
+
+KEEP: power_vector, grid_gradient, ember_lattice, phase_edges (contradiction resolved: KEEP),
+phase_field. QUARANTINE everything else, with absorption duties BEFORE each move:
+- **metaball** → blob look documented as future PowerCore skin; two-field agreement trick extracted.
+- **pixel** → retro look documented for reimplementation; code dies.
+- **graph/lane** → network-control concept documented; code dies.
+- **contour** → DP simplifier + marching squares + junction pull-back absorbed into kernel/docs first.
+- **cell_grid (plain)** → mode dies; SURGICAL keep-map for families/cellGrid/ (Phase/Ember/Field
+  families + planGridWave IP stay).
+- **distance_field** → quarantined intact as the resurrection blueprint (no near-term intent).
+- **fg2SeedGraph** → DEAD, but a value-mining pass over its 5,380 LOC is REQUIRED before quarantine
+  (extract non-superseded work, file:line receipts, into this doc).
+- **territory_runtime + layers/** → architecture documented as reference; quarantined, not kept in-tree.
+- StarRenderer's roundness-Chaikin is map-display tuning — KEEP as-is, outside the territory kernel.
+
+Execution contract: 2026-07-13_COMPLETE_CODEBASE_CLEANUP_MASTER_PLAN.md (v2).
+
 **The design-history frame (user-authored, binding):** metaball and the grid modes exist
 *because vector transitions were hard* — they were transition workarounds, not aesthetic goals.
 The feel target was always the water/ripple vector morph, which PowerCore/power_vector now delivers.

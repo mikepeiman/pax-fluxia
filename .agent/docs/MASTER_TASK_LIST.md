@@ -459,12 +459,12 @@ superseding docs:
 
 ### Open
 - [ ] **Territory architecture cleanup + refactor (user-directed, "soon")** `[territory][arch]` —
-  execute on the 2026-07-08 audit findings: consolidate the 6 Chaikin + 6 shoelace + assorted geo
-  duplicates into one geometry kernel; fix upward imports (geometry→families
-  buildPowerVoronoiFrontierTopology, geometry→renderers DISCONNECT_OWNER_ID); quarantine/retire
-  legacy-mode-only renderers + adapters + abandoned experiments (orchestrator DY4OT, layers/);
-  thin GameCanvas's family-lifecycle orchestration into a coordinator. Verify audit claims
-  before acting (audit ran on an unverified model).
+  **PLAN FINAL 2026-07-13, awaiting "go Stage 0+1"**: plans/2026-07-13/COMPLETE_CODEBASE_CLEANUP_
+  MASTER_PLAN (v2 — 30 user rulings, evidence-verified: 12 Chaikin/22 shoelace, ~34.6k legacy LOC,
+  orchestrator+layers LIVE not abandoned) + RENDER_MODE_VALUE_INVENTORY (dispositions FINAL).
+  8 stages, batched user checkpoints after Stage 3 + Stage 6. Opus 4.8 executes; Fable for fg2
+  value-mining, Stage 1 variant matrix, Stage 5/6 decomposition design. Original 07-08 findings
+  superseded by the plan's E1-E3 evidence.
 - [ ] **Settings Search: click-through STILL broken + highlight NEVER seen (user, 3rd report)**
   `[ui][settings]` — clicking a result does not reliably reveal it; panels open with a sub-panel
   selected when they should not; the result highlight/flash was specified and DECLARED DELIVERED
