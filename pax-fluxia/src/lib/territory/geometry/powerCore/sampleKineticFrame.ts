@@ -384,12 +384,27 @@ export function sampleFullDiagramMulti(
 
     const bubbleCells: PowerCell[] = [];
     const conquestCuts: import('./kineticTypes').ConquestCut[] = [];
+    const islandCollapses: import('./kineticTypes').IslandCollapse[] = [];
     for (const cell of cells) {
         const kMatch = /^m(\d+)k(\d+)/.exec(cell.siteId);
         const part = kMatch ? parts[Number(kMatch[1])] : undefined;
         const ramp = kMatch && part ? part.bubble.ramps[Number(kMatch[2])] : undefined;
         if (part && ramp?.kind === 'conquest') {
             const q = conquestFrontQ(ramp, clampedP[Number(kMatch![1])]!);
+            if (ramp.collapse) {
+                // ISLAND: emit the captured cell as VICTOR (settled geometry, tiles
+                // watertight); the shrinking old region is a transient overlay.
+                bubbleCells.push({ ...cell, siteId: ramp.starId, ownerId: ramp.ownerB });
+                islandCollapses.push({
+                    siteId: ramp.starId,
+                    starX: ramp.x,
+                    starY: ramp.y,
+                    oldOwner: ramp.ownerA,
+                    victorOwner: ramp.ownerB,
+                    q,
+                });
+                continue;
+            }
             const front: ConquestFront = {
                 mode: ramp.frontMode ?? 'linear',
                 dirX: ramp.attackDirX ?? 0,
@@ -425,8 +440,14 @@ export function sampleFullDiagramMulti(
         const p = part.p <= 0 ? 0 : part.p >= 1 ? 1 : part.p;
         if (p > maxP) maxP = p;
     }
-    if (conquestCuts.length > 0) {
-        return { p: maxP, frozenCells: [], bubbleCells, conquestCuts };
+    if (conquestCuts.length > 0 || islandCollapses.length > 0) {
+        return {
+            p: maxP,
+            frozenCells: [],
+            bubbleCells,
+            ...(conquestCuts.length > 0 ? { conquestCuts } : {}),
+            ...(islandCollapses.length > 0 ? { islandCollapses } : {}),
+        };
     }
     return { p: maxP, frozenCells: [], bubbleCells };
 }
