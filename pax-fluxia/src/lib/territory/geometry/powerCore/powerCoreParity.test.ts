@@ -24,7 +24,7 @@ import {
     buildGeometry0319SitesAndClip,
     resolveDisconnectCellOwner,
 } from '../../compiler/Geometry_0319';
-import { DISCONNECT_OWNER_ID } from '../../../renderers/territoryFeatures';
+import { DISCONNECT_OWNER_ID } from '../regionIdentity';
 import {
     buildPerimeterFieldRenderFamilyGeometry,
     buildPowerVoronoi0319Settings,

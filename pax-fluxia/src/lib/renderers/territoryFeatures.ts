@@ -19,7 +19,9 @@ export interface VirtualSite {
     pairSide?: DisconnectPairSide;
 }
 
-export const DISCONNECT_OWNER_ID = '__disconnect__';
+// DISCONNECT_OWNER_ID now lives in the geometry identity layer (cleanup Stage 2);
+// re-exported here so existing renderer-layer importers are unaffected.
+export { DISCONNECT_OWNER_ID } from '$lib/territory/geometry/regionIdentity';
 
 function normalizeVirtualSites(sites: VirtualSite[]): VirtualSite[] {
     if (sites.length <= 1) return [...sites];

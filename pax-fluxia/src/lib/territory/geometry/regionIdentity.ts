@@ -27,6 +27,14 @@ export function hashString32(value: string): string {
 }
 
 /**
+ * Effective owner id for a disconnected-territory cell (a cell severed from its
+ * owner's main body). A geometry-layer ownership-identity constant — lives here,
+ * not in the renderer layer. `renderers/territoryFeatures` re-exports it for the
+ * (legacy) renderers that still reference it from there.
+ */
+export const DISCONNECT_OWNER_ID = '__disconnect__';
+
+/**
  * Virtual (synthetic) sites injected by the constraint stage — corridors,
  * disconnect seams, MSR support points. These are geometry scaffolding, not
  * gameplay stars, so they are excluded from a region's identity anchor.

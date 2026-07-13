@@ -17,7 +17,7 @@ import {
     buildGeometry0319SitesAndClip,
     resolveDisconnectCellOwner,
 } from '../../compiler/Geometry_0319';
-import { DISCONNECT_OWNER_ID } from '../../../renderers/territoryFeatures';
+import { DISCONNECT_OWNER_ID } from '../regionIdentity';
 import { buildPowerVoronoi0319Settings } from '../../families/buildFamilyGeometry';
 import { buildPowerCellsFromSites } from './buildPowerCellsFromSites';
 import { buildTransitionBubble, polygonKey } from './buildTransitionBubble';

@@ -12,7 +12,7 @@ import type {
     TerritoryGeometryData,
     SharedPolyline,
 } from '../compiler/powerVoronoiTerritoryGeometryGenerator';
-import { buildPowerVoronoiFrontierTopology } from '../families/buildPowerVoronoiFrontierTopology';
+import { buildPowerVoronoiFrontierTopology } from './buildPowerVoronoiFrontierTopology';
 import {
     resolveConstraintAlignedTerritoryGeometry,
     type ConstraintAlignedFrontierPolyline,

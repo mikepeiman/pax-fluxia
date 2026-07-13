@@ -26,14 +26,14 @@ import {
     type SharedPolyline,
     type TerritoryGeneratorSettings,
 } from '../../compiler/powerVoronoiTerritoryGeometryGenerator';
-import { DISCONNECT_OWNER_ID } from '../../../renderers/territoryFeatures';
+import { DISCONNECT_OWNER_ID } from '../regionIdentity';
 import type {
     ResolvedFrontierPolyline,
     ResolvedGeometrySnapshot,
     SharedFrontierMap,
     TerritoryRegionShape,
 } from '../../contracts/GeometryContracts';
-import { buildPowerVoronoiFrontierTopology } from '../../families/buildPowerVoronoiFrontierTopology';
+import { buildPowerVoronoiFrontierTopology } from '../buildPowerVoronoiFrontierTopology';
 import { buildShellsFromRegions } from '../buildPowerVoronoi0319AuthoritySnapshot';
 import { pointInPolygon } from '../geometryUtils';
 import {
