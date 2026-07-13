@@ -1,4 +1,5 @@
 import type { StarState } from '$lib/types/game.types';
+import { signedArea } from './kernel';
 import type {
     ResolvedFrontierPolyline,
     ResolvedGeometrySnapshot,
@@ -36,15 +37,6 @@ interface BuildPowerVoronoi0319AuthoritySnapshotParams {
 
 type RawMergedTerritory = TerritoryGeometryData['mergedTerritories'][number];
 
-function computePolygonArea(points: ReadonlyArray<[number, number]>): number {
-    let area = 0;
-    for (let i = 0; i < points.length; i++) {
-        const [ax, ay] = points[i]!;
-        const [bx, by] = points[(i + 1) % points.length]!;
-        area += ax * by - bx * ay;
-    }
-    return area * 0.5;
-}
 
 function buildSharedFrontierMapFromPolylines(
     polylines: ReadonlyArray<ResolvedFrontierPolyline>,
@@ -240,7 +232,7 @@ export function buildShellsFromRegions(
     readonly shellLoops: readonly ResolvedShellLoop[];
 } {
     const shells: ResolvedShell[] = territoryRegions.map((region) => {
-        const area = computePolygonArea(region.points);
+        const area = signedArea(region.points);
         return {
             shellId: `shell:${region.regionId}`,
             ownerId: region.ownerId,

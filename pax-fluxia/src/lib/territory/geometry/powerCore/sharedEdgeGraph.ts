@@ -17,6 +17,7 @@ import {
     type WorldEdge,
     type WorldRect,
 } from './powerCoreTypes';
+import { signedArea } from '../kernel';
 
 // ---------------------------------------------------------------------------
 // Quantization — fold near-equal endpoints onto a shared key (1e-3 px grid).
@@ -450,18 +451,6 @@ function buildHalfEdges(
 // ---------------------------------------------------------------------------
 // Geometry helpers
 // ---------------------------------------------------------------------------
-
-/** Signed area (shoelace). Positive => CCW winding. */
-function signedArea(ring: Point[]): number {
-    let s = 0;
-    const n = ring.length;
-    for (let i = 0; i < n; i++) {
-        const a = ring[i];
-        const b = ring[(i + 1) % n];
-        s += a[0] * b[1] - b[0] * a[1];
-    }
-    return s / 2;
-}
 
 // ---------------------------------------------------------------------------
 // Stable loopId hash (sorted starIds set — NOT centroid, NOT order)

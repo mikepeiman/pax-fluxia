@@ -1,4 +1,5 @@
 import type { TerritoryRegionShape } from '../contracts/GeometryContracts';
+import { polygonArea } from './kernel';
 import { pointInPolygon, polygonCentroid } from './geometryUtils';
 
 const DEFAULT_SAMPLE_SPACING_PX = 8;
@@ -42,17 +43,6 @@ function polygonPerimeter(points: ReadonlyArray<[number, number]>): number {
         total += Math.hypot(bx - ax, by - ay);
     }
     return total;
-}
-
-function polygonArea(points: ReadonlyArray<[number, number]>): number {
-    if (points.length < 3) return 0;
-    let twiceArea = 0;
-    for (let index = 0; index < points.length; index++) {
-        const [ax, ay] = points[index]!;
-        const [bx, by] = points[(index + 1) % points.length]!;
-        twiceArea += ax * by - bx * ay;
-    }
-    return twiceArea * 0.5;
 }
 
 function interpolateAlongClosedRing(
@@ -209,7 +199,7 @@ function buildInsetRegionPoints(
     }
 
     const deduped = dedupeSequentialPoints(insetPoints);
-    if (deduped.length < 3 || Math.abs(polygonArea(deduped)) < MIN_AREA_EPS) {
+    if (deduped.length < 3 || polygonArea(deduped) < MIN_AREA_EPS) {
         return ring;
     }
     return deduped;

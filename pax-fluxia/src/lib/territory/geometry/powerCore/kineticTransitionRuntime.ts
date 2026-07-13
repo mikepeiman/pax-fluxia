@@ -23,6 +23,7 @@
  */
 
 import type { PowerCoreSite } from './buildPowerCellsFromSites';
+import { polygonArea } from '../kernel';
 import { buildTransitionBubble } from './buildTransitionBubble';
 import type {
     KineticEndpointState,
@@ -346,9 +347,9 @@ export class KineticTransitionRuntime {
             if (!miniSite) continue; // ε-dominated ramp with no cell — absent
             let dominant = group[0]!;
             if (group.length > 1) {
-                let bestArea = polyArea(dominant.points);
+                let bestArea = polygonArea(dominant.points);
                 for (let i = 1; i < group.length; i++) {
-                    const a = polyArea(group[i]!.points);
+                    const a = polygonArea(group[i]!.points);
                     if (a > bestArea) {
                         bestArea = a;
                         dominant = group[i]!;
@@ -366,15 +367,4 @@ export class KineticTransitionRuntime {
         }
         return { sites, cells };
     }
-}
-
-/** Shoelace area (absolute) of a polygon ring. */
-function polyArea(points: readonly Point[]): number {
-    let s = 0;
-    for (let i = 0; i < points.length; i++) {
-        const [ax, ay] = points[i]!;
-        const [bx, by] = points[(i + 1) % points.length]!;
-        s += ax * by - bx * ay;
-    }
-    return Math.abs(s / 2);
 }
