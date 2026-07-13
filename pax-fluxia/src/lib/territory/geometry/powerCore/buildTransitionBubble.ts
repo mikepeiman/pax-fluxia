@@ -19,6 +19,7 @@
 
 import type { PowerCoreSite } from './buildPowerCellsFromSites';
 import type { PowerCell, Point } from './powerCoreTypes';
+import { isVirtualSiteId } from '../regionIdentity';
 import {
     siteIdentityKey,
     type KineticEndpointState,
@@ -349,11 +350,17 @@ export function buildTransitionBubble(
     //    ramps to w0 − dMin² (the exact weight at which its cell vanishes, dMin =
     //    nearest-neighbour site distance), so its cell shrinks radially to nothing
     //    and same-owner neighbours fill in watertight. No overlay, no hole. ─────
+    // Only REAL owner borders decide island-ness. Corridor/contest/disconnect
+    // VIRTUAL cells (present whenever corridors are on — the live default, unlike
+    // a no-lanes test) sit in s1.cells with their own owner ids; counting them
+    // would misclassify a genuine island (bordered by a virtual) as non-island —
+    // the reason the collapse "did nothing" in-game. Exclude virtual sites.
     let s1SegOwnersMemo: Map<string, Set<string>> | null = null;
     const s1SegOwners = (): Map<string, Set<string>> => {
         if (s1SegOwnersMemo) return s1SegOwnersMemo;
         const idx = new Map<string, Set<string>>();
         for (const cell of params.s1.cells) {
+            if (isVirtualSiteId(cell.siteId)) continue; // helper geometry, not an owner border
             for (const sk of segmentKeysOf(cell)) {
                 (idx.get(sk) ?? idx.set(sk, new Set()).get(sk)!).add(cell.ownerId);
             }
