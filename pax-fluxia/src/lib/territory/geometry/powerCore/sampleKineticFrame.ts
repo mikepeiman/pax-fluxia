@@ -104,6 +104,20 @@ export function rampProgress(ramp: SiteRamp, p: number): number {
  */
 function rampSites(ramp: SiteRamp, p: number, index: number): PowerCoreSite[] {
     const q = rampProgress(ramp, p);
+    // ISLAND COLLAPSE: ramp the captured site's weight w0 → collapseWeight so its
+    // cell shrinks radially to nothing while same-owner neighbours grow in. Owner
+    // stays ownerA (old) as it shrinks; no split (see sampleFullDiagramMulti).
+    if (ramp.collapse && ramp.collapseWeight !== undefined) {
+        return [
+            {
+                x: ramp.x,
+                y: ramp.y,
+                weight: ramp.w0 + (ramp.collapseWeight - ramp.w0) * q,
+                ownerId: ramp.ownerA,
+                starId: `k${index}`,
+            },
+        ];
+    }
     // Power-diagram cell radius scales ~sqrt(weight): ramp gained/lost weight
     // QUADRATICALLY so the visible radius onset is LINEAR in q — no fast pop
     // at the ends, matching the water/ripple feel target (T1 continuity).
@@ -282,6 +296,11 @@ export function sampleKineticFrame(params: SampleKineticFrameParams): KineticFra
             }
         }
         if (ramp?.kind === 'conquest') {
+            // ISLAND COLLAPSE: no split — the diagram already shrank the cell.
+            if (ramp.collapse) {
+                bubbleCells.push({ ...cell, siteId: ramp.starId });
+                continue;
+            }
             // Visible sweep: split the captured cell by the arrival-time front.
             const q = conquestFrontQ(ramp, p);
             const front: ConquestFront = {
@@ -389,6 +408,13 @@ export function sampleFullDiagramMulti(
         const part = kMatch ? parts[Number(kMatch[1])] : undefined;
         const ramp = kMatch && part ? part.bubble.ramps[Number(kMatch[2])] : undefined;
         if (part && ramp?.kind === 'conquest') {
+            // ISLAND COLLAPSE: no split — the diagram already shrank the cell
+            // (rampSites collapse-weight) and neighbours grew in. Emit as-is
+            // (owner already ownerA from rampSites).
+            if (ramp.collapse) {
+                bubbleCells.push({ ...cell, siteId: ramp.starId });
+                continue;
+            }
             const q = conquestFrontQ(ramp, clampedP[Number(kMatch![1])]!);
             const front: ConquestFront = {
                 mode: ramp.frontMode ?? 'linear',

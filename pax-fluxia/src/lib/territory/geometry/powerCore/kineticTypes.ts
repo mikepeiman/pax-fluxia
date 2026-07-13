@@ -93,6 +93,17 @@ export interface SiteRamp {
     readonly attackOriginY?: number;
     readonly frontMode?: import('./conquestFrontField').ConquestFrontMode;
     readonly cellRadius?: number;
+    /**
+     * ISLAND CAPTURE: the captured star is enclosed ENTIRELY by the new owner,
+     * so its border is not persistent — it must COLLAPSE, not sweep. The site's
+     * weight ramps w0 → `collapseWeight` (the weight at which its cell vanishes),
+     * so the cell shrinks radially to nothing and same-owner neighbours grow in
+     * (watertight, via the diagram — no split, no overlay). Owner stays ownerA
+     * (old) while it shrinks; the p=1 snap to S1 (new, full) is invisible because
+     * the whole region is already the new colour.
+     */
+    readonly collapse?: boolean;
+    readonly collapseWeight?: number;
 }
 
 export interface TransitionBubble {

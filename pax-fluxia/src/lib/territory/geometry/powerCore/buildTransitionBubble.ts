@@ -339,13 +339,72 @@ export function buildTransitionBubble(
             siteIdentityKey(a.site) < siteIdentityKey(b.site) ? -1 : 1,
         );
 
-    // ── Conquest sweeps: captured-star handoffs → directional sweeps ────────
+    // ── Island detection: a captured star whose SETTLED (S1) cell is surrounded
+    //    ENTIRELY by the new owner has no persistent border. It must COLLAPSE
+    //    (the region recedes toward the star while the surrounding new owner
+    //    grows in — the power-diagram analog of the grid's radial region-shrink),
+    //    NOT flip instantly (the "disappearing island" pop). This needs NO attack
+    //    axis, so it runs on EVERY handoff independent of conquestOrigins. The
+    //    collapse is driven purely by the diagram: the captured site's weight
+    //    ramps to w0 − dMin² (the exact weight at which its cell vanishes, dMin =
+    //    nearest-neighbour site distance), so its cell shrinks radially to nothing
+    //    and same-owner neighbours fill in watertight. No overlay, no hole. ─────
+    let s1SegOwnersMemo: Map<string, Set<string>> | null = null;
+    const s1SegOwners = (): Map<string, Set<string>> => {
+        if (s1SegOwnersMemo) return s1SegOwnersMemo;
+        const idx = new Map<string, Set<string>>();
+        for (const cell of params.s1.cells) {
+            for (const sk of segmentKeysOf(cell)) {
+                (idx.get(sk) ?? idx.set(sk, new Set()).get(sk)!).add(cell.ownerId);
+            }
+        }
+        s1SegOwnersMemo = idx;
+        return idx;
+    };
+    const islandCollapseWeight = (
+        starId: string,
+        newOwner: string,
+        w0: number,
+        starX: number,
+        starY: number,
+    ): number | null => {
+        const cell = params.s1.cells.find((c) => c.siteId === starId);
+        if (!cell) return null;
+        const idx = s1SegOwners();
+        let neighbors = 0;
+        for (const sk of segmentKeysOf(cell)) {
+            for (const owner of idx.get(sk) ?? []) {
+                if (owner === newOwner) continue; // self / merged neighbour
+                return null; // a different-owner neighbour ⇒ real border ⇒ not island
+            }
+            neighbors++;
+        }
+        if (neighbors === 0) return null;
+        // Nearest OTHER site — the cell vanishes at w0 − dMin². 1.15× margin
+        // guarantees full collapse just before completion (holds gone; never a
+        // remnant that pops) across small neighbour-weight variance.
+        let dMin2 = Infinity;
+        for (const site of params.s1.sites) {
+            if (site.starId === starId) continue;
+            const d2 = (site.x - starX) ** 2 + (site.y - starY) ** 2;
+            if (d2 < dMin2) dMin2 = d2;
+        }
+        if (!Number.isFinite(dMin2)) return null;
+        return w0 - 1.15 * dMin2;
+    };
+
+    // ── Conquest transforms: island handoffs → collapse (no origin needed);
+    //    directional handoffs (with an attack origin) → sweeps. Always mapped so
+    //    islands are caught even when no directional conquest event fired. ──────
     const conquestOrigins = params.conquestOrigins;
-    const conquestRamps: SiteRamp[] =
-        conquestOrigins && conquestOrigins.size > 0
-            ? ramps.map((r) => {
+    const conquestRamps: SiteRamp[] = ramps.map((r) => {
                   if (r.kind !== 'handoff') return r;
-                  const origin = conquestOrigins.get(r.starId);
+                  // Island capture → radial collapse (no attack axis needed).
+                  const collapseWeight = islandCollapseWeight(r.starId, r.ownerB, r.w0, r.x, r.y);
+                  if (collapseWeight !== null) {
+                      return { ...r, kind: 'conquest' as const, collapse: true, collapseWeight };
+                  }
+                  const origin = conquestOrigins?.get(r.starId);
                   if (!origin) return r;
                   const dirX = r.x - origin.x;
                   const dirY = r.y - origin.y;
@@ -382,8 +441,7 @@ export function buildTransitionBubble(
                       frontMode: params.conquestFrontMode ?? 'linear',
                       cellRadius: radius,
                   };
-              })
-            : ramps;
+              });
 
     // ── Ripple stagger ─────────────────────────────────────────────────────
     let staggered = conquestRamps;
