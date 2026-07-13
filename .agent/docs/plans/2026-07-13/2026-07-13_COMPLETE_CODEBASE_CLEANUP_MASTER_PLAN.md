@@ -19,14 +19,56 @@ sources:
 
 ## Verified current-state evidence (2026-07-13 sweeps)
 
-### E1 — Duplication + layering (audit claims re-verified)
-<!-- SWEEP-1 -->
+### E1 — Duplication + layering (audit UNDERSTATED: 12 Chaikin, 22 shoelace)
 
-### E2 — Legacy render-mode surface
-<!-- SWEEP-2 -->
+**Chaikin — 12 independent implementations** (audit said ~6):
+`renderers/geometry/chaikin.ts` (canonical candidate), `renderers/contourTerritory.worker.ts:129`,
+`renderers/VoronoiRenderer.ts:130`, `renderers/StarRenderer.ts:226` (roundness variant),
+`renderers/PowerVoronoiRenderer_DY4.ts:367` (byte-identical to canonical),
+`renderers/ModifiedVoronoiRenderer.ts:145`, `territory/compiler/powerVoronoiTerritoryGeometryGenerator.ts:387`
+(junction-pinned variant, byte-identical to geometryUtils), `territory/families/cellGrid/CellGridPhaseEdgesFamily.ts:147`,
+`.../CellGridFamily.ts:140`, `.../CellGridPhaseFieldFamily.ts:443` (3 near-identical copies),
+`territory/geometry/geometryUtils.ts:100`, `territory/frontier/chaikin.ts:6`.
+
+**Shoelace/area — 14 production + 8 test implementations**, all the identical cross-product form:
+contourTerritory.worker:148, buildFrontierTopology:276, layers/geometry/compiler_UnifiedVectorGeometry:406,
+transitions/OptimalTransportBorderTransition:26, devtools/PolygonValidator:132,
+layers/transition/modes/ActiveFrontFillMode:150, orchestrator/methods/fg2SeedGraph:1303,
+families/buildPowerVoronoiFrontierTopology:39, geometry/buildPowerVoronoi0319AuthoritySnapshot:39,
+geometry/buildInsetTerritoryRegions:47, powerCore/conquestFrontField:385 (2× convention),
+powerCore/kineticTransitionRuntime:372, powerCore/sharedEdgeGraph:455, families/perimeterField/buildPerimeterFieldScene:154
+(+8 powerCore test-local helpers).
+
+**Upward imports (production):** geometry→families: `buildPowerVoronoi0319AuthoritySnapshot.ts:14` +
+`powerCore/buildPowerCoreAuthoritySnapshot.ts:36` (buildPowerVoronoiFrontierTopology),
+`powerCore/kineticRuntimeBridge.ts:18` (type-only RenderFamilyActiveTransition);
+geometry→renderers: `powerCore/buildPowerCoreAuthoritySnapshot.ts:29` (DISCONNECT_OWNER_ID).
+Plus 8 powerCore test files importing families/buildFamilyGeometry (migrate with Stage 2).
+
+**CRITICAL finding — NOT orphans:** `territory/orchestrator/` (8 files, **6,574 LOC**) is imported by
+GameCanvas, TerritoryLegacyBridge + 5 legacy renderers; `territory/layers/` (52 files, **4,701 LOC**)
+is the engine of the territory_runtime path (TerritoryRuntimeCoordinator/TerritoryWorker). Two parallel
+pipeline architectures are LIVE alongside PowerCore — they retire WITH their legacy modes (Stage 3),
+not as free-floating "abandoned experiments."
+
+### E2 — Legacy render-mode surface (LOC at stake)
+
+Legacy-exclusive renderers (DistanceField 5,119 + Metaball 2,315 + PowerVoronoi 1,809 + DY4 1,585 +
+PVV3 + RefactoredPVV2 + ModifiedVoronoi + Voronoi + contour worker): **~13,939 LOC**.
+Legacy families (metaball, perimeterField) + territory/runtime + territory/transitions: **~9,368 LOC**.
+Plus orchestrator **6,574** + layers **4,701** + `territory/legacy/TerritoryLegacyBridge.ts`.
+**Total legacy surface ≈ 34,600+ LOC** (~22% of src/lib's 158,548), before counting settings cards,
+catalog entries (panelSync.ts, themeRouting.ts, territoryModeShortcuts.ts), and config keys.
 
 ### E3 — God-file + temporary scaffolding
-<!-- SWEEP-3 -->
+
+Top LOC: GameCanvas.svelte **8,555**; fg2SeedGraph.ts 5,380 (orchestrator — goes with Stage 3);
+DistanceFieldTerritoryRenderer 5,119 (legacy); CellGridPhaseEdgesFamily 4,949; CellGridFamily 3,375;
+GameSettingsPanel.svelte 2,946; CellGridPhaseFieldFamily 2,645.
+END_SNAP_FIX_EVAL touches **10 production files**: GameCanvas, HudTopbar, game.config, territory.config,
+PowerVectorFamily, powerCore/{buildSurfaceFromCells, conquestFrontField, kineticRuntimeBridge,
+kineticTypes, sampleKineticFrame}. TODO/FIXME density is trivial (13, all aurelia-hud) — the debt is
+structural, not comment-level.
 
 ## Stages (dependency-ordered)
 
@@ -69,8 +111,9 @@ selector shows exactly the keep-set and each kept mode renders. **Risk: medium**
 - **END_SNAP_FIX_EVAL:** user judged `soft_pins` "closest yet / passable" — pending explicit winner
   confirmation, promote the winner to THE behavior and strip the 4-mode toggle + topbar chip + the
   losing branches (E3 lists every touch point).
-- **Abandoned experiments:** orchestrator DY4OT, `layers/` (if E1/E3 confirm they still exist) —
-  quarantine move, same rules as Stage 3C.
+- **Orchestrator + layers:** E1 disproved "abandoned" — both are LIVE legacy-pipeline engines, so they
+  quarantine WITH their modes in Stage 3C (orchestrator with territory_engine/power_voronoi/pvv2;
+  layers with territory_runtime), not here. This stage only strips eval toggles + probes.
 - Any TEMP/eval probes E3 surfaces.
 **Gate:** suite + check + user visual pass on conquest end-snap after the toggle strip. **Risk: low.**
 
