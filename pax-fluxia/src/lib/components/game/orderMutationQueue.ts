@@ -19,7 +19,6 @@
  *
  * Extracted from GameCanvas.svelte (Stage 5).
  */
-import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
 import { measurePerf } from "$lib/perf/perfProbe";
 import type { StarState } from "$lib/types/game.types";
 
@@ -98,7 +97,20 @@ export interface OrderQueueInteractionSnapshot {
     deferredOrders: ReadonlySet<string>;
 }
 
+/**
+ * The sink a flushed order mutation is applied to (the game store in the app).
+ * Injected rather than imported: importing the store module directly pulls the
+ * whole game state — and localStorage — in at module load, which made this queue
+ * impossible to test in isolation.
+ */
+export interface OrderMutationStore {
+    issueOrder: (sourceId: string, targetId: string, persist: boolean) => void;
+    cancelOrder: (starId: string) => void;
+    setDeferredOrder: (sourceId: string, targetId: string, persist: boolean) => void;
+}
+
 export interface OrderMutationQueueDeps {
+    store: OrderMutationStore;
     getInteraction: () => OrderQueueInteractionSnapshot;
     getStarById: (starId: string) => StarState | null;
     /** Stars currently in play; an empty map means nothing can be drawn yet. */
@@ -138,14 +150,16 @@ export interface OrderMutationQueue {
     hasQueuedOrderEntryForSource: (sourceId: string) => boolean;
     getTelemetry: () => Record<string, unknown>;
     /**
-     * New game session: drop queued mutations, the dispatch flag, the request
-     * sequence and the telemetry.
+     * New game session: drop queued mutations, pending acknowledgments, the
+     * dispatch flag, the request sequence and the telemetry.
      *
-     * Deliberately does NOT clear pending acknowledgments — that matches the
-     * pre-extraction behaviour exactly. It looks like an oversight (an
-     * acknowledgment from the previous session can only be retired by a frame
-     * that will never match), but changing it here would be an unreviewed
-     * behaviour change inside a refactor. Flagged, not fixed.
+     * Clearing the acknowledgments matters. An acknowledgment retires only when
+     * a painted frame satisfies it, so one carried across a session boundary
+     * describes an action in a game that no longer exists and can never be
+     * retired: it is re-checked on every frame forever, keeps the pending list
+     * permanently non-empty in telemetry, and — because star ids can recur in a
+     * later session — risks matching by coincidence and committing a visual-lag
+     * measurement spanning the whole gap between sessions.
      */
     reset: () => void;
     resetTelemetry: () => void;
@@ -354,17 +368,17 @@ export function createOrderMutationQueue(
     function applyOrderMutation(mutation: QueuedOrderMutation): void {
         switch (mutation.kind) {
             case "issue":
-                activeGameStore.issueOrder(
+                deps.store.issueOrder(
                     mutation.sourceId,
                     mutation.targetId,
                     mutation.persist,
                 );
                 break;
             case "cancel":
-                activeGameStore.cancelOrder(mutation.starId);
+                deps.store.cancelOrder(mutation.starId);
                 break;
             case "defer":
-                activeGameStore.setDeferredOrder(
+                deps.store.setDeferredOrder(
                     mutation.sourceId,
                     mutation.targetId,
                     mutation.persist,
@@ -544,6 +558,7 @@ export function createOrderMutationQueue(
 
         reset: () => {
             queuedOrderMutations.splice(0, queuedOrderMutations.length);
+            pendingAcknowledgments.splice(0, pendingAcknowledgments.length);
             orderDispatchScheduled = false;
             orderMutationRequestSeq = 0;
             resetTelemetryFields();

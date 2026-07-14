@@ -251,7 +251,6 @@
     const fxOrchestrator = new FXOrchestrator();
     const TERRITORY_INPUT_PRIORITY_WINDOW_MS = 180;
     const ORDER_MUTATION_PRIORITY_WINDOW_MS = 320;
-    const SHIP_RENDER_INPUT_YIELD_RESCUE_STALE_MS = 32;
     const CONNECTIONS_PRESENT_HEAVY_UPDATE_MS = 2;
     const CONNECTIONS_PRESENT_INTERACTIVE_MIN_CADENCE_MS = 96;
     const CONNECTIONS_PRESENT_IDLE_MIN_CADENCE_MS = 24;
@@ -283,10 +282,6 @@
     let lastConnectionsPresentedAtMs = 0;
     let lastStarsPresentCostMs = 0;
     let lastStarsPresentedAtMs = 0;
-    let renderFrameInputYieldCount = 0;
-    let lastRenderFrameInputYieldStage = "";
-    let lastRenderFrameInputYieldReason = "";
-    let lastRenderFrameInputYieldAtMs = 0;
     let shipRenderYieldRescueCount = 0;
     let lastShipRenderContext = "";
     let lastShipRenderReason = "";
@@ -336,6 +331,7 @@
             setTerritoryRenderStatus({ arrowRenderer: "overlay_canvas" }),
     });
     const orderMutationQueue = createOrderMutationQueue({
+        store: activeGameStore,
         getInteraction: () => ({
             activeStarId,
             dragSourceId,
@@ -379,16 +375,6 @@
         }
     }
 
-    // P0 (PowerCore plan): presentation never yields to input or throttles on a
-    // cadence — visible territory truth is painted immediately, every frame. The
-    // input-yield/cadence machinery this replaced traded stale visuals for
-    // prettier frame tables (the proven overnight-branch regression class).
-    function shouldYieldRenderFrameForInput(
-        _frameStartedAtMs: number,
-        _stage: string,
-    ): boolean {
-        return false;
-    }
 
     function runTerritoryUpdate<T>(name: string, fn: () => T): T {
         const startedAt = performance.now();
@@ -518,24 +504,6 @@
             if (shipParticleContainer) shipParticleContainer.update();
         });
         return true;
-    }
-
-    function maybeRenderShipsBeforeInputYield(params: {
-        stars: StarState[];
-        starsById: Map<string, StarState>;
-        tickProgress: number;
-        stage: string;
-    }): void {
-        if (activeGameStore.isPaused) return;
-        if (fxOrchestrator.vsm.travelingShips.length === 0) return;
-        presentShipsFrame({
-            stars: params.stars,
-            starsById: params.starsById,
-            tickProgress: params.tickProgress,
-            nowMs: performance.now(),
-            context: `yield:${params.stage}`,
-            rescueStaleMs: SHIP_RENDER_INPUT_YIELD_RESCUE_STALE_MS,
-        });
     }
 
     function runConnectionsPresentation<T>(name: string, fn: () => T): T {
@@ -2339,10 +2307,6 @@
             lastConnectionsPresentedAtMs = 0;
             lastStarsPresentCostMs = 0;
             lastStarsPresentedAtMs = 0;
-            renderFrameInputYieldCount = 0;
-            lastRenderFrameInputYieldStage = "";
-            lastRenderFrameInputYieldReason = "";
-            lastRenderFrameInputYieldAtMs = 0;
             shipRenderYieldRescueCount = 0;
             lastShipRenderContext = "";
             lastShipRenderReason = "";
@@ -3473,16 +3437,6 @@
             }
         } // end territory pause guard
 
-        if (shouldYieldRenderFrameForInput(frameStartedAtMs, "after_territory")) {
-            maybeRenderShipsBeforeInputYield({
-                stars,
-                starsById,
-                tickProgress,
-                stage: "after_territory",
-            });
-            finalizeRenderFrame({ stars });
-            return;
-        }
 
 
         // Render stars (static elements)
@@ -3526,16 +3480,6 @@
 
         }
 
-        if (shouldYieldRenderFrameForInput(frameStartedAtMs, "after_stars")) {
-            maybeRenderShipsBeforeInputYield({
-                stars,
-                starsById,
-                tickProgress,
-                stage: "after_stars",
-            });
-            finalizeRenderFrame({ stars });
-            return;
-        }
 
         // Render connections (star network) - unified source
         const connections = activeGameStore.connections as StarConnection[];
@@ -3571,41 +3515,11 @@
             }
         }
 
-        if (
-            shouldYieldRenderFrameForInput(
-                frameStartedAtMs,
-                "after_connections",
-            )
-        ) {
-            maybeRenderShipsBeforeInputYield({
-                stars,
-                starsById,
-                tickProgress,
-                stage: "after_connections",
-            });
-            finalizeRenderFrame({ stars });
-            return;
-        }
 
         // Render interaction overlay on a dedicated 2D canvas so command
         // feedback stays outside the heavier Pixi batch rebuild path.
         presentInteractionOverlayFrame(stars);
 
-        if (
-            shouldYieldRenderFrameForInput(
-                frameStartedAtMs,
-                "after_interaction_overlay",
-            )
-        ) {
-            maybeRenderShipsBeforeInputYield({
-                stars,
-                starsById,
-                tickProgress,
-                stage: "after_interaction_overlay",
-            });
-            finalizeRenderFrame({ stars, interactionOverlayPresented: true });
-            return;
-        }
 
         // Process tick events (event-driven animations, not diff-based — see POST_MORTEMS.md)
         const tickEvents = measurePerf(
@@ -3678,18 +3592,6 @@
             });
         }
 
-        if (
-            shouldYieldRenderFrameForInput(frameStartedAtMs, "after_tick_events")
-        ) {
-            maybeRenderShipsBeforeInputYield({
-                stars,
-                starsById,
-                tickProgress,
-                stage: "after_tick_events",
-            });
-            finalizeRenderFrame({ stars, interactionOverlayPresented: true });
-            return;
-        }
 
         // Render all ships: orbiting (per-star) + traveling (in-flight lifecycle)
         // IMPORTANT: Always read from VSM to stay in sync — ShipRenderer replaces the array
@@ -3930,10 +3832,15 @@
             shipRenderYieldRescueCount,
             lastShipRenderContext,
             lastShipRenderReason,
-            renderFrameInputYieldCount,
-            lastRenderFrameInputYieldStage,
-            lastRenderFrameInputYieldReason,
-            lastRenderFrameInputYieldAtMs,
+            // Presentation never yields to input, by design (see presentShipsFrame:
+            // painting stale territory to win a frame table is a known regression
+            // class). These stay in the snapshot as constants because the release
+            // benchmark tooling reads them by name; they report the truth — zero
+            // yields ever happened — rather than describing machinery that exists.
+            renderFrameInputYieldCount: 0,
+            lastRenderFrameInputYieldStage: "",
+            lastRenderFrameInputYieldReason: "",
+            lastRenderFrameInputYieldAtMs: 0,
             ...orderMutationQueue.getTelemetry(),
             territoryPresentationSpace:
                 getTerritoryPresentationSpaceDiagnostics(),
