@@ -320,7 +320,7 @@ these because tests are live roots. Needs a per-export pass, not a per-module on
 importers yet kept ~2.3k LOC (MetaballRenderer) reachable; a module imported only by its own test looks
 live to every module-level tool. Re-run `orphans2.cjs`-style fixpoint sweeps at Stage 7.
 
-### Stage 5 — GameCanvas decomposition (8,555 → 7,017 after 3C-1/3C-3 → **6,171** IN PROGRESS)
+### Stage 5 — GameCanvas decomposition (8,555 → 7,017 after 3C-1/3C-3 → **5,233** IN PROGRESS)
 Extract per responsibility map (built at stage start): render-family lifecycle, geometry-build
 scheduling, transition scheduling, input/orders, combat FX — one extraction per commit, suite between.
 Decomposition DESIGN is Fable-tier; extraction execution Opus.
@@ -352,20 +352,48 @@ API). Pick ranges by ratio, not by size. Measured results:
 | 2 | Interaction caches / spatial index | 6 vars | **DONE** `7035fda0` interactionCaches.ts (+14 tests) |
 | 3 | Camera: zoom/pan/bounds/animation | 13 vars | **DONE** `990689a0` cameraModel.ts (+23 tests) |
 | 4 | Canvas client-rect cache | 2 vars | **DONE** `8cffb9a5` canvasClientRect.ts (+ 3 transposes collapsed to 1) |
-| 5 | Scheduler/order telemetry (~50 counters) | ~50 vars | serves ONE benchmark snapshot; consolidate into a telemetry object |
-| 6 | Order mutation queue + visual ack | ~14 vars | needs #7 first (shares selection state) |
-| 7 | **InteractionState** (activeStarId, pendingOrders, deferredOrders, drag*) | ~12 vars | KEYSTONE — unblocks #6 and #8 |
-| 8 | Interaction overlay renderer | 4 vars | blocked on #7 |
-| 9 | Territory presentation queue | ~22 vars | independent; measurable next |
-| 10 | `renderFrame` (~1,480 lines) | — | LAST. Do not touch until 1-9 shrink its surface. |
+| 5 | ~~Scheduler/order telemetry (~50 counters)~~ | — | **DISSOLVED — see below** |
+| 6 | Order mutation queue + visual ack | ~14 vars | **DONE** `4983c6b7` orderMutationQueue.ts |
+| 7 | ~~InteractionState~~ | — | **NOT NEEDED — see below** |
+| 8 | Interaction overlay renderer | 4 vars | **DONE** `79ba9e9d` interactionOverlay.ts |
+| 9 | Territory presentation queue | ~22 vars | **DONE** `a1885db4` territoryPresentationQueue.ts (+14 tests) |
+| 10 | `renderFrame` (~1,480 lines) | — | **ONLY ITEM LEFT.** Needs a dedicated session. |
 
-**Suggested order from here:** #7 (keystone — the drag/selection state that the coupling probe
-showed blocks both #6 and #8), then #6 and #8 fall out cheaply, then #9, then #5, then #10.
-#5 is deceptive: ~50 loose counters, but they are pure telemetry read by exactly one function
-(`getBenchmarkTerritorySchedulerSnapshot`, live via `benchmarkBridge.ts`). Mechanical, low risk,
-but ~50 write sites of churn — worth doing in one dedicated commit.
-NOTE while in there: `lastRenderFrameInputYieldStage` is only ever reset to `""` and never
-assigned a real value — it is always empty in the snapshot. Verify before removing.
+#### Two entries in this map were wrong. Both were corrected by MEASURING, not by planning harder.
+
+**#5 dissolved.** "~50 scattered telemetry counters" is not a responsibility — it is the telemetry
+of three different subsystems that happen to be read by one benchmark snapshot. Consolidating them
+into a telemetry blob would have invented a module nobody owns. Instead each cluster left with its
+owner (`territoryPresentationQueue.getTelemetry()`, `orderMutationQueue.getTelemetry()`), and
+`getBenchmarkTerritorySchedulerSnapshot` composes them by spread. Remaining in GameCanvas: only the
+territory/ship render-cadence counters, which belong to renderFrame's scheduler (#10).
+
+**#7 was not needed.** The map asserted an InteractionState extraction was the KEYSTONE blocking #6
+and #8, because both "share drag/selection state". Re-measuring showed both only ever READ it —
+zero writes. They needed a SNAPSHOT READER (`getInteraction: () => ({...})`), not shared ownership.
+The pointer handlers stay the single writer, which is what makes it safe. That saved ~180 mechanical
+rewrites of `activeStarId` -> `interaction.activeStarId` for no behavioural gain.
+**Lesson: "they share state" is not a dependency. Ask who WRITES.**
+
+#### Telemetry findings worth a decision (flagged, not acted on)
+- `territoryPresentation{Scheduled,PostedCount,YieldCount,LastYield*}` are always 0/false/"" — the
+  deferred/yielding dispatch path was removed but the counters survive. NOT deleted: the release
+  benchmark tools (`tools/debug/benchmark-browser-gameplay.ts`,
+  `tools/debug/review-release-gameplay-benchmark.ts`) read them BY NAME and defensively (`?? 0`), so
+  dropping them degrades reports silently instead of failing. Pinned by a test.
+- `lastRenderFrameInputYieldStage` is only ever reset to `""`, never assigned. Always empty.
+- `orderMutationQueue.reset()` does not clear pending acknowledgments (faithful to the old session
+  reset). An ack from a finished session can never be retired. Looks like a bug; needs a ruling.
+- Removed as provably dead in `e30f9d1a`: `recordOrderPathEvent` (EMPTY body, 14 call sites) and
+  `recordInputHandlingLatency` (both branches returned the same value; result discarded at all 5
+  sites) — both on the hot pointer path. `noteInteractivePressure` still has a vestigial empty
+  `if (kind) {}` block; same family, not yet removed.
+
+#### Stage 5 scoreboard
+GameCanvas **7,017 -> 5,233 (-25%)**. Suite **82 files/479 tests -> 85/530**. 8 modules extracted,
+all gates green on every commit. Duplication removed: camera transform 6x -> 1, transpose
+projection 3x -> 1, pan-drag 2x -> 1, cache teardown 2x -> 1, lane-key format 2x -> 1,
+ack-flush loop 2x -> 1, overlay drag-endpoint 2x -> 1.
 
 #### Extractions 1-3 — what they bought
 Not LOC (net is roughly flat: the deps interfaces cost what the moves save). They bought **testable
