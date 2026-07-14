@@ -47,6 +47,14 @@
         TICK_INTERVAL_CHANGED_EVENT,
         type AnimLockMode,
     } from "./panelSync";
+    import {
+        togglePin,
+        toggleTickRatio,
+        toggleAnimSpeedRatio,
+        recalcOnTickChange,
+        recalcOnAnimSpeedChange,
+        type AnimLockTransition,
+    } from "./animLockMath";
     import ControlsSectionTiming from "./settings/ControlsSection-Timing.svelte";
     import ControlsSectionBattle from "./settings/ControlsSection-Battle.svelte";
     import ControlsSectionEconomy from "./settings/ControlsSection-Economy.svelte";
@@ -152,8 +160,14 @@
     let animLockRatios = $state(loadAnimLockRatios());
     let animLockModes = $state(loadAnimLockModes());
 
-    function isTickRelativeSlider(def?: AnimSliderDef): boolean {
-        return def?.unit === "×tick" || def?.unit === "ticks";
+    // Lock math lives in animLockMath.ts (pure transitions over
+    // {modes, ratios}); this component owns the $state and persistence.
+    function applyLockTransition(transition: AnimLockTransition) {
+        animLockModes = transition.modes;
+        animLockRatios = transition.ratios;
+        if (transition.set) setAnimValue(transition.set.key, transition.set.value);
+        saveAnimLockRatios(animLockRatios);
+        saveAnimLockModes(animLockModes);
     }
 
     function applyTimingBindingsAndLocks() {
@@ -559,123 +573,64 @@
     // =========================================================================
 
     /** Pin value exactly to tick duration (ms -> BASE_TICK_MS, multipliers -> 1.0) */
-function pinValueToTickDuration(key: string) {
-        const currentMode = animLockModes[key];
-        if (currentMode === "pinned") {
-            // Unpin
-            animLockModes[key] = null;
-            animLockRatios[key] = null;
-        } else {
-            // Pin: ms values → BASE_TICK_MS, multipliers → 1.0
-            const def = ANIM_SLIDERS.find((s) => s.key === key);
-            const unit = def?.unit ?? "";
-            const isTickRelative = unit === "×tick" || unit === "ticks";
-            const isMultiplier = isTickRelative || unit === "×";
-            const pinnedValue = isMultiplier ? 1.0 : GAME_CONFIG.BASE_TICK_MS;
-            const pinnedRatio = isTickRelative
-                ? 1.0
-                : unit === "×"
-                  ? 1.0 / GAME_CONFIG.BASE_TICK_MS
-                  : 1;
-            animLockModes[key] = "pinned";
-            animLockRatios[key] = pinnedRatio;
-            setAnimValue(key, pinnedValue);
-        }
-        animLockModes = { ...animLockModes };
-        animLockRatios = { ...animLockRatios };
-        saveAnimLockRatios(animLockRatios);
-        saveAnimLockModes(animLockModes);
+    function pinValueToTickDuration(key: string) {
+        applyLockTransition(
+            togglePin(
+                { modes: animLockModes, ratios: animLockRatios },
+                key,
+                ANIM_SLIDERS.find((s) => s.key === key),
+                GAME_CONFIG.BASE_TICK_MS,
+            ),
+        );
     }
 
     /** Lock current ratio relative to tick (value scales proportionally when tick changes) */
-function lockRatioToTick(key: string) {
-        const currentMode = animLockModes[key];
-        if (currentMode === "ratio") {
-            // Unlock
-            animLockModes[key] = null;
-            animLockRatios[key] = null;
-        } else {
-            // Lock ratio: capture current value / tickDuration
-            const currentVal = (GAME_CONFIG as any)[key] as number;
-            const currentTick = GAME_CONFIG.BASE_TICK_MS;
-            const def = ANIM_SLIDERS.find((s) => s.key === key);
-            animLockModes[key] = "ratio";
-            animLockRatios[key] = isTickRelativeSlider(def)
-                ? currentVal
-                : currentVal / currentTick;
-        }
-        animLockModes = { ...animLockModes };
-        animLockRatios = { ...animLockRatios };
-        saveAnimLockRatios(animLockRatios);
-        saveAnimLockModes(animLockModes);
+    function lockRatioToTick(key: string) {
+        applyLockTransition(
+            toggleTickRatio(
+                { modes: animLockModes, ratios: animLockRatios },
+                key,
+                ANIM_SLIDERS.find((s) => s.key === key),
+                (GAME_CONFIG as any)[key] as number,
+                GAME_CONFIG.BASE_TICK_MS,
+            ),
+        );
     }
 
     /** Recalculate all locked/pinned animation values when tick interval changes */
-function recalcAnimLocksOnTickChange(newTickMs: number) {
-        const updates: Record<string, number> = {};
-        for (const [key, mode] of Object.entries(animLockModes)) {
-            if (mode === "pinned" || mode === "ratio") {
-                const ratio = animLockRatios[key];
-                if (ratio != null) {
-                    const def = ANIM_SLIDERS.find((s) => s.key === key);
-                    let newVal = isTickRelativeSlider(def)
-                        ? ratio
-                        : ratio * newTickMs;
-                    if (def && def.min != null && def.max != null) {
-                        newVal = Math.max(def.min, Math.min(def.max, newVal));
-                    }
-                    newVal =
-                        def?.unit === "ms"
-                            ? Math.round(newVal)
-                            : Math.round(newVal * 100) / 100;
-                    setAnimValue(key, newVal);
-                    updates[key] = newVal;
-                }
-            }
+    function recalcAnimLocksOnTickChange(newTickMs: number) {
+        const updates = recalcOnTickChange(
+            { modes: animLockModes, ratios: animLockRatios },
+            ANIM_SLIDERS,
+            newTickMs,
+        );
+        for (const [key, value] of Object.entries(updates)) {
+            setAnimValue(key, value);
         }
         return updates;
     }
 
     /** Lock current ratio relative to animation speed (value scales when anim speed changes) */
     function lockRatioToAnimSpeed(key: string) {
-        const currentMode = animLockModes[key];
-        if (currentMode === "animSpeed") {
-            // Unlock
-            animLockModes[key] = null;
-            animLockRatios[key] = null;
-        } else {
-            const currentVal = (GAME_CONFIG as any)[key] as number;
-            const animSpeed = animationStore.speedMs;
-            animLockModes[key] = "animSpeed";
-            animLockRatios[key] = currentVal / animSpeed;
-        }
-        animLockModes = { ...animLockModes };
-        animLockRatios = { ...animLockRatios };
-        saveAnimLockRatios(animLockRatios);
-        saveAnimLockModes(animLockModes);
+        applyLockTransition(
+            toggleAnimSpeedRatio(
+                { modes: animLockModes, ratios: animLockRatios },
+                key,
+                (GAME_CONFIG as any)[key] as number,
+                animationStore.speedMs,
+            ),
+        );
     }
 
     /** Recalculate animSpeed-locked values when animation speed changes */
     function recalcAnimLocksOnAnimSpeedChange(newAnimMs: number) {
-        const updates: Record<string, number> = {};
-        for (const [key, mode] of Object.entries(animLockModes)) {
-            if (mode === "animSpeed") {
-                const ratio = animLockRatios[key];
-                if (ratio != null) {
-                    const def = ANIM_SLIDERS.find((s) => s.key === key);
-                    let newVal = ratio * newAnimMs;
-                    if (def && def.min != null && def.max != null) {
-                        newVal = Math.max(def.min, Math.min(def.max, newVal));
-                    }
-                    newVal =
-                        def?.unit === "ms"
-                            ? Math.round(newVal)
-                            : Math.round(newVal * 100) / 100;
-                    (GAME_CONFIG as any)[key] = newVal;
-                    updates[key] = newVal;
-                    syncPanelKey(key, newVal);
-                }
-            }
+        const updates = recalcOnAnimSpeedChange(
+            { modes: animLockModes, ratios: animLockRatios },
+            ANIM_SLIDERS,
+            newAnimMs,
+        );
+        for (const [key, value] of Object.entries(updates)) {
+            setAnimValue(key, value);
         }
         return updates;
     }
