@@ -851,9 +851,10 @@
   border: none;
   background: transparent;
   box-shadow: none;
-  /* Inline style:width changes on every settings state transition — animate it
-     so the ribbon glides with .area-controls instead of snapping. */
-  transition: width 0.22s ease;
+  /* NO width transition: the grid track, .area-controls, and this element all
+     derive from settingsEffectiveWidth and must resize in the SAME frame. An
+     animating inner width lagging a snapped track shows a background sliver and
+     re-triggers the reflow loop the pinned track fixed (2026-07-14). */
 }
 
 .pf-settings-ribbon__resize {

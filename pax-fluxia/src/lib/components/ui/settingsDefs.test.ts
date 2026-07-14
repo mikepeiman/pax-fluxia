@@ -52,7 +52,7 @@ describe('settingsDefs', () => {
         expect(CONFIG_TO_PANEL_KEY['AGGRESSOR_ADVANTAGE']).toBe('aggressorAdvantage');
         const mapping = PANEL_CONFIG_MAP.find((m) => m.configKey === 'AGGRESSOR_ADVANTAGE');
         expect(mapping).toBeDefined();
-        expect((mapping as Record<string, unknown>).panelKey).toBeUndefined();
+        expect(mapping?.panelKey).toBeUndefined();
     });
 
     it('derivePanelKey converts SCREAMING_SNAKE_CASE to camelCase', () => {

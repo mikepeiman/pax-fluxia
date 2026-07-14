@@ -1153,10 +1153,13 @@
 
     function applySubsectionFilter(
         node: HTMLElement,
-        sectionId: ActiveSectionId,
         activeSubsection: string,
     ) {
-        const active = activeSubsections[sectionId] ?? activeSubsection ?? "all";
+        // The PASSED value wins: the "All sections" view passes an explicit
+        // "all" and must show everything. (It used to read the per-section
+        // stored chip first, so a subsection filtered earlier stayed hidden
+        // even in the All view.)
+        const active = activeSubsection ?? "all";
         for (const child of Array.from(node.children) as HTMLElement[]) {
             const subsectionId = child.dataset.subsectionId;
             const hidden =
@@ -1172,14 +1175,17 @@
         sectionBodyNodes.set(params.sectionId, node);
         const refresh = () =>
             queueMicrotask(() =>
-                applySubsectionFilter(
-                    node,
-                    current.sectionId,
-                    current.activeSubsection,
-                ),
+                applySubsectionFilter(node, current.activeSubsection),
             );
 
         refresh();
+
+        // The action's update() only fires when sectionId/activeSubsection
+        // change — NOT when a toggle mounts/unmounts children inside the
+        // section. A child remounted by an {#if} arrives without the hide
+        // class, so the filter must re-run on childList changes too.
+        const childObserver = new MutationObserver(() => refresh());
+        childObserver.observe(node, { childList: true });
 
         return {
             update(next: SectionBodyParams) {
@@ -1191,6 +1197,7 @@
                 refresh();
             },
             destroy() {
+                childObserver.disconnect();
                 if (sectionBodyNodes.get(current.sectionId) === node) {
                     sectionBodyNodes.delete(current.sectionId);
                 }

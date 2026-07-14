@@ -2058,6 +2058,19 @@
             `container=${containerWidth.toFixed(0)}x${containerHeight.toFixed(0)} content=(${resizeBounds.minX.toFixed(0)},${resizeBounds.minY.toFixed(0)} ${resizeBounds.width.toFixed(0)}x${resizeBounds.height.toFixed(0)}) baseScale=${camera.getBaseScale().toFixed(4)} dpr=${window.devicePixelRatio} cssGrid(el)=${canvasEl?.clientWidth ?? "?"}x${canvasEl?.clientHeight ?? "?"} viewport=${window.innerWidth}x${window.innerHeight}`,
         );
         interactionOverlay.renderNow();
+        renderOnceIfPaused();
+    }
+
+    /**
+     * Paint one frame after a canvas resize while the game is paused. The render
+     * loop is pause-gated (settings open = paused), so app.resize() alone leaves
+     * the newly-allocated backbuffer region unpainted — the "unused black
+     * gameboard space" seen when a settings reflow resized the playfield.
+     */
+    function renderOnceIfPaused() {
+        if (!app || !app.renderer) return;
+        if (!activeGameStore.isPaused) return;
+        app.renderer.render(app.stage);
     }
 
     // Cheap per-frame refit run during a resize burst (e.g. the settings-menu
@@ -2080,6 +2093,7 @@
         });
         updateTerritoryViewportFrame();
         applyZoomTransform();
+        renderOnceIfPaused();
     }
 
     /**

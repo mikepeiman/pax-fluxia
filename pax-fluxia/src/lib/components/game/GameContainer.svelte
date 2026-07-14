@@ -800,7 +800,8 @@
       class:layout-controls-left={controlsSide === "left"}
       style:--left-rail-width={`${leftRailWidth}px`}
       style:--right-rail-width={`${rightRailWidth}px`}
-      style:--quick-access-width={`${quickAccessWidth}px`}>
+      style:--quick-access-width={`${quickAccessWidth}px`}
+      style:--settings-ribbon-col={`${settingsEffectiveWidth}px`}>
       <div class="area-topbar">
         <HudTopbar
           settingsOpen={showSettingsPanel}
@@ -1204,8 +1205,13 @@
     width: 100vw;
   }
 
+  /* The ribbon track is PINNED to the same width the .area-controls element
+     gets inline (settingsEffectiveWidth) — never `auto`. A content-sized track
+     let the settings panel's internal reflows resize the 1fr playfield, which
+     fired the canvas ResizeObserver while the game was paused (unpaintable →
+     black strips) and fed the panel's own height-collapse loop. */
   .game-layout.settings-open {
-    grid-template-columns: 1fr auto auto;
+    grid-template-columns: 1fr var(--settings-ribbon-col) auto;
     grid-template-areas:
       "topbar topbar topbar"
       "playfield ribbon tactical";
@@ -1231,21 +1237,21 @@
   }
 
   .game-layout.settings-open.layout-controls-left:not(.layout-sidebar-left) {
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: var(--settings-ribbon-col) 1fr auto;
     grid-template-areas:
       "topbar topbar topbar"
       "ribbon playfield tactical";
   }
 
   .game-layout.settings-open.layout-sidebar-left:not(.layout-controls-left) {
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: auto 1fr var(--settings-ribbon-col);
     grid-template-areas:
       "topbar topbar topbar"
       "tactical playfield ribbon";
   }
 
   .game-layout.settings-open.layout-sidebar-left.layout-controls-left {
-    grid-template-columns: auto auto 1fr;
+    grid-template-columns: auto var(--settings-ribbon-col) 1fr;
     grid-template-areas:
       "topbar topbar topbar"
       "tactical ribbon playfield";
@@ -1707,10 +1713,12 @@
     overflow: hidden;
     /* min-width: 280px; */
     flex-shrink: 0;
-    /* Width is set via inline style:width (settingsEffectiveWidth) and changes on
-       every state transition — ribbon expand/collapse, section open/close, dock
-       switch. Animate it so those changes glide instead of snapping. */
-    transition: width 0.22s ease;
+    /* NO width transition. The grid track is pinned to the same
+       settingsEffectiveWidth this element gets inline, so both must change in
+       the same frame — an animating element lagging a snapped track re-creates
+       the transient gap/reflow the pinned track exists to eliminate, and the
+       old per-frame track animation resized the paused (unpaintable) canvas
+       ~13 times per toggle. Open/close still glides via transition:slide. */
   }
 
   .area-controls--dock-left {
