@@ -396,24 +396,6 @@
             setTerritoryRenderStatus({ arrowRenderer: "overlay_canvas" }),
     });
 
-    function recordInputHandlingLatency(
-        kind: string,
-        event: MouseEvent | PointerEvent | WheelEvent,
-        thresholdMs = 0,
-    ): number {
-        const queueDelayMs = Math.max(0, performance.now() - event.timeStamp);
-        if (queueDelayMs < thresholdMs) return queueDelayMs;
-
-        return queueDelayMs;
-    }
-
-    function recordOrderPathEvent(
-        step: string,
-        detail: Record<string, unknown> = {},
-    ): void {
-
-    }
-
     function nextOrderMutationRequestId(): number {
         orderMutationRequestSeq += 1;
         return orderMutationRequestSeq;
@@ -2599,7 +2581,6 @@
 
     function handleWheel(event: WheelEvent) {
         noteInteractivePressure("wheel");
-        recordInputHandlingLatency("wheel", event);
         log.input(
             `⚙ wheel deltaY=${event.deltaY.toFixed(0)} @(${event.clientX},${event.clientY})`,
         );
@@ -4816,7 +4797,6 @@
     function handlePointerDown(event: PointerEvent) {
         if (!app) return;
         noteInteractivePressure("pointerdown");
-        recordInputHandlingLatency("pointerdown", event);
         log.input(
             `▼ pointerDown btn=${event.button} @(${event.clientX},${event.clientY}) ptrType=${event.pointerType}`,
         );
@@ -5033,7 +5013,6 @@
             });
         }
         noteInteractivePressure();
-        recordInputHandlingLatency("pointermove", event, 16);
 
         // Pinch zoom + 2-finger pan
         if (isPinching && activePointers.size >= 2) {
@@ -5198,13 +5177,6 @@
 
     function handlePointerUp(event: PointerEvent) {
         noteInteractivePressure("pointerup");
-        recordInputHandlingLatency("pointerup", event);
-        recordOrderPathEvent("pointerup.start", {
-            button: event.button,
-            pointerType: event.pointerType,
-            activeStarId,
-            dragSourceId,
-        });
         log.input(
             `▲ pointerUp btn=${event.button} @(${event.clientX},${event.clientY})`,
         );
@@ -5333,29 +5305,12 @@
                             requestId: success,
                             dispatchMode: "queued",
                         });
-                        recordOrderPathEvent("issue", {
-                            path: "drag",
-                            dispatchMode: "queued",
-                            sourceId: dragSourceId,
-                            targetId: targetStar.id,
-                            persistAfterConquest: !event.ctrlKey,
-                            sourceOwnerId:
-                                interactionCaches.getStarById(dragSourceId)?.ownerId ??
-                                null,
-                            targetOwnerId: targetStar.ownerId,
-                        });
                         log.success(
                             "GameCanvas",
                             `Drag order: ${dragSourceId} → ${targetStar.id}`,
                         );
                     }
                 } else {
-                    recordOrderPathEvent("reject", {
-                        path: "drag",
-                        reason: "not_connected",
-                        sourceId: dragSourceId,
-                        targetId: targetStar.id,
-                    });
                     log.state(
                         "GameCanvas",
                         `Drag order rejected: ${dragSourceId} → ${targetStar.id} (not connected)`,
@@ -5384,10 +5339,6 @@
                     targetId: targetStar.id,
                     activeStarId: null,
                     dispatchMode: "immediate",
-                });
-                recordOrderPathEvent("select", {
-                    branch: "toggle",
-                    targetId: targetStar.id,
                 });
                 log.input(`  Case 1: TOGGLE deselect ${targetStar.id}`);
             }
@@ -5431,15 +5382,6 @@
                                 requestId: success,
                                 dispatchMode: "queued",
                             });
-                            recordOrderPathEvent("issue", {
-                                path: "click",
-                                dispatchMode: "queued",
-                                sourceId: activeStarId,
-                                targetId: targetStar.id,
-                                persistAfterConquest: !event.ctrlKey,
-                                sourceOwnerId: activeStarSnapshot.ownerId,
-                                targetOwnerId: targetStar.ownerId,
-                            });
                             log.input(
                                 `  Case 2a: ORDER issued ${activeStarId} → ${targetStar.id}`,
                             );
@@ -5467,38 +5409,16 @@
                                 requestId: success,
                                 dispatchMode: "queued",
                             });
-                            recordOrderPathEvent("defer", {
-                                path: "click",
-                                dispatchMode: "queued",
-                                sourceId: activeStarId,
-                                targetId: targetStar.id,
-                                persistAfterConquest: !event.ctrlKey,
-                                sourceOwnerId: activeStarSnapshot.ownerId,
-                                targetOwnerId: targetStar.ownerId,
-                            });
                             log.input(
                                 `  Case 2b: DEFERRED order ${activeStarId} → ${targetStar.id}`,
                             );
                         }
                     } else {
-                        recordOrderPathEvent("reject", {
-                            path: "click",
-                            reason: "source_unavailable",
-                            sourceId: activeStarId,
-                            targetId: targetStar.id,
-                            sourceOwnerId: activeStarSnapshot?.ownerId ?? null,
-                        });
                         log.input(
                             `  Case 2c: no order (source=${activeStarId} owner=${activeStarSnapshot?.ownerId || "null"})`,
                         );
                     }
                 } else {
-                    recordOrderPathEvent("reject", {
-                        path: "click",
-                        reason: "not_connected",
-                        sourceId: activeStarId,
-                        targetId: targetStar.id,
-                    });
                     log.input(
                         `  Case 2d: NOT CONNECTED ${activeStarId} ↛ ${targetStar.id}`,
                     );
@@ -5516,11 +5436,6 @@
                         previousActiveStarId,
                     },
                 });
-                recordOrderPathEvent("select", {
-                    branch: "handoff",
-                    targetId: targetStar.id,
-                    previousActiveStarId,
-                });
             }
             // Case 3: No prior selection -> just select
             else {
@@ -5532,26 +5447,14 @@
                     activeStarId: targetStar.id,
                     dispatchMode: "immediate",
                 });
-                recordOrderPathEvent("select", {
-                    branch: "new",
-                    targetId: targetStar.id,
-                });
                 log.input(`  Case 3: SELECT ${targetStar.id}`);
             }
         } else if (!movedSignificantly && !targetStar) {
-            recordOrderPathEvent("clear", {
-                reason: "empty_space",
-            });
             log.input(
                 `pointerUp CLICK → empty space, clearing selection (movedSig=${movedSignificantly})`,
             );
             clearSelection();
         } else {
-            recordOrderPathEvent("noop", {
-                movedSignificantly,
-                targetId: targetStar?.id ?? null,
-                dragSourceId,
-            });
             log.input(
                 `pointerUp → no action (movedSig=${movedSignificantly}, target=${targetStar?.id || "null"}, dragSrc=${dragSourceId || "null"})`,
             );
@@ -5562,7 +5465,6 @@
 
     function handleRightClick(event: MouseEvent) {
         noteInteractivePressure("rightclick");
-        recordInputHandlingLatency("rightclick", event);
         event.preventDefault();
 
         const { x, y } = canvasClientRect.toLocalPoint(
@@ -5594,13 +5496,6 @@
                 requestId,
                 dispatchMode: "queued",
             });
-            recordOrderPathEvent("cancel", {
-                path: "rightclick",
-                dispatchMode: "queued",
-                sourceId: star.id,
-                targetId: star.targetId,
-                sourceOwnerId: star.ownerId,
-            });
             log.state("GameCanvas", `Order cancelled for star ${star.id}`);
         } else if (
             star &&
@@ -5616,11 +5511,6 @@
                     sourceId: star.id,
                     activeStarId: null,
                     dispatchMode: "immediate",
-                });
-                recordOrderPathEvent("defer_cancel", {
-                    path: "rightclick",
-                    targetId: star.id,
-                    targetOwnerId: star.ownerId,
                 });
                 log.state(
                     "GameCanvas",
