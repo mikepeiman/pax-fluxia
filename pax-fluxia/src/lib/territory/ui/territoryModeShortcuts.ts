@@ -12,120 +12,20 @@ import {
     type ResolvedTerritoryRenderModeOption,
 } from './territoryRenderModeCatalog';
 
-export type TerritoryModeShortcutAppearance =
-    | 'pvv4'
-    | 'perimeter'
-    | 'metaball'
-    | 'grid'
-    | 'phase_edges'
-    | 'ember'
-    | 'phase_field'
-    | 'grid_gradient';
-
 export type TerritoryModeShortcutOption = ResolvedTerritoryRenderModeOption & {
-    shortLabel: string;
-    appearance: TerritoryModeShortcutAppearance;
     displayLabel: string;
 };
-
-const TOPBAR_MODE_DEFS: ReadonlyArray<{
-    id: string;
-    shortLabel: string;
-    displayLabel: string;
-    appearance: TerritoryModeShortcutAppearance;
-}> = [
-    {
-        id: 'power_voronoi_runtime',
-        shortLabel: 'PVV4',
-        displayLabel: 'Power Voronoi',
-        appearance: 'pvv4',
-    },
-    {
-        id: 'perimeter_field',
-        shortLabel: 'Perimeter',
-        displayLabel: 'Perimeter',
-        appearance: 'perimeter',
-    },
-    {
-        id: 'metaball',
-        shortLabel: 'Metaball',
-        displayLabel: 'Metaball',
-        appearance: 'metaball',
-    },
-    {
-        id: 'cell_grid',
-        shortLabel: 'Grid',
-        displayLabel: 'Cell Grid',
-        appearance: 'grid',
-    },
-    {
-        id: 'phase_edges',
-        shortLabel: 'Edges',
-        displayLabel: 'Phase Edges',
-        appearance: 'phase_edges',
-    },
-    {
-        id: 'ember_lattice',
-        shortLabel: 'Ember',
-        displayLabel: 'Ember Lattice',
-        appearance: 'ember',
-    },
-    {
-        id: 'phase_field',
-        shortLabel: 'Field',
-        displayLabel: 'Phase Field',
-        appearance: 'phase_field',
-    },
-    {
-        id: 'grid_gradient',
-        shortLabel: 'Grad',
-        displayLabel: 'Grid Gradient',
-        appearance: 'grid_gradient',
-    },
-];
-
-const STYLE_TO_BOOLEAN: Record<string, string> = {
-    vs_pvv3: 'territoryPVV3',
-    power_voronoi: 'territoryPowerVoronoi',
-    modified_voronoi: 'territoryModifiedVoronoi',
-    distance_field: 'territoryDistanceField',
-    voronoi: 'territoryVoronoi',
-    metaball: 'territoryMetaball',
-    pixel: 'territoryPixel',
-    graph: 'territoryGraph',
-    contour: 'territoryContour',
-    territory_engine: 'territoryEngine',
-};
-
-export function getTopbarTerritoryModeOptions(): TerritoryModeShortcutOption[] {
-    const catalogById = new Map(
-        resolveTerritoryRenderModeOptions().map((option) => [option.id, option] as const),
-    );
-
-    return TOPBAR_MODE_DEFS.flatMap((def) => {
-        const option = catalogById.get(def.id);
-        if (!option || !option.selectable) return [];
-        return [
-            {
-                ...option,
-                label: def.displayLabel,
-                shortLabel: def.shortLabel,
-                displayLabel: def.displayLabel,
-                appearance: def.appearance,
-            },
-        ];
-    });
-}
 
 /**
- * Full render-mode option list for the topbar <select> — every selectable
- * (non-uiHidden) family from the catalog, as { value, label } for PaxHudSelect.
- * The PVV4|EMBER|FIELD|GRID chips are quick-picks; this reaches the rest.
+ * Topbar render-mode chips — every selectable mode in the catalog, in catalog
+ * order. The catalog is the single source of truth (id, label, shortLabel);
+ * there is no separate hand-maintained chip list and no fallback dropdown.
+ * The keep-set is small enough that every mode IS a chip.
  */
-export function getTerritoryRenderModeSelectOptions(): { value: string; label: string }[] {
+export function getTopbarTerritoryModeOptions(): TerritoryModeShortcutOption[] {
     return resolveTerritoryRenderModeOptions()
         .filter((option) => option.selectable)
-        .map((option) => ({ value: option.id, label: option.label }));
+        .map((option) => ({ ...option, displayLabel: option.label }));
 }
 
 function resolveActiveFillTransitionMode(panel: Record<string, any>): string {
@@ -138,32 +38,18 @@ function resolveActiveFillTransitionMode(panel: Record<string, any>): string {
 }
 
 export function applyTopbarTerritoryModeShortcut(modeId: string): void {
-    let panel = loadPanelSettings(panelDefaultsFromConfig());
+    const panel = loadPanelSettings(panelDefaultsFromConfig());
     const configPatch: Record<string, unknown> = {
         TERRITORY_RENDER_MODE: modeId,
     };
 
-    if (modeId === 'power_voronoi_runtime') {
-        configPatch.TERRITORY_FILL_TRANSITION_MODE = 'pv_frontline';
-        configPatch.TERRITORY_BORDER_TRANSITION_MODE = 'off';
-        configPatch.TERRITORY_BORDER_TRANSITION = 'none';
-    } else if (resolveActiveFillTransitionMode(panel) === 'pv_frontline') {
+    // Persisted-panel migration: pv_frontline belonged to the quarantined PVV4
+    // runtime; a saved panel can still carry it, and no kept mode can play it.
+    if (resolveActiveFillTransitionMode(panel) === 'pv_frontline') {
         configPatch.TERRITORY_FILL_TRANSITION_MODE = 'active_front';
     }
 
-    panel = setSettingsFromConfigPatch(panel, configPatch, savePanelSettings);
-
-    const styleFlagsPatch = Object.fromEntries(
-        Object.entries(STYLE_TO_BOOLEAN).map(([styleId, panelKey]) => [
-            panelKey,
-            modeId !== 'none' && styleId === modeId,
-        ]),
-    );
-
-    savePanelSettings({
-        ...panel,
-        ...styleFlagsPatch,
-    });
+    setSettingsFromConfigPatch(panel, configPatch, savePanelSettings);
 
     bumpTerritoryVisualConfig();
 

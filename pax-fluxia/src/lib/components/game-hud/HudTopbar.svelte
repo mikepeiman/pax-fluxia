@@ -1,12 +1,11 @@
 <script lang="ts">
   import type { GameSpeed } from "$lib/types/game.types";
   import type { TerritoryModeShortcutOption } from "$lib/territory/ui/territoryModeShortcuts";
-  import { getTerritoryRenderModeSelectOptions } from "$lib/territory/ui/territoryModeShortcuts";
   import { GAME_CONFIG } from "$lib/config/game.config";
   import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
   import { log } from "$lib/utils/logger";
   import HudIcon from "$lib/components/ui/hud/HudIcon.svelte";
-  import { PaxHudButton, PaxHudSelect } from "$lib/design-system";
+  import { PaxHudButton } from "$lib/design-system";
   import HudIconButton from "./HudIconButton.svelte";
   import { formatHudNumber } from "./viewModels";
   import { gameHudStatsStore } from "$lib/stores/gameHudStatsStore";
@@ -49,14 +48,6 @@
   const localPlayer = $derived(players.find((player) => player.isLocal) ?? players[0] ?? null);
   const tacticalOverview = $derived(
     [...players].sort((a, b) => b.totalShips - a.totalShips).slice(0, 5),
-  );
-
-  // Full render-mode catalog (non-uiHidden). The PVV4|EMBER|FIELD|GRID chips are
-  // quick-picks; this <select> reaches every selectable family. Both call
-  // onModeSelect → applyTopbarTerritoryModeShortcut (identical dispatch path).
-  const renderModeSelectOptions = getTerritoryRenderModeSelectOptions();
-  const isKnownRenderMode = $derived(
-    renderModeSelectOptions.some((option) => option.value === activeModeId),
   );
 
   // END_SNAP_FIX_EVAL — cycle the two candidate end-snap fixes for visual
@@ -164,15 +155,6 @@
         <span>{option.shortLabel}</span>
       </PaxHudButton>
     {/each}
-    <PaxHudSelect
-      class="pf-hud-topbar__mode-select"
-      size="sm"
-      value={isKnownRenderMode ? activeModeId : ""}
-      placeholder={isKnownRenderMode ? undefined : "Mode…"}
-      options={renderModeSelectOptions}
-      ariaLabel="Territory render mode"
-      onValueChange={(value) => onModeSelect(value)}
-    />
     <!-- END_SNAP_FIX_EVAL: temporary evaluation chip; remove with the loser. -->
     <PaxHudButton
       class="pf-hud-topbar__mode"

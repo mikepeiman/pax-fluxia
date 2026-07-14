@@ -6,6 +6,8 @@
 export interface TerritoryRenderModeDefinition {
     readonly id: string;
     readonly label: string;
+    /** Chip label for the in-game topbar (every selectable mode is a chip). */
+    readonly shortLabel: string;
     readonly shortDescription?: string;
     /** Has a matching `case` in GameCanvas territory dispatch (or explicit off). */
     readonly legacyDispatch: boolean;
@@ -20,11 +22,23 @@ export interface TerritoryRenderModeDefinition {
 // quarantined mode was removed (its dispatch + files are gone in Stage 3C); saved
 // configs / imported themes referencing a removed id resolve to power_vector via
 // normalizeTerritoryRenderModeId (the quarantine-fallback map below).
+//
+// Order is presentation order everywhere modes are listed (topbar chips and the
+// settings Render-mode row): the default/flagship mode first, then the cell-grid
+// skins, then the experimental gradient, with Off last.
 export const TERRITORY_RENDER_MODE_CATALOG: readonly TerritoryRenderModeDefinition[] = [
-    { id: 'none', label: 'Off', shortDescription: 'No territory overlay', legacyDispatch: true },
+    {
+        id: 'power_vector',
+        label: 'Power Vector',
+        shortLabel: 'Vector',
+        shortDescription:
+            'PowerCore vector skin (K3a): fills power cells by owner; conquest frontiers SWEEP via the kinetic transition engine (needs Geometry Source = PowerCore to animate)',
+        legacyDispatch: true,
+    },
     {
         id: 'phase_edges',
         label: 'Phase Edges',
+        shortLabel: 'Edges',
         shortDescription:
             'Edge-forward square-lattice conquest mode with blended owner boundaries and shared grid-driven wave controls',
         legacyDispatch: true,
@@ -32,6 +46,7 @@ export const TERRITORY_RENDER_MODE_CATALOG: readonly TerritoryRenderModeDefiniti
     {
         id: 'ember_lattice',
         label: 'Ember Lattice',
+        shortLabel: 'Ember',
         shortDescription:
             'Dense square-lattice territory renderer with contour-derived blended frontiers and inward heat grading',
         legacyDispatch: true,
@@ -39,6 +54,7 @@ export const TERRITORY_RENDER_MODE_CATALOG: readonly TerritoryRenderModeDefiniti
     {
         id: 'phase_field',
         label: 'Phase Field',
+        shortLabel: 'Field',
         shortDescription:
             'Fill-first conquest mode with conquest-local PRE/POST compositing, frontier emphasis, and finish-tail controls',
         legacyDispatch: true,
@@ -46,15 +62,16 @@ export const TERRITORY_RENDER_MODE_CATALOG: readonly TerritoryRenderModeDefiniti
     {
         id: 'grid_gradient',
         label: 'Grid Gradient',
+        shortLabel: 'Grad',
         shortDescription:
             'Experimental render-family mode using PV geometry with invisible grid samples that grow toward region centers',
         legacyDispatch: true,
     },
     {
-        id: 'power_vector',
-        label: 'Power Vector',
-        shortDescription:
-            'PowerCore vector skin (K3a): fills power cells by owner; conquest frontiers SWEEP via the kinetic transition engine (needs Geometry Source = PowerCore to animate)',
+        id: 'none',
+        label: 'Off',
+        shortLabel: 'Off',
+        shortDescription: 'No territory overlay',
         legacyDispatch: true,
     },
 ];

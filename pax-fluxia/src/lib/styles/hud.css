@@ -732,16 +732,6 @@
   font-size: var(--pax-type-4xs);
 }
 
-/* Full render-mode catalog selector — sits beside the quick-pick chips. */
-.pf-hud-topbar__mode-select {
-  flex: 0 1 auto;
-  min-width: 0;
-}
-
-.pf-hud-topbar__mode-select select {
-  min-height: 30px;
-  max-width: 150px;
-}
 
 
 
