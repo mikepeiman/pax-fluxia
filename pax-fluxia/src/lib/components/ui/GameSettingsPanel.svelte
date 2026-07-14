@@ -1225,7 +1225,6 @@
     function probePanelHeights(node: HTMLElement) {
         const selectors = [
             ".controls-panel",
-            ".settings-shell",
             ".settings-content",
             ".section-panel",
             ".section-body",
@@ -1270,13 +1269,16 @@
     }
 </script>
 
+<!-- The panel IS the grid: rail + (conditionally) content. The old
+     .settings-shell wrapper — one more percentage-height hop and the carrier of
+     an animated grid-template — was deleted in the 2026-07-14 layout rewrite. -->
 <div
     class="controls-panel"
     class:controls-panel--ribbon-expanded={ribbonExpanded}
     class:controls-panel--dock-left={dockSide === "left"}
+    class:controls-panel--with-panel={activeToolHasPanel}
     use:probePanelHeights>
 
-    <div class="settings-shell" class:settings-shell--with-panel={activeToolHasPanel}>
     <!-- Icon Toolbar -->
     <div class="icon-toolbar" class:has-active={activeToolHasPanel}>
         <div class="icon-toolbar__controls">
@@ -1329,6 +1331,11 @@
         {/each}
     </div>
 
+    <!-- Rendered only while a category is open — not merely display:none.
+         Every open is a FRESH mount with a clean layout resolution: the user's
+         own observation ("closing/reopening the category corrects the height")
+         proved remounting heals; this makes that structural. -->
+    {#if activeToolHasPanel}
     <div class="settings-content">
     <div class="settings-search">
         <span class="settings-search__icon"><HudIcon name="search" size={13} /></span>
@@ -1671,59 +1678,246 @@
                 {/if}
 {/snippet}
     </div>
-    </div>
+    {/if}
 </div>
 
 <style>
+    /* ════════════════════════════════════════════════════════════════════
+       SETTINGS PANEL LAYOUT — single layer (2026-07-14 rewrite).
+
+       This replaced four stacked, self-overriding rule layers (1,119 lines;
+       :global(.icon-btn) was declared in 24 separate blocks) in which the
+       winning value of any property was whichever declaration came last — the
+       substrate of the toggle-collapses-the-panel bug family. Rules:
+
+       1. ONE declaration per selector. If you need a different value, EDIT the
+          existing rule — never add an override below it.
+       2. The height chain is DEFINITE at every link: the panel is a grid with
+          minmax(0,1fr) tracks; items use min-height:0 and stretch. Nothing
+          resolves a percentage against a content-sized track, and nothing
+          carries a viewport-based max-height inside the chain.
+       3. LAYOUT properties never animate (no transitions on width, height, or
+          grid-template-*). Paint properties (color, background, border-color,
+          box-shadow, opacity) may.
+       4. .section-body is the ONLY scroll surface for section content, and it
+          reserves its scrollbar (scrollbar-gutter) so content never reflows
+          when the scrollbar appears.
+       ═══════════════════════════════════════════════════════════════════ */
+
+    /* ── The panel IS the grid: rail + (conditional) content ── */
     .controls-panel {
         --settings-ribbon-width: 68px;
-        display: flex;
-        flex-direction: column;
+        height: 100%;
+        max-height: 100%;
+        min-height: 0;
+        overflow: hidden;
+        display: grid;
+        /* Rail alone: it fills the panel. minmax(0,1fr) rather than an exact
+           width so a border/scrollbar/sub-pixel never overflows and clips. */
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr);
+        grid-template-areas: "rail";
         gap: var(--pax-gap-sm);
+        align-items: stretch;
         color: var(--pax-ui-text);
         font-family: var(--pax-ui-font-ui);
-        height: 100%;
-        min-height: 0;
     }
 
     .controls-panel--ribbon-expanded {
         --settings-ribbon-width: 216px;
     }
 
-    .settings-shell {
-        flex: 1;
-        min-height: 0;
-        display: grid;
-        grid-template-columns: var(--settings-ribbon-width) minmax(0, 1fr);
-        /* Definite single row that fills the shell (min 0 so it never grows with
-           content). Without this the implicit row is `auto` = content-sized, and
-           .settings-content's height:100% resolves against a content-sized track
-           — a feedback loop the browser re-resolves on reflow, which is the
-           intermittent ~25% "collapse" seen when certain toggles force a relayout. */
-        grid-template-rows: minmax(0, 1fr);
-        grid-template-areas: "rail content";
-        gap: var(--pax-gap-md);
-        align-items: stretch;
-    }
-
-    .controls-panel--dock-left .settings-shell {
+    .controls-panel--with-panel {
+        /* Content column is minmax(0,1fr), NOT a hard px floor: a 360px floor
+           + the rail + padding exceeded the panel near its 420px min width and
+           clipped the right edge. With min 0 the column shrinks to fit and its
+           inner body scrolls. */
         grid-template-columns: minmax(0, 1fr) var(--settings-ribbon-width);
         grid-template-areas: "content rail";
     }
 
+    .controls-panel--dock-left.controls-panel--with-panel {
+        grid-template-columns: var(--settings-ribbon-width) minmax(0, 1fr);
+        grid-template-areas: "rail content";
+    }
+
+    /* ── Icon toolbar (the category rail) ── */
+    .icon-toolbar {
+        grid-area: rail;
+        min-height: 0;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--pax-space-2);
+        padding: var(--pax-gap-sm);
+        overflow-x: hidden;
+        overflow-y: auto;
+        border: 1px solid transparent;
+        border-radius: var(--pax-ui-radius-md);
+        clip-path: var(--pax-ui-rounded-corner-md);
+        background:
+            linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 97%, transparent), color-mix(in srgb, var(--pax-color-void) 99%, transparent)) padding-box,
+            var(--pax-ui-border-gradient) border-box;
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pax-ui-accent-warm-strong) 5%, transparent);
+        transition:
+            border-color 0.18s ease,
+            background 0.18s ease;
+    }
+
+    /* Panel chrome (collapse / dock): compact rounded pills in a 2-up row,
+       visually distinct from the tall category cards below. These are NOT
+       .icon-btn and share none of its rules. */
+    .icon-toolbar__controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--pax-space-2);
+        padding-bottom: 9px;
+        border-bottom: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 18%, transparent);
+    }
+
+    .icon-toolbar__controls :global(.icon-toolbar-control) {
+        width: 100%;
+        min-width: 0;
+        min-height: 30px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0; /* icon-only */
+        border: 1px solid color-mix(in srgb, var(--pax-color-player-blue) 30%, transparent);
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--pax-color-player-blue) 6%, transparent);
+        color: color-mix(in srgb, var(--pax-ui-accent-warm) 82%, transparent);
+        cursor: pointer;
+        transition:
+            background 0.18s,
+            border-color 0.18s,
+            color 0.18s;
+    }
+
+    .icon-toolbar__controls :global(.icon-toolbar-control:hover) {
+        border-color: color-mix(in srgb, var(--pax-color-player-blue) 60%, transparent);
+        background: color-mix(in srgb, var(--pax-color-player-blue) 12%, transparent);
+        color: var(--pax-ui-accent-warm-strong);
+    }
+
+    /* Pushes Restart/Quit actions to the bottom of the rail, away from categories. */
+    .icon-toolbar__spacer {
+        margin-top: auto;
+        min-height: 8px;
+    }
+
+    /* ── Category cards + action tools ── */
+    :global(.icon-btn) {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--pax-gap-sm);
+        width: 100%;
+        min-height: 48px;
+        padding: 0;
+        text-align: left;
+        cursor: pointer;
+        color: color-mix(in srgb, var(--pax-ui-accent-warm) 82%, transparent);
+        border: 1px solid transparent;
+        border-radius: var(--pax-ui-radius-xs);
+        clip-path: var(--pax-ui-rounded-corner-xs);
+        background:
+            linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 86%, transparent), color-mix(in srgb, var(--pax-color-void) 94%, transparent)) padding-box,
+            var(--pax-ui-control-border-gradient) border-box;
+        transition:
+            background 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+            color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+            border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+            box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    :global(.icon-btn:hover) {
+        color: var(--pax-ui-accent-warm-strong);
+        background:
+            linear-gradient(180deg, rgba(58, 48, 22, 0.9), rgba(3, 31, 32, 0.94)) padding-box,
+            var(--pax-ui-border-gradient) border-box;
+    }
+
+    :global(.icon-btn.active) {
+        color: var(--pax-ui-accent-warm-strong);
+        background:
+            linear-gradient(180deg, rgba(97, 72, 25, 0.92), rgba(4, 29, 29, 0.96)) padding-box,
+            var(--pax-ui-border-gradient) border-box;
+        box-shadow:
+            inset 0 0 0 1px color-mix(in srgb, var(--pax-ui-accent-warm-strong) 13%, transparent),
+            0 0 18px color-mix(in srgb, var(--pax-ui-accent-warm) 18%, transparent);
+    }
+
+    :global(.controls-panel--ribbon-expanded .icon-btn) {
+        justify-content: flex-start;
+        min-height: 46px;
+        padding: 0 var(--pax-space-3);
+        gap: var(--pax-gap-sm);
+    }
+
+    :global(.settings-tool-danger) {
+        --accent: var(--pax-ui-danger);
+    }
+
+    .icon-symbol {
+        width: 21px;
+        height: 21px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .icon-symbol :global(svg) {
+        width: calc(19px * var(--pax-ui-icon-scale, 1));
+        height: calc(19px * var(--pax-ui-icon-scale, 1));
+    }
+
+    /* Category rail icons read as a full-spectrum gradient top → bottom. */
+    :global(.icon-toolbar .icon-btn .icon-symbol--spectrum) {
+        color: hsl(var(--rail-hue, 200) 80% 66%);
+    }
+    :global(.icon-toolbar .icon-btn.active .icon-symbol--spectrum) {
+        color: hsl(var(--rail-hue, 200) 92% 74%);
+    }
+
+    .icon-label {
+        display: none;
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-family: var(--pax-ui-font-ui);
+        font-size: calc(0.64rem * var(--pax-ui-label-scale, 1));
+        font-weight: var(--pax-weight-bold);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        line-height: 1.1;
+        color: inherit;
+        opacity: 0.92;
+    }
+    .controls-panel--ribbon-expanded .icon-label {
+        display: block;
+    }
+
+    /* ── Content column ── */
     .settings-content {
         grid-area: content;
+        min-width: 0;
+        min-height: 0;
         display: flex;
         flex-direction: column;
         gap: var(--pax-space-3);
-        min-height: 0;
         /* Single scroll surface per panel: the open .section-panel is flex:1
            and its .section-body owns the scroll (header + subnav stay fixed).
            This wrapper must NOT add a second, nesting scrollbar. */
         overflow-y: hidden;
-        padding-right: 2px;
+        padding: 0 2px 0 0;
     }
 
+    /* ── Search ── */
     .settings-search {
         position: relative;
         flex: 0 0 auto;
@@ -1767,166 +1961,23 @@
     .settings-search__clear:hover {
         color: var(--pax-ui-text);
     }
-    /* Category rail icons read as a full-spectrum gradient top → bottom. */
-    :global(.icon-toolbar .icon-btn .icon-symbol--spectrum) {
-        color: hsl(var(--rail-hue, 200) 80% 66%);
-    }
-    :global(.icon-toolbar .icon-btn.active .icon-symbol--spectrum) {
-        color: hsl(var(--rail-hue, 200) 92% 74%);
-    }
 
-    /* ── Icon Toolbar ── */
-    .icon-toolbar {
-        grid-area: rail;
-        display: flex;
-        flex-direction: column;
-        gap: var(--pax-space-2);
-        padding: var(--pax-space-1) var(--pax-space-1) var(--pax-space-1) 0;
-        min-height: 0;
-        overflow-y: auto;
-    }
-
-    /* Panel chrome (collapse / dock) — sits in a row, visually distinct from
-       the stacked category buttons below. */
-    .icon-toolbar__controls {
-        display: flex;
-        flex-direction: row;
-        gap: var(--pax-gap-xs);
-    }
-
-    /* Pushes Restart/Quit actions to the bottom of the rail, away from categories. */
-    .icon-toolbar__spacer {
-        margin-top: auto;
-        min-height: 8px;
-    }
-
-    :global(.icon-toolbar-control) {
-        width: 100%;
-        min-height: 38px;
-        border: 1px solid var(--pax-ui-border);
-        border-radius: 12px;
-        background: var(--pax-ui-button-bg);
-        color: var(--pax-ui-text-soft);
-        font-family: var(--pax-ui-font-ui);
-        font-size: var(--pax-type-label);
-        font-weight: var(--pax-weight-bold);
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        cursor: pointer;
-        transition:
-            background 0.18s,
-            border-color 0.18s,
-            color 0.18s,
-            transform 0.18s;
-    }
-
-    :global(.icon-toolbar-control:hover) {
-        background: var(--pax-ui-button-bg-hover);
-        border-color: var(--pax-ui-border-strong);
-        color: var(--pax-ui-text-strong);
-        transform: translateY(-1px);
-    }
-
-    .icon-toolbar.has-active {
-        gap: var(--pax-space-2);
-    }
-    :global(.icon-btn) {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: var(--pax-gap-sm);
-        width: 100%;
-        min-height: 46px;
-        padding: var(--pax-gap-sm) 0;
-        background: color-mix(in srgb, var(--pax-color-void) 78%, transparent);
-        border: 1px solid var(--pax-ui-border);
-        border-radius: 14px;
-        cursor: pointer;
-        color: var(--pax-ui-text-soft);
-        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-        text-align: left;
-    }
-    :global(.icon-toolbar.has-active .icon-btn) {
-        padding: var(--pax-gap-sm) 0;
-        border-radius: 12px;
-    }
-    :global(.controls-panel--ribbon-expanded .icon-btn),
-    :global(.controls-panel--ribbon-expanded .icon-toolbar.has-active .icon-btn) {
-        justify-content: flex-start;
-        padding: var(--pax-gap-sm) var(--pax-space-3);
-    }
-    :global(.icon-btn:hover) {
-        background: color-mix(in srgb, var(--pax-color-void) 92%, transparent);
-        border-color: color-mix(in srgb, var(--accent) 55%, var(--pax-ui-border));
-        color: var(--pax-ui-text-strong);
-        transform: translateY(-1px);
-        box-shadow: 0 10px 24px
-            color-mix(in srgb, var(--accent) 20%, transparent);
-    }
-    :global(.icon-btn.active) {
-        background: color-mix(in srgb, var(--accent) 13%, rgba(8, 12, 24, 0.9));
-        border-color: color-mix(in srgb, var(--accent) 75%, rgba(255, 255, 255, 0.12));
-        color: var(--pax-ui-text-strong);
-        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
-    }
-    .icon-symbol {
-        width: 20px;
-        height: 20px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-
-    .icon-symbol :global(svg) {
-        width: 18px;
-        height: 18px;
-    }
-
-    .icon-label {
-        display: none;
-        flex: 1;
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        font-family: var(--pax-ui-font-ui);
-        font-size: var(--pax-type-3xs);
-        font-weight: var(--pax-weight-bold);
-        text-transform: uppercase;
-        letter-spacing: 0.11em;
-        color: inherit;
-        opacity: 0.92;
-        line-height: 1.25;
-    }
-    .controls-panel--ribbon-expanded .icon-label {
-        display: block;
-    }
-    /* ── Section Panel ── */
-    .section-panel {
-        background: var(--pax-ui-panel-bg);
-        border: 1px solid var(--pax-ui-border);
-        border-radius: var(--pax-ui-radius-md);
-        box-shadow: var(--pax-ui-shadow-soft);
-        overflow: hidden;
-        animation: slideIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
-    }
     :global(.settings-search-hit) {
         animation: settings-search-hit-flash 1.5s ease-out;
         border-radius: var(--pax-radius-sm, 6px);
     }
+
     /* Flat search results list — every match as a clickable row (setting +
        breadcrumb → opens its native location). */
     .search-results {
+        flex: 1 1 auto;
+        min-height: 0;
         display: flex;
         flex-direction: column;
         gap: 2px;
         padding: var(--pax-space-2);
         overflow-y: auto;
+        scrollbar-gutter: stable;
     }
     .search-results__count {
         padding: 2px 6px var(--pax-gap-sm);
@@ -1975,39 +2026,29 @@
         color: var(--pax-ui-accent-warm, #e0b062);
         opacity: 0.65;
     }
+
+    /* ── Section panel (the open category's card) ── */
+    .section-panel {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        border: 1px solid transparent;
+        border-radius: var(--pax-ui-radius-md);
+        clip-path: var(--pax-ui-rounded-corner-md);
+        background:
+            linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 97%, transparent), color-mix(in srgb, var(--pax-color-void) 99%, transparent)) padding-box,
+            var(--pax-ui-border-gradient) border-box;
+        box-shadow: var(--pax-ui-shadow-soft);
+        animation: slideIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
     .section-head-wrap {
         display: flex;
         flex-direction: column;
         border-bottom: 1px solid var(--pax-ui-divider);
         background: color-mix(in srgb, var(--accent) 8%, rgba(5, 9, 20, 0.45));
-    }
-    @keyframes slideIn {
-        from {
-            opacity: 0;
-            transform: translateY(-8px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-    @keyframes settings-search-hit-flash {
-        0% {
-            background: color-mix(in srgb, var(--accent) 32%, transparent);
-            box-shadow:
-                0 0 0 3px color-mix(in srgb, var(--accent) 60%, transparent),
-                0 0 20px 5px color-mix(in srgb, var(--accent) 45%, transparent);
-        }
-        45% {
-            background: color-mix(in srgb, var(--accent) 18%, transparent);
-            box-shadow:
-                0 0 0 2px color-mix(in srgb, var(--accent) 42%, transparent),
-                0 0 14px 3px color-mix(in srgb, var(--accent) 30%, transparent);
-        }
-        100% {
-            background: transparent;
-            box-shadow: 0 0 0 0 transparent;
-        }
     }
 
     :global(.section-head) {
@@ -2015,11 +2056,12 @@
         align-items: center;
         gap: var(--pax-space-2);
         width: 100%;
-        padding: var(--pax-space-3) var(--pax-gap-md) var(--pax-gap-sm);
-        background: transparent;
+        min-height: 48px;
+        padding: 0 var(--pax-gap-md);
+        background: color-mix(in srgb, var(--pax-color-void) 72%, transparent);
         border: none;
         cursor: pointer;
-        color: var(--accent);
+        color: var(--pax-ui-accent-warm-strong);
         font-family: var(--pax-ui-font-ui);
         transition: background 0.15s;
     }
@@ -2032,14 +2074,20 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        color: var(--pax-ui-accent-warm);
     }
     .head-label {
         flex: 1;
-        font-size: var(--pax-type-xs-plus);
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: calc(0.86rem * var(--pax-ui-title-scale, 1));
         font-weight: var(--pax-weight-bold);
         text-transform: uppercase;
         letter-spacing: 0.09em;
         text-align: left;
+        line-height: 1.1;
     }
     .head-close {
         display: inline-flex;
@@ -2052,50 +2100,7 @@
         opacity: 1;
     }
 
-    .section-body {
-        padding: var(--pax-space-3);
-        display: flex;
-        flex-direction: column;
-        gap: var(--pax-gap-sm);
-        flex: 1;
-        overflow-y: auto;
-        min-height: 0;
-    }
-    /* "All" view: one scroll surface; each section becomes a labelled group. */
-    .section-body--all {
-        gap: var(--pax-space-4);
-    }
-    /* Category open but no section selected — quiet placeholder. */
-    .section-body--empty {
-        align-items: center;
-        justify-content: center;
-    }
-    .section-empty-hint {
-        margin: 0;
-        padding: var(--pax-space-4);
-        color: var(--pax-ui-text-dim);
-        font-family: var(--pax-ui-font-copy);
-        font-size: var(--pax-type-2xs);
-        text-align: center;
-    }
-    .section-all-group {
-        display: flex;
-        flex-direction: column;
-        gap: var(--pax-gap-sm);
-    }
-    .section-all-group__title {
-        display: flex;
-        align-items: center;
-        gap: var(--pax-space-2);
-        padding-bottom: var(--pax-gap-xs);
-        border-bottom: 1px solid var(--pax-ui-divider);
-        color: color-mix(in srgb, var(--accent, var(--pax-ui-accent)) 86%, var(--pax-ui-text-strong));
-        font-family: var(--pax-ui-font-display);
-        font-size: var(--pax-type-label);
-        font-weight: var(--pax-weight-bold);
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-    }
+    /* ── Subsection chips ── */
     .section-subnav {
         display: flex;
         flex-wrap: wrap;
@@ -2109,8 +2114,12 @@
         display: inline-flex;
         align-items: center;
         gap: var(--pax-gap-xs);
+        min-width: 0;
         min-height: 24px;
         padding: 0 10px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
         border-radius: 999px;
         border: 1px solid hsl(var(--chip-hue) 55% 60% / 0.4);
         background: hsl(var(--chip-hue) 45% 14% / 0.45);
@@ -2125,14 +2134,12 @@
             border-color 0.15s ease,
             background 0.15s ease,
             color 0.15s ease,
-            box-shadow 0.15s ease,
-            transform 0.15s ease;
+            box-shadow 0.15s ease;
     }
     :global(.subsection-chip:hover) {
         border-color: hsl(var(--chip-hue) 75% 62% / 0.85);
         background: hsl(var(--chip-hue) 55% 22% / 0.7);
         color: hsl(var(--chip-hue) 60% 92%);
-        transform: translateY(-1px);
     }
     :global(.subsection-chip.active) {
         border-color: hsl(var(--chip-hue) 85% 64%);
@@ -2146,9 +2153,6 @@
         box-shadow:
             0 0 0 1px hsl(var(--chip-hue) 80% 60% / 0.5),
             0 2px 12px hsl(var(--chip-hue) 75% 50% / 0.45);
-    }
-    :global(.subsection-chip.active:hover) {
-        transform: translateY(-1px);
     }
     /* Spread the row across a colour range by chip position. */
     :global(.section-subnav .subsection-chip:nth-child(1)) { --chip-hue: 190; }
@@ -2187,220 +2191,62 @@
         display: none !important;
     }
 
-    @media (max-width: 720px) {
-        .settings-shell {
-            grid-template-columns: 1fr;
-            grid-template-areas:
-                "rail"
-                "content";
-        }
-
-        .icon-toolbar {
-            flex-direction: row;
-            flex-wrap: wrap;
-            padding: 0;
-        }
-
-        .icon-toolbar__controls {
-            flex-direction: row;
-            flex: 1 1 100%;
-        }
-
-        :global(.icon-btn) {
-            flex: 1 1 140px;
-            justify-content: flex-start;
-            padding: var(--pax-gap-sm) var(--pax-space-3);
-        }
-
-        .icon-label {
-            display: block;
-        }
-
-        .settings-content {
-            overflow: visible;
-            padding-right: 0;
-        }
-    }
-
-    /* Aurelia Drift correction layer: this turns the settings surface into
-       a real command ribbon plus drawer instead of a text-heavy empty panel. */
-    .controls-panel {
-        gap: var(--pax-space-3);
-        /* Fill the allocated column with a DEFINITE height so the section body
-           scrolls internally — content-sizing here makes the whole panel shrink
-           to its content (the ~25% "collapse" on toggles). */
-        height: 100%;
-        min-height: 0;
-        overflow: hidden;
-    }
-
-    .settings-shell {
-        grid-template-columns: var(--settings-ribbon-width) minmax(0, 1fr);
-        /* Definite single row (see base rule) so the content column has a real
-           height to scroll inside, independent of how tall its content is. */
-        grid-template-rows: minmax(0, 1fr);
-        gap: var(--pax-gap-sm);
+    /* ── Section body: THE scroll surface ── */
+    .section-body {
         flex: 1;
         min-height: 0;
-        /* Stretch the content column to full height; the rail stays compact via
-           its own align-self below. */
-        align-items: stretch;
+        display: flex;
+        flex-direction: column;
+        gap: var(--pax-space-3);
+        padding: var(--pax-gap-md);
+        overflow-y: auto;
+        /* Reserve the scrollbar lane: a toggle that grows content past the fold
+           must not steal 8px from every row's width when the bar appears. */
+        scrollbar-gutter: stable;
     }
-
-    .icon-toolbar {
-        gap: 7px;
-        padding: var(--pax-space-2) var(--pax-gap-xs);
-        border: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 32%, transparent);
-        background:
-            linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 92%, transparent), color-mix(in srgb, var(--pax-color-void) 96%, transparent)),
-            radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--pax-ui-accent-warm) 12%, transparent), transparent 38%);
-        clip-path: var(--pax-ui-cut-corner-sm);
-        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pax-ui-accent-warm-strong) 5%, transparent);
-        overflow-x: hidden;
-        /* Keep the category rail compact (top-aligned) now that the shell
-           stretches its items to full height. */
-        align-self: start;
-        max-height: min(52vh, calc(100vh - var(--pax-ui-topbar-height) - 330px));
+    /* "All" view: one scroll surface; each section becomes a labelled group. */
+    .section-body--all {
+        gap: var(--pax-space-4);
     }
-
-    .icon-toolbar__controls {
-        gap: 7px;
-        padding-bottom: 7px;
-        border-bottom: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 18%, transparent);
-    }
-
-    :global(.icon-toolbar-control),
-    :global(.icon-btn) {
-        min-height: 42px;
-        border-radius: 0;
-        border-color: color-mix(in srgb, var(--pax-ui-accent-warm) 22%, transparent);
-        background: color-mix(in srgb, var(--pax-color-void) 72%, transparent);
-        color: color-mix(in srgb, var(--pax-ui-accent-warm) 82%, transparent);
-        clip-path: var(--pax-ui-cut-corner-xs);
-        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pax-ui-accent) 3%, transparent);
-    }
-
-    :global(.icon-toolbar-control) {
-        font-size: 0;
-    }
-
-    /* Chrome controls (collapse/dock) read as compact, rounded utility buttons —
-       NOT the tall, angular cut-corner category cards. Selector is intentionally
-       specific (0,3,0) to win over the theme blocks below that group them with
-       .icon-btn / left-align them when the ribbon is expanded. */
-    .icon-toolbar .icon-toolbar__controls :global(.icon-toolbar-control) {
-        min-width: 0;
-        min-height: 30px;
-        padding: 0;
+    /* Category open but no section selected — quiet placeholder. */
+    .section-body--empty {
+        align-items: center;
         justify-content: center;
-        border-radius: 999px;
-        clip-path: none;
-        border-color: color-mix(in srgb, var(--pax-color-player-blue) 30%, transparent);
-        background: color-mix(in srgb, var(--pax-color-player-blue) 6%, transparent);
-        box-shadow: none;
     }
-
-    .icon-toolbar .icon-toolbar__controls :global(.icon-toolbar-control:hover) {
-        clip-path: none;
-        border-radius: 999px;
-        border-color: color-mix(in srgb, var(--pax-color-player-blue) 60%, transparent);
-        background: color-mix(in srgb, var(--pax-color-player-blue) 12%, transparent);
-        transform: none;
+    .section-empty-hint {
+        margin: 0;
+        padding: var(--pax-space-4);
+        color: var(--pax-ui-text-dim);
+        font-family: var(--pax-ui-font-copy);
+        font-size: var(--pax-type-2xs);
+        text-align: center;
     }
-
-    :global(.icon-btn) {
-        padding: 0;
-    }
-
-    :global(.controls-panel--ribbon-expanded .icon-btn),
-    :global(.controls-panel--ribbon-expanded .icon-toolbar.has-active .icon-btn) {
-        min-height: 42px;
-        padding: 0 var(--pax-gap-sm);
-        gap: var(--pax-space-2);
-    }
-
-    :global(.icon-btn:hover),
-    :global(.icon-toolbar-control:hover) {
-        background:
-            linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 92%, transparent), color-mix(in srgb, var(--pax-color-void) 94%, transparent)),
-            color-mix(in srgb, var(--pax-ui-accent-warm) 4%, transparent);
-        color: var(--pax-ui-accent-warm-strong);
-        border-color: color-mix(in srgb, var(--pax-ui-accent-warm) 62%, transparent);
-        transform: none;
-    }
-
-    :global(.icon-btn.active) {
-        background:
-            linear-gradient(180deg, rgba(97, 72, 25, 0.92), color-mix(in srgb, var(--pax-color-void) 96%, transparent));
-        color: var(--pax-ui-accent-warm-strong);
-        border-color: color-mix(in srgb, var(--pax-ui-accent-warm-strong) 78%, transparent);
-        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pax-ui-accent-warm-strong) 13%, transparent), 0 0 18px color-mix(in srgb, var(--pax-ui-accent-warm) 18%, transparent);
-    }
-
-    .icon-symbol {
-        width: 18px;
-        height: 18px;
-    }
-
-    .icon-label {
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        font-size: var(--pax-type-3xs);
-        line-height: 1;
-    }
-
-    .settings-content {
+    .section-all-group {
+        display: flex;
+        flex-direction: column;
         gap: var(--pax-gap-sm);
-        padding: 0 2px 0 0;
-        /* Fill the stretched shell column; the open section-panel (flex:1) then
-           owns a definite height and its body scrolls internally. */
-        min-height: 0;
-        height: 100%;
+    }
+    .section-all-group__title {
+        display: flex;
+        align-items: center;
+        gap: var(--pax-space-2);
+        padding-bottom: var(--pax-gap-xs);
+        border-bottom: 1px solid var(--pax-ui-divider);
+        color: color-mix(in srgb, var(--accent, var(--pax-ui-accent)) 86%, var(--pax-ui-text-strong));
+        font-family: var(--pax-ui-font-display);
+        font-size: var(--pax-type-label);
+        font-weight: var(--pax-weight-bold);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
     }
 
-    .section-panel {
-        border-radius: 0;
-        border-color: color-mix(in srgb, var(--pax-ui-accent-warm) 35%, transparent);
-        background:
-            linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 97%, transparent), color-mix(in srgb, var(--pax-color-void) 99%, transparent)),
-            radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--pax-ui-accent) 8%, transparent), transparent 42%),
-            radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--pax-ui-accent-warm) 12%, transparent), transparent 44%);
-        clip-path: var(--pax-ui-cut-corner-md);
-    }
-
-    :global(.section-head) {
-        min-height: 42px;
-        padding: 0 var(--pax-space-3);
-        color: var(--pax-ui-accent-warm-strong);
-        border-bottom-color: color-mix(in srgb, var(--pax-ui-accent-warm) 20%, transparent);
-        background: color-mix(in srgb, var(--pax-color-void) 72%, transparent);
-    }
-
-    .head-icon {
-        color: var(--pax-ui-accent-warm);
-    }
-
-    .head-label,
-    :global(.subsection-chip) {
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .section-body {
-        padding: var(--pax-gap-sm);
-    }
+    /* ── Content skin: shared control theming inside the body ── */
 
     /* Per-category preset toolbar — fixed category CHROME, not section content.
        Anchored as a full-bleed bar across the top of the section panel (negative
        margins reach the panel edges; flat bottom edge butts against the first
        content heading) so it reads as the category's toolbar instead of an
-       orphan content card floating above the chips. This is the SINGLE source
-       of its framing — it is intentionally excluded from the shared
-       .icon-toolbar/.section-panel content-card rule below. */
+       orphan content card floating above the chips. */
     .section-body :global(.category-theme-bar) {
         margin: calc(-1 * var(--pax-gap-md)) calc(-1 * var(--pax-gap-md)) var(--pax-gap-md);
         padding: var(--pax-space-2) var(--pax-gap-md);
@@ -2419,11 +2265,13 @@
     .section-body :global(.chip),
     .section-body :global(.modal-chip),
     .section-body :global(.modal-chip button) {
-        border-radius: 0;
-        border-color: color-mix(in srgb, var(--pax-ui-accent-warm) 28%, transparent);
-        background: color-mix(in srgb, var(--pax-color-void) 78%, transparent);
+        border: 1px solid transparent;
+        border-radius: var(--pax-ui-radius-xs);
+        clip-path: var(--pax-ui-rounded-corner-xs);
+        background:
+            linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 86%, transparent), color-mix(in srgb, var(--pax-color-void) 94%, transparent)) padding-box,
+            var(--pax-ui-control-border-gradient) border-box;
         color: color-mix(in srgb, var(--pax-ui-accent-warm) 90%, transparent);
-        clip-path: var(--pax-ui-cut-corner-xs);
         font-family: var(--pax-ui-font-ui);
         font-weight: var(--pax-weight-extrabold);
         letter-spacing: 0.06em;
@@ -2434,8 +2282,10 @@
     .section-body :global(.drawer-btn:hover),
     .section-body :global(.chip:hover),
     .section-body :global(.chip.active) {
-        border-color: color-mix(in srgb, var(--pax-ui-accent-warm-strong) 72%, transparent);
-        background: linear-gradient(180deg, rgba(58, 48, 22, 0.9), rgba(3, 31, 32, 0.94));
+        border-color: transparent;
+        background:
+            linear-gradient(180deg, rgba(58, 48, 22, 0.9), rgba(3, 31, 32, 0.94)) padding-box,
+            var(--pax-ui-border-gradient) border-box;
         color: var(--pax-ui-accent-warm-strong);
     }
 
@@ -2470,171 +2320,33 @@
         accent-color: var(--pax-ui-accent);
     }
 
-    .icon-toolbar,
-    .section-panel {
-        border-color: transparent;
-        border-radius: var(--pax-ui-radius-md);
-        clip-path: var(--pax-ui-rounded-corner-md);
-        background:
-            linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 97%, transparent), color-mix(in srgb, var(--pax-color-void) 99%, transparent)) padding-box,
-            var(--pax-ui-border-gradient) border-box;
-    }
-
-    :global(.icon-toolbar-control),
-    :global(.icon-btn),
-    .section-body :global(.theme-select),
-    .section-body :global(.action-btn),
-    .section-body :global(.drawer-btn),
-    .section-body :global(.chip),
-    .section-body :global(.modal-chip),
-    .section-body :global(.modal-chip button) {
-        border-color: transparent;
-        border-radius: var(--pax-ui-radius-xs);
-        clip-path: var(--pax-ui-rounded-corner-xs);
-        background:
-            linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 86%, transparent), color-mix(in srgb, var(--pax-color-void) 94%, transparent)) padding-box,
-            var(--pax-ui-control-border-gradient) border-box;
-    }
-
-    :global(.icon-btn:hover),
-    :global(.icon-toolbar-control:hover),
-    .section-body :global(.theme-select:focus),
-    .section-body :global(.action-btn:hover),
-    .section-body :global(.drawer-btn:hover),
-    .section-body :global(.chip:hover),
-    .section-body :global(.chip.active) {
-        border-color: transparent;
-        background:
-            linear-gradient(180deg, rgba(58, 48, 22, 0.9), rgba(3, 31, 32, 0.94)) padding-box,
-            var(--pax-ui-border-gradient) border-box;
-    }
-
-    :global(.icon-btn.active) {
-        border-color: transparent;
-        background:
-            linear-gradient(180deg, rgba(97, 72, 25, 0.92), rgba(4, 29, 29, 0.96)) padding-box,
-            var(--pax-ui-border-gradient) border-box;
-    }
-
-    /* Settings ownership correction: the rail is the master component. */
-    .controls-panel {
-        --settings-ribbon-width: 68px;
-        height: 100%;
-        max-height: 100%;
-        gap: 0;
-    }
-
-    .controls-panel--ribbon-expanded {
-        --settings-ribbon-width: 216px;
-    }
-
-    .settings-shell,
-    .controls-panel--dock-left .settings-shell {
-        width: 100%;
-        height: 100%;
-        display: grid;
-        /* Rail fills the available content-box rather than demanding exactly
-           var(--settings-ribbon-width). At an exact fit any border/scrollbar/
-           sub-pixel rounding overflowed by ~1px and got clipped on the right
-           ("menu slightly cut off"). minmax(0,1fr) can never overflow. */
-        grid-template-columns: minmax(0, 1fr);
-        grid-template-areas: "rail";
-        gap: var(--pax-gap-sm);
-        align-items: stretch;
-        transition:
-            grid-template-columns 0.22s ease,
-            width 0.22s ease;
-    }
-
-    .settings-shell--with-panel {
-        /* Content column must be minmax(0, 1fr), NOT minmax(360px, …): a hard
-           360px floor + the rail (68–216px) + padding exceeds the panel at/near
-           its min width (420px), so the grid overflowed and .area-controls
-           (overflow:hidden) clipped the right edge in both ribbon states. With
-           min 0 the content column shrinks to fit; its inner body scrolls. */
-        grid-template-columns: minmax(0, 1fr) var(--settings-ribbon-width);
-        grid-template-areas: "content rail";
-    }
-
-    .controls-panel--dock-left .settings-shell--with-panel {
-        grid-template-columns: var(--settings-ribbon-width) minmax(0, 1fr);
-        grid-template-areas: "rail content";
-    }
-
-    .icon-toolbar {
-        width: 100%;
-        height: 100%;
-        max-height: none;
-        padding: var(--pax-space-2);
-        overflow-x: hidden;
-        overflow-y: auto;
-        transition:
-            width 0.22s ease,
-            border-color 0.18s ease,
-            background 0.18s ease;
-    }
-
-    .icon-toolbar__controls {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: var(--pax-gap-xs);
-    }
-
-    :global(.icon-toolbar-control),
-    :global(.icon-btn),
-    :global(.icon-toolbar.has-active .icon-btn),
-    :global(.settings-tool-action) {
-        width: 100%;
-        min-height: 44px;
-        padding: 0;
-        justify-content: center;
-    }
-
-    :global(.controls-panel--ribbon-expanded .icon-btn),
-    :global(.controls-panel--ribbon-expanded .icon-toolbar.has-active .icon-btn),
-    :global(.controls-panel--ribbon-expanded .icon-toolbar-control) {
-        justify-content: flex-start;
-        padding: 0 var(--pax-gap-sm);
-    }
-
-    :global(.settings-tool-danger) {
-        --accent: var(--pax-ui-danger);
-    }
-
+    /* ── Accent maps (pure data) ── */
     :global(.icon-btn[data-accent-id="theme_library"]),
     :global(.icon-btn[data-accent-id="stats"]),
     :global(.icon-btn[data-accent-id="restart"]) {
         --accent: var(--pax-ui-accent-warm);
     }
-
     :global(.icon-btn[data-accent-id="appearance"]) {
         --accent: var(--pax-ui-accent);
     }
-
     :global(.icon-btn[data-accent-id="combat_tuning"]) {
         --accent: var(--pax-ui-danger);
     }
-
     :global(.icon-btn[data-accent-id="audio"]) {
         --accent: var(--pax-ui-accent);
     }
-
     :global(.icon-btn[data-accent-id="video_graphics"]) {
         --accent: var(--pax-color-player-blue);
     }
-
     :global(.icon-btn[data-accent-id="diagnostics"]) {
         --accent: var(--pax-ui-warning);
     }
-
     :global(.icon-btn[data-accent-id="hotkeys"]) {
         --accent: var(--pax-color-player-blue);
     }
-
     :global(.icon-btn[data-accent-id="help"]) {
         --accent: var(--pax-ui-text-soft);
     }
-
     :global(.icon-btn[data-accent-id="quit"]) {
         --accent: var(--pax-ui-danger);
     }
@@ -2642,155 +2354,134 @@
     .section-panel[data-accent-id="players"] {
         --accent: var(--pax-ui-accent);
     }
-
     .section-panel[data-accent-id="match_flow"] {
         --accent: var(--pax-color-player-yellow);
     }
-
     .section-panel[data-accent-id="combat_tuning"] {
         --accent: var(--pax-ui-danger);
     }
-
     .section-panel[data-accent-id="economy"] {
         --accent: var(--pax-ui-success);
     }
-
     .section-panel[data-accent-id="travel_orders"] {
         --accent: var(--pax-color-player-blue);
     }
-
     .section-panel[data-accent-id="conquest"] {
         --accent: var(--pax-ui-danger);
     }
-
     .section-panel[data-accent-id="effects"] {
         --accent: var(--pax-ui-danger);
     }
-
     .section-panel[data-accent-id="map_options"] {
         --accent: var(--pax-color-player-purple);
     }
-
     .section-panel[data-accent-id="territory_phase_field"] {
         --accent: var(--pax-color-player-blue);
     }
-
     .section-panel[data-accent-id="territory_phase_edges"] {
         --accent: var(--pax-ui-danger);
     }
-
     .section-panel[data-accent-id="territory_ember_lattice"] {
         --accent: var(--pax-color-player-orange);
     }
-
     .section-panel[data-accent-id="frontier_fx"] {
         --accent: var(--pax-color-player-orange);
     }
-
     .section-panel[data-accent-id="territory_tuning"] {
         --accent: var(--pax-ui-success);
     }
-
     .section-panel[data-accent-id="territory_styles"] {
         --accent: var(--pax-color-player-blue);
     }
-
     .section-panel[data-accent-id="fleet_star_visuals"] {
         --accent: var(--pax-color-player-blue);
     }
-
     .section-panel[data-accent-id="audio"] {
         --accent: var(--pax-ui-accent);
     }
-
     .section-panel[data-accent-id="diagnostics"] {
         --accent: var(--pax-ui-warning);
     }
-
     .section-panel[data-accent-id="logging"] {
         --accent: var(--pax-ui-text-soft);
     }
-
     .section-panel[data-accent-id="ai"] {
         --accent: var(--pax-color-player-orange);
     }
 
-    .settings-content {
-        grid-area: content;
-        min-width: 0;
-        height: 100%;
-        max-height: calc(100vh - var(--pax-ui-topbar-height) - 24px);
-        opacity: 1;
-        transform: translateX(0);
-        transition:
-            opacity 0.18s ease,
-            transform 0.22s ease;
+    /* ── Keyframes ── */
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    @keyframes settings-search-hit-flash {
+        0% {
+            background: color-mix(in srgb, var(--accent) 32%, transparent);
+            box-shadow:
+                0 0 0 3px color-mix(in srgb, var(--accent) 60%, transparent),
+                0 0 20px 5px color-mix(in srgb, var(--accent) 45%, transparent);
+        }
+        45% {
+            background: color-mix(in srgb, var(--accent) 18%, transparent);
+            box-shadow:
+                0 0 0 2px color-mix(in srgb, var(--accent) 42%, transparent),
+                0 0 14px 3px color-mix(in srgb, var(--accent) 30%, transparent);
+        }
+        100% {
+            background: transparent;
+            box-shadow: 0 0 0 0 transparent;
+        }
     }
 
-    .settings-shell:not(.settings-shell--with-panel) .settings-content {
-        display: none;
-        opacity: 0;
-        transform: translateX(-8px);
-    }
+    /* ── Narrow layout: rail on top, content below — still definite ── */
+    @media (max-width: 720px) {
+        .controls-panel,
+        .controls-panel--dock-left.controls-panel--with-panel {
+            grid-template-columns: minmax(0, 1fr);
+            grid-template-rows: minmax(0, 1fr);
+            grid-template-areas: "rail";
+        }
 
-    .icon-toolbar {
-        gap: var(--pax-space-2);
-        padding: var(--pax-gap-sm);
-    }
+        .controls-panel--with-panel,
+        .controls-panel--dock-left.controls-panel--with-panel {
+            grid-template-rows: auto minmax(0, 1fr);
+            grid-template-areas:
+                "rail"
+                "content";
+        }
 
-    .icon-toolbar__controls {
-        gap: var(--pax-space-2);
-        padding-bottom: 9px;
-    }
+        .icon-toolbar {
+            flex-direction: row;
+            flex-wrap: wrap;
+            padding: var(--pax-space-2);
+        }
 
-    :global(.icon-toolbar-control),
-    :global(.icon-btn),
-    :global(.icon-toolbar.has-active .icon-btn),
-    :global(.settings-tool-action) {
-        min-height: 48px;
-    }
+        .icon-toolbar__controls {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            flex: 1 1 100%;
+            border-bottom: none;
+            padding-bottom: 0;
+        }
 
-    :global(.controls-panel--ribbon-expanded .icon-btn),
-    :global(.controls-panel--ribbon-expanded .icon-toolbar.has-active .icon-btn),
-    :global(.controls-panel--ribbon-expanded .icon-toolbar-control) {
-        min-height: 46px;
-        padding: 0 var(--pax-space-3);
-        gap: var(--pax-gap-sm);
-    }
+        :global(.icon-btn) {
+            flex: 1 1 140px;
+            justify-content: flex-start;
+            padding: var(--pax-gap-sm) var(--pax-space-3);
+        }
 
-    .icon-symbol {
-        width: 21px;
-        height: 21px;
-    }
+        .icon-label {
+            display: block;
+        }
 
-    .icon-symbol :global(svg) {
-        width: calc(19px * var(--pax-ui-icon-scale, 1));
-        height: calc(19px * var(--pax-ui-icon-scale, 1));
+        .settings-content {
+            overflow: visible;
+            padding-right: 0;
+        }
     }
-
-    .icon-label {
-        font-size: calc(0.64rem * var(--pax-ui-label-scale, 1));
-        letter-spacing: 0.1em;
-        line-height: 1.1;
-    }
-
-    .settings-content {
-        gap: var(--pax-space-3);
-    }
-
-    :global(.section-head) {
-        min-height: 48px;
-        padding: 0 var(--pax-gap-md);
-    }
-
-    .head-label {
-        font-size: calc(0.86rem * var(--pax-ui-title-scale, 1));
-        line-height: 1.1;
-    }
-
-    .section-body {
-        gap: var(--pax-space-3);
-        padding: var(--pax-gap-md);
-    }
-
 </style>
