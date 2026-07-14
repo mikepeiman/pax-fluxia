@@ -170,6 +170,11 @@
     } from "$lib/components/game/transitionDiagnosticsCapture";
     import { createInteractionCaches } from "$lib/components/game/interactionCaches";
     import {
+        createCameraModel,
+        clampZoom,
+        ZOOM_STEP,
+    } from "$lib/components/game/cameraModel";
+    import {
         resolveCenteredViewportFrame,
         resolveContentFitWorldRect,
         resolveViewportWorldRect,
@@ -1984,22 +1989,9 @@
 
     // Previous frame cache removed — animations are event-driven (see POST_MORTEMS.md)
 
-    // Zoom & Pan state
-    let baseScale = 1; // Fit-to-screen scale (recalculated on resize)
-    let zoomLevel = 1; // User zoom multiplier (1.0 = default fit)
-    let panOffsetX = 0; // Pan offset in world coordinates
-    let panOffsetY = 0;
-
-    // ── Camera animation state ──
-    let cameraAnimating = false;
-    let targetZoom = 1;
-    let targetPanX = 0;
-    let targetPanY = 0;
-    const CAMERA_EASE = 0.12; // Lerp factor per frame (0-1, higher = faster)
-    const CAMERA_EPSILON = 0.001; // Stop threshold
-    let cameraInitialized = false; // First centerAndFit is instant
-    const ZOOM_MIN = 0.8; // Max zoom-out: 125% of gameboard visible
-    const ZOOM_MAX = 5.0;
+    // Zoom, pan, content bounds and camera animation (see cameraModel.ts).
+    // The model owns the transform; app.stage is its projection.
+    const camera = createCameraModel();
 
     /** Height of the bottom UI overlay — now 0 because CSS Grid sizes the canvas container */
     const BOTTOM_UI_INSET = 0;
@@ -2007,29 +1999,19 @@
     export function centerAndFit() {
         updateWorldBounds();
         if (app && app.stage) {
-            const cw = app.screen.width;
-            const ch = app.screen.height;
-            baseScale = Math.min(cw / contentWidth, ch / contentHeight);
+            camera.fitBaseScaleTo({
+                width: app.screen.width,
+                height: app.screen.height,
+            });
             updateTerritoryViewportFrame();
         }
         // First call snaps instantly (no animation from 0,0)
-        if (!cameraInitialized) {
-            zoomLevel = 1;
-            panOffsetX = 0;
-            panOffsetY = 0;
-            targetZoom = 1;
-            targetPanX = 0;
-            targetPanY = 0;
-            cameraAnimating = false;
-            cameraInitialized = true;
+        if (!camera.isInitialized()) {
+            camera.snapToDefault();
             applyZoomTransform();
             return;
         }
-        // Animate to default view
-        targetZoom = 1;
-        targetPanX = 0;
-        targetPanY = 0;
-        cameraAnimating = true;
+        camera.animateToDefault();
     }
 
     /** Navigate to a specific star by centering the viewport on it */
@@ -2038,27 +2020,13 @@
         const star = stars?.find((s: any) => s.id === starId);
         if (!star || !app) return;
 
-        const clampedZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoom));
+        const clampedZoom = clampZoom(zoom);
 
         // Use transposed coordinates
         const sx = mapTranspose.x(star);
         const sy = mapTranspose.y(star);
 
-        // Derive target panOffset so star ends up centered
-        const cw = app.screen.width;
-        const ch = app.screen.height;
-        const es = baseScale * clampedZoom;
-        const contentCenterX = contentMinX + contentWidth / 2;
-        const contentCenterY = contentMinY + contentHeight / 2;
-        const baselineX = cw / 2 - contentCenterX * es;
-        const baselineY = ch / 2 - contentCenterY * es;
-        const desiredStageX = cw / 2 - sx * es;
-        const desiredStageY = ch / 2 - sy * es;
-
-        targetZoom = clampedZoom;
-        targetPanX = -(desiredStageX - baselineX) / es;
-        targetPanY = -(desiredStageY - baselineY) / es;
-        cameraAnimating = true;
+        camera.animateToWorldPoint({ x: sx, y: sy }, clampedZoom);
 
         log.canvas(
             "navigateToStar",
@@ -2068,32 +2036,10 @@
 
     /** Advance camera animation one frame (called from render loop) */
     function stepCameraAnimation() {
-        if (!cameraAnimating) return;
-
-        const dz = targetZoom - zoomLevel;
-        const dx = targetPanX - panOffsetX;
-        const dy = targetPanY - panOffsetY;
-
-        // Check if close enough to snap
-        if (
-            Math.abs(dz) < CAMERA_EPSILON &&
-            Math.abs(dx) < CAMERA_EPSILON &&
-            Math.abs(dy) < CAMERA_EPSILON
-        ) {
-            zoomLevel = targetZoom;
-            panOffsetX = targetPanX;
-            panOffsetY = targetPanY;
-            cameraAnimating = false;
-        } else {
-            zoomLevel += dz * CAMERA_EASE;
-            panOffsetX += dx * CAMERA_EASE;
-            panOffsetY += dy * CAMERA_EASE;
-        }
-
+        if (!camera.stepAnimation()) return;
         applyZoomTransform();
     }
 
-    const ZOOM_STEP = 0.1; // Per scroll notch
     let isPanning = false; // Middle-mouse-button or spacebar pan
     let isSpaceHeld = false; // Spacebar held for pan mode
     let panStartScreenX = 0;
@@ -2564,11 +2510,7 @@
     // Rendering
     // ============================================================================
 
-    // Camera-fit rect for the star map.
-    let contentMinX = 0;
-    let contentMinY = 0;
-    let contentWidth = 1600;
-    let contentHeight = 900;
+    // The camera-fit rect for the star map lives in the camera model.
     // Stable coordinate-space map extents rooted at (0,0).
     let GAME_WIDTH = 1600;
     let GAME_HEIGHT = 900;
@@ -2633,28 +2575,29 @@
             configuredHeight: configuredWorldSize.height,
         });
 
-        contentMinX = fitRect.minX;
-        contentMinY = fitRect.minY;
-        contentWidth = fitRect.width;
-        contentHeight = fitRect.height;
+        camera.setContentBounds({
+            minX: fitRect.minX,
+            minY: fitRect.minY,
+            width: fitRect.width,
+            height: fitRect.height,
+        });
         GAME_WIDTH = worldRect.width;
         GAME_HEIGHT = worldRect.height;
 
         log.canvas(
             "WorldBounds",
-            `stars=${currentStars.length} fit=(${contentMinX.toFixed(0)},${contentMinY.toFixed(0)} ${contentWidth.toFixed(0)}x${contentHeight.toFixed(0)}) map=${GAME_WIDTH.toFixed(0)}x${GAME_HEIGHT.toFixed(0)} required=${worldRect.requiredWidth.toFixed(0)}x${worldRect.requiredHeight.toFixed(0)} source=${worldRect.source} transpose=${mapTranspose.active}`,
+            `stars=${currentStars.length} fit=(${fitRect.minX.toFixed(0)},${fitRect.minY.toFixed(0)} ${fitRect.width.toFixed(0)}x${fitRect.height.toFixed(0)}) map=${GAME_WIDTH.toFixed(0)}x${GAME_HEIGHT.toFixed(0)} required=${worldRect.requiredWidth.toFixed(0)}x${worldRect.requiredHeight.toFixed(0)} source=${worldRect.source} transpose=${mapTranspose.active}`,
         );
 
     }
 
     function updateTerritoryViewportFrame() {
         if (!app) return;
-        const fitScale = Math.max(baseScale, 0.000001);
-        const contentCenterX = contentMinX + contentWidth / 2;
-        const contentCenterY = contentMinY + contentHeight / 2;
+        const fitScale = Math.max(camera.getBaseScale(), 0.000001);
+        const contentCenter = camera.getContentCenter();
         const viewportFrame = resolveCenteredViewportFrame({
-            centerX: contentCenterX,
-            centerY: contentCenterY,
+            centerX: contentCenter.x,
+            centerY: contentCenter.y,
             viewportWidthPx: app.screen.width,
             viewportHeightPx: app.screen.height,
             scale: fitScale,
@@ -2698,11 +2641,16 @@
         }
         dbg.clear();
         // Yellow border around actual content bounds
-        dbg.rect(contentMinX, contentMinY, contentWidth, contentHeight);
+        const debugBounds = camera.getContentBounds();
+        dbg.rect(
+            debugBounds.minX,
+            debugBounds.minY,
+            debugBounds.width,
+            debugBounds.height,
+        );
         dbg.stroke({ color: 0xffff00, width: 3 });
         // Crosshair at content center
-        const cx = contentMinX + contentWidth / 2;
-        const cy = contentMinY + contentHeight / 2;
+        const { x: cx, y: cy } = camera.getContentCenter();
         dbg.moveTo(cx - 30, cy).lineTo(cx + 30, cy);
         dbg.moveTo(cx, cy - 30).lineTo(cx, cy + 30);
         dbg.stroke({ color: 0xff00ff, width: 2 });
@@ -2753,9 +2701,7 @@
         if (viewportIsPortrait !== mapIsPortrait) {
             transposeStarCoordinates();
             // Reset pan/zoom so map fully reframes
-            zoomLevel = 1;
-            panOffsetX = 0;
-            panOffsetY = 0;
+            camera.reset();
             log.sys(
                 "GameCanvas",
                 `Orientation synced: viewport=${viewportIsPortrait ? "portrait" : "landscape"}, map=${mapIsPortrait ? "portrait" : "landscape"}`,
@@ -2804,10 +2750,10 @@
         const containerWidth = app.screen.width;
         const containerHeight = app.screen.height;
 
-        baseScale = Math.min(
-            containerWidth / contentWidth,
-            containerHeight / contentHeight,
-        );
+        camera.fitBaseScaleTo({
+            width: containerWidth,
+            height: containerHeight,
+        });
         updateTerritoryViewportFrame();
 
         // Size nebula background to cover visible viewport (not just game world)
@@ -2815,7 +2761,7 @@
             | PIXI.Sprite
             | undefined;
         if (bgSprite && bgSprite.texture) {
-            const effectiveScale = baseScale * zoomLevel;
+            const effectiveScale = camera.getEffectiveScale();
             const viewWorldW = containerWidth / effectiveScale;
             const viewWorldH = containerHeight / effectiveScale;
             const coverW = Math.max(GAME_WIDTH, viewWorldW) * 1.2;
@@ -2833,9 +2779,10 @@
         getCanvasClientRect("resize");
 
         const canvasEl = canvasContainer;
+        const resizeBounds = camera.getContentBounds();
         log.canvas(
             "handleResize",
-            `container=${containerWidth.toFixed(0)}x${containerHeight.toFixed(0)} content=(${contentMinX.toFixed(0)},${contentMinY.toFixed(0)} ${contentWidth.toFixed(0)}x${contentHeight.toFixed(0)}) baseScale=${baseScale.toFixed(4)} dpr=${window.devicePixelRatio} cssGrid(el)=${canvasEl?.clientWidth ?? "?"}x${canvasEl?.clientHeight ?? "?"} viewport=${window.innerWidth}x${window.innerHeight}`,
+            `container=${containerWidth.toFixed(0)}x${containerHeight.toFixed(0)} content=(${resizeBounds.minX.toFixed(0)},${resizeBounds.minY.toFixed(0)} ${resizeBounds.width.toFixed(0)}x${resizeBounds.height.toFixed(0)}) baseScale=${camera.getBaseScale().toFixed(4)} dpr=${window.devicePixelRatio} cssGrid(el)=${canvasEl?.clientWidth ?? "?"}x${canvasEl?.clientHeight ?? "?"} viewport=${window.innerWidth}x${window.innerHeight}`,
         );
         renderInteractionOverlayNow();
     }
@@ -2854,75 +2801,49 @@
         if (!app || !app.renderer) return;
         invalidateCanvasClientRectCache();
         app.resize();
-        const cw = app.screen.width;
-        const ch = app.screen.height;
-        if (contentWidth > 0 && contentHeight > 0) {
-            baseScale = Math.min(cw / contentWidth, ch / contentHeight);
-        }
+        camera.fitBaseScaleTo({
+            width: app.screen.width,
+            height: app.screen.height,
+        });
         updateTerritoryViewportFrame();
         applyZoomTransform();
     }
 
+    /**
+     * Project the camera model onto the scene graph. The ONLY writer of the
+     * app.stage transform.
+     *
+     * Pan is clamped before the transform is read, so the stage is positioned
+     * once from the clamped value; the pre-extraction code wrote the stage from
+     * the unclamped pan and then had clampPan() rewrite it, which lands on the
+     * same place because the baseline does not depend on pan.
+     */
     function applyZoomTransform() {
         if (!app) return;
 
         const cw = app.screen.width;
         const ch = app.screen.height;
-        const es = baseScale * zoomLevel;
+        const viewport = { width: cw, height: ch };
 
-        app.stage.scale.set(es, es);
-
-        // Center on content bounding box, then apply pan offset
-        const contentCenterX = contentMinX + contentWidth / 2;
-        const contentCenterY = contentMinY + contentHeight / 2;
-        const baselineX = cw / 2 - contentCenterX * es;
-        const baselineY = ch / 2 - contentCenterY * es;
-
-        app.stage.x = baselineX - panOffsetX * es;
-        app.stage.y = baselineY - panOffsetY * es;
+        camera.clampPan(viewport);
+        const transform = camera.getTransform(viewport);
+        app.stage.scale.set(transform.scale, transform.scale);
+        app.stage.x = transform.x;
+        app.stage.y = transform.y;
 
         // Update bg sprite to cover visible viewport at current zoom
         const bgSprite = (app as any)._nebulaBgSprite as
             | PIXI.Sprite
             | undefined;
         if (bgSprite && bgSprite.texture) {
-            const viewWorldW = cw / es;
-            const viewWorldH = ch / es;
+            const viewWorldW = cw / transform.scale;
+            const viewWorldH = ch / transform.scale;
             const coverW = Math.max(GAME_WIDTH, viewWorldW) * 1.2;
             const coverH = Math.max(GAME_HEIGHT, viewWorldH) * 1.2;
             const texW = bgSprite.texture.width;
             const texH = bgSprite.texture.height;
             bgSprite.scale.set(Math.max(coverW / texW, coverH / texH));
         }
-
-        clampPan();
-    }
-
-    function clampPan() {
-        if (!app) return;
-
-        const cw = app.screen.width;
-        const ch = app.screen.height;
-        const es = baseScale * zoomLevel;
-        const scaledContentW = contentWidth * es;
-        const scaledContentH = contentHeight * es;
-
-        // Only allow pan when zoomed-in content exceeds viewport
-        const overflowX = Math.max(0, (scaledContentW - cw) / 2);
-        const overflowY = Math.max(0, (scaledContentH - ch) / 2);
-        const maxPanX = overflowX / es;
-        const maxPanY = overflowY / es;
-
-        panOffsetX = Math.max(-maxPanX, Math.min(maxPanX, panOffsetX));
-        panOffsetY = Math.max(-maxPanY, Math.min(maxPanY, panOffsetY));
-
-        // Reapply position after clamp
-        const contentCenterX = contentMinX + contentWidth / 2;
-        const contentCenterY = contentMinY + contentHeight / 2;
-        const baselineX = cw / 2 - contentCenterX * es;
-        const baselineY = ch / 2 - contentCenterY * es;
-        app.stage.x = baselineX - panOffsetX * es;
-        app.stage.y = baselineY - panOffsetY * es;
     }
 
     function handleWheel(event: WheelEvent) {
@@ -2933,7 +2854,7 @@
         );
         event.preventDefault();
         if (!app) return;
-        cameraAnimating = false; // Cancel any in-progress animation
+        camera.cancelAnimation();
 
         const { x: screenX, y: screenY } = getCanvasLocalPointFromClient(
             event.clientX,
@@ -2944,39 +2865,23 @@
         // World point under cursor BEFORE zoom
         const worldBefore = screenToWorld(screenX, screenY);
 
-        // Apply zoom
         const direction = event.deltaY < 0 ? 1 : -1;
-        const oldZoom = zoomLevel;
-        zoomLevel = Math.max(
-            ZOOM_MIN,
-            Math.min(ZOOM_MAX, zoomLevel + direction * ZOOM_STEP),
+        const oldZoom = camera.getZoomLevel();
+        const newZoom = camera.setZoomClamped(oldZoom + direction * ZOOM_STEP);
+        if (newZoom === oldZoom) return; // Hit limit
+
+        // Keep worldBefore under the cursor at the new zoom.
+        camera.setPanFromAnchor(
+            { width: app.screen.width, height: app.screen.height },
+            { x: screenX, y: screenY },
+            worldBefore,
         );
-
-        if (zoomLevel === oldZoom) return; // Hit limit
-
-        // Anchor: adjust pan so the same world point stays under cursor
-        // Must match the transform in applyZoomTransform (content-centered)
-        const effectiveScale = baseScale * zoomLevel;
-        const containerWidth = app.screen.width;
-        const containerHeight = app.screen.height;
-        const contentCenterX = contentMinX + contentWidth / 2;
-        const contentCenterY = contentMinY + contentHeight / 2;
-        const baselineX = containerWidth / 2 - contentCenterX * effectiveScale;
-        const baselineY = containerHeight / 2 - contentCenterY * effectiveScale;
-
-        // worldBefore should remain under cursor after transform:
-        // screenX = baselineX - panOffsetX * es + worldBefore.x * es
-        // => panOffsetX = worldBefore.x - (screenX - baselineX) / es
-        panOffsetX = worldBefore.x - (screenX - baselineX) / effectiveScale;
-        panOffsetY = worldBefore.y - (screenY - baselineY) / effectiveScale;
 
         applyZoomTransform();
     }
 
     function resetZoom() {
-        zoomLevel = 1;
-        panOffsetX = 0;
-        panOffsetY = 0;
+        camera.reset();
         applyZoomTransform();
     }
 
@@ -5397,7 +5302,7 @@
             cancelDrag();
             isPinching = true;
             pinchStartDist = getPinchDist();
-            pinchStartZoom = zoomLevel;
+            pinchStartZoom = camera.getZoomLevel();
             const center = getPinchCenter();
             const localCenter = getCanvasLocalPointFromClient(
                 center.x,
@@ -5408,8 +5313,9 @@
             pinchCenterY = localCenter.y;
             panStartScreenX = center.x;
             panStartScreenY = center.y;
-            panStartOffsetX = panOffsetX;
-            panStartOffsetY = panOffsetY;
+            const pinchStartPan = camera.getPan();
+            panStartOffsetX = pinchStartPan.x;
+            panStartOffsetY = pinchStartPan.y;
             return;
         }
 
@@ -5426,11 +5332,12 @@
             if (!earlyHit) {
                 // No star nearby — single-finger pan
                 isPanning = true;
-                cameraAnimating = false;
+                camera.cancelAnimation();
                 panStartScreenX = event.clientX;
                 panStartScreenY = event.clientY;
-                panStartOffsetX = panOffsetX;
-                panStartOffsetY = panOffsetY;
+                const touchPanStart = camera.getPan();
+                panStartOffsetX = touchPanStart.x;
+                panStartOffsetY = touchPanStart.y;
                 return;
             }
         }
@@ -5466,8 +5373,9 @@
             isPanning = true;
             panStartScreenX = event.clientX;
             panStartScreenY = event.clientY;
-            panStartOffsetX = panOffsetX;
-            panStartOffsetY = panOffsetY;
+            const dragPanStart = camera.getPan();
+            panStartOffsetX = dragPanStart.x;
+            panStartOffsetY = dragPanStart.y;
             canvasContainer.style.cursor = "grabbing";
             return;
         }
@@ -5579,19 +5487,16 @@
             const dist = getPinchDist();
             if (pinchStartDist > 0) {
                 const scale = dist / pinchStartDist;
-                const oldZoom = zoomLevel;
-                zoomLevel = Math.max(
-                    ZOOM_MIN,
-                    Math.min(ZOOM_MAX, pinchStartZoom * scale),
-                );
+                camera.setZoomClamped(pinchStartZoom * scale);
 
                 // Also pan: track center movement
                 const center = getPinchCenter();
-                const effectiveScale = baseScale * zoomLevel;
-                const dx = center.x - panStartScreenX;
-                const dy = center.y - panStartScreenY;
-                panOffsetX = panStartOffsetX - dx / effectiveScale;
-                panOffsetY = panStartOffsetY - dy / effectiveScale;
+                camera.panFromDrag(
+                    panStartOffsetX,
+                    panStartOffsetY,
+                    center.x - panStartScreenX,
+                    center.y - panStartScreenY,
+                );
 
                 applyZoomTransform();
             }
@@ -5611,11 +5516,12 @@
 
         // Pan mode: update pan offset based on mouse delta
         if (isPanning) {
-            const effectiveScale = baseScale * zoomLevel;
-            const dx = event.clientX - panStartScreenX;
-            const dy = event.clientY - panStartScreenY;
-            panOffsetX = panStartOffsetX - dx / effectiveScale;
-            panOffsetY = panStartOffsetY - dy / effectiveScale;
+            camera.panFromDrag(
+                panStartOffsetX,
+                panStartOffsetY,
+                event.clientX - panStartScreenX,
+                event.clientY - panStartScreenY,
+            );
             applyZoomTransform();
             return;
         }
