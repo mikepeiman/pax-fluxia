@@ -434,6 +434,59 @@ StarRenderer's map-display variant exempt), 1 shoelace family, 0 production upwa
 Record final LOC vs Stage 0. Then (Q29) schedule the quarantine deletion commit once the
 IP-absorption list is confirmed done.
 
+**EXECUTION LOG (2026-07-14, Fable) — STAGE 7 COMPLETE. THE CAMPAIGN IS COMPLETE.**
+
+Acceptance run surfaced four real problems (all fixed, `e48b1f458`):
+1. TWO SOURCE FILES WERE BINARY to grep — powerCore/smoothSharedEdges.ts and sharedEdgeGraph.ts each
+   carried one literal control byte (NUL/SOH string delimiters; sed-footgun survivors). Invisible to
+   every text search since June, including this campaign's own audits. Now explicit escapes;
+   runtime strings byte-identical (hash keys unchanged; territory suite green).
+2. A DEAD 839-LINE WORKER (renderers/cellGrid.worker.ts — the quarantined METABALL renderer's compute
+   worker) survived every sweep because find-dead-modules roots ALL `*.worker.ts`. Nothing spawns it.
+   Quarantined with its closure (cellGridWorkerTypes.ts + renderers/geometry/chaikin.ts — a full
+   duplicate Chaikin whose only importer was the worker). **Sweep fixed: a worker is a root only if
+   something spawns it by name.** Re-run: 0 dead across 475 modules.
+3. CHAIKIN GATE PASSES: exactly 1 implementation (kernel) + StarRenderer's exempt variant;
+   frontier/chaikin + chaikinOpenPinned are kernel adapters.
+4. SHOELACE GATE PASSES: ActiveFrontFillMode's local (formula-identical) → kernel; the compiler's
+   TRAPEZOID-form local (algebraically −signedArea, feeding outer/hole winding classification) →
+   documented negated kernel call. Full suite incl. geometry oracle green.
+
+Other gates: 0 kept-code imports from `_quarantine` (held since ab6397b31); contracts + kernel import
+nothing upward (territory/ui → components is presentation glue, pre-campaign); catalog == keep-set is
+a PERMANENT test since 593f21518.
+
+**THE DELETION (`634da8eed`, Q29):** 217 files / 57,782 lines removed — all quarantined mode families,
+the three retired runtime pipelines, legacy benchmarks, plain cell_grid, and the 137-file dead-module
+closure. Git history is the archive; the last commit containing everything is `e48b1f458`
+(named in the deletion commit with the key blueprint paths: distance_field GPU pipeline, fg2SeedGraph,
+layers/ worker architecture). IP-absorption confirmed first: contour techniques in the geometry atlas
+(verbatim source snapshots in geometry-atlas/code/); blob/retro/network-control/lane-seed concepts in
+the VALUE INVENTORY (the doc-of-record). Gates ON the deletion: check 0/0, suite 87/565, build OK.
+
+#### FINAL SCOREBOARD (vs Stage 0, 2026-07-13)
+| | Stage 0 | Final | Δ |
+|---|---|---|---|
+| src/lib non-test LOC | 176,165 | **120,030** | **−56,135 (−31.9%)** |
+| Test suite | 60 files / 426 tests (territory) | **87 files / 565 tests (FULL suite)** | +tests, first-ever full-suite green |
+| check | 0 errors, 1 chronic warning | **0 errors, 0 warnings** | — |
+| Chaikin impls (kept territory) | 3+ | **1 (kernel)** | gate |
+| Shoelace families | 3 | **1 (kernel)** | gate |
+| Render-mode catalog | 15+ historical ids | **keep-set exactly, test-enforced** | gate |
+| `_quarantine/` | — | **deleted** | Q29 |
+
+Stage 6 log: settings-side purge `4b89cb6d7` (ControlsSection-Territory 1,939→1,150; registry
+subsections catalog-derived; search index honest; wiring invariant caught the intermediate state —
+root-cause fix was removing TSST's dead Finish section, not re-indexing), animLockMath `426ab86e3`
+(pure transitions +19 tests), configTransfer `f7e0c113e` (typed merge +11 tests; killed the
+MD_EXPORT_SECTIONS drifted duplicate). Topbar chips `593f21518`. GameSettingsPanel 2,946→2,783.
+
+**OUTSTANDING (post-campaign, small):** GameCanvas renderFrame decomposition (Stage 5's last item,
+~1,480 lines — dedicated session); METABALL_*/legacy key removal from GAME_CONFIG/settingsDefs/
+panelSync (type surgery; persisted-panel compat decision); 2nd-order dead exports (tests-only
+importers); the four flagged telemetry decisions from Stage 5. **CHECKPOINT 2 (user) NOT YET RUN:**
+one full play session + settings pass.
+
 ## Sequencing rationale
 Consolidation (1) precedes deletion (3,4) per doctrine. Layering (2) before quarantine (3) so moved
 files don't carry broken imports. Kernel + quarantine shrink GameCanvas's import surface before its

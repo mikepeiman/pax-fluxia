@@ -3,6 +3,17 @@
 **Terminology:** In this document, **reference** means "primary agreed design for agents and implementers." It does **not** refer to the Svelte/render mode name `territory_runtime` or any legacy identifier in code — always disambiguate in prose.
 
 > [!WARNING]
+> **2026-07-14 — cleanup campaign complete (Stages 0–7).** Every render mode this
+> document describes other than the keep-set (power_vector, phase_edges,
+> ember_lattice, phase_field, grid_gradient, Off) was quarantined and then
+> DELETED from the tree; git history is the archive (last commit containing the
+> quarantine: `e48b1f458`). Geometry is unified on PowerCore. For what exists
+> today, read the code and the render-mode catalog
+> (`src/lib/territory/ui/territoryRenderModeCatalog.ts` — enforced by test);
+> for the campaign's dispositions and preserved concepts, read
+> `.agent/docs/plans/2026-07-13/2026-07-13_RENDER_MODE_VALUE_INVENTORY.md`.
+
+> [!WARNING]
 > This file is stale for current-state reasoning.
 > Use [TERRITORY_RENDER_SYSTEM_CURRENT.md](./TERRITORY_RENDER_SYSTEM_CURRENT.md) for the live mixed-runtime architecture, current naming/status, and 2026-04-27 / 2026-04-28 perf-corrected view.
 
