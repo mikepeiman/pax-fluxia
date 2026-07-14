@@ -175,18 +175,6 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
 
     territory: [
         // Territory toggles
-        'PIXEL_ALPHA',
-        'PIXEL_RESOLUTION',
-        'PIXEL_EDGE_BLEND',
-        'PIXEL_BLUR',
-        'PIXEL_BLEND_POWER',
-        'PIXEL_CORRIDOR_BOOST',
-        'PIXEL_HUE_SHIFT',
-        'PIXEL_BORDER_WIDTH',
-        'PIXEL_BORDER_ALPHA',
-        'PIXEL_BORDER_BRIGHTEN',
-        'PIXEL_PATTERN',
-        'PIXEL_PATTERN_SCALE',
         // Star power / halos
         'SHOW_STAR_POWER',
         'STAR_POWER_ALPHA',
@@ -199,29 +187,13 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'HALO_FLEET_STEP_SIZE',
         'HALO_FLEET_MAX_SHIPS',
         // Voronoi
-        'SHOW_VORONOI',
         'VORONOI_ALPHA',
-        'VORONOI_RESOLUTION',
-        'VORONOI_EDGE_BLEND',
         'VORONOI_BORDER_WIDTH',
         'VORONOI_BORDER_ALPHA',
-        'VORONOI_BORDER_BRIGHTEN',
         'VORONOI_BORDER_SMOOTH',
-        'VORONOI_SATURATION',
-        'VORONOI_LIGHTNESS',
-        'VORONOI_GLOW_RADIUS',
-        'VORONOI_GLOW_ALPHA',
-        'VORONOI_GLOW_LAYERS',
-        'VORONOI_BLUR',
-        'VORONOI_SMOOTHING',
-        'VORONOI_GRADIENT_BLEND',
-        'VORONOI_BLEND_WIDTH',
         // Modified Voronoi (F-138)
         'MODIFIED_VORONOI_STAR_MARGIN',
         'TERRITORY_MSR_STAR_BIAS',
-        'MODIFIED_VORONOI_ARC_STRENGTH',
-        'MODIFIED_VORONOI_ARC_THRESHOLD',
-        'MODIFIED_VORONOI_ARC_MIN_SEGMENT',
         'MODIFIED_VORONOI_CORRIDOR_ENABLED',
         'MODIFIED_VORONOI_CORRIDOR_SPACING',
         'MODIFIED_VORONOI_DISCONNECT_ENABLED',
@@ -389,14 +361,6 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
     ],
 
     debug: [
-        'DEBUG_MORPH_VERTICES',
-        'DEBUG_MORPH_VERTEX_SIZE',
-        'DEBUG_MORPH_PIN_THRESHOLD',
-        'DEBUG_MORPH_TRACE_LOG',
-        'DEBUG_MORPH_SLOWMO',
-        'DEBUG_MORPH_VERTEX_NTH',
-        'DEBUG_MORPH_VERTEX_COLOR_MODE',
-        'MORPH_CONQUEST_RADIUS',
     ],
 
     audio: [

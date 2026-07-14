@@ -19,10 +19,6 @@
     const conquestTransitionSlider = ANIM_SLIDERS.find(
         (slider) => slider.key === TT_SLIDER_KEY,
     );
-    const TT_SETTLE_SLIDER_KEY = "TERRITORY_TRANSITION_SETTLE_PCT";
-    const conquestTransitionSettleSlider = ANIM_SLIDERS.find(
-        (slider) => slider.key === TT_SETTLE_SLIDER_KEY,
-    );
 
     interface Props {
         panel: Record<string, any>;
@@ -228,22 +224,6 @@
             onInput={(value) => setAnimValue(TT_SLIDER_KEY, value)}
         />
     </div>
-{/if}
-
-{#if conquestTransitionSettleSlider}
-    <PaxSettingsRangeRow
-        label="End Settle"
-        value={getAnimValue(TT_SETTLE_SLIDER_KEY)}
-        min={conquestTransitionSettleSlider.min ?? 0}
-        max={conquestTransitionSettleSlider.max ?? 100}
-        step={conquestTransitionSettleSlider.step ?? 1}
-        output={formatAnimValue(
-            getAnimValue(TT_SETTLE_SLIDER_KEY),
-            conquestTransitionSettleSlider.unit ?? "",
-        )}
-        settingConfigKey={TT_SETTLE_SLIDER_KEY}
-        onInput={(value) => setAnimValue(TT_SETTLE_SLIDER_KEY, value)}
-    />
 {/if}
 
 <style>

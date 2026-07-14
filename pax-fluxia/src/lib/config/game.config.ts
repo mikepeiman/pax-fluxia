@@ -368,7 +368,6 @@ interface GameConfigType {
     // ── Territory Toggles ──────────────────────────────────────────────────────
     // ── OBSOLETE (kept for config migration) ──
     TERRITORY_TRANSITION_MS: number;      // Duration of territory morph animation in ms (0 = instant, default 400)
-    TERRITORY_TRANSITION_SETTLE_PCT: number; // Metaball conquest end-settle easing, percent (0 = off)
     /** When true, territory conquest transition duration tracks BASE_TICK_MS (Timing panel) */
     TERRITORY_TRANSITION_BIND_TO_TICK: boolean;
     /** PowerCore conquest FRONT shape — the split applied to the captured cell
@@ -390,13 +389,6 @@ interface GameConfigType {
      *  losers + all END_SNAP_FIX_EVAL scaffolding after the user picks. */
     TERRITORY_END_SNAP_FIX: 'off' | 'converge' | 'round_cut' | 'soft_pins';
     // ── Virtual Star Transition (F-165) ──────────────────────────────────────
-    VS_VICTOR_TRAVEL_MS: number;          // Duration of victor VS travel (ms, 0 = use TERRITORY_TRANSITION_MS)
-    VS_LOSER_TRAVEL_MS: number;           // Duration of loser VS travel (ms, 0 = use TERRITORY_TRANSITION_MS)
-    VS_POWER_LERP_START: number;          // Loser VS starting power (0-max, default = full weight)
-    VS_POWER_LERP_END: number;            // Loser VS ending power (0-max, default 0 = dissolve)
-    VS_POWER_LERP_DURATION_MS: number;    // Duration of power lerp (ms, 0 = use VS_LOSER_TRAVEL_MS)
-    VS_BIND_TO_TICK: boolean;             // Bind VS durations to tick duration (default true)
-    VS_TRANSITION_MODE: VsTransitionModeId; // Shared transition-mode selector; UI options are contextual to the active renderer
     METABALL_BURST_BOUNDARY_BASIS: MetaballBurstBoundaryBasis; // How six-slice burst measures common loser travel distance
     PERIMETER_FIELD_GEOMETRY_SOURCE: 'power_core' | 'power_voronoi_0319'; // UNIFIED on PowerCore (2026-07-08); every value normalizes to power_core at read boundaries (selector retired)
     PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY: boolean; // Show the source geometry used to derive perimeter samples
@@ -487,8 +479,6 @@ interface GameConfigType {
     TERRITORY_FRONTIER_FX_PULSE_SPEED: number; // Pulse speed for animated plasma rim mode
     TERRITORY_FRONTIER_FX_APPLY_STEADY_STATE: boolean; // Apply frontier FX when no conquest transition is active
     TERRITORY_FRONTIER_FX_APPLY_TRANSITION: boolean; // Apply frontier FX during conquest transitions
-    TERRITORY_MORPH_CONTROL_POINTS: number; // Number of control points for frontier loop morphing (5-300, default 32)
-    TERRITORY_BOUNDARY_MODE: 'segment' | 'smooth';  // 'segment' = edge-level lerp, 'smooth' = flubber polygon morph
     TERRITORY_FILL_MODE: 'crossfade' | 'frontier';  // 'crossfade' = alpha-fade fills, 'frontier' = infill from frontier loops
     TERRITORY_FILL_TRANSITION_MODE:
         | 'frontier_morph'
@@ -503,64 +493,13 @@ interface GameConfigType {
     TERRITORY_BORDER_TRANSITION_MODE: 'optimal_transport' | 'rope_morph' | 'off'; // Clean-arch border transition selector
     TERRITORY_STYLE_MODE: 'vector' | 'distance_field' | 'pixel'; // Clean-arch presentation style selector
     // ── Morph Diagnostics ─────────────────────────────────────────────────────
-    DEBUG_MORPH_VERTICES: boolean;        // Show numbered vertex dots on territory polygons during morph
-    DEBUG_MORPH_VERTEX_SIZE: number;      // Radius of vertex dots (px, default 3)
-    DEBUG_MORPH_PIN_THRESHOLD: number;    // Displacement below which a vertex is "pinned" (green) vs "morph" (red)
-    MORPH_CONQUEST_RADIUS: number;        // Max distance from conquered star for morph (0=disabled, px)
-    DEBUG_MORPH_TRACE_LOG: boolean;       // Log per-vertex start/end/distance trace on transition start
-    DEBUG_MORPH_SLOWMO: boolean;          // 10X slow-motion: multiply TERRITORY_TRANSITION_MS by 10
-    DEBUG_MORPH_VERTEX_NTH: number;       // Show label on every Nth vertex (1=all, 10=every 10th, default 10)
-    DEBUG_MORPH_VERTEX_COLOR_MODE: string; // Vertex dot color mode: 'pinmorph' | 'owner' | 'neutral'
-    DEBUG_MORPH_VERTEX_LABELS: boolean;    // Draw numeric index labels on vertex dots (default true)
     
     // ── DY4 Transition Isolation (F-138) ──────────────────────────────────────
-    DEBUG_DY4_DISABLE_FILL_CROSSFADE: boolean;
-    DEBUG_DY4_DISABLE_BORDER_TRANSITION: boolean;
-    DEBUG_DY4_FORCE_TRANSITION_START: boolean;
     TERRITORY_CLUSTER_SPLIT: boolean; // Split disconnected same-owner stars into separate territory blobs (default false)
     TERRITORY_RENDER_MODE: string;    // Active render mode: 'none' | 'vs_pvv3' | 'power_voronoi' | 'distance_field' | 'voronoi' | 'metaball' | 'cell_grid' | 'phase_edges' | 'ember_lattice' | 'phase_field' | 'grid_gradient' | 'perimeter_field' | 'pixel' | 'graph' | 'contour'
     /** When true, legacy modes without a registered RenderFamily adapter are gated in UI; metaball may use family path. Default false. */
 
     // ── Distance Field Territory ──────────────────────────────────────────────
-    DF_RESOLUTION: number;          // Grid resolution divisor (4 = quarter res, default 4)
-    DF_ALPHA: number;               // Fill opacity (default 0.3)
-    DF_BORDER_WIDTH: number;        // Border band width in world px (default 15)
-    DF_BORDER_SOFTNESS: number;     // Border feather width in world px (default 8)
-    DF_BORDER_ALPHA: number;        // Border opacity multiplier (default 0.8)
-    DF_BORDER_BRIGHTEN: number;     // Border color brightening amount 0-255 (default 40)
-    DF_BORDER_MODE: number;         // Border rendering mode: 0=gap (organic), 1=even (uniform width), 2=layered (fwidth-diff)
-    DF_BORDER_FAMILY: 'straight' | 'curved' | 'segmented'; // Vector border family dispatch (default 'straight')
-    DF_BORDER_ENGINE: 'mesh' | 'legacy_field' | 'legacy_grid'; // Border engine routing: mesh vector + legacy reference modes
-    DF_VECTOR_FRONTIER_RUNTIME_MODE: 'disabled' | 'diagnostic' | 'production'; // Vector frontier rollout gate (default 'disabled')
-    DF_VECTOR_FRONTIER_DIAGNOSTIC_SHOW: boolean; // Render vector frontier in diagnostic mode when true
-    DF_BORDER_HQ_ENABLED: boolean;  // Enable supersampled border field for smoother edges (default false)
-    DF_BORDER_HQ_SCALE: number;     // Supersample factor for ownership/JFA pass (1.0-4.0, default 2.0)
-    DF_BORDER_HQ_MAX_DIM: number;   // Max ownership/JFA texture dimension in HQ mode (default 8192)
-    DF_VECTOR_BORDERS_ENABLED: boolean; // Draw DF borders using vector polylines (default false)
-    DF_VECTOR_GRID_RESOLUTION: number;  // Ownership sampling grid on long axis (default 192)
-    DF_VECTOR_SMOOTHING: number;        // Straight-line regularization passes for vector borders (default 1)
-    DF_VECTOR_SIMPLIFY: number;         // Polyline simplify tolerance in world px (default 0.5)
-    DF_VECTOR_UPDATE_MS: number;        // Rebuild interval while morphing (ms, default 33)
-    DF_MORPH_EASING: 'linear' | 'easeInOutQuad' | 'easeInOutCubic' | 'smoothstep'; // Fill/border morph easing curve (default 'linear')
-    DF_DISTANCE_METRIC: 'hops' | 'length'; // Distance metric (default 'length')
-    DF_BLUR: number;                // Post-render blur strength (default 2)
-    DF_HUE: number;                 // Hue shift in degrees -180..180 (default 0)
-    DF_SATURATION: number;          // Color saturation mult (default 0.7)
-    DF_LIGHTNESS: number;           // Color lightness mult (default 0.5)
-    DF_EDGE_FADE: number;           // Edge fade padding in px (default 200)
-    DF_ROUNDING: number;            // Canvas-level blur to round sharp territory corners (default 3)
-    DF_INFLUENCE_WEIGHT: number;    // How much graph distance matters (0 = pure Voronoi, 1.0 = full influence, default 1.0)
-    DF_EXPANSION: number;           // Mesh quad expansion factor beyond padding (0.0 = none, 0.5 = 50%, default 0.10)
-    DF_SMOOTHING: number;           // Junction corner smoothing radius in influence units (0 = sharp, default 30)
-    DF_MIN_STAR_RADIUS: number;     // Minimum guaranteed territory radius around each star in px (default 40)
-    DF_CORRIDOR_ENABLED: boolean;   // Enable corridor virtual sites along same-owner lanes
-    DF_CORRIDOR_MODE: string;       // 'spacing' = fixed px distance, 'count' = fixed count per lane
-    DF_CORRIDOR_SPACING: number;    // Distance between corridor virtual sites in px (default 60)
-    DF_CORRIDOR_COUNT: number;      // Fixed number of virtual stars per lane (default 3)
-    DF_CORRIDOR_WEIGHT: number;     // Corridor influence weight multiplier (default 1.0)
-    DF_DISCONNECT_ENABLED: boolean; // Enable disconnect virtual sites between unconnected same-owner stars
-    DF_DISCONNECT_DISTANCE: number; // Max distance for disconnect detection in px (default 400)
-    DF_DISCONNECT_WEIGHT: number;   // Disconnect influence weight multiplier (default 0.3)
 
     // ── Modified Voronoi Territory (F-138) ────────────────────────────────────
     MODIFIED_VORONOI_STAR_MARGIN: number;      // Territory/frontier breathing room around owned stars (px, 0-500); independent from lane margin
@@ -570,10 +509,6 @@ interface GameConfigType {
     TERRITORY_MSR_STAR_POWER_GAIN: number;     // Legacy compatibility only; old gain before converting MSR into real-star power
     TERRITORY_MSR_STAR_POWER_EXPONENT: number; // Legacy compatibility only; old exponent used when mode='exponent'
     TERRITORY_MSR_STAR_POWER_CAP_PX: number;   // Legacy compatibility only; old max MSR value in px allowed to feed star-power conversion
-    MODIFIED_VORONOI_ARC_STRENGTH: number;     // How far to retract sharp vertex toward origin (0-1)
-    MODIFIED_VORONOI_ARC_THRESHOLD: number;    // Interior angle below which arc smoothing activates (°)
-    MODIFIED_VORONOI_ARC_MIN_SEGMENT: number;  // Min line-segment length for Bézier tessellation (px)
-    MODIFIED_VORONOI_ARC_MAX_SEGMENTS: number; // Cap Bézier samples per corner (4-64, higher=smoother/slower)
     MODIFIED_VORONOI_CORRIDOR_ENABLED: boolean; // Inject virtual sites along same-owner lanes for corridor effect
     MODIFIED_VORONOI_CORRIDOR_SPACING: number;  // Distance between virtual corridor sites in px (10-200)
     TERRITORY_CX_COUNT: number;     // Number of corridor vstars per lane (0 = auto from spacing, range 0-20)
@@ -587,32 +522,15 @@ interface GameConfigType {
     TERRITORY_DX_WEIGHT: number;    // Disconnect vstar weight multiplier against the fixed virtual-site reference weight (0.0-5.0, default 3.0)
 
     // ── Voronoi Territory ───────────────────────────────────────────────────
-    SHOW_VORONOI: boolean;         // Show contiguous Voronoi territory fill (default true)
-    NEUTRAL_TERRITORY_TRANSPARENT: boolean; // When true, neutral/unowned territory has no fill (fully transparent)
     VORONOI_ALPHA: number;         // Alpha for Voronoi territory (default 0.15)
-    VORONOI_RESOLUTION: number;    // Pixel territory downscale factor (4=fastest, 1=sharpest)
-    VORONOI_EDGE_BLEND: number;    // Edge blend radius for pixel territory (0=off)
     VORONOI_BORDER_WIDTH: number;  // Border line width between territories in pixels (0=off, default 2)
     VORONOI_BORDER_ALPHA: number;  // Alpha for territory border lines (default 0.4)
-    VORONOI_BORDER_BRIGHTEN: number; // How much to brighten border color (0-255, default 80)
     VORONOI_BORDER_SMOOTH: number;   // Chaikin smoothing passes for PVV2 shared-edge borders (0=angular, 1-5=rounded, default 3)
     CHAIKIN_BOUNDARY_PAD: number;     // World-clip boundary padding in px for Voronoi diagram (default 50)
     CHAIKIN_BOUNDARY_EPS: number;     // Proximity threshold in px for detecting points on world boundary (default 6)
-    BORDER_TRANS_EASING: string;     // Easing function for border transitions ('cubic'|'back'|'elastic', default 'back')
-    BORDER_TRANS_RESAMPLE_N: number; // Number of resample points per polyline for morphing (8-64, default 32)
-    BORDER_TRANS_OVERSHOOT: number;  // Back easing overshoot amount (0-5, default 1.7)
     TERRITORY_BORDER_TRANSITION: string; // Border transition mode ('pixi_graphics_morph'|'pixi_mesh_rope'|'smooth_morph'|'none')
     FRONTIER_RESOLUTION: number;     // Frontier vertex spacing in pixels (1-32, default 1). Lower = denser vertices = smoother morphing
     TERRITORY_GEOMETRY_MODE: string;  // Geometry data mode: 'power_voronoi' (dual-path) | 'unified_polygon' (single-path dense resampled)
-    VORONOI_SATURATION: number;    // Saturation multiplier for Voronoi colors (0=grey, 1=normal, 2=vivid, default 1.0)
-    VORONOI_LIGHTNESS: number;     // Lightness multiplier for Voronoi colors (0=dark, 1=normal, 2=bright, default 0.7)
-    VORONOI_GLOW_RADIUS: number;   // Territory glow bleed radius as fraction of map size (0-1, default 0.3)
-    VORONOI_GLOW_ALPHA: number;    // Peak glow alpha (0-0.2, default 0.04)
-    VORONOI_GLOW_LAYERS: number;   // Number of concentric glow layers (1-8, default 4)
-    VORONOI_BLUR: number;          // GPU blur strength for smooth territory edges (0=sharp, 8=soft, default 8)
-    VORONOI_SMOOTHING: number;     // Chaikin smoothing iterations (0=angular, 1-4=rounded, default 2)
-    VORONOI_GRADIENT_BLEND: boolean; // Enable gradient blending at territory borders (default true)
-    VORONOI_BLEND_WIDTH: number;   // Gradient blend strip width in px (default 30)
 
     // ── Visual Overrides ────────────────────────────────────────────────────────────
     BG_IMAGE_URL: string;          // Background image url relative to /assets/
@@ -658,65 +576,12 @@ interface GameConfigType {
     /** Scale border emphasis by fleet imbalance across edge: 0=off, 1=moderate (default 0) */
     METABALL_BORDER_FORCE_RATIO: number;
     // ── Pixel Territory ────────────────────────────────────────────────────
-    PIXEL_ALPHA: number;             // Pixel territory alpha (0-1, default 0.15)
-    PIXEL_RESOLUTION: number;        // Downscale factor (1=sharpest, 8=fastest, default 4)
-    PIXEL_EDGE_BLEND: number;        // Edge blend softness (0=off, 1-10, default 0)
-    PIXEL_BLUR: number;              // GPU blur strength (0=sharp, default 4)
-    PIXEL_BLEND_POWER: number;       // DEPRECATED — replaced by PIXEL_CORRIDOR_BOOST
-    PIXEL_CORRIDOR_BOOST: number;    // Same-owner distance discount for corridor guarantee (0=off, 0.3=natural, 0.6=strong, default 0.3)
-    PIXEL_HUE_SHIFT: number;         // Hue rotation offset in degrees (0-360, default 0)
-    PIXEL_BORDER_WIDTH: number;      // Territory border thickness in pixels (0=off, 1-4, default 1)
-    PIXEL_BORDER_ALPHA: number;      // Border line alpha (0-1, default 0.6)
-    PIXEL_BORDER_BRIGHTEN: number;   // How much to brighten border color (0-255, default 80)
-    PIXEL_PATTERN: 'none' | 'stripes' | 'crosshatch' | 'dots';  // Pattern overlay on territory fill
-    PIXEL_PATTERN_SCALE: number;     // Pattern size/density (1=fine, 10=coarse, default 4)
-    PIXEL_PATTERN_ROTATION: number;  // Per-player pattern rotation (0=off, 1=golden angle, 0-1=blend)
-    PIXEL_EDGE_FADE: number;         // Edge fade padding beyond gameboard in world pixels (0=off, 200=default)
-    PIXEL_LANE_CONSTRAIN: number;    // Constrain territory to connection directions (0=off, 0.5=moderate, 1=strict lane-only)
-    PIXEL_PRESSURE: number;          // Shift boundaries by ship count (0=off, 0.5=moderate, 1=full proportional)
-    PIXEL_SATURATION: number;        // Saturation multiplier (0=grey, 1=normal, 2=vivid, default 1.0)
-    PIXEL_LIGHTNESS: number;         // Lightness multiplier (0=dark, 1=normal, 2=bright, default 1.0)
 
     // ── Graph Territory (4th mode — connection-graph-constrained) ──
-    GRAPH_ALPHA: number;             // Fill alpha (0-0.5, default 0.15)
-    GRAPH_RESOLUTION: number;        // Downsample factor (1-8, default 4)
-    GRAPH_BLUR: number;              // GPU blur strength (0-20, default 4)
-    GRAPH_PRESSURE: number;          // Ship-count boundary shifting (0=off, 1=moderate, 5=extreme)
-    GRAPH_CORRIDOR_BOOST: number;    // Same-owner corridor capsule width (0-0.9, default 0.3)
-    GRAPH_BORDER_WIDTH: number;      // Border pixel width (0-4, default 1)
-    GRAPH_BORDER_ALPHA: number;      // Border alpha (0-1, default 0.6)
-    GRAPH_BORDER_BRIGHTEN: number;   // Border brighten amount (0-255, default 80)
-    GRAPH_EDGE_FADE: number;         // Edge fade padding in world px (0-500, default 120)
-    GRAPH_BARRIER_EXTENT: number;    // (legacy, kept for Graph mode) Barrier length multiplier
-    GRAPH_PATTERN: 'none' | 'stripes' | 'crosshatch' | 'dots';
-    GRAPH_PATTERN_SCALE: number;
-    GRAPH_PATTERN_ROTATION: number;
     // Lane-specific influence parameters
-    LANE_INFLUENCE: number;          // How strong lane corridor influence is vs direct (1-10, default 5)
-    LANE_WIDTH: number;              // Half-width of lane influence corridor in world px (20-200, default 60)
-    LANE_DIRECT_FALLOFF: number;     // How fast direct star influence fades (0.1-5, default 1.0)
-    LANE_THRESHOLD: number;          // Minimum influence to claim territory (0-0.5, default 0.01)
-    GRAPH_SATURATION: number;        // Graph/Lane saturation multiplier (0=grey, 1=normal, 2=vivid, default 1.0)
-    GRAPH_LIGHTNESS: number;         // Graph/Lane lightness multiplier (0=dark, 1=normal, 2=bright, default 1.0)
     // Border feel post-processing
-    BORDER_FEEL: 'raw' | 'smooth' | 'angular';  // Border shape style: raw=pixel edges, smooth=morphological, angular=geometric segments
-    BORDER_SMOOTH: number;           // Smoothing iterations for border feel (0-5, default 2)
 
     // ── Contour Territory (5th mode — vector contour extraction) ──
-    CONTOUR_RESOLUTION: number;      // Grid size for ownership computation (64-256, default 128)
-    CONTOUR_SIMPLIFY: number;        // Douglas-Peucker tolerance (0-20, default 5)
-    CONTOUR_SMOOTH: number;          // Chaikin subdivision iterations (0-4, default 2)
-    CONTOUR_FILL_ALPHA: number;      // Fill opacity (0-1, default 0.15)
-    CONTOUR_BORDER_WIDTH: number;    // Border stroke width (0-8, default 2)
-    CONTOUR_BORDER_ALPHA: number;    // Border opacity (0-1, default 0.6)
-    CONTOUR_BORDER_BRIGHTEN: number; // Border brighten amount (0-255, default 80)
-    CONTOUR_SATURATION: number;      // Saturation multiplier (0-2, default 1.0)
-    CONTOUR_LIGHTNESS: number;       // Lightness multiplier (0-2, default 1.0)
-    CONTOUR_CORNER_RADIUS: number;   // Corner rounding radius in grid cells (0=off, 1-10)
-    CONTOUR_CORNER_THRESHOLD: number;// Angle threshold in degrees below which corners are rounded (0-180, default 120)
-    CONTOUR_PERIPHERY_STRENGTH: number; // Periphery ownership strength (0=off, 1=full hull override)
-    CONTOUR_PERIPHERY_INSET: number; // How far inside the lane the periphery boundary sits (px, default 0)
-    CONTOUR_JUNCTION_CORRECTION: number; // F-135: Angle equalization at multi-owner junctions (0=off, 1=full, default 0.5)
 
     SHOW_HEX_GRID: boolean;
     STARS_PER_PLAYER: number;
