@@ -178,6 +178,11 @@
     import { createTerritoryPresentationQueue } from "$lib/components/game/territoryPresentationQueue";
     import { createInteractionOverlay } from "$lib/components/game/interactionOverlay";
     import {
+        createOrderMutationQueue,
+        removeQueuedOrderEntriesFromSource,
+        type OrderDispatchMode,
+    } from "$lib/components/game/orderMutationQueue";
+    import {
         resolveCenteredViewportFrame,
         resolveContentFitWorldRect,
         resolveViewportWorldRect,
@@ -285,71 +290,6 @@
     let shipRenderYieldRescueCount = 0;
     let lastShipRenderContext = "";
     let lastShipRenderReason = "";
-    type QueuedOrderMutation =
-        | {
-              kind: "issue";
-              sourceId: string;
-              targetId: string;
-              persist: boolean;
-              requestId: number;
-              enqueuedAtMs: number;
-              path: string;
-          }
-        | {
-              kind: "cancel";
-              starId: string;
-              requestId: number;
-              enqueuedAtMs: number;
-              path: string;
-          }
-        | {
-              kind: "defer";
-              sourceId: string;
-              targetId: string;
-              persist: boolean;
-              requestId: number;
-              enqueuedAtMs: number;
-              path: string;
-          };
-    type OrderDispatchMode = "queued" | "immediate";
-    type InteractionVisualAcknowledgmentKind =
-        | "issue"
-        | "defer"
-        | "cancel"
-        | "select"
-        | "clear";
-    interface PendingInteractionVisualAcknowledgment {
-        requestId: number;
-        kind: InteractionVisualAcknowledgmentKind;
-        path: string;
-        sourceId: string | null;
-        targetId: string | null;
-        activeStarId: string | null;
-        recordedAtMs: number;
-    }
-    const queuedOrderMutations: QueuedOrderMutation[] = [];
-    const orderDispatchChannel =
-        typeof MessageChannel !== "undefined" ? new MessageChannel() : null;
-    let orderDispatchScheduled = false;
-    let orderMutationRequestSeq = 0;
-    let lastOrderMutationQueuedAtMs = 0;
-    let lastOrderMutationQueueDelayMs = 0;
-    let lastOrderQueueScheduleAtMs = 0;
-    let lastOrderQueueFlushStartedAtMs = 0;
-    let lastOrderQueueFlushFinishedAtMs = 0;
-    let lastOrderQueueFlushMutationCount = 0;
-    let lastOrderQueueFlushKinds: string[] = [];
-    let lastOrderQueueFlushRequestIds: number[] = [];
-    let lastOrderQueueScheduleMode = "";
-    const pendingInteractionVisualAcknowledgments: PendingInteractionVisualAcknowledgment[] = [];
-    let lastInteractionLocalAcknowledgment: Record<string, unknown> | null = null;
-    let lastInteractionVisualAcknowledgment: Record<string, unknown> | null = null;
-    type BackgroundTaskScheduler = {
-        postTask?: (
-            callback: () => void | Promise<void>,
-            options?: { priority?: "user-blocking" | "user-visible" | "background" },
-        ) => Promise<void>;
-    };
     const territoryPresentationQueue = createTerritoryPresentationQueue({
         logGridGradientTransition: (stage, data) =>
             logGridGradientTransition(stage, data),
@@ -395,372 +335,20 @@
         onRendered: () =>
             setTerritoryRenderStatus({ arrowRenderer: "overlay_canvas" }),
     });
-
-    function nextOrderMutationRequestId(): number {
-        orderMutationRequestSeq += 1;
-        return orderMutationRequestSeq;
-    }
-
-    function removeQueuedOrderEntriesFromSource(
-        sourceId: string,
-        collection: Set<string>,
-    ): void {
-        for (const key of collection) {
-            if (key.startsWith(`${sourceId}|`)) {
-                collection.delete(key);
-            }
-        }
-    }
-
-    function hasQueuedOrderEntryForSource(sourceId: string): boolean {
-        for (const key of pendingOrders) {
-            if (key.startsWith(`${sourceId}|`)) return true;
-        }
-        for (const key of deferredOrders) {
-            if (key.startsWith(`${sourceId}|`)) return true;
-        }
-        return false;
-    }
-
-    function getQueuedVisibleOrderTargetId(
-        sourceId: string,
-    ): string | null | undefined {
-        for (let index = queuedOrderMutations.length - 1; index >= 0; index -= 1) {
-            const mutation = queuedOrderMutations[index]!;
-            switch (mutation.kind) {
-                case "cancel":
-                    if (mutation.starId === sourceId) {
-                        return null;
-                    }
-                    break;
-                case "issue":
-                case "defer":
-                    if (mutation.sourceId === sourceId) {
-                        return mutation.targetId;
-                    }
-                    break;
-            }
-        }
-        return undefined;
-    }
-
-    function getVisibleOrderTargetId(sourceId: string): string | null {
-        const queuedTargetId = getQueuedVisibleOrderTargetId(sourceId);
-        if (queuedTargetId !== undefined) {
-            return queuedTargetId;
-        }
-        const sourceStar = interactionCaches.getStarById(sourceId) as
-            | (StarState & {
-                  targetId?: string | null;
-                  queuedOrderTargetId?: string | null;
-              })
-            | null;
-        return (
-            sourceStar?.queuedOrderTargetId ??
-            sourceStar?.targetId ??
-            null
-        );
-    }
-
-    function queueInteractionVisualAcknowledgment(
-        acknowledgment: Omit<PendingInteractionVisualAcknowledgment, "requestId" | "recordedAtMs"> & {
-            requestId?: number;
-        },
-    ): number {
-        const requestId = acknowledgment.requestId ?? nextOrderMutationRequestId();
-        pendingInteractionVisualAcknowledgments.push({
-            ...acknowledgment,
-            requestId,
-            recordedAtMs: performance.now(),
-        });
-        return requestId;
-    }
-
-    function isInteractionVisualAcknowledgmentVisible(
-        acknowledgment: PendingInteractionVisualAcknowledgment,
-    ): boolean {
-        const orderKey =
-            acknowledgment.sourceId && acknowledgment.targetId
-                ? `${acknowledgment.sourceId}|${acknowledgment.targetId}`
-                : null;
-        if (acknowledgment.kind === "issue") {
-            const visibleTargetId = acknowledgment.sourceId
-                ? getVisibleOrderTargetId(acknowledgment.sourceId)
-                : null;
-            return Boolean(
-                (orderKey && pendingOrders.has(orderKey)) ||
-                    (acknowledgment.targetId && visibleTargetId === acknowledgment.targetId),
-            );
-        }
-        if (acknowledgment.kind === "defer") {
-            return Boolean(orderKey && deferredOrders.has(orderKey));
-        }
-        if (acknowledgment.kind === "cancel") {
-            const visibleTargetId = acknowledgment.sourceId
-                ? getVisibleOrderTargetId(acknowledgment.sourceId)
-                : null;
-            return Boolean(
-                acknowledgment.sourceId &&
-                    !hasQueuedOrderEntryForSource(acknowledgment.sourceId) &&
-                    !visibleTargetId,
-            );
-        }
-        return activeStarId === acknowledgment.activeStarId;
-    }
-
-    function commitInteractionVisualAcknowledgment(
-        acknowledgment: PendingInteractionVisualAcknowledgment,
-        reason: "immediate" | "frame",
-    ): void {
-        const nowMs = performance.now();
-        const detail = {
-            requestId: acknowledgment.requestId,
-            kind: acknowledgment.kind,
-            path: acknowledgment.path,
-            sourceId: acknowledgment.sourceId,
-            targetId: acknowledgment.targetId,
-            activeStarId: acknowledgment.activeStarId,
-            pendingOrders: pendingOrders.size,
-            deferredOrders: deferredOrders.size,
-            visualLagMs: nowMs - acknowledgment.recordedAtMs,
-            reason,
-        };
-        lastInteractionVisualAcknowledgment = {
-            atMs: nowMs,
-            ...detail,
-        };
-
-
-    }
-
-    function presentInteractionVisualStateNow(): boolean {
-        const { stars } = interactionCaches.ensure();
-        if (stars.length === 0) return false;
-        measurePerf(
-            "game.input.visualAcknowledgment.present",
-            () => {
-                interactionOverlay.renderNow();
-            },
-            {
-                pendingOrders: pendingOrders.size,
-                deferredOrders: deferredOrders.size,
-                activeStarId,
-                dragSourceId,
-            },
-        );
-        return true;
-    }
-
-    function tryFlushInteractionVisualAcknowledgmentsImmediately(): void {
-        if (pendingInteractionVisualAcknowledgments.length === 0) return;
-        if (!presentInteractionVisualStateNow()) return;
-        for (
-            let index = pendingInteractionVisualAcknowledgments.length - 1;
-            index >= 0;
-            index -= 1
-        ) {
-            const acknowledgment = pendingInteractionVisualAcknowledgments[index]!;
-            if (!isInteractionVisualAcknowledgmentVisible(acknowledgment)) continue;
-            commitInteractionVisualAcknowledgment(acknowledgment, "immediate");
-            pendingInteractionVisualAcknowledgments.splice(index, 1);
-        }
-    }
-
-    function recordInteractionLocalAcknowledgment(params: {
-        kind: InteractionVisualAcknowledgmentKind;
-        path: string;
-        sourceId?: string | null;
-        targetId?: string | null;
-        activeStarId?: string | null;
-        requestId?: number;
-        dispatchMode?: OrderDispatchMode;
-        extra?: Record<string, unknown>;
-    }): number {
-        const requestId = queueInteractionVisualAcknowledgment({
-            requestId: params.requestId,
-            kind: params.kind,
-            path: params.path,
-            sourceId: params.sourceId ?? null,
-            targetId: params.targetId ?? null,
-            activeStarId: params.activeStarId ?? null,
-        });
-        const detail = {
-            requestId,
-            kind: params.kind,
-            path: params.path,
-            sourceId: params.sourceId ?? null,
-            targetId: params.targetId ?? null,
-            activeStarId: params.activeStarId ?? null,
-            dispatchMode: params.dispatchMode ?? null,
-            ...(params.extra ?? {}),
-        };
-        lastInteractionLocalAcknowledgment = {
-            atMs: performance.now(),
-            ...detail,
-        };
-        noteInteractivePressure(
-            "interactionLocalAcknowledgment",
-            ORDER_MUTATION_PRIORITY_WINDOW_MS,
-        );
-
-
-        tryFlushInteractionVisualAcknowledgmentsImmediately();
-        return requestId;
-    }
-
-    function flushInteractionVisualAcknowledgments(): void {
-        if (pendingInteractionVisualAcknowledgments.length === 0) return;
-        for (let index = pendingInteractionVisualAcknowledgments.length - 1; index >= 0; index -= 1) {
-            const acknowledgment = pendingInteractionVisualAcknowledgments[index]!;
-            if (!isInteractionVisualAcknowledgmentVisible(acknowledgment)) continue;
-            commitInteractionVisualAcknowledgment(acknowledgment, "frame");
-            pendingInteractionVisualAcknowledgments.splice(index, 1);
-        }
-    }
-
-    function applyOrderMutation(mutation: QueuedOrderMutation): void {
-        switch (mutation.kind) {
-            case "issue":
-                activeGameStore.issueOrder(
-                    mutation.sourceId,
-                    mutation.targetId,
-                    mutation.persist,
-                );
-                break;
-            case "cancel":
-                activeGameStore.cancelOrder(mutation.starId);
-                break;
-            case "defer":
-                activeGameStore.setDeferredOrder(
-                    mutation.sourceId,
-                    mutation.targetId,
-                    mutation.persist,
-                );
-                break;
-        }
-    }
-
-    function flushQueuedOrderMutations(): void {
-        if (queuedOrderMutations.length === 0) {
-            orderDispatchScheduled = false;
-            return;
-        }
-        orderDispatchScheduled = false;
-        const mutations = queuedOrderMutations.splice(0);
-        lastOrderQueueFlushStartedAtMs = performance.now();
-        lastOrderMutationQueueDelayMs = Math.max(
-            0,
-            lastOrderQueueFlushStartedAtMs -
-                Math.min(...mutations.map((mutation) => mutation.enqueuedAtMs)),
-        );
-        lastOrderQueueFlushRequestIds = mutations.map(
-            (mutation) => mutation.requestId,
-        );
-        lastOrderQueueFlushKinds = mutations.map((mutation) => mutation.kind);
-        noteInteractivePressure(
-            "orderQueueFlush",
-            ORDER_MUTATION_PRIORITY_WINDOW_MS,
-        );
-        measurePerf(
-            "game.input.orderQueue.flush",
-            () => {
-                for (const mutation of mutations) {
-                    applyOrderMutation(mutation);
-                }
-            },
-            {
-                mutationCount: mutations.length,
-                kinds: mutations.map((mutation) => mutation.kind),
-                requestIds: mutations.map((mutation) => mutation.requestId),
-            },
-        );
-        lastOrderQueueFlushFinishedAtMs = performance.now();
-        lastOrderQueueFlushMutationCount = mutations.length;
-
-    }
-
-    function scheduleQueuedOrderMutations(): void {
-        if (orderDispatchScheduled) return;
-        orderDispatchScheduled = true;
-        lastOrderQueueScheduleAtMs = performance.now();
-
-        const scheduler = getTaskScheduler();
-        if (scheduler?.postTask) {
-            lastOrderQueueScheduleMode = "scheduler-user-blocking";
-            void scheduler
-                .postTask(
-                    () => {
-                        flushQueuedOrderMutations();
-                    },
-                    { priority: "user-blocking" },
-                )
-                .catch(() => {
-                    orderDispatchScheduled = false;
-                    scheduleQueuedOrderMutations();
-                });
-            return;
-        }
-        if (orderDispatchChannel) {
-            lastOrderQueueScheduleMode = "message-channel";
-            orderDispatchChannel.port2.postMessage(null);
-            return;
-        }
-        lastOrderQueueScheduleMode = "timeout";
-        setTimeout(() => {
-            flushQueuedOrderMutations();
-        }, 0);
-    }
-
-    function enqueueOrderMutation(
-        mutation:
-            | Omit<
-                  Extract<QueuedOrderMutation, { kind: "issue" }>,
-                  "requestId" | "enqueuedAtMs"
-              >
-            | Omit<
-                  Extract<QueuedOrderMutation, { kind: "cancel" }>,
-                  "requestId" | "enqueuedAtMs"
-              >
-            | Omit<
-                  Extract<QueuedOrderMutation, { kind: "defer" }>,
-                  "requestId" | "enqueuedAtMs"
-              >,
-        dispatchMode: OrderDispatchMode = "queued",
-    ): number {
-        const requestId = nextOrderMutationRequestId();
-        const enqueuedAtMs = performance.now();
-        const queuedMutation = {
-            ...mutation,
-            requestId,
-            enqueuedAtMs,
-        } as QueuedOrderMutation;
-        noteInteractivePressure(
-            "orderMutationQueued",
-            ORDER_MUTATION_PRIORITY_WINDOW_MS,
-        );
-        if (dispatchMode === "immediate") {
-            measurePerf(
-                "game.input.orderImmediate",
-                () => {
-                    applyOrderMutation(queuedMutation);
-                },
-                { kind: mutation.kind, requestId },
-            );
-
-            return requestId;
-        }
-        queuedOrderMutations.push(queuedMutation);
-        lastOrderMutationQueuedAtMs = enqueuedAtMs;
-
-        scheduleQueuedOrderMutations();
-        return requestId;
-    }
-
-    if (orderDispatchChannel) {
-        orderDispatchChannel.port1.onmessage = () => {
-            flushQueuedOrderMutations();
-        };
-    }
+    const orderMutationQueue = createOrderMutationQueue({
+        getInteraction: () => ({
+            activeStarId,
+            dragSourceId,
+            pendingOrders,
+            deferredOrders,
+        }),
+        getStarById: (starId) => interactionCaches.getStarById(starId),
+        ensureStarCount: () => interactionCaches.ensure().stars.length,
+        renderOverlayNow: () => interactionOverlay.renderNow(),
+        noteInteractivePressure: (reason, windowMs) =>
+            noteInteractivePressure(reason, windowMs),
+        orderMutationPriorityWindowMs: ORDER_MUTATION_PRIORITY_WINDOW_MS,
+    });
 
     function noteInteractivePressure(
         kind?: string,
@@ -1020,13 +608,6 @@
             cadenceMs: 0,
             staleMs,
         };
-    }
-
-    function getTaskScheduler(): BackgroundTaskScheduler | null {
-        const scheduler = (globalThis as { scheduler?: BackgroundTaskScheduler })
-            .scheduler;
-        if (scheduler?.postTask) return scheduler;
-        return null;
     }
 
     /**
@@ -1905,7 +1486,7 @@
                 isLocalPlayerStar(targetStar) ? "move" : "attack",
             );
         }
-        return enqueueOrderMutation(
+        return orderMutationQueue.enqueue(
             { kind: "issue", sourceId, targetId, persist, path },
             dispatchMode,
         );
@@ -1917,7 +1498,7 @@
         dispatchMode: OrderDispatchMode = "queued",
         path = "game_canvas",
     ): number {
-        return enqueueOrderMutation(
+        return orderMutationQueue.enqueue(
             { kind: "cancel", starId, path },
             dispatchMode,
         );
@@ -1937,7 +1518,7 @@
                 isLocalPlayerStar(targetStar) ? "move" : "attack",
             );
         }
-        return enqueueOrderMutation(
+        return orderMutationQueue.enqueue(
             { kind: "defer", sourceId, targetId, persist, path },
             dispatchMode,
         );
@@ -2707,7 +2288,7 @@
         if (!params.interactionOverlayPresented) {
             presentInteractionOverlayFrame(params.stars);
         }
-        flushInteractionVisualAcknowledgments();
+        orderMutationQueue.flushAcknowledgments();
         fpsFrameCount++;
         const now = performance.now();
         if (now - fpsLastTime >= 1000) {
@@ -2746,18 +2327,7 @@
             nextShipId = 0;
             starShipCounts.clear();
             shipSpawnTimers.clear();
-            queuedOrderMutations.splice(0, queuedOrderMutations.length);
-            orderDispatchScheduled = false;
-            orderMutationRequestSeq = 0;
-            lastOrderMutationQueuedAtMs = 0;
-            lastOrderMutationQueueDelayMs = 0;
-            lastOrderQueueScheduleAtMs = 0;
-            lastOrderQueueFlushStartedAtMs = 0;
-            lastOrderQueueFlushFinishedAtMs = 0;
-            lastOrderQueueFlushMutationCount = 0;
-            lastOrderQueueFlushKinds = [];
-            lastOrderQueueFlushRequestIds = [];
-            lastOrderQueueScheduleMode = "";
+            orderMutationQueue.reset();
             lastTerritoryUpdateStartedAtMs = 0;
             lastTerritoryUpdateCostMs = 0;
             lastTerritoryPresentedAtMs = 0;
@@ -4377,26 +3947,7 @@
             lastRenderFrameInputYieldStage,
             lastRenderFrameInputYieldReason,
             lastRenderFrameInputYieldAtMs,
-            queuedOrderMutations: queuedOrderMutations.length,
-            orderMutationRequestSeq,
-            lastOrderMutationQueuedAtMs,
-            lastOrderMutationQueueDelayMs,
-            lastOrderQueueScheduleAtMs,
-            lastOrderQueueFlushStartedAtMs,
-            lastOrderQueueFlushFinishedAtMs,
-            lastOrderQueueFlushMutationCount,
-            lastOrderQueueFlushKinds,
-            lastOrderQueueFlushRequestIds,
-            lastOrderQueueScheduleMode,
-            pendingInteractionVisualAcknowledgmentCount: pendingInteractionVisualAcknowledgments.length,
-            pendingInteractionVisualAcknowledgments: pendingInteractionVisualAcknowledgments.map(
-                (acknowledgment) => ({
-                    ...acknowledgment,
-                    ageMs: performance.now() - acknowledgment.recordedAtMs,
-                }),
-            ),
-            lastInteractionLocalAcknowledgment,
-            lastInteractionVisualAcknowledgment,
+            ...orderMutationQueue.getTelemetry(),
             territoryPresentationSpace:
                 getTerritoryPresentationSpaceDiagnostics(),
             ...territoryPresentationQueue.getTelemetry(),
@@ -4929,7 +4480,7 @@
                 );
                 // OPTIMISTIC UI: Remove from pending immediately
                 removeQueuedOrderEntriesFromSource(star.id, pendingOrders);
-                recordInteractionLocalAcknowledgment({
+                orderMutationQueue.recordLocalAcknowledgment({
                     kind: "cancel",
                     path: "pointerdown.rightclick",
                     sourceId: star.id,
@@ -4941,7 +4492,7 @@
             }
             // Also clear selection
             activeStarId = null;
-            recordInteractionLocalAcknowledgment({
+            orderMutationQueue.recordLocalAcknowledgment({
                 kind: "clear",
                 path: "pointerdown.rightclick",
                 sourceId: star?.id ?? null,
@@ -5098,7 +4649,7 @@
                     );
                     if (success) {
                         addPendingOrder(dragSourceId, targetStar.id);
-                        recordInteractionLocalAcknowledgment({
+                        orderMutationQueue.recordLocalAcknowledgment({
                             kind: "issue",
                             path: "pointermove.dragThrough",
                             sourceId: dragSourceId,
@@ -5140,7 +4691,7 @@
                     if (success) {
                         // Add visual indicator for deferred order (dashed line)
                         addPendingOrder(dragSourceId, targetStar.id, true); // true = deferred
-                        recordInteractionLocalAcknowledgment({
+                        orderMutationQueue.recordLocalAcknowledgment({
                             kind: "defer",
                             path: "pointermove.dragThrough",
                             sourceId: dragSourceId,
@@ -5214,7 +4765,7 @@
                         "pointerup.doubletap",
                     );
                     removeQueuedOrderEntriesFromSource(star.id, pendingOrders);
-                    recordInteractionLocalAcknowledgment({
+                    orderMutationQueue.recordLocalAcknowledgment({
                         kind: "cancel",
                         path: "pointerup.doubletap",
                         sourceId: star.id,
@@ -5296,7 +4847,7 @@
                     if (success) {
                         // OPTIMISTIC UI: Add immediately for instant arrow display
                         addPendingOrder(dragSourceId, targetStar.id);
-                        recordInteractionLocalAcknowledgment({
+                        orderMutationQueue.recordLocalAcknowledgment({
                             kind: "issue",
                             path: "pointerup.drag",
                             sourceId: dragSourceId,
@@ -5333,7 +4884,7 @@
             // Case 1: Clicked same star -> TOGGLE (deselect)
             if (activeStarId === targetStar.id) {
                 activeStarId = null;
-                recordInteractionLocalAcknowledgment({
+                orderMutationQueue.recordLocalAcknowledgment({
                     kind: "select",
                     path: "pointerup.click.toggle",
                     targetId: targetStar.id,
@@ -5373,7 +4924,7 @@
                         );
                         if (success) {
                             addPendingOrder(activeStarId, targetStar.id);
-                            recordInteractionLocalAcknowledgment({
+                            orderMutationQueue.recordLocalAcknowledgment({
                                 kind: "issue",
                                 path: "pointerup.click",
                                 sourceId: activeStarId,
@@ -5400,7 +4951,7 @@
                         );
                         if (success) {
                             addPendingOrder(activeStarId, targetStar.id, true);
-                            recordInteractionLocalAcknowledgment({
+                            orderMutationQueue.recordLocalAcknowledgment({
                                 kind: "defer",
                                 path: "pointerup.click",
                                 sourceId: activeStarId,
@@ -5426,7 +4977,7 @@
 
                 // Always select the new star (whether order was issued or not)
                 activeStarId = targetStar.id;
-                recordInteractionLocalAcknowledgment({
+                orderMutationQueue.recordLocalAcknowledgment({
                     kind: "select",
                     path: "pointerup.click.handoff",
                     targetId: targetStar.id,
@@ -5440,7 +4991,7 @@
             // Case 3: No prior selection -> just select
             else {
                 activeStarId = targetStar.id;
-                recordInteractionLocalAcknowledgment({
+                orderMutationQueue.recordLocalAcknowledgment({
                     kind: "select",
                     path: "pointerup.click.new",
                     targetId: targetStar.id,
@@ -5487,7 +5038,7 @@
                 "contextmenu.rightclick",
             );
             removeQueuedOrderEntriesFromSource(star.id, pendingOrders);
-            recordInteractionLocalAcknowledgment({
+            orderMutationQueue.recordLocalAcknowledgment({
                 kind: "cancel",
                 path: "contextmenu.rightclick",
                 sourceId: star.id,
@@ -5503,9 +5054,9 @@
             star.ownerId !== "neutral"
         ) {
             // Right-click on enemy star - cancel any deferred order
-            if (hasQueuedOrderEntryForSource(star.id)) {
+            if (orderMutationQueue.hasQueuedOrderEntryForSource(star.id)) {
                 removeQueuedOrderEntriesFromSource(star.id, deferredOrders);
-                recordInteractionLocalAcknowledgment({
+                orderMutationQueue.recordLocalAcknowledgment({
                     kind: "cancel",
                     path: "contextmenu.defer_cancel",
                     sourceId: star.id,
@@ -5526,7 +5077,7 @@
     function clearSelection() {
         activeStarId = null;
         cancelDrag();
-        recordInteractionLocalAcknowledgment({
+        orderMutationQueue.recordLocalAcknowledgment({
             kind: "clear",
             path: "selection.clear",
             activeStarId: null,
