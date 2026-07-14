@@ -176,6 +176,7 @@
     } from "$lib/components/game/cameraModel";
     import { createCanvasClientRectCache } from "$lib/components/game/canvasClientRect";
     import { createTerritoryPresentationQueue } from "$lib/components/game/territoryPresentationQueue";
+    import { createInteractionOverlay } from "$lib/components/game/interactionOverlay";
     import {
         resolveCenteredViewportFrame,
         resolveContentFitWorldRect,
@@ -187,11 +188,9 @@
     // ============================================================================
 
     let canvasContainer: HTMLDivElement;
+    // bound from the markup; the overlay module reads it through a getter
     let interactionOverlayCanvas: HTMLCanvasElement | null = null;
     let app: PIXI.Application | null = null;
-    let interactionOverlayCtx: CanvasRenderingContext2D | null = null;
-    let interactionOverlayAnimationFrameId: number | null = null;
-    let lastInteractionOverlayRenderKey: string | null = null;
 
     // Graphics layers
     let connectionGraphics: PIXI.Graphics | null = null;
@@ -361,6 +360,41 @@
         connections: activeGameStore.connections as StarConnection[],
     }));
     const canvasClientRect = createCanvasClientRectCache(() => canvasContainer);
+    const interactionOverlay = createInteractionOverlay({
+        getCanvas: () => interactionOverlayCanvas,
+        getContainer: () => canvasContainer,
+        getStageTransform: () =>
+            app
+                ? {
+                      scaleX: app.stage.scale.x,
+                      scaleY: app.stage.scale.y,
+                      offsetX: app.stage.x,
+                      offsetY: app.stage.y,
+                  }
+                : null,
+        getCanvasRect: (reason) => canvasClientRect.get(reason),
+        screenToWorld: (x, y) => screenToWorld(x, y),
+        ensureStars: () => interactionCaches.ensure().stars,
+        getStarsById: () => interactionCaches.getStarsById(),
+        getInteraction: () => ({
+            activeStarId,
+            dragSourceId,
+            dragHoverTargetId,
+            isDragging,
+            dragSourceCenterX,
+            dragSourceCenterY,
+            dragCurrentX,
+            dragCurrentY,
+            pendingOrders,
+            deferredOrders,
+        }),
+        projectWorldPoint: toDisplayPoint,
+        isLocalPlayerStar: (star) => isLocalPlayerStar(star),
+        getColorUtils: () => colorUtils,
+        getSessionId: () => activeGameStore.sessionId,
+        onRendered: () =>
+            setTerritoryRenderStatus({ arrowRenderer: "overlay_canvas" }),
+    });
 
     function recordInputHandlingLatency(
         kind: string,
@@ -523,7 +557,7 @@
         measurePerf(
             "game.input.visualAcknowledgment.present",
             () => {
-                renderInteractionOverlayNow();
+                interactionOverlay.renderNow();
             },
             {
                 pendingOrders: pendingOrders.size,
@@ -1025,191 +1059,6 @@
         return { x: mapTranspose.x(point), y: mapTranspose.y(point) };
     }
 
-
-    function syncInteractionOverlaySurface(): {
-        width: number;
-        height: number;
-    } | null {
-        if (!interactionOverlayCanvas || !canvasContainer) return null;
-        const rect = canvasClientRect.get("interactionOverlay.surface");
-        const width = Math.max(1, Math.round(rect.width));
-        const height = Math.max(1, Math.round(rect.height));
-        const dpr = Math.max(1, window.devicePixelRatio || 1);
-        const pixelWidth = Math.max(1, Math.round(width * dpr));
-        const pixelHeight = Math.max(1, Math.round(height * dpr));
-        if (
-            interactionOverlayCanvas.width !== pixelWidth ||
-            interactionOverlayCanvas.height !== pixelHeight
-        ) {
-            interactionOverlayCanvas.width = pixelWidth;
-            interactionOverlayCanvas.height = pixelHeight;
-        }
-        interactionOverlayCtx ??=
-            interactionOverlayCanvas.getContext("2d");
-        if (!interactionOverlayCtx) return null;
-        interactionOverlayCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        return { width, height };
-    }
-
-    function clearInteractionOverlaySurface(): void {
-        if (interactionOverlayAnimationFrameId !== null) {
-            cancelAnimationFrame(interactionOverlayAnimationFrameId);
-            interactionOverlayAnimationFrameId = null;
-        }
-        if (!interactionOverlayCanvas) {
-            lastInteractionOverlayRenderKey = null;
-            return;
-        }
-        const ctx =
-            interactionOverlayCtx ??
-            interactionOverlayCanvas.getContext("2d");
-        if (!ctx) {
-            lastInteractionOverlayRenderKey = null;
-            return;
-        }
-        interactionOverlayCtx = ctx;
-        ctx.save();
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.clearRect(
-            0,
-            0,
-            interactionOverlayCanvas.width,
-            interactionOverlayCanvas.height,
-        );
-        ctx.restore();
-        lastInteractionOverlayRenderKey = null;
-    }
-
-    function buildInteractionOverlayOrderKey(
-        stars: readonly StarState[],
-    ): string {
-        let key = "";
-        for (const star of stars) {
-            if (star.targetId) {
-                key += `s:${star.id}>${star.targetId}|`;
-            }
-            if (star.queuedOrderTargetId) {
-                key += `q:${star.id}>${star.queuedOrderTargetId}|`;
-            }
-        }
-        return key;
-    }
-
-    function buildInteractionOverlaySetKey(values: ReadonlySet<string>): string {
-        if (values.size === 0) return "";
-        return [...values].sort().join(",");
-    }
-
-    function buildInteractionOverlayRenderKey(params: {
-        stars: readonly StarState[];
-        surface: { width: number; height: number };
-    }): string | null {
-        if (!app) return null;
-        const transform = {
-            scaleX: app.stage.scale.x,
-            scaleY: app.stage.scale.y,
-            offsetX: app.stage.x,
-            offsetY: app.stage.y,
-        };
-        const dragCurrentWorld =
-            isDragging && dragSourceId
-                ? screenToWorld(dragCurrentX, dragCurrentY)
-                : null;
-        return [
-            params.surface.width,
-            params.surface.height,
-            transform.scaleX.toFixed(3),
-            transform.scaleY.toFixed(3),
-            transform.offsetX.toFixed(1),
-            transform.offsetY.toFixed(1),
-            activeStarId ?? "",
-            dragSourceId ?? "",
-            dragHoverTargetId ?? "",
-            isDragging ? "1" : "0",
-            dragSourceCenterX.toFixed(1),
-            dragSourceCenterY.toFixed(1),
-            dragCurrentWorld ? dragCurrentWorld.x.toFixed(1) : "",
-            dragCurrentWorld ? dragCurrentWorld.y.toFixed(1) : "",
-            buildInteractionOverlaySetKey(pendingOrders),
-            buildInteractionOverlaySetKey(deferredOrders),
-            buildInteractionOverlayOrderKey(params.stars),
-        ].join("::");
-    }
-
-    function renderInteractionOverlayNow(): boolean {
-        if (interactionOverlayAnimationFrameId !== null) {
-            cancelAnimationFrame(interactionOverlayAnimationFrameId);
-            interactionOverlayAnimationFrameId = null;
-        }
-        if (!app) return false;
-        const surface = syncInteractionOverlaySurface();
-        if (!surface || !interactionOverlayCtx) return false;
-        const { stars } = interactionCaches.ensure();
-        const renderKey = buildInteractionOverlayRenderKey({
-            stars: stars as StarState[],
-            surface,
-        });
-        if (renderKey && renderKey === lastInteractionOverlayRenderKey) {
-            return false;
-        }
-        renderInteractionOverlay({
-            ctx: interactionOverlayCtx,
-            canvasWidth: surface.width,
-            canvasHeight: surface.height,
-            stars: stars as StarState[],
-            starsById: interactionCaches.getStarsById(),
-            pendingOrders,
-            deferredOrders,
-            activeStarId,
-            dragSourceId,
-            dragHoverTargetId,
-            isDragging,
-            dragSourceCenter:
-                isDragging && dragSourceId
-                    ? { x: dragSourceCenterX, y: dragSourceCenterY }
-                    : null,
-            dragCurrentWorld:
-                isDragging && dragSourceId
-                    ? screenToWorld(dragCurrentX, dragCurrentY)
-                    : null,
-            transform: {
-                scaleX: app.stage.scale.x,
-                scaleY: app.stage.scale.y,
-                offsetX: app.stage.x,
-                offsetY: app.stage.y,
-            },
-            projectWorldPoint: toDisplayPoint,
-            isLocalPlayerStar,
-            colorUtils,
-        });
-        lastInteractionOverlayRenderKey = renderKey;
-        setTerritoryRenderStatus({ arrowRenderer: "overlay_canvas" });
-        return true;
-    }
-
-    function scheduleInteractionOverlayRender(reason: string): void {
-        if (interactionOverlayAnimationFrameId !== null) return;
-        const scheduledSessionId = activeGameStore.sessionId;
-        interactionOverlayAnimationFrameId = requestAnimationFrame(() => {
-            interactionOverlayAnimationFrameId = null;
-            measurePerf(
-                "game.input.dragPreview.present",
-                () => {
-                    if (scheduledSessionId !== activeGameStore.sessionId) {
-                        clearInteractionOverlaySurface();
-                        return;
-                    }
-                    renderInteractionOverlayNow();
-                },
-                {
-                    reason,
-                    isDragging,
-                    dragSourceId,
-                    dragHoverTargetId,
-                },
-            );
-        });
-    }
 
     function transitionIdentityKey(
         conquest: import("@pax/common").ConquestEvent,
@@ -2308,14 +2157,9 @@
             cancelAnimationFrame(animationFrameId);
             animationFrameId = null;
         }
-        if (interactionOverlayAnimationFrameId !== null) {
-            cancelAnimationFrame(interactionOverlayAnimationFrameId);
-            interactionOverlayAnimationFrameId = null;
-        }
-        clearInteractionOverlaySurface();
-        interactionOverlayCtx = null;
+        // Must precede dropping the canvas ref: dispose() clears the surface.
+        interactionOverlay.dispose();
         interactionOverlayCanvas = null;
-        lastInteractionOverlayRenderKey = null;
 
         // Render families are held in a module-global registry. Dispose them
         // before destroying the Pixi app so a later GameCanvas mount cannot
@@ -2378,7 +2222,7 @@
             // Render the current frame from unified store
             const stars = activeGameStore.stars as StarState[];
             if (stars.length === 0) {
-                clearInteractionOverlaySurface();
+                interactionOverlay.clear();
                 linkGraphics?.clear();
                 dragPreviewGraphics?.clear();
             }
@@ -2691,7 +2535,7 @@
             "handleResize",
             `container=${containerWidth.toFixed(0)}x${containerHeight.toFixed(0)} content=(${resizeBounds.minX.toFixed(0)},${resizeBounds.minY.toFixed(0)} ${resizeBounds.width.toFixed(0)}x${resizeBounds.height.toFixed(0)}) baseScale=${camera.getBaseScale().toFixed(4)} dpr=${window.devicePixelRatio} cssGrid(el)=${canvasEl?.clientWidth ?? "?"}x${canvasEl?.clientHeight ?? "?"} viewport=${window.innerWidth}x${window.innerHeight}`,
         );
-        renderInteractionOverlayNow();
+        interactionOverlay.renderNow();
     }
 
     // Cheap per-frame refit run during a resize burst (e.g. the settings-menu
@@ -2860,7 +2704,7 @@
         const rendered = measurePerf(
             "game.renderFrame.interactionOverlay",
             () => {
-                return renderInteractionOverlayNow();
+                return interactionOverlay.renderNow();
             },
             {
                 pendingOrders: pendingOrders.size,
@@ -2912,7 +2756,7 @@
             deferredOrders.clear();
             lastEnemyPassthrough = null;
             activeStarId = null;
-            clearInteractionOverlaySurface();
+            interactionOverlay.clear();
             visualShips.clear();
             visualDamagedShips.clear();
             fxOrchestrator.reset();
@@ -5148,7 +4992,7 @@
             lastEnemyPassthrough = null;
             dragHoverTargetId = null;
             log.input(`pointerDown → DRAG START from owned star ${star.id}`);
-            renderInteractionOverlayNow();
+            interactionOverlay.renderNow();
         } else if (star) {
             // Start drag from non-owned star — deferred order chain
             isDragging = true;
@@ -5164,7 +5008,7 @@
             log.input(
                 `pointerDown → DRAG START from non-owned star ${star.id} (deferred mode)`,
             );
-            renderInteractionOverlayNow();
+            interactionOverlay.renderNow();
         } else {
             // Desktop: empty space click (non-touch) — just reset drag
             isDragging = false;
@@ -5173,7 +5017,7 @@
             dragStartY = y;
             dragHoverTargetId = null;
             log.input(`pointerDown → empty space, drag state reset`);
-            renderInteractionOverlayNow();
+            interactionOverlay.renderNow();
         }
     }
 
@@ -5816,12 +5660,12 @@
             dragPreviewGraphics.clear();
         }
         if (hadTransientOverlayState) {
-            renderInteractionOverlayNow();
+            interactionOverlay.renderNow();
         }
     }
 
     function renderDragPreview() {
-        scheduleInteractionOverlayRender("pointermove.dragPreview");
+        interactionOverlay.schedule("pointermove.dragPreview");
     }
 
     // ============================================================================
