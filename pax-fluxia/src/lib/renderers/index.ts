@@ -56,10 +56,3 @@ export {
 export {
     renderStarPower,
 } from './StarPowerRenderer';
-
-// Metaball territory rendering
-export {
-    renderMetaball,
-    renderMetaballScene,
-    resetMetaballCache,
-} from './MetaballRenderer';

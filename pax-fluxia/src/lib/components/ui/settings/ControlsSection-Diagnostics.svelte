@@ -8,7 +8,6 @@
     import { territoryTuningStatus } from "$lib/stores/territoryTuningStatusStore";
     import { cellGridStats } from "$lib/territory/families/cellGrid/cellGridStats";
     import { gridGradientStats } from "$lib/territory/families/gridGradient/gridGradientStats";
-    import PerimeterFieldDiagnosticsPanel from "$lib/components/ui/PerimeterFieldDiagnosticsPanel.svelte";
     import { overlayConfig } from "$lib/territory/devtools/overlayConfig";
     import {
         authoredMeasurementsUi,
@@ -59,12 +58,8 @@
             ? $territoryRenderStatus.territoryMode
             : activeRenderMode) as string,
     );
-    const showPerimeterFieldDiagnostics = $derived(
-        liveRenderMode === "perimeter_field",
-    );
     const showCellGridDiagnostics = $derived(
-        liveRenderMode === "cell_grid" ||
-            liveRenderMode === "phase_edges" ||
+        liveRenderMode === "phase_edges" ||
             liveRenderMode === "ember_lattice" ||
             liveRenderMode === "phase_field",
     );
@@ -72,10 +67,7 @@
         liveRenderMode === "grid_gradient",
     );
     const showUnderlyingGeometrySupported = $derived(
-        liveRenderMode === "perimeter_field" ||
-            liveRenderMode === "metaball" ||
-            liveRenderMode === "cell_grid" ||
-            liveRenderMode === "phase_edges" ||
+        liveRenderMode === "phase_edges" ||
             liveRenderMode === "ember_lattice" ||
             liveRenderMode === "phase_field" ||
             liveRenderMode === "grid_gradient",
@@ -866,9 +858,6 @@
             <div><span>Transition</span><span>{$gridGradientStats.visualTransitionActive ? "local clock" : "scheduler"} / plan {$gridGradientStats.requestedPlanPending ? "pending" : "ready"} / progress {($gridGradientStats.rawProgress ?? $gridGradientStats.schedulerRawProgress ?? 1).toFixed(3)}</span></div>
             <div><span>Transition Input</span><span>{$gridGradientStats.transitionEventCount} events / {$gridGradientStats.transitionSessionCount} sessions / age {$gridGradientStats.transitionAgeMs == null ? "n/a" : `${$gridGradientStats.transitionAgeMs.toFixed(0)}ms`} / duration {$gridGradientStats.transitionDurationMs == null ? "n/a" : `${$gridGradientStats.transitionDurationMs.toFixed(0)}ms`}</span></div>
         </div>
-    {/if}
-    {#if showPerimeterFieldDiagnostics}
-        <PerimeterFieldDiagnosticsPanel />
     {/if}
 </section>
 

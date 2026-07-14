@@ -1,12 +1,8 @@
 import type { TransitionDebugBundle } from './TransitionSnapshotRecorder';
-import { renderPerimeterFieldDiagnosticCanvas } from '../families/perimeterField/perimeterFieldDiagnostics';
-import type { PerimeterFieldDebugSnapshot } from '../families/perimeterField/buildPerimeterFieldScene';
 import type { PowerVoronoiDiagnosticBundle } from '../pvFrontline/contracts';
 import {
-    boundsOf,
     compactFrontierTopologyForExport,
     compactGeometrySnapshotForExport,
-    downsamplePoints,
 } from './snapshotExport';
 
 export interface DiagnosticPackageFrameRef {
@@ -38,144 +34,6 @@ export interface TransitionDiagnosticsExportAdapter {
         phase: 'previous' | 'next' | 'transition';
         sourceIndex?: number;
     }): HTMLCanvasElement | null;
-}
-
-interface PerimeterFieldCaptureFrameDiagnostics {
-    fullSnapshot: PerimeterFieldDebugSnapshot | null;
-    compactSnapshot: Record<string, unknown> | null;
-}
-
-interface PerimeterFieldCaptureTransitionDiagnostics
-    extends PerimeterFieldCaptureFrameDiagnostics {
-    frameIndex: number;
-    progress: number;
-}
-
-interface PerimeterFieldLiveCaptureDiagnostics {
-    kind: 'perimeter_field_live_capture';
-    previousFrame: PerimeterFieldCaptureFrameDiagnostics;
-    nextFrame: PerimeterFieldCaptureFrameDiagnostics;
-    transitionFrames: PerimeterFieldCaptureTransitionDiagnostics[];
-}
-
-function roundCoord(value: number): number {
-    return Math.round(value * 100) / 100;
-}
-
-function buildAffectedOwnerSet(bundle: TransitionDebugBundle): Set<string> {
-    const owners = new Set<string>();
-    for (const event of bundle.conquestEvents) {
-        owners.add(event.previousOwner);
-        owners.add(event.newOwner);
-    }
-    return owners;
-}
-
-function compactPerimeterFieldGeometry(
-    geometry: TransitionDebugBundle['context']['nextGeometry'] | null | undefined,
-    affectedOwners: ReadonlySet<string>,
-): unknown {
-    if (!geometry) return null;
-    return {
-        version: geometry.version,
-        sourceMode: geometry.sourceMode,
-        sourceStyle: geometry.sourceStyle,
-        ownershipVersion: geometry.ownershipVersion,
-        geometryFamily: geometry.geometryFamily,
-        sourceMethod: geometry.sourceMethod,
-        territoryRegions: geometry.territoryRegions
-            .filter((region) => affectedOwners.has(region.ownerId))
-            .map((region) => ({
-                regionId: region.regionId,
-                ownerId: region.ownerId,
-                starIds: [...(region.starIds ?? [])].sort(),
-                confidence: region.confidence,
-                pointCount: region.points.length,
-                bounds: boundsOf(region.points),
-                pointsSampled: downsamplePoints(region.points, 24).map(
-                    ([x, y]) => [roundCoord(x), roundCoord(y)] as const,
-                ),
-            })),
-        shellLoops: geometry.shellLoops
-            .filter(
-                (loop) =>
-                    loop.classification === 'outer' &&
-                    Boolean(loop.ownerId) &&
-                    affectedOwners.has(loop.ownerId),
-            )
-            .map((loop) => ({
-                shellLoopId: loop.shellLoopId,
-                shellId: loop.shellId,
-                ownerId: loop.ownerId,
-                starIds: [...(loop.starIds ?? [])].sort(),
-                confidence: loop.confidence,
-                pointCount: loop.points.length,
-                bounds: boundsOf(loop.points),
-                pointsSampled: downsamplePoints(loop.points, 24).map(
-                    ([x, y]) => [roundCoord(x), roundCoord(y)] as const,
-                ),
-            })),
-    };
-}
-
-function compactTopologySummary(
-    topology:
-        | TransitionDebugBundle['context']['prevFrontierTopology']
-        | TransitionDebugBundle['context']['nextFrontierTopology']
-        | null
-        | undefined,
-): unknown {
-    if (!topology) return null;
-    return {
-        version: topology.version,
-        ownershipVersion: topology.ownershipVersion,
-        vertexCount: topology.vertices.size,
-        sectionCount: topology.sections.size,
-        loopCount: topology.loops.length,
-    };
-}
-
-function serializeRelevantStarPositions(
-    bundle: TransitionDebugBundle,
-): Record<string, { x: number; y: number }> {
-    const relevantIds = new Set<string>();
-    for (const event of bundle.conquestEvents) {
-        relevantIds.add(event.starId);
-        const attackerStarIds = Array.isArray(
-            (event as { attackerStarIds?: unknown }).attackerStarIds,
-        )
-            ? ((event as { attackerStarIds?: string[] }).attackerStarIds ?? [])
-            : [];
-        for (const attackerStarId of attackerStarIds) {
-            relevantIds.add(attackerStarId);
-        }
-    }
-
-    return Object.fromEntries(
-        [...bundle.starPositions.entries()]
-            .filter(([starId]) => relevantIds.has(starId))
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([starId, point]) => [
-                starId,
-                { x: roundCoord(point.x), y: roundCoord(point.y) },
-            ]),
-    );
-}
-
-function renderPerimeterFieldExportCanvas(args: {
-    baseCanvas: HTMLCanvasElement | null;
-    snapshot: PerimeterFieldDebugSnapshot | null;
-}): HTMLCanvasElement | null {
-    if (!args.baseCanvas) return null;
-    if (!args.snapshot) return args.baseCanvas;
-    return renderPerimeterFieldDiagnosticCanvas({
-        width: args.baseCanvas.width,
-        height: args.baseCanvas.height,
-        snapshot: args.snapshot,
-        baseCanvas: args.baseCanvas,
-        showGeometry: true,
-        showVstars: true,
-    });
 }
 
 function compactPowerVoronoiDiagnostics(
@@ -238,79 +96,6 @@ function compactPowerVoronoiDiagnostics(
     };
 }
 
-const perimeterFieldAdapter: TransitionDiagnosticsExportAdapter = {
-    kind: 'perimeter_field_live_capture',
-    matches(value: unknown): boolean {
-        return (
-            typeof value === 'object' &&
-            value !== null &&
-            (value as { kind?: unknown }).kind === 'perimeter_field_live_capture'
-        );
-    },
-    buildData(bundle, selectedFrames) {
-        const diagnostics = bundle.extraDiagnostics as PerimeterFieldLiveCaptureDiagnostics;
-        const affectedOwners = buildAffectedOwnerSet(bundle);
-        return {
-            exportKind: 'perimeter_field_compact',
-            previousGeometry: compactPerimeterFieldGeometry(
-                bundle.context.previousGeometry ?? null,
-                affectedOwners,
-            ),
-            nextGeometry: compactPerimeterFieldGeometry(
-                bundle.context.nextGeometry,
-                affectedOwners,
-            ),
-            previousTopology: compactTopologySummary(
-                bundle.context.previousGeometry?.frontierTopology ?? null,
-            ),
-            nextTopology: compactTopologySummary(
-                bundle.context.nextGeometry?.frontierTopology ?? null,
-            ),
-            starPositions: serializeRelevantStarPositions(bundle),
-            captureDiagnostics: {
-                kind: diagnostics.kind,
-                totalTransitionFrames: diagnostics.transitionFrames.length,
-                previousFrame: diagnostics.previousFrame.compactSnapshot,
-                nextFrame: diagnostics.nextFrame.compactSnapshot,
-                selectedTransitionFrames: selectedFrames
-                    .map((frame) => {
-                        const source = diagnostics.transitionFrames[frame.sourceIndex];
-                        if (!source) return null;
-                        return {
-                            frameIndex: source.frameIndex,
-                            progress: source.progress,
-                            snapshot: source.compactSnapshot,
-                        };
-                    })
-                    .filter((entry): entry is NonNullable<typeof entry> => entry !== null),
-            },
-        };
-    },
-    renderCanvas({ baseCanvas, diagnostics, phase, sourceIndex }) {
-        const typed = diagnostics as PerimeterFieldLiveCaptureDiagnostics;
-        if (!typed) return baseCanvas;
-        if (phase === 'previous') {
-            return renderPerimeterFieldExportCanvas({
-                baseCanvas,
-                snapshot: typed.previousFrame.fullSnapshot,
-            });
-        }
-        if (phase === 'next') {
-            return renderPerimeterFieldExportCanvas({
-                baseCanvas,
-                snapshot: typed.nextFrame.fullSnapshot,
-            });
-        }
-        return renderPerimeterFieldExportCanvas({
-            baseCanvas,
-            snapshot:
-                sourceIndex !== undefined
-                    ? typed.transitionFrames[sourceIndex]?.fullSnapshot ?? null
-                    : null,
-        });
-    },
-};
-
 const powerVoronoiRuntimeAdapter: TransitionDiagnosticsExportAdapter = {
     kind: 'power_voronoi_runtime',
     matches(value: unknown): boolean {
@@ -356,7 +141,6 @@ const powerVoronoiRuntimeAdapter: TransitionDiagnosticsExportAdapter = {
 };
 
 const ADAPTERS: readonly TransitionDiagnosticsExportAdapter[] = [
-    perimeterFieldAdapter,
     powerVoronoiRuntimeAdapter,
 ];
 

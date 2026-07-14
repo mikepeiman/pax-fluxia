@@ -227,6 +227,36 @@ it (and thus moving families/perimeterField + its MetaballRenderer dep) is a bou
 check 0 errors.
 
 
+**3C-3 DONE (2026-07-14) — deferred perimeterField excision + MetaballRenderer orphan.** CHECKPOINT 1
+PASSED (user: "Looks good! All modes working"). Removed from GameCanvas (**7,820 → 7,017 LOC, −802**):
+the 4 `PerimeterField*` capture types, 6 replay vars, 12 capture/replay fns
+(clone/captureLive/record/finalize/syncDiagnosticCapture/applyReplayPresentation…),
+`renderPerimeterFieldDebugOverlay` + its `measurePerf` call, and its 5 now-orphaned debug-draw helpers
+(getPerimeterDebugLoops/drawClosedPolyline/drawSamplePoints/drawPerimeterSampleTrajectories/
+drawPerimeterSampleLabels). **The Q25 landmine held:** `normalizePerimeterFieldGeometrySource`
+(geometry/geometrySource.ts) + `buildPerimeterFieldRenderFamilyGeometry` (families/buildFamilyGeometry.ts)
++ `PERIMETER_FIELD_GEOMETRY_SOURCE` / `PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY` are UNIVERSAL despite the
+name — all kept and verified in use by the kept CellGrid Phase/Ember/Field families. Also: stripped
+`perimeterFieldAdapter` + 6 exclusive helpers from devtools/TransitionDiagnosticsAdapters (pvFrontline
+adapter kept); removed the dead `PerimeterFieldDiagnosticsPanel` mount + dead mode-ids from
+ControlsSection-Diagnostics (the "Show Underlying Geometry" toggle is LIVE for kept modes — legacy key
+name only); deleted the now-importerless Stage-2 shim `families/buildPowerVoronoiFrontierTopology.ts`
+and moved its stranded test to `geometry/` beside the impl.
+**Quarantined (+8,299 LOC → 33,848 total):** families/perimeterField/** (config.ts STAYS — holds the
+universal keys), **renderers/MetaballRenderer.ts (~2.3k, orphaned once perimeterField left — only the
+unused barrel + its own test referenced it)** + its test, devtools/{PerimeterFieldConquestPackage,
+perimeterFieldGeometryArtifact}, ui/{PerimeterFieldDiagnosticsPanel,PerimeterFieldDiagnosticsControls}.
+Active src/lib **167,561 → 158,220 (−9,341;** ~1,042 genuinely deleted, rest moved).
+Gate: check 0 errors, territory suite 57 files/409 tests green (−2 files/−10 tests = the 2 quarantined
+PF test files), build OK, **no new full-suite failures** (baselined against HEAD by stash).
+**LESSON (interleaving trap):** the perimeter capture types/vars/fns were INTERLEAVED with a LIVE
+generic `TransitionDiagnostic*` capture subsystem + `buildStarPositionsMap` + `cloneCanvasFrame` — a
+contiguous line-range cut would have destroyed live code. Removal ran as 6 verified runs between known
+survivors. Both brace-matching scripts were UNRELIABLE (`function f(params: {` closes depth at `}): T {`;
+multi-line `let x:\n | A\n | null`) — boundaries were confirmed against printed file content instead.
+**FINDING (follow-up):** `src/lib/renderers/index.ts` barrel has ZERO importers (all consumers import
+the concrete modules directly) — it is dead re-export cruft; flagged, not unilaterally deleted.
+
 Keep-set: power_vector, grid_gradient, ember_lattice, phase_edges, phase_field.
 **Pre-step (Fable-tier): fg2SeedGraph value-mining** — one focused reading pass of the 5,380 LOC;
 extract non-superseded IP into the VALUE_INVENTORY with file:line receipts. Same absorption duty for
