@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { GridClassification, GridWavePlan } from '$lib/territory/families/cellGrid/cellGridTypes';
-import { buildGridGradientShaderFieldTexturePlan, resolvePackedOwnerIndexAtProgress } from '$lib/territory/families/gridGradient/shaderField';
+import {
+    buildGridGradientShaderFieldTexturePlan,
+    resolvePackedOwnerIndexAtProgress,
+} from '$lib/territory/families/gridGradient/shaderField/gridGradientShaderFieldPacking';
 import { buildTypedDataFromClassification } from '$lib/territory/families/gridGradient/typedClassification';
 
 function makeClassification(): GridClassification {
