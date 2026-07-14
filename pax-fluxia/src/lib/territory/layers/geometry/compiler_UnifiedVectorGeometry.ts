@@ -23,6 +23,7 @@
  */
 
 import { computeGeometry0319 } from '../../compiler/Geometry_0319';
+import { signedArea as kernelSignedArea } from '../../geometry/kernel/polygonArea';
 import { buildFrontierTopology } from '../../compiler/buildFrontierTopology';
 import type { TerritoryGeometryData, MergedTerritory } from '../../compiler/powerVoronoiTerritoryGeometryGenerator';
 import type {
@@ -402,16 +403,14 @@ function buildOwnerShells(
 
 // ─── Geometry Utilities ─────────────────────────────────────────────────────
 
-/** Signed area via shoelace formula. Positive = CW, negative = CCW. */
+/**
+ * Signed area with THIS compiler's convention: positive = CW, negative = CCW
+ * (the `area >= 0 ? 'outer' : 'hole'` classification below depends on it).
+ * The kernel's shoelace is positive-CCW, hence the negation — this used to be
+ * a local trapezoid-form implementation that is algebraically -signedArea.
+ */
 function shoelaceArea(points: [number, number][]): number {
-    let area = 0;
-    const n = points.length;
-    for (let i = 0; i < n; i++) {
-        const [x1, y1] = points[i];
-        const [x2, y2] = points[(i + 1) % n];
-        area += (x2 - x1) * (y2 + y1);
-    }
-    return area / 2;
+    return -kernelSignedArea(points);
 }
 
 /** Ray-casting point-in-polygon test. */

@@ -65,6 +65,7 @@ import type {
     FillTransitionFrame,
     TransitionSampleContext,
 } from '../../../contracts/TransitionContracts';
+import { signedArea as kernelSignedArea } from '../../../geometry/kernel/polygonArea';
 
 // ---------------------------------------------------------------------------
 // Small geometry helpers
@@ -145,18 +146,11 @@ function samplePolylineAtParam(
     return lerpPoint(p0, p1, localT);
 }
 
-// Signed polygon area (screen coordinates, no closing duplicate).
-// Positive ↔ clockwise outer loops in your contracts.[file:316]
+// Signed polygon area — the kernel's shoelace (identical formula to the local
+// copy this replaced). In screen coordinates positive ↔ clockwise outer loops.
 function signedArea(points: readonly Vec2[]): number {
-    let sum = 0;
-    const n = points.length;
-    if (n < 3) return 0;
-    for (let i = 0; i < n; i += 1) {
-        const [x0, y0] = points[i];
-        const [x1, y1] = points[(i + 1) % n];
-        sum += x0 * y1 - x1 * y0;
-    }
-    return sum * 0.5;
+    if (points.length < 3) return 0;
+    return kernelSignedArea(points);
 }
 
 // Simple helper to avoid duplicating vertices when concatenating polylines.

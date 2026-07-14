@@ -474,7 +474,7 @@ function fnv1aHex(input: string): string {
 /** loopId from the SORTED set of member starIds (order-independent). */
 function loopIdFromStarIds(starIds: string[]): string {
     const sorted = [...new Set(starIds)].sort();
-    return `L:${fnv1aHex(sorted.join(''))}`;
+    return `L:${fnv1aHex(sorted.join('\u0001'))}`;
 }
 
 // ---------------------------------------------------------------------------

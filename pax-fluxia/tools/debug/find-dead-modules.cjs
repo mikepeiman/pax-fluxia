@@ -45,16 +45,38 @@ for (const f of files) {
   }
 }
 
-// Live roots: routes, workers, d.ts, app shell, tools, tests, and anything
-// referenced as a path string in vite.config.js (e.g. browserBenchEntry).
+// Live roots: routes, spawned workers, d.ts, app shell, tools, tests, and
+// anything referenced as a path string in vite.config.js (browserBenchEntry).
 const viteCfg = fs.readFileSync(path.join(ROOT, 'vite.config.js'), 'utf8');
 const namedInVite = (p) => {
   const i = p.indexOf('/src/');
   return i >= 0 && viteCfg.includes(p.slice(i + 1));
 };
+
+// A worker file is a live root ONLY if something spawns it by name
+// (new URL('...<name>.worker.ts', import.meta.url) or a '?worker' import).
+// Blindly rooting every *.worker.ts hid the metaball compute worker for a
+// full campaign stage after its spawner was quarantined.
+const workerSpawnNames = new Set();
+for (const f of files) {
+  const src = fs.readFileSync(f, 'utf8');
+  const re = /([\w./-]+\.worker(?:\.ts)?)/g;
+  if (!/new\s+Worker|\?worker/.test(src)) continue;
+  let m;
+  while ((m = re.exec(src))) {
+    if (norm(f).endsWith(m[1].replace(/^\.\//, '/'))) continue; // self-reference
+    workerSpawnNames.add(m[1].split('/').pop().replace(/\.ts$/, ''));
+  }
+}
+const isSpawnedWorker = (p) => {
+  if (!/\.worker\.ts$/.test(p)) return false;
+  const base = p.split('/').pop().replace(/\.ts$/, '');
+  return workerSpawnNames.has(base);
+};
+
 const isEntry = (p) =>
   /\/src\/routes\//.test(p) || /\.test\.ts$/.test(p) || /\.d\.ts$/.test(p) ||
-  /\/(app|hooks|service-worker|vite-env)\./.test(p) || /\.worker\.ts$/.test(p) ||
+  /\/(app|hooks|service-worker|vite-env)\./.test(p) || isSpawnedWorker(p) ||
   /\/tools\//.test(p) || namedInVite(p);
 
 const libFiles = files.map(norm).filter((p) => p.includes('/src/lib/'));
