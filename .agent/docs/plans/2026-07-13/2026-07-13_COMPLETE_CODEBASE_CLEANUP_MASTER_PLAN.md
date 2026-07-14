@@ -194,6 +194,24 @@ violations while in here.
   largest, most delicate operation in the campaign and must not be rushed against a usage-limit cutoff.
   3D (catalog/config/settings strip) follows the cluster move.
 
+**3C-2 DONE — cluster quarantine (6b91592d4, ~24.7k LOC → src/lib/_quarantine/).** Moved orchestrator/
+runtime/engine/render/legacy/integration-bridges/11-renderers+workers/families-metaball/Optimal
+TransportBorderTransition/trace-diagnostics component. Excluded from tsconfig + vitest. The move
+surfaced HIDDEN shared files via relative imports (moved out then back): territory/layers/** (kept —
+buildFamilyGeometry/adapters/pvFrontline/devtools), integration/TerritorySettingsBridge, families/
+metaball/{metaballSceneBase,config}, renderers/geometry/**. LESSON: before a bulk move, resolve the
+TRANSITIVE import graph including RELATIVE imports (`../x`) — a name/substring grep misses them and
+causes move-then-move-back churn. DEFERRED (dead but compiling): families/perimeterField + its GameCanvas
+debug subsystem; plain families/cellGrid/CellGridFamily. Verify: check 0, suite 419, build OK.
+
+**3D (partial) DONE — catalog strip.** TERRITORY_RENDER_MODE_CATALOG now lists only the kept modes
+(none + power_vector/grid_gradient/ember_lattice/phase_edges/phase_field) → the topbar/settings render-
+mode selector shows exactly the keep-set. Quarantined-id saved configs still resolve via the 3B
+fallback. DEFERRED (Q25 "your call", low-value + risky vs the settings-as-data system + type surgery +
+the PERIMETER_FIELD_GEOMETRY_SOURCE landmine): stripping dead per-mode settings CARDS
+(metaball/DF/perimeter) + search-index keys + dead config KEYS + unused deps. These are cosmetic dead
+config, harmless; a focused follow-up.
+
 **3C-1 DONE — GameCanvas dispatch severance.** Deleted all 11 quarantined switch arms (~600 LOC) via
 brace-matched boundaries (lesson: derive case boundaries by brace-matching, NOT eyeballing — a 5-line
 mis-boundary truncated the kept power_vector case and produced a downstream parse error; caught + fixed

@@ -16,72 +16,12 @@ export interface TerritoryRenderModeDefinition {
     readonly uiHidden?: boolean;
 }
 
+// Cleanup Stage 3D: the catalog now lists ONLY the kept render modes. Every
+// quarantined mode was removed (its dispatch + files are gone in Stage 3C); saved
+// configs / imported themes referencing a removed id resolve to power_vector via
+// normalizeTerritoryRenderModeId (the quarantine-fallback map below).
 export const TERRITORY_RENDER_MODE_CATALOG: readonly TerritoryRenderModeDefinition[] = [
     { id: 'none', label: 'Off', shortDescription: 'No territory overlay', legacyDispatch: true },
-    {
-        id: 'territory_runtime',
-        label: 'Layered Runtime',
-        shortDescription: 'Direct-runtime territory route with comparison support',
-        legacyDispatch: true,
-        uiHidden: true,
-    },
-    {
-        id: 'power_voronoi_runtime',
-        label: 'Power Voronoi 0427 (PVV4)',
-        shortDescription: 'Exact Power Voronoi direct-runtime path with full diagnostics',
-        legacyDispatch: true,
-    },
-    {
-        id: 'territory_engine',
-        label: 'Engine (DY4 pipeline)',
-        shortDescription: 'Modular territory engine router',
-        legacyDispatch: true,
-        uiHidden: true,
-    },
-    { id: 'vs_pvv3', label: 'PVV3', shortDescription: 'Frontier-first PVV3', legacyDispatch: true },
-    {
-        id: 'power_voronoi',
-        label: 'PVV2 weighted',
-        shortDescription: 'Weighted power Voronoi (current)',
-        legacyDispatch: true,
-        uiHidden: true,
-    },
-    {
-        id: 'modified_voronoi',
-        label: 'Modified Voronoi (deprecated)',
-        shortDescription:
-            'Deprecated - seam model superseded by PVV / power Voronoi. Not shown in UI; migrate saved configs.',
-        legacyDispatch: true,
-        uiHidden: true,
-    },
-    {
-        id: 'pvv2_dy4',
-        label: 'DY4 (Optimal Transport)',
-        shortDescription:
-            'Optimal-transport border morph conquest transitions (8dce88c reference) — distinct mode alongside PVV4',
-        legacyDispatch: true,
-    },
-    { id: 'voronoi', label: 'Voronoi', shortDescription: 'Basic Voronoi', legacyDispatch: true },
-    {
-        id: 'distance_field',
-        label: 'Distance field',
-        shortDescription: 'GPU distance field + morph',
-        legacyDispatch: true,
-    },
-    {
-        id: 'perimeter_field',
-        label: 'Perimeter field',
-        shortDescription: 'Ownership geometry -> perimeter samples -> field render',
-        legacyDispatch: true,
-    },
-    { id: 'metaball', label: 'Metaball', shortDescription: 'CPU influence field', legacyDispatch: true },
-    {
-        id: 'cell_grid',
-        label: 'Cell Grid',
-        shortDescription:
-            'Ownership geometry underlayer + world-anchored grid of ownership cells; conquest waves flip cells cell-by-cell',
-        legacyDispatch: true,
-    },
     {
         id: 'phase_edges',
         label: 'Phase Edges',
@@ -117,9 +57,6 @@ export const TERRITORY_RENDER_MODE_CATALOG: readonly TerritoryRenderModeDefiniti
             'PowerCore vector skin (K3a): fills power cells by owner; conquest frontiers SWEEP via the kinetic transition engine (needs Geometry Source = PowerCore to animate)',
         legacyDispatch: true,
     },
-    { id: 'pixel', label: 'Pixel', shortDescription: 'Pixel ownership grid', legacyDispatch: true },
-    { id: 'graph', label: 'Lane graph', shortDescription: 'Graph/lane influence', legacyDispatch: true },
-    { id: 'contour', label: 'Contour', shortDescription: 'Marching squares worker', legacyDispatch: true },
 ];
 
 export interface ResolvedTerritoryRenderModeOption extends TerritoryRenderModeDefinition {
