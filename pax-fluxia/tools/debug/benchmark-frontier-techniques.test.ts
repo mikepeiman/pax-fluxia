@@ -10,7 +10,7 @@ import type {
     TerritoryRegionShape,
 } from '$lib/territory/contracts/GeometryContracts';
 import { buildRenderFamilyInput } from '$lib/territory/families/buildRenderFamilyInput';
-import { createCellGridPhaseEdgesFamily } from '$lib/territory/families/cellGrid/CellGridFamily';
+import { createCellGridPhaseEdgesFamily } from '$lib/territory/families/cellGrid/CellGridPhaseEdgesFamily';
 import {
     cellGridPhaseEdgesGeometryDefaults,
     cellGridPhaseEdgesModeDefaults,

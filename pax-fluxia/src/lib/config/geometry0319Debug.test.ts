@@ -31,7 +31,10 @@ describe('geometry0319Debug', () => {
             }),
         ).toEqual({
             territoryRenderMode: 'cell_grid',
-            geometrySource: 'power_voronoi_0319',
+            // The snapshot reports the RUNTIME source, not the raw saved value:
+            // geometry unified on PowerCore (2026-07-08), so the retired
+            // 'power_voronoi_0319' selection normalizes to 'power_core'.
+            geometrySource: 'power_core',
             frontierResolution: 5,
             starMargin: 65,
             msrStarBias: 0.75,

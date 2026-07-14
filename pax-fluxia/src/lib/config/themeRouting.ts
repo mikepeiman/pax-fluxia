@@ -1,17 +1,18 @@
 import { coerceVsTransitionModeForRenderMode } from '../territory/transitions/territoryTransitionModes';
 import { TERRITORY_RENDER_MODE_CATALOG } from '../territory/ui/territoryRenderModeCatalog';
 
+/**
+ * Theme families track the KEPT render modes (cleanup campaign Stage 3). Every
+ * mode retired by the quarantine groups under a single `legacy` bucket rather
+ * than its own dead label — such themes resolve to power_vector on apply
+ * (`normalizeTerritoryRenderModeId`) and should be re-saved.
+ */
 export type ThemeRenderFamilyId =
-    | 'layered-runtime'
-    | 'engine'
-    | 'voronoi-lineage'
-    | 'distance-field'
-    | 'metaball'
-    | 'perimeter-field'
-    | 'graph'
-    | 'pixel'
-    | 'contour'
+    | 'power-vector'
+    | 'cell-grid'
+    | 'grid-gradient'
     | 'off'
+    | 'legacy'
     | 'agnostic';
 
 export type ThemeRoutingStatus =
@@ -56,59 +57,25 @@ export const THEME_RENDER_FAMILY_META: Record<
     ThemeRenderFamilyId,
     ThemeRenderFamilyMeta
 > = {
-    'layered-runtime': {
-        id: 'layered-runtime',
-        label: 'Layered Runtime',
-        description: 'Layered direct-runtime territory route.',
+    'power-vector': {
+        id: 'power-vector',
+        label: 'Power Vector',
+        description: 'PowerCore vector skin — the default territory route.',
         order: 10,
     },
-    engine: {
-        id: 'engine',
-        label: 'Engine / DY4',
-        description: 'Territory engine and DY4 pipeline themes.',
+    'cell-grid': {
+        id: 'cell-grid',
+        label: 'Cell Grid',
+        description:
+            'Square-lattice conquest skins: Phase Edges, Ember Lattice, Phase Field.',
         order: 20,
     },
-    'voronoi-lineage': {
-        id: 'voronoi-lineage',
-        label: 'Voronoi Lineage',
-        description: 'PVV, classic Voronoi, and related comparison territory styles.',
+    'grid-gradient': {
+        id: 'grid-gradient',
+        label: 'Grid Gradient',
+        description:
+            'PV geometry with grid samples that grow toward region centers.',
         order: 30,
-    },
-    'distance-field': {
-        id: 'distance-field',
-        label: 'Distance Field',
-        description: 'Distance-field territory themes.',
-        order: 40,
-    },
-    metaball: {
-        id: 'metaball',
-        label: 'Metaball',
-        description: 'Metaball family territory themes.',
-        order: 50,
-    },
-    'perimeter-field': {
-        id: 'perimeter-field',
-        label: 'Perimeter Field',
-        description: 'Perimeter-field family territory themes.',
-        order: 60,
-    },
-    graph: {
-        id: 'graph',
-        label: 'Graph / Lane',
-        description: 'Lane-graph territory themes.',
-        order: 70,
-    },
-    pixel: {
-        id: 'pixel',
-        label: 'Pixel',
-        description: 'Pixel-grid territory themes.',
-        order: 80,
-    },
-    contour: {
-        id: 'contour',
-        label: 'Contour',
-        description: 'Contour / marching-squares territory themes.',
-        order: 90,
     },
     off: {
         id: 'off',
@@ -116,12 +83,29 @@ export const THEME_RENDER_FAMILY_META: Record<
         description: 'Themes that explicitly disable territory overlays.',
         order: 100,
     },
+    legacy: {
+        id: 'legacy',
+        label: 'Legacy (retired modes)',
+        description:
+            'Themes saved against render modes retired in the 2026-07 cleanup. They resolve to Power Vector on apply and should be re-saved.',
+        order: 105,
+    },
     agnostic: {
         id: 'agnostic',
         label: 'Mode Agnostic',
         description: 'Utility packs and themes that do not set a territory mode.',
         order: 110,
     },
+};
+
+/** Kept render mode -> theme family. Anything else resolves to `legacy`. */
+const RENDER_MODE_THEME_FAMILIES: Readonly<Record<string, ThemeRenderFamilyId>> = {
+    power_vector: 'power-vector',
+    phase_edges: 'cell-grid',
+    ember_lattice: 'cell-grid',
+    phase_field: 'cell-grid',
+    grid_gradient: 'grid-gradient',
+    none: 'off',
 };
 
 const SUPPORTED_RENDER_MODES = new Set(
@@ -175,34 +159,8 @@ export function normalizeThemeValues<T extends ThemePrimitiveValues>(
 export function resolveThemeRenderFamilyId(
     renderMode: string | null,
 ): ThemeRenderFamilyId {
-    switch (renderMode) {
-        case 'territory_runtime':
-            return 'layered-runtime';
-        case 'territory_engine':
-            return 'engine';
-        case 'vs_pvv3':
-        case 'power_voronoi':
-        case 'pvv2_dy4':
-        case 'modified_voronoi':
-        case 'voronoi':
-            return 'voronoi-lineage';
-        case 'distance_field':
-            return 'distance-field';
-        case 'metaball':
-            return 'metaball';
-        case 'perimeter_field':
-            return 'perimeter-field';
-        case 'graph':
-            return 'graph';
-        case 'pixel':
-            return 'pixel';
-        case 'contour':
-            return 'contour';
-        case 'none':
-            return 'off';
-        default:
-            return 'agnostic';
-    }
+    if (!renderMode) return 'agnostic';
+    return RENDER_MODE_THEME_FAMILIES[renderMode] ?? 'legacy';
 }
 
 export function auditThemeRouting(

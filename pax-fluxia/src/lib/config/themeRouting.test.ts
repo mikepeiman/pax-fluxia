@@ -62,38 +62,53 @@ describe('themeRouting', () => {
 
         expect(audit.renderMode).toBe('graph');
         expect(audit.status).toBe('compat-inferred');
-        expect(audit.familyId).toBe('graph');
+        expect(audit.familyId).toBe('legacy');
         expect(audit.notes.join(' ')).toContain('without normalization');
     });
 
-    it('flags metaball themes whose transition mode is coerced', () => {
-        const audit = auditThemeRouting({
-            TERRITORY_RENDER_MODE: 'metaball',
-            VS_TRANSITION_MODE: 'no_loser',
-        });
-
-        expect(audit.status).toBe('needs-editing');
-        expect(audit.notes.join(' ')).toContain('coerced');
-    });
-
-    it('flags non-metaball themes carrying metaball-only transition ids', () => {
-        const audit = auditThemeRouting({
-            TERRITORY_RENDER_MODE: 'perimeter_field',
-            VS_TRANSITION_MODE: 'metaball_lane_push',
-        });
-
-        expect(audit.status).toBe('needs-editing');
-        expect(audit.familyId).toBe('perimeter-field');
-    });
-
-    it('accepts explicit themes that match current routing and transition rules', () => {
+    it('flags themes saved against a mode retired by the quarantine', () => {
         const audit = auditThemeRouting({
             TERRITORY_RENDER_MODE: 'metaball',
             VS_TRANSITION_MODE: 'metaball_six_slice_burst',
         });
 
+        expect(audit.status).toBe('needs-editing');
+        expect(audit.familyId).toBe('legacy');
+        expect(audit.notes.join(' ')).toContain(
+            'not in the current render-mode catalog',
+        );
+    });
+
+    it('flags kept-mode themes carrying a transition id that gets coerced', () => {
+        const audit = auditThemeRouting({
+            TERRITORY_RENDER_MODE: 'power_vector',
+            VS_TRANSITION_MODE: 'metaball_lane_push',
+        });
+
+        expect(audit.status).toBe('needs-editing');
+        expect(audit.familyId).toBe('power-vector');
+        expect(audit.notes.join(' ')).toContain('coerced');
+    });
+
+    it('accepts explicit themes that match current routing and transition rules', () => {
+        const audit = auditThemeRouting({
+            TERRITORY_RENDER_MODE: 'power_vector',
+            VS_TRANSITION_MODE: 'no_loser',
+        });
+
         expect(audit.status).toBe('wired');
-        expect(audit.familyId).toBe('metaball');
+        expect(audit.familyId).toBe('power-vector');
+    });
+
+    it('groups every kept cell-grid skin under one family', () => {
+        for (const mode of ['phase_edges', 'ember_lattice', 'phase_field']) {
+            expect(
+                auditThemeRouting({
+                    TERRITORY_RENDER_MODE: mode,
+                    VS_TRANSITION_MODE: 'no_loser',
+                }),
+            ).toMatchObject({ status: 'wired', familyId: 'cell-grid' });
+        }
     });
 
     it('groups themes by resolved render family order', () => {
@@ -101,17 +116,25 @@ describe('themeRouting', () => {
             { name: 'graph legacy', values: { TERRITORY_GRAPH: true } },
             { name: 'agnostic pack', values: { SHIP_BASE_SIZE: 3 } },
             {
-                name: 'perimeter explicit',
+                name: 'edges explicit',
                 values: {
-                    TERRITORY_RENDER_MODE: 'perimeter_field',
+                    TERRITORY_RENDER_MODE: 'phase_edges',
+                    VS_TRANSITION_MODE: 'no_loser',
+                },
+            },
+            {
+                name: 'pv explicit',
+                values: {
+                    TERRITORY_RENDER_MODE: 'power_vector',
                     VS_TRANSITION_MODE: 'no_loser',
                 },
             },
         ]);
 
         expect(groups.map((group) => group.id)).toEqual([
-            'perimeter-field',
-            'graph',
+            'power-vector',
+            'cell-grid',
+            'legacy',
             'agnostic',
         ]);
     });
