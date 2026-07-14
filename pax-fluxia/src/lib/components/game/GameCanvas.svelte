@@ -174,6 +174,7 @@
         clampZoom,
         ZOOM_STEP,
     } from "$lib/components/game/cameraModel";
+    import { createCanvasClientRectCache } from "$lib/components/game/canvasClientRect";
     import {
         resolveCenteredViewportFrame,
         resolveContentFitWorldRect,
@@ -391,6 +392,7 @@
         stars: activeGameStore.stars as StarState[],
         connections: activeGameStore.connections as StarConnection[],
     }));
+    const canvasClientRect = createCanvasClientRectCache(() => canvasContainer);
 
     function recordInputHandlingLatency(
         kind: string,
@@ -1043,76 +1045,25 @@
         return null;
     }
 
-    function projectInteractionWorldPoint(point: { x: number; y: number }): {
+    /**
+     * World point -> display space. Thin adapter over mapTranspose (which is
+     * per-axis) for the callers that need a point-to-point callback; the
+     * transpose convention itself lives in the store, shared with the renderers.
+     */
+    function toDisplayPoint(point: { x: number; y: number }): {
         x: number;
         y: number;
     } {
-        return {
-            x: mapTranspose.active ? point.y : point.x,
-            y: mapTranspose.active ? mapTranspose.mapWidth - point.x : point.y,
-        };
+        return { x: mapTranspose.x(point), y: mapTranspose.y(point) };
     }
 
-    function invalidateCanvasClientRectCache(): void {
-        canvasClientRectCacheDirty = true;
-    }
-
-    function readCanvasClientRectSnapshot(): CanvasClientRectSnapshot {
-        if (!canvasContainer) {
-            return {
-                left: 0,
-                top: 0,
-                right: 0,
-                bottom: 0,
-                width: 0,
-                height: 0,
-            };
-        }
-        const rect = canvasContainer.getBoundingClientRect();
-        return {
-            left: rect.left,
-            top: rect.top,
-            right: rect.right,
-            bottom: rect.bottom,
-            width: rect.width,
-            height: rect.height,
-        };
-    }
-
-    function getCanvasClientRect(reason: string): CanvasClientRectSnapshot {
-        if (!canvasClientRectCache || canvasClientRectCacheDirty) {
-            canvasClientRectCache = measurePerf(
-                "game.input.clientRect.refresh",
-                () => readCanvasClientRectSnapshot(),
-                {
-                    reason,
-                    dirty: canvasClientRectCacheDirty,
-                },
-            );
-            canvasClientRectCacheDirty = false;
-        }
-        return canvasClientRectCache;
-    }
-
-    function getCanvasLocalPointFromClient(
-        clientX: number,
-        clientY: number,
-        reason: string,
-    ): { x: number; y: number; rect: CanvasClientRectSnapshot } {
-        const rect = getCanvasClientRect(reason);
-        return {
-            x: clientX - rect.left,
-            y: clientY - rect.top,
-            rect,
-        };
-    }
 
     function syncInteractionOverlaySurface(): {
         width: number;
         height: number;
     } | null {
         if (!interactionOverlayCanvas || !canvasContainer) return null;
-        const rect = getCanvasClientRect("interactionOverlay.surface");
+        const rect = canvasClientRect.get("interactionOverlay.surface");
         const width = Math.max(1, Math.round(rect.width));
         const height = Math.max(1, Math.round(rect.height));
         const dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -1259,7 +1210,7 @@
                 offsetX: app.stage.x,
                 offsetY: app.stage.y,
             },
-            projectWorldPoint: projectInteractionWorldPoint,
+            projectWorldPoint: toDisplayPoint,
             isLocalPlayerStar,
             colorUtils,
         });
@@ -1972,16 +1923,6 @@
     const RESIZE_SETTLE_MS = 90;
     let lastTickGameTimeMs = 0; // Game-clock time at last tick (for tickProgress)
     let lastRenderedTickProgress = 0;
-    type CanvasClientRectSnapshot = {
-        left: number;
-        top: number;
-        right: number;
-        bottom: number;
-        width: number;
-        height: number;
-    };
-    let canvasClientRectCache: CanvasClientRectSnapshot | null = null;
-    let canvasClientRectCacheDirty = true;
 
     // starsById cache — rebuilt only when star array identity changes (on tick events)
     const cachedStarsById = new Map<string, StarState>();
@@ -2728,7 +2669,7 @@
     }
 
     function handleCanvasViewportGeometryChange() {
-        invalidateCanvasClientRectCache();
+        canvasClientRect.invalidate();
     }
 
     if (orientationQuery) {
@@ -2738,7 +2679,7 @@
     function handleResize() {
         if (!app || !app.renderer) return;
 
-        invalidateCanvasClientRectCache();
+        canvasClientRect.invalidate();
         app.resize();
 
         // F-107: Orientation is handled by matchMedia listener (onOrientationChange)
@@ -2776,7 +2717,7 @@
 
         // Apply combined scale + zoom
         applyZoomTransform();
-        getCanvasClientRect("resize");
+        canvasClientRect.get("resize");
 
         const canvasEl = canvasContainer;
         const resizeBounds = camera.getContentBounds();
@@ -2799,7 +2740,7 @@
     // the debounced full handleResize.
     function refitViewportNow() {
         if (!app || !app.renderer) return;
-        invalidateCanvasClientRectCache();
+        canvasClientRect.invalidate();
         app.resize();
         camera.fitBaseScaleTo({
             width: app.screen.width,
@@ -2856,7 +2797,7 @@
         if (!app) return;
         camera.cancelAnimation();
 
-        const { x: screenX, y: screenY } = getCanvasLocalPointFromClient(
+        const { x: screenX, y: screenY } = canvasClientRect.toLocalPoint(
             event.clientX,
             event.clientY,
             "wheel",
@@ -4682,7 +4623,7 @@
         interactionCaches.ensure();
         const star = interactionCaches.getStarById(starId);
         if (!star) return null;
-        const rect = getCanvasClientRect("benchmark.starClientPoint");
+        const rect = canvasClientRect.get("benchmark.starClientPoint");
         const point = worldToScreen(
             mapTranspose.x(star),
             mapTranspose.y(star),
@@ -4872,14 +4813,6 @@
         transitionDiagnostics.reset();
     }
 
-    function transposePoint(x: number, y: number): { x: number; y: number } {
-        if (!mapTranspose.active) return { x, y };
-        return {
-            x: y,
-            y: mapTranspose.mapWidth - x,
-        };
-    }
-
     // Track last hitTest result to suppress duplicate logs
     let lastHitStarId: string | null | undefined = undefined; // undefined = never set
 
@@ -4975,7 +4908,7 @@
                 [target.x, target.y],
             ];
         const displayPolyline = raw.map(([x, y]) => {
-            const p = transposePoint(x, y);
+            const p = toDisplayPoint({ x, y });
             return [p.x, p.y] as [number, number];
         });
         const sourceRef = {
@@ -5268,7 +5201,7 @@
         );
 
         if (get(rulerTool).enabled && event.button === 0 && !isSpaceHeld) {
-            const { x, y } = getCanvasLocalPointFromClient(
+            const { x, y } = canvasClientRect.toLocalPoint(
                 event.clientX,
                 event.clientY,
                 "pointerdown.ruler",
@@ -5304,7 +5237,7 @@
             pinchStartDist = getPinchDist();
             pinchStartZoom = camera.getZoomLevel();
             const center = getPinchCenter();
-            const localCenter = getCanvasLocalPointFromClient(
+            const localCenter = canvasClientRect.toLocalPoint(
                 center.x,
                 center.y,
                 "pointerdown.pinch",
@@ -5319,7 +5252,7 @@
             return;
         }
 
-        const { x, y } = getCanvasLocalPointFromClient(
+        const { x, y } = canvasClientRect.toLocalPoint(
             event.clientX,
             event.clientY,
             "pointerdown",
@@ -5350,7 +5283,7 @@
             longPressTimer = setTimeout(() => {
                 longPressTimer = null;
                 // Long-press: show star info
-                const localPoint = getCanvasLocalPointFromClient(
+                const localPoint = canvasClientRect.toLocalPoint(
                     startX,
                     startY,
                     "pointerdown.longPress",
@@ -5528,7 +5461,7 @@
 
         if (!isDragging || !dragSourceId) return;
 
-        const dragPoint = getCanvasLocalPointFromClient(
+        const dragPoint = canvasClientRect.toLocalPoint(
             event.clientX,
             event.clientY,
             "pointermove.drag",
@@ -5667,7 +5600,7 @@
 
         // Double-tap detection (cancel orders on star OR pause on empty space)
         if (event.pointerType === "touch") {
-            const { x, y } = getCanvasLocalPointFromClient(
+            const { x, y } = canvasClientRect.toLocalPoint(
                 event.clientX,
                 event.clientY,
                 "pointerup.touch",
@@ -5737,7 +5670,7 @@
             return;
         }
 
-        const { x, y } = getCanvasLocalPointFromClient(
+        const { x, y } = canvasClientRect.toLocalPoint(
             event.clientX,
             event.clientY,
             "pointerup",
@@ -6011,7 +5944,7 @@
         recordInputHandlingLatency("rightclick", event);
         event.preventDefault();
 
-        const { x, y } = getCanvasLocalPointFromClient(
+        const { x, y } = canvasClientRect.toLocalPoint(
             event.clientX,
             event.clientY,
             "rightclick",
