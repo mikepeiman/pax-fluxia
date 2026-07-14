@@ -168,6 +168,7 @@
         createTransitionDiagnosticsCapture,
         type TransitionDiagnosticFrameInput,
     } from "$lib/components/game/transitionDiagnosticsCapture";
+    import { createInteractionCaches } from "$lib/components/game/interactionCaches";
     import {
         resolveCenteredViewportFrame,
         resolveContentFitWorldRect,
@@ -358,7 +359,6 @@
             reason: string;
         };
     };
-    const starHitIndexCellPx = 96;
     let territoryPresentationScheduled = false;
     let territoryPresentationRunning = false;
     let territoryPresentationRequestSeq = 0;
@@ -382,12 +382,10 @@
     let territoryPresentationLastCommittedSignature = "";
     let territoryPresentationPendingRequest: TerritoryPresentationRequest | null =
         null;
-    let interactionStarsSource: ReadonlyArray<StarState> | null = null;
-    let interactionConnectionsSource: ReadonlyArray<StarConnection> | null = null;
-    const interactionStarsById = new Map<string, StarState>();
-    const interactionConnectionAdjacency = new Map<string, Set<string>>();
-    const interactionLaneKeyToConnection = new Map<string, StarConnection>();
-    const interactionStarHitIndex = new Map<string, StarState[]>();
+    const interactionCaches = createInteractionCaches(() => ({
+        stars: activeGameStore.stars as StarState[],
+        connections: activeGameStore.connections as StarConnection[],
+    }));
 
     function recordInputHandlingLatency(
         kind: string,
@@ -460,7 +458,7 @@
         if (queuedTargetId !== undefined) {
             return queuedTargetId;
         }
-        const sourceStar = getInteractionStarById(sourceId) as
+        const sourceStar = interactionCaches.getStarById(sourceId) as
             | (StarState & {
                   targetId?: string | null;
                   queuedOrderTargetId?: string | null;
@@ -545,7 +543,7 @@
     }
 
     function presentInteractionVisualStateNow(): boolean {
-        const { stars } = ensureInteractionCaches();
+        const { stars } = interactionCaches.ensure();
         if (stars.length === 0) return false;
         measurePerf(
             "game.input.visualAcknowledgment.present",
@@ -1033,98 +1031,6 @@
         };
     }
 
-    function starHitIndexKey(cellX: number, cellY: number): string {
-        return `${cellX}:${cellY}`;
-    }
-
-    function resolveInteractionHitRadius(star: StarState): number {
-        return GAME_CONFIG.STAR_HIT_RADIUS ?? Math.max(star.radius * 2, 40);
-    }
-
-    function getLaneKeyForPair(a: string, b: string): string {
-        return a <= b ? `${a}|${b}` : `${b}|${a}`;
-    }
-
-    function rebuildInteractionCaches(
-        stars: ReadonlyArray<StarState>,
-        connections: ReadonlyArray<StarConnection>,
-    ): void {
-        if (stars !== interactionStarsSource) {
-            interactionStarsSource = stars;
-            interactionStarsById.clear();
-            interactionStarHitIndex.clear();
-            for (const star of stars) {
-                interactionStarsById.set(star.id, star);
-                const hitRadius = resolveInteractionHitRadius(star);
-                const minCellX = Math.floor(
-                    (mapTranspose.x(star) - hitRadius) / starHitIndexCellPx,
-                );
-                const maxCellX = Math.floor(
-                    (mapTranspose.x(star) + hitRadius) / starHitIndexCellPx,
-                );
-                const minCellY = Math.floor(
-                    (mapTranspose.y(star) - hitRadius) / starHitIndexCellPx,
-                );
-                const maxCellY = Math.floor(
-                    (mapTranspose.y(star) + hitRadius) / starHitIndexCellPx,
-                );
-                for (let cellX = minCellX; cellX <= maxCellX; cellX += 1) {
-                    for (let cellY = minCellY; cellY <= maxCellY; cellY += 1) {
-                        const key = starHitIndexKey(cellX, cellY);
-                        const bucket =
-                            interactionStarHitIndex.get(key) ?? [];
-                        bucket.push(star);
-                        interactionStarHitIndex.set(key, bucket);
-                    }
-                }
-            }
-        }
-        if (connections !== interactionConnectionsSource) {
-            interactionConnectionsSource = connections;
-            interactionConnectionAdjacency.clear();
-            interactionLaneKeyToConnection.clear();
-            for (const connection of connections) {
-                const sourceNeighbors =
-                    interactionConnectionAdjacency.get(connection.sourceId) ??
-                    new Set<string>();
-                sourceNeighbors.add(connection.targetId);
-                interactionConnectionAdjacency.set(
-                    connection.sourceId,
-                    sourceNeighbors,
-                );
-                const laneKey = getLaneKeyForPair(
-                    connection.sourceId,
-                    connection.targetId,
-                );
-                if (!interactionLaneKeyToConnection.has(laneKey)) {
-                    interactionLaneKeyToConnection.set(laneKey, connection);
-                }
-            }
-        }
-    }
-
-    function ensureInteractionCaches(): {
-        stars: ReadonlyArray<StarState>;
-        connections: ReadonlyArray<StarConnection>;
-    } {
-        const stars = activeGameStore.stars as StarState[];
-        const connections = activeGameStore.connections as StarConnection[];
-        rebuildInteractionCaches(stars, connections);
-        return { stars, connections };
-    }
-
-    function getInteractionStarById(starId: string): StarState | null {
-        ensureInteractionCaches();
-        return interactionStarsById.get(starId) ?? null;
-    }
-
-    function areStarsConnected(sourceId: string, targetId: string): boolean {
-        ensureInteractionCaches();
-        return Boolean(
-            interactionConnectionAdjacency.get(sourceId)?.has(targetId),
-        );
-    }
-
     function getTaskScheduler(): BackgroundTaskScheduler | null {
         const scheduler = (globalThis as { scheduler?: BackgroundTaskScheduler })
             .scheduler;
@@ -1314,7 +1220,7 @@
         if (!app) return false;
         const surface = syncInteractionOverlaySurface();
         if (!surface || !interactionOverlayCtx) return false;
-        const { stars } = ensureInteractionCaches();
+        const { stars } = interactionCaches.ensure();
         const renderKey = buildInteractionOverlayRenderKey({
             stars: stars as StarState[],
             surface,
@@ -1327,7 +1233,7 @@
             canvasWidth: surface.width,
             canvasHeight: surface.height,
             stars: stars as StarState[],
-            starsById: interactionStarsById,
+            starsById: interactionCaches.getStarsById(),
             pendingOrders,
             deferredOrders,
             activeStarId,
@@ -2256,10 +2162,10 @@
         targetId: string,
         isDeferred: boolean = false,
     ): void {
-        ensureInteractionCaches();
+        interactionCaches.ensure();
         if (
-            !interactionStarsById.has(sourceId) ||
-            !interactionStarsById.has(targetId)
+            !interactionCaches.hasStar(sourceId) ||
+            !interactionCaches.hasStar(targetId)
         ) {
             return;
         }
@@ -2307,7 +2213,7 @@
         dispatchMode: OrderDispatchMode = "queued",
         path = "game_canvas",
     ): number {
-        const targetStar = getInteractionStarById(targetId);
+        const targetStar = interactionCaches.getStarById(targetId);
         if (targetStar) {
             audioManager.play(
                 isLocalPlayerStar(targetStar) ? "move" : "attack",
@@ -2339,7 +2245,7 @@
         dispatchMode: OrderDispatchMode = "queued",
         path = "game_canvas",
     ): number {
-        const targetStar = getInteractionStarById(targetId);
+        const targetStar = interactionCaches.getStarById(targetId);
         if (targetStar) {
             audioManager.play(
                 isLocalPlayerStar(targetStar) ? "move" : "attack",
@@ -2572,12 +2478,7 @@
         territoryPresentationScheduled = false;
         territoryPresentationRunning = false;
         territoryPresentationPendingRequest = null;
-        interactionStarsSource = null;
-        interactionConnectionsSource = null;
-        interactionStarsById.clear();
-        interactionConnectionAdjacency.clear();
-        interactionLaneKeyToConnection.clear();
-        interactionStarHitIndex.clear();
+        interactionCaches.clear();
         resetTerritoryRenderStatus();
 
         starGraphics.clear();
@@ -3445,12 +3346,7 @@
             //    fill/border caches). They are lazily recreated on the next
             //    presentation, exactly like after onDestroy.
             disposeAllRenderFamilies();
-            interactionStarsSource = null;
-            interactionConnectionsSource = null;
-            interactionStarsById.clear();
-            interactionConnectionAdjacency.clear();
-            interactionLaneKeyToConnection.clear();
-            interactionStarHitIndex.clear();
+            interactionCaches.clear();
             log.sys(
                 "GameCanvas",
                 `Session changed to ${currentSessionId}, state reset`,
@@ -3484,7 +3380,7 @@
             for (const s of stars) cachedStarsById.set(s.id, s);
             cachedStarsSource = stars;
         }
-        rebuildInteractionCaches(
+        interactionCaches.rebuild(
             stars,
             activeGameStore.connections as StarConnection[],
         );
@@ -4848,7 +4744,7 @@
         | null {
         const localPlayerId = activeGameStore.localPlayerId;
         if (!localPlayerId) return null;
-        const { stars, connections } = ensureInteractionCaches();
+        const { stars, connections } = interactionCaches.ensure();
         for (const source of stars) {
             if (source.ownerId !== localPlayerId) continue;
             for (const connection of connections) {
@@ -4859,7 +4755,7 @@
                           ? connection.sourceId
                           : null;
                 if (!targetId) continue;
-                const target = interactionStarsById.get(targetId);
+                const target = interactionCaches.getStarById(targetId);
                 if (!target || target.ownerId === localPlayerId) continue;
                 if (!activeGameStore.canIssueOrder(source.id, target.id)) continue;
                 return { source, target };
@@ -4878,8 +4774,8 @@
           }
         | null {
         if (!app || !canvasContainer) return null;
-        ensureInteractionCaches();
-        const star = interactionStarsById.get(starId);
+        interactionCaches.ensure();
+        const star = interactionCaches.getStarById(starId);
         if (!star) return null;
         const rect = getCanvasClientRect("benchmark.starClientPoint");
         const point = worldToScreen(
@@ -5083,7 +4979,7 @@
     let lastHitStarId: string | null | undefined = undefined; // undefined = never set
 
     function hitTestStar(screenX: number, screenY: number): StarState | null {
-        const { stars } = ensureInteractionCaches();
+        const { stars } = interactionCaches.ensure();
 
         if (stars.length === 0) {
             if (lastHitStarId !== null) {
@@ -5095,13 +4991,7 @@
 
         // Convert screen coordinates to world coordinates
         const { x, y } = screenToWorld(screenX, screenY);
-        const candidates =
-            interactionStarHitIndex.get(
-                starHitIndexKey(
-                    Math.floor(x / starHitIndexCellPx),
-                    Math.floor(y / starHitIndexCellPx),
-                ),
-            ) ?? [];
+        const candidates = interactionCaches.getHitCandidates(x, y);
 
         // Find the NEAREST star within a reasonable hit radius
         let nearest: StarState | null = null;
@@ -5114,7 +5004,7 @@
                 mapTranspose.x(star),
                 mapTranspose.y(star),
             );
-            const hitRadius = resolveInteractionHitRadius(star);
+            const hitRadius = interactionCaches.resolveHitRadius(star);
             if (dist <= hitRadius && dist < nearestDist) {
                 nearest = star;
                 nearestDist = dist;
@@ -5213,7 +5103,7 @@
         screenY: number,
     ): RulerPoint | null {
         const { x, y } = screenToWorld(screenX, screenY);
-        const { connections } = ensureInteractionCaches();
+        const { connections } = interactionCaches.ensure();
         const seen = new Set<string>();
         const laneHitboxPx = get(rulerTool).laneHitboxPx;
         let best:
@@ -5235,12 +5125,12 @@
                 connection.sourceId <= connection.targetId
                     ? connection.targetId
                     : connection.sourceId;
-            const laneKey = `${a}|${b}`;
+            const laneKey = interactionCaches.getLaneKeyForPair(a, b);
             if (seen.has(laneKey)) continue;
             seen.add(laneKey);
 
-            const source = interactionStarsById.get(a);
-            const target = interactionStarsById.get(b);
+            const source = interactionCaches.getStarById(a);
+            const target = interactionCaches.getStarById(b);
             if (!source || !target) continue;
 
             const polyline = buildVisibleLanePolyline(source, target);
@@ -5302,11 +5192,6 @@
         return "missing";
     }
 
-    function findConnectionByLaneKey(laneKey: string): StarConnection | null {
-        ensureInteractionCaches();
-        return interactionLaneKeyToConnection.get(laneKey) ?? null;
-    }
-
     function finalizeRulerMeasurement(
         start: RulerPoint,
         end: RulerPoint,
@@ -5323,7 +5208,7 @@
             relatedLaneLabel = `${a} ↔ ${b}`;
             starPairLabel = relatedLaneLabel;
             actualLaneState = mapLaneKindToRulerState(
-                findConnectionByLaneKey(relatedLaneKey)?.lanePathKind,
+                interactionCaches.findConnectionByLaneKey(relatedLaneKey)?.lanePathKind,
             );
         } else {
             relatedLaneKey =
@@ -5336,7 +5221,7 @@
                     : start.laneLabel ?? end.laneLabel;
             if (relatedLaneKey) {
                 actualLaneState = mapLaneKindToRulerState(
-                    findConnectionByLaneKey(relatedLaneKey)?.lanePathKind,
+                    interactionCaches.findConnectionByLaneKey(relatedLaneKey)?.lanePathKind,
                 );
             }
         }
@@ -5751,11 +5636,11 @@
         dragHoverTargetId = null;
 
         if (targetStar && targetStar.id !== dragSourceId) {
-            const isConnected = areStarsConnected(dragSourceId, targetStar.id);
+            const isConnected = interactionCaches.areStarsConnected(dragSourceId, targetStar.id);
 
             if (isConnected) {
                 dragHoverTargetId = targetStar.id;
-                const sourceStar = getInteractionStarById(dragSourceId);
+                const sourceStar = interactionCaches.getStarById(dragSourceId);
                 const localPlayerId = activeGameStore.localPlayerId;
                 const isSourceMine = sourceStar?.ownerId === localPlayerId;
                 const isTargetMine = targetStar.ownerId === localPlayerId;
@@ -5964,7 +5849,7 @@
         // DRAG MODE: If we dragged significantly
         if (movedSignificantly && dragSourceId) {
             if (targetStar && targetStar.id !== dragSourceId) {
-                const isConnected = areStarsConnected(dragSourceId, targetStar.id);
+                const isConnected = interactionCaches.areStarsConnected(dragSourceId, targetStar.id);
 
                 if (isConnected) {
                     // Issue order from drag
@@ -5995,7 +5880,7 @@
                             targetId: targetStar.id,
                             persistAfterConquest: !event.ctrlKey,
                             sourceOwnerId:
-                                getInteractionStarById(dragSourceId)?.ownerId ??
+                                interactionCaches.getStarById(dragSourceId)?.ownerId ??
                                 null,
                             targetOwnerId: targetStar.ownerId,
                         });
@@ -6049,14 +5934,14 @@
             // Case 2: Have a prior selection -> try to issue order, then select Y
             else if (activeStarId) {
                 const previousActiveStarId = activeStarId;
-                const isConnected = areStarsConnected(
+                const isConnected = interactionCaches.areStarsConnected(
                     activeStarId,
                     targetStar.id,
                 );
 
                 if (isConnected) {
                     const activeStarSnapshot =
-                        getInteractionStarById(activeStarId);
+                        interactionCaches.getStarById(activeStarId);
                     // B-43 diagnostic: trace deferred order decision
                     const localPid = activeGameStore.localPlayerId;
                     log.input(
