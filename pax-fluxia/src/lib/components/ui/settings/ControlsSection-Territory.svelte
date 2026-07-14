@@ -2,16 +2,10 @@
   import "./panel-shared.css";
   import { GAME_CONFIG } from "$lib/config/game.config";
   import {
-    isTerritoryRenderModeUiHidden,
     normalizeTerritoryRenderModeId,
     resolveTerritoryRenderModeOptions,
   } from "$lib/territory/ui/territoryRenderModeCatalog";
-  import {
-    coerceVsTransitionModeForRenderMode,
-    getTransitionModeOptionsForRenderMode,
-  } from "$lib/territory/transitions/territoryTransitionModes";
   import CategoryThemeBar from "./CategoryThemeBar.svelte";
-  import TerritoryTransitionTuning from "./TerritoryTransitionTuning.svelte";
   import CellGridTuning from "./CellGridTuning.svelte";
   import GridGradientTuning from "./GridGradientTuning.svelte";
   import {
@@ -30,7 +24,6 @@
   import { TERRITORY_GEOMETRY_LIMITS } from "$lib/territory/geometry/geometryTuning";
   import {
     PaxHudButton,
-    PaxHudSegmentedControl,
     PaxHudSelect,
     PaxSettingsRangeRow,
     PaxSettingsSegmentedRow,
@@ -110,12 +103,9 @@
   type TerritoryRendererModuleId =
     | "all"
     | "none"
-    | "metaball"
-    | "perimeter-field"
     | "cell-grid"
     | "grid-gradient"
-    | "topology"
-    | "surface";
+    | "topology";
 
   interface TerritoryModuleDef<T extends string> {
     id: T;
@@ -145,35 +135,6 @@
     }));
   }
 
-  function transitionSelectOptions(): { value: string; label: string }[] {
-    return getTransitionModeOptionsForRenderMode(resolveActiveStyleId()).map(
-      (option) => ({ value: option.id, label: option.label }),
-    );
-  }
-
-  function morphEasingOptions(): PaxHudSegmentedOption[] {
-    return MORPH_EASING_OPTIONS.map((easing) => ({
-      value: easing.id,
-      label: easing.label,
-    }));
-  }
-
-  function boundaryModeOptions(): PaxHudSegmentedOption[] {
-    return [
-      { value: "segment", label: "Segment" },
-      { value: "smooth", label: "Smooth" },
-    ];
-  }
-
-  function supportsRuntimeSurfaceStyleCard(): boolean {
-    const activeStyle = resolveActiveStyleId();
-    return (
-      activeStyle === "territory_engine" ||
-      activeStyle === "territory_runtime" ||
-      activeStyle === "power_voronoi_runtime"
-    );
-  }
-
   function supportsSharedSurfaceStyleCard(): boolean {
     const activeStyle = resolveActiveStyleId();
     // perimeter_field quarantined (Stage A) — no longer renders a settings card.
@@ -185,11 +146,7 @@
   }
 
   function hasTerritoryStyleControls(): boolean {
-    return (
-      supportsRuntimeSurfaceStyleCard() ||
-      supportsSharedSurfaceStyleCard() ||
-      supportsGridGradientStyleCard()
-    );
+    return supportsSharedSurfaceStyleCard() || supportsGridGradientStyleCard();
   }
 
   function resolvedStyleSubsection():
@@ -213,71 +170,10 @@
   }
 
   function sharedSurfaceStyleHeading(): string {
-    if (isEmberLatticeStyle()) {
-      return "Ember Lattice Surface";
-    }
-    if (isCellGridPhaseEdgesStyle()) {
-      return "Phase Edges Surface";
-    }
-    if (isCellGridStyle()) {
-      return "Cell Grid Surface";
-    }
-    if (resolveActiveStyleId() === "power_vector") {
-      return "Power Vector Surface";
-    }
-    return "Perimeter Field Surface";
-  }
-
-  function sharedSurfaceStyleIntro(): string {
-    if (isEmberLatticeStyle()) {
-      return "Visible fill, border, and inward seam presentation for Ember Lattice. The contour-derived frontier technique, border-geometry path, and seam FX stay local to this mode; the shared surface shape knobs live here.";
-    }
-    if (isCellGridPhaseEdgesStyle()) {
-      return "Visible fill and border presentation for the simpler Phase Edges mode. It keeps the edge-forward conquest read without Ember Lattice's contour/frontier comparison surface.";
-    }
-    if (isCellGridStyle()) {
-      return "Visible fill and border presentation for Cell Grid. Source geometry and topology live in Territory Tuning & Constraints; cell paint and border rendering live here.";
-    }
-    return "Visible fill, border, and finish presentation for Perimeter Field. Source geometry and topology live in Territory Tuning & Constraints.";
-  }
-
-  const METABALL_FALLOFF_OPTIONS = [
-    {
-      id: "inverse-square" as const,
-      label: "Inverse sq",
-      description: "organic, lower CPU",
-    },
-    {
-      id: "gaussian" as const,
-      label: "Gaussian",
-      description: "fluid look, heavier CPU",
-    },
-    {
-      id: "smoothstep" as const,
-      label: "Smoothstep",
-      description: "crisp falloff band",
-    },
-  ];
-
-  const METABALL_FALLOFF_HINT = METABALL_FALLOFF_OPTIONS.map(
-    (o) => `${o.label}: ${o.description}.`,
-  ).join(" ");
-
-  function resolveMetaballFalloffId():
-    | "inverse-square"
-    | "gaussian"
-    | "smoothstep" {
-    const raw =
-      panel.metaballFalloff ?? GAME_CONFIG.METABALL_FALLOFF ?? "gaussian";
-    const hit = METABALL_FALLOFF_OPTIONS.find((o) => o.id === raw);
-    return hit ? hit.id : "gaussian";
-  }
-
-  function metaballFalloffSelectOptions(): { value: string; label: string }[] {
-    return METABALL_FALLOFF_OPTIONS.map((option) => ({
-      value: option.id,
-      label: option.label,
-    }));
+    if (isEmberLatticeStyle()) return "Ember Lattice Surface";
+    if (isCellGridPhaseEdgesStyle()) return "Phase Edges Surface";
+    if (isCellGridStyle()) return "Phase Field Surface";
+    return "Power Vector Surface";
   }
 
   // Bridge compatibility: writes to both GAME_CONFIG (for runtime reads) and panel state (for UI reactivity).
@@ -373,58 +269,11 @@
     topologyCommitTimeouts.set(configKey, timeoutId);
   }
 
-  const TERRITORY_KEYS = [
-    "territoryVoronoi",
-    "territoryModifiedVoronoi",
-    "territoryPowerVoronoi",
-    "territoryPVV3",
-    "territoryEngine",
-    "territoryMetaball",
-    "territoryPixel",
-    "territoryGraph",
-    "territoryContour",
-    "territoryDistanceField",
-  ] as const;
-  function selectTerritory(
-    chosen: (typeof TERRITORY_KEYS)[number],
-    enabled: boolean,
-  ) {
-    if (enabled) {
-      // Turn all off, then enable chosen exclusively
-      for (let i = 0; i < TERRITORY_KEYS.length; i++) {
-        const isChosen = TERRITORY_KEYS[i] === chosen;
-        updatePanel(TERRITORY_KEYS[i], isChosen);
-      }
-    } else {
-      // Allow turning off without forcing another on
-      updatePanel(chosen, false);
-    }
-  }
-  const MORPH_EASING_OPTIONS = [
-    { id: "linear", label: "Linear" },
-    { id: "smoothstep", label: "Smooth" },
-    { id: "easeInOutQuad", label: "Quad" },
-    { id: "easeInOutCubic", label: "Cubic" },
-  ] as const;
   /* ── V3.1 Three-Concern Architecture ── */
 
   function getRenderModeOptions() {
     return resolveTerritoryRenderModeOptions();
   }
-
-  /** Map style IDs to old boolean flag panel keys (backward compat) */
-  const STYLE_TO_BOOLEAN: Record<string, string> = {
-    vs_pvv3: "territoryPVV3",
-    power_voronoi: "territoryPowerVoronoi",
-    modified_voronoi: "territoryModifiedVoronoi",
-    distance_field: "territoryDistanceField",
-    voronoi: "territoryVoronoi",
-    metaball: "territoryMetaball",
-    pixel: "territoryPixel",
-    graph: "territoryGraph",
-    contour: "territoryContour",
-    territory_engine: "territoryEngine",
-  };
 
   const PHASE_EDGES_PRIMED_TUNABLES = [
     {
@@ -504,9 +353,9 @@
       "territoryRenderMode",
       styleId,
     );
-    if (styleId === "power_voronoi_runtime") {
-      selectFrontierTransition("pv_frontline");
-    } else if (resolveActiveFillTransitionId() === "pv_frontline") {
+    // Persisted-panel migration: pv_frontline belonged to the quarantined
+    // PVV4 runtime; no kept mode can play it.
+    if (resolveActiveFillTransitionId() === "pv_frontline") {
       selectFrontierTransition("active_front");
     }
     if (styleId === "ember_lattice") {
@@ -515,10 +364,6 @@
     setActiveRendererModule("all");
     // Reset diagnostic so it logs on next render frame
     (globalThis as any).__RENDER_MODE_LOGGED = false;
-    // Sync compatibility booleans to panel; setSetting applies GAME_CONFIG via RESOLVED map.
-    for (const [mode, panelKey] of Object.entries(STYLE_TO_BOOLEAN)) {
-      updatePanel(panelKey, styleId !== "none" && mode === styleId);
-    }
   }
 
   // Render modes surfaced as subsection chips inside the unified Render section.
@@ -526,14 +371,11 @@
   // letting the user view/tune ANY mode's controls independent of the live
   // (topbar-selected) render mode.
   const RENDER_MODE_SUBSECTION_IDS = new Set<string>([
-    "power_voronoi_runtime",
-    "perimeter_field",
-    "cell_grid",
+    "power_vector",
     "phase_edges",
     "ember_lattice",
     "phase_field",
     "grid_gradient",
-    "metaball",
   ]);
 
   function resolveActiveStyleId(): string {
@@ -547,29 +389,11 @@
     return normalizeTerritoryRenderModeId(
       panel.territoryRenderMode ??
         GAME_CONFIG.TERRITORY_RENDER_MODE ??
-        "territory_runtime",
+        "power_vector",
     ) as string;
-  }
-
-  function resolveSelectedGeometryModeId(): string {
-    if (resolveActiveStyleId() === "power_voronoi_runtime") {
-      return "resolved_power_voronoi";
-    }
-    return (
-      panel.territoryGeometryMode ??
-      GAME_CONFIG.TERRITORY_GEOMETRY_MODE ??
-      "unified_vector"
-    ) as string;
-  }
-
-  function usesResolvedPvGeometry(): boolean {
-    return resolveSelectedGeometryModeId() === "resolved_power_voronoi";
   }
 
   function resolveActiveFillTransitionId(): string {
-    if (usesResolvedPvGeometry()) {
-      return "pv_frontline";
-    }
     const raw =
       panel.territoryFillTransitionMode ??
       GAME_CONFIG.TERRITORY_FILL_TRANSITION_MODE ??
@@ -586,22 +410,6 @@
       "territoryFillTransitionMode",
       transitionId,
     );
-    if (transitionId === "pv_frontline") {
-      debouncedConfigUpdate(
-        "TERRITORY_BORDER_TRANSITION_MODE",
-        "territoryBorderTransitionMode",
-        "off",
-      );
-      debouncedConfigUpdate(
-        "TERRITORY_BORDER_TRANSITION",
-        "territoryBorderTransition",
-        "none",
-      );
-    }
-  }
-
-  function isPowerVoronoi0427Mode(): boolean {
-    return resolveActiveStyleId() === "power_voronoi_runtime";
   }
 
   function isCellGridStyle(): boolean {
@@ -636,45 +444,12 @@
     }
   });
 
-  function showsDerivedGeometryInput(): boolean {
-    return isCellGridStyle();
-  }
-  function resolveActiveTransitionModeId(): string {
-    return coerceVsTransitionModeForRenderMode(
-      resolveActiveStyleId(),
-      (panel.vsTransitionMode ?? GAME_CONFIG.VS_TRANSITION_MODE ?? null) as
-        | string
-        | null,
-    );
-  }
-
-  function showReferenceVsTransitionModeSelector(): boolean {
-    const activeStyle = resolveActiveStyleId();
-    return (
-      activeStyle === "power_voronoi" ||
-      activeStyle === "pvv2_dy4" ||
-      activeStyle === "metaball"
-    );
-  }
-
   function rendererModules(): Array<
     TerritoryModuleDef<TerritoryRendererViewId>
   > {
     const modules: Array<
       TerritoryModuleDef<TerritoryRendererViewId>
     > = [{ id: "topology", label: "Topology", icon: "circle-nodes" }];
-
-    if (resolveActiveStyleId() === "metaball") {
-      modules.unshift({ id: "metaball", label: "Metaball", icon: "arrows-to-circle" });
-    }
-
-    if (resolveActiveStyleId() === "perimeter_field") {
-      modules.unshift({
-        id: "perimeter-field",
-        label: "Perimeter Field",
-        icon: "border-all",
-      });
-    }
 
     if (isCellGridStyle()) {
       modules.unshift({
@@ -690,14 +465,6 @@
         label: "Gradient",
         icon: "GG",
       });
-    }
-
-    if (
-      resolveActiveStyleId() === "territory_engine" ||
-      resolveActiveStyleId() === "territory_runtime" ||
-      resolveActiveStyleId() === "power_voronoi_runtime"
-    ) {
-      modules.push({ id: "surface", label: "Surface", icon: "draw-polygon" });
     }
 
     if (view === "tuning") {
@@ -751,27 +518,6 @@
           </div>
         {/if}
 
-        {#if !hideRenderModeSelector && isTerritoryRenderModeUiHidden(resolveActiveStyleId())}
-          <div class="axis-note axis-note--warning">
-            <strong>Deprecated mode active:</strong>
-            <code>{resolveActiveStyleId()}</code>
-            — hidden from the list above. Prefer PVV3 or PVV2 for maintained
-            seams.
-            <span class="axis-note__actions">
-              <PaxHudButton
-                label="Switch to PVV3"
-                size="sm"
-                onclick={() => selectTerritoryStyle("vs_pvv3")}
-              />
-              <PaxHudButton
-                label="Switch to PVV2"
-                size="sm"
-                onclick={() => selectTerritoryStyle("power_voronoi")}
-              />
-            </span>
-          </div>
-        {/if}
-
         {#if $territoryRenderStatus.lastRenderFailure}
           <div class="axis-note axis-note--warning">
             <strong>Render failure:</strong>
@@ -779,42 +525,6 @@
           </div>
         {/if}
 
-        {#if showReferenceVsTransitionModeSelector()}
-          <div class="axis-row territory-axis territory-axis--transition">
-            <span class="axis-label">Transition</span>
-            <div class="territory-axis__stack">
-              <PaxHudSelect
-                value={resolveActiveTransitionModeId()}
-                options={transitionSelectOptions()}
-                ariaLabel="Territory transition mode"
-                hint="Conquest transition mode for the active render family."
-                onValueChange={(value) => {
-                  debouncedConfigUpdate(
-                    "VS_TRANSITION_MODE",
-                    "vsTransitionMode",
-                    value,
-                  );
-                }}
-              />
-            </div>
-          </div>
-          <TerritoryTransitionTuning
-            {panel}
-            {updatePanel}
-            {animLockModes}
-            {animLockRatios}
-            {getAnimValue}
-            {setAnimValue}
-            {formatAnimValue}
-            {pinValueToTickDuration}
-            {lockRatioToTick}
-            {lockRatioToAnimSpeed}
-            activeRenderMode={resolveActiveStyleId()}
-            helperText="Timing and influence tuning for the active conquest transition mode."
-          />
-        {/if}
-
-        {#if !showReferenceVsTransitionModeSelector()}
           <h5 class="territory-inline-heading">Conquest Transition</h5>
           <div class="var-row">
             <PaxSettingsSegmentedRow
@@ -899,272 +609,24 @@
                   value,
                 )} />
           </div>
-        {/if}
       </div>
 
   </div>
 </div>
 {/if}
 
-{#if showTuningView || (showStylesView && resolveActiveStyleId() === "metaball")}
+{#if showTuningView}
 <div class="territory-section-shell territory-section-shell--renderer">
   <div class="territory-section-head">
     <h4 class="sub-heading territory-section-title">
-      {showStylesView && resolveActiveStyleId() === "metaball"
-        ? "Metaball"
-        : showStylesView
-          ? "Render Families"
-          : "Frontier Topology"}
+      {showStylesView ? "Render Families" : "Frontier Topology"}
     </h4>
   </div>
   <div class="territory-module-grid">
 
-{#if showStylesView && resolveActiveStyleId() !== "metaball" && rendererModules().length === 0}
+{#if showStylesView && rendererModules().length === 0}
   <div class="axis-note">
     This territory mode does not expose dedicated render-family controls.
-  </div>
-{/if}
-
-{#if showStylesView && resolveActiveStyleId() === "metaball"}
-  <div class="engine-control-group territory-module-card">
-    <div class="territory-card__header">
-      <h4 class="axis-card-title">Metaball (CPU grid)</h4>
-    </div>
-    <PaxSettingsRangeRow
-      label="Cell size"
-      value={panel.metaballCellSize ?? GAME_CONFIG.METABALL_CELL_SIZE ?? 10}
-      min={4}
-      max={32}
-      step={1}
-      suffix="px"
-      settingConfigKey="METABALL_CELL_SIZE"
-      onInput={(value) =>
-        debouncedConfigUpdate("METABALL_CELL_SIZE", "metaballCellSize", value)} />
-    <PaxSettingsRangeRow
-      label="Influence radius"
-      value={panel.metaballInfluenceRadius ??
-        GAME_CONFIG.METABALL_INFLUENCE_RADIUS ??
-        90}
-      min={0}
-      max={220}
-      step={5}
-      suffix="px"
-      settingConfigKey="METABALL_INFLUENCE_RADIUS"
-      onInput={(value) =>
-        debouncedConfigUpdate(
-          "METABALL_INFLUENCE_RADIUS",
-          "metaballInfluenceRadius",
-          value,
-        )} />
-    <PaxSettingsSegmentedRow
-      label="Influence falloff"
-      hint={METABALL_FALLOFF_HINT}
-      settingConfigKey="METABALL_FALLOFF"
-      value={resolveMetaballFalloffId()}
-      options={metaballFalloffSelectOptions()}
-      onValueChange={(value) =>
-        debouncedConfigUpdate("METABALL_FALLOFF", "metaballFalloff", value)} />
-    <div
-      class="var-row territory-range-note"
-      title="Per cell: dominance = winner influence / (winner + runner-up). Values up to 0.50 disable contested-cell filtering; higher values hide soft bands between empires.">
-      <PaxSettingsRangeRow
-        label="Min dominance"
-        value={Math.max(
-          0,
-          Math.min(
-            1,
-            panel.metaballThreshold ?? GAME_CONFIG.METABALL_THRESHOLD ?? 0.5,
-          ),
-        )}
-        min={0.5}
-        max={1}
-        step={0.01}
-        output={(() => {
-          const v =
-            panel.metaballThreshold ?? GAME_CONFIG.METABALL_THRESHOLD ?? 0.5;
-          const clamped = Math.max(0, Math.min(1, v));
-          return `${clamped.toFixed(2)}${clamped <= 0.5 ? " off" : ""}`;
-        })()}
-        settingConfigKey="METABALL_THRESHOLD"
-        onInput={(value) =>
-          debouncedConfigUpdate(
-            "METABALL_THRESHOLD",
-            "metaballThreshold",
-            Math.max(0, Math.min(1, value)),
-          )} />
-    </div>
-    <PaxSettingsToggleRow
-      label="Fill follows geometry"
-      checked={panel.metaballFillFollowsGeom ??
-        GAME_CONFIG.METABALL_FILL_FOLLOWS_GEOM ??
-        false}
-      meta={(panel.metaballFillFollowsGeom ??
-        GAME_CONFIG.METABALL_FILL_FOLLOWS_GEOM ??
-        false)
-        ? "On"
-        : "Off"}
-      settingConfigKey="METABALL_FILL_FOLLOWS_GEOM"
-      onChange={(value) =>
-        debouncedConfigUpdate(
-          "METABALL_FILL_FOLLOWS_GEOM",
-          "metaballFillFollowsGeom",
-          value,
-        )} />
-    <PaxSettingsRangeRow
-      label="Strength multiplier"
-      value={panel.metaballStrengthMult ??
-        GAME_CONFIG.METABALL_STRENGTH_MULT ??
-        1}
-      min={0.5}
-      max={8}
-      step={0.1}
-      format="fixed2"
-      settingConfigKey="METABALL_STRENGTH_MULT"
-      onInput={(value) =>
-        debouncedConfigUpdate(
-          "METABALL_STRENGTH_MULT",
-          "metaballStrengthMult",
-          value,
-        )} />
-    <PaxSettingsRangeRow
-      label="Coverage padding"
-      value={panel.metaballCoverage ?? GAME_CONFIG.METABALL_COVERAGE ?? 0}
-      min={0}
-      max={0.45}
-      step={0.05}
-      format="fixed2"
-      settingConfigKey="METABALL_COVERAGE"
-      onInput={(value) =>
-        debouncedConfigUpdate("METABALL_COVERAGE", "metaballCoverage", value)} />
-    <PaxSettingsRangeRow
-      label="Faction blend sharpness"
-      value={panel.metaballSharpness ??
-        GAME_CONFIG.METABALL_BLEND_SHARPNESS ??
-        3}
-      min={1}
-      max={40}
-      step={0.5}
-      format="fixed1"
-      settingConfigKey="METABALL_BLEND_SHARPNESS"
-      onInput={(value) =>
-        debouncedConfigUpdate(
-          "METABALL_BLEND_SHARPNESS",
-          "metaballSharpness",
-          value,
-        )} />
-
-    <TerritorySurfaceStyleTuning
-      {panel}
-      onUpdate={debouncedConfigUpdate}
-      sectionHeading="Style"
-      fillHelp="Hue is fixed per player from the palette; adjust saturation, lightness, alpha, or disable fill entirely."
-      borderHelp="Adjust shared border width, saturation, lightness, alpha, or disable borders entirely." />
-
-    <h5 class="territory-inline-heading">Combat &amp; Fleet Pressure</h5>
-    <div
-      class="var-row territory-range-note"
-      title="Max distance in pixels from a border line to a hot star for combat boost. 0 = use Metaball influence radius (same tuning as the field). Raise this if boosts never trigger along fronts that sit far from star centers.">
-      <PaxSettingsRangeRow
-        label="Combat border proximity"
-        value={panel.metaballCombatBorderProximityPx ??
-          GAME_CONFIG.METABALL_COMBAT_BORDER_PROXIMITY_PX ??
-          0}
-        min={0}
-        max={600}
-        step={10}
-        output={(() => {
-          const value =
-            panel.metaballCombatBorderProximityPx ??
-            GAME_CONFIG.METABALL_COMBAT_BORDER_PROXIMITY_PX ??
-            0;
-          return value <= 0
-            ? `0 (uses ${GAME_CONFIG.METABALL_INFLUENCE_RADIUS ?? 0}px)`
-            : `${Math.round(value)}px`;
-        })()}
-        settingConfigKey="METABALL_COMBAT_BORDER_PROXIMITY_PX"
-        onInput={(value) =>
-          debouncedConfigUpdate(
-            "METABALL_COMBAT_BORDER_PROXIMITY_PX",
-            "metaballCombatBorderProximityPx",
-            value,
-          )} />
-    </div>
-    <div
-      class="var-row territory-range-note"
-      title="If currentTick − lastCombatTick (or lastAttackTick) is under this window for a star on one side of a border segment, that segment gets the combat width/alpha boost—only near that star, not for the whole faction.">
-      <PaxSettingsRangeRow
-        label="Combat recency"
-        value={panel.metaballCombatBorderTicks ??
-          GAME_CONFIG.METABALL_COMBAT_BORDER_TICKS ??
-          0}
-        min={0}
-        max={30}
-        step={1}
-        suffix=" ticks"
-        settingConfigKey="METABALL_COMBAT_BORDER_TICKS"
-        onInput={(value) =>
-          debouncedConfigUpdate(
-            "METABALL_COMBAT_BORDER_TICKS",
-            "metaballCombatBorderTicks",
-            value,
-          )} />
-    </div>
-    <div class="var-row territory-range-note">
-      <PaxSettingsRangeRow
-        label="Combat width boost"
-        value={panel.metaballCombatBorderWidthBoost ??
-          GAME_CONFIG.METABALL_COMBAT_BORDER_WIDTH_BOOST ??
-          0}
-        min={0}
-        max={6}
-        step={0.25}
-        format="fixed2"
-        settingConfigKey="METABALL_COMBAT_BORDER_WIDTH_BOOST"
-        onInput={(value) =>
-          debouncedConfigUpdate(
-            "METABALL_COMBAT_BORDER_WIDTH_BOOST",
-            "metaballCombatBorderWidthBoost",
-            value,
-          )} />
-    </div>
-    <div class="var-row territory-range-note">
-      <PaxSettingsRangeRow
-        label="Combat alpha boost"
-        value={panel.metaballCombatBorderAlphaBoost ??
-          GAME_CONFIG.METABALL_COMBAT_BORDER_ALPHA_BOOST ??
-          0}
-        min={0}
-        max={1}
-        step={0.05}
-        format="fixed2"
-        settingConfigKey="METABALL_COMBAT_BORDER_ALPHA_BOOST"
-        onInput={(value) =>
-          debouncedConfigUpdate(
-            "METABALL_COMBAT_BORDER_ALPHA_BOOST",
-            "metaballCombatBorderAlphaBoost",
-            value,
-          )} />
-    </div>
-    <div
-      class="var-row territory-range-note"
-      title="Scales border emphasis by fleet imbalance across the edge (proxy until conquest metrics exist).">
-      <PaxSettingsRangeRow
-        label="Fleet pressure on borders"
-        value={panel.metaballBorderForceRatio ??
-          GAME_CONFIG.METABALL_BORDER_FORCE_RATIO ??
-          0}
-        min={0}
-        max={2}
-        step={0.05}
-        format="fixed2"
-        settingConfigKey="METABALL_BORDER_FORCE_RATIO"
-        onInput={(value) =>
-          debouncedConfigUpdate(
-            "METABALL_BORDER_FORCE_RATIO",
-            "metaballBorderForceRatio",
-            value,
-          )} />
-    </div>
   </div>
 {/if}
 
@@ -1513,69 +975,6 @@
 
 <!-- Active Layers toggles removed — V3 architecture uses Render Mode dropdown above -->
 
-{#if showStylesView &&
-  (resolveActiveStyleId() === "territory_engine" ||
-    resolveActiveStyleId() === "territory_runtime" ||
-    resolveActiveStyleId() === "power_voronoi_runtime")}
-  <div class="engine-control-group territory-module-card">
-    <div class="territory-card__header">
-        <h4 class="axis-card-title">
-          {resolveActiveStyleId() === "territory_engine"
-          ? "Engine Surface"
-          : resolveActiveStyleId() === "power_voronoi_runtime"
-            ? "Power Voronoi 0427 Surface"
-            : "Layered Runtime Surface"}
-      </h4>
-    </div>
-
-    {#if resolveActiveStyleId() === "territory_engine"}
-      <h5 class="territory-inline-heading">Shape &amp; Motion</h5>
-
-      <div class="var-row territory-range-note">
-        <PaxSettingsRangeRow
-          label="Morph Control Points"
-          value={panel.territoryMorphControlPoints ??
-            GAME_CONFIG.TERRITORY_MORPH_CONTROL_POINTS}
-          min={5}
-          max={300}
-          step={1}
-          settingConfigKey="TERRITORY_MORPH_CONTROL_POINTS"
-          onInput={(value) => updatePanel("territoryMorphControlPoints", value)} />
-      </div>
-      <div class="var-row">
-        <div class="row-top">
-          <span class="var-name">Morph Easing</span>
-        </div>
-        <PaxHudSegmentedControl
-          value={panel.dfMorphEasing ?? GAME_CONFIG.DF_MORPH_EASING ?? "linear"}
-          options={morphEasingOptions()}
-          ariaLabel="Morph easing"
-          onValueChange={(value) => updatePanel("dfMorphEasing", value)} />
-      </div>
-      <div class="var-row">
-        <div class="row-top">
-          <span class="var-name">Boundary Mode</span><span class="val"
-            >{panel.territoryBoundaryMode ??
-              GAME_CONFIG.TERRITORY_BOUNDARY_MODE ??
-              "smooth"}</span>
-        </div>
-        <PaxHudSegmentedControl
-          value={panel.territoryBoundaryMode ??
-            GAME_CONFIG.TERRITORY_BOUNDARY_MODE ??
-            "smooth"}
-          options={boundaryModeOptions()}
-          ariaLabel="Territory boundary mode"
-          onValueChange={(value) =>
-            debouncedConfigUpdate(
-              "TERRITORY_BOUNDARY_MODE",
-              "territoryBoundaryMode",
-              value,
-            )} />
-      </div>
-    {/if}
-  </div>
-{/if}
-
 <!-- Per-module style cards (Perimeter / Cell Grid / Grid Gradient) removed:
      they only rendered in the unused view="all" path and exactly duplicated the
      single style-card system in block D below (supports* cards). Block D is the
@@ -1591,160 +990,6 @@
       This render mode does not expose a separate style surface.
     </div>
   {:else}
-    {#if supportsRuntimeSurfaceStyleCard() && resolvedStyleSubsection() === "finish"}
-      <div class="axis-note">
-        Finish controls are not exposed for this runtime surface mode. Use
-        `Fill` or `Border`, or switch to a shared-surface family such as
-        Cell Grid or Perimeter Field for finish controls.
-      </div>
-    {/if}
-
-    {#if supportsRuntimeSurfaceStyleCard() && showStyleSection("fill")}
-      <div class="engine-control-group territory-module-card">
-        <div class="territory-card__header">
-          <h4 class="axis-card-title">
-            {resolveActiveStyleId() === "territory_engine"
-              ? "Engine Surface"
-              : resolveActiveStyleId() === "power_voronoi_runtime"
-                ? "Power Voronoi 0427 Surface"
-                : "Layered Runtime Surface"}
-          </h4>
-        </div>
-
-        <h5 class="territory-inline-heading">Territory Fill</h5>
-
-        <div class="var-row">
-          <PaxSettingsRangeRow
-            label="Fill Alpha"
-            value={panel.voronoiAlpha ?? GAME_CONFIG.VORONOI_ALPHA}
-            min={0}
-            max={1}
-            step={0.01}
-            format="fixed2"
-            settingConfigKey="VORONOI_ALPHA"
-            onInput={(value) =>
-              debouncedConfigUpdate("VORONOI_ALPHA", "voronoiAlpha", value)} />
-        </div>
-
-        <div class="var-row">
-          <div class="row-top">
-            <PaxSettingsToggleRow
-              label="Neutral Transparent"
-              checked={panel.neutralTerritoryTransparent ??
-                GAME_CONFIG.NEUTRAL_TERRITORY_TRANSPARENT}
-              settingConfigKey="NEUTRAL_TERRITORY_TRANSPARENT"
-              onChange={(value) =>
-                debouncedConfigUpdate(
-                  "NEUTRAL_TERRITORY_TRANSPARENT",
-                  "neutralTerritoryTransparent",
-                  value,
-                )} />
-          </div>
-        </div>
-
-        <div class="var-row">
-          <PaxSettingsRangeRow
-            label="Saturation"
-            value={panel.voronoiSaturation ?? GAME_CONFIG.VORONOI_SATURATION}
-            min={0}
-            max={2}
-            step={0.05}
-            format="fixed2"
-            settingConfigKey="VORONOI_SATURATION"
-            onInput={(value) =>
-              debouncedConfigUpdate(
-                "VORONOI_SATURATION",
-                "voronoiSaturation",
-                value,
-              )} />
-        </div>
-
-        <div class="var-row">
-          <PaxSettingsRangeRow
-            label="Lightness"
-            value={panel.voronoiLightness ?? GAME_CONFIG.VORONOI_LIGHTNESS}
-            min={0}
-            max={2}
-            step={0.05}
-            format="fixed2"
-            settingConfigKey="VORONOI_LIGHTNESS"
-            onInput={(value) =>
-              debouncedConfigUpdate(
-                "VORONOI_LIGHTNESS",
-                "voronoiLightness",
-                value,
-              )} />
-        </div>
-      </div>
-    {/if}
-
-    {#if supportsRuntimeSurfaceStyleCard() && showStyleSection("border")}
-      <div class="engine-control-group territory-module-card">
-        <div class="territory-card__header">
-          <h4 class="axis-card-title">
-            {resolveActiveStyleId() === "territory_engine"
-              ? "Engine Surface"
-              : resolveActiveStyleId() === "power_voronoi_runtime"
-                ? "Power Voronoi 0427 Surface"
-                : "Layered Runtime Surface"}
-          </h4>
-        </div>
-
-        <h5 class="territory-inline-heading">Territory Border</h5>
-
-        <div class="var-row">
-          <PaxSettingsRangeRow
-            label="Border Width"
-            value={panel.voronoiBorderWidth ?? GAME_CONFIG.VORONOI_BORDER_WIDTH}
-            min={0}
-            max={30}
-            step={0.5}
-            format="fixed1"
-            suffix="px"
-            settingConfigKey="VORONOI_BORDER_WIDTH"
-            onInput={(value) =>
-              debouncedConfigUpdate(
-                "VORONOI_BORDER_WIDTH",
-                "voronoiBorderWidth",
-                value,
-              )} />
-        </div>
-
-        <div class="var-row">
-          <PaxSettingsRangeRow
-            label="Border Alpha"
-            value={panel.voronoiBorderAlpha ?? GAME_CONFIG.VORONOI_BORDER_ALPHA}
-            min={0}
-            max={1}
-            step={0.05}
-            format="fixed2"
-            settingConfigKey="VORONOI_BORDER_ALPHA"
-            onInput={(value) =>
-              debouncedConfigUpdate(
-                "VORONOI_BORDER_ALPHA",
-                "voronoiBorderAlpha",
-                value,
-              )} />
-        </div>
-
-        <div class="var-row">
-          <PaxSettingsRangeRow
-            label="Geometry Smooth Passes"
-            value={panel.voronoiBorderSmooth ?? GAME_CONFIG.VORONOI_BORDER_SMOOTH}
-            min={0}
-            max={5}
-            step={1}
-            settingConfigKey="VORONOI_BORDER_SMOOTH"
-            onInput={(value) =>
-              debouncedConfigUpdate(
-                "VORONOI_BORDER_SMOOTH",
-                "voronoiBorderSmooth",
-                value,
-              )} />
-        </div>
-      </div>
-    {/if}
-
     {#if supportsGridGradientStyleCard() && !showTuningView}
       <div class="engine-control-group territory-module-card">
         <div class="territory-card__header">
@@ -1767,34 +1012,27 @@
           onUpdate={debouncedConfigUpdate}
           sectionHeading={null}
           activeSection={resolvedStyleSubsection()}
-          showFinishSection={false}
           styleFamily={isEmberLatticeStyle()
             ? "ember_lattice"
             : isCellGridPhaseEdgesStyle()
               ? "phase_edges"
               : isCellGridStyle()
                 ? "cell_grid"
-                : resolveActiveStyleId() === "power_vector"
-                  ? "power_vector"
-                  : "perimeter_field"}
+                : "power_vector"}
           fillHelp={isCellGridStyle()
             ? isEmberLatticeStyle()
               ? "Fill visibility, color energy, cell paint, and boundary inset for the Ember Lattice surface."
               : isCellGridPhaseEdgesStyle()
                 ? "Fill visibility, color energy, cell paint, and boundary inset for the Phase Edges surface."
-                : "Fill visibility, color energy, cell paint, and boundary inset for the Cell Grid surface."
-            : resolveActiveStyleId() === "power_vector"
-              ? "Fill visibility, color energy, and alpha for the Power Vector surface (hue stays player-owned)."
-              : "Fill visibility, color energy, and perimeter placement for the Perimeter Field surface."}
+                : "Fill visibility, color energy, cell paint, and boundary inset for the Phase Field surface."
+            : "Fill visibility, color energy, and alpha for the Power Vector surface (hue stays player-owned)."}
           borderHelp={isCellGridStyle()
             ? isEmberLatticeStyle()
               ? "Border visibility, width, color energy, geometry family, contour seam, smoothing, and trim for the Ember Lattice surface."
               : isCellGridPhaseEdgesStyle()
                 ? "Border visibility, width, color energy, and paint strategy for the Phase Edges surface."
-                : "Border visibility, width, color energy, and paint strategy for the Cell Grid surface."
-            : resolveActiveStyleId() === "power_vector"
-              ? "Border visibility, width, color energy, alpha, and rounding (Chaikin smooth passes) for the Power Vector surface."
-              : "Border visibility, width, color energy, and finish for the Perimeter Field surface."} />
+                : "Border visibility, width, color energy, and paint strategy for the Phase Field surface."
+            : "Border visibility, width, color energy, alpha, and rounding (Chaikin smooth passes) for the Power Vector surface."} />
       </div>
     {/if}
   {/if}
@@ -1890,33 +1128,12 @@
     border-bottom: none;
     padding-bottom: 0;
   }
-  .axis-label {
-    flex-shrink: 0;
-    width: 80px;
-    font-size: var(--pax-type-3xs);
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-    color: var(--accent, var(--pax-ui-text-dim));
-    padding-top: var(--pax-space-1);
-    font-weight: var(--pax-weight-semibold);
-  }
   .territory-axis {
     align-items: stretch;
   }
   .territory-axis--render-mode {
     --accent: var(--pax-color-player-purple);
     --accent-bg: color-mix(in srgb, var(--pax-color-player-purple) 15%, transparent);
-  }
-  .territory-axis--transition {
-    --accent: var(--pax-ui-accent);
-    --accent-bg: color-mix(in srgb, var(--pax-ui-accent) 15%, transparent);
-  }
-  .territory-axis__stack {
-    min-width: 0;
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    gap: var(--pax-gap-xs);
   }
   .territory-indent {
     margin-left: var(--pax-gap-md);
@@ -1926,12 +1143,6 @@
     padding: var(--pax-space-2) var(--pax-gap-sm);
     border-left: 3px solid var(--pax-ui-warning);
     background: color-mix(in srgb, var(--pax-ui-warning) 8%, transparent);
-  }
-  .axis-note__actions {
-    display: inline-flex;
-    flex-wrap: wrap;
-    gap: var(--pax-gap-xs);
-    margin-left: var(--pax-space-2);
   }
   .axis-note__danger {
     color: var(--pax-ui-danger);

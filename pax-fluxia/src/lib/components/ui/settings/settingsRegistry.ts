@@ -1,6 +1,14 @@
 import type { SettingScope } from "./settingMetadata";
 import type { SettingsTier } from "../settingsDefs";
 import type { Audience } from "$lib/shell/audience";
+import { resolveTerritoryRenderModeOptions } from "$lib/territory/ui/territoryRenderModeCatalog";
+
+const TERRITORY_STYLE_SUBSECTION_ICONS: Readonly<Record<string, string>> = {
+    phase_edges: "phase-edges",
+    ember_lattice: "ember-lattice",
+    phase_field: "phase-field",
+    grid_gradient: "territory-styles",
+};
 
 export type SettingsSectionId =
     | "players"
@@ -152,16 +160,17 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         tier: "basic",
         audience: "advanced",
         scope: "territory",
-        subsections: [
-            { id: "power_voronoi_runtime", label: "PVV4", icon: "render" },
-            { id: "perimeter_field", label: "Perimeter", icon: "render" },
-            { id: "metaball", label: "Metaball", icon: "render" },
-            { id: "cell_grid", label: "Cell Grid", icon: "topology" },
-            { id: "phase_edges", label: "Phase Edges", icon: "phase-edges" },
-            { id: "ember_lattice", label: "Ember", icon: "ember-lattice" },
-            { id: "phase_field", label: "Phase Field", icon: "phase-field" },
-            { id: "grid_gradient", label: "Grid Gradient", icon: "territory-styles" },
-        ],
+        // One chip per selectable render mode, derived from the catalog (the
+        // same source the topbar chips use) so this list cannot drift from the
+        // keep-set. Off is excluded — it has no style surface to tune. Icons
+        // are registry-local seasoning with a safe default.
+        subsections: resolveTerritoryRenderModeOptions()
+            .filter((option) => option.selectable && option.id !== "none")
+            .map((option) => ({
+                id: option.id,
+                label: option.label,
+                icon: TERRITORY_STYLE_SUBSECTION_ICONS[option.id] ?? "render",
+            })),
     },
     {
         id: "fleet_star_visuals",

@@ -1163,24 +1163,14 @@ function recalcAnimLocksOnTickChange(newTickMs: number) {
     const SEARCH_TARGET_SELECTOR =
         ".var-name, .toggle-label, .offset-label, .capture-label, .slider-label, .log-label, [data-setting-config-key]";
 
-    function resolveSectionSubsections(
-        section: SettingsSectionDefinition,
-    ): SubsectionChip[] {
-        const subsections = [...((section.subsections ?? []) as SubsectionChip[])];
-        if (section.id !== "territory_styles") return subsections;
-        // Finish (GPU Blur / Blur-affects-borders / Border Chaikin) writes
-        // METABALL_* keys read only by the metaball renderer — dead for the
-        // cell-grid / perimeter / runtime / grid-gradient families. The styles
-        // view (block D) exposes no Finish surface for any of those, so the chip
-        // would always be empty. Drop it from the stable Styles subsection set.
-        return subsections.filter((subsection) => subsection.id !== "finish");
-    }
-
+    // Subsection chips come straight from the registry (territory_styles'
+    // are catalog-derived there); the old Finish-chip filter died with the
+    // metaball quarantine.
     let sectionSubsections = $derived.by(() =>
         Object.fromEntries(
             sections.map((section) => [
                 section.id,
-                resolveSectionSubsections(section),
+                [...((section.subsections ?? []) as SubsectionChip[])],
             ]),
         ) as Record<string, SubsectionChip[]>,
     );

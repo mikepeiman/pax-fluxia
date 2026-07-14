@@ -331,7 +331,6 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         },
         'Resample Points': { key: 'BORDER_TRANS_RESAMPLE_N' },
         'Back Overshoot': { key: 'BORDER_TRANS_OVERSHOOT' },
-        'Burst Boundary Basis': { key: 'METABALL_BURST_BOUNDARY_BASIS' },
         // 'Geometry Source' selector RETIRED (2026-07-08): unified on PowerCore.
         'Minimum Star Margin': { key: 'MODIFIED_VORONOI_STAR_MARGIN' },
   'MSR as star power': { key: 'TERRITORY_MSR_STAR_BIAS' },
@@ -573,25 +572,6 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Use dedicated lane margin': { key: 'MAPGEN_LANE_MARGIN_ENABLED' },
         'Use lane margin': { key: 'MAPGEN_LANE_MARGIN_ENABLED' },
         'Lane margin (mapgen)': { key: 'MAPGEN_LANE_MARGIN_PX' },
-        'Cell size (px)': { key: 'METABALL_CELL_SIZE' },
-        'Influence radius': { key: 'METABALL_INFLUENCE_RADIUS' },
-        'Influence falloff': { key: 'METABALL_FALLOFF' },
-        'Strength multiplier': { key: 'METABALL_STRENGTH_MULT' },
-        'GPU blur': { key: 'METABALL_BLUR' },
-        'Blur affects borders': { key: 'METABALL_BLUR_AFFECTS_BORDERS' },
-        'Faction blend sharpness': { key: 'METABALL_BLEND_SHARPNESS' },
-        'Fill follows geometry ownership': {
-            key: 'METABALL_FILL_FOLLOWS_GEOM',
-        },
-        'Border Chaikin passes': { key: 'METABALL_CHAIKIN_PASSES' },
-        'Combat recency (ticks)': { key: 'METABALL_COMBAT_BORDER_TICKS' },
-        'Combat border proximity (px)': {
-            key: 'METABALL_COMBAT_BORDER_PROXIMITY_PX',
-        },
-        'Combat width boost': { key: 'METABALL_COMBAT_BORDER_WIDTH_BOOST' },
-        'Combat alpha boost': { key: 'METABALL_COMBAT_BORDER_ALPHA_BOOST' },
-        'Fleet pressure on borders': { key: 'METABALL_BORDER_FORCE_RATIO' },
-        'Coverage padding': { key: 'METABALL_COVERAGE' },
         'CX Corridors': { key: 'MODIFIED_VORONOI_CORRIDOR_ENABLED' },
         'Contest midpoint pair': {
             key: 'TERRITORY_CX_CONTEST_MIDPOINT_VSTARS',

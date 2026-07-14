@@ -13,7 +13,7 @@
     } from "$lib/design-system";
     import TerritorySlaWidget from "./TerritorySlaWidget.svelte";
 
-    type StyleSectionId = "fill" | "border" | "finish";
+    type StyleSectionId = "fill" | "border";
     type TerritoryStyleFamily =
         | "shared"
         | "cell_grid"
@@ -33,8 +33,7 @@
         intro?: string;
         fillHelp?: string;
         borderHelp?: string;
-        activeSection?: "all" | "none" | StyleSectionId;
-        showFinishSection?: boolean;
+        activeSection?: "all" | "none" | StyleSectionId | "finish";
         styleFamily?: TerritoryStyleFamily;
     }
 
@@ -69,7 +68,6 @@
         fillHelp = "Hue stays player-owned; adjust saturation, lightness, alpha, or disable fill entirely.",
         borderHelp = "Shared border surface controls for width, saturation, lightness, alpha, or disable borders entirely.",
         activeSection = "all",
-        showFinishSection = true,
         styleFamily = "shared",
     }: Props = $props();
 
@@ -104,7 +102,6 @@
     }
 
     function showSection(sectionId: StyleSectionId): boolean {
-        if (sectionId === "finish" && !showFinishSection) return false;
         return activeSection === "all" || activeSection === sectionId;
     }
 
@@ -703,71 +700,10 @@
         </section>
     {/if}
 
-    {#if showSection("finish")}
-        <section data-subsection-id="finish">
-            <div class="sub-heading territory-style-finish-heading">
-                Finish
-                <PaxInfoHint text="Shared post and edge finish for the visible territory surface. These affect presentation, not ownership geometry." />
-            </div>
-
-            <PaxSettingsRangeRow
-                label="GPU Blur"
-                value={numVal("metaballBlur", "METABALL_BLUR", 0)}
-                min={0}
-                max={16}
-                step={1}
-                settingConfigKey="METABALL_BLUR"
-                onInput={(value) => {
-                    onUpdate("METABALL_BLUR", "metaballBlur", value);
-                }}
-            />
-
-            <PaxSettingsToggleRow
-                label="Blur affects borders"
-                checked={boolVal(
-                    "metaballBlurAffectsBorders",
-                    "METABALL_BLUR_AFFECTS_BORDERS",
-                    false,
-                )}
-                description="When blur is above 0, apply the blur pass to fill and border strokes together."
-                meta={boolVal(
-                    "metaballBlurAffectsBorders",
-                    "METABALL_BLUR_AFFECTS_BORDERS",
-                    false,
-                )
-                    ? "On"
-                    : "Off"}
-                settingConfigKey="METABALL_BLUR_AFFECTS_BORDERS"
-                onChange={(value) => {
-                    onUpdate(
-                        "METABALL_BLUR_AFFECTS_BORDERS",
-                        "metaballBlurAffectsBorders",
-                        value,
-                    );
-                }}
-            />
-
-            <PaxSettingsRangeRow
-                label="Border Chaikin Passes"
-                value={numVal(
-                    "metaballChaikinPasses",
-                    "METABALL_CHAIKIN_PASSES",
-                    0,
-                )}
-                min={0}
-                max={4}
-                step={1}
-                settingConfigKey="METABALL_CHAIKIN_PASSES"
-                onInput={(value) => {
-                    onUpdate(
-                        "METABALL_CHAIKIN_PASSES",
-                        "metaballChaikinPasses",
-                        value,
-                    );
-                }}
-            />
-        </section>
-    {/if}
+    <!-- The Finish section (GPU blur / blur-affects-borders / border Chaikin)
+         was removed with the metaball quarantine: its METABALL_* keys had no
+         live renderer, and every call site already passed showFinishSection
+         false. -->
 </div>
 
 <style>
@@ -778,9 +714,6 @@
         gap: var(--pax-gap-xs);
     }
 
-    .territory-style-finish-heading {
-        margin-top: var(--pax-gap-sm);
-    }
 
     .territory-style-subheading {
         margin-top: var(--pax-space-3);
