@@ -809,20 +809,9 @@ export const TIER_LABELS: Record<SettingsTier, { label: string; icon: string; co
     developer: { label: 'Developer', icon: 'D', color: '#f87171' },
 };
 
-// ── Markdown Export Sections ────────────────────────────────────────────────
-
-export const MD_EXPORT_SECTIONS: Record<string, string[]> = {
-    Combat: [
-        'AGGRESSOR_ADVANTAGE', 'GLOBAL_DAMAGE_MODIFIER', 'LETHALITY', 'FORCE_RATIO_EFFECT',
-        'CONQUEST_THRESHOLD', 'CONQUEST_TRANSFER_PERCENTAGE',
-    ],
-    Production: ['BASE_PRODUCTION', 'REPAIR_RATE', 'MIN_REPAIR', 'REPAIR_COMBAT_PENALTY', 'REPAIR_SUPPRESS_ATTACKER', 'REPAIR_SUPPRESS_DEFENDER'],
-    Transfer: ['TRANSFER_RATE', 'MIN_SHIPS_PER_TRANSFER', 'MAX_SHIPS_PER_TRANSFER'],
-    AI: [
-        'AI_MUST_ATTACK_RATIO', 'AI_ATTACK_UPPER_BOUNDS', 'AI_ATTACK_STICKINESS',
-        'AI_EVALUATION_FREQUENCY', 'AI_TACTICAL_AGGRESSION', 'AI_RANDOM_AGGRESSION',
-    ],
-};
+// The markdown-export section grouping lives in configTransfer.ts
+// (CONFIG_EXPORT_SECTIONS) — the copy here had drifted from the one that
+// actually ran and was imported without being used.
 
 // ── Format Helpers ──────────────────────────────────────────────────────────
 

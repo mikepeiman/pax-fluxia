@@ -55,6 +55,10 @@
         recalcOnAnimSpeedChange,
         type AnimLockTransition,
     } from "./animLockMath";
+    import {
+        buildConfigMarkdown,
+        parseConfigImport,
+    } from "./configTransfer";
     import ControlsSectionTiming from "./settings/ControlsSection-Timing.svelte";
     import ControlsSectionBattle from "./settings/ControlsSection-Battle.svelte";
     import ControlsSectionEconomy from "./settings/ControlsSection-Economy.svelte";
@@ -76,7 +80,6 @@
         CONFIG_TO_PANEL_KEY,
         type AnimSliderDef,
         type SettingsTier,
-        MD_EXPORT_SECTIONS,
         formatAnimValue,
     } from "./settingsDefs";
     import {
@@ -405,74 +408,7 @@
     let configStatusColor = $state("#4ade80");
 
     function exportConfigMD() {
-        const sections: Record<string, string[]> = {
-            Combat: [
-                "AGGRESSOR_ADVANTAGE",
-                "DAMAGE_PER_SHIP",
-                "LETHALITY",
-                "FORCE_RATIO_EFFECT",
-                "CONQUEST_THRESHOLD",
-                "DAMAGED_SHIP_EFFECTIVENESS",
-            ],
-            "Production & Repair": [
-                "BASE_PRODUCTION",
-                "REPAIR_RATE",
-                "MIN_REPAIR",
-                "REPAIR_COMBAT_PENALTY",
-            ],
-            Transfer: [
-                "TRANSFER_RATE",
-                "MIN_SHIPS_PER_TRANSFER",
-                "MAX_SHIPS_PER_TRANSFER",
-                "CONQUEST_TRANSFER_PERCENTAGE",
-            ],
-            Conquest: [
-                "OVERWHELM_THRESHOLD",
-                "RETREAT_CAPTURE_RATE",
-                "SCATTER_CAPTURE_RATE",
-                "SCATTER_DESTROY_RATE",
-                "RETREAT_DAMAGED_ACTIVATION_RATE",
-                "CONQUEST_DAMAGED_CAPTURE_RATE",
-                "CONQUEST_DAMAGED_DESTROY_RATE",
-            ],
-            AI: [
-                "AI_MUST_ATTACK_RATIO",
-                "AI_ATTACK_UPPER_BOUNDS",
-                "AI_ATTACK_STICKINESS",
-                "AI_EVALUATION_FREQUENCY",
-                "AI_TACTICAL_AGGRESSION",
-                "AI_RANDOM_AGGRESSION",
-            ],
-            Visual: [
-                "SHIP_BASE_SIZE",
-                "STAR_RENDER_RADIUS",
-                "ORBIT_DENSITY",
-                "ATTACK_SURGE_MULT",
-                "SETTLE_DURATION_MS",
-                "WOBBLE_AMP",
-                "ARRIVAL_SPREAD",
-            ],
-        };
-
-        let md = `# Pax Fluxia Config\n_Exported ${new Date().toISOString()}_\n\n`;
-        const cfg = GAME_CONFIG as Record<string, any>;
-
-        for (const [section, keys] of Object.entries(sections)) {
-            md += `## ${section}\n| Key | Value |\n|-----|-------|\n`;
-            for (const k of keys) {
-                if (k in cfg) md += `| \`${k}\` | ${cfg[k]} |\n`;
-            }
-            md += "\n";
-        }
-
-        // Remaining keys
-        const listed = new Set(Object.values(sections).flat());
-        const remaining = Object.keys(cfg).filter((k) => !listed.has(k));
-        if (remaining.length > 0) {
-            md += `## Other\n| Key | Value |\n|-----|-------|\n`;
-            for (const k of remaining) md += `| \`${k}\` | ${cfg[k]} |\n`;
-        }
-
+        const md = buildConfigMarkdown(GAME_CONFIG as unknown as Record<string, unknown>);
         const blob = new Blob([md], { type: "text/markdown" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -482,7 +418,6 @@
         a.click();
         URL.revokeObjectURL(url);
         configStatus = `Exported MD`;
-
         configStatusColor = "#4ade80";
     }
 
@@ -494,71 +429,28 @@
         const reader = new FileReader();
         reader.onload = () => {
             try {
-                const raw = reader.result as string;
-                let data: unknown;
-                try {
-                    data = JSON.parse(raw);
-                } catch {
-                    configStatus = "Invalid JSON - could not parse file";
+                const result = parseConfigImport(
+                    reader.result as string,
+                    GAME_CONFIG as unknown as Record<string, unknown>,
+                );
+                if (!result.ok) {
+                    configStatus = result.error;
                     configStatusColor = "#f87171";
                     input.value = "";
                     return;
                 }
 
-                if (!data || typeof data !== "object" || Array.isArray(data)) {
-                    configStatus = "Expected a JSON object with config keys";
-                    configStatusColor = "#f87171";
-                    input.value = "";
-                    return;
+                if (result.applied > 0) {
+                    applyConfigPatch(result.patch);
                 }
 
-                const incoming = data as Record<string, unknown>;
-                const cfg = GAME_CONFIG as Record<string, any>;
-                let applied = 0;
-                let skipped = 0;
-                let typeErrors = 0;
-                const acceptedPatch: Record<string, unknown> = {};
-
-                for (const [k, v] of Object.entries(incoming)) {
-                    if (!(k in cfg)) {
-                        skipped++;
-                        continue;
-                    }
-
-                    const existing = cfg[k];
-                    if (
-                        typeof existing === "number" &&
-                        typeof v === "number" &&
-                        isFinite(v)
-                    ) {
-                        acceptedPatch[k] = v;
-                        applied++;
-                    } else if (
-                        typeof existing === "boolean" &&
-                        typeof v === "boolean"
-                    ) {
-                        acceptedPatch[k] = v;
-                        applied++;
-                    } else if (
-                        typeof existing === "string" &&
-                        typeof v === "string"
-                    ) {
-                        acceptedPatch[k] = v;
-                        applied++;
-                    } else {
-                        typeErrors++;
-                    }
-                }
-
-                if (applied > 0) {
-                    applyConfigPatch(acceptedPatch);
-                }
-
-                const parts = [`${applied} applied`];
-                if (skipped) parts.push(`${skipped} unknown`);
-                if (typeErrors) parts.push(`${typeErrors} type mismatches`);
+                const parts = [`${result.applied} applied`];
+                if (result.skipped) parts.push(`${result.skipped} unknown`);
+                if (result.typeErrors)
+                    parts.push(`${result.typeErrors} type mismatches`);
                 configStatus = parts.join(", ");
-                configStatusColor = typeErrors > 0 ? "#fbbf24" : "#4ade80";
+                configStatusColor =
+                    result.typeErrors > 0 ? "#fbbf24" : "#4ade80";
             } catch (err) {
                 configStatus = `Import failed: ${(err as Error).message}`;
                 configStatusColor = "#f87171";
