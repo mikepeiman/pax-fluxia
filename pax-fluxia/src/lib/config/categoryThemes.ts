@@ -175,11 +175,6 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
 
     territory: [
         // Territory toggles
-        'TERRITORY_VORONOI',
-        'TERRITORY_MODIFIED_VORONOI',
-        'TERRITORY_POWER_VORONOI',
-        'TERRITORY_METABALL',
-        'TERRITORY_PIXEL',
         'PIXEL_ALPHA',
         'PIXEL_RESOLUTION',
         'PIXEL_EDGE_BLEND',
@@ -192,7 +187,6 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'PIXEL_BORDER_BRIGHTEN',
         'PIXEL_PATTERN',
         'PIXEL_PATTERN_SCALE',
-        'TERRITORY_MODE',
         // Star power / halos
         'SHOW_STAR_POWER',
         'STAR_POWER_ALPHA',

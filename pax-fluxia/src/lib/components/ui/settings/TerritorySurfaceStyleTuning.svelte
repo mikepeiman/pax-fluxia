@@ -19,7 +19,6 @@
         | "cell_grid"
         | "phase_edges"
         | "ember_lattice"
-        | "perimeter_field"
         | "power_vector";
 
     interface Props {
@@ -127,10 +126,6 @@
 
     function usesEdgeForwardDefaults(): boolean {
         return isPhaseEdgesFamily() || isEmberLatticeFamily();
-    }
-
-    function isPerimeterFieldFamily(): boolean {
-        return styleFamily === "perimeter_field";
     }
 
     function currentDistribution(): "square" | "hex_offset" | "jittered" {
@@ -410,27 +405,6 @@
                         onUpdate(
                             "CELL_GRID_INWARD_OFFSET_PX",
                             "cellGridInwardOffsetPx",
-                            value,
-                        );
-                    }}
-                />
-            {/if}
-
-            {#if isPerimeterFieldFamily()}
-                <div class="sub-heading territory-style-subheading">Perimeter Placement</div>
-                <PaxSettingsRangeRow
-                    label="Perimeter Inward Offset"
-                    note="Pulls the visible fill surface inward from the sampled source perimeter without changing source topology."
-                    value={numVal("perimeterFieldInwardOffsetPx", "PERIMETER_FIELD_INWARD_OFFSET_PX", 10)}
-                    min={0}
-                    max={60}
-                    step={1}
-                    suffix="px"
-                    settingConfigKey="PERIMETER_FIELD_INWARD_OFFSET_PX"
-                    onInput={(value) => {
-                        onUpdate(
-                            "PERIMETER_FIELD_INWARD_OFFSET_PX",
-                            "perimeterFieldInwardOffsetPx",
                             value,
                         );
                     }}

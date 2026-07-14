@@ -1031,28 +1031,16 @@
     function resolveActiveTerritoryMode(): string {
         // Migrate any persisted legacy render-mode id (e.g. metaball_grid_phase_edges)
         // to its canonical name in place, so all downstream reads see the new id.
+        // Inferring a mode from the retired per-renderer booleans is NOT done here:
+        // that migration belongs to the theme-read boundary (normalizeThemeValues),
+        // which is where legacy data actually enters. This is the render path.
         const normalizedMode = normalizeTerritoryRenderModeId(
             GAME_CONFIG.TERRITORY_RENDER_MODE,
         );
         if (normalizedMode !== GAME_CONFIG.TERRITORY_RENDER_MODE) {
             GAME_CONFIG.TERRITORY_RENDER_MODE = normalizedMode as typeof GAME_CONFIG.TERRITORY_RENDER_MODE;
         }
-        let activeMode = GAME_CONFIG.TERRITORY_RENDER_MODE;
-        if (!activeMode) {
-            if (GAME_CONFIG.TERRITORY_PVV3) activeMode = "vs_pvv3";
-            else if (GAME_CONFIG.TERRITORY_POWER_VORONOI)
-                activeMode = "power_voronoi";
-            else if (GAME_CONFIG.TERRITORY_DISTANCE_FIELD)
-                activeMode = "distance_field";
-            else if (GAME_CONFIG.TERRITORY_VORONOI) activeMode = "voronoi";
-            else if (GAME_CONFIG.TERRITORY_METABALL) activeMode = "metaball";
-            else if (GAME_CONFIG.TERRITORY_PIXEL) activeMode = "pixel";
-            else if (GAME_CONFIG.TERRITORY_GRAPH) activeMode = "graph";
-            else if (GAME_CONFIG.TERRITORY_CONTOUR) activeMode = "contour";
-            else if (GAME_CONFIG.TERRITORY_ENGINE_ENABLED)
-                activeMode = "territory_engine";
-        }
-        return activeMode ?? "none";
+        return GAME_CONFIG.TERRITORY_RENDER_MODE ?? "none";
     }
 
     // ── Runtime territory instances (class-encapsulated, no module-level state) ─
@@ -1110,7 +1098,7 @@
             readNormalizedTerritoryGeometryTunables(source);
         let key = `${getTerritoryVisualEpoch()}:${GAME_WIDTH}:${GAME_HEIGHT}:`;
         key += `${normalizePerimeterFieldGeometrySource(source.PERIMETER_FIELD_GEOMETRY_SOURCE)}:${source.TERRITORY_GEOMETRY_MODE ?? ""}:`;
-        key += `${source.TERRITORY_ENGINE_METHOD ?? ""}:${(source as any).__GEOMETRY_REFRESH_TOKEN ?? 0}:`;
+        key += `${(source as any).__GEOMETRY_REFRESH_TOKEN ?? 0}:`;
         key += `${buildTerritoryGeometryCacheKeyParts(geometryTunables).join(":")}:`;
         for (const star of stars) {
             key += `${star.id}:${star.ownerId ?? ""}:${star.x}:${star.y}|`;
@@ -2457,21 +2445,17 @@
         const territoryPresentationFrame = getTerritoryPresentationFrame();
         const territoryPresentationFrameKey =
             buildTerritoryPresentationFrameKey(territoryPresentationFrame);
+        // Cache key for the committed territory scene. Every part must be a value a
+        // renderer actually READS — a key nobody consumes can only throw the caches
+        // away for nothing. (This dropped the retired perimeter-field tunables, the
+        // engine-method/render-families flags, and two duplicated parts.)
         const territoryConfigFp =
             `${normalizePerimeterFieldGeometrySource(GAME_CONFIG.PERIMETER_FIELD_GEOMETRY_SOURCE)}:${GAME_CONFIG.TERRITORY_GEOMETRY_MODE}:` +
-            `${GAME_CONFIG.TERRITORY_ENGINE_METHOD}:${territoryGeometryFp}:` +
+            `${territoryGeometryFp}:` +
             `${GAME_CONFIG.TERRITORY_CLUSTER_SPLIT}:${GAME_CONFIG.VORONOI_BORDER_SMOOTH}:${GAME_CONFIG.VORONOI_ALPHA}:` +
-            `${GAME_CONFIG.VORONOI_BORDER_WIDTH}:${GAME_CONFIG.VORONOI_BORDER_ALPHA}:${GAME_CONFIG.TERRITORY_GEOMETRY_MODE}:` +
-            `${GAME_CONFIG.TERRITORY_ENGINE_METHOD}:${GAME_CONFIG.TERRITORY_RENDER_MODE}:` +
+            `${GAME_CONFIG.VORONOI_BORDER_WIDTH}:${GAME_CONFIG.VORONOI_BORDER_ALPHA}:` +
+            `${GAME_CONFIG.TERRITORY_RENDER_MODE}:` +
             `${GAME_CONFIG.TERRITORY_TRANSITION_MS}:` +
-            `${GAME_CONFIG.USE_RENDER_FAMILIES}:` +
-            `${GAME_CONFIG.PERIMETER_FIELD_SAMPLE_SPACING}:${GAME_CONFIG.PERIMETER_FIELD_INFLUENCE_RADIUS}:` +
-            `${GAME_CONFIG.PERIMETER_FIELD_INFLUENCE_WEIGHT}:${GAME_CONFIG.PERIMETER_FIELD_TRANSITION_RAY_COUNT}:` +
-            `${GAME_CONFIG.PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION}:${GAME_CONFIG.PERIMETER_FIELD_OLD_BOUNDARY_FADE}:` +
-            `${GAME_CONFIG.PERIMETER_FIELD_NEW_BOUNDARY_GROW}:${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY}:` +
-            `${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SHOW_VSTARS}:${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_ENABLED}:` +
-            `${GAME_CONFIG.PERIMETER_FIELD_DEBUG_REPLAY_SLOT}:` +
-            `${GAME_CONFIG.PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX}:` +
             `${(GAME_CONFIG as any).__GEOMETRY_REFRESH_TOKEN ?? 0}:` +
             `${getTerritoryVisualEpoch()}`;
         const configChanged =

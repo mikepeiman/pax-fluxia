@@ -366,20 +366,7 @@ interface GameConfigType {
     HALO_FLEET_MAX_SHIPS: number;  // Ship count for full alpha in 'linear' mode (default 500)
 
     // ── Territory Toggles ──────────────────────────────────────────────────────
-    TERRITORY_VORONOI: boolean;    // Enable Voronoi territory renderer (default true)
-    TERRITORY_MODIFIED_VORONOI: boolean; // Enable Modified Voronoi territory renderer (F-138, default false)
-    TERRITORY_POWER_VORONOI: boolean;    // Enable Power Voronoi V2 territory renderer (F-138v2, default false)
-    TERRITORY_PVV3: boolean;              // Enable PVV3 frontier-first territory renderer (default false)
-    TERRITORY_ENGINE_ENABLED: boolean;    // Enable modular territory engine router (default false)
-    TERRITORY_ENGINE_METHOD: string;       // Unified method ID (replaces ENGINE_MODE + STATIC_METHOD + DYNAMIC_METHOD)
     // ── OBSOLETE (kept for config migration) ──
-    TERRITORY_ENGINE_STATIC_METHOD: string;  // @deprecated Use TERRITORY_ENGINE_METHOD
-    TERRITORY_ENGINE_TRACE_MODE: boolean; // Emit staged trace snapshots for the modular engine (default false)
-    TERRITORY_ENGINE_MODE: string;         // @deprecated Use TERRITORY_ENGINE_METHOD
-    TERRITORY_ENGINE_DYNAMIC_METHOD: string; // @deprecated Use TERRITORY_ENGINE_METHOD
-    TERRITORY_ENGINE_HYBRID_PLAN: string;    // @deprecated Removed — hybrid plans are obsolete
-    TERRITORY_ENGINE_STEP_MODE: boolean; // Interactive stage stepping for territory engine diagnostics
-    TERRITORY_ENGINE_STEP_ADVANCE_TOKEN: number; // Increment to advance one stage when step mode is enabled
     TERRITORY_TRANSITION_MS: number;      // Duration of territory morph animation in ms (0 = instant, default 400)
     TERRITORY_TRANSITION_SETTLE_PCT: number; // Metaball conquest end-settle easing, percent (0 = off)
     /** When true, territory conquest transition duration tracks BASE_TICK_MS (Timing panel) */
@@ -411,22 +398,8 @@ interface GameConfigType {
     VS_BIND_TO_TICK: boolean;             // Bind VS durations to tick duration (default true)
     VS_TRANSITION_MODE: VsTransitionModeId; // Shared transition-mode selector; UI options are contextual to the active renderer
     METABALL_BURST_BOUNDARY_BASIS: MetaballBurstBoundaryBasis; // How six-slice burst measures common loser travel distance
-    PERIMETER_FIELD_TRANSITION_ENGINE: 'legacy' | 'plan'; // Which transition implementation perimeter_field uses
     PERIMETER_FIELD_GEOMETRY_SOURCE: 'power_core' | 'power_voronoi_0319'; // UNIFIED on PowerCore (2026-07-08); every value normalizes to power_core at read boundaries (selector retired)
-    PERIMETER_FIELD_SAMPLE_SPACING: number; // Arc-length spacing between derived perimeter samples (px)
-    PERIMETER_FIELD_INWARD_OFFSET_PX: number; // Inward offset applied to derived perimeter samples so they sit inside the source boundary
-    PERIMETER_FIELD_INFLUENCE_RADIUS: number; // Displayed field radius for each perimeter sample (px)
-    PERIMETER_FIELD_INFLUENCE_WEIGHT: number; // Influence strength for each perimeter sample
-    PERIMETER_FIELD_TRANSITION_RAY_COUNT: number; // Number of local conquest rays used to build boundary override handles
-    PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION: boolean; // Hold T0 perimeter field static while local override animates
-    PERIMETER_FIELD_OLD_BOUNDARY_FADE: number; // Multiplier on old-owner local boundary fade
-    PERIMETER_FIELD_NEW_BOUNDARY_GROW: number; // Multiplier on new-owner local boundary grow
     PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY: boolean; // Show the source geometry used to derive perimeter samples
-    PERIMETER_FIELD_DEBUG_SHOW_VSTARS: boolean; // Show derived perimeter vstars and transition-local override points
-    PERIMETER_FIELD_DEBUG_SCRUB_ENABLED: boolean; // When paused, override transition progress with the scrub slider
-    PERIMETER_FIELD_DEBUG_REPLAY_SLOT: number; // 0 = live, 1..3 = replay one of the last captured conquests
-    PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX: number; // Exact captured frame index used for paused scrub/replay
-    PERIMETER_FIELD_DEBUG_SCRUB_PROGRESS: number; // 0..1 scrub position used when paused and scrub is enabled
     CELL_GRID_ENABLED: boolean; // Master gate for the cell-grid render family
     CELL_GRID_SPACING_PX: number; // Requested world-space spacing between grid cell centers
     CELL_GRID_PATTERN_SPACING_PX: number; // Visible fill-pattern spacing for phase-field presentation
@@ -544,15 +517,9 @@ interface GameConfigType {
     DEBUG_DY4_DISABLE_FILL_CROSSFADE: boolean;
     DEBUG_DY4_DISABLE_BORDER_TRANSITION: boolean;
     DEBUG_DY4_FORCE_TRANSITION_START: boolean;
-    TERRITORY_METABALL: boolean;   // Enable Metaball territory renderer (default false)
-    TERRITORY_PIXEL: boolean;      // Enable Pixel (nearest-neighbor) territory renderer (default false)
     TERRITORY_CLUSTER_SPLIT: boolean; // Split disconnected same-owner stars into separate territory blobs (default false)
-    TERRITORY_MODE: 'voronoi' | 'metaball' | 'off';  // LEGACY — kept for compat
-    TERRITORY_DISTANCE_FIELD: boolean; // Enable distance-field territory renderer (default false)
     TERRITORY_RENDER_MODE: string;    // Active render mode: 'none' | 'vs_pvv3' | 'power_voronoi' | 'distance_field' | 'voronoi' | 'metaball' | 'cell_grid' | 'phase_edges' | 'ember_lattice' | 'phase_field' | 'grid_gradient' | 'perimeter_field' | 'pixel' | 'graph' | 'contour'
     /** When true, legacy modes without a registered RenderFamily adapter are gated in UI; metaball may use family path. Default false. */
-    USE_RENDER_FAMILIES: boolean;
-    TERRITORY_ARCHITECTURE_PATH: 'clean' | 'legacy'; // Master architecture selector for runtime territory mode
 
     // ── Distance Field Territory ──────────────────────────────────────────────
     DF_RESOLUTION: number;          // Grid resolution divisor (4 = quarter res, default 4)
@@ -711,7 +678,6 @@ interface GameConfigType {
     PIXEL_LIGHTNESS: number;         // Lightness multiplier (0=dark, 1=normal, 2=bright, default 1.0)
 
     // ── Graph Territory (4th mode — connection-graph-constrained) ──
-    TERRITORY_GRAPH: boolean;        // Enable graph-constrained territory renderer (default false)
     GRAPH_ALPHA: number;             // Fill alpha (0-0.5, default 0.15)
     GRAPH_RESOLUTION: number;        // Downsample factor (1-8, default 4)
     GRAPH_BLUR: number;              // GPU blur strength (0-20, default 4)
@@ -737,7 +703,6 @@ interface GameConfigType {
     BORDER_SMOOTH: number;           // Smoothing iterations for border feel (0-5, default 2)
 
     // ── Contour Territory (5th mode — vector contour extraction) ──
-    TERRITORY_CONTOUR: boolean;      // Enable contour territory renderer (default false)
     CONTOUR_RESOLUTION: number;      // Grid size for ownership computation (64-256, default 128)
     CONTOUR_SIMPLIFY: number;        // Douglas-Peucker tolerance (0-20, default 5)
     CONTOUR_SMOOTH: number;          // Chaikin subdivision iterations (0-4, default 2)

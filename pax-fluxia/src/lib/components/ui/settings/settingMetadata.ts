@@ -356,48 +356,9 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         },
         'Disconnect Weight': { key: 'TERRITORY_DX_WEIGHT' },
         'Disconnect Distance': { key: 'MODIFIED_VORONOI_DISCONNECT_DISTANCE' },
-        'Perimeter Vstar Spacing': { key: 'PERIMETER_FIELD_SAMPLE_SPACING' },
-        'Perimeter Samples / Loop': {
-            key: 'PERIMETER_FIELD_SAMPLE_COUNT_PER_LOOP',
-        },
-        'Perimeter Inward Offset': { key: 'PERIMETER_FIELD_INWARD_OFFSET_PX' },
-        'Perimeter Vstar Radius': {
-            key: 'PERIMETER_FIELD_INFLUENCE_RADIUS',
-        },
-        'Perimeter Vstar Power': {
-            key: 'PERIMETER_FIELD_INFLUENCE_WEIGHT',
-        },
-        'Transition Slice Count': {
-            key: 'PERIMETER_FIELD_TRANSITION_RAY_COUNT',
-        },
         'Transition Duration': { key: 'TERRITORY_TRANSITION_MS' },
-        'Hold Base State During Transition': {
-            key: 'PERIMETER_FIELD_FREEZE_BASE_DURING_TRANSITION',
-        },
-        'Old Boundary Persistence': {
-            key: 'PERIMETER_FIELD_OLD_BOUNDARY_FADE',
-        },
-        'New Boundary Assertion': {
-            key: 'PERIMETER_FIELD_NEW_BOUNDARY_GROW',
-        },
-        'Record Conquest': { key: 'PERIMETER_FIELD_DEBUG_CAPTURE_ENABLED' },
         'Show Underlying Geometry': {
             key: 'PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY',
-        },
-        'Diagnostic Arrow Width': { key: 'PERIMETER_FIELD_DEBUG_VECTOR_WIDTH' },
-        'Onion-Skin Steps': { key: 'PERIMETER_FIELD_DEBUG_ONION_SKIN_COUNT' },
-        'Strobe Frame Stride': {
-            key: 'PERIMETER_FIELD_DEBUG_STROBE_STRIDE',
-        },
-        'Show Perimeter Vstars': {
-            key: 'PERIMETER_FIELD_DEBUG_SHOW_VSTARS',
-        },
-        'Enable Transition Preview': {
-            key: 'PERIMETER_FIELD_DEBUG_SCRUB_ENABLED',
-        },
-        'Replay Source': { key: 'PERIMETER_FIELD_DEBUG_REPLAY_SLOT' },
-        'Transition Scrub': {
-            key: 'PERIMETER_FIELD_DEBUG_SCRUB_FRAME_INDEX',
         },
         'Cell Grid Enabled': { key: 'CELL_GRID_ENABLED' },
         'Cell Spacing': { key: 'CELL_GRID_SPACING_PX' },
