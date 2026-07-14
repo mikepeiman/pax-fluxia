@@ -194,6 +194,20 @@ violations while in here.
   largest, most delicate operation in the campaign and must not be rushed against a usage-limit cutoff.
   3D (catalog/config/settings strip) follows the cluster move.
 
+**3C-1 DONE — GameCanvas dispatch severance.** Deleted all 11 quarantined switch arms (~600 LOC) via
+brace-matched boundaries (lesson: derive case boundaries by brace-matching, NOT eyeballing — a 5-line
+mis-boundary truncated the kept power_vector case and produced a downstream parse error; caught + fixed
+by restoring from backup and re-deriving). Fixed a 3B regression: added `case "none": break;` so Off
+renders nothing (the `default:`→power_vector fallthrough would otherwise have rendered PV for Off).
+Removed legacy renderer + orchestrator + runtime-bridge imports, runtime vars + buildRuntimeBridgeInput
++ reset blocks, MetaballFamily/CellGridFamily/createPerimeterFieldFamily imports, the metaball/perimeter/
+cell_grid pre-switch cleanup blocks, and the plain-CellGridFamily diagnostic branches; emptied
+resetTerritoryRenderCaches. **DEFERRED (documented follow-up):** PerimeterFieldFamily's diagnostic
+capture subsystem (capturePerimeterFieldLiveFrame / syncPerimeterFieldDiagnosticCapture / perimeter
+debug-draw blocks) is dead (activeMode never 'perimeter_field') but still references the type — excising
+it (and thus moving families/perimeterField + its MetaballRenderer dep) is a bounded follow-up. Verify:
+check 0 errors.
+
 
 Keep-set: power_vector, grid_gradient, ember_lattice, phase_edges, phase_field.
 **Pre-step (Fable-tier): fg2SeedGraph value-mining** — one focused reading pass of the 5,380 LOC;

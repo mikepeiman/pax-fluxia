@@ -57,67 +57,16 @@
         type ShipRenderResources,
     } from "$lib/renderers/ShipRenderer";
     import { renderStarPower as renderStarPowerModule } from "$lib/renderers/StarPowerRenderer";
-    import {
-        renderVoronoi as renderVoronoiModule,
-        resetVoronoiCache,
-    } from "$lib/renderers/VoronoiRenderer";
-    import {
-        resetMetaballCache,
-    } from "$lib/renderers/MetaballRenderer";
-    import {
-        renderPixelTerritory as renderPixelTerritoryModule,
-        resetPixelTerritoryCache,
-    } from "$lib/renderers/PixelTerritoryRenderer";
-    import {
-        renderLaneTerritory as renderLaneTerritoryModule,
-        resetLaneTerritoryCache,
-    } from "$lib/renderers/LaneTerritoryRenderer";
-    import {
-        renderContourTerritory as renderContourTerritoryModule,
-        resetContourTerritoryCache,
-    } from "$lib/renderers/ContourTerritoryRenderer";
-    import {
-        renderModifiedVoronoi as renderModifiedVoronoiModule,
-        resetModifiedVoronoiCache,
-    } from "$lib/renderers/ModifiedVoronoiRenderer";
-    import {
-        renderPowerVoronoi as renderPowerVoronoiModule,
-        resetPowerVoronoiCache,
-    } from "$lib/renderers/PowerVoronoiRenderer";
-    import {
-        renderPVV2DY4 as renderPVV2DY4Module,
-        resetPVV2DY4Cache,
-    } from "$lib/renderers/PowerVoronoiRenderer_DY4";
-    import {
-        renderPVV3 as renderPVV3Module,
-        inspectPVV3Invalidation,
-        resetPVV3Cache,
-    } from "$lib/renderers/PVV3Renderer";
-    import {
-        renderDistanceFieldTerritory as renderDistanceFieldTerritoryModule,
-        resetDistanceFieldTerritoryCache,
-    } from "$lib/renderers/DistanceFieldTerritoryRenderer";
-    import {
-        renderTerritoryEngine,
-        resetTerritoryEngineCaches,
-        runFG2DataPipeline,
-        extractTerritoryRenderData,
-    } from "$lib/territory/orchestrator";
-    // ── Runtime territory layer (Phase 2: new architecture) ──────────────────
-    import { GameCanvasBridge } from "$lib/territory/integration/GameCanvasBridge";
+    // Legacy territory renderers + orchestrator + runtime bridge removed in the
+    // cleanup campaign (Stage 3C — quarantine). Kept dispatch: power_vector,
+    // grid_gradient, ember_lattice, phase_edges, phase_field.
     import { normalizeTerritoryRenderModeId } from "$lib/territory/ui/territoryRenderModeCatalog";
     import type { TerritoryModeSelection } from "$lib/territory/contracts/TerritoryModeSelection";
-    import { readTerritoryRuntimeSettings } from "$lib/territory/integration/TerritorySettingsBridge";
     import {
         getRenderFamily,
         registerRenderFamily,
         disposeAllRenderFamilies,
     } from "$lib/territory/families/renderFamilyRegistry";
-    import { MetaballFamily, createMetaballFamily } from "$lib/territory/families/metaball/MetaballFamily";
-    import {
-        CellGridFamily,
-        createCellGridFamily,
-    } from "$lib/territory/families/cellGrid/CellGridFamily";
     import {
         CellGridPhaseEdgesFamily,
         createCellGridPhaseEdgesFamily,
@@ -146,7 +95,10 @@
         createGridGradientTransitionTraceState,
         logGridGradientTransitionTrace,
     } from "$lib/territory/families/gridGradient/transitionTraceLogger";
-    import { PerimeterFieldFamily, createPerimeterFieldFamily } from "$lib/territory/families/perimeterField/PerimeterFieldFamily";
+    // perimeter_field dispatch removed in Stage 3C; the family type is still
+    // referenced by its (now-dead) diagnostic capture code, pending a follow-up
+    // excision of the perimeter debug subsystem.
+    import { PerimeterFieldFamily } from "$lib/territory/families/perimeterField/PerimeterFieldFamily";
     import { PowerVectorFamily, createPowerVectorFamily } from "$lib/territory/families/powerVector/PowerVectorFamily";
     import type { PerimeterFieldDebugSnapshot } from "$lib/territory/families/perimeterField/buildPerimeterFieldScene";
     import { compactPerimeterFieldDebugSnapshot } from "$lib/territory/families/perimeterField/perimeterFieldDiagnostics";
@@ -169,7 +121,6 @@
         ownershipSnapshotHasPreviousConquestOwners,
     } from "$lib/territory/transitions/renderFamilyPreviousFrame";
     import { getTerritoryVisualEpoch } from "$lib/territory/bumpTerritoryVisualConfig";
-    import { resolveTerritoryArchitectureRoute } from "$lib/territory/integration/TerritoryArchitectureRouter";
     import {
         buildTerritoryGeometryCacheKeyParts,
         readNormalizedTerritoryGeometryTunables,
@@ -195,8 +146,6 @@
     } from "$lib/territory/contracts/OwnershipContracts";
     import type { ResolvedGeometrySnapshot } from "$lib/territory/contracts/GeometryContracts";
     import type { TerritoryFrameInput } from "$lib/territory/contracts/TerritoryFrameInput";
-    import { TerritoryEngineController } from "$lib/territory/engine/TerritoryEngineController";
-    import { TerritoryRenderer } from "$lib/territory/render/TerritoryRenderer";
     import { transitionSnapshotRecorder } from "$lib/territory/devtools/TransitionSnapshotRecorder";
     import {
         geometryTrace,
@@ -2446,11 +2395,8 @@
     }
 
     // ── Runtime territory instances (class-encapsulated, no module-level state) ─
-    let runtimeBridge: GameCanvasBridge | null = null;
-    let runtimeBridgeFallbackLogged = false;
-    let runtimeController: TerritoryEngineController | null = null;
-    let runtimeControllerTransitionDurationMs: number | null = null;
-    let runtimeRenderer: TerritoryRenderer | null = null;
+    // Runtime territory bridge/controller/renderer (territory_runtime) removed in
+    // Stage 3C — that mode is quarantined.
     let pipelineTraceFrame = 0;
     let renderFamilyGeometryCacheKey: string | null = null;
     let renderFamilyGeometryCache: ResolvedGeometrySnapshot | null = null;
@@ -2474,41 +2420,6 @@
     let transitionDiagnosticPrevGeometry: ResolvedGeometrySnapshot | null =
         null;
     let transitionDiagnosticPrevOwnership: OwnershipSnapshot | null = null;
-
-    function buildRuntimeBridgeInput(
-        stars: StarState[],
-        runtimeSettings: ReturnType<typeof readTerritoryRuntimeSettings>,
-        activeMode: string,
-        worldWidth: number = GAME_WIDTH,
-        worldHeight: number = GAME_HEIGHT,
-    ): TerritoryFrameInput {
-        const selection: TerritoryModeSelection =
-            activeMode === "power_voronoi_runtime"
-                ? {
-                      ownershipMode: "star_ownership_snapshot",
-                      geometryMode: "resolved_power_voronoi",
-                      fillTransitionMode: "pv_frontline",
-                      borderTransitionMode: "off",
-                      styleMode: "vector",
-                  }
-                : runtimeSettings.selection;
-        return {
-            tickId: activeGameStore.currentTick ?? 0,
-            nowMs: fxOrchestrator.gameTime,
-            stars,
-            lanes: activeGameStore.connections as StarConnection[],
-            players:
-                activeGameStore.players?.map((player: { id: string }) => ({
-                    id: player.id,
-                })) ?? [],
-            world: {
-                width: worldWidth,
-                height: worldHeight,
-            },
-            selection,
-            tunables: runtimeSettings.tunables,
-        };
-    }
 
     function buildRenderFamilyGeometryCacheKey(
         stars: ReadonlyArray<StarState>,
@@ -2824,7 +2735,6 @@
         ) {
             const family = getRenderFamily(mode);
             if (
-                family instanceof CellGridFamily ||
                 family instanceof CellGridPhaseEdgesFamily ||
                 family instanceof CellGridPhaseFieldFamily ||
                 family instanceof GridGradientFamily
@@ -3688,11 +3598,6 @@
             label.destroy();
         }
         rulerLabels = [];
-        runtimeBridge?.reset();
-        runtimeBridge = null;
-        runtimeController = null;
-        runtimeControllerTransitionDurationMs = null;
-        runtimeRenderer = null;
         territoryPresentationScheduled = false;
         territoryPresentationRunning = false;
         territoryPresentationPendingRequest = null;
@@ -3943,17 +3848,9 @@
     let mapIsPortrait = false; // Set when stars first load
 
     function resetTerritoryRenderCaches() {
-        resetVoronoiCache();
-        resetMetaballCache();
-        resetPixelTerritoryCache();
-        resetLaneTerritoryCache();
-        resetContourTerritoryCache();
-        resetModifiedVoronoiCache();
-        resetPowerVoronoiCache();
-        resetPVV2DY4Cache();
-        resetPVV3Cache();
-        resetTerritoryEngineCaches();
-        resetDistanceFieldTerritoryCache();
+        // Legacy renderer module caches removed in Stage 3C. Kept render families
+        // manage their own lifecycle via the RenderFamily registry (dispose*),
+        // so there is nothing to reset here now.
     }
 
     /** Toggle the transpose flag — 90° CCW rotation matching physical device rotation */
@@ -4902,11 +4799,6 @@
             //    fill/border caches). They are lazily recreated on the next
             //    presentation, exactly like after onDestroy.
             disposeAllRenderFamilies();
-            // Reset runtime bridge so it rebuilds for new map geometry
-            runtimeBridge?.reset();
-            runtimeBridge = null;
-            runtimeController = null;
-            runtimeRenderer = null;
             interactionStarsSource = null;
             interactionConnectionsSource = null;
             interactionStarsById.clear();
@@ -5297,40 +5189,6 @@
                     (globalThis as any).__RENDER_MODE_LOGGED = true;
                 }
 
-                const metaballFamily = getRenderFamily("metaball");
-                if (
-                    activeMode !== "metaball" &&
-                    metaballFamily instanceof MetaballFamily &&
-                    metaballFamily.displayRoot.parent === activeVoronoiContainer
-                ) {
-                    activeVoronoiContainer.removeChild(
-                        metaballFamily.displayRoot,
-                    );
-                }
-                const perimeterFieldFamily =
-                    getRenderFamily("perimeter_field");
-                if (
-                    activeMode !== "perimeter_field" &&
-                    perimeterFieldFamily instanceof PerimeterFieldFamily &&
-                    perimeterFieldFamily.displayRoot.parent ===
-                        activeVoronoiContainer
-                ) {
-                    activeVoronoiContainer.removeChild(
-                        perimeterFieldFamily.displayRoot,
-                    );
-                }
-                const cellGridFamily =
-                    getRenderFamily("cell_grid");
-                if (
-                    activeMode !== "cell_grid" &&
-                    cellGridFamily instanceof CellGridFamily &&
-                    cellGridFamily.displayRoot.parent ===
-                        activeVoronoiContainer
-                ) {
-                    activeVoronoiContainer.removeChild(
-                        cellGridFamily.displayRoot,
-                    );
-                }
                 const cellGridPhaseEdgesFamily =
                     getRenderFamily("phase_edges");
                 if (
@@ -5393,295 +5251,6 @@
                 }
 
                 switch (activeMode) {
-                    case "territory_engine":
-                        renderTerritoryEngine({
-                            stars: territoryPresentationStars,
-                            container: activeVoronoiContainer,
-                            colorUtils,
-                            worldWidth: territoryPresentationWorldWidth,
-                            worldHeight: territoryPresentationWorldHeight,
-                            connections:
-                                activeGameStore.connections as StarConnection[],
-                            renderer: app?.renderer ?? undefined,
-                            gameNowMs: fxOrchestrator.gameTime,
-                        });
-                        break;
-                    case "vs_pvv3": {
-                        const activeTransition = activeRenderFamilyTransition;
-                        const pvv3Invalidation = inspectPVV3Invalidation(stars);
-                        const fg2Artifacts = pvv3Invalidation.shapeChanged
-                            ? measurePerf(
-                                  "game.renderFrame.fg2DataPipeline.vs_pvv3",
-                                  () =>
-                                      runFG2DataPipeline({
-                                          stars: territoryPresentationStars,
-                                           container: activeVoronoiContainer,
-                                          colorUtils,
-                                          worldWidth: territoryPresentationWorldWidth,
-                                          worldHeight: territoryPresentationWorldHeight,
-                                          connections:
-                                              activeGameStore.connections as StarConnection[],
-                                          gameNowMs: fxOrchestrator.gameTime,
-                                      }),
-                              )
-                            : null;
-                        renderPVV3Module(
-                            territoryPresentationStars,
-                            activeVoronoiContainer,
-                            colorUtils,
-                            territoryPresentationWorldWidth,
-                            territoryPresentationWorldHeight,
-                            activeGameStore.connections as StarConnection[],
-                            fg2Artifacts
-                                ? extractTerritoryRenderData(fg2Artifacts)
-                                : undefined,
-                            pvv3Invalidation,
-                        );
-                        if (transitionDiagnosticCaptureEnabled) {
-                            transitionDiagnosticFrameInput = {
-                                activeMode,
-                                activeTransition,
-                                stars,
-                                lanes,
-                            };
-                        }
-                        break;
-                    }
-                    case "power_voronoi": {
-                        const fg2ArtifactsPV = measurePerf(
-                            "game.renderFrame.fg2DataPipeline.power_voronoi",
-                            () =>
-                                runFG2DataPipeline({
-                                    stars: territoryPresentationStars,
-                                    container: activeVoronoiContainer,
-                                    colorUtils,
-                                    worldWidth: territoryPresentationWorldWidth,
-                                    worldHeight: territoryPresentationWorldHeight,
-                                    connections:
-                                        activeGameStore.connections as StarConnection[],
-                                    gameNowMs: fxOrchestrator.gameTime,
-                                }),
-                        );
-                        renderPowerVoronoiModule(
-                            territoryPresentationStars,
-                            activeVoronoiContainer,
-                            colorUtils,
-                            territoryPresentationWorldWidth,
-                            territoryPresentationWorldHeight,
-                            activeGameStore.connections as StarConnection[],
-                            extractTerritoryRenderData(fg2ArtifactsPV),
-                        );
-                        break;
-                    }
-                    case "distance_field":
-                        renderDistanceFieldTerritoryModule(
-                            territoryPresentationStars,
-                            activeVoronoiContainer,
-                            colorUtils,
-                            territoryPresentationWorldWidth,
-                            territoryPresentationWorldHeight,
-                            activeGameStore.connections as StarConnection[],
-                            app?.renderer ?? undefined,
-                        );
-                        if (transitionDiagnosticCaptureEnabled) {
-                            transitionDiagnosticFrameInput = {
-                                activeMode,
-                                activeTransition: activeRenderFamilyTransition,
-                                stars,
-                                lanes,
-                            };
-                        }
-                        break;
-                    case "modified_voronoi":
-                        renderModifiedVoronoiModule(
-                            territoryPresentationStars,
-                            activeVoronoiContainer,
-                            colorUtils,
-                            territoryPresentationWorldWidth,
-                            territoryPresentationWorldHeight,
-                            activeGameStore.connections as StarConnection[],
-                        );
-                        break;
-                    case "pvv2_dy4":
-                        renderPVV2DY4Module(
-                            territoryPresentationStars,
-                            activeVoronoiContainer,
-                            colorUtils,
-                            territoryPresentationWorldWidth,
-                            territoryPresentationWorldHeight,
-                            activeGameStore.connections as StarConnection[],
-                        );
-                        break;
-                    case "voronoi":
-                        renderVoronoiModule(
-                            territoryPresentationStars,
-                            activeVoronoiContainer,
-                            colorUtils,
-                            territoryPresentationWorldWidth,
-                            territoryPresentationWorldHeight,
-                            activeGameStore.connections as StarConnection[],
-                        );
-                        break;
-                    case "metaball": {
-                        let fam = getRenderFamily("metaball");
-                        if (!fam) {
-                            registerRenderFamily(
-                                createMetaballFamily(colorUtils),
-                            );
-                            fam = getRenderFamily("metaball")!;
-                        }
-                        const mf = fam as MetaballFamily;
-                        const activeTransition = activeRenderFamilyTransition;
-                        const ownership = measurePerf(
-                            "game.renderFrame.ownership.metaball",
-                            () =>
-                                buildRenderFamilyOwnershipSnapshot(
-                                    territoryPresentationStars,
-                                    activeTransition,
-                                ),
-                        );
-                        const geometry = readFamilyGeometry();
-                        const diagnosticPrevFrame =
-                            transitionDiagnosticCaptureEnabled
-                                ? getTransitionDiagnosticPrevFrame({
-                                      activeMode,
-                                      activeTransition,
-                                      stars,
-                                      lanes,
-                                  })
-                                : null;
-                        const mfInput = measurePerf(
-                            "game.renderFrame.renderFamilyInput.metaball",
-                            () =>
-                                buildRenderFamilyInput({
-                                    stars: territoryPresentationStars,
-                                    lanes,
-                                    worldMinX: territoryPresentationFrame.minX,
-                                    worldMinY: territoryPresentationFrame.minY,
-                                    worldWidth: territoryPresentationWorldWidth,
-                                    worldHeight: territoryPresentationWorldHeight,
-                                    nowMs: fxOrchestrator.gameTime,
-                                    paused: isPausedNow,
-                                    gameTick: activeGameStore.currentTick,
-                                    ownership,
-                                    geometry:
-                                        localizePresentationGeometry(geometry),
-                                    prevGeometry: localizePresentationGeometry(
-                                        diagnosticPrevFrame?.geometry ?? null,
-                                    ),
-                                    renderer: app?.renderer ?? undefined,
-                                    activeTransition,
-                                    transitionSessions:
-                                        renderFamilyTransitionState.activeSessions,
-                                    tunableKeys: mf.tunableKeys,
-                                }),
-                        );
-                        mf.update(mfInput);
-                        if (mf.displayRoot.parent !== activeVoronoiContainer) {
-                            activeVoronoiContainer.addChild(mf.displayRoot);
-                        }
-                        mf.displayRoot.visible = true;
-                        syncLiveRenderFamilyStableFrame({
-                            activeTransition,
-                            stars,
-                            lanes,
-                            geometry,
-                            configSource: renderFamilyConfigSource,
-                        });
-                        if (transitionDiagnosticCaptureEnabled) {
-                            transitionDiagnosticFrameInput = {
-                                activeMode,
-                                activeTransition,
-                                stars,
-                                lanes,
-                                geometry,
-                                ownership,
-                            };
-                        }
-                        break;
-                    }
-                    case "cell_grid": {
-                        let fam = getRenderFamily("cell_grid");
-                        if (!fam) {
-                            registerRenderFamily(
-                                createCellGridFamily(colorUtils),
-                            );
-                            fam = getRenderFamily("cell_grid")!;
-                        }
-                        const mg = fam as CellGridFamily;
-                        const activeTransition = activeRenderFamilyTransition;
-                        const ownership = measurePerf(
-                            "game.renderFrame.ownership.cell_grid",
-                            () =>
-                                buildRenderFamilyOwnershipSnapshot(
-                                    territoryPresentationStars,
-                                    activeTransition,
-                                ),
-                        );
-                        const geometry = readFamilyGeometry();
-                        const diagnosticPrevFrame =
-                            transitionDiagnosticCaptureEnabled
-                                ? getTransitionDiagnosticPrevFrame({
-                                      activeMode,
-                                      activeTransition,
-                                      stars,
-                                      lanes,
-                                  })
-                                : null;
-                        const mgInput = measurePerf(
-                            "game.renderFrame.renderFamilyInput.cell_grid",
-                            () =>
-                                buildRenderFamilyInput({
-                                    stars: territoryPresentationStars,
-                                    lanes,
-                                    worldMinX: territoryPresentationFrame.minX,
-                                    worldMinY: territoryPresentationFrame.minY,
-                                    worldWidth: territoryPresentationWorldWidth,
-                                    worldHeight: territoryPresentationWorldHeight,
-                                    nowMs: fxOrchestrator.gameTime,
-                                    paused: isPausedNow,
-                                    gameTick: activeGameStore.currentTick,
-                                    ownership,
-                                    geometry:
-                                        localizePresentationGeometry(geometry),
-                                    prevGeometry: localizePresentationGeometry(
-                                        diagnosticPrevFrame?.geometry ?? null,
-                                    ),
-                                    renderer: app?.renderer ?? undefined,
-                                    activeTransition,
-                                    transitionSessions:
-                                        renderFamilyTransitionState.activeSessions,
-                                    tunableKeys: mg.tunableKeys,
-                                }),
-                        );
-                        mg.update(mgInput);
-                        updateLiveCellGridTransitionDiagnostics({
-                            activeTransition,
-                            effectiveTickMs: activeGameStore.effectiveTickMs,
-                        });
-                        if (mg.displayRoot.parent !== activeVoronoiContainer) {
-                            activeVoronoiContainer.addChild(mg.displayRoot);
-                        }
-                        mg.displayRoot.visible = true;
-                        syncLiveRenderFamilyStableFrame({
-                            activeTransition,
-                            stars,
-                            lanes,
-                            geometry,
-                            configSource: renderFamilyConfigSource,
-                        });
-                        if (transitionDiagnosticCaptureEnabled) {
-                            transitionDiagnosticFrameInput = {
-                                activeMode,
-                                activeTransition,
-                                stars,
-                                lanes,
-                                geometry,
-                                ownership,
-                            };
-                        }
-                        break;
-                    }
                     case "phase_edges": {
                         let fam = getRenderFamily("phase_edges");
                         if (!fam) {
@@ -6084,105 +5653,14 @@
                         }
                         break;
                     }
-                    case "perimeter_field": {
-                        let fam = getRenderFamily("perimeter_field");
-                        if (!fam) {
-                            registerRenderFamily(
-                                createPerimeterFieldFamily(colorUtils),
-                            );
-                            fam = getRenderFamily("perimeter_field")!;
-                        }
-                        const pf = fam as PerimeterFieldFamily;
-                        const activeTransition = activeRenderFamilyTransition;
-                        const captureTransition =
-                            buildRenderFamilyTransitionState(
-                                fxOrchestrator.gameTime,
-                                activeGameStore.effectiveTickMs,
-                            ).activeTransition;
-                        const ownership = measurePerf(
-                            "game.renderFrame.ownership.perimeter_field",
-                            () =>
-                                buildRenderFamilyOwnershipSnapshot(
-                                    territoryPresentationStars,
-                                    activeTransition,
-                                ),
-                        );
-                        const geometry = readFamilyGeometry();
-                        const diagnosticPrevFrame =
-                            transitionDiagnosticCaptureEnabled
-                                ? getTransitionDiagnosticPrevFrame({
-                                      activeMode,
-                                      activeTransition,
-                                      stars,
-                                      lanes,
-                                  })
-                                : null;
-                        const pfInput = measurePerf(
-                            "game.renderFrame.renderFamilyInput.perimeter_field",
-                            () =>
-                                buildRenderFamilyInput({
-                                    stars: territoryPresentationStars,
-                                    lanes,
-                                    worldMinX: territoryPresentationFrame.minX,
-                                    worldMinY: territoryPresentationFrame.minY,
-                                    worldWidth: territoryPresentationWorldWidth,
-                                    worldHeight: territoryPresentationWorldHeight,
-                                    nowMs: fxOrchestrator.gameTime,
-                                    paused: isPausedNow,
-                                    gameTick: activeGameStore.currentTick,
-                                    ownership,
-                                    geometry:
-                                        localizePresentationGeometry(geometry),
-                                    prevGeometry: localizePresentationGeometry(
-                                        diagnosticPrevFrame?.geometry ?? null,
-                                    ),
-                                    renderer: app?.renderer ?? undefined,
-                                    activeTransition,
-                                    transitionSessions:
-                                        renderFamilyTransitionState.activeSessions,
-                                    tunableKeys: pf.tunableKeys,
-                                }),
-                        );
-                        pf.update(pfInput);
-                        if (pf.displayRoot.parent !== activeVoronoiContainer) {
-                            activeVoronoiContainer.addChild(pf.displayRoot);
-                        }
-                        pf.displayRoot.visible = true;
-                        syncLiveRenderFamilyStableFrame({
-                            activeTransition,
-                            stars,
-                            lanes,
-                            geometry,
-                            configSource: renderFamilyConfigSource,
-                        });
-                        if (
-                            transitionDiagnosticStableFrame ||
-                            transitionDiagnosticCaptureSession ||
-                            transitionDiagnosticPrevGeometry ||
-                            transitionDiagnosticPrevOwnership
-                        ) {
-                            resetTransitionDiagnosticCaptureState();
-                            transitionDiagnosticPrevKey = null;
-                            transitionDiagnosticPrevGeometry = null;
-                            transitionDiagnosticPrevOwnership = null;
-                        }
-                        syncPerimeterFieldDiagnosticCapture({
-                            family: pf,
-                            input: pfInput,
-                            activeTransition: captureTransition,
-                            stars: territoryPresentationStars,
-                            nowMs: fxOrchestrator.gameTime,
-                        });
-                        applyPerimeterFieldReplayPresentation({
-                            container: activeVoronoiContainer,
-                            liveRoot: pf.displayRoot,
-                        });
-                        break;
-                    }
                     // Fallback: any unrecognised mode renders Power Vector (the
                     // default skin). Quarantined modes are already remapped to
                     // power_vector at the config boundary (normalizeTerritoryRender
                     // ModeId); this guards typos / stale ids so the map never blanks.
+                    case "none":
+                        // Off — no territory overlay (the pre-switch cleanup
+                        // already hides the Power Vector display root).
+                        break;
                     default:
                     case "power_vector": {
                         // K3a: PowerCore Vector skin — draws the kinetic runtime's
@@ -6230,223 +5708,6 @@
                         pv.displayRoot.visible = true;
                         break;
                     }
-                    case "pixel":
-                        renderPixelTerritoryModule(
-                            territoryPresentationStars,
-                            activeVoronoiContainer,
-                            colorUtils,
-                            territoryPresentationWorldWidth,
-                            territoryPresentationWorldHeight,
-                            activeGameStore.connections as StarConnection[],
-                        );
-                        if (transitionDiagnosticCaptureEnabled) {
-                            transitionDiagnosticFrameInput = {
-                                activeMode,
-                                activeTransition: activeRenderFamilyTransition,
-                                stars,
-                                lanes,
-                            };
-                        }
-                        break;
-                    case "graph":
-                        renderLaneTerritoryModule(
-                            territoryPresentationStars,
-                            activeVoronoiContainer,
-                            colorUtils,
-                            territoryPresentationWorldWidth,
-                            territoryPresentationWorldHeight,
-                            activeGameStore.connections as StarConnection[],
-                        );
-                        break;
-                    case "contour":
-                        renderContourTerritoryModule(
-                            territoryPresentationStars,
-                            activeVoronoiContainer,
-                            colorUtils,
-                            territoryPresentationWorldWidth,
-                            territoryPresentationWorldHeight,
-                            activeGameStore.connections as StarConnection[],
-                        );
-                        break;
-                    case "power_voronoi_runtime": {
-                        const runtimeSettings = readTerritoryRuntimeSettings(
-                            GAME_CONFIG as unknown as Record<string, unknown>,
-                        );
-                        if (!runtimeBridge) {
-                            runtimeBridge = new GameCanvasBridge(
-                                activeVoronoiContainer,
-                                (ownerId) =>
-                                    colorUtils.getPlayerColor(ownerId),
-                            );
-                        }
-                        runtimeBridge?.update(
-                            buildRuntimeBridgeInput(
-                                territoryPresentationStars,
-                                runtimeSettings,
-                                activeMode,
-                                territoryPresentationWorldWidth,
-                                territoryPresentationWorldHeight,
-                            ),
-                        );
-                        runtimeBridge?.consumeVFXCommands();
-                        break;
-                    }
-                    case "territory_runtime": {
-                        // ── RUNTIME ARCHITECTURE DISPATCH ─────────────────────────
-                        const runtimeSettings = readTerritoryRuntimeSettings(
-                            GAME_CONFIG as unknown as Record<string, unknown>,
-                        );
-                        const architectureRoute =
-                            resolveTerritoryArchitectureRoute({
-                                renderMode: activeMode,
-                                architecturePath:
-                                    GAME_CONFIG.TERRITORY_ARCHITECTURE_PATH,
-                            });
-                        const useCleanArchitecture =
-                            architectureRoute.route ===
-                            "runtime_clean_bridge";
-                        let renderedByRuntimeBridge = false;
-
-                        if (useCleanArchitecture) {
-                            if (!runtimeBridge) {
-                                runtimeBridge = new GameCanvasBridge(
-                                    activeVoronoiContainer,
-                                    (ownerId) =>
-                                        colorUtils.getPlayerColor(ownerId),
-                                );
-                            }
-
-                            if (runtimeBridge) {
-                                try {
-                                    runtimeBridge.update(
-                                        buildRuntimeBridgeInput(
-                                            territoryPresentationStars,
-                                            runtimeSettings,
-                                            activeMode,
-                                            territoryPresentationWorldWidth,
-                                            territoryPresentationWorldHeight,
-                                        ),
-                                    );
-                                    runtimeBridge.consumeVFXCommands();
-                                    renderedByRuntimeBridge = true;
-                                } catch (error) {
-                                    if (!runtimeBridgeFallbackLogged) {
-                                        runtimeBridgeFallbackLogged = true;
-                                        log.error(
-                                            "GameCanvas",
-                                            "RuntimeBridge falling back to legacy runtime controller path",
-                                            error,
-                                        );
-                                    }
-                                }
-                            }
-                        }
-                        if (!useCleanArchitecture) {
-                            runtimeBridge?.reset();
-                            runtimeBridge = null;
-                        }
-
-                        if (renderedByRuntimeBridge) {
-                            break;
-                        }
-
-                        // Legacy path (selected explicitly or clean path fallback on error).
-                        // Lazily initialize controller and renderer per-container
-                        if (
-                            !runtimeController ||
-                            runtimeControllerTransitionDurationMs !==
-                                runtimeSettings.tunables.transitionDurationMs
-                        ) {
-                            runtimeController = new TerritoryEngineController(
-                                {
-                                    transitionDurationMs:
-                                        runtimeSettings.tunables
-                                            .transitionDurationMs,
-                                },
-                            );
-                            runtimeControllerTransitionDurationMs =
-                                runtimeSettings.tunables.transitionDurationMs;
-                        }
-                        if (!runtimeRenderer) {
-                                runtimeRenderer = new TerritoryRenderer(
-                                    activeVoronoiContainer,
-                                    (ownerIdx, playerIds) => {
-                                        const ownerId = playerIds[ownerIdx];
-                                        return ownerId
-                                            ? colorUtils.getPlayerColor(ownerId)
-                                            : 0x888888;
-                                    },
-                                    activeGameStore.players?.map(
-                                        (p: { id: string }) => p.id,
-                                    ) ?? [],
-                                );
-                        }
-
-                        if (
-                            runtimeController &&
-                            runtimeRenderer
-                        ) {
-                            const playerIds =
-                                activeGameStore.players?.map(
-                                    (p: { id: string }) => p.id,
-                                ) ?? [];
-                            runtimeRenderer.updatePlayerIds(playerIds);
-
-                            const { state, transitionPlan } =
-                                runtimeController.update(
-                                    {
-                                        stars: territoryPresentationStars,
-                                        connections:
-                                            activeGameStore.connections as StarConnection[],
-                                        playerIds,
-                                        worldWidth:
-                                            territoryPresentationWorldWidth,
-                                        worldHeight:
-                                            territoryPresentationWorldHeight,
-                                        config: { family: "straight" },
-                                    },
-                                    fxOrchestrator.gameTime,
-                                );
-
-                            // One-shot runtime debug log (not per-frame)
-                            if (!(globalThis as any).__runtimeLoggedOnce) {
-                                (globalThis as any).__runtimeLoggedOnce =
-                                    true;
-                                if (!state) {
-                                    log.state(
-                                        "GameCanvas",
-                                        "runtime state unavailable; compiler returned no renderable state",
-                                    );
-                                } else {
-                                    log.state(
-                                        "GameCanvas",
-                                        "runtime state snapshot",
-                                        {
-                                            kind: state.kind,
-                                            regions: state.regions?.length ?? null,
-                                            frontierEdges:
-                                                state.frontierGraph?.edges?.size ??
-                                                null,
-                                            fittedFrontiers:
-                                                state.fittedFrontiers?.length ?? null,
-                                            transitionActive:
-                                                state.transitionActive,
-                                        },
-                                    );
-                                }
-                            }
-
-                            if (state) {
-                                runtimeRenderer.render(
-                                    state,
-                                    transitionPlan,
-                                    fxOrchestrator.gameTime,
-                                );
-                            }
-                        }
-                        break;
-                    }
-                    // 'none' or unrecognized — no territory rendering
                 }
                     // Phase 0 diagnostic: logs container pre/post position and
                     // geometry counts for the active family.
@@ -7041,10 +6302,9 @@
             GAME_CONFIG.TERRITORY_RENDER_MODE === "ember_lattice" ||
             GAME_CONFIG.TERRITORY_RENDER_MODE === "phase_field"
                 ? GAME_CONFIG.TERRITORY_RENDER_MODE
-                : "cell_grid";
+                : "phase_edges";
         const cellGridFamily = getRenderFamily(benchmarkCellGridMode);
         const cellGridDebug =
-            cellGridFamily instanceof CellGridFamily ||
             cellGridFamily instanceof CellGridPhaseEdgesFamily ||
             cellGridFamily instanceof CellGridPhaseFieldFamily
                 ? cellGridFamily.getDebugSnapshot()
