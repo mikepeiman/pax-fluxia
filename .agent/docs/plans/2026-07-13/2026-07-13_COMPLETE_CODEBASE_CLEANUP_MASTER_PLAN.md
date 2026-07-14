@@ -320,7 +320,7 @@ these because tests are live roots. Needs a per-export pass, not a per-module on
 importers yet kept ~2.3k LOC (MetaballRenderer) reachable; a module imported only by its own test looks
 live to every module-level tool. Re-run `orphans2.cjs`-style fixpoint sweeps at Stage 7.
 
-### Stage 5 — GameCanvas decomposition (8,555 → 7,017 after 3C-1/3C-3 → **6,238** IN PROGRESS)
+### Stage 5 — GameCanvas decomposition (8,555 → 7,017 after 3C-1/3C-3 → **6,171** IN PROGRESS)
 Extract per responsibility map (built at stage start): render-family lifecycle, geometry-build
 scheduling, transition scheduling, input/orders, combat FX — one extraction per commit, suite between.
 Decomposition DESIGN is Fable-tier; extraction execution Opus.
@@ -351,13 +351,21 @@ API). Pick ranges by ratio, not by size. Measured results:
 | 1 | Transition-diagnostics capture | 6 vars | **DONE** `f5350f66` transitionDiagnosticsCapture.ts |
 | 2 | Interaction caches / spatial index | 6 vars | **DONE** `7035fda0` interactionCaches.ts (+14 tests) |
 | 3 | Camera: zoom/pan/bounds/animation | 13 vars | **DONE** `990689a0` cameraModel.ts (+23 tests) |
-| 4 | Canvas client-rect cache | 2 vars | next — small, clean |
+| 4 | Canvas client-rect cache | 2 vars | **DONE** `8cffb9a5` canvasClientRect.ts (+ 3 transposes collapsed to 1) |
 | 5 | Scheduler/order telemetry (~50 counters) | ~50 vars | serves ONE benchmark snapshot; consolidate into a telemetry object |
 | 6 | Order mutation queue + visual ack | ~14 vars | needs #7 first (shares selection state) |
-| 7 | **InteractionState** (activeStarId, pendingOrders, deferredOrders, drag*) | ~12 vars | KEYSTONE — unblocks #6 and the overlay |
+| 7 | **InteractionState** (activeStarId, pendingOrders, deferredOrders, drag*) | ~12 vars | KEYSTONE — unblocks #6 and #8 |
 | 8 | Interaction overlay renderer | 4 vars | blocked on #7 |
 | 9 | Territory presentation queue | ~22 vars | independent; measurable next |
 | 10 | `renderFrame` (~1,480 lines) | — | LAST. Do not touch until 1-9 shrink its surface. |
+
+**Suggested order from here:** #7 (keystone — the drag/selection state that the coupling probe
+showed blocks both #6 and #8), then #6 and #8 fall out cheaply, then #9, then #5, then #10.
+#5 is deceptive: ~50 loose counters, but they are pure telemetry read by exactly one function
+(`getBenchmarkTerritorySchedulerSnapshot`, live via `benchmarkBridge.ts`). Mechanical, low risk,
+but ~50 write sites of churn — worth doing in one dedicated commit.
+NOTE while in there: `lastRenderFrameInputYieldStage` is only ever reset to `""` and never
+assigned a real value — it is always empty in the snapshot. Verify before removing.
 
 #### Extractions 1-3 — what they bought
 Not LOC (net is roughly flat: the deps interfaces cost what the moves save). They bought **testable
