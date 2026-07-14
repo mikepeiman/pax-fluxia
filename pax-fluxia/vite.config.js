@@ -153,6 +153,10 @@ const extraFsAllow = [
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
+  // Vitest: never collect tests from the quarantine holding area (cleanup Stage 3C).
+  test: {
+    exclude: ["**/node_modules/**", "**/dist/**", "**/build/**", "**/_quarantine/**"],
+  },
   plugins: [tailwindcss(), browserBenchPlugin(), sveltekit(), settingsDumpPlugin(), mapPersistPlugin()],
   optimizeDeps: {
     include: [

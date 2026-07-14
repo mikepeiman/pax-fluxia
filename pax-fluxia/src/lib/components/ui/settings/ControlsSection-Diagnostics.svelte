@@ -17,7 +17,6 @@
         getRulerMeasurement,
         rulerTool,
     } from "$lib/territory/devtools/rulerTool";
-    import TerritoryEngineTraceDiagnostics from "./TerritoryEngineTraceDiagnostics.svelte";
     import SettingsDumpDiagnosticsControls from "./SettingsDumpDiagnosticsControls.svelte";
     import {
         transitionSnapshotRecorder,
@@ -71,10 +70,6 @@
     );
     const showGridGradientDiagnostics = $derived(
         liveRenderMode === "grid_gradient",
-    );
-    const showTerritoryEngineTraceDiagnostics = $derived(
-        liveRenderMode === "territory_engine"
-        || activeRenderMode === "territory_engine",
     );
     const showUnderlyingGeometrySupported = $derived(
         liveRenderMode === "perimeter_field" ||
@@ -640,9 +635,6 @@
             </div>
         {/if}
     </div>
-    {#if showTerritoryEngineTraceDiagnostics}
-        <TerritoryEngineTraceDiagnostics {panel} {updatePanel} />
-    {/if}
     {#if showCellGridDiagnostics}
         <div class="status-grid">
             <div><span>Family</span><code>{$cellGridStats.familyLabel}</code></div>

@@ -57,12 +57,6 @@ export {
     renderStarPower,
 } from './StarPowerRenderer';
 
-// Voronoi territory rendering
-export {
-    renderVoronoi,
-    resetVoronoiCache,
-} from './VoronoiRenderer';
-
 // Metaball territory rendering
 export {
     renderMetaball,

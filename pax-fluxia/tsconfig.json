@@ -21,7 +21,8 @@
     "src/service-worker/**/*.ts",
     "src/service-worker.d.ts",
     "src/service-worker/**/*.d.ts",
-    "src/lib/components/ui/_archived/**"
+    "src/lib/components/ui/_archived/**",
+    "src/lib/_quarantine/**"
   ]
   // Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias
   // except $lib which is handled by https://svelte.dev/docs/kit/configuration#files
