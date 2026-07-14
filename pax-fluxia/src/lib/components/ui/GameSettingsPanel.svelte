@@ -1208,8 +1208,13 @@
 
     // TEMP DIAGNOSTIC (panel-collapse hunt): logs the pixel height of every link
     // in the settings height chain whenever it changes, so a toggle that shrinks
-    // the panel reveals exactly which element resized and by how much. Visible in
-    // the log panel under the "canvas" channel. Remove once the cause is found.
+    // the panel reveals exactly which element resized and by how much.
+    //
+    // Output goes to the BROWSER DEVTOOLS CONSOLE as pink `UI [settings-probe]`
+    // lines — it is on by default (logFlags.ui) and needs no toggle. Mute it with
+    // Settings -> Logging -> UI. (This comment used to say "the log panel, canvas
+    // channel", which was wrong on both counts and cost a real debugging session.)
+    // Remove once the cause is found.
     function probePanelHeights(node: HTMLElement) {
         const selectors = [
             ".controls-panel",

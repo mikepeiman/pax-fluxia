@@ -2,7 +2,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { ANIM_SLIDERS, PANEL_CONFIG_MAP, CONFIG_TO_PANEL_KEY, derivePanelKey } from './settingsDefs';
+import { ANIM_SLIDERS, LOG_CATEGORIES, PANEL_CONFIG_MAP, CONFIG_TO_PANEL_KEY, derivePanelKey } from './settingsDefs';
+import { logFlags } from '$lib/utils/logger';
 
 const THIS_DIR = path.dirname(fileURLToPath(import.meta.url));
 const SETTINGS_DIR = path.join(THIS_DIR, 'settings');
@@ -20,6 +21,22 @@ describe('settingsDefs', () => {
     it('every ANIM_SLIDER configKey has a panel mapping in CONFIG_TO_PANEL_KEY', () => {
         const unmapped = ANIM_SLIDERS.filter(s => !CONFIG_TO_PANEL_KEY[s.key]);
         expect(unmapped.map(s => s.key)).toEqual([]);
+    });
+
+    // The Logging section renders one toggle per LOG_CATEGORIES entry, but the
+    // logger's own `logFlags` is the real set of channels. Two hand-maintained
+    // lists that must agree: they drifted, and `ui` shipped with no toggle at all
+    // — a channel the user was told to enable and could not. Totality, both ways.
+    it('LOG_CATEGORIES exposes a toggle for EVERY logger channel', () => {
+        const toggled = LOG_CATEGORIES.map((c) => c.key).sort();
+        const channels = Object.keys(logFlags).sort();
+        expect(toggled).toEqual(channels);
+    });
+
+    it('LOG_CATEGORIES has no duplicate or unlabelled entries', () => {
+        const keys = LOG_CATEGORIES.map((c) => c.key);
+        expect(keys.filter((k, i) => keys.indexOf(k) !== i)).toEqual([]);
+        expect(LOG_CATEGORIES.filter((c) => !c.label.trim() || !c.desc.trim())).toEqual([]);
     });
 
     it('PANEL_CONFIG_MAP has no duplicate configKeys', () => {

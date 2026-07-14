@@ -68,6 +68,7 @@ export const LOG_CATEGORIES = [
     { key: 'renderer', label: 'Renderer', desc: 'Territory borders, fills' },
     { key: 'transition', label: 'Transition', desc: 'Kinetic conquest morph: commit/settle/retarget + cost (PowerCore)' },
     { key: 'pipeline', label: 'Pipeline', desc: 'Per-frame geometry→family→render trace (copy-paste diagnostic)' },
+    { key: 'ui', label: 'UI', desc: 'Your settings toggles/clicks. Keeps printing while settings pause the game' },
 ] as const;
 
 // ── Animation Slider Definitions ────────────────────────────────────────────
