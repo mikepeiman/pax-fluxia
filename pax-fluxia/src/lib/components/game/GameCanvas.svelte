@@ -175,6 +175,7 @@
         ZOOM_STEP,
     } from "$lib/components/game/cameraModel";
     import { createCanvasClientRectCache } from "$lib/components/game/canvasClientRect";
+    import { createTerritoryPresentationQueue } from "$lib/components/game/territoryPresentationQueue";
     import {
         resolveCenteredViewportFrame,
         resolveContentFitWorldRect,
@@ -350,44 +351,11 @@
             options?: { priority?: "user-blocking" | "user-visible" | "background" },
         ) => Promise<void>;
     };
-    type TerritoryPresentationRequest = {
-        requestId: number;
-        enqueuedAtMs: number;
-        signature: string;
-        activeMode: string;
-        isPaused: boolean;
-        stars: StarState[];
-        pendingConquests: readonly import("@pax/common").ConquestEvent[];
-        run: () => void;
-        territoryScheduler: {
-            cadenceMs: number;
-            staleMs: number;
-            reason: string;
-        };
-    };
-    let territoryPresentationScheduled = false;
-    let territoryPresentationRunning = false;
-    let territoryPresentationRequestSeq = 0;
-    let territoryPresentationPostedCount = 0;
-    let territoryPresentationCompletedCount = 0;
-    let territoryPresentationSupersededCount = 0;
-    let territoryPresentationDedupedCount = 0;
-    let territoryPresentationLastQueuedAtMs = 0;
-    let territoryPresentationLastStartedAtMs = 0;
-    let territoryPresentationLastFinishedAtMs = 0;
-    let territoryPresentationLastQueueWaitMs = 0;
-    let territoryPresentationLastCommitLagMs = 0;
-    let territoryPresentationLastRequestId = 0;
-    let territoryPresentationYieldCount = 0;
-    let territoryPresentationForcedCount = 0;
-    let territoryPresentationLastYieldAtMs = 0;
-    let territoryPresentationLastYieldAgeMs = 0;
-    let territoryPresentationLastYieldRequestId = 0;
-    let territoryPresentationLastYieldReason = "";
-    let territoryPresentationLastScheduleMode = "";
-    let territoryPresentationLastCommittedSignature = "";
-    let territoryPresentationPendingRequest: TerritoryPresentationRequest | null =
-        null;
+    const territoryPresentationQueue = createTerritoryPresentationQueue({
+        logGridGradientTransition: (stage, data) =>
+            logGridGradientTransition(stage, data),
+        runTerritoryUpdate: (label, fn) => runTerritoryUpdate(label, fn),
+    });
     const interactionCaches = createInteractionCaches(() => ({
         stars: activeGameStore.stars as StarState[],
         connections: activeGameStore.connections as StarConnection[],
@@ -2362,9 +2330,7 @@
             label.destroy();
         }
         rulerLabels = [];
-        territoryPresentationScheduled = false;
-        territoryPresentationRunning = false;
-        territoryPresentationPendingRequest = null;
+        territoryPresentationQueue.abort();
         interactionCaches.clear();
         resetTerritoryRenderStatus();
 
@@ -2880,149 +2846,6 @@
     // P0 (PowerCore plan): territory presentation is always flushed immediately —
     // the background/message-channel/timeout scheduling alternatives were the
     // stale-display landmine the overnight branch re-enabled (150–700ms pending).
-    function scheduleTerritoryPresentationQueue(): void {
-        if (territoryPresentationScheduled || territoryPresentationRunning) return;
-        if (!territoryPresentationPendingRequest) return;
-        territoryPresentationLastScheduleMode = "immediate";
-        void flushTerritoryPresentationQueue();
-    }
-
-    async function flushTerritoryPresentationQueue(): Promise<void> {
-        if (territoryPresentationRunning) return;
-        territoryPresentationScheduled = false;
-        if (!territoryPresentationPendingRequest) return;
-        territoryPresentationRunning = true;
-        try {
-            while (territoryPresentationPendingRequest) {
-                const request = territoryPresentationPendingRequest;
-                if (request.activeMode === "grid_gradient") {
-                    logGridGradientTransition("presentation_queue.decision", {
-                        requestId: request.requestId,
-                        activeMode: request.activeMode,
-                        signature: request.signature,
-                        requestAgeMs:
-                            performance.now() - request.enqueuedAtMs,
-                        yield: false,
-                        forced: true,
-                        reason: "immediate",
-                        pendingConquestCount: request.pendingConquests.length,
-                        territoryScheduler: request.territoryScheduler,
-                    });
-                }
-                territoryPresentationPendingRequest = null;
-                territoryPresentationLastRequestId = request.requestId;
-                territoryPresentationLastStartedAtMs = performance.now();
-                territoryPresentationLastQueueWaitMs =
-                    territoryPresentationLastStartedAtMs - request.enqueuedAtMs;
-                territoryPresentationForcedCount += 1;
-
-
-                runTerritoryUpdate(
-                    `game.renderFrame.territory.${request.activeMode}`,
-                    () => {
-                        measurePerf(
-                            `game.renderFrame.territory.present.${request.activeMode}`,
-                            () => {
-                                request.run();
-                            },
-                        );
-                    },
-                );
-                territoryPresentationLastCommittedSignature = request.signature;
-                territoryPresentationLastFinishedAtMs = performance.now();
-                territoryPresentationLastCommitLagMs =
-                    territoryPresentationLastFinishedAtMs - request.enqueuedAtMs;
-                territoryPresentationCompletedCount += 1;
-
-
-            }
-        } finally {
-            territoryPresentationRunning = false;
-            if (
-                territoryPresentationPendingRequest &&
-                !territoryPresentationScheduled
-            ) {
-                scheduleTerritoryPresentationQueue();
-            }
-        }
-    }
-
-    function queueTerritoryPresentation(request: {
-        signature: string;
-        activeMode: string;
-        isPaused: boolean;
-        stars: StarState[];
-        pendingConquests: readonly import("@pax/common").ConquestEvent[];
-        run: () => void;
-        territoryScheduler: {
-            cadenceMs: number;
-            staleMs: number;
-            reason: string;
-        };
-    }): void {
-        const nextRequest: TerritoryPresentationRequest = {
-            requestId: territoryPresentationRequestSeq + 1,
-            enqueuedAtMs: performance.now(),
-            signature: request.signature,
-            activeMode: request.activeMode,
-            isPaused: request.isPaused,
-            stars: request.stars,
-            pendingConquests: request.pendingConquests,
-            run: request.run,
-            territoryScheduler: request.territoryScheduler,
-        };
-        if (nextRequest.activeMode === "grid_gradient") {
-            logGridGradientTransition("presentation_queue.enqueue_attempt", {
-                requestId: nextRequest.requestId,
-                signature: nextRequest.signature,
-                hasExistingPending: Boolean(territoryPresentationPendingRequest),
-                existingPendingSignature:
-                    territoryPresentationPendingRequest?.signature ?? null,
-                pendingConquestCount: nextRequest.pendingConquests.length,
-                territoryScheduler: nextRequest.territoryScheduler,
-            });
-        }
-        if (
-            territoryPresentationPendingRequest &&
-            territoryPresentationPendingRequest.signature === nextRequest.signature
-        ) {
-            if (nextRequest.activeMode === "grid_gradient") {
-                logGridGradientTransition("presentation_queue.deduped", {
-                    requestId: nextRequest.requestId,
-                    pendingRequestId:
-                        territoryPresentationPendingRequest.requestId,
-                    signature: nextRequest.signature,
-                });
-            }
-            territoryPresentationDedupedCount += 1;
-
-
-            return;
-        }
-        territoryPresentationRequestSeq = nextRequest.requestId;
-        territoryPresentationLastQueuedAtMs = nextRequest.enqueuedAtMs;
-        if (territoryPresentationPendingRequest) {
-            if (nextRequest.activeMode === "grid_gradient") {
-                logGridGradientTransition("presentation_queue.replace_pending", {
-                    replacedRequestId:
-                        territoryPresentationPendingRequest.requestId,
-                    nextRequestId: nextRequest.requestId,
-                    replacedSignature:
-                        territoryPresentationPendingRequest.signature,
-                    nextSignature: nextRequest.signature,
-                });
-            }
-            territoryPresentationSupersededCount += 1;
-
-
-        } else {
-
-
-        }
-        territoryPresentationPendingRequest = nextRequest;
-        scheduleTerritoryPresentationQueue();
-    }
-
     function drawHex(g: PIXI.Graphics, x: number, y: number, r: number) {
         g.moveTo(x + r * Math.cos(0), y + r * Math.sin(0));
         for (let i = 1; i <= 6; i++) {
@@ -3118,28 +2941,7 @@
             deferredTerritoryReason = "";
             territoryCadenceSkipCount = 0;
             territoryLastMode = "";
-            territoryPresentationScheduled = false;
-            territoryPresentationRunning = false;
-            territoryPresentationRequestSeq = 0;
-            territoryPresentationPostedCount = 0;
-            territoryPresentationCompletedCount = 0;
-            territoryPresentationSupersededCount = 0;
-            territoryPresentationDedupedCount = 0;
-            territoryPresentationLastQueuedAtMs = 0;
-            territoryPresentationLastStartedAtMs = 0;
-            territoryPresentationLastFinishedAtMs = 0;
-            territoryPresentationLastQueueWaitMs = 0;
-            territoryPresentationLastCommitLagMs = 0;
-            territoryPresentationLastRequestId = 0;
-            territoryPresentationYieldCount = 0;
-            territoryPresentationForcedCount = 0;
-            territoryPresentationLastYieldAtMs = 0;
-            territoryPresentationLastYieldAgeMs = 0;
-            territoryPresentationLastYieldRequestId = 0;
-            territoryPresentationLastYieldReason = "";
-            territoryPresentationLastScheduleMode = "";
-            territoryPresentationLastCommittedSignature = "";
-            territoryPresentationPendingRequest = null;
+            territoryPresentationQueue.reset();
             lastShipRenderStartedAtMs = 0;
             lastShipRenderCostMs = 0;
             lastShipRenderPresentedAtMs = 0;
@@ -3336,9 +3138,9 @@
                 });
             const pausedPresentationAlreadyCurrent =
                 isPausedNow &&
-                (territoryPresentationLastCommittedSignature ===
+                (territoryPresentationQueue.getLastCommittedSignature() ===
                     territoryPresentationSignature ||
-                    territoryPresentationPendingRequest?.signature ===
+                    territoryPresentationQueue.getPendingSignature() ===
                         territoryPresentationSignature);
             if (!pausedPresentationAlreadyCurrent) {
                 const territoryScheduler = shouldThrottleTerritoryCadence({
@@ -3390,7 +3192,7 @@
                         deferredTerritoryReason = "";
                     }
                     voronoiContainer.visible = true;
-                    queueTerritoryPresentation({
+                    territoryPresentationQueue.queue({
                         signature: territoryPresentationSignature,
                         activeMode: activeTerritoryMode,
                         isPaused: isPausedNow,
@@ -4770,34 +4572,9 @@
             ),
             lastInteractionLocalAcknowledgment,
             lastInteractionVisualAcknowledgment,
-            territoryPresentationScheduled,
-            territoryPresentationRunning,
-            territoryPresentationPostedCount,
-            territoryPresentationCompletedCount,
-            territoryPresentationSupersededCount,
-            territoryPresentationDedupedCount,
-            territoryPresentationLastQueuedAtMs,
-            territoryPresentationLastStartedAtMs,
-            territoryPresentationLastFinishedAtMs,
-            territoryPresentationLastQueueWaitMs,
-            territoryPresentationLastCommitLagMs,
-            territoryPresentationLastRequestId,
             territoryPresentationSpace:
                 getTerritoryPresentationSpaceDiagnostics(),
-            territoryPresentationYieldCount,
-            territoryPresentationForcedCount,
-            territoryPresentationLastYieldAtMs,
-            territoryPresentationLastYieldAgeMs,
-            territoryPresentationLastYieldRequestId,
-            territoryPresentationLastYieldReason,
-            territoryPresentationLastScheduleMode,
-            territoryPresentationPendingRequestId:
-                territoryPresentationPendingRequest?.requestId ?? null,
-            territoryPresentationPendingMode:
-                territoryPresentationPendingRequest?.activeMode ?? null,
-            territoryPresentationPendingAgeMs: territoryPresentationPendingRequest
-                ? performance.now() - territoryPresentationPendingRequest.enqueuedAtMs
-                : 0,
+            ...territoryPresentationQueue.getTelemetry(),
             ...getKineticDiagnostics(),
             transitionDiagnosticCaptureState: transitionDiagnostics.getCaptureState(),
         };
