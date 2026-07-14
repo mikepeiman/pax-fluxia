@@ -10,9 +10,10 @@
     interface Props {
         logCategories: readonly any[] | any[];
         logRefresh: number;
+        updatePanel: (key: string, value: any) => void;
         syncFromConfig?: () => void;
     }
-    let { logCategories, logRefresh, syncFromConfig }: Props = $props();
+    let { logCategories, logRefresh, updatePanel, syncFromConfig }: Props = $props();
 
     function gridGradientTraceEnabled(): boolean {
         return Boolean(
@@ -22,8 +23,11 @@
     }
 
     function setGridGradientTraceEnabled(enabled: boolean): void {
-        (GAME_CONFIG as unknown as Record<string, unknown>)
-            .GRID_GRADIENT_DEBUG_TRANSITIONS = enabled;
+        // Through the panel, not a raw GAME_CONFIG write: the key is in
+        // PANEL_CONFIG_MAP, so boot-time applyPanelToConfig replays the panel's
+        // stored value over config — a raw write here persisted, then got
+        // clobbered back to the stale panel snapshot on the next reload.
+        updatePanel("gridGradientDebugTransitions", enabled);
         logRefresh++;
     }
 </script>

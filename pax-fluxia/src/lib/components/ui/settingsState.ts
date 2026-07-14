@@ -33,14 +33,8 @@ function applyMappedSetting(panelKey: string, value: unknown): void {
     }
 
     if (value === undefined) return;
-    let appliedValue: unknown;
-    if (mapping.transform === 'inverse') {
-        appliedValue = 1 / (value as number);
-        (GAME_CONFIG as any)[mapping.configKey] = appliedValue;
-    } else {
-        appliedValue = value;
-        (GAME_CONFIG as any)[mapping.configKey] = appliedValue;
-    }
+    const appliedValue: unknown = value;
+    (GAME_CONFIG as any)[mapping.configKey] = appliedValue;
 
     recordSettingWrite({
         panelKey,
@@ -89,8 +83,7 @@ export function setSettingsFromConfigPatch(
 
         const mapping = SETTINGS_BY_CONFIG_KEY.get(configKey);
         const panelKey = mapping?.panelKey ?? `config:${configKey}`;
-        const panelValue =
-            mapping?.transform === 'inverse' ? 1 / (value as number) : value;
+        const panelValue = value;
 
         if (mapping) {
             nextPanel[mapping.panelKey] = panelValue;
@@ -123,9 +116,7 @@ export function syncPanelFromConfigPatch(
         if (value === undefined) continue;
         const mapping = SETTINGS_BY_CONFIG_KEY.get(configKey);
         if (!mapping) continue;
-        const panelValue =
-            mapping.transform === 'inverse' ? 1 / (value as number) : value;
-        nextPanel[mapping.panelKey] = panelValue;
+        nextPanel[mapping.panelKey] = value;
     }
     persist(nextPanel);
     return nextPanel;

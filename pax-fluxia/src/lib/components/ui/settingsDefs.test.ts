@@ -45,6 +45,16 @@ describe('settingsDefs', () => {
         expect(dupes).toEqual([]);
     });
 
+    it('AGGRESSOR_ADVANTAGE maps plainly — panel and config share one value space', () => {
+        // Regression pin for the flip-on-reload bug: the old { panelKey: 'defense',
+        // transform: 'inverse' } mapping made the panel a second value space, so a
+        // config-space slider value flipped to its reciprocal on rehydration.
+        expect(CONFIG_TO_PANEL_KEY['AGGRESSOR_ADVANTAGE']).toBe('aggressorAdvantage');
+        const mapping = PANEL_CONFIG_MAP.find((m) => m.configKey === 'AGGRESSOR_ADVANTAGE');
+        expect(mapping).toBeDefined();
+        expect((mapping as Record<string, unknown>).panelKey).toBeUndefined();
+    });
+
     it('derivePanelKey converts SCREAMING_SNAKE_CASE to camelCase', () => {
         expect(derivePanelKey('TERRITORY_TRANSITION_MS')).toBe('territoryTransitionMs');
         expect(derivePanelKey('ATTACK_SURGE_RAMP_MS')).toBe('attackSurgeRampMs');

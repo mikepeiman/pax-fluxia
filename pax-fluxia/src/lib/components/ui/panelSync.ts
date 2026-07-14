@@ -181,10 +181,14 @@ export function applyVisuals(vis: typeof VISUAL_DEFAULTS): void {
  * Historical panel key renames.
  * These were stored under old (incorrect) keys in localStorage; migrate them
  * forward once by reading under the old key and writing under the new key.
- * Only the 8 keys that were "historical accidents" — abbreviated forms that
- * diverged from the SCREAMING_SNAKE_CASE → camelCase convention.
+ * Keys that were "historical accidents" — abbreviated or semantically renamed
+ * forms that diverged from the SCREAMING_SNAKE_CASE → camelCase convention.
  */
 const PANEL_KEY_RENAMES: Record<string, string> = {
+    // defense held AGGRESSOR_ADVANTAGE behind an 'inverse' transform; the Battle
+    // slider stored CONFIG-space values under it (the flip-on-reload bug), so the
+    // verbatim copy this table performs is the correct migration.
+    defense:           'aggressorAdvantage',
     settleDuration:    'settleDurationMs',
     globalDamage:      'globalDamageModifier',
     arrowLength:       'arrowLengthFraction',
@@ -368,7 +372,7 @@ export function panelDefaultsFromConfig(
     const defaults: Record<string, any> = {};
     for (const m of RESOLVED_PANEL_CONFIG_MAP) {
         const raw = configSource[m.configKey];
-        defaults[m.panelKey] = m.transform === 'inverse' ? (1 / raw) : raw;
+        defaults[m.panelKey] = raw;
     }
     return defaults;
 }
@@ -387,17 +391,13 @@ export function savePanelSettings(panel: Record<string, any>): void {
 
 /**
  * Write all panel values to GAME_CONFIG.
- * Uses RESOLVED_PANEL_CONFIG_MAP for the mapping; handles 'inverse' transform.
+ * Uses RESOLVED_PANEL_CONFIG_MAP for the mapping.
  */
 export function applyPanelToConfig(panel: Record<string, any>): void {
     for (const mapping of RESOLVED_PANEL_CONFIG_MAP) {
         const val = panel[mapping.panelKey];
         if (val === undefined) continue;
-        if (mapping.transform === 'inverse') {
-            (GAME_CONFIG as any)[mapping.configKey] = 1 / (val as number);
-        } else {
-            (GAME_CONFIG as any)[mapping.configKey] = val;
-        }
+        (GAME_CONFIG as any)[mapping.configKey] = val;
     }
 }
 
@@ -470,11 +470,7 @@ export function syncPanelFromConfig(
     for (const mapping of RESOLVED_PANEL_CONFIG_MAP) {
         const configVal = configSource[mapping.configKey];
         if (configVal === undefined) continue;
-        if (mapping.transform === 'inverse') {
-            updated[mapping.panelKey] = 1 / (configVal as number);
-        } else {
-            updated[mapping.panelKey] = configVal;
-        }
+        updated[mapping.panelKey] = configVal;
     }
     return updated;
 }

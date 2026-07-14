@@ -148,7 +148,7 @@ export const STAR_LABEL_SLIDERS: AnimSliderDef[] = [
  *
  * This is the convention for all new controls. Entries in PANEL_CONFIG_MAP
  * only need an explicit panelKey when they intentionally differ (semantic
- * renames like tickInterval for BASE_TICK_MS, or inverse-transform keys).
+ * renames like tickInterval for BASE_TICK_MS).
  */
 export function derivePanelKey(configKey: string): string {
     return configKey.toLowerCase().replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase());
@@ -159,14 +159,14 @@ export function derivePanelKey(configKey: string): string {
  * Used by panelDefaults, applyPanelToConfig, and syncAllFromConfig.
  *
  * panelKey is optional — if omitted, it is auto-derived via derivePanelKey(configKey).
- * Only supply panelKey explicitly for intentional semantic renames or inverse transforms.
- * 'transform' describes how config values map to panel display values.
+ * Only supply panelKey explicitly for intentional semantic renames. Panel and config
+ * hold the SAME value for every key: the 'inverse' transform (panel = 1/config) was
+ * removed 2026-07-14 with its only user — it made the panel a second value space,
+ * which is exactly how the AGGRESSOR_ADVANTAGE flip-on-reload bug happened.
  */
 export interface PanelConfigMapping {
     configKey: string;
     panelKey?: string;
-    /** 'direct' = same value; 'inverse' = panel = 1/config; leaving undefined = direct */
-    transform?: 'direct' | 'inverse';
 }
 
 export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
@@ -174,7 +174,12 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'bindAnimToTick', configKey: 'BIND_ANIMATION_TO_TICK' },
     { panelKey: 'production', configKey: 'BASE_PRODUCTION' },
     { panelKey: 'repair', configKey: 'REPAIR_RATE' },
-    { panelKey: 'defense', configKey: 'AGGRESSOR_ADVANTAGE', transform: 'inverse' },
+    // AGGRESSOR_ADVANTAGE was { panelKey: 'defense', transform: 'inverse' } until
+    // 2026-07-14. The Battle slider passed a CONFIG-space value into that mapping,
+    // so the mapped write stored 1/v and a raw write papered over it live — the
+    // value then FLIPPED to 1/v on every reload when the panel rehydrated config.
+    // Plain mapping + a defense→aggressorAdvantage rename migration fixed it.
+    { configKey: 'AGGRESSOR_ADVANTAGE' },
     { configKey: 'REPAIR_SUPPRESS_ATTACKER' },
     { configKey: 'REPAIR_SUPPRESS_DEFENDER' },
     { configKey: 'GLOBAL_DAMAGE_MODIFIER' },

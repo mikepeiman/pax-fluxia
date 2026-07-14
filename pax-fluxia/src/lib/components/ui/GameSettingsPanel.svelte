@@ -1646,6 +1646,7 @@
                     <ControlsSectionLogging
                         {logCategories}
                         {logRefresh}
+                        {updatePanel}
                         syncFromConfig={syncAllFromConfig}
                     />
                 {:else if sec?.id === "audio"}

@@ -54,9 +54,13 @@
         if (Number.isNaN(value)) return;
         const panelKey = CONFIG_TO_PANEL_KEY[configKey];
         if (panelKey) {
+            // updatePanel writes GAME_CONFIG via the mapping AND persists the
+            // panel — a second raw config write here is how the old inverse
+            // 'defense' mapping got papered over live and flipped on reload.
             updatePanel(panelKey, value);
+        } else {
+            (GAME_CONFIG as any)[configKey] = value;
         }
-        (GAME_CONFIG as any)[configKey] = value;
     }
 
     function varsFor(keys: string[]) {
