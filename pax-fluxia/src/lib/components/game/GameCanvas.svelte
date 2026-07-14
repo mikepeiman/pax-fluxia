@@ -107,9 +107,6 @@
         RenderFamilyTransitionSession,
     } from "$lib/territory/families/RenderFamilyTypes";
     import { buildRenderFamilyTransitionLifecycle } from "$lib/territory/transitions/renderFamilyTransitionLifecycle";
-    import {
-        ownershipSnapshotHasPreviousConquestOwners,
-    } from "$lib/territory/transitions/renderFamilyPreviousFrame";
     import { getTerritoryVisualEpoch } from "$lib/territory/bumpTerritoryVisualConfig";
     import {
         buildTerritoryGeometryCacheKeyParts,
@@ -167,6 +164,10 @@
         localizeTerritoryPresentationStars,
         type TerritoryPresentationFrame,
     } from "$lib/components/game/territoryPresentationSpace";
+    import {
+        createTransitionDiagnosticsCapture,
+        type TransitionDiagnosticFrameInput,
+    } from "$lib/components/game/transitionDiagnosticsCapture";
     import {
         resolveCenteredViewportFrame,
         resolveContentFitWorldRect,
@@ -1782,121 +1783,6 @@
         return snapshot;
     }
 
-    type TransitionDiagnosticCapturedFrame = {
-        geometry: ResolvedGeometrySnapshot;
-        ownership: OwnershipSnapshot;
-        canvas: HTMLCanvasElement;
-        mode: string;
-        debugSnapshot: Record<string, unknown> | null;
-    };
-
-    type TransitionDiagnosticCapturedTransitionFrame = {
-        frameIndex: number;
-        progress: number;
-        canvas: HTMLCanvasElement;
-        debugSnapshot: Record<string, unknown> | null;
-    };
-
-    type TransitionDiagnosticCaptureSession = {
-        key: string;
-        mode: string;
-        conquestEvents: readonly TerritoryConquestEvent[];
-        previousFrame: TransitionDiagnosticCapturedFrame;
-        frames: TransitionDiagnosticCapturedTransitionFrame[];
-    };
-
-    type TransitionDiagnosticFrameInput = {
-        activeMode: string;
-        activeTransition: RenderFamilyActiveTransition | null;
-        stars: ReadonlyArray<StarState>;
-        lanes: ReadonlyArray<StarConnection>;
-        geometry?: ResolvedGeometrySnapshot | null;
-        ownership?: OwnershipSnapshot | null;
-        debugSnapshot?: Record<string, unknown> | null;
-    };
-
-    let transitionDiagnosticStableFrame: TransitionDiagnosticCapturedFrame | null =
-        null;
-    let transitionDiagnosticCaptureSession:
-        | TransitionDiagnosticCaptureSession
-        | null = null;
-    let transitionDiagnosticCaptureState: Record<string, unknown> | null = null;
-
-    function cloneCanvasFrame(
-        source: HTMLCanvasElement,
-    ): HTMLCanvasElement {
-        const canvas = document.createElement("canvas");
-        canvas.width = source.width;
-        canvas.height = source.height;
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-            ctx.drawImage(source, 0, 0);
-        }
-        return canvas;
-    }
-
-    function cloneTransitionDiagnosticSnapshot(
-        snapshot: Record<string, unknown> | null,
-    ): Record<string, unknown> | null {
-        if (!snapshot) return null;
-        if (typeof structuredClone === "function") {
-            return structuredClone(snapshot);
-        }
-        return JSON.parse(JSON.stringify(snapshot)) as Record<string, unknown>;
-    }
-
-    function resetTransitionDiagnosticCaptureState(): void {
-        transitionDiagnosticStableFrame = null;
-        transitionDiagnosticCaptureSession = null;
-        transitionDiagnosticCaptureState = {
-            status: "idle",
-        };
-    }
-
-    function buildTransitionDiagnosticCaptureKey(
-        activeTransition: RenderFamilyActiveTransition | null,
-    ): string | null {
-        const events = activeTransition?.events;
-        if (!events?.length) return null;
-        return events
-            .map((entry) =>
-                [
-                    entry.event.tick,
-                    entry.event.starId,
-                    entry.event.previousOwner,
-                    entry.event.newOwner,
-                    entry.startedAtMs,
-                ].join(":"),
-            )
-            .join("|");
-    }
-
-    function buildTransitionDiagnosticConquestEvents(
-        activeTransition: RenderFamilyActiveTransition,
-    ): TerritoryConquestEvent[] {
-        return activeTransition.events
-            .map((entry) => ({
-                ...entry.event,
-                attackerStarIds: [...entry.event.attackerStarIds],
-                attackerShipTransfers: [...entry.event.attackerShipTransfers],
-                atMs: entry.startedAtMs,
-            }))
-            .sort((a, b) => {
-                if (a.atMs !== b.atMs) return a.atMs - b.atMs;
-                return a.starId.localeCompare(b.starId);
-            });
-    }
-
-    function buildStarPositionsMap(
-        stars: ReadonlyArray<StarState>,
-    ): ReadonlyMap<string, { x: number; y: number }> {
-        const starPositions = new Map<string, { x: number; y: number }>();
-        for (const star of stars) {
-            starPositions.set(star.id, { x: star.x, y: star.y });
-        }
-        return starPositions;
-    }
-
     function resolveActiveTerritoryMode(): string {
         // Migrate any persisted legacy render-mode id (e.g. metaball_grid_phase_edges)
         // to its canonical name in place, so all downstream reads see the new id.
@@ -1946,10 +1832,26 @@
     let renderFamilyStableGeometryKey: string | null = null;
     let renderFamilyStableGeometry: ResolvedGeometrySnapshot | null = null;
     let renderFamilyStableOwnership: OwnershipSnapshot | null = null;
-    let transitionDiagnosticPrevKey: string | null = null;
-    let transitionDiagnosticPrevGeometry: ResolvedGeometrySnapshot | null =
-        null;
-    let transitionDiagnosticPrevOwnership: OwnershipSnapshot | null = null;
+
+    // Dev-tooling conquest capture (see transitionDiagnosticsCapture.ts). Deps are
+    // getters: every one of these changes after this line runs.
+    const transitionDiagnostics = createTransitionDiagnosticsCapture({
+        getApp: () => app,
+        getVoronoiContainer: () => voronoiContainer,
+        getGameTimeMs: () => fxOrchestrator.gameTime,
+        getMapWorldSize: () => ({ width: GAME_WIDTH, height: GAME_HEIGHT }),
+        getTerritoryWorldSize: () => ({
+            width: territoryWorldWidth,
+            height: territoryWorldHeight,
+        }),
+        getStableGeometry: () => renderFamilyStableGeometry,
+        getStableOwnership: () => renderFamilyStableOwnership,
+        getRenderFamilyModeConfigSource,
+        getCurrentRenderFamilyGeometry,
+        buildRenderFamilyOwnershipSnapshot,
+        summarizeTransitionOwnersForLog,
+        logGridGradientTransition,
+    });
 
     function buildRenderFamilyGeometryCacheKey(
         stars: ReadonlyArray<StarState>,
@@ -2090,467 +1992,6 @@
             geometryVersion: renderFamilyStableGeometry.version,
             ownershipVersion: renderFamilyStableOwnership.version,
         });
-    }
-
-    function revertStarsForTransitionDiagnostic(
-        activeTransition: RenderFamilyActiveTransition,
-        stars: ReadonlyArray<StarState>,
-    ): StarState[] {
-        const overrides = new Map<string, string>();
-        for (const entry of activeTransition.events) {
-            overrides.set(entry.event.starId, entry.event.previousOwner);
-        }
-        return stars.map((star) => {
-            const ownerId = overrides.get(star.id);
-            return ownerId === undefined ? { ...star } : { ...star, ownerId };
-        });
-    }
-
-    function getTransitionDiagnosticPrevFrame(params: {
-        activeMode: string;
-        activeTransition: RenderFamilyActiveTransition | null;
-        stars: ReadonlyArray<StarState>;
-        lanes: ReadonlyArray<StarConnection>;
-    }):
-        | {
-              key: string;
-              geometry: ResolvedGeometrySnapshot;
-              ownership: OwnershipSnapshot;
-          }
-        | null {
-        const key = buildTransitionDiagnosticCaptureKey(
-            params.activeTransition,
-        );
-        if (!key || !params.activeTransition) {
-            logGridGradientTransition("prev_frame.no_transition_key", {
-                key,
-                hasActiveTransition: Boolean(params.activeTransition),
-            });
-            transitionDiagnosticPrevKey = null;
-            transitionDiagnosticPrevGeometry = null;
-            transitionDiagnosticPrevOwnership = null;
-            return null;
-        }
-        if (
-            transitionDiagnosticPrevKey !== key ||
-            !transitionDiagnosticPrevGeometry ||
-            !transitionDiagnosticPrevOwnership
-        ) {
-            const stableFrameMatchesTransition =
-                !!renderFamilyStableGeometry &&
-                ownershipSnapshotHasPreviousConquestOwners({
-                    activeTransition: params.activeTransition,
-                    ownership: renderFamilyStableOwnership,
-                });
-            logGridGradientTransition("prev_frame.cache_gate", {
-                transitionKey: key,
-                hasStableGeometry: Boolean(renderFamilyStableGeometry),
-                hasStableOwnership: Boolean(renderFamilyStableOwnership),
-                stableFrameMatchesTransition,
-                stableGeometryVersion:
-                    renderFamilyStableGeometry?.version ?? null,
-                stableOwnershipVersion:
-                    renderFamilyStableOwnership?.version ?? null,
-                transitionOwners: summarizeTransitionOwnersForLog(
-                    params.activeTransition,
-                    params.stars,
-                ),
-            });
-            if (
-                stableFrameMatchesTransition &&
-                renderFamilyStableGeometry &&
-                renderFamilyStableOwnership
-            ) {
-                transitionDiagnosticPrevKey = key;
-                transitionDiagnosticPrevGeometry = renderFamilyStableGeometry;
-                transitionDiagnosticPrevOwnership = renderFamilyStableOwnership;
-                recordPerfEvent("territory.renderFamily.prevFrame", {
-                    source: "presented_frame_cache",
-                    transitionKey: key,
-                    geometryVersion: renderFamilyStableGeometry.version,
-                    ownershipVersion: renderFamilyStableOwnership.version,
-                });
-                logGridGradientTransition("prev_frame.using_presented_cache", {
-                    transitionKey: key,
-                    geometryVersion: renderFamilyStableGeometry.version,
-                    ownershipVersion: renderFamilyStableOwnership.version,
-                });
-            } else {
-                const revertedStars = revertStarsForTransitionDiagnostic(
-                    params.activeTransition,
-                    params.stars,
-                );
-                const ownership = buildOwnershipSnapshotFromStars(revertedStars);
-                const configSource = getRenderFamilyModeConfigSource(
-                    params.activeMode,
-                );
-                const geometry = measurePerf(
-                    "game.renderFrame.tickEvents.capture.prevGeometry",
-                    () =>
-                        buildPerimeterFieldRenderFamilyGeometry({
-                            stars: revertedStars,
-                            lanes: params.lanes,
-                            worldWidth: GAME_WIDTH,
-                            worldHeight: GAME_HEIGHT,
-                            nowMs: fxOrchestrator.gameTime,
-                            ownership,
-                            geometrySource: normalizePerimeterFieldGeometrySource(
-                                configSource?.PERIMETER_FIELD_GEOMETRY_SOURCE,
-                            ),
-                            configSource,
-                        }),
-                );
-                transitionDiagnosticPrevKey = key;
-                transitionDiagnosticPrevGeometry = geometry;
-                transitionDiagnosticPrevOwnership = ownership;
-                recordPerfEvent("territory.renderFamily.prevFrame", {
-                    source: "transition_rebuild",
-                    reason: renderFamilyStableGeometry
-                        ? "stable_previous_owner_mismatch"
-                        : "missing_stable_frame",
-                    transitionKey: key,
-                    geometryVersion: geometry.version,
-                    ownershipVersion: ownership.version,
-                });
-                logGridGradientTransition("prev_frame.rebuilt", {
-                    transitionKey: key,
-                    reason: renderFamilyStableGeometry
-                        ? "stable_previous_owner_mismatch"
-                        : "missing_stable_frame",
-                    geometryVersion: geometry.version,
-                    ownershipVersion: ownership.version,
-                    revertedOwners: summarizeTransitionOwnersForLog(
-                        params.activeTransition,
-                        revertedStars,
-                    ),
-                });
-            }
-        }
-        logGridGradientTransition("prev_frame.return", {
-            transitionKey: key,
-            geometryVersion: transitionDiagnosticPrevGeometry?.version ?? null,
-            ownershipVersion: transitionDiagnosticPrevOwnership?.version ?? null,
-        });
-        return {
-            key,
-            geometry: transitionDiagnosticPrevGeometry,
-            ownership: transitionDiagnosticPrevOwnership,
-        };
-    }
-
-    function buildTransitionDiagnosticSelection(mode: string) {
-        return {
-            ownershipMode: "star_ownership_snapshot" as const,
-            geometryMode: "unified_vector" as const,
-            fillTransitionMode: "unified_topology" as const,
-            borderTransitionMode: "off" as const,
-            styleMode:
-                mode === "distance_field"
-                    ? ("distance_field" as const)
-                    : mode === "pixel"
-                      ? ("pixel" as const)
-                      : ("vector" as const),
-        };
-    }
-
-    function getTransitionDiagnosticModeDebugSnapshot(
-        mode: string,
-    ): Record<string, unknown> | null {
-        if (
-            mode === "cell_grid" ||
-            mode === "phase_edges" ||
-            mode === "ember_lattice" ||
-            mode === "phase_field" ||
-            mode === "grid_gradient"
-        ) {
-            const family = getRenderFamily(mode);
-            if (
-                family instanceof CellGridPhaseEdgesFamily ||
-                family instanceof CellGridPhaseFieldFamily ||
-                family instanceof GridGradientFamily
-            ) {
-                return cloneTransitionDiagnosticSnapshot(
-                    family.getDebugSnapshot(),
-                );
-            }
-        }
-        return null;
-    }
-
-    function captureTransitionDiagnosticLiveFrame(params: {
-        target: PIXI.Container;
-        geometry: ResolvedGeometrySnapshot;
-        ownership: OwnershipSnapshot;
-        mode: string;
-        debugSnapshot?: Record<string, unknown> | null;
-    }): TransitionDiagnosticCapturedFrame | null {
-        if (!app?.renderer) return null;
-        const extracted = app.renderer.extract.canvas({
-            target: params.target,
-            frame: new PIXI.Rectangle(
-                0,
-                0,
-                territoryWorldWidth,
-                territoryWorldHeight,
-            ),
-            clearColor: "#000000",
-        }) as HTMLCanvasElement;
-        return {
-            geometry: params.geometry,
-            ownership: params.ownership,
-            canvas: cloneCanvasFrame(extracted),
-            mode: params.mode,
-            debugSnapshot: cloneTransitionDiagnosticSnapshot(
-                params.debugSnapshot ?? null,
-            ),
-        };
-    }
-
-    function recordTransitionDiagnosticFrame(
-        session: TransitionDiagnosticCaptureSession,
-        progress: number,
-        frame: TransitionDiagnosticCapturedFrame,
-    ): void {
-        session.frames.push({
-            frameIndex: session.frames.length + 1,
-            progress,
-            canvas: cloneCanvasFrame(frame.canvas),
-            debugSnapshot: cloneTransitionDiagnosticSnapshot(
-                frame.debugSnapshot,
-            ),
-        });
-    }
-
-    function syncTransitionDiagnosticCapture(params: {
-        activeMode: string;
-        activeTransition: RenderFamilyActiveTransition | null;
-        stars: ReadonlyArray<StarState>;
-        lanes: ReadonlyArray<StarConnection>;
-        geometry?: ResolvedGeometrySnapshot | null;
-        ownership?: OwnershipSnapshot | null;
-        debugSnapshot?: Record<string, unknown> | null;
-    }): void {
-        if (!transitionSnapshotRecorder.isEnabled()) {
-            resetTransitionDiagnosticCaptureState();
-            transitionDiagnosticPrevKey = null;
-            transitionDiagnosticPrevGeometry = null;
-            transitionDiagnosticPrevOwnership = null;
-            return;
-        }
-        const activeVoronoiContainer = voronoiContainer;
-        if (!activeVoronoiContainer || !app?.renderer) {
-            transitionDiagnosticCaptureState = {
-                status: "blocked",
-                reason: "renderer_unavailable",
-                activeMode: params.activeMode,
-            };
-            return;
-        }
-
-        const transitionKey = buildTransitionDiagnosticCaptureKey(
-            params.activeTransition,
-        );
-        const prevFrame = getTransitionDiagnosticPrevFrame({
-            activeMode: params.activeMode,
-            activeTransition: params.activeTransition,
-            stars: params.stars,
-            lanes: params.lanes,
-        });
-        const ownership =
-            params.ownership ??
-            buildRenderFamilyOwnershipSnapshot(
-                params.stars,
-                params.activeTransition,
-            );
-        const geometry =
-            params.geometry ??
-            measurePerf("game.renderFrame.tickEvents.capture.geometry", () =>
-                getCurrentRenderFamilyGeometry(
-                    params.stars,
-                    params.lanes,
-                    getRenderFamilyModeConfigSource(params.activeMode),
-                ),
-            );
-        const liveFrame = measurePerf(
-            "game.renderFrame.tickEvents.capture.extract",
-            () =>
-                captureTransitionDiagnosticLiveFrame({
-                    target: activeVoronoiContainer,
-                    geometry,
-                    ownership,
-                    mode: params.activeMode,
-                    debugSnapshot:
-                        params.debugSnapshot ??
-                        getTransitionDiagnosticModeDebugSnapshot(
-                            params.activeMode,
-                        ),
-                }),
-        );
-        if (!liveFrame) {
-            transitionDiagnosticCaptureState = {
-                status: "blocked",
-                reason: "frame_capture_failed",
-                activeMode: params.activeMode,
-                transitionKey,
-            };
-            return;
-        }
-
-        if (!transitionKey || !params.activeTransition) {
-            if (transitionDiagnosticCaptureSession) {
-                const session = transitionDiagnosticCaptureSession;
-                const finalizedTransitionFrames = [
-                    ...session.frames.map((entry) => ({
-                        progress: entry.progress,
-                        canvas: entry.canvas,
-                        frameIndex: entry.frameIndex,
-                        debugSnapshot: entry.debugSnapshot,
-                    })),
-                    {
-                        progress: 1,
-                        canvas: cloneCanvasFrame(liveFrame.canvas),
-                        frameIndex: session.frames.length + 1,
-                        debugSnapshot: cloneTransitionDiagnosticSnapshot(
-                            liveFrame.debugSnapshot,
-                        ),
-                    },
-                ];
-                measurePerf(
-                    "game.renderFrame.tickEvents.capture.finalize",
-                    () => {
-                        transitionSnapshotRecorder.capturePreRendered({
-                            ctx: {
-                                conquestEvents: session.conquestEvents,
-                                previousGeometry:
-                                    session.previousFrame.geometry,
-                                nextGeometry: liveFrame.geometry,
-                                previousOwnership:
-                                    session.previousFrame.ownership,
-                                nextOwnership: liveFrame.ownership,
-                                transition: {
-                                    envelope: null as any,
-                                    fillFrame: null as any,
-                                    borderFrame: null as any,
-                                    geometryVersion: liveFrame.geometry.version,
-                                },
-                                fillPlan: null,
-                                activeFrontPlan: null,
-                                prevFrontierTopology:
-                                    session.previousFrame.geometry
-                                        .frontierTopology ?? null,
-                                nextFrontierTopology:
-                                    liveFrame.geometry.frontierTopology ?? null,
-                                selection: buildTransitionDiagnosticSelection(
-                                    session.mode,
-                                ),
-                                nowMs: fxOrchestrator.gameTime,
-                                starPositions: buildStarPositionsMap(
-                                    params.stars,
-                                ),
-                                worldWidth: territoryWorldWidth,
-                                worldHeight: territoryWorldHeight,
-                            },
-                            prevCanvas: session.previousFrame.canvas,
-                            nextCanvas: liveFrame.canvas,
-                            transitionFrames: finalizedTransitionFrames.map(
-                                (entry) => ({
-                                    progress: entry.progress,
-                                    canvas: entry.canvas,
-                                }),
-                            ),
-                            extraDiagnostics: {
-                                kind: "territory_live_capture",
-                                mode: session.mode,
-                                previousFrame: session.previousFrame.debugSnapshot,
-                                nextFrame: liveFrame.debugSnapshot,
-                                transitionFrames: finalizedTransitionFrames.map(
-                                    (entry) => ({
-                                        frameIndex: entry.frameIndex,
-                                        progress: entry.progress,
-                                        snapshot: entry.debugSnapshot,
-                                    }),
-                                ),
-                            },
-                        });
-                    },
-                );
-                transitionDiagnosticCaptureState = {
-                    status: "finalized",
-                    activeMode: session.mode,
-                    transitionKey: session.key,
-                    frameCount: finalizedTransitionFrames.length,
-                    previousGeometryVersion:
-                        session.previousFrame.geometry.version,
-                    nextGeometryVersion: liveFrame.geometry.version,
-                    bundleCount: transitionSnapshotRecorder.count,
-                };
-                transitionDiagnosticCaptureSession = null;
-            } else {
-                transitionDiagnosticCaptureState = {
-                    status: "stable",
-                    activeMode: params.activeMode,
-                    geometryVersion: liveFrame.geometry.version,
-                };
-            }
-            transitionDiagnosticStableFrame = liveFrame;
-            return;
-        }
-
-        const conquestEvents = buildTransitionDiagnosticConquestEvents(
-            params.activeTransition,
-        );
-        if (
-            !transitionDiagnosticCaptureSession ||
-            transitionDiagnosticCaptureSession.key !== transitionKey
-        ) {
-            const previousFrame = transitionDiagnosticStableFrame
-                ? {
-                      ...transitionDiagnosticStableFrame,
-                      geometry: prevFrame?.geometry ?? liveFrame.geometry,
-                      ownership: prevFrame?.ownership ?? liveFrame.ownership,
-                      mode: params.activeMode,
-                  }
-                : {
-                      ...liveFrame,
-                      geometry: prevFrame?.geometry ?? liveFrame.geometry,
-                      ownership: prevFrame?.ownership ?? liveFrame.ownership,
-                      mode: params.activeMode,
-                  };
-            transitionDiagnosticCaptureSession = {
-                key: transitionKey,
-                mode: params.activeMode,
-                conquestEvents,
-                previousFrame,
-                frames: [],
-            };
-        } else {
-            transitionDiagnosticCaptureSession.conquestEvents = conquestEvents;
-        }
-
-        const session = transitionDiagnosticCaptureSession;
-        const quantizedProgress =
-            Math.round((params.activeTransition.progress ?? 0) * 1000) / 1000;
-        const lastProgress =
-            session.frames[session.frames.length - 1]?.progress ?? -1;
-        if (quantizedProgress > lastProgress) {
-            recordTransitionDiagnosticFrame(
-                session,
-                quantizedProgress,
-                liveFrame,
-            );
-        }
-        transitionDiagnosticCaptureState = {
-            status: "capturing",
-            activeMode: params.activeMode,
-            transitionKey,
-            conquestCount: session.conquestEvents.length,
-            frameCount: session.frames.length,
-            progress: quantizedProgress,
-            hasStableFrame: Boolean(transitionDiagnosticStableFrame),
-            previousGeometryVersion:
-                session.previousFrame.geometry.version,
-            nextGeometryVersion: liveFrame.geometry.version,
-        };
     }
 
     // React to animation speed changes from the UI slider
@@ -4476,7 +3917,7 @@
                         const geometry = readFamilyGeometry();
                         const diagnosticPrevFrame =
                             transitionDiagnosticCaptureEnabled
-                                ? getTransitionDiagnosticPrevFrame({
+                                ? transitionDiagnostics.getPrevFrame({
                                       activeMode,
                                       activeTransition,
                                       stars,
@@ -4561,7 +4002,7 @@
                         const geometry = readFamilyGeometry();
                         const diagnosticPrevFrame =
                             transitionDiagnosticCaptureEnabled
-                                ? getTransitionDiagnosticPrevFrame({
+                                ? transitionDiagnostics.getPrevFrame({
                                       activeMode,
                                       activeTransition,
                                       stars,
@@ -4645,7 +4086,7 @@
                         );
                         const geometry = readFamilyGeometry();
                         const diagnosticPrevFrame =
-                            getTransitionDiagnosticPrevFrame({
+                            transitionDiagnostics.getPrevFrame({
                                 activeMode,
                                 activeTransition,
                                 stars,
@@ -4774,7 +4215,7 @@
                             ),
                         });
                         const diagnosticPrevFrame = activeTransition
-                            ? getTransitionDiagnosticPrevFrame({
+                            ? transitionDiagnostics.getPrevFrame({
                                   activeMode,
                                   activeTransition,
                                   stars,
@@ -5092,21 +4533,13 @@
                         measurePerf(
                             "game.renderFrame.territory.transitionDiagnosticSync",
                             () => {
-                                syncTransitionDiagnosticCapture(
+                                transitionDiagnostics.sync(
                                     transitionDiagnosticFrameInput,
                                 );
                             },
                         );
-                    } else if (
-                        transitionDiagnosticStableFrame ||
-                        transitionDiagnosticCaptureSession ||
-                        transitionDiagnosticPrevGeometry ||
-                        transitionDiagnosticPrevOwnership
-                    ) {
-                        resetTransitionDiagnosticCaptureState();
-                        transitionDiagnosticPrevKey = null;
-                        transitionDiagnosticPrevGeometry = null;
-                        transitionDiagnosticPrevOwnership = null;
+                    } else if (transitionDiagnostics.hasCapturedState()) {
+                        transitionDiagnostics.reset();
                     }
                 }
                     },
@@ -5624,21 +5057,18 @@
                 ? performance.now() - territoryPresentationPendingRequest.enqueuedAtMs
                 : 0,
             ...getKineticDiagnostics(),
-            transitionDiagnosticCaptureState,
+            transitionDiagnosticCaptureState: transitionDiagnostics.getCaptureState(),
         };
     }
 
     export function getTransitionDiagnosticCaptureState():
         | Record<string, unknown>
         | null {
-        return transitionDiagnosticCaptureState;
+        return transitionDiagnostics.getCaptureState();
     }
 
     export function resetTransitionDiagnosticCapture(): void {
-        resetTransitionDiagnosticCaptureState();
-        transitionDiagnosticPrevKey = null;
-        transitionDiagnosticPrevGeometry = null;
-        transitionDiagnosticPrevOwnership = null;
+        transitionDiagnostics.reset();
     }
 
     function transposePoint(x: number, y: number): { x: number; y: number } {
