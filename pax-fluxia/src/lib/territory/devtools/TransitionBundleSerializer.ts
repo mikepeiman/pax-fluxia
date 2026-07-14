@@ -6,10 +6,6 @@ import {
     compactGeometrySnapshotForExport,
     filePrefixFromIsoTimestamp,
 } from './snapshotExport';
-import {
-    resolveTransitionDiagnosticsExportAdapter,
-    type DiagnosticPackageFrameRef,
-} from './TransitionDiagnosticsAdapters';
 
 export const DIAGNOSTIC_INTERMEDIATE_PROGRESS_VALUES = [
     1 / 6,
@@ -21,7 +17,11 @@ export const DIAGNOSTIC_INTERMEDIATE_PROGRESS_VALUES = [
 
 type TransitionFrameEntry = NonNullable<TransitionDebugBundle['transitionFrames']>[number];
 
-export interface DiagnosticPackageFrame extends DiagnosticPackageFrameRef {}
+export interface DiagnosticPackageFrame {
+    progress: number;
+    filename: string;
+    sourceIndex: number;
+}
 
 interface DiagnosticPackageManifest {
     exportKind: 'transition_diagnostic_package';
@@ -184,9 +184,6 @@ function buildDiagnosticManifest(
     bundle: TransitionDebugBundle,
     selectedFrames: readonly DiagnosticPackageFrame[],
 ): DiagnosticPackageManifest {
-    const adapter = resolveTransitionDiagnosticsExportAdapter(bundle.extraDiagnostics);
-    const adapterData = adapter?.buildData(bundle, selectedFrames);
-
     return {
         exportKind: 'transition_diagnostic_package',
         bundleId: bundle.id,
@@ -202,25 +199,18 @@ function buildDiagnosticManifest(
         modes: bundle.meta.modes,
         previousOwnershipVersion: bundle.meta.prevOwnershipVersion,
         nextOwnershipVersion: bundle.meta.nextOwnershipVersion,
-        previousGeometry:
-            adapterData?.previousGeometry ??
-            compactGeometrySnapshotForExport(bundle.context.previousGeometry ?? null),
-        nextGeometry:
-            adapterData?.nextGeometry ??
-            compactGeometrySnapshotForExport(bundle.context.nextGeometry),
-        previousTopology:
-            adapterData?.previousTopology ??
-            compactFrontierTopologyForExport(
-                bundle.context.previousGeometry?.frontierTopology ?? null,
-            ),
-        nextTopology:
-            adapterData?.nextTopology ??
-            compactFrontierTopologyForExport(
-                bundle.context.nextGeometry?.frontierTopology ?? null,
-            ),
-        starPositions:
-            adapterData?.starPositions ?? serializeStarPositions(bundle.starPositions),
-        captureDiagnostics: adapterData?.captureDiagnostics ?? bundle.extraDiagnostics,
+        previousGeometry: compactGeometrySnapshotForExport(
+            bundle.context.previousGeometry ?? null,
+        ),
+        nextGeometry: compactGeometrySnapshotForExport(bundle.context.nextGeometry),
+        previousTopology: compactFrontierTopologyForExport(
+            bundle.context.previousGeometry?.frontierTopology ?? null,
+        ),
+        nextTopology: compactFrontierTopologyForExport(
+            bundle.context.nextGeometry?.frontierTopology ?? null,
+        ),
+        starPositions: serializeStarPositions(bundle.starPositions),
+        captureDiagnostics: bundle.extraDiagnostics,
     };
 }
 
@@ -282,40 +272,17 @@ async function addCanvasToZip(
     zip.file(path, await blob.arrayBuffer());
 }
 
-function buildCompactGeometryExport(
-    bundle: TransitionDebugBundle,
-    selectedFrames: readonly DiagnosticPackageFrame[],
-) {
-    const adapter = resolveTransitionDiagnosticsExportAdapter(bundle.extraDiagnostics);
-    const adapterData = adapter?.buildData(bundle, selectedFrames);
+function buildCompactGeometryExport(bundle: TransitionDebugBundle) {
     return {
-        exportKind: adapterData?.exportKind ?? 'compact',
+        exportKind: 'compact',
         polylineDiffSemantics: bundle.meta.polylineDiffSemantics,
         conquestEvents: bundle.context.conquestEvents,
-        previousGeometry:
-            adapterData?.previousGeometry ??
-            compactGeometrySnapshotForExport(bundle.context.previousGeometry ?? null),
-        nextGeometry:
-            adapterData?.nextGeometry ??
-            compactGeometrySnapshotForExport(bundle.context.nextGeometry),
-        captureDiagnostics: adapterData?.captureDiagnostics ?? bundle.extraDiagnostics,
+        previousGeometry: compactGeometrySnapshotForExport(
+            bundle.context.previousGeometry ?? null,
+        ),
+        nextGeometry: compactGeometrySnapshotForExport(bundle.context.nextGeometry),
+        captureDiagnostics: bundle.extraDiagnostics,
     };
-}
-
-function renderExportCanvas(
-    bundle: TransitionDebugBundle,
-    baseCanvas: HTMLCanvasElement | null,
-    phase: 'previous' | 'next' | 'transition',
-    sourceIndex?: number,
-): HTMLCanvasElement | null {
-    const adapter = resolveTransitionDiagnosticsExportAdapter(bundle.extraDiagnostics);
-    if (!adapter) return baseCanvas;
-    return adapter.renderCanvas({
-        baseCanvas,
-        diagnostics: bundle.extraDiagnostics,
-        phase,
-        sourceIndex,
-    });
 }
 
 export async function downloadBundle(
@@ -326,17 +293,13 @@ export async function downloadBundle(
     const panels: { label: string; canvas: HTMLCanvasElement }[] = [];
 
     if (bundle.prevCanvas) {
-        const prevCanvas =
-            renderExportCanvas(bundle, bundle.prevCanvas, 'previous') ??
-            bundle.prevCanvas;
+        const prevCanvas = bundle.prevCanvas;
         panels.push({ label: 'Previous geometry', canvas: prevCanvas });
         triggerDownload(await canvasToBlob(prevCanvas), `${prefix}_prev-geometry.png`);
     }
 
     if (bundle.nextCanvas) {
-        const nextCanvas =
-            renderExportCanvas(bundle, bundle.nextCanvas, 'next') ??
-            bundle.nextCanvas;
+        const nextCanvas = bundle.nextCanvas;
         panels.push({ label: 'Next geometry', canvas: nextCanvas });
         triggerDownload(await canvasToBlob(nextCanvas), `${prefix}_next-geometry.png`);
     }
@@ -365,8 +328,7 @@ export async function downloadBundle(
     if (bundle.transitionFrames && bundle.transitionFrames.length > 0) {
         for (let index = 0; index < bundle.transitionFrames.length; index += 1) {
             const { progress, canvas } = bundle.transitionFrames[index];
-            const transitionCanvas =
-                renderExportCanvas(bundle, canvas, 'transition', index) ?? canvas;
+            const transitionCanvas = canvas;
             const pctString = Math.round(progress * 100).toString().padStart(3, '0');
             triggerDownload(
                 await canvasToBlob(transitionCanvas),
@@ -389,10 +351,7 @@ export async function downloadBundle(
         `${prefix}_topology.json`,
     );
 
-    const compactGeometry = buildCompactGeometryExport(
-        bundle,
-        selectDiagnosticIntermediateFrames(bundle.transitionFrames),
-    );
+    const compactGeometry = buildCompactGeometryExport(bundle);
     const geometryString = JSON.stringify(
         compactGeometry,
         (_key, value) => (value instanceof Map ? Object.fromEntries(value) : value),
@@ -411,7 +370,7 @@ export async function downloadDiagnosticPackage(
     const zip = new JSZip();
     const selectedFrames = selectDiagnosticIntermediateFrames(bundle.transitionFrames);
     const manifest = buildDiagnosticManifest(bundle, selectedFrames);
-    const compactGeometry = buildCompactGeometryExport(bundle, selectedFrames);
+    const compactGeometry = buildCompactGeometryExport(bundle);
 
     zip.file('README.md', buildDiagnosticReadme(bundle, selectedFrames));
     zip.file('debug/diagnostic.json', JSON.stringify(manifest, null, 2));
@@ -429,29 +388,19 @@ export async function downloadDiagnosticPackage(
     );
 
     if (bundle.prevCanvas) {
-        const prevCanvas =
-            renderExportCanvas(bundle, bundle.prevCanvas, 'previous') ??
-            bundle.prevCanvas;
+        const prevCanvas = bundle.prevCanvas;
         await addCanvasToZip(zip, 'render/prev.png', prevCanvas);
     }
 
     for (const frame of selectedFrames) {
         const source = bundle.transitionFrames?.[frame.sourceIndex];
         if (!source) continue;
-        const frameCanvas =
-            renderExportCanvas(
-                bundle,
-                source.canvas,
-                'transition',
-                frame.sourceIndex,
-            ) ?? source.canvas;
+        const frameCanvas = source.canvas;
         await addCanvasToZip(zip, `render/${frame.filename}`, frameCanvas);
     }
 
     if (bundle.nextCanvas) {
-        const nextCanvas =
-            renderExportCanvas(bundle, bundle.nextCanvas, 'next') ??
-            bundle.nextCanvas;
+        const nextCanvas = bundle.nextCanvas;
         await addCanvasToZip(zip, 'render/next.png', nextCanvas);
     }
 
