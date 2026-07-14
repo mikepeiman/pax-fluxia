@@ -320,11 +320,70 @@ these because tests are live roots. Needs a per-export pass, not a per-module on
 importers yet kept ~2.3k LOC (MetaballRenderer) reachable; a module imported only by its own test looks
 live to every module-level tool. Re-run `orphans2.cjs`-style fixpoint sweeps at Stage 7.
 
-### Stage 5 — GameCanvas decomposition (8,555 LOC → **7,017** after 3C-1/3C-3)
+### Stage 5 — GameCanvas decomposition (8,555 → 7,017 after 3C-1/3C-3 → **6,238** IN PROGRESS)
 Extract per responsibility map (built at stage start): render-family lifecycle, geometry-build
 scheduling, transition scheduling, input/orders, combat FX — one extraction per commit, suite between.
 Decomposition DESIGN is Fable-tier; extraction execution Opus.
 **Gate:** suite + check + build per extraction. **Risk: high — never batched with other stages.**
+
+#### The structural finding that makes Stage 5 tractable
+GameCanvas is NOT a reactive component. 7,017 lines hold **2 `$state` vars and 3 `$effect` blocks**;
+the rest is ~187 plain `let`s plus imperative Pixi. So extraction is not a runes problem — it is
+**closure extraction**: move a cohesive `let` cluster + its functions into a factory, and every
+INTERNAL reference stays byte-identical. Only external reads become `deps`.
+
+**Deps must be lazy getters (`() => x`), never values.** Everything worth extracting depends on
+state that changes after construction (`app`, containers, world sizes). A value captured at factory
+time is stale on frame 1. This is the single rule that makes the pattern safe.
+
+#### Method: measure the seam before cutting
+`scratchpad/coupling.cjs <file> <from> <to>` reports, for a candidate range, the top-level
+identifiers declared OUTSIDE but used INSIDE (= deps) and declared INSIDE but used OUTSIDE (= public
+API). Pick ranges by ratio, not by size. Measured results:
+- interaction caches — **0 external deps**, 6 exposed  → extracted
+- transition diagnostics — ~14 deps, **2 exposed** for 580 LOC → extracted
+- camera zoom/pan — 25 deps / 147 lines → NOT liftable wholesale; split model from projection
+- interaction overlay — coupled to drag/selection state → blocked behind an InteractionState extraction
+
+#### Responsibility map (measured, not guessed)
+| # | Responsibility | State | Status |
+|---|---|---|---|
+| 1 | Transition-diagnostics capture | 6 vars | **DONE** `f5350f66` transitionDiagnosticsCapture.ts |
+| 2 | Interaction caches / spatial index | 6 vars | **DONE** `7035fda0` interactionCaches.ts (+14 tests) |
+| 3 | Camera: zoom/pan/bounds/animation | 13 vars | **DONE** `990689a0` cameraModel.ts (+23 tests) |
+| 4 | Canvas client-rect cache | 2 vars | next — small, clean |
+| 5 | Scheduler/order telemetry (~50 counters) | ~50 vars | serves ONE benchmark snapshot; consolidate into a telemetry object |
+| 6 | Order mutation queue + visual ack | ~14 vars | needs #7 first (shares selection state) |
+| 7 | **InteractionState** (activeStarId, pendingOrders, deferredOrders, drag*) | ~12 vars | KEYSTONE — unblocks #6 and the overlay |
+| 8 | Interaction overlay renderer | 4 vars | blocked on #7 |
+| 9 | Territory presentation queue | ~22 vars | independent; measurable next |
+| 10 | `renderFrame` (~1,480 lines) | — | LAST. Do not touch until 1-9 shrink its surface. |
+
+#### Extractions 1-3 — what they bought
+Not LOC (net is roughly flat: the deps interfaces cost what the moves save). They bought **testable
+seams**: suite went 82 files/479 tests → 84/516, and the new tests cover logic that was previously
+unreachable — the anchored-zoom invariant, clamp symmetry, the hit-index, the cache identity gate.
+
+**Duplication removed** (the real prize):
+- the content-centred baseline transform was written **6×** (one carried the comment "Must match the
+  transform in applyZoomTransform" — the code knew and documented the duplication instead of fixing
+  it) → now `camera.getTransform()`.
+- pan-drag math 2× → `panFromDrag`. Cache teardown 2× → `clear()`. Lane-key format 2× →
+  `getLaneKeyForPair`.
+
+#### Lessons for the remaining extractions
+1. **Do not move a function that reads the applied Pixi state onto model state.** screenToWorld
+   reads `app.stage`; deriving it from the camera model instead would change behaviour before the
+   first `applyZoomTransform` (stage identity vs fitted baseline). Model and projection are only
+   equal AFTER the first apply.
+2. **Injection is a testability requirement, not a style choice.** interactionCaches' accessors call
+   `ensure()` internally; with a hard-wired `activeGameStore` import no test could ever control the
+   data — ensure() would overwrite it from the empty global store. Inject the source reader.
+3. **Pin surprising behaviour instead of fixing it in a refactor commit.** `areStarsConnected` is
+   directional (adjacency records source→target only). Tested as-is so a change is deliberate.
+4. Algebraic simplifications found while unifying duplicates are fine **if a test pins the
+   observable end state** (navigateToStar's target pan collapses to `world - contentCentre`; the
+   viewport and scale cancel exactly — pinned by "ends at the viewport centre").
 
 ### Stage 6 — GameSettingsPanel decomposition (2,946 LOC) (Q22)
 Same discipline as Stage 5 for the settings god-file + alignment with the settings-as-data doctrine.
