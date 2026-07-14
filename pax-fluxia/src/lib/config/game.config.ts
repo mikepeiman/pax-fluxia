@@ -315,7 +315,6 @@ interface GameConfigType {
     /** Ship count that reaches full force-reactive intensity */
     ARROW_FORCE_INTENSITY_MAX_SHIPS: number;
     /** When true, metaball fill follows geometry ownership instead of requiring real-star and geom agreement */
-    METABALL_FILL_FOLLOWS_GEOM: boolean;
     /** Damaged ship render scale multiplier (default 0.7) */
     DAMAGED_SHIP_SCALE: number;
 
@@ -389,7 +388,6 @@ interface GameConfigType {
      *  losers + all END_SNAP_FIX_EVAL scaffolding after the user picks. */
     TERRITORY_END_SNAP_FIX: 'off' | 'converge' | 'round_cut' | 'soft_pins';
     // ── Virtual Star Transition (F-165) ──────────────────────────────────────
-    METABALL_BURST_BOUNDARY_BASIS: MetaballBurstBoundaryBasis; // How six-slice burst measures common loser travel distance
     PERIMETER_FIELD_GEOMETRY_SOURCE: 'power_core' | 'power_voronoi_0319'; // UNIFIED on PowerCore (2026-07-08); every value normalizes to power_core at read boundaries (selector retired)
     PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY: boolean; // Show the source geometry used to derive perimeter samples
     CELL_GRID_ENABLED: boolean; // Master gate for the cell-grid render family
@@ -537,44 +535,28 @@ interface GameConfigType {
     BG_IMAGE_ALPHA: number;        // Background image opacity (0-1, default 0.5)
 
     // ── Metaball Territory ──────────────────────────────────────────────────
-    METABALL_INFLUENCE_RADIUS: number;  // How far each star's field extends in px (default 120)
-    METABALL_FALLOFF: 'inverse-square' | 'gaussian' | 'smoothstep';  // Falloff curve (default 'inverse-square')
-    METABALL_BLEND_SHARPNESS: number;   // Higher = sharper faction boundaries (default 3.0)
     TERRITORY_SURFACE_ALPHA: number;             // Overall territory transparency (default 0.5)
-    METABALL_CELL_SIZE: number;         // Grid cell size in px — lower = higher res but slower (default 8)
     /**
      * Metaball dominance gate: per cell, winnerShare = w1/(w1+w2) for top two factions.
      * Values ≤0.5 disable the gate (no cells dropped for being “too close”).
      * Above 0.5, cells with winnerShare below this stay empty (hides stalemate bands).
      */
-    METABALL_THRESHOLD: number;
-    METABALL_STRENGTH_MULT: number;     // Star strength multiplier (default 1.0)
-    METABALL_EDGE_FADE: number;         // Edge alpha falloff multiplier (default 3.0)
-    METABALL_BLUR: number;              // GPU blur strength (0=sharp). Target: fill only, or fill+borders — see METABALL_BLUR_AFFECTS_BORDERS
     /** When true and METABALL_BLUR > 0, blur applies to a shared layer (fill + borders). When false, only fill Graphics is blurred. */
-    METABALL_BLUR_AFFECTS_BORDERS: boolean;
     TERRITORY_SURFACE_FILL_ENABLED: boolean;     // Master fill visibility gate for metaball-style territory surfaces
     TERRITORY_SURFACE_BORDER_WIDTH: number;       // Border line width between territories (default 1.5)
     TERRITORY_SURFACE_BORDER_ALPHA: number;       // Border line alpha (default 0.6)
     TERRITORY_SURFACE_BORDER_ENABLED: boolean;   // Master border visibility gate for metaball-style territory surfaces
     TERRITORY_SURFACE_BORDER_BLEND?: boolean;    // Draw an inter-owner frontier as a single stroke in the 50/50 mix of both owners' colors (opponent-blended borders)
-    METABALL_COVERAGE: number;           // Grid padding factor (0=compact, 0.3=extended, default 0.3)
     TERRITORY_SURFACE_SATURATION: number;         // Saturation multiplier (0=grey, 1=normal, 2=vivid, default 1.0)
     TERRITORY_SURFACE_LIGHTNESS: number;          // Lightness multiplier (0=dark, 1=normal, 2=bright, default 1.0)
     TERRITORY_SURFACE_BORDER_SATURATION: number; // Border saturation multiplier (default 1)
     TERRITORY_SURFACE_BORDER_LIGHTNESS: number;  // Border lightness multiplier (default 1)
-    METABALL_CHAIKIN_PASSES: number;    // Chaikin smoothing passes on border polylines (0=off, 1-4, default 0)
     /** 0 = no combat border boost; else tick window for lastCombatTick / lastAttackTick */
-    METABALL_COMBAT_BORDER_TICKS: number;
     /**
      * Max distance (px) from a border segment to a “hot” star for combat width/alpha boost.
      * 0 = use METABALL_INFLUENCE_RADIUS as the distance (no extra literals in renderer).
      */
-    METABALL_COMBAT_BORDER_PROXIMITY_PX: number;
-    METABALL_COMBAT_BORDER_WIDTH_BOOST: number; // Extra border width when stars on edge are "hot" (default 0)
-    METABALL_COMBAT_BORDER_ALPHA_BOOST: number; // Extra border alpha when hot (default 0)
     /** Scale border emphasis by fleet imbalance across edge: 0=off, 1=moderate (default 0) */
-    METABALL_BORDER_FORCE_RATIO: number;
     // ── Pixel Territory ────────────────────────────────────────────────────
 
     // ── Graph Territory (4th mode — connection-graph-constrained) ──

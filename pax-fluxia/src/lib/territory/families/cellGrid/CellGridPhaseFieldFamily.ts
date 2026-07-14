@@ -1,5 +1,6 @@
 import * as PIXI from 'pixi.js';
 import { chaikinFlat } from '$lib/territory/geometry/kernel';
+import { readTunableBoolean, readTunableNumber, readTunableString } from '../readTunable';
 import { GAME_CONFIG } from '$lib/config/game.config';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 import type { StarState } from '$lib/types/game.types';
@@ -248,38 +249,6 @@ function applyFlipTimeJitter(
     };
 }
 
-function readTunableNumber(
-    input: RenderFamilyInput,
-    key: string,
-    fallback: number,
-): number {
-    const value = input.tunables.get(key);
-    return typeof value === 'number' && Number.isFinite(value)
-        ? value
-        : fallback;
-}
-
-function readTunableBoolean(
-    input: RenderFamilyInput,
-    key: string,
-    fallback: boolean,
-): boolean {
-    const value = input.tunables.get(key);
-    return typeof value === 'boolean' ? value : fallback;
-}
-
-function readTunableString<T extends string>(
-    input: RenderFamilyInput,
-    key: string,
-    fallback: T,
-    allowed: readonly T[],
-): T {
-    const value = input.tunables.get(key);
-    if (typeof value === 'string' && (allowed as readonly string[]).includes(value)) {
-        return value as T;
-    }
-    return fallback;
-}
 
 function spacingToDensityCellsPerMpx(spacingPx: number): number {
     if (!Number.isFinite(spacingPx) || spacingPx <= 0) return 0;

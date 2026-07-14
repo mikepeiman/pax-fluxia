@@ -44,7 +44,7 @@ import {
 import {
     readTunableBoolean,
     readTunableNumber,
-} from '../metaball/metaballSceneBase';
+} from '../readTunable';
 import type {
     RenderFamily,
     RenderFamilyInput,

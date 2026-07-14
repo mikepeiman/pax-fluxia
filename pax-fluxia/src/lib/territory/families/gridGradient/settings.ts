@@ -1,4 +1,5 @@
 import { GAME_CONFIG } from '$lib/config/game.config';
+import { readTunableBoolean, readTunableNumber, readTunableString } from '../readTunable';
 import type { RenderFamilyInput } from '../RenderFamilyTypes';
 import type {
     GridAdjacency,
@@ -110,38 +111,6 @@ export interface GridGradientSettings {
 function clamp(value: number, min: number, max: number): number {
     if (!Number.isFinite(value)) return min;
     return Math.max(min, Math.min(max, value));
-}
-
-function readTunableNumber(
-    input: RenderFamilyInput,
-    key: string,
-    fallback: number,
-): number {
-    const value = input.tunables.get(key);
-    return typeof value === 'number' && Number.isFinite(value)
-        ? value
-        : fallback;
-}
-
-function readTunableBoolean(
-    input: RenderFamilyInput,
-    key: string,
-    fallback: boolean,
-): boolean {
-    const value = input.tunables.get(key);
-    return typeof value === 'boolean' ? value : fallback;
-}
-
-function readTunableString<T extends string>(
-    input: RenderFamilyInput,
-    key: string,
-    fallback: T,
-    allowed: readonly T[],
-): T {
-    const value = input.tunables.get(key);
-    return typeof value === 'string' && (allowed as readonly string[]).includes(value)
-        ? value as T
-        : fallback;
 }
 
 export function resolveGridGradientSettings(input: RenderFamilyInput): GridGradientSettings {

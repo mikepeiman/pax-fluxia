@@ -27,6 +27,7 @@
 
 import * as PIXI from 'pixi.js';
 import { chaikinFlat } from '$lib/territory/geometry/kernel';
+import { readTunableBoolean, readTunableNumber, readTunableString } from '../readTunable';
 import {
     compileHighShaderGlProgram,
     localUniformBitGl,
@@ -230,29 +231,6 @@ const CELL_GRID_TUNABLE_KEYS = [
     'PERIMETER_FIELD_GEOMETRY_SOURCE', // reused for underlayer selection
     ...TERRITORY_FRONTIER_TUNABLE_KEYS,
 ] as const;
-
-function readTunableNumber(input: RenderFamilyInput, key: string, fallback: number): number {
-    const v = input.tunables.get(key);
-    return typeof v === 'number' && Number.isFinite(v) ? v : fallback;
-}
-
-function readTunableString<T extends string>(
-    input: RenderFamilyInput,
-    key: string,
-    fallback: T,
-    allowed: readonly T[],
-): T {
-    const v = input.tunables.get(key);
-    if (typeof v === 'string' && (allowed as readonly string[]).includes(v)) {
-        return v as T;
-    }
-    return fallback;
-}
-
-function readTunableBoolean(input: RenderFamilyInput, key: string, fallback: boolean): boolean {
-    const v = input.tunables.get(key);
-    return typeof v === 'boolean' ? v : fallback;
-}
 
 function spacingToDensityCellsPerMpx(spacingPx: number): number {
     if (!Number.isFinite(spacingPx) || spacingPx <= 0) return 0;

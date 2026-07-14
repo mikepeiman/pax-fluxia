@@ -320,22 +320,13 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'TERRITORY_STYLE_MODE' },
     // Pixel params
     // Metaball params
-    { configKey: 'METABALL_INFLUENCE_RADIUS' },
-    { configKey: 'METABALL_FALLOFF' },
-    { panelKey: 'metaballSharpness', configKey: 'METABALL_BLEND_SHARPNESS' },
     { configKey: 'TERRITORY_SURFACE_ALPHA' },
-    { configKey: 'METABALL_CELL_SIZE' },
-    { configKey: 'METABALL_THRESHOLD' },
-    { configKey: 'METABALL_STRENGTH_MULT' },
-    { configKey: 'METABALL_EDGE_FADE' },
     { panelKey: 'territorySurfaceBorderWidth', configKey: 'TERRITORY_SURFACE_BORDER_WIDTH' },
     { panelKey: 'territorySurfaceBorderAlpha', configKey: 'TERRITORY_SURFACE_BORDER_ALPHA' },
-    { panelKey: 'metaballBlur', configKey: 'METABALL_BLUR' },
     {
         panelKey: 'metaballBlurAffectsBorders',
         configKey: 'METABALL_BLUR_AFFECTS_BORDERS',
     },
-    { configKey: 'METABALL_COVERAGE' },
     { configKey: 'TERRITORY_SURFACE_SATURATION' },
     { configKey: 'TERRITORY_SURFACE_LIGHTNESS' },
     { panelKey: 'territorySurfaceFillEnabled', configKey: 'TERRITORY_SURFACE_FILL_ENABLED' },
@@ -343,16 +334,10 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'territorySurfaceBorderBlend', configKey: 'TERRITORY_SURFACE_BORDER_BLEND' },
     { configKey: 'TERRITORY_SURFACE_BORDER_SATURATION' },
     { configKey: 'TERRITORY_SURFACE_BORDER_LIGHTNESS' },
-    { configKey: 'METABALL_CHAIKIN_PASSES' },
-    { configKey: 'METABALL_FILL_FOLLOWS_GEOM' },
-    { panelKey: 'metaballCombatBorderTicks', configKey: 'METABALL_COMBAT_BORDER_TICKS' },
     {
         panelKey: 'metaballCombatBorderProximityPx',
         configKey: 'METABALL_COMBAT_BORDER_PROXIMITY_PX',
     },
-    { configKey: 'METABALL_COMBAT_BORDER_WIDTH_BOOST' },
-    { configKey: 'METABALL_COMBAT_BORDER_ALPHA_BOOST' },
-    { configKey: 'METABALL_BORDER_FORCE_RATIO' },
     { configKey: 'NUMBER_TRANSITION_MS' },
     // Pixel extras
     // Graph Territory
@@ -425,7 +410,6 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'CONQUEST_DAMAGED_CAPTURE_RATE' },
     { configKey: 'CONQUEST_DAMAGED_DESTROY_RATE' },
     // VS Transition (F-165)
-    { configKey: 'METABALL_BURST_BOUNDARY_BASIS' },
     { configKey: 'PERIMETER_FIELD_GEOMETRY_SOURCE' },
     { configKey: 'PERIMETER_FIELD_DEBUG_SHOW_GEOMETRY' },
     { configKey: 'CELL_GRID_ENABLED' },

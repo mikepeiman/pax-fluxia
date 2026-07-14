@@ -1,6 +1,5 @@
 import { gameplayConfigDefaults } from './gameplay.config';
 import { territoryFrontierConfigDefaults } from '../territory/frontier/config';
-import { metaballFamilyConfigDefaults } from '../territory/families/metaball/config';
 import { cellGridFamilyConfigDefaults } from '../territory/families/cellGrid/config';
 import { gridGradientFamilyConfigDefaults } from '../territory/families/gridGradient/config';
 import { perimeterFieldFamilyConfigDefaults } from '../territory/families/perimeterField/config';
@@ -22,6 +21,21 @@ export const territoryConfigDefaults = {
     VORONOI_BORDER_WIDTH: 2,
     VORONOI_BORDER_ALPHA: 0.35,
     VORONOI_BORDER_SMOOTH: 2,
+    // ── Shared territory surface style ──────────────────────────────────────
+    // Fill/border appearance for EVERY render mode (power_vector, phase_edges,
+    // ember_lattice, phase_field, grid_gradient all read these). They were
+    // declared inside the metaball family's config until that family's last
+    // renderer was deleted — a family owning the shared surface style was
+    // always a misplacement, and it left the keys homed in a dead directory.
+    TERRITORY_SURFACE_FILL_ENABLED: true,
+    TERRITORY_SURFACE_ALPHA: 0.5,
+    TERRITORY_SURFACE_SATURATION: 1.05,
+    TERRITORY_SURFACE_LIGHTNESS: 0.65,
+    TERRITORY_SURFACE_BORDER_ENABLED: true,
+    TERRITORY_SURFACE_BORDER_WIDTH: 5,
+    TERRITORY_SURFACE_BORDER_ALPHA: 1,
+    TERRITORY_SURFACE_BORDER_SATURATION: 2,
+    TERRITORY_SURFACE_BORDER_LIGHTNESS: 0.35,
     // Opponent-blended borders ON by default — USER-CONFIRMED improvement
     // (2026-07-08): shared frontiers render as the 50/50 mix of both owners'
     // colors instead of one side's (lexicographic ownerA) color.
@@ -54,7 +68,6 @@ export const territoryConfigDefaults = {
     MODIFIED_VORONOI_DISCONNECT_DISTANCE: 295,
     TERRITORY_DX_WEIGHT: 3,
     ...territoryFrontierConfigDefaults,
-    ...metaballFamilyConfigDefaults,
     ...cellGridFamilyConfigDefaults,
     ...gridGradientFamilyConfigDefaults,
     ...perimeterFieldFamilyConfigDefaults,
