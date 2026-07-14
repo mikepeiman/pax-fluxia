@@ -282,7 +282,45 @@ END_SNAP_FIX_EVAL toggle SURVIVES (tuning exploration pending). This stage strip
 TEMP diagnostics, retired eval branches provably unreachable, harness leftovers.
 **Gate:** suite + check. **Risk: low.**
 
-### Stage 5 — GameCanvas decomposition (8,555 LOC)
+### Stage 4B (2026-07-14) — dead-module closure sweep (NEW, unplanned; the campaign's biggest single win)
+
+A whole-tree import-graph fixpoint sweep (resolving `$lib` aliases AND relative specifiers) found
+**137 src/lib modules whose every importer is itself dead** → `_quarantine/dead-2026-07-14/**`
+(path-preserving; restore = reverse `mv`). **Active src/lib 153,417 → 136,216 (−17,201).**
+Biggest: renderers/frontierGraph (1,443), renderers/geometry/borderTransition (955),
+GameThemeManager.svelte (648), an entire unused 27-component **HUD-package** (PaxFluxiaHud 554,
+GameHudTopBar 514, …), strokeMeshBorders (516), the pre-PowerCore border/transition renderer lineage,
+plus both dead barrels (renderers/index.ts, families/cellGrid/index.ts).
+**Soundness argument (the risk is a runtime-only ref, which check/build canNOT catch):** verified ZERO
+dynamic imports with non-literal specifiers, ZERO `<svelte:component>` indirection, and the only
+src/lib paths named as strings in vite.config.js (browserBenchEntry, navigationStub) are live roots.
+Tests are live roots → nothing test-covered can be marked dead (deliberately conservative). Sanity:
+GameCanvas / GameSettingsPanel / ControlsSection-Territory correctly LIVE.
+Gate: **check 0 errors + 0 warnings** (the long-standing unused-CSS warning was inside the dead
+GameThemeManager), full suite 82 files/479 tests green (unchanged — the dead tree had NO test
+coverage), build OK. Commit `ab6397b31`.
+
+**Suite repair (`dbc252bf6`):** the pinned gate was the TERRITORY suite, so 4 full-suite failures sat
+unnoticed since Stage 3B/3D. themeRouting's family taxonomy enumerated ONLY quarantined modes → every
+KEPT mode fell to `default:'agnostic'`; replaced with a data-driven keep-set map + one `legacy` bucket.
+geometry0319Debug expected the retired `power_voronoi_0319` to pass through (PowerCore normalizes it
+to `power_core`). benchmark-frontier-techniques imported createCellGridPhaseEdgesFamily from the wrong
+module (kept-mode benchmark → fixed); benchmark-territory-metaball → `tools/_quarantine` (Q23/24);
+tsconfig exclude generalized to `**/_quarantine/**`. **Full suite green for the first time.**
+**CORRECTION (honesty):** `dbc252bf6` justified the themeRouting fix as "user-visible in the theme
+manager" — WRONG. GameThemeManager is itself dead. auditThemeRouting/groupThemesByRenderFamily/
+THEME_RENDER_FAMILY_META have NO live consumer; themeRouting.ts as a module IS live (themeStore/
+builtinThemes/themeNames use normalizeThemeValues + resolveThemeRenderMode). The claim was asserted
+without verifying the component was mounted.
+
+**OPEN (Stage 7):** 2nd-order dead — exports kept alive ONLY by their own tests (the themeRouting
+family taxonomy is one; plain-CellGridFamily was another until `06c834496`). The sweep cannot see
+these because tests are live roots. Needs a per-export pass, not a per-module one.
+**LESSON:** "dead code" hides behind BARRELS and TESTS. Two barrels (renderers/, cellGrid/) had zero
+importers yet kept ~2.3k LOC (MetaballRenderer) reachable; a module imported only by its own test looks
+live to every module-level tool. Re-run `orphans2.cjs`-style fixpoint sweeps at Stage 7.
+
+### Stage 5 — GameCanvas decomposition (8,555 LOC → **7,017** after 3C-1/3C-3)
 Extract per responsibility map (built at stage start): render-family lifecycle, geometry-build
 scheduling, transition scheduling, input/orders, combat FX — one extraction per commit, suite between.
 Decomposition DESIGN is Fable-tier; extraction execution Opus.
