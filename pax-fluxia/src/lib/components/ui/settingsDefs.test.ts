@@ -75,9 +75,6 @@ describe('settingsDefs', () => {
     it('theme-critical controls stay wired into the panel mapping', () => {
         expect(CONFIG_TO_PANEL_KEY.BG_IMAGE_ALPHA).toBe('bgImageAlpha');
         expect(CONFIG_TO_PANEL_KEY.FRONTIER_RESOLUTION).toBe('frontierResolution');
-        expect(CONFIG_TO_PANEL_KEY.MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS).toBe(
-            'mapgenRecomputeConnectivityOnAuthoredMaps',
-        );
     });
 
     it('settings controls do not reference unmapped panel keys', () => {

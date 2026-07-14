@@ -14,7 +14,6 @@ export type SettingScope =
     | 'battle'
     | 'conquest'
     | 'diagnostics'
-    | 'debug'
     | 'economy'
     | 'logging'
     | 'players'
@@ -126,74 +125,13 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Spiral Duration': { key: 'ARROW_SPIRAL_DURATION_MS' },
     },
     diagnostics: {
-        'Morph Slow-Mo': {
-            key: 'DEBUG_MORPH_SLOWMO',
-            description:
-                'Slows morph transitions by 10x so individual vertex behavior is easier to inspect.',
-        },
-        'Show vertex dots': {
-            key: 'DEBUG_MORPH_VERTICES',
-            description:
-                'Draws diagnostic dots on morph vertices during territory transitions.',
-        },
-        'Color mode': {
-            key: 'DEBUG_MORPH_VERTEX_COLOR_MODE',
-            description:
-                'Changes the diagnostic coloring scheme used for morph vertices.',
-        },
-        'Show vertex labels': {
-            key: 'DEBUG_MORPH_VERTEX_LABELS',
-            description: 'Draws numeric labels on diagnostic morph vertices.',
-        },
-        'Vertex trace log': {
-            key: 'DEBUG_MORPH_TRACE_LOG',
-            description: 'Emits per-vertex morph diagnostics to the console.',
-        },
-        'Dot size': {
-            key: 'DEBUG_MORPH_VERTEX_SIZE',
-            description: 'Sets the pixel size of diagnostic morph vertex dots.',
-        },
-        'Pin threshold': {
-            key: 'DEBUG_MORPH_PIN_THRESHOLD',
-            description:
-                'Distance threshold used to classify morph vertices as pinned.',
-        },
-        'Show every': {
-            key: 'DEBUG_MORPH_VERTEX_NTH',
-            description:
-                'Only shows every Nth diagnostic vertex to reduce overlay clutter.',
-        },
-        'Morph radius': {
-            key: 'MORPH_CONQUEST_RADIUS',
-            description:
-                'Constrains morph diagnostics to conquests within this radius from the conquered star.',
-        },
-        'Disable Fill Crossfade': {
-            key: 'DEBUG_DY4_DISABLE_FILL_CROSSFADE',
-            description:
-                'Turns off DY4 fill alpha crossfading so border behavior can be isolated.',
-        },
-        'Disable Border Transition': {
-            key: 'DEBUG_DY4_DISABLE_BORDER_TRANSITION',
-            description:
-                'Snaps DY4 borders instead of animating them so fill issues can be isolated.',
-        },
-        'Force Transition Start': {
-            key: 'DEBUG_DY4_FORCE_TRANSITION_START',
-            description:
-                'Overrides DY4 transition gating checks so the transition path always starts.',
-        },
+        // The DEBUG_MORPH_* / DEBUG_DY4_* / MORPH_CONQUEST_RADIUS entries were
+        // removed 2026-07-14: their config keys died with the morph-vertex and
+        // DY4 diagnostics, so each was a search hit that navigated to nothing.
         'Continuous Settings Dump': {
             key: 'local.settingsDump.enabled',
             description:
                 'Dev-only automatic dump of live settings changes to common/resources/settings-live/current-settings.json.',
-        },
-    },
-    debug: {
-        'Morph Slow-Mo': {
-            key: 'DEBUG_MORPH_SLOWMO',
-            description:
-                'Slows morph transitions by 10x so individual vertex behavior is easier to inspect.',
         },
     },
     economy: {
@@ -322,15 +260,21 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Center Alpha': { key: 'ORB_CENTER_ALPHA' },
     },
     territory: {
-        'Transition Mode': { key: 'VS_TRANSITION_MODE' },
+        // The marquee territory setting was absent from the index entirely, so
+        // searching "render mode" found nothing — while settingsSearch carried a
+        // whole isTerritoryRenderModeRecord() classifier waiting for a key that
+        // was never emitted. (The selector itself lives in Territory → Mode.)
+        'Render mode': {
+            key: 'TERRITORY_RENDER_MODE',
+            description:
+                'The active renderer family for territory fills and borders. Each family exposes its own tuning below.',
+        },
         'Frontier Resolution': { key: 'FRONTIER_RESOLUTION' },
         'Extent Beyond Map': {
             key: 'CHAIKIN_BOUNDARY_PAD',
             description:
                 'How far territory fill and world-edge border extend past the map rectangle (they share one boundary, so they extend together). 0 = stop at the map edge.',
         },
-        'Resample Points': { key: 'BORDER_TRANS_RESAMPLE_N' },
-        'Back Overshoot': { key: 'BORDER_TRANS_OVERSHOOT' },
         // 'Geometry Source' selector RETIRED (2026-07-08): unified on PowerCore.
         'Minimum Star Margin': { key: 'MODIFIED_VORONOI_STAR_MARGIN' },
   'MSR as star power': { key: 'TERRITORY_MSR_STAR_BIAS' },
@@ -545,12 +489,7 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'DX Distance': { key: 'MODIFIED_VORONOI_DISCONNECT_DISTANCE' },
         'Fill Path': { key: 'TERRITORY_FILL_TRANSITION_MODE' },
         'Border Path': { key: 'TERRITORY_BORDER_TRANSITION' },
-        'Transition Easing': { key: 'BORDER_TRANS_EASING' },
-        'Morph Control Points': { key: 'TERRITORY_MORPH_CONTROL_POINTS' },
-        'Morph Easing': { key: 'DF_MORPH_EASING' },
-        'Boundary Mode': { key: 'TERRITORY_BOUNDARY_MODE' },
         'Fill Alpha': { key: 'VORONOI_ALPHA' },
-        'Neutral Transparent': { key: 'NEUTRAL_TERRITORY_TRANSPARENT' },
         'Border Width': { key: 'VORONOI_BORDER_WIDTH' },
         'Border Alpha': { key: 'VORONOI_BORDER_ALPHA' },
         'Geometry Smooth Passes': { key: 'VORONOI_BORDER_SMOOTH' },
@@ -558,14 +497,7 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Conquest Front': { key: 'TERRITORY_CONQUEST_FRONT_MODE' },
         'Front Shape': { key: 'TERRITORY_CONQUEST_FRONT_MODE' },
         'Motion Completion': { key: 'TERRITORY_MORPH_COMPLETE_PCT' },
-        Saturation: { key: 'VORONOI_SATURATION' },
-        Lightness: { key: 'VORONOI_LIGHTNESS' },
         'MSR (Star Margin)': { key: 'MODIFIED_VORONOI_STAR_MARGIN' },
-        'Min dominance (winner / top-2)': { key: 'TERRITORY_MIN_DOMINANCE' },
-        'Trace Mode': { key: 'TERRITORY_ENGINE_TRACE_MODE' },
-        'Trace Inspector': { key: 'TERRITORY_ENGINE_TRACE_MODE' },
-        'Step Mode': { key: 'TERRITORY_ENGINE_STEP_MODE' },
-        'Advance Stage': { key: 'TERRITORY_ENGINE_STEP_ADVANCE_TOKEN' },
     },
     timing: {
         'Tick Interval': {
@@ -578,10 +510,6 @@ const SCOPE_LABEL_META: LabelScopeMap = {
             key: 'TERRITORY_TRANSITION_BIND_TO_TICK',
         },
         'Territory Transition': { key: 'TERRITORY_TRANSITION_MS' },
-        'End Settle': {
-            key: 'TERRITORY_TRANSITION_SETTLE_PCT',
-            description: 'Eases the final settle of the metaball conquest transition. 0 = off.',
-        },
     },
     travel: {
         'Travel Mode': { key: 'TRAVEL_MODE' },
@@ -635,9 +563,6 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         },
         'Lane margin (mapgen)': { key: 'MAPGEN_LANE_MARGIN_PX' },
         'Reshape bias': { key: 'MAPGEN_LANE_CURVE_VS_PRUNE_BIAS' },
-        'Recompute connectivity': {
-            key: 'MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS',
-        },
         'Lane path': { key: 'MAPGEN_LANE_MODE' },
         'Label Anim Mode': { key: 'LABEL_ANIM_MODE' },
         'Label Transition': { key: 'NUMBER_TRANSITION_MS' },

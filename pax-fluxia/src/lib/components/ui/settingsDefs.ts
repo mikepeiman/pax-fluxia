@@ -273,7 +273,6 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { panelKey: 'mapgenLaneMarginPx', configKey: 'MAPGEN_LANE_MARGIN_PX' },
     { panelKey: 'mapgenLaneCurveVsPruneBias', configKey: 'MAPGEN_LANE_CURVE_VS_PRUNE_BIAS' },
     { panelKey: 'mapgenLaneMode', configKey: 'MAPGEN_LANE_MODE' },
-    { configKey: 'MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS' },
     { configKey: 'STATIC_ORBITS' },
     { configKey: 'SHOW_SELECTION_HEX' },
     { configKey: 'LANE_OFFSET_PX' },

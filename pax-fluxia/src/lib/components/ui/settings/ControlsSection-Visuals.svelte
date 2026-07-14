@@ -35,7 +35,6 @@
     const bgImages = BG_IMAGES;
     const mapConfig = GAME_CONFIG as typeof GAME_CONFIG & {
         MAPGEN_LANE_MARGIN_ENABLED?: boolean;
-        MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS?: boolean;
     };
 
     const LABEL_ANIM_OPTIONS = [
@@ -108,12 +107,6 @@
     function updateReshapeBias(value: number) {
         GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS = value;
         updatePanel("mapgenLaneCurveVsPruneBias", value);
-        rebuildLaneConstraints();
-    }
-
-    function updateRecomputeConnectivity(value: boolean) {
-        mapConfig.MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS = value;
-        updatePanel("mapgenRecomputeConnectivityOnAuthoredMaps", value);
         rebuildLaneConstraints();
     }
 
@@ -246,21 +239,6 @@
         format="fixed2"
         settingConfigKey="MAPGEN_LANE_CURVE_VS_PRUNE_BIAS"
         onInput={updateReshapeBias}
-    />
-
-    <PaxSettingsToggleRow
-        label="Recompute connectivity"
-        checked={panel.mapgenRecomputeConnectivityOnAuthoredMaps ??
-            mapConfig.MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS ??
-            false}
-        description="Allow authored maps to recompute connectivity instead of reshaping only."
-        meta={(panel.mapgenRecomputeConnectivityOnAuthoredMaps ??
-            mapConfig.MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS ??
-            false)
-            ? "On"
-            : "Off"}
-        settingConfigKey="MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS"
-        onChange={updateRecomputeConnectivity}
     />
 
     <div class="visuals-control-card">

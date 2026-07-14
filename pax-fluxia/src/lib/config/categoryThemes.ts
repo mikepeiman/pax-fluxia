@@ -299,7 +299,6 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'MAPGEN_LANE_MARGIN_PX',
         'MAPGEN_LANE_CURVE_VS_PRUNE_BIAS',
         'MAPGEN_LANE_MODE',
-        'MAPGEN_RECOMPUTE_CONNECTIVITY_ON_AUTHORED_MAPS',
         'MODIFIED_VORONOI_STAR_MARGIN',
         'TERRITORY_MSR_STAR_BIAS',
         // Connections / Lanes

@@ -81,19 +81,16 @@ function isTerritoryRenderModeRecord(record: SearchableSettingRecord): boolean {
 function isTerritoryRuntimeRecord(record: SearchableSettingRecord): boolean {
     const key = record.key;
     const label = record.label.toLowerCase();
+    // The TERRITORY_ENGINE_* / TERRITORY_FILL_TRANSITION / VS_TRANSITION_MODE
+    // clauses were dropped 2026-07-14 with their config keys. These are string
+    // comparisons, so the type checker could never flag them — the search-index
+    // integrity test is what guards this file now.
     return (
         key === "TERRITORY_GEOMETRY_MODE" ||
-        key === "TERRITORY_ENGINE_MODE" ||
-        key === "TERRITORY_ENGINE_STATIC_METHOD" ||
-        key === "TERRITORY_ENGINE_DYNAMIC_METHOD" ||
-        key === "TERRITORY_ENGINE_HYBRID_PLAN" ||
         key === "TERRITORY_FILL_TRANSITION_MODE" ||
-        key === "TERRITORY_FILL_TRANSITION" ||
         key === "TERRITORY_BORDER_TRANSITION_MODE" ||
         key === "TERRITORY_BORDER_TRANSITION" ||
-        key === "VS_TRANSITION_MODE" ||
         label.includes("geometry mode") ||
-        label.includes("engine mode") ||
         label.includes("fill transition") ||
         label.includes("border transition") ||
         label.includes("transition mode")
@@ -140,7 +137,6 @@ function resolveSectionTarget(
             return { sectionId: "combat_tuning" };
         case "conquest":
             return { sectionId: "conquest" };
-        case "debug":
         case "diagnostics":
             return { sectionId: "diagnostics" };
         case "economy":
