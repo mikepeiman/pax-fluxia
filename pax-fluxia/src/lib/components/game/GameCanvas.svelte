@@ -350,17 +350,20 @@
         orderMutationPriorityWindowMs: ORDER_MUTATION_PRIORITY_WINDOW_MS,
     });
 
+    /**
+     * Bias the render loop toward input for a window: territory presents and
+     * ship-render cadence check this deadline before doing heavy work. `kind`
+     * is unused since its logging was removed; kept so call sites stay
+     * self-describing.
+     */
     function noteInteractivePressure(
-        kind?: string,
+        _kind?: string,
         durationMs = TERRITORY_INPUT_PRIORITY_WINDOW_MS,
     ): void {
         territoryInputPriorityUntilMs = Math.max(
             territoryInputPriorityUntilMs,
             performance.now() + durationMs,
         );
-        if (kind) {
-
-        }
     }
 
     // Instrument-only probe (reported in the benchmark scheduler snapshot).
