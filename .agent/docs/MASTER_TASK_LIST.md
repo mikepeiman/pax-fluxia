@@ -28,6 +28,25 @@ superseding docs:
 
 ---
 
+## 2026-07-15
+
+### Open
+- [ ] **Settings panel maximal refactor (user-commanded audit delivered)** `[settings][arch]` — audit at
+  `.agent/docs/game/design/2026-07-15_SETTINGS_PANEL_CODE_AUDIT.md`. Phases: 0 dead code (needs 3 user
+  rulings: config import/export surface-or-delete; reset-to-defaults surface-or-delete; debug ship-count
+  delete-or-resurrect) → 1 duplicates (panelSync recalc math → animLockMath; vis store folded into panel
+  map; transferRate → Economy; prefix ladders → registry `invalidates` tags + totality test) → 2 single
+  settingsStore (one reactive mirror keyed by configKey; seven partial syncs → one syncFromConfig; kill
+  prop drilling) → 3 shell decomposition (SettingsRail/SettingsSearch/SettingsSectionHost/settingsNav;
+  registry-driven section render kills the 20-branch snippet chain) → 4 CSS tokens + Tailwind v4 on
+  extracted leaves (structural grid/clip/scroll layer stays bespoke). Persistence phases need
+  boot-order clobber tests.
+
+### Done (2026-07-15)
+- [x] **Settings panel collapse SOLVED** `[settings]` — `.area-controls` overflow:hidden was
+  programmatically scrolled (focus scrollIntoView); `overflow: clip` fix `14c2b6efb`; user confirmed.
+  Diagnostics removed `aa59bf524`.
+
 ## 2026-07-12
 
 ### Open
