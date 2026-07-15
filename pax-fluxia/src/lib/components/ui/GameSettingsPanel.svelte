@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount, tick } from "svelte";
-    import { fade } from "svelte/transition";
+    import { fade, fly } from "svelte/transition";
     import { DEFAULT_GAME_CONFIG, GAME_CONFIG } from "$lib/config/game.config";
     import type { MapDefinition } from "$lib/types/map.types";
     import {
@@ -1231,19 +1231,39 @@
             ".icon-toolbar",
         ];
         const observed = new WeakSet<Element>();
+        const labelOf = (el: HTMLElement) =>
+            selectors.find((s) => el.matches(s)) ?? el.className;
         const ro = new ResizeObserver((entries) => {
             for (const entry of entries) {
                 const el = entry.target as HTMLElement;
-                const label =
-                    selectors.find((s) => el.matches(s)) ?? el.className;
                 // log.ui = PAUSE-EXEMPT: the panel pauses the game, which mutes
                 // log.canvas — so this probe never surfaced before. See logger.ts.
                 log.ui(
                     "settings-probe",
-                    `${label} h=${Math.round(entry.contentRect.height)}`,
+                    `${labelOf(el)} ${Math.round(entry.contentRect.width)}x${Math.round(entry.contentRect.height)}`,
                 );
             }
         });
+        // Scrolls don't resize anything, so the ResizeObserver is blind to them
+        // — and a stray programmatic scroll of an overflow box is exactly what
+        // displaced the panel (2026-07-14). scroll doesn't bubble, but capture
+        // listeners on an ancestor still see descendants' scroll events.
+        const onScroll = (event: Event) => {
+            const el = event.target as HTMLElement;
+            if (!(el instanceof HTMLElement)) return;
+            log.ui(
+                "settings-probe",
+                `SCROLL ${labelOf(el)} top=${Math.round(el.scrollTop)} left=${Math.round(el.scrollLeft)}`,
+            );
+        };
+        node.addEventListener("scroll", onScroll, {
+            capture: true,
+            passive: true,
+        });
+        const classMo = new MutationObserver(() => {
+            log.ui("settings-probe", `CLASS ${node.className}`);
+        });
+        classMo.observe(node, { attributes: true, attributeFilter: ["class"] });
         const scan = () => {
             for (const sel of selectors) {
                 const els = node.matches(sel)
@@ -1264,6 +1284,8 @@
             destroy() {
                 ro.disconnect();
                 mo.disconnect();
+                classMo.disconnect();
+                node.removeEventListener("scroll", onScroll, true);
             },
         };
     }
@@ -1276,7 +1298,6 @@
     class="controls-panel"
     class:controls-panel--ribbon-expanded={ribbonExpanded}
     class:controls-panel--dock-left={dockSide === "left"}
-    class:controls-panel--with-panel={activeToolHasPanel}
     use:probePanelHeights>
 
     <!-- Icon Toolbar -->
@@ -1334,9 +1355,13 @@
     <!-- Rendered only while a category is open — not merely display:none.
          Every open is a FRESH mount with a clean layout resolution: the user's
          own observation ("closing/reopening the category corrects the height")
-         proved remounting heals; this makes that structural. -->
+         proved remounting heals; this makes that structural. The fly is safe
+         during outro because the grid template is CONSTANT — the outgoing
+         element keeps its grid area for the full 200ms. -->
     {#if activeToolHasPanel}
-    <div class="settings-content">
+    <div
+        class="settings-content"
+        transition:fly={{ x: dockSide === "left" ? -16 : 16, duration: 200 }}>
     <div class="settings-search">
         <span class="settings-search__icon"><HudIcon name="search" size={13} /></span>
         <input
@@ -1710,34 +1735,42 @@
         height: 100%;
         max-height: 100%;
         min-height: 0;
-        overflow: hidden;
+        /* clip, not hidden: an overflow:hidden box is still PROGRAMMATICALLY
+           scrollable (focus scrolling, scrollIntoView), and a stray scroll
+           displaced the whole panel — both columns shifted up together, rail
+           categories out of view, mid-content at the top — with no resize for
+           the probe to see. clip forbids all scrolling, full stop. */
+        overflow: clip;
         display: grid;
-        /* Rail alone: it fills the panel. minmax(0,1fr) rather than an exact
-           width so a border/scrollbar/sub-pixel never overflows and clips. */
-        grid-template-columns: minmax(0, 1fr);
+        /* ONE template for every state — never re-templated. The content column
+           is minmax(0,1fr): when .settings-content is unmounted (no category
+           open) the panel's own width collapses to chrome width, so the empty
+           column resolves to ~0 and the rail hugs its dock edge. This also
+           makes the content fly-out safe: the outgoing element keeps its grid
+           area for the whole outro instead of being auto-placed into an
+           implicit track. Rail is minmax(0, …) rather than an exact width so a
+           border/scrollbar/sub-pixel never overflows and clips ("menu slightly
+           cut off"). Inter-column spacing lives on .settings-content, NOT in
+           gap, so the rail-only state has no dead 8px strip. */
+        grid-template-columns: minmax(0, 1fr) minmax(0, var(--settings-ribbon-width));
         grid-template-rows: minmax(0, 1fr);
-        grid-template-areas: "rail";
-        gap: var(--pax-gap-sm);
+        grid-template-areas: "content rail";
+        gap: 0;
         align-items: stretch;
         color: var(--pax-ui-text);
         font-family: var(--pax-ui-font-ui);
+        /* Same track COUNT in every state, so this interpolates cleanly (the
+           old poison was animating BETWEEN 1-track and 2-track templates).
+           Glides the ribbon expand/collapse (68↔216) and dock swap. */
+        transition: grid-template-columns 0.22s ease;
     }
 
     .controls-panel--ribbon-expanded {
         --settings-ribbon-width: 216px;
     }
 
-    .controls-panel--with-panel {
-        /* Content column is minmax(0,1fr), NOT a hard px floor: a 360px floor
-           + the rail + padding exceeded the panel near its 420px min width and
-           clipped the right edge. With min 0 the column shrinks to fit and its
-           inner body scrolls. */
-        grid-template-columns: minmax(0, 1fr) var(--settings-ribbon-width);
-        grid-template-areas: "content rail";
-    }
-
-    .controls-panel--dock-left.controls-panel--with-panel {
-        grid-template-columns: var(--settings-ribbon-width) minmax(0, 1fr);
+    .controls-panel--dock-left {
+        grid-template-columns: minmax(0, var(--settings-ribbon-width)) minmax(0, 1fr);
         grid-template-areas: "rail content";
     }
 
@@ -1912,9 +1945,18 @@
         gap: var(--pax-space-3);
         /* Single scroll surface per panel: the open .section-panel is flex:1
            and its .section-body owns the scroll (header + subnav stay fixed).
-           This wrapper must NOT add a second, nesting scrollbar. */
-        overflow-y: hidden;
+           clip (not hidden): this wrapper must never scroll, not even
+           programmatically. */
+        overflow: clip;
         padding: 0 2px 0 0;
+        /* Inter-column spacing (the grid itself has gap:0 so the rail-only
+           state has no dead strip). Rail sits right of content by default. */
+        margin-right: var(--pax-gap-sm);
+    }
+
+    .controls-panel--dock-left .settings-content {
+        margin-right: 0;
+        margin-left: var(--pax-gap-sm);
     }
 
     /* ── Search ── */
@@ -2033,7 +2075,7 @@
         min-height: 0;
         display: flex;
         flex-direction: column;
-        overflow: hidden;
+        overflow: clip;
         border: 1px solid transparent;
         border-radius: var(--pax-ui-radius-md);
         clip-path: var(--pax-ui-rounded-corner-md);
@@ -2442,18 +2484,17 @@
     /* ── Narrow layout: rail on top, content below — still definite ── */
     @media (max-width: 720px) {
         .controls-panel,
-        .controls-panel--dock-left.controls-panel--with-panel {
+        .controls-panel--dock-left {
             grid-template-columns: minmax(0, 1fr);
-            grid-template-rows: minmax(0, 1fr);
-            grid-template-areas: "rail";
-        }
-
-        .controls-panel--with-panel,
-        .controls-panel--dock-left.controls-panel--with-panel {
             grid-template-rows: auto minmax(0, 1fr);
             grid-template-areas:
                 "rail"
                 "content";
+        }
+
+        .settings-content,
+        .controls-panel--dock-left .settings-content {
+            margin: var(--pax-gap-sm) 0 0;
         }
 
         .icon-toolbar {

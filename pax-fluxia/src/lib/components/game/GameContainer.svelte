@@ -1203,6 +1203,12 @@
     height: 100vh;
     height: 100dvh;
     width: 100vw;
+    /* Glides the pinned ribbon track (var(--settings-ribbon-col)) in step with
+       .area-controls' width transition — same duration/easing, so the column
+       and its occupant resize together. Only fires when the track's computed
+       value changes (chrome↔section width, ribbon expand), not on window
+       resize (1fr is unchanged as a specified value). */
+    transition: grid-template-columns 0.22s ease;
   }
 
   /* The ribbon track is PINNED to the same width the .area-controls element
@@ -1713,12 +1719,11 @@
     overflow: hidden;
     /* min-width: 280px; */
     flex-shrink: 0;
-    /* NO width transition. The grid track is pinned to the same
-       settingsEffectiveWidth this element gets inline, so both must change in
-       the same frame — an animating element lagging a snapped track re-creates
-       the transient gap/reflow the pinned track exists to eliminate, and the
-       old per-frame track animation resized the paused (unpaintable) canvas
-       ~13 times per toggle. Open/close still glides via transition:slide. */
+    /* Glides with the SAME duration/easing as .game-layout's track transition
+       below, so the element and its pinned track move together (a lone
+       animating width against a snapped track shows a gap). Animating the
+       paused canvas is safe now: renderOnceIfPaused repaints on every resize. */
+    transition: width 0.22s ease;
   }
 
   .area-controls--dock-left {

@@ -851,10 +851,9 @@
   border: none;
   background: transparent;
   box-shadow: none;
-  /* NO width transition: the grid track, .area-controls, and this element all
-     derive from settingsEffectiveWidth and must resize in the SAME frame. An
-     animating inner width lagging a snapped track shows a background sliver and
-     re-triggers the reflow loop the pinned track fixed (2026-07-14). */
+  /* Same duration/easing as .area-controls and .game-layout's track: all three
+     derive from settingsEffectiveWidth and must glide together. */
+  transition: width 0.22s ease;
 }
 
 .pf-settings-ribbon__resize {
