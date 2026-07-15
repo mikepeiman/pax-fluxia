@@ -3,10 +3,13 @@
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { animationStore } from "$lib/stores/animationStore.svelte";
     import { ANIM_SLIDERS } from "../settingsDefs";
+    // The pure lock math — setAnimValue below owns the config/panel writes.
+    // (This used to call panelSync's side-effectful duplicate, which wrote
+    // every locked value to GAME_CONFIG and then setAnimValue wrote it again.)
     import {
-        recalcAnimLocksOnTickChange,
-        recalcAnimLocksOnAnimSpeedChange,
-    } from "../panelSync";
+        recalcOnTickChange,
+        recalcOnAnimSpeedChange,
+    } from "../animLockMath";
     import {
         PaxHudButton,
         PaxHudRange,
@@ -63,11 +66,10 @@
         updateTickInterval(value);
         updatePanel("tickInterval", value);
         applyAnimUpdates(
-            recalcAnimLocksOnTickChange(
-                value,
-                animLockModes,
-                animLockRatios,
+            recalcOnTickChange(
+                { modes: animLockModes, ratios: animLockRatios },
                 ANIM_SLIDERS,
+                value,
             ),
         );
 
@@ -98,11 +100,10 @@
         GAME_CONFIG.ANIMATION_SPEED_MS = value;
         updatePanel("animSpeed", value);
         applyAnimUpdates(
-            recalcAnimLocksOnAnimSpeedChange(
-                value,
-                animLockModes,
-                animLockRatios,
+            recalcOnAnimSpeedChange(
+                { modes: animLockModes, ratios: animLockRatios },
                 ANIM_SLIDERS,
+                value,
             ),
         );
     }

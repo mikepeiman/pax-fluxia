@@ -10,12 +10,13 @@ import { GAME_CONFIG } from '$lib/config/game.config';
 import { gameplayConfigDefaults } from '$lib/config/gameplay.config';
 import { normalizeBgImagePath } from '$lib/config/bgManifest';
 import { normalizeTerritoryRenderModeId } from '$lib/territory/ui/territoryRenderModeCatalog';
-import { ANIM_SLIDERS, RESOLVED_PANEL_CONFIG_MAP, CONFIG_TO_PANEL_KEY, type AnimSliderDef } from './settingsDefs';
+import { ANIM_SLIDERS, RESOLVED_PANEL_CONFIG_MAP, CONFIG_TO_PANEL_KEY } from './settingsDefs';
+import { recalcOnTickChange, type AnimLockMode } from './animLockMath';
 import { dumpSettings } from '$lib/utils/settingsDump';
 
-function isTickRelativeUnit(unit?: string): boolean {
-    return unit === '×tick' || unit === 'ticks';
-}
+/** The lock-mode type is owned by animLockMath; re-exported here because this
+ *  module's storage API (loadAnimLockModes/saveAnimLockModes) speaks it. */
+export type { AnimLockMode };
 
 // ── Storage Keys ────────────────────────────────────────────────────────────
 
@@ -453,8 +454,6 @@ export function syncPanelFromConfig(
 
 // ── Anim Lock Persistence ───────────────────────────────────────────────────
 
-export type AnimLockMode = 'pinned' | 'ratio' | 'animSpeed' | null;
-
 export function loadAnimLockRatios(): Record<string, number | null> {
     if (typeof window === 'undefined') return {};
     try {
@@ -530,13 +529,14 @@ export function applyTickIntervalChange(valueMs: number): {
         panel.territoryTransitionMs = valueMs;
     }
 
-    const lockUpdates = recalcAnimLocksOnTickChange(
-        valueMs,
-        loadAnimLockModes(),
-        loadAnimLockRatios(),
+    // The lock math is animLockMath's (pure); this function owns the writes.
+    const lockUpdates = recalcOnTickChange(
+        { modes: loadAnimLockModes(), ratios: loadAnimLockRatios() },
         ANIM_SLIDERS,
+        valueMs,
     );
     for (const [configKey, value] of Object.entries(lockUpdates)) {
+        (GAME_CONFIG as any)[configKey] = value;
         const panelKey = CONFIG_TO_PANEL_KEY[configKey];
         if (panelKey) panel[panelKey] = value;
     }
@@ -559,61 +559,12 @@ export function applyTickIntervalChange(valueMs: number): {
     return { tickMs: valueMs, animSpeedMs: GAME_CONFIG.ANIMATION_SPEED_MS };
 }
 
-/** Recalculate tick-locked/pinned values when tick interval changes */
-export function recalcAnimLocksOnTickChange(
-    newTickMs: number,
-    lockModes: Record<string, AnimLockMode>,
-    lockRatios: Record<string, number | null>,
-    sliders: AnimSliderDef[],
-): Record<string, number> {
-    const updates: Record<string, number> = {};
-    for (const [key, mode] of Object.entries(lockModes)) {
-        if (mode === 'pinned' || mode === 'ratio') {
-            const ratio = lockRatios[key];
-            if (ratio != null) {
-                const def = sliders.find(s => s.key === key);
-                let newVal = isTickRelativeUnit(def?.unit) ? ratio : ratio * newTickMs;
-                if (def && def.min != null && def.max != null) {
-                    newVal = Math.max(def.min, Math.min(def.max, newVal));
-                }
-                newVal = def?.unit === 'ms'
-                    ? Math.round(newVal)
-                    : Math.round(newVal * 100) / 100;
-                (GAME_CONFIG as any)[key] = newVal;
-                updates[key] = newVal;
-            }
-        }
-    }
-    return updates;
-}
-
-/** Recalculate animSpeed-locked values when animation speed changes */
-export function recalcAnimLocksOnAnimSpeedChange(
-    newAnimMs: number,
-    lockModes: Record<string, AnimLockMode>,
-    lockRatios: Record<string, number | null>,
-    sliders: AnimSliderDef[],
-): Record<string, number> {
-    const updates: Record<string, number> = {};
-    for (const [key, mode] of Object.entries(lockModes)) {
-        if (mode === 'animSpeed') {
-            const ratio = lockRatios[key];
-            if (ratio != null) {
-                const def = sliders.find(s => s.key === key);
-                let newVal = ratio * newAnimMs;
-                if (def && def.min != null && def.max != null) {
-                    newVal = Math.max(def.min, Math.min(def.max, newVal));
-                }
-                newVal = def?.unit === 'ms'
-                    ? Math.round(newVal)
-                    : Math.round(newVal * 100) / 100;
-                (GAME_CONFIG as any)[key] = newVal;
-                updates[key] = newVal;
-            }
-        }
-    }
-    return updates;
-}
+// The two recalcAnimLocks* functions that lived here were a second, side-
+// effectful copy of animLockMath's recalcOnTickChange/recalcOnAnimSpeedChange
+// (2026-07-15 audit): identical unit/clamp/round rules, plus a GAME_CONFIG
+// write. Which copy ran depended on which control surface you touched, and
+// their callers wrote every value a second time anyway. Deleted — animLockMath
+// is the one implementation; callers own their writes.
 
 // ── Tier Persistence ────────────────────────────────────────────────────────
 

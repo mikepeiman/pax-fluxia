@@ -20,7 +20,15 @@
  * That is what makes the unit math testable at all.
  */
 import type { AnimSliderDef } from './settingsDefs';
-import type { AnimLockMode } from './panelSync';
+
+/**
+ * A slider's lock mode. This type lives HERE, with the math that gives it
+ * meaning — it used to live in panelSync (persistence), which forced this
+ * module to import from its own consumer and made a second, side-effectful
+ * copy of the recalc math there look natural. panelSync re-exports it for
+ * the storage API's signatures.
+ */
+export type AnimLockMode = 'pinned' | 'ratio' | 'animSpeed' | null;
 
 export interface AnimLockState {
     modes: Record<string, AnimLockMode>;
