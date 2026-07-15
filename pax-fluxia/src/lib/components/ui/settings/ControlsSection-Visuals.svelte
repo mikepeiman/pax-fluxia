@@ -19,18 +19,30 @@
     interface Props {
         panel: Record<string, any>;
         updatePanel: (key: string, value: any) => void;
-        vis: Record<string, any>;
-        updateVisual: (key: string, val: any) => void;
+        /** Normalizes, writes config, notifies the canvas, and persists. */
+        updateBgImage: (rawPath: string) => void;
         syncFromConfig?: () => void;
     }
 
-    let {
-        panel,
-        updatePanel,
-        vis,
-        updateVisual,
-        syncFromConfig,
-    }: Props = $props();
+    let { panel, updatePanel, updateBgImage, syncFromConfig }: Props = $props();
+
+    // Lane + background values are ordinary panel keys (2026-07-15 audit): they
+    // used to come from a parallel `vis` store that persisted the same five
+    // values under a second set of key names.
+    let laneWidth = $derived(panel.connectionWidth ?? GAME_CONFIG.CONNECTION_WIDTH);
+    let laneAlpha = $derived(panel.connectionAlpha ?? GAME_CONFIG.CONNECTION_ALPHA);
+    let shadowWidth = $derived(
+        panel.connectionShadowWidth ?? GAME_CONFIG.CONNECTION_SHADOW_WIDTH,
+    );
+    let shadowAlpha = $derived(
+        panel.connectionShadowAlpha ?? GAME_CONFIG.CONNECTION_SHADOW_ALPHA,
+    );
+    let bgImage = $derived(panel.bgImageUrl ?? GAME_CONFIG.BG_IMAGE_URL);
+
+    function updateLaneValue(configKey: string, panelKey: string, value: number) {
+        (GAME_CONFIG as any)[configKey] = value;
+        updatePanel(panelKey, value);
+    }
 
     const bgImages = BG_IMAGES;
     const mapConfig = GAME_CONFIG as typeof GAME_CONFIG & {
@@ -81,7 +93,7 @@
     }
 
     function changeBg(img: string) {
-        updateVisual("bgImage", img);
+        updateBgImage(img);
     }
 
     function updateBgAlpha(value: number) {
@@ -159,13 +171,13 @@
         >
             Background Asset
         </span>
-        <strong>{vis.bgImage || "none"}</strong>
+        <strong>{bgImage || "none"}</strong>
     </div>
 
     <div class="visuals-bg-grid">
         <PaxHudButton
             class="visuals-bg-thumb"
-            active={!vis.bgImage}
+            active={!bgImage}
             title="No background"
             onclick={() => changeBg("")}
         >
@@ -174,7 +186,7 @@
         {#each bgImages as img}
             <PaxHudButton
                 class="visuals-bg-thumb"
-                active={vis.bgImage === img}
+                active={bgImage === img}
                 title={img
                     .replace(/\.(png|jpe?g|webp|avif)$/i, "")
                     .replace(/^pax-fluxia-/, "")}
@@ -335,44 +347,53 @@
         onChange={updateSelectionHex}
     />
 
+    <!-- settingConfigKey added with the vis-store fold-in: these four rows had
+         none, so settings-search could match them but never scroll to or flash
+         them. -->
     <PaxSettingsRangeRow
         label="Lane Width"
-        value={vis.laneWidth}
+        value={laneWidth}
         min={0.5}
         max={8}
         step={0.5}
         format="fixed1"
-        onInput={(value) => updateVisual("laneWidth", value)}
+        settingConfigKey="CONNECTION_WIDTH"
+        onInput={(value) => updateLaneValue("CONNECTION_WIDTH", "connectionWidth", value)}
     />
 
     <PaxSettingsRangeRow
         label="Lane Opacity"
-        value={vis.laneAlpha}
+        value={laneAlpha}
         min={0.05}
         max={1}
         step={0.05}
         format="fixed2"
-        onInput={(value) => updateVisual("laneAlpha", value)}
+        settingConfigKey="CONNECTION_ALPHA"
+        onInput={(value) => updateLaneValue("CONNECTION_ALPHA", "connectionAlpha", value)}
     />
 
     <PaxSettingsRangeRow
         label="Shadow Width"
-        value={vis.shadowWidth}
+        value={shadowWidth}
         min={0}
         max={10}
         step={1}
         format="fixed1"
-        onInput={(value) => updateVisual("shadowWidth", value)}
+        settingConfigKey="CONNECTION_SHADOW_WIDTH"
+        onInput={(value) =>
+            updateLaneValue("CONNECTION_SHADOW_WIDTH", "connectionShadowWidth", value)}
     />
 
     <PaxSettingsRangeRow
         label="Shadow Opacity"
-        value={vis.shadowAlpha}
+        value={shadowAlpha}
         min={0}
         max={1}
         step={0.05}
         format="fixed2"
-        onInput={(value) => updateVisual("shadowAlpha", value)}
+        settingConfigKey="CONNECTION_SHADOW_ALPHA"
+        onInput={(value) =>
+            updateLaneValue("CONNECTION_SHADOW_ALPHA", "connectionShadowAlpha", value)}
     />
 </section>
 

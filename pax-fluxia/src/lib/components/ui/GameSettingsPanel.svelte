@@ -24,9 +24,7 @@
         warnOnMissingTerritorySchemaCoverage,
     } from "./settingsState";
     import {
-        loadVisuals,
-        saveVisuals,
-        applyVisuals,
+        applyBgImageChange,
         loadPanelSettings,
         panelDefaultsFromConfig,
         savePanelSettings,
@@ -146,8 +144,6 @@
 
     // Panel settings (persisted via panelSync)
     let panel = $state(loadPanelSettings(panelDefaultsFromConfig()));
-    // Visuals state (persisted via panelSync)
-    let vis = $state(loadVisuals());
     // Animation lock state (persisted via panelSync)
     let animLockRatios = $state(loadAnimLockRatios());
     let animLockModes = $state(loadAnimLockModes());
@@ -214,26 +210,9 @@
         panel = setSetting(panel, key, value, savePanelSettings);
     }
 
-    function updateVisual(key: string, value: any) {
-        (vis as any)[key] = value;
-        saveVisuals(vis);
-        applyVisuals(vis);
-    }
-
-    function syncVisualsFromConfig(
-        configSource: Record<string, any> = GAME_CONFIG as Record<string, any>,
-    ) {
-        const nextVis = {
-            ...vis,
-            laneWidth: configSource.CONNECTION_WIDTH,
-            laneAlpha: configSource.CONNECTION_ALPHA,
-            shadowWidth: configSource.CONNECTION_SHADOW_WIDTH,
-            shadowAlpha: configSource.CONNECTION_SHADOW_ALPHA,
-            bgImage: configSource.BG_IMAGE_URL,
-        };
-        vis = nextVis;
-        saveVisuals(nextVis);
-        applyVisuals(nextVis);
+    /** Background image: normalize + write config + notify the canvas, then persist. */
+    function updateBgImage(rawPath: string) {
+        updatePanel("bgImageUrl", applyBgImageChange(rawPath));
     }
 
     function syncAnimValuesFromConfig(
@@ -251,7 +230,6 @@
     function syncRuntimeViewsFromConfig(
         configSource: Record<string, any> = GAME_CONFIG as Record<string, any>,
     ) {
-        syncVisualsFromConfig(configSource);
         syncAnimValuesFromConfig(configSource);
         tickInterval = configSource.BASE_TICK_MS;
         activeGameStore.updateTickInterval(configSource.BASE_TICK_MS);
@@ -278,12 +256,8 @@
         );
         applyTimingBindingsAndLocks();
         syncRuntimeViewsFromConfig();
-        if (typeof window !== "undefined" && "BG_IMAGE_URL" in configPatch) {
-            window.dispatchEvent(
-                new CustomEvent("pax-bg-change", {
-                    detail: normalizeBgImagePath(GAME_CONFIG.BG_IMAGE_URL),
-                }),
-            );
+        if ("BG_IMAGE_URL" in configPatch) {
+            applyBgImageChange(GAME_CONFIG.BG_IMAGE_URL);
         }
         if (typeof window !== "undefined" && "BG_IMAGE_ALPHA" in configPatch) {
             window.dispatchEvent(
@@ -1315,8 +1289,7 @@
                     <ControlsSectionVisuals
                         {panel}
                         {updatePanel}
-                        {vis}
-                        {updateVisual}
+                        {updateBgImage}
                         syncFromConfig={syncAllFromConfig}
                     />
                 {:else if sec?.id === "ui_typography"}
@@ -1464,8 +1437,7 @@
                     <ControlsSectionVisuals
                         {panel}
                         {updatePanel}
-                        {vis}
-                        {updateVisual}
+                        {updateBgImage}
                         syncFromConfig={syncAllFromConfig}
                     />
                 {:else if sec?.id === "logging"}

@@ -21,7 +21,8 @@ export type { AnimLockMode };
 // ── Storage Keys ────────────────────────────────────────────────────────────
 
 export const PANEL_STORAGE_KEY = 'pax-fluxia-panel-settings';
-export const VISUALS_STORAGE_KEY = 'pax-fluxia-visuals';
+/** Retired store (2026-07-15). Read once by migrateVisualsStoreIntoPanel, then removed. */
+const VISUALS_STORAGE_KEY = 'pax-fluxia-visuals';
 export const ANIM_LOCK_STORAGE_KEY = 'pax-anim-lock-ratios';
 export const TIER_STORAGE_KEY = 'pax-fluxia-settings-tier';
 const LEGACY_CELL_GRID_SPACING_PX = 48;
@@ -103,56 +104,84 @@ export function normalizeTerritoryTransitionTimingDefaults(
     return changed;
 }
 
-// ── Visual Persistence ──────────────────────────────────────────────────────
+// ── Background image ────────────────────────────────────────────────────────
 
-export const VISUAL_DEFAULTS = {
-    laneWidth: GAME_CONFIG.CONNECTION_WIDTH,
-    laneAlpha: GAME_CONFIG.CONNECTION_ALPHA,
-    shadowWidth: GAME_CONFIG.CONNECTION_SHADOW_WIDTH,
-    shadowAlpha: GAME_CONFIG.CONNECTION_SHADOW_ALPHA,
-    /** Basename under `/assets/` — see `bgManifest.normalizeBgImagePath` */
-    bgImage: 'pax-fluxia-bg-25.jpg',
-};
-
-export function loadVisuals(): typeof VISUAL_DEFAULTS {
-    if (typeof window === 'undefined') return { ...VISUAL_DEFAULTS };
-    try {
-        const s = localStorage.getItem(VISUALS_STORAGE_KEY);
-        if (s) {
-            const merged = { ...VISUAL_DEFAULTS, ...JSON.parse(s) };
-            merged.bgImage = normalizeBgImagePath(merged.bgImage);
-            return merged;
-        }
-    } catch {
-        /* ignore */
+/**
+ * Set the background image: normalize the path, write config, notify the
+ * canvas. The ONE way to change the background — three call sites used to
+ * hand-roll this triple (applyVisuals, the settings panel's config-patch path,
+ * and themeStore).
+ *
+ * Returns the normalized path, which is what callers should persist.
+ */
+export function applyBgImageChange(rawPath: string): string {
+    const bgPath = normalizeBgImagePath(rawPath);
+    GAME_CONFIG.BG_IMAGE_URL = bgPath;
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('pax-bg-change', { detail: bgPath }));
     }
-    return { ...VISUAL_DEFAULTS };
+    return bgPath;
 }
 
-export function saveVisuals(vis: typeof VISUAL_DEFAULTS): void {
-    if (typeof window === 'undefined') return;
-    const toSave = { ...vis, bgImage: normalizeBgImagePath(vis.bgImage) };
-    localStorage.setItem(VISUALS_STORAGE_KEY, JSON.stringify(toSave));
-    dumpSettings();
-}
-
-export function applyVisuals(vis: typeof VISUAL_DEFAULTS): void {
-    GAME_CONFIG.CONNECTION_WIDTH = vis.laneWidth;
-    GAME_CONFIG.CONNECTION_ALPHA = vis.laneAlpha;
-    GAME_CONFIG.CONNECTION_SHADOW_WIDTH = vis.shadowWidth;
-    GAME_CONFIG.CONNECTION_SHADOW_ALPHA = vis.shadowAlpha;
-
-    const bgPath = normalizeBgImagePath(vis.bgImage);
-    // Live-update background image if it changes
-    if (GAME_CONFIG.BG_IMAGE_URL !== bgPath) {
-        GAME_CONFIG.BG_IMAGE_URL = bgPath;
-        if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('pax-bg-change', { detail: bgPath }));
-        }
-    }
-}
+// The `pax-fluxia-visuals` store (VISUAL_DEFAULTS / loadVisuals / saveVisuals /
+// applyVisuals) lived here until the 2026-07-15 audit. All five of its values
+// — lane width/alpha, lane shadow width/alpha, background image — are ordinary
+// PANEL_CONFIG_MAP entries (CONNECTION_WIDTH, CONNECTION_ALPHA,
+// CONNECTION_SHADOW_WIDTH, CONNECTION_SHADOW_ALPHA, BG_IMAGE_URL), so every one
+// of them was persisted TWICE under two different key spellings, and boot order
+// (applyPanelToConfig then applyVisuals) silently decided which copy won.
+// Deleted; migrateVisualsStoreIntoPanel below folds any saved values forward.
 
 // ── Panel Settings Persistence ──────────────────────────────────────────────
+
+/**
+ * One-time fold-in of the retired `pax-fluxia-visuals` store (2026-07-15).
+ *
+ * The visuals store won at boot — hydrateConfigFromPersistedUiSettings ran
+ * applyPanelToConfig FIRST and applyVisuals SECOND — so its values are the
+ * ones the user has actually been looking at. They therefore overwrite the
+ * panel's parallel copies here, not the other way round. The old key is
+ * removed once folded, so this runs exactly once per browser.
+ */
+function migrateVisualsStoreIntoPanel(stored: Record<string, any>): boolean {
+    if (typeof window === 'undefined') return false;
+
+    let changed = false;
+    const raw = localStorage.getItem(VISUALS_STORAGE_KEY);
+    if (raw) {
+        try {
+            const vis = JSON.parse(raw) as Record<string, unknown>;
+            const folds: Array<[string, string]> = [
+                ['laneWidth', 'connectionWidth'],
+                ['laneAlpha', 'connectionAlpha'],
+                ['shadowWidth', 'connectionShadowWidth'],
+                ['shadowAlpha', 'connectionShadowAlpha'],
+                ['bgImage', 'bgImageUrl'],
+            ];
+            for (const [visKey, panelKey] of folds) {
+                if (vis[visKey] === undefined) continue;
+                stored[panelKey] = vis[visKey];
+                changed = true;
+            }
+        } catch {
+            /* a corrupt visuals blob just means nothing to fold */
+        }
+        localStorage.removeItem(VISUALS_STORAGE_KEY);
+        changed = true;
+    }
+
+    // loadVisuals used to normalize the bg path on every read; the panel now
+    // holds it, so normalize it here instead of trusting whatever was stored.
+    if (typeof stored.bgImageUrl === 'string') {
+        const normalized = normalizeBgImagePath(stored.bgImageUrl);
+        if (normalized !== stored.bgImageUrl) {
+            stored.bgImageUrl = normalized;
+            changed = true;
+        }
+    }
+
+    return changed;
+}
 
 /**
  * Historical panel key renames.
@@ -300,8 +329,13 @@ export function loadPanelSettings<T extends Record<string, any>>(defaults: T): T
     if (typeof window === 'undefined') return { ...defaults };
     try {
         const s = localStorage.getItem(PANEL_STORAGE_KEY);
+        const stored: Record<string, any> = s ? (JSON.parse(s) ?? {}) : {};
+        let changed = false;
+
+        // Migrations that only make sense against previously-saved panel data.
+        // (Running these on an empty object would stamp policy decisions onto
+        // brand-new users, overriding their compile-time config defaults.)
         if (s) {
-            const stored: Record<string, any> = JSON.parse(s);
             // Migrate renamed keys forward
             for (const [oldKey, newKey] of Object.entries(PANEL_KEY_RENAMES)) {
                 if (oldKey in stored && !(newKey in stored)) {
@@ -328,11 +362,18 @@ export function loadPanelSettings<T extends Record<string, any>>(defaults: T): T
             // mode-split + surface/metaballGrid key renames) on every load path,
             // not just the cell-grid subset — otherwise stale `metaballGrid*` /
             // surface keys linger when the panel is opened without a full hydrate.
-            if (normalizeCellGridSmoothnessDefaults(stored)) {
-                localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify(stored));
-            }
-            return { ...defaults, ...stored };
+            if (normalizeCellGridSmoothnessDefaults(stored)) changed = true;
         }
+
+        // The visuals fold-in is NOT gated on prior panel storage: a user who
+        // only ever changed their background from the main menu has a visuals
+        // store and no panel store, and their choice must survive.
+        if (migrateVisualsStoreIntoPanel(stored)) changed = true;
+
+        if (changed) {
+            localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify(stored));
+        }
+        return { ...defaults, ...stored };
     } catch {
         /* ignore */
     }
@@ -379,15 +420,19 @@ export function applyPanelToConfig(panel: Record<string, any>): void {
 }
 
 /**
- * Restore persisted panel and visual settings into GAME_CONFIG before any
- * gameplay render path reads config-driven territory mode or tunables.
+ * Restore persisted panel settings into GAME_CONFIG before any gameplay render
+ * path reads config-driven territory mode or tunables.
  *
  * This is required because GameSettingsPanel may remain unmounted until the
  * user opens settings; startup must not depend on that mount side effect.
+ *
+ * Background/lane visuals used to be applied separately here (applyVisuals,
+ * after applyPanelToConfig) from their own store; they are ordinary panel keys
+ * now, so applyPanelToConfig covers them and boot order stops deciding which
+ * copy of a value wins.
  */
 export function hydrateConfigFromPersistedUiSettings(): {
     panel: Record<string, any>;
-    visuals: typeof VISUAL_DEFAULTS;
 } {
     const panel = loadPanelSettings(panelDefaultsFromConfig());
     if (
@@ -429,10 +474,12 @@ export function hydrateConfigFromPersistedUiSettings(): {
         GAME_CONFIG.SURGE_PULSE_DURATION_MS = panel.surgePulseDurationMs;
     }
 
-    const visuals = loadVisuals();
-    applyVisuals(visuals);
+    // The background path is normalized on load (migrateVisualsStoreIntoPanel);
+    // applyPanelToConfig above has already written it to config. No event is
+    // dispatched here: nothing is listening yet at hydrate time, and the canvas
+    // reads GAME_CONFIG.BG_IMAGE_URL when it initializes.
 
-    return { panel, visuals };
+    return { panel };
 }
 
 /**

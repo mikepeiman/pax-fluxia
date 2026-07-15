@@ -7,11 +7,10 @@
     import { GAME_CONFIG, buildEngineConfig } from "$lib/config/game.config";
     import { resolveEffectiveLaneMarginPx } from "$lib/lanes/laneMargin";
     import {
+        applyBgImageChange,
         loadPanelSettings,
         savePanelSettings,
         panelDefaultsFromConfig,
-        loadVisuals,
-        saveVisuals,
     } from "$lib/components/ui/panelSync";
     import type { GameSettings } from "$lib/types/game.types";
     import { multiplayerStore, type RoomListing } from "$lib/stores/multiplayerStore.svelte";
@@ -61,10 +60,15 @@
         typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches,
     );
 
-    const visuals = loadVisuals();
+    // The game background lives in panel settings (BG_IMAGE_URL); it used to
+    // come from a parallel `vis` store retired in the 2026-07-15 audit.
+    const gameBgImage = normalizeBgImagePath(
+        loadPanelSettings(panelDefaultsFromConfig()).bgImageUrl ??
+            GAME_CONFIG.BG_IMAGE_URL,
+    );
     const initialMenuTheme = loadSetting<MenuTheme>("menuTheme", "imperial");
     let menuTheme = $state<MenuTheme>(initialMenuTheme);
-    const menuThemeBackgrounds = loadMenuThemeBackgrounds(visuals.bgImage);
+    const menuThemeBackgrounds = loadMenuThemeBackgrounds(gameBgImage);
     let bgImage = $state(resolveMenuThemeBackground(initialMenuTheme));
     let activeMobileTab = $state<MobileTab>("setup");
 
@@ -160,10 +164,13 @@
 
     const menuThemeCssVars = $derived(getMenuThemeCssVars(menuTheme));
 
+    // The menu's background choice IS the game's background: normalize it into
+    // config and persist it as the ordinary panel key.
     $effect(() => {
-        visuals.bgImage = bgImage;
-        GAME_CONFIG.BG_IMAGE_URL = bgImage;
-        saveVisuals(visuals);
+        const path = applyBgImageChange(bgImage);
+        const panelSettings = loadPanelSettings(panelDefaultsFromConfig());
+        panelSettings.bgImageUrl = path;
+        savePanelSettings(panelSettings);
     });
 
     $effect(() => {
@@ -355,7 +362,7 @@
     }
 
     function resolveMenuThemeBackground(theme: MenuTheme): string {
-        return normalizeBgImagePath(menuThemeBackgrounds[theme] || visuals.bgImage);
+        return normalizeBgImagePath(menuThemeBackgrounds[theme] || gameBgImage);
     }
 
     function handleMenuThemeChange(theme: MenuTheme) {

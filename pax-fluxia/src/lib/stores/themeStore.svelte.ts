@@ -24,12 +24,10 @@ import {
     exportThemeJSON,
 } from '$lib/config/themes';
 import {
-    applyVisuals,
+    applyBgImageChange,
     loadPanelSettings,
-    loadVisuals,
     panelDefaultsFromConfig,
     savePanelSettings,
-    saveVisuals,
 } from '$lib/components/ui/panelSync';
 import { setSettingsFromConfigPatch } from '$lib/components/ui/settingsState';
 import { audioManager } from '$lib/services/audioManager.svelte';
@@ -123,29 +121,18 @@ function applyThemeValuesFallback(
 ): void {
     const panel = loadPanelSettings(panelDefaultsFromConfig());
     setSettingsFromConfigPatch(panel, valuesPatch, savePanelSettings);
-
-    const nextVisuals = {
-        ...loadVisuals(),
-        laneWidth: GAME_CONFIG.CONNECTION_WIDTH,
-        laneAlpha: GAME_CONFIG.CONNECTION_ALPHA,
-        shadowWidth: GAME_CONFIG.CONNECTION_SHADOW_WIDTH,
-        shadowAlpha: GAME_CONFIG.CONNECTION_SHADOW_ALPHA,
-        bgImage: GAME_CONFIG.BG_IMAGE_URL,
-    };
-    saveVisuals(nextVisuals);
-    applyVisuals(nextVisuals);
+    // Lane + background values are ordinary panel keys, so the line above has
+    // already persisted them. This used to re-copy all five into the parallel
+    // `vis` store and re-apply them — pure duplication (2026-07-15 audit).
 
     activeGameStore.updateTickInterval(GAME_CONFIG.BASE_TICK_MS);
     animationStore.setAnimationSpeed(GAME_CONFIG.ANIMATION_SPEED_MS);
 
     bumpTerritoryVisualConfig();
 
+    applyBgImageChange(GAME_CONFIG.BG_IMAGE_URL);
+
     if (typeof window !== 'undefined') {
-        window.dispatchEvent(
-            new CustomEvent('pax-bg-change', {
-                detail: normalizeBgImagePath(GAME_CONFIG.BG_IMAGE_URL),
-            }),
-        );
         window.dispatchEvent(
             new CustomEvent('pax-bg-alpha-change', {
                 detail: GAME_CONFIG.BG_IMAGE_ALPHA ?? 0.5,

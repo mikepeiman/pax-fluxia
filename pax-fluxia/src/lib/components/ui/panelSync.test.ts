@@ -3,7 +3,9 @@ import {
     ANIM_LOCK_STORAGE_KEY,
     PANEL_STORAGE_KEY,
     applyTickIntervalChange,
+    loadPanelSettings,
     normalizeTerritoryTransitionTimingDefaults,
+    panelDefaultsFromConfig,
 } from './panelSync';
 import { GAME_CONFIG } from '$lib/config/game.config';
 
@@ -98,6 +100,65 @@ describe('applyTickIntervalChange — tick-locked values follow the tick', () =>
         applyTickIntervalChange(2000);
 
         expect(GAME_CONFIG.SETTLE_DURATION_MS).toBe(500);
+    });
+});
+
+describe('the retired visuals store folds into panel settings', () => {
+    const VISUALS_KEY = 'pax-fluxia-visuals';
+
+    beforeEach(() => {
+        installBrowserStubs();
+        localStorage.clear();
+    });
+
+    it('keeps the values the user could SEE, not the panel copies they shadowed', () => {
+        // Boot order used to be applyPanelToConfig THEN applyVisuals, so the
+        // visuals store won every disagreement and its values are what was on
+        // screen. The migration must preserve those, not the stale panel keys.
+        localStorage.setItem(
+            PANEL_STORAGE_KEY,
+            JSON.stringify({ connectionWidth: 1, bgImageUrl: 'stale-panel-copy.jpg' }),
+        );
+        localStorage.setItem(
+            VISUALS_KEY,
+            JSON.stringify({
+                laneWidth: 6,
+                laneAlpha: 0.9,
+                shadowWidth: 3,
+                shadowAlpha: 0.4,
+                bgImage: 'pax-fluxia-bg-25.jpg',
+            }),
+        );
+
+        const panel = loadPanelSettings(panelDefaultsFromConfig());
+
+        expect(panel.connectionWidth).toBe(6);
+        expect(panel.connectionAlpha).toBe(0.9);
+        expect(panel.connectionShadowWidth).toBe(3);
+        expect(panel.connectionShadowAlpha).toBe(0.4);
+        expect(panel.bgImageUrl).toContain('pax-fluxia-bg-25.jpg');
+    });
+
+    it('runs once — the old key is gone and the folded values persist', () => {
+        localStorage.setItem(VISUALS_KEY, JSON.stringify({ laneWidth: 7 }));
+
+        loadPanelSettings(panelDefaultsFromConfig());
+        expect(localStorage.getItem(VISUALS_KEY)).toBeNull();
+
+        // A second load has nothing to fold and must not lose the value.
+        const panel = loadPanelSettings(panelDefaultsFromConfig());
+        expect(panel.connectionWidth).toBe(7);
+    });
+
+    it('is a no-op for users who never had a visuals store', () => {
+        localStorage.setItem(
+            PANEL_STORAGE_KEY,
+            JSON.stringify({ connectionWidth: 2.5 }),
+        );
+
+        const panel = loadPanelSettings(panelDefaultsFromConfig());
+
+        expect(panel.connectionWidth).toBe(2.5);
     });
 });
 
