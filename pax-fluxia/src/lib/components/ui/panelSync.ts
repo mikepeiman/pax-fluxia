@@ -19,7 +19,6 @@ function isTickRelativeUnit(unit?: string): boolean {
 
 // ── Storage Keys ────────────────────────────────────────────────────────────
 
-export const STORAGE_KEY = 'pax-fluxia-combat-tuning';
 export const PANEL_STORAGE_KEY = 'pax-fluxia-panel-settings';
 export const VISUALS_STORAGE_KEY = 'pax-fluxia-visuals';
 export const ANIM_LOCK_STORAGE_KEY = 'pax-anim-lock-ratios';
@@ -101,29 +100,6 @@ export function normalizeTerritoryTransitionTimingDefaults(
     }
 
     return changed;
-}
-
-// ── Combat Tuning Persistence ───────────────────────────────────────────────
-
-export function loadCombatTuning<T extends Record<string, any>>(defaults: T): T {
-    if (typeof window === 'undefined') return { ...defaults };
-    try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) return { ...defaults, ...JSON.parse(stored) };
-    } catch {
-        /* ignore */
-    }
-    return { ...defaults };
-}
-
-export function saveCombatTuning(vals: Record<string, any>): void {
-    if (typeof window === 'undefined') return;
-    try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(vals));
-    } catch {
-        /* ignore */
-    }
-    dumpSettings();
 }
 
 // ── Visual Persistence ──────────────────────────────────────────────────────
@@ -667,10 +643,4 @@ export function exportConfigJSON(): void {
     a.click();
     URL.revokeObjectURL(url);
 }
-
-/** Map GAME_CONFIG key → panel key for sync */
-export function configKeyToPanelKey(configKey: string): string | null {
-    return CONFIG_TO_PANEL_KEY[configKey] ?? null;
-}
-
 

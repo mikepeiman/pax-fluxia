@@ -9,11 +9,17 @@
 
     interface Props {
         logCategories: readonly any[] | any[];
-        logRefresh: number;
         updatePanel: (key: string, value: any) => void;
         syncFromConfig?: () => void;
     }
-    let { logCategories, logRefresh, updatePanel, syncFromConfig }: Props = $props();
+    let { logCategories, updatePanel, syncFromConfig }: Props = $props();
+
+    // logFlags is a plain (non-reactive) object; bumping this local counter
+    // re-keys the toggle rows so they re-read it. It used to be a prop the
+    // parent declared but never wrote — the increments only ever worked
+    // because they mutated this component's local prop copy (2026-07-15 audit
+    // F7); it is honest local state now.
+    let logRefresh = $state(0);
 
     function gridGradientTraceEnabled(): boolean {
         return Boolean(

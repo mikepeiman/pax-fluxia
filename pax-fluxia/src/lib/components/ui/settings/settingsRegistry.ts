@@ -222,6 +222,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
             { id: "measurements", label: "Measurements", icon: "measure" },
             { id: "recorder", label: "Recorder & Bundles", icon: "logging" },
             { id: "exports", label: "Exports", icon: "export" },
+            { id: "debug-tools", label: "Debug Tools", icon: "travel" },
             { id: "mode-diagnostics", label: "Mode Diagnostics", icon: "ranking-star" },
         ],
     },

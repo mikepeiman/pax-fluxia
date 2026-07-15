@@ -3,6 +3,8 @@
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
+    import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
+    import { gameStore } from "$lib/stores/gameStore.svelte";
     import { mapTranspose } from "$lib/stores/mapTranspose.svelte";
     import { territoryRenderStatus } from "$lib/stores/territoryRenderStatusStore";
     import { territoryTuningStatus } from "$lib/stores/territoryTuningStatusStore";
@@ -43,6 +45,33 @@
     }
 
     let { panel, updatePanel, syncFromConfig }: Props = $props();
+
+    // ── Debug: set the selected star's ship count directly ──
+    // Resurrected from GameSettingsPanel (2026-07-15 audit ruling): the slider
+    // lost its UI long ago while the plumbing idled in the shell; it lives
+    // here now as a developer tool.
+    let debugShipCount = $state(0);
+    let lastDebugStarId = $state<string | null>(null);
+
+    $effect(() => {
+        const starId = selectedStarStore.id;
+        if (starId !== lastDebugStarId) {
+            lastDebugStarId = starId;
+            if (starId) {
+                const star = activeGameStore.stars.find(
+                    (s: any) => s.id === starId,
+                );
+                debugShipCount = star ? star.activeShips : 0;
+            }
+        }
+    });
+
+    function updateDebugShipCount(count: number) {
+        const starId = selectedStarStore.id;
+        if (!starId) return;
+        debugShipCount = count;
+        gameStore.debugSetStarShips(starId, count);
+    }
 
     const hasAuthoredMeasurements = $derived(
         activeGameStore.mapDiagnostics.measurements.length > 0,
@@ -527,6 +556,23 @@
             onclick={() => syncFromConfig?.()}
         />
     </div>
+</section>
+
+<section data-subsection-id="debug-tools">
+    <h4 class="sub-heading">Debug Tools</h4>
+    <PaxSettingsRangeRow
+        label="Selected Star Ships"
+        value={debugShipCount}
+        min={0}
+        max={500}
+        step={1}
+        disabled={!selectedStarStore.id}
+        note={selectedStarStore.id
+            ? "Sets the selected star's active ship count directly in the engine."
+            : "Select a star on the map first."}
+        settingConfigKey="local.debug.selectedStarShips"
+        onInput={updateDebugShipCount}
+    />
 </section>
 
 <SettingsDumpDiagnosticsControls />

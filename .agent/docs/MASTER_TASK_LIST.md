@@ -31,6 +31,11 @@ superseding docs:
 ## 2026-07-15
 
 ### Open
+- [ ] **Render-path/skin unification — the NEXT campaign after settings cleanup** `[territory][arch]`
+  Post-cleanup note (expectation alignment, Q5): Geometry is ALREADY unified on PowerCore — what
+  remains after this campaign is render-path/skin unification: phase/ember/field still carry 3-5k
+  LOC adapter families atop shared geometry. Turning kept modes into thin PowerCore skins is the
+  NEXT campaign, enabled by this one.
 - [ ] **Settings panel maximal refactor (user-commanded audit delivered)** `[settings][arch]` — audit at
   `.agent/docs/game/design/2026-07-15_SETTINGS_PANEL_CODE_AUDIT.md`. Phases: 0 dead code (needs 3 user
   rulings: config import/export surface-or-delete; reset-to-defaults surface-or-delete; debug ship-count

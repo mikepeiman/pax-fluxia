@@ -10,7 +10,6 @@
     import { themeStore } from "$lib/stores/themeStore.svelte";
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
     import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
-    import { gameStore } from "$lib/stores/gameStore.svelte";
     import { animationStore } from "$lib/stores/animationStore.svelte";
     import { log } from "$lib/utils/logger";
     import { normalizeBgImagePath } from "$lib/config/bgManifest";
@@ -25,11 +24,6 @@
         warnOnMissingTerritorySchemaCoverage,
     } from "./settingsState";
     import {
-        STORAGE_KEY,
-        PANEL_STORAGE_KEY,
-        VISUALS_STORAGE_KEY,
-        ANIM_LOCK_STORAGE_KEY,
-        TIER_STORAGE_KEY,
         loadVisuals,
         saveVisuals,
         applyVisuals,
@@ -43,9 +37,7 @@
         saveAnimLockModes,
         loadTier,
         saveTier,
-        exportConfigJSON as exportConfigJSONBase,
         TICK_INTERVAL_CHANGED_EVENT,
-        type AnimLockMode,
     } from "./panelSync";
     import {
         togglePin,
@@ -55,10 +47,6 @@
         recalcOnAnimSpeedChange,
         type AnimLockTransition,
     } from "./animLockMath";
-    import {
-        buildConfigMarkdown,
-        parseConfigImport,
-    } from "./configTransfer";
     import ControlsSectionTiming from "./settings/ControlsSection-Timing.svelte";
     import ControlsSectionBattle from "./settings/ControlsSection-Battle.svelte";
     import ControlsSectionEconomy from "./settings/ControlsSection-Economy.svelte";
@@ -75,6 +63,7 @@
     import ControlsSectionAudio from "./settings/ControlsSection-Audio.svelte";
     import ControlsSectionDiagnostics from "./settings/ControlsSection-Diagnostics.svelte";
     import SaveLoadGamePanel from "./settings/SaveLoadGamePanel.svelte";
+    import ConfigTransferPanel from "./settings/ConfigTransferPanel.svelte";
     import {
         ANIM_SLIDERS,
         CONFIG_TO_PANEL_KEY,
@@ -373,92 +362,13 @@
         updatePanel("transferRate", decimal);
     }
 
-    // Debug ship count slider — direct engine manipulation
-    let debugShipCount = $state(0);
-    let lastDebugStarId = $state<string | null>(null);
-
-    function updateDebugShipCount(count: number) {
-        const starId = selectedStarStore.id;
-        if (!starId) return;
-        debugShipCount = count;
-        // Use the store's debugSetStarShips method (works on internal GameRoomState)
-        gameStore.debugSetStarShips(starId, count);
-    }
-
-    // Sync debug slider with selected star
-    $effect(() => {
-        const starId = selectedStarStore.id;
-        if (starId !== lastDebugStarId) {
-            lastDebugStarId = starId;
-            if (starId) {
-                const stars = activeGameStore.stars;
-                const star = stars.find((s: any) => s.id === starId);
-                debugShipCount = star ? star.activeShips : 0;
-            }
-        }
-    });
-
     // Combat toggle/updateValue removed — all combat/AI/density values now
     // flow through panel state via CONFIG_TO_PANEL_KEY in child components.
 
-    let logRefresh = $state(0);
-
-    // ── Config Import/Export ──
-    let configStatus = $state("");
-    let configStatusColor = $state("#4ade80");
-
-    function exportConfigMD() {
-        const md = buildConfigMarkdown(GAME_CONFIG as unknown as Record<string, unknown>);
-        const blob = new Blob([md], { type: "text/markdown" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-        a.href = url;
-        a.download = `pax-config-${ts}.md`;
-        a.click();
-        URL.revokeObjectURL(url);
-        configStatus = `Exported MD`;
-        configStatusColor = "#4ade80";
-    }
-
-    function importConfigJSON(e: Event) {
-        const input = e.target as HTMLInputElement;
-        const file = input?.files?.[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = () => {
-            try {
-                const result = parseConfigImport(
-                    reader.result as string,
-                    GAME_CONFIG as unknown as Record<string, unknown>,
-                );
-                if (!result.ok) {
-                    configStatus = result.error;
-                    configStatusColor = "#f87171";
-                    input.value = "";
-                    return;
-                }
-
-                if (result.applied > 0) {
-                    applyConfigPatch(result.patch);
-                }
-
-                const parts = [`${result.applied} applied`];
-                if (result.skipped) parts.push(`${result.skipped} unknown`);
-                if (result.typeErrors)
-                    parts.push(`${result.typeErrors} type mismatches`);
-                configStatus = parts.join(", ");
-                configStatusColor =
-                    result.typeErrors > 0 ? "#fbbf24" : "#4ade80";
-            } catch (err) {
-                configStatus = `Import failed: ${(err as Error).message}`;
-                configStatusColor = "#f87171";
-            }
-            input.value = "";
-        };
-        reader.readAsText(file);
-    }
+    // Config import/export + nuclear reset moved to ConfigTransferPanel
+    // (Interface → Import / Export) — 2026-07-15 audit ruling: it's a
+    // user-facing "config mod" feature, so it got a real surface instead of
+    // dead handlers here.
 
     // =========================================================================
     // Tick-Ratio Locking — bind animation durations proportionally to tick
@@ -562,32 +472,6 @@
         syncPanelKey(key, val);
     }
 
-    /** Nuclear reset: clear ALL pax-* localStorage keys and reload into factory defaults. */
-    function resetToDefaults() {
-        // Clear all pax localStorage keys
-        const keysToRemove: string[] = [];
-        for (let i = 0; i < localStorage.length; i++) {
-            const k = localStorage.key(i);
-            if (k && (k.startsWith("pax") || k.startsWith("PAX")))
-                keysToRemove.push(k);
-        }
-        keysToRemove.forEach((k) => localStorage.removeItem(k));
-
-        // Also clear known non-prefixed keys
-        localStorage.removeItem(PANEL_STORAGE_KEY);
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(VISUALS_STORAGE_KEY);
-        localStorage.removeItem(ANIM_LOCK_STORAGE_KEY);
-        localStorage.removeItem(ANIM_LOCK_STORAGE_KEY + "-modes");
-
-        // Reload to fully reinitialize from clean state
-        window.location.reload();
-    }
-
-    // =========================================================================
-    // Settings header utilities
-    // =========================================================================
-
     // =========================================================================
     // Icon Toolbar — sections definition
     // =========================================================================
@@ -627,6 +511,7 @@
         { id: "ui_appearance", icon: "gem", label: "Appearance" },
         { id: "ui_themes", icon: "library", label: "Themes" },
         { id: "ui_savegame", icon: "save-game", label: "Save / Load" },
+        { id: "ui_config_io", icon: "export", label: "Import / Export" },
         { id: "ui_stats", icon: "ranking-star", label: "Stats" },
         { id: "ui_hotkeys", icon: "keyboard", label: "Hotkeys" },
         { id: "ui_help", icon: "help", label: "Help" },
@@ -645,6 +530,7 @@
         ui_appearance: "interface",
         ui_themes: "interface",
         ui_savegame: "interface",
+        ui_config_io: "interface",
         ui_stats: "interface",
         ui_hotkeys: "interface",
         ui_help: "interface",
@@ -1461,6 +1347,8 @@
                     <ThemeLibraryPanel />
                 {:else if sec?.id === "ui_savegame"}
                     <SaveLoadGamePanel />
+                {:else if sec?.id === "ui_config_io"}
+                    <ConfigTransferPanel {applyConfigPatch} />
                 {:else if sec?.id === "ui_stats"}
                     <PaxSettingsInfoRow label="Tick" value={activeGameStore.currentTick ?? 0} />
                     <PaxSettingsInfoRow label="Players" value={activeGameStore.players.length} />
@@ -1607,7 +1495,6 @@
                 {:else if sec?.id === "logging"}
                     <ControlsSectionLogging
                         {logCategories}
-                        {logRefresh}
                         {updatePanel}
                         syncFromConfig={syncAllFromConfig}
                     />
