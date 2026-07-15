@@ -1716,7 +1716,22 @@
     display: flex;
     flex-direction: column;
     z-index: 20;
-    overflow: hidden;
+    /* clip, not hidden: an overflow:hidden box is still a valid target for the
+       browser's focus-triggered scrollIntoView, even when its content never
+       legitimately overflows it (this box's content is always sized to fit via
+       height:100%/flex — there is no scrollable excess, ever). Confirmed from a
+       captured geometry dump: this element's OWN rect stayed at its correct
+       position while every descendant down through .controls-panel and
+       .icon-toolbar rendered ~765px higher in the viewport — a uniform shift
+       that only an internally-scrolled overflow:hidden ancestor produces
+       (scrolling a container moves its content, never its own border box).
+       Clicking a toggle focuses its checkbox; if that focus briefly needs to
+       "come into view" during the same-frame re-render, the browser scrolls
+       the nearest scrollable ancestor in the chain — and this was it. Every
+       genuinely intentional scroll surface in this tree already uses
+       overflow-y:auto explicitly (.section-body; the mobile drawer variant of
+       this same selector below). clip forbids scrolling here outright. */
+    overflow: clip;
     /* min-width: 280px; */
     flex-shrink: 0;
     /* Glides with the SAME duration/easing as .game-layout's track transition
