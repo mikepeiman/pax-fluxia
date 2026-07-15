@@ -12,7 +12,7 @@
     import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
     import { gameStore } from "$lib/stores/gameStore.svelte";
     import { animationStore } from "$lib/stores/animationStore.svelte";
-    import { log, logFlags } from "$lib/utils/logger";
+    import { log } from "$lib/utils/logger";
     import { normalizeBgImagePath } from "$lib/config/bgManifest";
     import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
     import {
@@ -1213,137 +1213,6 @@
         };
     }
 
-    // TEMP DIAGNOSTIC (panel-collapse hunt, round 3): the ResizeObserver+scroll
-    // probe from round 2 caught NOTHING on a reproduced break (user-confirmed:
-    // zero resize logs, zero scroll logs on the 5 watched elements) — so the
-    // defect is NOT an internal size/scroll change on any of them. This round
-    // adds two things the prior probe could not see:
-    //   1. WINDOW/document-level scroll and resize — the prior scroll listener
-    //      only caught scrolling of node's OWN descendants; a page-level
-    //      scrollY change (e.g. from a stray focus()/scrollIntoView on the
-    //      whole document) would never reach it.
-    //   2. A geometry DUMP (rect + scrollTop + overflow, for the 5 elements
-    //      AND .area-controls AND the window) fired from a signal we KNOW
-    //      always fires on the exact toggle that breaks it — see the paired
-    //      call in ControlsSection-Territory's debouncedConfigUpdate — instead
-    //      of relying on ResizeObserver/MutationObserver timing.
-    //
-    // Output goes to the BROWSER DEVTOOLS CONSOLE as pink `UI [settings-probe]`
-    // lines — on by default (logFlags.ui), no toggle needed. Remove once found.
-    function probePanelHeights(node: HTMLElement) {
-        const selectors = [
-            ".controls-panel",
-            ".settings-content",
-            ".section-panel",
-            ".section-body",
-            ".icon-toolbar",
-        ];
-        const observed = new WeakSet<Element>();
-        const labelOf = (el: HTMLElement) =>
-            selectors.find((s) => el.matches(s)) ?? el.className;
-        const ro = new ResizeObserver((entries) => {
-            for (const entry of entries) {
-                const el = entry.target as HTMLElement;
-                log.ui(
-                    "settings-probe",
-                    `${labelOf(el)} ${Math.round(entry.contentRect.width)}x${Math.round(entry.contentRect.height)}`,
-                );
-            }
-        });
-        const onScroll = (event: Event) => {
-            const el = event.target as HTMLElement;
-            if (!(el instanceof HTMLElement)) return;
-            log.ui(
-                "settings-probe",
-                `SCROLL ${labelOf(el)} top=${Math.round(el.scrollTop)} left=${Math.round(el.scrollLeft)}`,
-            );
-        };
-        node.addEventListener("scroll", onScroll, {
-            capture: true,
-            passive: true,
-        });
-        const classMo = new MutationObserver(() => {
-            log.ui("settings-probe", `CLASS ${node.className}`);
-        });
-        classMo.observe(node, { attributes: true, attributeFilter: ["class"] });
-
-        const onWindowScroll = () => {
-            log.ui(
-                "settings-probe",
-                `PAGE-SCROLL x=${Math.round(window.scrollX)} y=${Math.round(window.scrollY)} docH=${document.documentElement.scrollHeight} viewH=${window.innerHeight}`,
-            );
-        };
-        const onWindowResize = () => {
-            log.ui(
-                "settings-probe",
-                `WINDOW-RESIZE ${window.innerWidth}x${window.innerHeight}`,
-            );
-        };
-        window.addEventListener("scroll", onWindowScroll, { passive: true });
-        window.addEventListener("resize", onWindowResize);
-
-        function dumpGeometry(reason: string): void {
-            const rows: string[] = [];
-            for (const sel of selectors) {
-                const el = node.matches(sel)
-                    ? node
-                    : node.querySelector<HTMLElement>(sel);
-                if (!el) {
-                    rows.push(`${sel}: <absent>`);
-                    continue;
-                }
-                const r = el.getBoundingClientRect();
-                const cs = getComputedStyle(el);
-                rows.push(
-                    `${sel} rect=(${Math.round(r.x)},${Math.round(r.y)} ${Math.round(r.width)}x${Math.round(r.height)}) scrollTop=${el.scrollTop} overflow=${cs.overflow} display=${cs.display}`,
-                );
-            }
-            const areaControls = node.closest<HTMLElement>(".area-controls");
-            if (areaControls) {
-                const r = areaControls.getBoundingClientRect();
-                rows.push(
-                    `.area-controls rect=(${Math.round(r.x)},${Math.round(r.y)} ${Math.round(r.width)}x${Math.round(r.height)}) inlineWidth=${areaControls.style.width}`,
-                );
-            }
-            rows.push(
-                `window scrollX=${Math.round(window.scrollX)} scrollY=${Math.round(window.scrollY)} inner=${window.innerWidth}x${window.innerHeight} docScrollH=${document.documentElement.scrollHeight}`,
-            );
-            log.ui("settings-probe", `DUMP[${reason}]\n` + rows.join("\n"));
-        }
-        // Exposed so any config-write path can bracket a toggle with a dump
-        // without this component needing to know who called it.
-        (window as unknown as { __dumpSettingsPanel?: (reason: string) => void }).__dumpSettingsPanel =
-            (reason: string) => dumpGeometry(reason);
-
-        const scan = () => {
-            for (const sel of selectors) {
-                const els = node.matches(sel)
-                    ? [node]
-                    : Array.from(node.querySelectorAll<HTMLElement>(sel));
-                for (const el of els) {
-                    if (!observed.has(el)) {
-                        observed.add(el);
-                        ro.observe(el);
-                    }
-                }
-            }
-        };
-        scan();
-        const mo = new MutationObserver(() => scan());
-        mo.observe(node, { childList: true, subtree: true });
-        return {
-            destroy() {
-                ro.disconnect();
-                mo.disconnect();
-                classMo.disconnect();
-                node.removeEventListener("scroll", onScroll, true);
-                window.removeEventListener("scroll", onWindowScroll);
-                window.removeEventListener("resize", onWindowResize);
-                delete (window as unknown as { __dumpSettingsPanel?: unknown })
-                    .__dumpSettingsPanel;
-            },
-        };
-    }
 </script>
 
 <!-- The panel IS the grid: rail + (conditionally) content. The old
@@ -1352,8 +1221,7 @@
 <div
     class="controls-panel"
     class:controls-panel--ribbon-expanded={ribbonExpanded}
-    class:controls-panel--dock-left={dockSide === "left"}
-    use:probePanelHeights>
+    class:controls-panel--dock-left={dockSide === "left"}>
 
     <!-- Icon Toolbar -->
     <div class="icon-toolbar" class:has-active={activeToolHasPanel}>
