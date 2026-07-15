@@ -1797,17 +1797,34 @@
            the probe to see. clip forbids all scrolling, full stop. */
         overflow: clip;
         display: grid;
-        /* ONE template for every state — never re-templated. The content column
-           is minmax(0,1fr): when .settings-content is unmounted (no category
-           open) the panel's own width collapses to chrome width, so the empty
-           column resolves to ~0 and the rail hugs its dock edge. This also
-           makes the content fly-out safe: the outgoing element keeps its grid
-           area for the whole outro instead of being auto-placed into an
-           implicit track. Rail is minmax(0, …) rather than an exact width so a
-           border/scrollbar/sub-pixel never overflows and clips ("menu slightly
-           cut off"). Inter-column spacing lives on .settings-content, NOT in
-           gap, so the rail-only state has no dead 8px strip. */
-        grid-template-columns: minmax(0, 1fr) minmax(0, var(--settings-ribbon-width));
+        /* ONE template for every state — never re-templated, and NAMED areas
+           (not positional order) assign items to it, so "which column is the
+           rail" can never desync from "which element has grid-area:rail".
+           This also makes the content fly-out safe: the outgoing element
+           keeps its named area for the whole outro instead of being
+           auto-placed into an implicit track when unmounted.
+
+           THE FIX (2026-07-15): rail is a PLAIN fixed-length track
+           (var(--settings-ribbon-width)), never minmax(0, …). This is a
+           deliberate, load-bearing distinction, not style:
+             - A plain <length> track's min AND max sizing function are BOTH
+               that length. Per the CSS Grid track-sizing algorithm, its base
+               size is set directly from that fixed value and is untouched by
+               the "distribute space to fr tracks" phase — a greedy sibling
+               1fr track can only ever take space THAT TRACK gives up, never
+               space from a fixed track. It is a genuine floor.
+             - minmax(0, Npx) tells the browser the OPPOSITE: "you may shrink
+               this track to 0 under space pressure." Paired with a greedy
+               minmax(0, 1fr) sibling and overflow:clip hiding any visual
+               evidence, this is a real, silent collapse-to-zero hazard — a
+               grep of every OTHER grid track in this codebase (hud.css,
+               GameContainer.svelte) confirms this file's rail track was the
+               ONLY place minmax(0, …) was ever applied to a track meant to
+               hold fixed-width content; every other usage pairs minmax(0,1fr)
+               with a genuinely fixed sibling (68px, 74px, auto, …).
+           Content stays minmax(0,1fr): it is the ONE track that is SUPPOSED
+           to yield space, and it owns its own internal scrolling. */
+        grid-template-columns: minmax(0, 1fr) var(--settings-ribbon-width);
         grid-template-rows: minmax(0, 1fr);
         grid-template-areas: "content rail";
         gap: 0;
@@ -1825,7 +1842,7 @@
     }
 
     .controls-panel--dock-left {
-        grid-template-columns: minmax(0, var(--settings-ribbon-width)) minmax(0, 1fr);
+        grid-template-columns: var(--settings-ribbon-width) minmax(0, 1fr);
         grid-template-areas: "rail content";
     }
 
