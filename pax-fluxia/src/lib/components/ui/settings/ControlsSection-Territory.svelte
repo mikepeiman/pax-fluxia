@@ -184,6 +184,14 @@
     _delayMs = 100,
   ) {
     const prev = (GAME_CONFIG as any)[configKey];
+    // TEMP DIAGNOSTIC (panel-collapse hunt, round 3): bracket this write with a
+    // geometry dump from GameSettingsPanel's probe. This fires unconditionally
+    // on every territory config write — including the exact toggles reported
+    // to break the panel — so it does not depend on ResizeObserver/scroll
+    // timing the way the prior probe rounds did. See probePanelHeights.
+    const dump = (window as unknown as { __dumpSettingsPanel?: (reason: string) => void })
+      .__dumpSettingsPanel;
+    dump?.(`before:${configKey}`);
     (GAME_CONFIG as any)[configKey] = value;
     updatePanel(panelKey, value);
     bumpTerritoryVisualConfig();
@@ -192,6 +200,11 @@
       "territory",
       `${configKey} = ${JSON.stringify(value)} (was ${JSON.stringify(prev)}) [mode=${(GAME_CONFIG as any).TERRITORY_RENDER_MODE}]`,
     );
+    dump?.(`after-sync:${configKey}`);
+    requestAnimationFrame(() => {
+      dump?.(`after-raf1:${configKey}`);
+      requestAnimationFrame(() => dump?.(`after-raf2:${configKey}`));
+    });
   }
 
   const topologyCommitFrames = new Map<string, number>();
