@@ -236,16 +236,6 @@
         applyVisuals(nextVis);
     }
 
-    function syncCombatValuesFromConfig(
-        configSource: Record<string, any> = GAME_CONFIG as Record<string, any>,
-    ) {
-        // All combat/AI values now flow through panel state → child components.
-        // Only transferRate display-state needs sync here.
-        transferRate = Math.round(
-            ((configSource.TRANSFER_RATE ?? 0.1) as number) * 100,
-        );
-    }
-
     function syncAnimValuesFromConfig(
         configSource: Record<string, any> = GAME_CONFIG as Record<string, any>,
     ) {
@@ -262,7 +252,6 @@
         configSource: Record<string, any> = GAME_CONFIG as Record<string, any>,
     ) {
         syncVisualsFromConfig(configSource);
-        syncCombatValuesFromConfig(configSource);
         syncAnimValuesFromConfig(configSource);
         tickInterval = configSource.BASE_TICK_MS;
         activeGameStore.updateTickInterval(configSource.BASE_TICK_MS);
@@ -349,17 +338,6 @@
                 detail: { valueMs },
             }),
         );
-    }
-
-    let transferRate = $state(
-        Math.round((GAME_CONFIG.TRANSFER_RATE ?? 0.1) * 100),
-    );
-
-    function updateTransferRate(value: number) {
-        transferRate = value;
-        const decimal = value / 100;
-        GAME_CONFIG.TRANSFER_RATE = decimal;
-        updatePanel("transferRate", decimal);
     }
 
     // Combat toggle/updateValue removed — all combat/AI/density values now
@@ -1388,8 +1366,6 @@
                     <ControlsSectionEconomy
                         {panel}
                         {updatePanel}
-                        {transferRate}
-                        {updateTransferRate}
                         syncFromConfig={syncAllFromConfig}
                     />
                 {:else if sec?.id === "ai"}

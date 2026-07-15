@@ -7,18 +7,10 @@
     interface Props {
         panel: Record<string, any>;
         updatePanel: (key: string, value: any) => void;
-        transferRate: number;
-        updateTransferRate: (v: number) => void;
         syncFromConfig?: () => void;
     }
 
-    let {
-        panel,
-        updatePanel,
-        transferRate,
-        updateTransferRate,
-        syncFromConfig,
-    }: Props = $props();
+    let { panel, updatePanel, syncFromConfig }: Props = $props();
 </script>
 
 <CategoryThemeBar category="economy" onApply={() => syncFromConfig?.()} />
@@ -38,14 +30,26 @@
     }}
 />
 
+<!-- Config stores a 0-1 fraction; the slider speaks percent. The conversion is
+     local, exactly like the Repair Suppress rows below — it used to live in
+     GameSettingsPanel as a `transferRate` state mirror threaded down as props
+     (2026-07-15 audit). settingConfigKey was missing too, so settings-search
+     could match this row but never scroll to or flash it. -->
 <PaxSettingsRangeRow
     label="Transfer Rate"
-    value={transferRate}
+    value={Math.round(
+        ((panel.transferRate ?? GAME_CONFIG.TRANSFER_RATE ?? 0.1) as number) * 100,
+    )}
     min={1}
     max={100}
     step={1}
     format="percent"
-    onInput={updateTransferRate}
+    settingConfigKey="TRANSFER_RATE"
+    onInput={(value) => {
+        const next = value / 100;
+        GAME_CONFIG.TRANSFER_RATE = next;
+        updatePanel("transferRate", next);
+    }}
 />
 
 <div class="orb-pair">
