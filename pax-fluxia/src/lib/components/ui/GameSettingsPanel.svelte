@@ -16,6 +16,7 @@
     import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
     import {
         LOG_CATEGORIES,
+        resolveInvalidationsForKeys,
     } from "./settingsDefs";
     import {
         setSetting,
@@ -256,29 +257,21 @@
         );
         applyTimingBindingsAndLocks();
         syncRuntimeViewsFromConfig();
-        if ("BG_IMAGE_URL" in configPatch) {
+
+        // Which domains this patch wakes up is DATA on the settings registry
+        // (resolveInvalidations), not a key-prefix ladder hand-maintained here.
+        const invalidated = resolveInvalidationsForKeys(Object.keys(configPatch));
+        if (invalidated.has("background")) {
             applyBgImageChange(GAME_CONFIG.BG_IMAGE_URL);
         }
-        if (typeof window !== "undefined" && "BG_IMAGE_ALPHA" in configPatch) {
+        if (invalidated.has("backgroundAlpha") && typeof window !== "undefined") {
             window.dispatchEvent(
                 new CustomEvent("pax-bg-alpha-change", {
                     detail: GAME_CONFIG.BG_IMAGE_ALPHA ?? 0.5,
                 }),
             );
         }
-        if (
-            Object.keys(configPatch).some((key) =>
-                key === "BG_IMAGE_URL"
-                || key === "BG_IMAGE_ALPHA"
-                || key === "MIN_COLOR_LIGHTNESS"
-                || key.startsWith("TERRITORY_")
-                || key.startsWith("PERIMETER_FIELD_")
-                || key.startsWith("METABALL_")
-                || key.startsWith("VORONOI_")
-                || key.startsWith("MODIFIED_VORONOI_")
-                || key.startsWith("DF_"),
-            )
-        ) {
+        if (invalidated.has("territory")) {
             bumpTerritoryVisualConfig();
         }
     }

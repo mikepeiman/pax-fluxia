@@ -167,6 +167,64 @@ export function derivePanelKey(configKey: string): string {
 export interface PanelConfigMapping {
     configKey: string;
     panelKey?: string;
+    /**
+     * What must be re-read or repainted when this setting changes. Omit to
+     * auto-derive from the config key (see deriveInvalidations) — supply it
+     * only when a key needs an effect its name cannot imply.
+     */
+    invalidates?: readonly SettingInvalidation[];
+}
+
+// ── Invalidation: what a config write must wake up ──────────────────────────
+
+/**
+ * Domains that must be notified when a setting changes.
+ *  - 'territory'        the territory renderers must re-read config (bump)
+ *  - 'background'       the canvas must reload the background image
+ *  - 'backgroundAlpha'  the canvas must re-apply background opacity
+ */
+export type SettingInvalidation = 'territory' | 'background' | 'backgroundAlpha';
+
+/**
+ * Config-key prefixes whose values a territory renderer reads. This is the ONE
+ * place that knowledge lives; it used to be a hand-maintained || ladder inline
+ * in GameSettingsPanel's applyConfigPatch, and it had rotted exactly as you'd
+ * expect: it listed PERIMETER_FIELD_ (an excised subsystem) while missing
+ * CELL_GRID_ (32 keys) and GRID_GRADIENT_ (30 keys) entirely — so applying a
+ * theme or importing a config that tuned those families never repainted.
+ */
+const TERRITORY_VISUAL_PREFIXES = [
+    'TERRITORY_',
+    'CELL_GRID_',
+    'GRID_GRADIENT_',
+    'METABALL_',
+    'VORONOI_',
+    'MODIFIED_VORONOI_',
+    'DF_',
+    'PERIMETER_FIELD_',
+] as const;
+
+/** Territory-visual keys whose names don't carry a family prefix. */
+const TERRITORY_VISUAL_KEYS: ReadonlySet<string> = new Set([
+    'MIN_COLOR_LIGHTNESS',
+    'BG_IMAGE_URL',
+    'BG_IMAGE_ALPHA',
+]);
+
+/** True when a territory renderer reads this key. */
+export function isTerritoryVisualKey(configKey: string): boolean {
+    return (
+        TERRITORY_VISUAL_PREFIXES.some((prefix) => configKey.startsWith(prefix)) ||
+        TERRITORY_VISUAL_KEYS.has(configKey)
+    );
+}
+
+export function deriveInvalidations(configKey: string): readonly SettingInvalidation[] {
+    const domains: SettingInvalidation[] = [];
+    if (isTerritoryVisualKey(configKey)) domains.push('territory');
+    if (configKey === 'BG_IMAGE_URL') domains.push('background');
+    if (configKey === 'BG_IMAGE_ALPHA') domains.push('backgroundAlpha');
+    return domains;
 }
 
 export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
@@ -622,6 +680,36 @@ export const RESOLVED_PANEL_CONFIG_MAP: (Required<Pick<PanelConfigMapping, 'pane
 export const CONFIG_TO_PANEL_KEY: Record<string, string> = Object.fromEntries(
     RESOLVED_PANEL_CONFIG_MAP.map(m => [m.configKey, m.panelKey])
 );
+
+// ── Invalidation lookup ─────────────────────────────────────────────────────
+
+/** Explicit `invalidates` declarations, keyed by config key. */
+const INVALIDATION_OVERRIDES: ReadonlyMap<string, readonly SettingInvalidation[]> = new Map(
+    PANEL_CONFIG_MAP.filter((m) => m.invalidates !== undefined).map(
+        (m) => [m.configKey, m.invalidates!] as const,
+    ),
+);
+
+/**
+ * The domains a single config key invalidates: its explicit declaration if it
+ * has one, else derived from the key. Deliberately falls back to derivation
+ * rather than a map lookup, so keys that are NOT in PANEL_CONFIG_MAP — a config
+ * import can carry any key — still invalidate correctly.
+ */
+export function resolveInvalidations(configKey: string): readonly SettingInvalidation[] {
+    return INVALIDATION_OVERRIDES.get(configKey) ?? deriveInvalidations(configKey);
+}
+
+/** Every domain invalidated by a patch of config keys. */
+export function resolveInvalidationsForKeys(
+    configKeys: Iterable<string>,
+): ReadonlySet<SettingInvalidation> {
+    const domains = new Set<SettingInvalidation>();
+    for (const key of configKeys) {
+        for (const domain of resolveInvalidations(key)) domains.add(domain);
+    }
+    return domains;
+}
 
 // ── Settings Tier ───────────────────────────────────────────────────────────
 

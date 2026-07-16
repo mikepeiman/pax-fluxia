@@ -1,5 +1,9 @@
 import { GAME_CONFIG } from '$lib/config/game.config';
-import { RESOLVED_PANEL_CONFIG_MAP, type PanelConfigMapping } from './settingsDefs';
+import {
+    RESOLVED_PANEL_CONFIG_MAP,
+    isTerritoryVisualKey,
+    type PanelConfigMapping,
+} from './settingsDefs';
 import { recordSettingWrite } from '$lib/config/settingsTelemetry';
 
 export interface SettingsSchemaEntry extends PanelConfigMapping {}
@@ -130,12 +134,13 @@ export function warnOnMissingTerritorySchemaCoverage(
 ): void {
     if (!(import.meta as any).env?.DEV) return;
 
-    const territoryPrefixes = ['TERRITORY_', 'DF_', 'VORONOI_', 'MODIFIED_VORONOI_'];
+    // Territory-key knowledge comes from settingsDefs, not a private prefix
+    // list — this one had drifted out of sync with the ladder it mirrored
+    // (it omitted METABALL_ and PERIMETER_FIELD_).
     const missing: string[] = [];
 
     for (const key of Object.keys(configSource)) {
-        const isTerritoryKey = territoryPrefixes.some((prefix) => key.startsWith(prefix));
-        if (!isTerritoryKey) continue;
+        if (!isTerritoryVisualKey(key)) continue;
         if (!SETTINGS_BY_CONFIG_KEY.has(key)) {
             missing.push(key);
         }
