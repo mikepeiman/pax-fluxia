@@ -36,29 +36,35 @@ superseding docs:
   remains after this campaign is render-path/skin unification: phase/ember/field still carry 3-5k
   LOC adapter families atop shared geometry. Turning kept modes into thin PowerCore skins is the
   NEXT campaign, enabled by this one.
-- [ ] **Settings panel maximal refactor — PHASES 0+1 DONE, 2-4 OPEN** `[settings][arch]` — audit at
-  `.agent/docs/game/design/2026-07-15_SETTINGS_PANEL_CODE_AUDIT.md`.
-  **Phase 2 — the single settingsStore:** one reactive mirror keyed by configKey with exactly
-  set/applyPatch/syncFromConfig/hydrate; collapses the SEVEN overlapping partial syncs
-  (syncVisualsFromConfig is gone, but syncAnimValues/syncRuntimeViews/syncAll/syncPanelFromConfigPatch/
-  panelSync.syncPanelFromConfig remain) and the FOUR differently-behaved write paths; kills the
-  13-prop drilling (sections consume via context). Needs boot-order clobber tests per phase —
-  see [[settings-value-persistence-mode-default-clobber]].
-  **Phase 3 — shell decomposition:** SettingsRail / SettingsSearch / SettingsSectionHost /
-  settingsNav.svelte.ts (one persisted nav object replacing 5 raw localStorage keys); registry rows
-  carry `component` so the 20-branch `{:else if sec?.id}` chain dies; utility panels become registry
-  rows with kind:'utility' instead of the INTERFACE_PANELS/TYPOGRAPHY_PANELS/UTILITY_PANEL_CATEGORY
-  triplet.
-  **Phase 4 — CSS:** promote panel colors/spacing/radii to `--pax-settings-*` in app.css + Tailwind v4
-  `@theme`; convert each extracted leaf to utilities as it comes out. The structural layer (grid named
-  areas, definite height chain, overflow:clip discipline, single scroll surface, 0.22s track glide) STAYS
-  bespoke — it survived the 3-round collapse hunt; do not churn it.
-  **Still-open findings not yet actioned:** duplicate live editors (CELL_GRID_* ×2 in phase-field view;
-  TERRITORY_CONQUEST_FRONT_MODE and VORONOI_BORDER_SMOOTH dual controls); `debouncedConfigUpdate` is not
-  debounced (its `_delayMs` param is ignored) and double-writes config via updatePanel; panelSync should
-  split into storage adapter + settingsMigrations; panelSync.syncPanelFromConfig (unused 7th sync) and
-  7 territory keys with no PANEL_CONFIG_MAP entry (TERRITORY_MSR_STAR_POWER_* family,
-  TERRITORY_END_SNAP_FIX, GRID_GRADIENT_DRAW_BACKEND) — decide knob-or-not.
+- [ ] **Settings panel maximal refactor — PHASES 0,1,2,4 DONE; PHASE 3 REASSESSED** `[settings][arch]`
+  audit at `.agent/docs/game/design/2026-07-15_SETTINGS_PANEL_CODE_AUDIT.md`.
+  **Phase 2 DONE** (`da442e1d8` store extract, `18e31adf3` child migration): settingsStore.svelte.ts is
+  the single owner of GAME_CONFIG+localStorage — one reactive `panel` mirror (panelKey basis; rekeying to
+  configKey judged pure churn, a bijection), one write `set()`, one batch `applyPatch()`, one
+  `syncFromConfig()`, `hydrate()`. All 16 sections import it (alias trick: `panel.x` markup untouched),
+  ending the 13-prop drilling. GameSettingsPanel −491 lines across 2a+2b.
+  **Phase 4 DONE** (`fd9f40871`): premise was overstated — panel was ALREADY tokenized (40+ --pax-*,
+  hardcoded hex only as token fallbacks). Real fix = deduped one verbatim-triplicated gradient into
+  --settings-chrome-fill. NO Tailwind (analysis the user agreed with: dormant source(none), would blind
+  the unused-selector guard + fight runtime theming).
+  **Phase 3 REASSESSED — value dropped after 2b, needs a fresh session:**
+  - Render-chain rewrite (20-branch `{:else if sec?.id}` → registry `component`): LOW value now. 2b made
+    every invocation propless (`<ControlsSectionX />`), so the chain is readable and NOT a bug surface;
+    and it can't cleanly generalize (Territory×3 take different structural props; ui_appearance renders 2
+    components; stats/hotkeys/help are inline). Indirection for the ~13 trivial cases isn't worth it.
+  - settingsNav.svelte.ts (5 raw localStorage nav keys + ~10 loaders/effects → one persisted module): the
+    one remaining genuinely valuable piece, but LARGE and it touches the persistence-CLOBBER family
+    directly ([[settings-value-persistence-mode-default-clobber]]). Do it FIRST-THING in a fresh session,
+    not at the tail of a long one — that is exactly how the clobber bugs were born. Needs a boot-order test.
+  - Rail/Search/SectionHost component split: readability-only, high churn, UI-visible risk that can't be
+    verified here (human-eyes-only, no previews). Low priority; only if the shell keeps growing.
+  **Still-open findings (unchanged):** two raw <button>s not on PaxHud* (search-clear, result-row —
+  PaxHudButton doesn't fit the 3-part row; blind-convert risks layout regression); duplicate live editors
+  (CELL_GRID_* ×2 phase-field; TERRITORY_CONQUEST_FRONT_MODE, VORONOI_BORDER_SMOOTH dual controls);
+  `debouncedConfigUpdate` isn't debounced (`_delayMs` ignored) + double-writes; panelSync should split into
+  storage adapter + settingsMigrations; panelSync.syncPanelFromConfig is an unused 7th sync; 7 territory
+  keys with no PANEL_CONFIG_MAP entry (TERRITORY_MSR_STAR_POWER_*, TERRITORY_END_SNAP_FIX,
+  GRID_GRADIENT_DRAW_BACKEND) — decide knob-or-not.
 
 ### Done (2026-07-15)
 - [x] **Settings audit phase 1d — invalidation is registry data + THE LADDER WAS WRONG** `[settings]`
