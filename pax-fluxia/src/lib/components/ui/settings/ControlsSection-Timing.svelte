@@ -1,5 +1,6 @@
 <script lang="ts">
   import "./panel-shared.css";
+    import { settingsStore } from "../settingsStore.svelte";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { animationStore } from "$lib/stores/animationStore.svelte";
     import { ANIM_SLIDERS } from "../settingsDefs";
@@ -23,38 +24,22 @@
         (slider) => slider.key === TT_SLIDER_KEY,
     );
 
-    interface Props {
-        panel: Record<string, any>;
-        updatePanel: (key: string, value: any) => void;
-        tickInterval: number;
-        updateTickInterval: (value: number) => void;
-        animLockModes: Record<string, any>;
-        animLockRatios: Record<string, any>;
-        animValues: Record<string, number>;
-        getAnimValue: (key: string) => number;
-        setAnimValue: (key: string, value: number) => void;
-        formatAnimValue: (value: number, unit: string) => string;
-        pinValueToTickDuration: (key: string) => void;
-        lockRatioToTick: (key: string) => void;
-        lockRatioToAnimSpeed: (key: string) => void;
-        syncFromConfig?: () => void;
-    }
-
-    let {
-        panel,
-        updatePanel,
-        tickInterval,
-        updateTickInterval,
-        animLockModes,
-        animLockRatios,
-        getAnimValue,
-        setAnimValue,
-        formatAnimValue,
-        pinValueToTickDuration,
-        lockRatioToTick,
-        lockRatioToAnimSpeed,
-        syncFromConfig,
-    }: Props = $props();
+    // Settings data + anim-lock helpers come from the store, not props
+    // (2026-07-15 audit phase 2b). The $derived ones stay reactive to store
+    // mutations; the rest are stable method references.
+    const panel = $derived(settingsStore.panel);
+    const updatePanel = settingsStore.set;
+    const tickInterval = $derived(settingsStore.tickInterval);
+    const updateTickInterval = settingsStore.updateTickInterval;
+    const animLockModes = $derived(settingsStore.animLockModes);
+    const animLockRatios = $derived(settingsStore.animLockRatios);
+    const getAnimValue = settingsStore.getAnimValue;
+    const setAnimValue = settingsStore.setAnimValue;
+    const formatAnimValue = settingsStore.formatAnimValue;
+    const pinValueToTickDuration = settingsStore.pinValueToTickDuration;
+    const lockRatioToTick = settingsStore.lockRatioToTick;
+    const lockRatioToAnimSpeed = settingsStore.lockRatioToAnimSpeed;
+    const syncFromConfig = settingsStore.syncFromConfig;
 
     function applyAnimUpdates(updates: Record<string, number>) {
         for (const [key, value] of Object.entries(updates)) {

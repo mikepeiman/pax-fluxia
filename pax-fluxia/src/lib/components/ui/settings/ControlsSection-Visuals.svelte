@@ -1,5 +1,6 @@
 <script lang="ts">
   import "./panel-shared.css";
+    import { settingsStore } from "../settingsStore.svelte";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { BG_IMAGES } from "$lib/config/bgManifest";
     import { resolveEffectiveLaneMarginPx } from "$lib/lanes/laneMargin";
@@ -16,15 +17,11 @@
 
     // ControlsSection-VISUALS - In-Game Settings Controls: Map & Grid
 
-    interface Props {
-        panel: Record<string, any>;
-        updatePanel: (key: string, value: any) => void;
-        /** Normalizes, writes config, notifies the canvas, and persists. */
-        updateBgImage: (rawPath: string) => void;
-        syncFromConfig?: () => void;
-    }
-
-    let { panel, updatePanel, updateBgImage, syncFromConfig }: Props = $props();
+    // Settings data comes from the store, not props (2026-07-15 audit phase 2b).
+    const panel = $derived(settingsStore.panel);
+    const updatePanel = settingsStore.set;
+    const updateBgImage = settingsStore.updateBgImage;
+    const syncFromConfig = settingsStore.syncFromConfig;
 
     // Lane + background values are ordinary panel keys (2026-07-15 audit): they
     // used to come from a parallel `vis` store that persisted the same five

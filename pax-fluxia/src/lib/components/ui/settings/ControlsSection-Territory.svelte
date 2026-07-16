@@ -1,5 +1,6 @@
 <script lang="ts">
   import "./panel-shared.css";
+    import { settingsStore } from "../settingsStore.svelte";
   import { GAME_CONFIG } from "$lib/config/game.config";
   import {
     normalizeTerritoryRenderModeId,
@@ -33,18 +34,9 @@
 
   // ControlsSection-Territory -- Territory Rendering (Voronoi + Metaball)
 
+  // Structural props (how the parent renders this section) stay props; the
+  // settings data + anim-lock helpers come from the store (2026-07-15 phase 2b).
   interface Props {
-    panel: Record<string, any>;
-    updatePanel: (key: string, value: any) => void;
-    syncFromConfig?: () => void;
-    animLockModes: Record<string, any>;
-    animLockRatios: Record<string, any>;
-    getAnimValue: (key: string) => number;
-    setAnimValue: (key: string, val: number) => void;
-    formatAnimValue: (val: number, unit: string) => string;
-    pinValueToTickDuration: (key: string) => void;
-    lockRatioToTick: (key: string) => void;
-    lockRatioToAnimSpeed: (key: string) => void;
     view?: "modes" | "tuning" | "styles" | "all";
     activeSubsection?: string;
     showCategoryThemeBar?: boolean;
@@ -53,23 +45,24 @@
   }
 
   let {
-    panel,
-    updatePanel,
-    syncFromConfig,
-    animLockModes,
-    animLockRatios,
-    getAnimValue,
-    setAnimValue,
-    formatAnimValue,
-    pinValueToTickDuration,
-    lockRatioToTick,
-    lockRatioToAnimSpeed,
     view = "all",
     activeSubsection = "all",
     showCategoryThemeBar = false,
     hideRenderModeSelector = false,
     systemTitle = "Territory System",
   }: Props = $props();
+
+  const panel = $derived(settingsStore.panel);
+  const updatePanel = settingsStore.set;
+  const syncFromConfig = settingsStore.syncFromConfig;
+  const animLockModes = $derived(settingsStore.animLockModes);
+  const animLockRatios = $derived(settingsStore.animLockRatios);
+  const getAnimValue = settingsStore.getAnimValue;
+  const setAnimValue = settingsStore.setAnimValue;
+  const formatAnimValue = settingsStore.formatAnimValue;
+  const pinValueToTickDuration = settingsStore.pinValueToTickDuration;
+  const lockRatioToTick = settingsStore.lockRatioToTick;
+  const lockRatioToAnimSpeed = settingsStore.lockRatioToAnimSpeed;
 
   const showModesView = $derived(view === "all" || view === "modes");
   const showTuningView = $derived(view === "all" || view === "tuning");

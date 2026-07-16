@@ -1,5 +1,6 @@
 <script lang="ts">
   import "./panel-shared.css";
+    import { settingsStore } from "../settingsStore.svelte";
     import { onMount } from "svelte";
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
     import {
@@ -19,11 +20,8 @@
         savePlayerPaletteSettings,
     } from "$lib/utils/playerPalette";
 
-    interface Props {
-        syncFromConfig?: () => void;
-    }
-
-    let { syncFromConfig }: Props = $props();
+    // Settings data comes from the store, not props (2026-07-15 audit phase 2b).
+    const syncFromConfig = settingsStore.syncFromConfig;
 
     const initial = loadPlayerPaletteSettings();
     let anchorHue = $state(initial.anchorHue);

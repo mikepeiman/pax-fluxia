@@ -1,5 +1,6 @@
 <script lang="ts">
   import "./panel-shared.css";
+    import { settingsStore } from "../settingsStore.svelte";
     import {
         audioManager,
         SOUND_LABELS,
@@ -30,13 +31,9 @@
         (type) => !CONQUEST_TYPES.includes(type),
     );
 
-    interface Props {
-        panel: Record<string, any>;
-        updatePanel: (key: string, value: any) => void;
-        syncFromConfig?: () => void;
-    }
-
-    let { updatePanel, syncFromConfig }: Props = $props();
+    // Settings data comes from the store, not props (2026-07-15 audit phase 2b).
+    const updatePanel = settingsStore.set;
+    const syncFromConfig = settingsStore.syncFromConfig;
 
     let openPicker = $state<string | null>(null);
 

@@ -31,10 +31,7 @@
     import ControlsSectionDiagnostics from "./settings/ControlsSection-Diagnostics.svelte";
     import SaveLoadGamePanel from "./settings/SaveLoadGamePanel.svelte";
     import ConfigTransferPanel from "./settings/ConfigTransferPanel.svelte";
-    import {
-        type SettingsTier,
-        formatAnimValue,
-    } from "./settingsDefs";
+    import { type SettingsTier } from "./settingsDefs";
     import {
         enhanceSettingMetadata,
     } from "./settings/settingMetadata";
@@ -98,28 +95,15 @@
     });
 
     // ── Settings data layer (settingsStore) ──────────────────────────────────
-    // All config/persistence/sync/anim-lock logic moved to settingsStore in the
-    // 2026-07-15 audit (phase 2). These aliases keep this component's template
-    // and the child-section props reading the same short names; the $derived
-    // ones stay reactive to the store's mutations.
+    // The whole config/persistence/sync/anim-lock layer moved to settingsStore
+    // in the 2026-07-15 audit (phase 2), and the section children now source it
+    // directly (phase 2b). This shell keeps only the few store values its own
+    // template + boot wiring still touch.
     const panel = $derived(settingsStore.panel);
-    const animValues = $derived(settingsStore.animValues);
-    const animLockModes = $derived(settingsStore.animLockModes);
-    const animLockRatios = $derived(settingsStore.animLockRatios);
-    const tickInterval = $derived(settingsStore.tickInterval);
     const activeTier = $derived(settingsStore.activeTier);
-
-    const updatePanel = settingsStore.set;
     const syncAllFromConfig = settingsStore.syncFromConfig;
     const applyConfigPatch = settingsStore.applyPatch;
-    const updateBgImage = settingsStore.updateBgImage;
-    const updateTickInterval = settingsStore.updateTickInterval;
     const setTier = settingsStore.setTier;
-    const getAnimValue = settingsStore.getAnimValue;
-    const setAnimValue = settingsStore.setAnimValue;
-    const pinValueToTickDuration = settingsStore.pinValueToTickDuration;
-    const lockRatioToTick = settingsStore.lockRatioToTick;
-    const lockRatioToAnimSpeed = settingsStore.lockRatioToAnimSpeed;
 
     // Category-preset apply unwraps the preset to its values patch.
     function applyCategoryPresetValues(preset: CategoryPreset) {
@@ -988,12 +972,7 @@
 {#snippet sectionContent(sec: NavChip)}
                 {#if sec?.id === "ui_appearance"}
                     <HudThemePanel />
-                    <ControlsSectionVisuals
-                        {panel}
-                        {updatePanel}
-                        {updateBgImage}
-                        syncFromConfig={syncAllFromConfig}
-                    />
+                    <ControlsSectionVisuals />
                 {:else if sec?.id === "ui_typography"}
                     <TypographyTokenPanel />
                 {:else if sec?.id === "ui_themes"}
@@ -1001,7 +980,7 @@
                 {:else if sec?.id === "ui_savegame"}
                     <SaveLoadGamePanel />
                 {:else if sec?.id === "ui_config_io"}
-                    <ConfigTransferPanel {applyConfigPatch} />
+                    <ConfigTransferPanel />
                 {:else if sec?.id === "ui_stats"}
                     <PaxSettingsInfoRow label="Tick" value={activeGameStore.currentTick ?? 0} />
                     <PaxSettingsInfoRow label="Players" value={activeGameStore.players.length} />
@@ -1015,151 +994,50 @@
                 {:else if sec?.id === "ui_help"}
                     <p>Select owned stars, assign routes across connected lanes, and watch active ships transfer control through the network.</p>
                 {:else if sec?.id === "match_flow"}
-                    <ControlsSectionTiming
-                        {panel}
-                        {updatePanel}
-                        {tickInterval}
-                        {updateTickInterval}
-                        {animLockModes}
-                        {animLockRatios}
-                        {animValues}
-                        {getAnimValue}
-                        {setAnimValue}
-                        {formatAnimValue}
-                        {pinValueToTickDuration}
-                        {lockRatioToTick}
-                        {lockRatioToAnimSpeed}
-                        syncFromConfig={syncAllFromConfig}
-                    />
+                    <ControlsSectionTiming />
                 {:else if sec?.id === "combat_tuning"}
-                    <ControlsSectionBattle
-                        {panel}
-                        {updatePanel}
-                        syncFromConfig={syncAllFromConfig}
-                    />
+                    <ControlsSectionBattle />
                 {:else if sec?.id === "economy"}
-                    <ControlsSectionEconomy
-                        {panel}
-                        {updatePanel}
-                        syncFromConfig={syncAllFromConfig}
-                    />
+                    <ControlsSectionEconomy />
                 {:else if sec?.id === "ai"}
-                    <ControlsSectionAI
-                        {panel}
-                        {updatePanel}
-                        syncFromConfig={syncAllFromConfig}
-                    />
+                    <ControlsSectionAI />
                 {:else if sec?.id === "travel_orders"}
-                    <ControlsSectionTravel
-                        {panel}
-                        {updatePanel}
-                        syncFromConfig={syncAllFromConfig}
-                    />
+                    <ControlsSectionTravel />
                 {:else if sec?.id === "conquest"}
-                    <ControlsSectionConquest
-                        {panel}
-                        {updatePanel}
-                        syncFromConfig={syncAllFromConfig}
-                    />
+                    <ControlsSectionConquest />
                 {:else if sec?.id === "effects"}
-                    <ControlsSectionSurge
-                        {panel}
-                        {updatePanel}
-                        syncFromConfig={syncAllFromConfig}
-                    />
+                    <ControlsSectionSurge />
                 {:else if sec?.id === "transition"}
                     <ControlsSectionTerritory
-                        {panel}
-                        {updatePanel}
-                        {animLockModes}
-                        {animLockRatios}
-                        {getAnimValue}
-                        {setAnimValue}
-                        {formatAnimValue}
-                        {pinValueToTickDuration}
-                        {lockRatioToTick}
-                        {lockRatioToAnimSpeed}
-                        syncFromConfig={syncAllFromConfig}
                         view="modes"
                         hideRenderModeSelector={true}
                         systemTitle="Transition"
                     />
                 {:else if sec?.id === "territory_tuning"}
-                    <ControlsSectionTerritory
-                        {panel}
-                        {updatePanel}
-                        {animLockModes}
-                        {animLockRatios}
-                        {getAnimValue}
-                        {setAnimValue}
-                        {formatAnimValue}
-                        {pinValueToTickDuration}
-                        {lockRatioToTick}
-                        {lockRatioToAnimSpeed}
-                        syncFromConfig={syncAllFromConfig}
-                        view="tuning"
-                    />
+                    <ControlsSectionTerritory view="tuning" />
                     <!-- Geometry Source selector RETIRED (2026-07-08): geometry is
                          unified on PowerCore; all saved values auto-migrate. -->
                 {:else if sec?.id === "territory_styles"}
                     <ControlsSectionTerritory
-                        {panel}
-                        {updatePanel}
-                        {animLockModes}
-                        {animLockRatios}
-                        {getAnimValue}
-                        {setAnimValue}
-                        {formatAnimValue}
-                        {pinValueToTickDuration}
-                        {lockRatioToTick}
-                        {lockRatioToAnimSpeed}
-                        syncFromConfig={syncAllFromConfig}
                         view="styles"
                         showCategoryThemeBar={true}
                         activeSubsection={activeSubsections[sec?.id] ??
                             (activeTerritoryRenderMode ?? "all")}
                     />
                 {:else if sec?.id === "frontier_fx"}
-                    <ControlsSectionFrontierFx
-                        {panel}
-                        {updatePanel}
-                        syncFromConfig={syncAllFromConfig}
-                    />
+                    <ControlsSectionFrontierFx />
                 {:else if sec?.id === "fleet_star_visuals"}
-                    <ControlsSectionShips
-                        {panel}
-                        {updatePanel}
-                        syncFromConfig={syncAllFromConfig}
-                    />
+                    <ControlsSectionShips />
                 {:else if sec?.id === "players"}
-                    <ControlsSectionPlayers
-                        syncFromConfig={syncAllFromConfig}
-                    />
+                    <ControlsSectionPlayers />
                 {:else if sec?.id === "map_options"}
-                    <ControlsSectionVisuals
-                        {panel}
-                        {updatePanel}
-                        {updateBgImage}
-                        syncFromConfig={syncAllFromConfig}
-                    />
+                    <ControlsSectionVisuals />
                 {:else if sec?.id === "logging"}
-                    <ControlsSectionLogging
-                        {logCategories}
-                        {updatePanel}
-                        syncFromConfig={syncAllFromConfig}
-                    />
+                    <ControlsSectionLogging />
                 {:else if sec?.id === "audio"}
-                    <ControlsSectionAudio
-                        {panel}
-                        {updatePanel}
-                        syncFromConfig={syncAllFromConfig}
-                    />
+                    <ControlsSectionAudio />
                 {:else if sec?.id === "diagnostics"}
-                    <ControlsSectionDiagnostics
-                        {panel}
-                        {updatePanel}
-                        syncFromConfig={syncAllFromConfig}
-                    />
+                    <ControlsSectionDiagnostics />
                 {/if}
 {/snippet}
     </div>

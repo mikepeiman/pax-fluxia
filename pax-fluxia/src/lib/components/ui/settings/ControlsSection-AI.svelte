@@ -1,17 +1,15 @@
 <script lang="ts">
   import "./panel-shared.css";
+    import { settingsStore } from "../settingsStore.svelte";
     import { AI_VARIABLES, CONFIG_TO_PANEL_KEY } from "../settingsDefs";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { PaxSettingsRangeRow } from "$lib/design-system";
     import CategoryThemeBar from "./CategoryThemeBar.svelte";
 
-    interface Props {
-        panel: Record<string, any>;
-        updatePanel: (key: string, value: any) => void;
-        syncFromConfig?: () => void;
-    }
-
-    let { panel, updatePanel, syncFromConfig }: Props = $props();
+    // Settings data comes from the store, not props (2026-07-15 audit phase 2b).
+    const panel = $derived(settingsStore.panel);
+    const updatePanel = settingsStore.set;
+    const syncFromConfig = settingsStore.syncFromConfig;
 
     const GROUPS: Array<{ label: string; keys: string[] }> = [
         {

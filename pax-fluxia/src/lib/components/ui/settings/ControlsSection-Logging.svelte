@@ -1,5 +1,7 @@
 <script lang="ts">
   import "./panel-shared.css";
+    import { settingsStore } from "../settingsStore.svelte";
+    import { LOG_CATEGORIES } from "../settingsDefs";
     import { PaxHudButton, PaxSettingsToggleRow } from "$lib/design-system";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { logFlags } from "$lib/utils/logger";
@@ -7,12 +9,10 @@
 
     // ControlsSection-LOGGING -- Logging controls (extracted from GameSettingsPanel.svelte)
 
-    interface Props {
-        logCategories: readonly any[] | any[];
-        updatePanel: (key: string, value: any) => void;
-        syncFromConfig?: () => void;
-    }
-    let { logCategories, updatePanel, syncFromConfig }: Props = $props();
+    // Settings data comes from the store, not props (2026-07-15 audit phase 2b).
+    const logCategories = LOG_CATEGORIES;
+    const updatePanel = settingsStore.set;
+    const syncFromConfig = settingsStore.syncFromConfig;
 
     // logFlags is a plain (non-reactive) object; bumping this local counter
     // re-keys the toggle rows so they re-read it. It used to be a prop the

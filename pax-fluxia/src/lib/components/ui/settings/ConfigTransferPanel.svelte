@@ -1,5 +1,6 @@
 <script lang="ts">
     import "./panel-shared.css";
+    import { settingsStore } from "../settingsStore.svelte";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { buildConfigMarkdown, parseConfigImport } from "../configTransfer";
     import { exportConfigJSON } from "../panelSync";
@@ -10,11 +11,8 @@
     // The handlers lived (dead, with no UI affordance) in GameSettingsPanel
     // until the 2026-07-15 audit; the user ruled this is a user-facing
     // mod-sharing feature, so it now has a real panel.
-    interface Props {
-        applyConfigPatch: (patch: Record<string, unknown>) => void;
-    }
-
-    let { applyConfigPatch }: Props = $props();
+    // The batch-apply path comes from the store, not props (audit phase 2b).
+    const applyConfigPatch = settingsStore.applyPatch;
 
     let status = $state("");
     let statusIsError = $state(false);

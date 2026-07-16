@@ -1,5 +1,6 @@
 <script lang="ts">
   import "./panel-shared.css";
+    import { settingsStore } from "../settingsStore.svelte";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
     import {
@@ -8,13 +9,9 @@
         PaxSettingsToggleRow,
     } from "$lib/design-system";
 
-    interface Props {
-        panel: Record<string, unknown>;
-        updatePanel: (key: string, value: unknown) => void;
-        syncFromConfig?: () => void;
-    }
-
-    let { panel, updatePanel }: Props = $props();
+    // Settings data comes from the store, not props (2026-07-15 audit phase 2b).
+    const panel = $derived(settingsStore.panel);
+    const updatePanel = settingsStore.set;
 
     type FrontierFxMode =
         | "off"

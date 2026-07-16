@@ -1,5 +1,6 @@
 <script lang="ts">
   import "./panel-shared.css";
+    import { settingsStore } from "../settingsStore.svelte";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
@@ -38,13 +39,10 @@
         PaxSettingsToggleRow,
     } from "$lib/design-system";
 
-    interface Props {
-        panel: Record<string, any>;
-        updatePanel: (key: string, value: any) => void;
-        syncFromConfig?: () => void;
-    }
-
-    let { panel, updatePanel, syncFromConfig }: Props = $props();
+    // Settings data comes from the store, not props (2026-07-15 audit phase 2b).
+    const panel = $derived(settingsStore.panel);
+    const updatePanel = settingsStore.set;
+    const syncFromConfig = settingsStore.syncFromConfig;
 
     // ── Debug: set the selected star's ship count directly ──
     // Resurrected from GameSettingsPanel (2026-07-15 audit ruling): the slider

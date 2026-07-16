@@ -1,5 +1,6 @@
 <script lang="ts">
   import "./panel-shared.css";
+    import { settingsStore } from "../settingsStore.svelte";
     import { GAME_CONFIG } from "$lib/config/game.config";
     import {
         PaxHudButton,
@@ -14,16 +15,10 @@
 
     // ControlsSection-STAR SYSTEM -- Star System Appearance (extracted from GameSettingsPanel.svelte)
 
-    interface Props {
-        panel: Record<string, any>;
-        updatePanel: (key: string, value: any) => void;
-        syncFromConfig?: () => void;
-    }
-    let {
-        panel,
-        updatePanel,
-        syncFromConfig,
-    }: Props = $props();
+    // Settings data comes from the store, not props (2026-07-15 audit phase 2b).
+    const panel = $derived(settingsStore.panel);
+    const updatePanel = settingsStore.set;
+    const syncFromConfig = settingsStore.syncFromConfig;
 
     // Density variable slider metadata — panel key mapping follows PANEL_CONFIG_MAP convention
     const DENSITY_PANEL_MAP: Record<string, string> = {
