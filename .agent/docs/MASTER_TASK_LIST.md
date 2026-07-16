@@ -36,18 +36,55 @@ superseding docs:
   remains after this campaign is render-path/skin unification: phase/ember/field still carry 3-5k
   LOC adapter families atop shared geometry. Turning kept modes into thin PowerCore skins is the
   NEXT campaign, enabled by this one.
-- [ ] **Settings panel maximal refactor (user-commanded audit delivered)** `[settings][arch]` — audit at
-  `.agent/docs/game/design/2026-07-15_SETTINGS_PANEL_CODE_AUDIT.md`. Phases: 0 dead code (needs 3 user
-  rulings: config import/export surface-or-delete; reset-to-defaults surface-or-delete; debug ship-count
-  delete-or-resurrect) → 1 duplicates (panelSync recalc math → animLockMath; vis store folded into panel
-  map; transferRate → Economy; prefix ladders → registry `invalidates` tags + totality test) → 2 single
-  settingsStore (one reactive mirror keyed by configKey; seven partial syncs → one syncFromConfig; kill
-  prop drilling) → 3 shell decomposition (SettingsRail/SettingsSearch/SettingsSectionHost/settingsNav;
-  registry-driven section render kills the 20-branch snippet chain) → 4 CSS tokens + Tailwind v4 on
-  extracted leaves (structural grid/clip/scroll layer stays bespoke). Persistence phases need
-  boot-order clobber tests.
+- [ ] **Settings panel maximal refactor — PHASES 0+1 DONE, 2-4 OPEN** `[settings][arch]` — audit at
+  `.agent/docs/game/design/2026-07-15_SETTINGS_PANEL_CODE_AUDIT.md`.
+  **Phase 2 — the single settingsStore:** one reactive mirror keyed by configKey with exactly
+  set/applyPatch/syncFromConfig/hydrate; collapses the SEVEN overlapping partial syncs
+  (syncVisualsFromConfig is gone, but syncAnimValues/syncRuntimeViews/syncAll/syncPanelFromConfigPatch/
+  panelSync.syncPanelFromConfig remain) and the FOUR differently-behaved write paths; kills the
+  13-prop drilling (sections consume via context). Needs boot-order clobber tests per phase —
+  see [[settings-value-persistence-mode-default-clobber]].
+  **Phase 3 — shell decomposition:** SettingsRail / SettingsSearch / SettingsSectionHost /
+  settingsNav.svelte.ts (one persisted nav object replacing 5 raw localStorage keys); registry rows
+  carry `component` so the 20-branch `{:else if sec?.id}` chain dies; utility panels become registry
+  rows with kind:'utility' instead of the INTERFACE_PANELS/TYPOGRAPHY_PANELS/UTILITY_PANEL_CATEGORY
+  triplet.
+  **Phase 4 — CSS:** promote panel colors/spacing/radii to `--pax-settings-*` in app.css + Tailwind v4
+  `@theme`; convert each extracted leaf to utilities as it comes out. The structural layer (grid named
+  areas, definite height chain, overflow:clip discipline, single scroll surface, 0.22s track glide) STAYS
+  bespoke — it survived the 3-round collapse hunt; do not churn it.
+  **Still-open findings not yet actioned:** duplicate live editors (CELL_GRID_* ×2 in phase-field view;
+  TERRITORY_CONQUEST_FRONT_MODE and VORONOI_BORDER_SMOOTH dual controls); `debouncedConfigUpdate` is not
+  debounced (its `_delayMs` param is ignored) and double-writes config via updatePanel; panelSync should
+  split into storage adapter + settingsMigrations; panelSync.syncPanelFromConfig (unused 7th sync) and
+  7 territory keys with no PANEL_CONFIG_MAP entry (TERRITORY_MSR_STAR_POWER_* family,
+  TERRITORY_END_SNAP_FIX, GRID_GRADIENT_DRAW_BACKEND) — decide knob-or-not.
 
 ### Done (2026-07-15)
+- [x] **Settings audit phase 1d — invalidation is registry data + THE LADDER WAS WRONG** `[settings]`
+  `9a441234b`. The `||` key-prefix ladder in applyConfigPatch listed PERIMETER_FIELD_ (excised) and
+  MISSED CELL_GRID_ (32 keys) + GRID_GRADIENT_ (30 keys) → themes/presets/config-import never
+  repainted those families (live edits masked it: ControlsSection-Territory bumps unconditionally).
+  Now `invalidates` domains derived on the registry + settingsInvalidation.test.ts (10 tests incl.
+  a totality check over every territory-visual key in GAME_CONFIG). settingsState's divergent second
+  copy of the list deleted.
+- [x] **Settings audit phase 1c — visuals store retired** `[settings]` `da45238bb`. 5 values were
+  persisted TWICE (laneWidth/connectionWidth, bgImage/bgImageUrl) and BOOT ORDER picked the winner.
+  Folded into the panel map with a one-time migration; new applyBgImageChange() is the one bg path;
+  4 consumers updated (panel, Visuals section, themeStore, MainMenu). The new test caught a real bug
+  in the migration: loadPanelSettings ran migrations only when a panel store already existed.
+- [x] **Settings audit phase 1b — transferRate → Economy** `[settings]` `1caad18ed`. Also added its
+  missing settingConfigKey (search could match the row but never highlight it).
+- [x] **Settings audit phase 1a — one anim-lock math** `[settings]` `b7ba45d96`. panelSync held a
+  second, side-effectful copy of animLockMath's recalc; which ran depended on which control surface
+  you touched, and ControlsSection-Timing double-wrote every locked value. AnimLockMode type moved to
+  animLockMath (the root cause of the split); +3 tests.
+- [x] **Settings audit phase 0 — dead code + user rulings applied** `[settings]` `1e25b5c55`. Config
+  import/export surfaced as ConfigTransferPanel (user: "it's a game-mod-type user feature") under
+  Interface → Import / Export; reset-to-defaults surfaced there too (2-click confirm); debug
+  ship-count slider resurrected in Diagnostics → Debug Tools; dead combat-tuning store +
+  configKeyToPanelKey removed; logRefresh made honest local state.
+- [x] **Settings panel code audit delivered** `[settings]` `ca675bf8e` — user-commanded full audit.
 - [x] **Settings panel collapse SOLVED** `[settings]` — `.area-controls` overflow:hidden was
   programmatically scrolled (focus scrollIntoView); `overflow: clip` fix `14c2b6efb`; user confirmed.
   Diagnostics removed `aa59bf524`.

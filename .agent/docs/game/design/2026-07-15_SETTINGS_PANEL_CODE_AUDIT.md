@@ -10,6 +10,45 @@ persistence keyspace. Every finding below is verified by grep against the whole 
 
 ---
 
+## STATUS (2026-07-15, end of session) — phases 0 and 1 are DONE
+
+| Phase | State | Commits |
+|---|---|---|
+| 0 — dead code + the 3 rulings | **done** | `1e25b5c55` |
+| 1a — one anim-lock math | **done** | `b7ba45d96` |
+| 1b — transferRate → Economy | **done** | `1caad18ed` |
+| 1c — visuals store retired | **done** | `da45238bb` |
+| 1d — invalidation tags | **done** | `9a441234b` |
+| 2 — the single settingsStore | open | — |
+| 3 — shell decomposition | open | — |
+| 4 — CSS tokens + Tailwind | open | — |
+
+**User rulings received (§5):** config import/export → *"it is meant to be a 'game mod'-type user
+feature"* → surfaced as `ConfigTransferPanel.svelte` (Interface → Import / Export). Reset-to-defaults
+→ surfaced there too, behind a 2-click confirm. Debug ship-count → resurrected in Diagnostics →
+Debug Tools.
+
+**Two findings got WORSE on contact — the audit understated them:**
+
+1. **§1d's ladder was not merely ugly, it was WRONG.** It listed `PERIMETER_FIELD_` (excised) while
+   missing `CELL_GRID_` (32 config keys) and `GRID_GRADIENT_` (30) entirely — so applying a theme,
+   preset, or imported config that tuned either family never repainted the map. Live edits masked it
+   because `ControlsSection-Territory.debouncedConfigUpdate` bumps unconditionally. Fixed with the
+   registry tags; `settingsInvalidation.test.ts` now proves totality over every territory-visual key.
+2. **§1a's duplicate was double-writing.** `ControlsSection-Timing` called panelSync's config-mutating
+   copy *and then* wrote every returned value again via `setAnimValue`.
+
+**One thing the audit got wrong:** §1's table called the visuals store merely "redundant". It was
+worse — boot order (`applyPanelToConfig` then `applyVisuals`) silently decided which of the two
+persisted copies of each value the user got. And the migration's own test caught a real defect in
+it: `loadPanelSettings` ran every migration *inside* `if (a panel store exists)`, so a user with a
+visuals store and no panel store (someone who only ever changed the background from the main menu)
+would have lost it.
+
+Everything below is the original audit, unedited.
+
+---
+
 ## §1 Direct answers to the user's questions
 
 ### 1a. "Why so many imports for synchronizing the panel?"
