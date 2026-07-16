@@ -1070,6 +1070,13 @@
     /* ── The panel IS the grid: rail + (conditional) content ── */
     .controls-panel {
         --settings-ribbon-width: 68px;
+        /* Warm chrome fill for the rail category buttons + section head. This
+           was a gradient literal duplicated verbatim across three rules
+           (2026-07-15 audit phase 4); named once here (descendants inherit the
+           custom property) so the visual treatment lives in one place. It pairs
+           with the design-system --pax-ui-border-gradient at every use site. */
+        --settings-chrome-fill: linear-gradient(180deg, rgba(58, 48, 22, 0.9), rgba(3, 31, 32, 0.94));
+        --settings-chrome-fill-active: linear-gradient(180deg, rgba(97, 72, 25, 0.92), rgba(4, 29, 29, 0.96));
         height: 100%;
         max-height: 100%;
         min-height: 0;
@@ -1223,14 +1230,14 @@
     :global(.icon-btn:hover) {
         color: var(--pax-ui-accent-warm-strong);
         background:
-            linear-gradient(180deg, rgba(58, 48, 22, 0.9), rgba(3, 31, 32, 0.94)) padding-box,
+            var(--settings-chrome-fill) padding-box,
             var(--pax-ui-border-gradient) border-box;
     }
 
     :global(.icon-btn.active) {
         color: var(--pax-ui-accent-warm-strong);
         background:
-            linear-gradient(180deg, rgba(97, 72, 25, 0.92), rgba(4, 29, 29, 0.96)) padding-box,
+            var(--settings-chrome-fill-active) padding-box,
             var(--pax-ui-border-gradient) border-box;
         box-shadow:
             inset 0 0 0 1px color-mix(in srgb, var(--pax-ui-accent-warm-strong) 13%, transparent),
@@ -1681,7 +1688,7 @@
     .section-body :global(.chip.active) {
         border-color: transparent;
         background:
-            linear-gradient(180deg, rgba(58, 48, 22, 0.9), rgba(3, 31, 32, 0.94)) padding-box,
+            var(--settings-chrome-fill) padding-box,
             var(--pax-ui-border-gradient) border-box;
         color: var(--pax-ui-accent-warm-strong);
     }
