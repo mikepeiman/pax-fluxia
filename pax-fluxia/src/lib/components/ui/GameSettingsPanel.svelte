@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount, tick } from "svelte";
     import { fade, fly } from "svelte/transition";
-    import { DEFAULT_GAME_CONFIG, GAME_CONFIG } from "$lib/config/game.config";
+    import { GAME_CONFIG } from "$lib/config/game.config";
     import type { MapDefinition } from "$lib/types/map.types";
     import {
         registerCategoryPresetApplyCallback,
@@ -10,42 +10,10 @@
     import { themeStore } from "$lib/stores/themeStore.svelte";
     import { activeGameStore } from "$lib/stores/activeGameStore.svelte";
     import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
-    import { animationStore } from "$lib/stores/animationStore.svelte";
     import { log } from "$lib/utils/logger";
-    import { normalizeBgImagePath } from "$lib/config/bgManifest";
-    import { bumpTerritoryVisualConfig } from "$lib/territory/bumpTerritoryVisualConfig";
-    import {
-        LOG_CATEGORIES,
-        resolveInvalidationsForKeys,
-    } from "./settingsDefs";
-    import {
-        setSetting,
-        setSettingsFromConfigPatch,
-        syncPanelFromConfigPatch,
-        warnOnMissingTerritorySchemaCoverage,
-    } from "./settingsState";
-    import {
-        applyBgImageChange,
-        loadPanelSettings,
-        panelDefaultsFromConfig,
-        savePanelSettings,
-        applyPanelToConfig,
-        loadAnimLockRatios,
-        saveAnimLockRatios,
-        loadAnimLockModes,
-        saveAnimLockModes,
-        loadTier,
-        saveTier,
-        TICK_INTERVAL_CHANGED_EVENT,
-    } from "./panelSync";
-    import {
-        togglePin,
-        toggleTickRatio,
-        toggleAnimSpeedRatio,
-        recalcOnTickChange,
-        recalcOnAnimSpeedChange,
-        type AnimLockTransition,
-    } from "./animLockMath";
+    import { LOG_CATEGORIES } from "./settingsDefs";
+    import { warnOnMissingTerritorySchemaCoverage } from "./settingsState";
+    import { settingsStore } from "./settingsStore.svelte";
     import ControlsSectionTiming from "./settings/ControlsSection-Timing.svelte";
     import ControlsSectionBattle from "./settings/ControlsSection-Battle.svelte";
     import ControlsSectionEconomy from "./settings/ControlsSection-Economy.svelte";
@@ -64,9 +32,6 @@
     import SaveLoadGamePanel from "./settings/SaveLoadGamePanel.svelte";
     import ConfigTransferPanel from "./settings/ConfigTransferPanel.svelte";
     import {
-        ANIM_SLIDERS,
-        CONFIG_TO_PANEL_KEY,
-        type AnimSliderDef,
         type SettingsTier,
         formatAnimValue,
     } from "./settingsDefs";
@@ -101,25 +66,17 @@
     // Aliases for the imported arrays (matches existing template references)
     const logCategories = LOG_CATEGORIES;
 
-    const PRISTINE_CONFIG_PATCH = Object.fromEntries(
-        Object.entries(DEFAULT_GAME_CONFIG).filter(
-            ([key]) => !key.startsWith("_"),
-        ),
-    ) as Record<string, unknown>;
-
     onMount(() => {
         const handleExternalConfigSync = () => {
             syncAllFromConfig();
         };
 
         warnOnMissingTerritorySchemaCoverage();
-        // Restore saved panel values INTO GAME_CONFIG before syncAllFromConfig
-        // reads GAME_CONFIG back into panel. Without this, compile-time defaults
-        // overwrite user-saved slider values (Chaikin, resampleN, etc.).
-        applyPanelToConfig(panel);
-        applyTimingBindingsAndLocks();
-        syncAllFromConfig();
-        themeStore.registerApplyCallback(applyThemeValues);
+        // The store restores saved panel values into GAME_CONFIG, applies timing
+        // bindings, and pulls config back into the mirror — run-once, but safe to
+        // call on every mount (it re-syncs from config on reopen).
+        settingsStore.hydrate();
+        themeStore.registerApplyCallback(applyConfigPatch);
         registerCategoryPresetApplyCallback(applyCategoryPresetValues);
         if (typeof window !== "undefined") {
             window.addEventListener(
@@ -140,281 +97,33 @@
         };
     });
 
-    let tickInterval = $state(GAME_CONFIG.BASE_TICK_MS);
-    let activeTier = $state<SettingsTier>(loadTier());
+    // ── Settings data layer (settingsStore) ──────────────────────────────────
+    // All config/persistence/sync/anim-lock logic moved to settingsStore in the
+    // 2026-07-15 audit (phase 2). These aliases keep this component's template
+    // and the child-section props reading the same short names; the $derived
+    // ones stay reactive to the store's mutations.
+    const panel = $derived(settingsStore.panel);
+    const animValues = $derived(settingsStore.animValues);
+    const animLockModes = $derived(settingsStore.animLockModes);
+    const animLockRatios = $derived(settingsStore.animLockRatios);
+    const tickInterval = $derived(settingsStore.tickInterval);
+    const activeTier = $derived(settingsStore.activeTier);
 
-    // Panel settings (persisted via panelSync)
-    let panel = $state(loadPanelSettings(panelDefaultsFromConfig()));
-    // Animation lock state (persisted via panelSync)
-    let animLockRatios = $state(loadAnimLockRatios());
-    let animLockModes = $state(loadAnimLockModes());
+    const updatePanel = settingsStore.set;
+    const syncAllFromConfig = settingsStore.syncFromConfig;
+    const applyConfigPatch = settingsStore.applyPatch;
+    const updateBgImage = settingsStore.updateBgImage;
+    const updateTickInterval = settingsStore.updateTickInterval;
+    const setTier = settingsStore.setTier;
+    const getAnimValue = settingsStore.getAnimValue;
+    const setAnimValue = settingsStore.setAnimValue;
+    const pinValueToTickDuration = settingsStore.pinValueToTickDuration;
+    const lockRatioToTick = settingsStore.lockRatioToTick;
+    const lockRatioToAnimSpeed = settingsStore.lockRatioToAnimSpeed;
 
-    // Lock math lives in animLockMath.ts (pure transitions over
-    // {modes, ratios}); this component owns the $state and persistence.
-    function applyLockTransition(transition: AnimLockTransition) {
-        animLockModes = transition.modes;
-        animLockRatios = transition.ratios;
-        if (transition.set) setAnimValue(transition.set.key, transition.set.value);
-        saveAnimLockRatios(animLockRatios);
-        saveAnimLockModes(animLockModes);
-    }
-
-    function applyTimingBindingsAndLocks() {
-        const nextTick = panel.tickInterval ?? GAME_CONFIG.BASE_TICK_MS;
-        GAME_CONFIG.BASE_TICK_MS = nextTick;
-
-        if (panel.bindAnimToTick) {
-            GAME_CONFIG.ANIMATION_SPEED_MS = nextTick;
-            panel = { ...panel, animSpeed: nextTick };
-        }
-
-        if (panel.territoryTransitionBindToTick) {
-            GAME_CONFIG.TERRITORY_TRANSITION_MS = nextTick;
-            panel = { ...panel, territoryTransitionMs: nextTick };
-        }
-
-        // Surge pulse tick-binding is resolved live in ShipRenderer — no
-        // config/panel write here (writing clobbered the saved free-run value).
-
-        const tickUpdates = recalcAnimLocksOnTickChange(nextTick) ?? {};
-        if (Object.keys(tickUpdates).length > 0) {
-            const patch: Record<string, number> = {};
-            for (const [configKey, value] of Object.entries(tickUpdates)) {
-                const panelKey = CONFIG_TO_PANEL_KEY[configKey];
-                if (panelKey) patch[panelKey] = value;
-            }
-            panel = { ...panel, ...patch };
-        }
-
-        const animSpeed = panel.bindAnimToTick
-            ? nextTick
-            : (GAME_CONFIG.ANIMATION_SPEED_MS ?? animationStore.speedMs);
-        const animUpdates = recalcAnimLocksOnAnimSpeedChange(animSpeed) ?? {};
-        if (Object.keys(animUpdates).length > 0) {
-            const patch: Record<string, number> = {};
-            for (const [configKey, value] of Object.entries(animUpdates)) {
-                const panelKey = CONFIG_TO_PANEL_KEY[configKey];
-                if (panelKey) patch[panelKey] = value;
-            }
-            panel = { ...panel, ...patch };
-        }
-
-        savePanelSettings(panel);
-        tickInterval = nextTick;
-        activeGameStore.updateTickInterval(nextTick);
-        animationStore.setAnimationSpeed(GAME_CONFIG.ANIMATION_SPEED_MS);
-        syncAnimValuesFromConfig();
-        notifyTickIntervalChanged(nextTick);
-    }
-
-    function updatePanel(key: string, value: any) {
-        panel = setSetting(panel, key, value, savePanelSettings);
-    }
-
-    /** Background image: normalize + write config + notify the canvas, then persist. */
-    function updateBgImage(rawPath: string) {
-        updatePanel("bgImageUrl", applyBgImageChange(rawPath));
-    }
-
-    function syncAnimValuesFromConfig(
-        configSource: Record<string, any> = GAME_CONFIG as Record<string, any>,
-    ) {
-        const nextAnimValues = { ...animValues };
-        for (const slider of ANIM_SLIDERS) {
-            if (configSource[slider.key] !== undefined) {
-                nextAnimValues[slider.key] = configSource[slider.key] as number;
-            }
-        }
-        animValues = nextAnimValues;
-    }
-
-    function syncRuntimeViewsFromConfig(
-        configSource: Record<string, any> = GAME_CONFIG as Record<string, any>,
-    ) {
-        syncAnimValuesFromConfig(configSource);
-        tickInterval = configSource.BASE_TICK_MS;
-        activeGameStore.updateTickInterval(configSource.BASE_TICK_MS);
-        animationStore.setAnimationSpeed(configSource.ANIMATION_SPEED_MS);
-    }
-
-    function syncAllFromConfig(
-        configSource: Record<string, any> = GAME_CONFIG as Record<string, any>,
-    ) {
-        panel = syncPanelFromConfigPatch(
-            panel,
-            configSource,
-            savePanelSettings,
-        );
-        applyTimingBindingsAndLocks();
-        syncRuntimeViewsFromConfig(configSource);
-    }
-
-    function applyConfigPatch(configPatch: Record<string, unknown>) {
-        panel = setSettingsFromConfigPatch(
-            panel,
-            configPatch,
-            savePanelSettings,
-        );
-        applyTimingBindingsAndLocks();
-        syncRuntimeViewsFromConfig();
-
-        // Which domains this patch wakes up is DATA on the settings registry
-        // (resolveInvalidations), not a key-prefix ladder hand-maintained here.
-        const invalidated = resolveInvalidationsForKeys(Object.keys(configPatch));
-        if (invalidated.has("background")) {
-            applyBgImageChange(GAME_CONFIG.BG_IMAGE_URL);
-        }
-        if (invalidated.has("backgroundAlpha") && typeof window !== "undefined") {
-            window.dispatchEvent(
-                new CustomEvent("pax-bg-alpha-change", {
-                    detail: GAME_CONFIG.BG_IMAGE_ALPHA ?? 0.5,
-                }),
-            );
-        }
-        if (invalidated.has("territory")) {
-            bumpTerritoryVisualConfig();
-        }
-    }
-
-    function applyThemeValues(
-        valuesPatch: Record<string, number | string | boolean>,
-    ) {
-        applyConfigPatch(valuesPatch);
-    }
-
+    // Category-preset apply unwraps the preset to its values patch.
     function applyCategoryPresetValues(preset: CategoryPreset) {
         applyConfigPatch(preset.values as Record<string, unknown>);
-    }
-
-    function setTier(tier: SettingsTier) {
-        activeTier = tier;
-        saveTier(tier);
-    }
-
-    function updateTickInterval(value: number) {
-        tickInterval = value;
-        activeGameStore.updateTickInterval(value);
-        notifyTickIntervalChanged(value);
-    }
-
-    /** Let tick displays outside this panel (HUD Game Speed widget) refresh. */
-    function notifyTickIntervalChanged(valueMs: number) {
-        if (typeof window === "undefined") return;
-        window.dispatchEvent(
-            new CustomEvent(TICK_INTERVAL_CHANGED_EVENT, {
-                detail: { valueMs },
-            }),
-        );
-    }
-
-    // Combat toggle/updateValue removed — all combat/AI/density values now
-    // flow through panel state via CONFIG_TO_PANEL_KEY in child components.
-
-    // Config import/export + nuclear reset moved to ConfigTransferPanel
-    // (Interface → Import / Export) — 2026-07-15 audit ruling: it's a
-    // user-facing "config mod" feature, so it got a real surface instead of
-    // dead handlers here.
-
-    // =========================================================================
-    // Tick-Ratio Locking — bind animation durations proportionally to tick
-    // =========================================================================
-
-    /** Pin value exactly to tick duration (ms -> BASE_TICK_MS, multipliers -> 1.0) */
-    function pinValueToTickDuration(key: string) {
-        applyLockTransition(
-            togglePin(
-                { modes: animLockModes, ratios: animLockRatios },
-                key,
-                ANIM_SLIDERS.find((s) => s.key === key),
-                GAME_CONFIG.BASE_TICK_MS,
-            ),
-        );
-    }
-
-    /** Lock current ratio relative to tick (value scales proportionally when tick changes) */
-    function lockRatioToTick(key: string) {
-        applyLockTransition(
-            toggleTickRatio(
-                { modes: animLockModes, ratios: animLockRatios },
-                key,
-                ANIM_SLIDERS.find((s) => s.key === key),
-                (GAME_CONFIG as any)[key] as number,
-                GAME_CONFIG.BASE_TICK_MS,
-            ),
-        );
-    }
-
-    /** Recalculate all locked/pinned animation values when tick interval changes */
-    function recalcAnimLocksOnTickChange(newTickMs: number) {
-        const updates = recalcOnTickChange(
-            { modes: animLockModes, ratios: animLockRatios },
-            ANIM_SLIDERS,
-            newTickMs,
-        );
-        for (const [key, value] of Object.entries(updates)) {
-            setAnimValue(key, value);
-        }
-        return updates;
-    }
-
-    /** Lock current ratio relative to animation speed (value scales when anim speed changes) */
-    function lockRatioToAnimSpeed(key: string) {
-        applyLockTransition(
-            toggleAnimSpeedRatio(
-                { modes: animLockModes, ratios: animLockRatios },
-                key,
-                (GAME_CONFIG as any)[key] as number,
-                animationStore.speedMs,
-            ),
-        );
-    }
-
-    /** Recalculate animSpeed-locked values when animation speed changes */
-    function recalcAnimLocksOnAnimSpeedChange(newAnimMs: number) {
-        const updates = recalcOnAnimSpeedChange(
-            { modes: animLockModes, ratios: animLockRatios },
-            ANIM_SLIDERS,
-            newAnimMs,
-        );
-        for (const [key, value] of Object.entries(updates)) {
-            setAnimValue(key, value);
-        }
-        return updates;
-    }
-
-    /** Map GAME_CONFIG keys to panel keys — full coverage via PANEL_CONFIG_MAP (settingsDefs). */
-    function animSliderToPanelKey(configKey: string): string | null {
-        return CONFIG_TO_PANEL_KEY[configKey] ?? null;
-    }
-
-    // Reactive mirror of animation slider values — GAME_CONFIG is not $state,
-    // so we maintain a reactive copy that triggers Svelte 5 re-renders.
-    function initAnimValues(): Record<string, number> {
-        const vals: Record<string, number> = {};
-        for (const s of ANIM_SLIDERS) {
-            vals[s.key] = (GAME_CONFIG as any)[s.key] as number;
-        }
-        return vals;
-    }
-    let animValues = $state<Record<string, number>>(initAnimValues());
-
-    function getAnimValue(key: string): number {
-        return animValues[key] ?? ((GAME_CONFIG as any)[key] as number);
-    }
-
-    function syncPanelKey(configKey: string, val: number) {
-        const panelKey = animSliderToPanelKey(configKey);
-        if (panelKey) {
-            panel = { ...panel, [panelKey]: val };
-            savePanelSettings(panel);
-        }
-        // Always update reactive mirror
-        animValues = { ...animValues, [configKey]: val };
-    }
-
-    function setAnimValue(key: string, val: number) {
-        (GAME_CONFIG as any)[key] = val;
-        syncPanelKey(key, val);
     }
 
     // =========================================================================
