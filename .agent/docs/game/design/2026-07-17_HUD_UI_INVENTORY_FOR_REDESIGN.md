@@ -57,11 +57,11 @@ These are the real "System B" candidates — see §5 Q1.
 
 | Bucket | Files | LOC | Status |
 |---|---:|---:|---|
-| A. In-game HUD — family `ui/hud` | 8 (+TopBar) | 3,859 | LIVE |
+| A. In-game HUD — family `ui/hud` | 8 | 3,859 | LIVE |
 | A. In-game HUD — family `game-hud` | 13 svelte +3 ts | 1,963 | LIVE |
 | A. Shell — GameContainer | 1 | 2,173 | LIVE |
 | B. Settings shell + sections | 24 | 12,040 | LIVE |
-| B. Settings data layer (.ts) | 10 | 3,661 | LIVE |
+| B. Settings data layer (.ts) | 10 | 3,644 | LIVE |
 | B. AudioSettings + RangeDual | 2 | 814 | LIVE |
 | C. Main Menu | 10 svelte +2 ts | 5,788 | LIVE |
 | D. Design system | 18 comp +3 ts | 1,887 | LIVE |
@@ -69,8 +69,8 @@ These are the real "System B" candidates — see §5 Q1.
 | F. UI-facing stores | ~9 | ~1,240 | LIVE (mixed) |
 | G. Theme/config data | 3 | 945 | LIVE |
 | H. Icons | 2 | 218 | LIVE |
-| **LIVE UI SUBTOTAL** | **~120** | **≈37,760** | (excl. GameCanvas engine) |
-| I. DEAD / experimental HUD | 27 | ~4,220 | **DELETE candidates** |
+| **LIVE UI SUBTOTAL** | **~120** | **≈37,746** | (excl. GameCanvas engine) — clean tree, no dead code |
+| I. DEAD / experimental HUD | 0 | 0 | **ALL REMOVED 2026-07-17** (was ~4,235 across 12 files) |
 | J. Landing / marketing site | 15 +routes | 3,905 | SEPARATE concern |
 | K. Map editor (separate tool) | 12 | 7,249 | OUT of scope |
 | — GameCanvas (Pixi engine) | 1 | 5,141 | engine, not markup |
@@ -93,8 +93,9 @@ These are the real "System B" candidates — see §5 Q1.
 | StatusBar.svelte | 283 | status strip |
 | SpeedControls.svelte | 153 | tick speed |
 | HudIcon.svelte | 52 | icon wrapper (shared) |
-| TopBar.svelte | 261 | **DEAD** — only in the barrel; GameContainer:780 comment calls it "the legacy fixed TopBar" |
-| `index.ts` | 9 | barrel |
+| `index.ts` | 8 | barrel |
+
+*(TopBar.svelte, 261 LOC, was here — DELETED 2026-07-17, see §I.)*
 
 **Family 2 — `src/lib/components/game-hud/` (LIVE via GameContainer):**
 
@@ -206,15 +207,18 @@ TypographyTokenPanel, menuTheme). **Theme logic is spread across ≥6 places —
 
 | Area | Files | LOC | Status |
 |---|---:|---:|---|
-| ~~`src/lib/aurelia-hud/` + `/dev/aurelia-hud` route + theme.css~~ | 26 | ~1,476 | **DELETED 2026-07-17** (`984c22488`+) — user: "Remove the aurelia-hud demo" |
-| `src/lib/components/ui/_archived/` | 5 | 2,044 | candidate — no importers (CombatLogPanel 850, MultiplayerLobby 654, GameHUD 402, TickOrb 90, TickMetronome 48) |
-| `ui/hud-test/HudLayoutTestMockup.svelte` | 1 | 427 | candidate — only `routes/dev/ui-test` |
-| `routes/dev/ui-test/+page.svelte` | 1 | 10 | candidate — dev-only |
-| `ui/hud/TopBar.svelte` | 1 | 261 | candidate — only barrel export; GameContainer:780 calls it "legacy" (remove barrel line too) |
-| **Remaining dead-code pre-clear** | 8 | **~2,742** | not yet removed |
+| ~~`src/lib/aurelia-hud/` + `/dev/aurelia-hud` route + theme.css~~ | 26 | ~1,476 | **DELETED** (`984c22488`+) — user: "Remove the aurelia-hud demo" |
+| ~~`src/lib/components/ui/_archived/`~~ | 5 | 2,044 | **DELETED** (`d594ae283`) — CombatLogPanel, MultiplayerLobby, GameHUD, TickOrb, TickMetronome |
+| ~~`ui/hud-test/HudLayoutTestMockup.svelte`~~ | 1 | 427 | **DELETED** (`d594ae283`) — with its sole consumer route |
+| ~~`routes/dev/ui-test/+page.svelte`~~ | 1 | 10 | **DELETED** (`d594ae283`) |
+| ~~`ui/hud/TopBar.svelte`~~ + barrel line | 1 | 261 | **DELETED** (`d594ae283`+`3b1e57eda`) — legacy per GameContainer's own comment |
+| ~~`panelSync.syncPanelFromConfig`~~ | — | 17 | **DELETED** (`3b1e57eda`) — found by a repo-wide orphan sweep beyond the original inventory; zero callers, superseded by `settingsState.syncPanelFromConfigPatch` |
 
-> The abandoned HUDs are the fossil record of the "large efforts that yielded little." `aurelia-hud` is
-> gone; `_archived/GameHUD` + `hud-test` remain and can be cleared any time (no design input needed).
+> **ALL identified dead code is now removed (2026-07-17, user: "Clear all dead code possible").** ~4,235
+> LOC across 12 files. A repo-wide orphan-file sweep (every `src/lib/**/*.ts`+`*.svelte` basename checked
+> against the whole tree) found nothing further live-adjacent; two apparent orphans
+> (`bench/browserBenchEntry.ts`, `bench/navigationStub.ts`) are real — wired via `vite.config.js`
+> script-tag/alias, invisible to import-statement search. **The redesign starts from a clean tree.**
 
 ## J. Landing / marketing site — SEPARATE REDESIGN TRACK, but fully itemized here (user Q3)
 
@@ -301,9 +305,9 @@ three theme UIs) and the TWO token roots (app.css 173 + pax-theme.css 163 = 336 
 theming model. The design agent specifies it.
 
 **Standing inputs (not decisions):**
-- **Deletion pre-clear (~4.2k LOC):** aurelia-hud, `_archived`, hud-test, `ui/hud/TopBar` — remove first
-  to clear the ground (needs no design input; can be done any time). *Caveat: keep aurelia-hud readable
-  until Q1 is settled if it becomes System B.*
+- **Deletion pre-clear: DONE.** All identified dead code removed 2026-07-17 (user: "Clear all dead code
+  possible") — aurelia-hud, `_archived`, hud-test, `ui/hud/TopBar`, plus `panelSync.syncPanelFromConfig`
+  found by a follow-up repo-wide orphan sweep. ~4,235 LOC / 12 files. The tree is clean; see §I.
 - **Keep list (inputs, not targets):** design-system `Pax*` (foundation), the settings DATA layer,
   stores (§F), icons (§H).
 - **Source of truth:** this file. Re-measure LOC before acting (code moves).
