@@ -28,6 +28,23 @@ superseding docs:
 
 ---
 
+## 2026-07-17
+
+### Open
+- [ ] **⭐ FULL HUD/UI + Main-Menu REDESIGN (user-commissioned; UI Design Master Agent to be tasked)**
+  `[ui][design][arch]` — inventory dossier delivered:
+  `.agent/docs/game/design/2026-07-17_HUD_UI_INVENTORY_FOR_REDESIGN.md`. Live UI surface ≈37,800 LOC
+  (excl. GameCanvas engine/marketing/map-editor). KEY FINDINGS for the redesign: (1) TWO live HUD
+  families rendered simultaneously by GameContainer (`ui/hud` + `game-hud`, direct overlap: topbar/
+  selected-star/standings/speed each exist twice) — pick one, delete the other; (2) settings is
+  ~16.5k LOC (data layer just rebuilt phases 0-2,4 — redesign the PRESENTATION only); (3) THREE dead
+  HUD rewrites in-tree ~4.2k LOC (aurelia-hud, `_archived`, hud-test, + ui/hud/TopBar) — delete first;
+  (4) theme logic sprawled across ≥6 surfaces + 2 token roots (app.css 173 + pax-theme.css 163 = 336
+  `--pax-*`); (5) hud.css 1,765-line monolith. User decisions pending (dossier §5): HUD family choice,
+  settings-presentation in/out, marketing site in/out, theme-model unification. User: "not at all
+  pleased with the UI; many large efforts yielded very little." See [[ui-design-queue]],
+  [[settings-hud-audit-dossier]], [[design-fix-the-system-not-the-instance]].
+
 ## 2026-07-15
 
 ### Open
