@@ -200,21 +200,21 @@ TypographyTokenPanel, menuTheme). **Theme logic is spread across ≥6 places —
 
 ---
 
-## I. DEAD / EXPERIMENTAL — deletion candidates (~4,220 LOC)
+## I. DEAD / EXPERIMENTAL — deletion candidates
 
 **Grep-confirmed: zero production consumers.**
 
-| Area | Files | LOC | Evidence |
+| Area | Files | LOC | Status |
 |---|---:|---:|---|
-| `src/lib/aurelia-hud/` (+ primitives + theme.css) | 21 +css | 1,417 | only referenced by its own dev route `routes/dev/aurelia-hud` |
-| `routes/dev/aurelia-hud/+page.svelte` | 1 | 59 | dev-only |
-| `src/lib/components/ui/_archived/` | 5 | 2,044 | no importers (CombatLogPanel 850, MultiplayerLobby 654, GameHUD 402, TickOrb 90, TickMetronome 48) |
-| `ui/hud-test/HudLayoutTestMockup.svelte` | 1 | 427 | only `routes/dev/ui-test` |
-| `routes/dev/ui-test/+page.svelte` | 1 | 10 | dev-only |
-| `ui/hud/TopBar.svelte` | 1 | 261 | DEAD — only barrel export; GameContainer:780 calls it "legacy" (remove barrel line too) |
+| ~~`src/lib/aurelia-hud/` + `/dev/aurelia-hud` route + theme.css~~ | 26 | ~1,476 | **DELETED 2026-07-17** (`984c22488`+) — user: "Remove the aurelia-hud demo" |
+| `src/lib/components/ui/_archived/` | 5 | 2,044 | candidate — no importers (CombatLogPanel 850, MultiplayerLobby 654, GameHUD 402, TickOrb 90, TickMetronome 48) |
+| `ui/hud-test/HudLayoutTestMockup.svelte` | 1 | 427 | candidate — only `routes/dev/ui-test` |
+| `routes/dev/ui-test/+page.svelte` | 1 | 10 | candidate — dev-only |
+| `ui/hud/TopBar.svelte` | 1 | 261 | candidate — only barrel export; GameContainer:780 calls it "legacy" (remove barrel line too) |
+| **Remaining dead-code pre-clear** | 8 | **~2,742** | not yet removed |
 
-> **These three abandoned HUDs (aurelia-hud, _archived/GameHUD, hud-test) are the fossil record of the
-> "large efforts that yielded little."** Deleting them first clears the ground and removes false leads.
+> The abandoned HUDs are the fossil record of the "large efforts that yielded little." `aurelia-hud` is
+> gone; `_archived/GameHUD` + `hud-test` remain and can be cleared any time (no design input needed).
 
 ## J. Landing / marketing site — SEPARATE REDESIGN TRACK, but fully itemized here (user Q3)
 
@@ -257,8 +257,8 @@ the HUD/app token roots.
 1. **One composite HUD split across two component libraries by breakpoint** (`game-hud` desktop chrome
    + `ui/hud` mobile/overlay), so the codebase carries two vocabularies for the same roles. NOT two
    visible competing designs (corrected §1). The redesign should unify to ONE vocabulary and ONE
-   responsive strategy. The only *complete alternative HUD designs* in the repo are dead (`aurelia-hud`
-   on mock data; `_archived/GameHUD`) — see §5 Q1 for the A/B decision.
+   responsive strategy. (The `aurelia-hud` alternative prototype was DELETED 2026-07-17 per §5 Q1;
+   `_archived/GameHUD` remains as a dead older HUD.)
 2. **A settings surface of ~16.5k LOC** (24 svelte + 10 ts) dominates the UI. Its DATA layer was just
    rebuilt (registry/store/search — phases 0-2,4); the **presentation** is the redesign target, and it is
    large enough to be its own sub-track. Don't re-touch the data layer.
@@ -280,17 +280,12 @@ the HUD/app token roots.
 
 ## 5. Decisions — numbered, with the user's answers (2026-07-17)
 
-**Q1 — A/B toggle between HUD systems.** *User: "If we have two HUD systems, I need an explicit A/B
-toggle to see the difference."* **Status: framing corrected, decision still needed on what B is.** There
-is only ONE live HUD (the responsive `game-hud`+`ui/hud` composite — §1). The complete *alternative*
-designs are dead: `aurelia-hud` (full shell on MOCK demo state, `/dev/aurelia-hud`, not engine-wired)
-and `_archived/GameHUD` (older). So a real in-game A/B ("current" vs "aurelia") is not a flag — it needs
-`aurelia-hud` wired to `activeGameStore` first (its own `hud-state` has a different shape). **Open
-sub-decision:** (a) wire aurelia-hud to live state behind an in-game toggle (real effort); (b) toggle
-that forces the `ui/hud` mobile pieces to render on desktop, to compare the two *libraries'* takes on
-speed/standings/selected-star (smaller, but compares libraries not designs); (c) just use the existing
-`/dev/aurelia-hud` demo route for eyeballing; (d) the design agent proposes a fresh HUD and we A/B that
-against current. → **awaiting user pick.**
+**Q1 — A/B toggle between HUD systems. RESOLVED (2026-07-17).** The framing correction WAS the
+deliverable: there is only ONE live HUD (the responsive `game-hud`+`ui/hud` composite — §1); there was
+no second *system* to toggle to, only a dead mock-data prototype. *User: "Your answer is all I needed.
+Remove the aurelia-hud demo."* → **`aurelia-hud` DELETED** (dir + `/dev/aurelia-hud` route +
+`aurelia-hud-theme.css` + the app.css `@source`/`@import` lines). No A/B toggle built. If an A/B is
+wanted later it becomes current-vs-the-new-design, wired to live state from the start.
 
 **Q2 — Is settings *presentation* in scope?** *User: "Yes presentation is in scope. ALL UI."*
 **ANSWERED: YES — all UI, settings presentation included** (~16.5k LOC, §B). The settings DATA layer

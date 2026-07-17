@@ -2,9 +2,7 @@
 @source "./routes";
 @source "./lib/components";
 @source "./lib/design-system";
-@source "./lib/aurelia-hud";
 @import "./lib/design-system/pax-theme.css";
-@import "./lib/aurelia-hud/aurelia-hud-theme.css";
 @import "./lib/styles/hud.css";
 @import "./lib/components/landing-site/site.css";
 
