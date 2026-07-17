@@ -482,23 +482,6 @@ export function hydrateConfigFromPersistedUiSettings(): {
     return { panel };
 }
 
-/**
- * Read GAME_CONFIG into panel object.
- * Used after theme apply or config import to sync display.
- */
-export function syncPanelFromConfig(
-    existing: Record<string, any>,
-    configSource: Record<string, any> = GAME_CONFIG as Record<string, any>,
-): Record<string, any> {
-    const updated = { ...existing };
-    for (const mapping of RESOLVED_PANEL_CONFIG_MAP) {
-        const configVal = configSource[mapping.configKey];
-        if (configVal === undefined) continue;
-        updated[mapping.panelKey] = configVal;
-    }
-    return updated;
-}
-
 // ── Anim Lock Persistence ───────────────────────────────────────────────────
 
 export function loadAnimLockRatios(): Record<string, number | null> {

@@ -6,4 +6,3 @@ export { default as StarInfoPanel } from "./StarInfoPanel.svelte";
 export { default as StarNav } from "./StarNav.svelte";
 export { default as StarsPanel } from "./StarsPanel.svelte";
 export { default as StatusBar } from "./StatusBar.svelte";
-export { default as TopBar } from "./TopBar.svelte";
