@@ -32,10 +32,24 @@ GameContainer.svelte (2173)                         ← the in-game shell / orch
 └─ SettingsRibbon → GameSettingsPanel (1890) → 23 settings files ← §B
 ```
 
-**Two HUD families are BOTH live.** `GameContainer` imports panels from `ui/hud/` *and*
-`game-hud/` in the same render. Any past redesign that touched one family left the other in place —
-this is the [[settings-hud-audit-dossier]] "legacy ui/hud vs game-hud coexistence" note, now confirmed
-at the import site (`GameContainer.svelte:13-35`).
+**CORRECTED FRAMING (2026-07-17, after reading the markup — supersedes an earlier oversimplification
+in this doc's history):** the two families are NOT two competing designs rendered on top of each
+other. They are a **responsive split of ONE composite HUD**:
+- **`game-hud` = the desktop chrome** — HudTopbar, the right sidebar (PlayerStandingsPanel,
+  GameSpeedPanel, SelectedStarPanel, QuickAccessDock), BottomCommandBar, SettingsRibbon.
+- **`ui/hud` = the mobile + overlay pieces** — a mobile-only controls bar (SpeedControls + StarNav,
+  `.area-controls-bar`), a mobile drawer (Leaderboard), the canvas StarInfoPanel overlay, the
+  secondary StatusBar strip, and ResultsModal.
+The overlapping roles (speed, standings, selected-star) each have a **desktop impl and a mobile impl**,
+CSS-media-query gated, so on any one screen you see ONE of the pair — not both. This is two component
+libraries built at different times, split by breakpoint, NOT "pick one and delete the other."
+(Verified: `GameContainer.svelte:786-1180`; `.area-controls-bar` is commented MOBILE-ONLY at :868;
+Leaderboard is inside `mobile-drawer` at :1161-1178.)
+
+**The genuinely separate, complete alternative HUD DESIGNS are the DEAD ones (§I):** `aurelia-hud`
+(a full HUD shell — `PaxHud.svelte` — driven by MOCK demo state, Tailwind-based, viewable today only
+at `/dev/aurelia-hud`, NOT wired to the engine) and `_archived/GameHUD.svelte` (an older complete HUD).
+These are the real "System B" candidates — see §5 Q1.
 
 ---
 
@@ -97,8 +111,10 @@ at the import site (`GameContainer.svelte:13-35`).
 | HudIconButton / HudPanel / HudRail / BottomCommandBar / QuickAccessDock | 166 | primitives + docks |
 | viewModels.ts / types.ts / index.ts | 214 | view-model builders + types |
 
-> **Functional overlap between the two families is direct:** topbar, selected-star, standings, and
-> speed each exist twice. A redesign should collapse to ONE family.
+> **The overlap is RESPONSIVE, not redundant (corrected — see §1):** the desktop chrome (`game-hud`)
+> and the mobile/overlay pieces (`ui/hud`) render the same roles at different breakpoints, media-query
+> gated. A redesign should still unify to ONE component vocabulary, but the two are not two visible
+> copies of the same panel — they are the desktop and mobile halves of one HUD.
 
 **Shell:** `GameContainer.svelte` (2,173) — orchestration + inline HUD layout + a large `<style>`.
 `GameCanvas.svelte` (5,141) is the **PixiJS render engine** (territory/ships/stars drawing), not UI
@@ -200,13 +216,37 @@ TypographyTokenPanel, menuTheme). **Theme logic is spread across ≥6 places —
 > **These three abandoned HUDs (aurelia-hud, _archived/GameHUD, hud-test) are the fossil record of the
 > "large efforts that yielded little."** Deleting them first clears the ground and removes false leads.
 
-## J. Landing / marketing site (SEPARATE concern — decide in/out)
+## J. Landing / marketing site — SEPARATE REDESIGN TRACK, but fully itemized here (user Q3)
 
-`components/landing-site/` 15 files, 2,202 (Hero 269, SiteFooter 245, SiteHeader 230, HowItPlays 221,
-Pillars 167, StudioBand 156, Starfield 148, StarTypes 146, DevlogTeaser 133, Newsletter 131, StoryBand 95,
-FinalCta 85, PageHero 70, LandingPage 55, SiteMark 51) + `site.css` 301 + marketing routes 1,352 (press,
-game, about, community, devlog, +layout). This is the public website, a different visual identity — likely
-its own redesign track (see [[marketing-site]]). **Decision needed: in scope or not.**
+The public website: its own visual identity and its own redesign effort (see [[marketing-site]]). NOT
+part of the HUD/UI redesign, but inventoried in full here per the user's instruction. Total **3,905 LOC**.
+
+**Components — `src/lib/components/landing-site/` (15 files, 2,202):**
+
+| File | LOC | Role |
+|---|---:|---|
+| Hero.svelte | 269 | landing hero |
+| SiteFooter.svelte | 245 | footer |
+| SiteHeader.svelte | 230 | site nav header |
+| HowItPlays.svelte | 221 | how-it-plays section |
+| Pillars.svelte | 167 | feature pillars |
+| StudioBand.svelte | 156 | studio band |
+| Starfield.svelte | 148 | animated starfield bg |
+| StarTypes.svelte | 146 | star-types showcase |
+| DevlogTeaser.svelte | 133 | devlog teaser |
+| Newsletter.svelte | 131 | signup |
+| StoryBand.svelte | 95 | story band |
+| FinalCta.svelte | 85 | final call-to-action |
+| PageHero.svelte | 70 | inner-page hero |
+| LandingPage.svelte | 55 | page composer / entry (root `/` renders this) |
+| SiteMark.svelte | 51 | logo/wordmark |
+
+**Marketing routes — `src/routes/(marketing)/` (1,352):** press/+page 410 · game/+page 311 · about/+page
+265 · community/+page 218 · devlog/+page 125 · +layout 23. Plus root `src/routes/+page.svelte` (50) which
+renders `LandingPage`.
+
+**CSS:** `src/lib/components/landing-site/site.css` (301) — marketing-only tokens/styles, separate from
+the HUD/app token roots.
 
 ## K. Map editor (OUT of scope) — `routes/map-editor` 1,363 + `components/map-editor/` 5,886 = 7,249. Separate tool.
 
@@ -214,9 +254,11 @@ its own redesign track (see [[marketing-site]]). **Decision needed: in scope or 
 
 ## 4. Structural findings the redesign MUST address (why past efforts stalled)
 
-1. **Two live HUD component families** (`ui/hud` + `game-hud`) with direct functional overlap (topbar,
-   selected-star, standings, speed each exist twice). Redesigns touched one, the other stayed. **Pick one
-   target family (or a fresh one) and delete the loser wholesale.**
+1. **One composite HUD split across two component libraries by breakpoint** (`game-hud` desktop chrome
+   + `ui/hud` mobile/overlay), so the codebase carries two vocabularies for the same roles. NOT two
+   visible competing designs (corrected §1). The redesign should unify to ONE vocabulary and ONE
+   responsive strategy. The only *complete alternative HUD designs* in the repo are dead (`aurelia-hud`
+   on mock data; `_archived/GameHUD`) — see §5 Q1 for the A/B decision.
 2. **A settings surface of ~16.5k LOC** (24 svelte + 10 ts) dominates the UI. Its DATA layer was just
    rebuilt (registry/store/search — phases 0-2,4); the **presentation** is the redesign target, and it is
    large enough to be its own sub-track. Don't re-touch the data layer.
@@ -236,16 +278,40 @@ its own redesign track (see [[marketing-site]]). **Decision needed: in scope or 
 
 ---
 
-## 5. Data items to hand the design agent (checklist)
+## 5. Decisions — numbered, with the user's answers (2026-07-17)
 
-- [ ] **Family decision:** keep `game-hud`, keep `ui/hud`, or fresh build? (Recommend: one target, delete other.)
-- [ ] **Scope decision:** is the settings *presentation* in this redesign, or a follow-on track? (~16.5k LOC.)
-- [ ] **Marketing site (§J):** in scope or separate track?
-- [ ] **Theme model:** unify the ≥6 theme surfaces + 2 token roots into one system — design agent to specify.
-- [ ] **Deletion pre-clear:** aurelia-hud, `_archived`, hud-test, (TopBar) — confirm + remove first (~4.2k LOC).
-- [ ] **Keep list:** design-system `Pax*` (foundation), settings DATA layer (settingsStore/registry/search —
-      just rebuilt), stores (F), icons (H). These are inputs, not redesign targets.
-- [ ] **Inventory source of truth:** this file. Re-measure LOC before acting (code moves).
+**Q1 — A/B toggle between HUD systems.** *User: "If we have two HUD systems, I need an explicit A/B
+toggle to see the difference."* **Status: framing corrected, decision still needed on what B is.** There
+is only ONE live HUD (the responsive `game-hud`+`ui/hud` composite — §1). The complete *alternative*
+designs are dead: `aurelia-hud` (full shell on MOCK demo state, `/dev/aurelia-hud`, not engine-wired)
+and `_archived/GameHUD` (older). So a real in-game A/B ("current" vs "aurelia") is not a flag — it needs
+`aurelia-hud` wired to `activeGameStore` first (its own `hud-state` has a different shape). **Open
+sub-decision:** (a) wire aurelia-hud to live state behind an in-game toggle (real effort); (b) toggle
+that forces the `ui/hud` mobile pieces to render on desktop, to compare the two *libraries'* takes on
+speed/standings/selected-star (smaller, but compares libraries not designs); (c) just use the existing
+`/dev/aurelia-hud` demo route for eyeballing; (d) the design agent proposes a fresh HUD and we A/B that
+against current. → **awaiting user pick.**
+
+**Q2 — Is settings *presentation* in scope?** *User: "Yes presentation is in scope. ALL UI."*
+**ANSWERED: YES — all UI, settings presentation included** (~16.5k LOC, §B). The settings DATA layer
+(settingsStore / registry / search / persistence) was just rebuilt and is an INPUT, not a target.
+
+**Q3 — Marketing/landing site in scope?** *User: "landing page is separate for redesign; but include it
+fully in the audit."* **ANSWERED: SEPARATE redesign track; fully itemized in §J** (done).
+
+**Q4 — Unify the theme model?** *User: "Yes unify, that was always my intent."* **ANSWERED: YES.**
+Collapse the ≥6 theme surfaces (design-system `pax-theme.css`+`theme.ts`/`themeState`,
+`config/categoryThemes.ts` 763, `config/themes.ts`, main-menu `menuTheme.ts` 577, `themeStore`, and the
+three theme UIs) and the TWO token roots (app.css 173 + pax-theme.css 163 = 336 `--pax-*`) into one
+theming model. The design agent specifies it.
+
+**Standing inputs (not decisions):**
+- **Deletion pre-clear (~4.2k LOC):** aurelia-hud, `_archived`, hud-test, `ui/hud/TopBar` — remove first
+  to clear the ground (needs no design input; can be done any time). *Caveat: keep aurelia-hud readable
+  until Q1 is settled if it becomes System B.*
+- **Keep list (inputs, not targets):** design-system `Pax*` (foundation), the settings DATA layer,
+  stores (§F), icons (§H).
+- **Source of truth:** this file. Re-measure LOC before acting (code moves).
 
 *All LOC `wc -l`; all live/dead status grep-verified 2026-07-17. GameCanvas (5,141) is the Pixi render
 engine, not UI markup.*
