@@ -1,0 +1,5 @@
+{
+  "$schema": "https://docs.devin.ai/config.schema.json",
+  "mcpServers": {},
+  "_comment": "Local, gitignored MCP overrides. Copy any server block from .devin/config.json here and add personal credentials. Example: { \"context7\": { \"url\": \"https://mcp.context7.com/mcp\", \"headers\": { \"CONTEXT7_API_KEY\": \"your-free-key\" } } }"
+}

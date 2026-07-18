@@ -1,0 +1,17 @@
+{
+  "$schema": "https://docs.devin.ai/config.schema.json",
+  "mcpServers": {
+    "context7": {
+      "url": "https://mcp.context7.com/mcp",
+      "transport": "http"
+    },
+    "github": {
+      "url": "https://api.githubcopilot.com/mcp/readonly/",
+      "transport": "http"
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"]
+    }
+  }
+}

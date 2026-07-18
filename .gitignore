@@ -18,3 +18,6 @@ pax-fluxia/.agent-harness/
 
 # git worktrees (local linked checkouts of other branches)
 .claude/worktrees/
+
+# Devin CLI local MCP secrets (project-scoped server defs live in .devin/config.json)
+.devin/config.local.json
