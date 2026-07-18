@@ -1,7 +1,7 @@
 ---
 date created: 2026-06-13
-last updated: 2026-06-13
-last updated by: AI
+last updated: 2026-07-18
+last updated by: gpt-ui-cutover (Phase 1)
 relevant prior docs:
   - .agent/docs/sessions/2026-06-13/2026-06-13_design-system-and-polish-plan.md
 superseding docs:
@@ -19,8 +19,13 @@ which is out of scope here.
 | Tier | Prefix | Lives in | Who sets it | Who reads it |
 |------|--------|----------|-------------|--------------|
 | 1 — Primitive / theme | `--pax-*` | `design-system/pax-theme.css` (inside `[data-pax-theme]` blocks) | The active theme | Tier 2 only |
-| 2 — Semantic / role | `--pax-ui-*` | `app.css :root` | Maps Tier 1 → roles | Components |
+| 2 — Semantic / role | `--pax-ui-*` | `design-system/pax-theme.css` (shared `:root`/`@theme` block) | Maps Tier 1 → roles | Components |
 | 3 — Component | `--<component>-*` | the component's own `<style>` | The component | That component |
+
+**Single CSS token root:** `pax-theme.css` owns both Tier 1 and Tier 2.
+`app.css` contains only imports, fonts, reset, and global utilities — it
+**consumes** `--pax-ui-*` via `var()` but defines none. This is guarded by
+`design-system/tokenManifest.test.ts`.
 
 **The rule:** components consume **Tier 2 (`--pax-ui-*`) only**. Never a raw value,
 never `--pax-*` directly, never a deprecated third-namespace token. A component
@@ -86,10 +91,15 @@ from the design system (e.g. `--color-accent-cyan: #00ffff` vs the Aurelia teal
 will shift those surfaces onto the system palette/scale — an intended congruence
 change that needs per-surface visual verification.
 
-## Status (2026-06-13)
-- **Namespace unified to one `--pax-*` family.** The semantic tier was renamed
-  `--hud-*` → `--pax-ui-*` across all definitions and 768 references (build PASS).
-  The in-game HUD now reads a single coherent namespace.
+## Status (2026-07-18 — Phase 1 token-root consolidation)
+- **Single CSS token root.** Tier 2 (`--pax-ui-*`) moved from `app.css :root`
+  into `design-system/pax-theme.css` so both tiers live in one file.
+  `app.css` now only consumes `--pax-ui-*` via `var()` — it defines none.
+  Guarded by `design-system/tokenManifest.test.ts` (4 tests: Tier-2 defs in
+  pax-theme.css, none in app.css, both skins present, every Tier-2 maps to a
+  Tier-1 primitive with no raw literals).
+- **Namespace unified to one `--pax-*` family** (2026-06-13): the semantic tier
+  was renamed `--hud-*` → `--pax-ui-*` across all definitions and 768 references.
 - Tiers 1 and 2 are wired; z-index and border-width axes added.
 - The Tailwind `@theme` block at the top of `pax-theme.css` generates utility
   classes for the HUD-tier primitives. It is vestigial under the chosen
@@ -98,7 +108,8 @@ change that needs per-surface visual verification.
 - **Remaining deprecated third namespace** (`--color-*`, `--space-*`, `--text-*`,
   `--radius-sm/md/lg`, `--transition-*`, `--font-display/data/body`, `--glass-*`,
   `--glow-*`, `--border-subtle/accent`) is now confined to: the **landing/marketing
-  site** (`lib/components/landing-site/*`, ~148 refs), **archived dead code**
-  (`lib/components/ui/_archived/*`, ~40 refs), one live control (`RangeDual.svelte`),
-  and the demoted `aurelia-hud` package. Disposition of the landing site is a
-  scope decision (its values intentionally diverge from the in-game HUD).
+  site** (`lib/components/landing-site/*`, ~148 refs), and one live control
+  (`RangeDual.svelte`). The `aurelia-hud` package and `ui/_archived` dead code
+  that carried deprecated refs were deleted 2026-07-17. Disposition of the
+  landing site is a scope decision (its values intentionally diverge from the
+  in-game HUD).

@@ -226,89 +226,10 @@
    PAX FLUXIA - Cyber-Flux Design System
    ========================================================================== */
 
-/* --------------------------------------------------------------------------
-   CSS Custom Properties (Design Tokens)
-   -------------------------------------------------------------------------- */
-:root {
-  /* HUD Surface System */
-  --pax-ui-topbar-height: var(--pax-topbar-height);
-  --pax-ui-font-brand: var(--pax-font-brand);
-  --pax-ui-font-ui: var(--pax-font-ui);
-  --pax-ui-font-label: var(--pax-font-label);
-  --pax-ui-font-copy: var(--pax-font-copy);
-  --pax-ui-font-data: var(--pax-font-data);
-  --pax-ui-font-display: var(--pax-font-display);
-  --pax-ui-font-techno: var(--pax-font-techno);
-  --pax-ui-font-body: var(--pax-font-copy);
-  --pax-ui-accent: var(--pax-color-accent-cyan);
-  --pax-ui-accent-strong: var(--pax-color-accent-cyan-strong);
-  --pax-ui-accent-warm: var(--pax-color-accent-gold);
-  --pax-ui-accent-warm-strong: var(--pax-color-accent-gold-strong);
-  --pax-ui-danger: var(--pax-color-danger);
-  --pax-ui-success: var(--pax-color-success);
-  --pax-ui-warning: var(--pax-color-warning);
-  --pax-ui-accent-dim: color-mix(in srgb, var(--pax-ui-accent) 55%, transparent);
-  --pax-ui-text-strong: var(--pax-color-text-strong);
-  --pax-ui-text: var(--pax-color-text);
-  --pax-ui-text-soft: var(--pax-color-text-muted);
-  --pax-ui-text-dim: var(--pax-color-text-dim);
-  --pax-ui-panel-bg: var(--pax-surface-panel);
-  --pax-ui-panel-bg-strong: var(--pax-surface-panel-strong);
-  --pax-ui-panel-bg-muted: var(--pax-surface-panel-muted);
-  --pax-ui-button-bg: var(--pax-surface-control);
-  --pax-ui-button-bg-hover: var(--pax-surface-control-hover);
-  --pax-ui-button-bg-active: var(--pax-surface-control-active);
-  --pax-ui-border: var(--pax-border-panel);
-  --pax-ui-border-strong: var(--pax-border-panel-strong);
-  --pax-ui-border-warm: var(--pax-border-panel-warm);
-  --pax-ui-border-cool: var(--pax-border-panel-cool);
-  --pax-ui-border-gradient: var(--pax-border-panel-gradient);
-  --pax-ui-control-border-gradient: var(--pax-border-control-gradient);
-  --pax-ui-divider: var(--pax-border-divider);
-  --pax-ui-shadow: var(--pax-shadow-panel);
-  --pax-ui-shadow-soft: var(--pax-shadow-panel-soft);
-  --pax-ui-glow: var(--pax-shadow-glow);
-  --pax-ui-radius-xs: var(--pax-radius-xs);
-  --pax-ui-radius-sm: var(--pax-radius-sm);
-  --pax-ui-radius-md: var(--pax-radius-md);
-  --pax-ui-radius-lg: var(--pax-radius-lg);
-  --pax-ui-rounded-corner-xs: var(--pax-rounded-corner-xs);
-  --pax-ui-rounded-corner-sm: var(--pax-rounded-corner-sm);
-  --pax-ui-rounded-corner-md: var(--pax-rounded-corner-md);
-  --pax-ui-rounded-corner-lg: var(--pax-rounded-corner-lg);
-  --pax-ui-cut-corner-xs: var(--pax-ui-rounded-corner-xs);
-  --pax-ui-cut-corner-sm: var(--pax-ui-rounded-corner-sm);
-  --pax-ui-cut-corner-md: var(--pax-ui-rounded-corner-md);
-  --pax-ui-cut-corner-lg: var(--pax-ui-rounded-corner-lg);
-  --pax-ui-pad-xs: var(--pax-pad-xs);
-  --pax-ui-pad-sm: var(--pax-pad-sm);
-  --pax-ui-pad-md: var(--pax-pad-md);
-  --pax-ui-pad-lg: var(--pax-pad-lg);
-  --pax-ui-gap-xs: var(--pax-gap-xs);
-  --pax-ui-gap-sm: var(--pax-gap-sm);
-  --pax-ui-gap-md: var(--pax-gap-md);
-  --pax-ui-gap-lg: var(--pax-gap-lg);
-  --pax-ui-icon-size: var(--pax-icon-size);
-  --pax-ui-icon-stroke: var(--pax-icon-stroke);
-  --pax-ui-border-width: var(--pax-border-width);
-  --pax-ui-border-width-strong: var(--pax-border-width-strong);
-  --pax-ui-motion-fast: var(--pax-motion-fast);
-  --pax-ui-motion-base: var(--pax-motion-base);
-  --pax-ui-motion-slow: var(--pax-motion-slow);
-  --pax-ui-z-base: var(--pax-z-base);
-  --pax-ui-z-raised: var(--pax-z-raised);
-  --pax-ui-z-rail: var(--pax-z-rail);
-  --pax-ui-z-panel: var(--pax-z-panel);
-  --pax-ui-z-overlay: var(--pax-z-overlay);
-  --pax-ui-z-dropdown: var(--pax-z-dropdown);
-  --pax-ui-z-modal: var(--pax-z-modal);
-  --pax-ui-z-toast: var(--pax-z-toast);
-  --pax-ui-type-scale: var(--pax-type-scale);
-  --pax-ui-title-scale: var(--pax-type-title-scale);
-  --pax-ui-label-scale: var(--pax-type-label-scale);
-  --pax-ui-data-scale: var(--pax-type-data-scale);
-  --pax-ui-icon-scale: var(--pax-icon-scale);
-}
+/*
+ * Design tokens now live in src/lib/design-system/pax-theme.css.
+ * app.css contains only global resets, font-faces, and utility classes.
+ */
 
 /* --------------------------------------------------------------------------
    Base Reset & Global Styles
