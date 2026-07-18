@@ -145,3 +145,48 @@ export function parseConfigImport(
 
     return { ok: true, patch, applied, skipped, typeErrors };
 }
+
+const PROTECTED_CONTENT_KEYS = new Set([
+    "pax_savedMaps",
+    "pax_savedGames",
+    "pax-game-themes",
+    "pax_composedThemes",
+    "pax_themePresets",
+]);
+
+const PROTECTED_CONTENT_PREFIXES = [
+    "pax_categoryThemes_",
+    "pax_starredThemes_",
+    "pax-map-editor-",
+] as const;
+
+export function isProtectedContentStorageKey(key: string): boolean {
+    return (
+        PROTECTED_CONTENT_KEYS.has(key) ||
+        PROTECTED_CONTENT_PREFIXES.some((prefix) => key.startsWith(prefix))
+    );
+}
+
+export function clearResettableSettingsStorage(
+    storage: Pick<Storage, "key" | "length" | "removeItem">,
+): { removedKeys: string[]; preservedKeys: string[] } {
+    const keys = Array.from({ length: storage.length }, (_, index) => storage.key(index))
+        .filter((key): key is string => key != null);
+    const removedKeys: string[] = [];
+    const preservedKeys: string[] = [];
+
+    for (const key of keys) {
+        if (!key.startsWith("pax") && !key.startsWith("PAX")) continue;
+        if (isProtectedContentStorageKey(key)) {
+            preservedKeys.push(key);
+            continue;
+        }
+        storage.removeItem(key);
+        removedKeys.push(key);
+    }
+
+    return {
+        removedKeys: removedKeys.sort(),
+        preservedKeys: preservedKeys.sort(),
+    };
+}

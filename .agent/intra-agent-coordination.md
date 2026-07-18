@@ -1,7 +1,7 @@
 ---
 date created: 2026-06-21
-last updated: 2026-06-21
-last updated by: opus-territory (Claude Opus 4.8)
+last updated: 2026-07-18
+last updated by: gpt-ui-cutover
 ---
 
 # Intra-Agent Coordination Board
@@ -23,8 +23,7 @@ Pick a short stable handle: `model-lane`, e.g. `opus-web`, `sonnet-territory`.
 
 | Handle | Paths / globs | Task | Started |
 | ------ | ------------- | ---- | ------- |
-| `sonnet-hud` | `pax-fluxia/src/lib/design-system/**`, `pax-fluxia/src/lib/components/ui/GameSettingsPanel.svelte`, `panelSync.ts`, `TypographyTokenPanel.svelte` | Settings bug-fix round: tooltip typography, dropdown contrast, deselect→hide subpanel + transitions, stale-key cleanup, value persistence | 2026-06-25 |
-| `opus-territory` | `components/ui/settings/**`, `GameSettingsPanel.svelte`, `settingsDefs.ts`, `panelSync.ts`, settings-related `design-system/**`, new dev harness route | USER-DIRECTED full Settings surface audit + refactor: de-dup, unified always-present render-mode chips (UI never changes with active mode), total chip-gating (no orphan blocks), bounded subsections, kill dead controls/#if/Preset Rows. Territory&Render first, then all categories. SUPERSEDES the stale 2026-06-25 settings round. | 2026-06-29 |
+| `gpt-ui-cutover` | `pax-fluxia/src/app.css`, `pax-fluxia/src/lib/components/{game,hud,game-hud,ui/hud}/**`, `pax-fluxia/src/lib/design-system/**`, `pax-fluxia/src/routes/dev/settings-slice/**`, UI test/tooling config, `.agent/docs/**` | Production HUD/UI/menu/settings cutover — Phase 0 WIP disposition, parity ledger, verification baseline | 2026-07-18 |
 
 ## Log (newest first)
 

@@ -1,7 +1,7 @@
 ---
 date created: 2026-07-01
-last updated: 2026-07-01
-last updated by: AI
+last updated: 2026-07-18
+last updated by: gpt-ui-cutover
 relevant prior docs:
   - .agent/AGENT.md (RULE 0.5 governs this file)
 superseding docs:
@@ -27,6 +27,14 @@ superseding docs:
 3. Newest date on top. Missing today's heading? Create it.
 
 ---
+
+## 2026-07-18
+
+### Open
+- [ ] **Execute the approved HUD/UI/menu/settings production cutover megaplan** `[ui][design][arch][production]` — implementation authorized by user ("Ok, proceed with plan, full speed ahead!"). Plan: `C:\Users\mikep\.windsurf\plans\hud-ui-menu-settings-production-cutover-53c1f1.md`. Phase 0 starts with interrupted-WIP disposition, parity ledger, protected-persistence inventory, and browser/accessibility tooling; no destructive package removal without immediate explicit confirmation.
+
+### Done
+- [x] **P0: Fix destructive "Reset All Settings" data loss** `[settings][persistence][critical]` — verified in `ConfigTransferPanel.svelte`: it removed every `pax*` key, including `pax_savedMaps`, `pax_savedGames`, and gameplay preset payloads/metadata, while the UI said saved games were unaffected. Fixed with `clearResettableSettingsStorage` in `configTransfer.ts` (allowlisted protected content + map-editor storage, byte-preservation tests); `ConfigTransferPanel` now calls it. svelte-check 0; 13 configTransfer tests pass.
 
 ## 2026-07-17
 

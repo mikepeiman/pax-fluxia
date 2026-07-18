@@ -3,6 +3,7 @@ import {
     buildConfigMarkdown,
     parseConfigImport,
     CONFIG_EXPORT_SECTIONS,
+    clearResettableSettingsStorage,
 } from './configTransfer';
 
 const EXISTING = {
@@ -77,6 +78,70 @@ describe('parseConfigImport — the typed merge', () => {
             const result = parseConfigImport(raw, EXISTING);
             expect(result.ok, raw).toBe(false);
         }
+    });
+});
+
+describe('clearResettableSettingsStorage', () => {
+    function createStorage(entries: Record<string, string>): Storage {
+        const data = new Map(Object.entries(entries));
+        return {
+            get length() {
+                return data.size;
+            },
+            clear: () => data.clear(),
+            getItem: (key) => data.get(key) ?? null,
+            key: (index) => Array.from(data.keys())[index] ?? null,
+            removeItem: (key) => void data.delete(key),
+            setItem: (key, value) => void data.set(key, String(value)),
+        };
+    }
+
+    it('preserves saved maps, games, gameplay presets, and map-editor content byte-for-byte', () => {
+        const protectedEntries = {
+            pax_savedMaps: '{"map":"exact bytes"}',
+            pax_savedGames: '{"game":"exact bytes"}',
+            'pax-game-themes': '[{"name":"user preset"}]',
+            pax_composedThemes: '[{"name":"composed"}]',
+            pax_categoryThemes_visuals: '[{"name":"category"}]',
+            pax_starredThemes_visuals: '["category"]',
+            pax_themePresets: '[{"name":"legacy preset"}]',
+            'pax-map-editor-autosaves-v1': '[{"revision":1}]',
+            'pax-map-editor-recent-v1': '["map-a"]',
+        };
+        const storage = createStorage({
+            ...protectedEntries,
+            'pax-ui-theme-id': 'cyber-flux',
+            'pax-fluxia-panel-settings': '{"tickInterval":500}',
+            'pax-sidebar-width': '520',
+            unrelated_app_key: 'untouched',
+        });
+
+        clearResettableSettingsStorage(storage);
+
+        for (const [key, value] of Object.entries(protectedEntries)) {
+            expect(storage.getItem(key), key).toBe(value);
+        }
+        expect(storage.getItem('unrelated_app_key')).toBe('untouched');
+    });
+
+    it('removes Pax settings and UI preferences without touching unrelated storage', () => {
+        const storage = createStorage({
+            'pax-ui-theme-id': 'cyber-flux',
+            'pax-fluxia-panel-settings': '{"tickInterval":500}',
+            'pax-sidebar-width': '520',
+            PAX_LEGACY_SETTING: '1',
+            unrelated_app_key: 'untouched',
+        });
+
+        const result = clearResettableSettingsStorage(storage);
+
+        expect(result.removedKeys).toEqual([
+            'PAX_LEGACY_SETTING',
+            'pax-fluxia-panel-settings',
+            'pax-sidebar-width',
+            'pax-ui-theme-id',
+        ]);
+        expect(storage.getItem('unrelated_app_key')).toBe('untouched');
     });
 });
 

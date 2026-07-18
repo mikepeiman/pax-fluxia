@@ -2,7 +2,11 @@
     import "./panel-shared.css";
     import { settingsStore } from "../settingsStore.svelte";
     import { GAME_CONFIG } from "$lib/config/game.config";
-    import { buildConfigMarkdown, parseConfigImport } from "../configTransfer";
+    import {
+        buildConfigMarkdown,
+        clearResettableSettingsStorage,
+        parseConfigImport,
+    } from "../configTransfer";
     import { exportConfigJSON } from "../panelSync";
     import { PaxHudButton } from "$lib/design-system";
 
@@ -80,7 +84,7 @@
         reader.readAsText(file);
     }
 
-    /** Nuclear reset: clear ALL pax-* localStorage keys and reload into factory defaults. */
+    /** Clear Pax settings/preferences while preserving user-created content. */
     function resetAllSettings() {
         if (!resetArmed) {
             resetArmed = true;
@@ -88,13 +92,7 @@
             resetDisarmTimer = setTimeout(() => (resetArmed = false), 4000);
             return;
         }
-        const keysToRemove: string[] = [];
-        for (let i = 0; i < localStorage.length; i++) {
-            const k = localStorage.key(i);
-            if (k && (k.startsWith("pax") || k.startsWith("PAX")))
-                keysToRemove.push(k);
-        }
-        keysToRemove.forEach((k) => localStorage.removeItem(k));
+        clearResettableSettingsStorage(localStorage);
         window.location.reload();
     }
 </script>
@@ -125,8 +123,8 @@
 <section>
     <h4 class="sub-heading">Reset</h4>
     <p class="config-io-hint">
-        Clears every saved setting (config values, themes, panel layout) and
-        reloads the game with factory defaults. Saved games are not affected.
+        Clears saved settings and interface preferences, then reloads factory
+        defaults. Saved maps, games, presets, and map-editor work are preserved.
     </p>
     <div class="actions-row">
         <PaxHudButton
