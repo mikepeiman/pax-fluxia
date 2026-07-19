@@ -21,3 +21,10 @@ pax-fluxia/.agent-harness/
 
 # Devin CLI local MCP secrets (project-scoped server defs live in .devin/config.json)
 .devin/config.local.json
+
+# Playwright + axe UI cutover suite (generated artifacts)
+pax-fluxia/test-results/
+pax-fluxia/playwright-report/
+pax-fluxia/blob-report/
+pax-fluxia/.playwright/
+pax-fluxia/playwright/.cache/
