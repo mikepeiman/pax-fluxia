@@ -50,6 +50,11 @@
     TICK_INTERVAL_CHANGED_EVENT,
   } from "$lib/components/ui/panelSync";
   import { animationStore } from "$lib/stores/animationStore.svelte";
+  import {
+    uiPreferences,
+    hydrateUiPreferences,
+    setUiPreference,
+  } from "$lib/stores/uiPreferences.svelte";
   import { pushHomeRouteDiagEvent } from "$lib/utils/homeRouteDiagnostics";
   import { GAME_CONFIG } from "$lib/config/game.config";
   import {
@@ -59,6 +64,9 @@
 
   if (typeof window !== "undefined") {
     hydrateConfigFromPersistedUiSettings();
+    // Seed UI-owned presentation prefs (rail sides, widths, collapse, etc.)
+    // before the $state initializers below read them. Idempotent + browser-guarded.
+    hydrateUiPreferences();
   }
 
   let gameCanvasRef: any = $state(null);
@@ -113,10 +121,9 @@
   let showAudioSettings = $state(false);
   let showSurrenderModal = $state(false);
   let showRestartConfirm = $state(false);
-  let showStarInfoPanel = $state(
-    typeof localStorage !== "undefined" &&
-      localStorage.getItem("pax-show-star-info") === "true",
-  );
+  // Owned by uiPreferences; the Star Inspector settings toggle writes the store,
+  // this reads it (replaces the old pax-star-info-toggle window event).
+  const showStarInfoPanel = $derived(uiPreferences.showStarInfo);
 
   // ── Settings panel toggle (secondary column) ──
   // On mobile (<1024px), always start closed regardless of localStorage
@@ -125,19 +132,6 @@
   let isMobileNow = $state(isMobileAtLoad);
 
   type DockSide = "left" | "right";
-
-  function loadBooleanPreference(key: string, fallback: boolean): boolean {
-    if (typeof localStorage === "undefined") return fallback;
-    const value = localStorage.getItem(key);
-    if (value == null) return fallback;
-    return value === "true";
-  }
-
-  function loadDockSidePreference(key: string, fallback: DockSide): DockSide {
-    if (typeof localStorage === "undefined") return fallback;
-    const value = localStorage.getItem(key);
-    return value === "left" || value === "right" ? value : fallback;
-  }
 
   // Track mobile state reactively for FAB visibility
   if (typeof window !== "undefined") {
@@ -150,30 +144,19 @@
     // Settings ribbon is a permanent fixture on desktop (no hide toggle).
     !isMobileAtLoad,
   );
-  let sidebarSide = $state<DockSide>(
-    loadDockSidePreference("pax-sidebar-side", "right"),
-  );
-  let controlsSide = $state<DockSide>(
-    loadDockSidePreference("pax-controls-side", "left"),
-  );
-  let leaderboardCollapsed = $state(
-    loadBooleanPreference("pax-leaderboard-collapsed", false),
-  );
-  let settingsRibbonExpanded = $state(
-    loadBooleanPreference("pax-settings-ribbon-expanded", true),
-  );
-  // Auto-pause: pause game when settings open, restore on close
-  let pauseOnSettings = $state(
-    typeof localStorage === "undefined" ||
-      localStorage.getItem("pax-pause-on-settings") !== "false",
-  ); // Default: ON
+  // Presentation prefs are owned by uiPreferences (seeded above). These local
+  // mirrors stay the render source; their setters write through to the store.
+  let sidebarSide = $state<DockSide>(uiPreferences.sidebarSide);
+  let controlsSide = $state<DockSide>(uiPreferences.controlsSide);
+  let leaderboardCollapsed = $state(uiPreferences.leaderboardCollapsed);
+  let settingsRibbonExpanded = $state(uiPreferences.settingsRibbonExpanded);
+  // Auto-pause: pause game when settings open, restore on close (default ON).
+  let pauseOnSettings = $state(uiPreferences.pauseOnSettings);
 
   function setSettingsPanelOpen(nextOpen: boolean) {
     if (showSettingsPanel === nextOpen) return;
     showSettingsPanel = nextOpen;
-    if (typeof localStorage !== "undefined") {
-      localStorage.setItem("pax-settings-open", String(showSettingsPanel));
-    }
+    setUiPreference("settingsOpen", showSettingsPanel);
     // Opening settings pauses the game so you can read it; closing never
     // auto-resumes. Resuming is always a deliberate player action, so toggling
     // the settings panel can no longer unpause the game.
@@ -193,36 +176,22 @@
 
   function toggleSidebarSide() {
     sidebarSide = sidebarSide === "right" ? "left" : "right";
-    if (typeof localStorage !== "undefined") {
-      localStorage.setItem("pax-sidebar-side", sidebarSide);
-    }
+    setUiPreference("sidebarSide", sidebarSide);
   }
 
   function toggleControlsSide() {
     controlsSide = controlsSide === "right" ? "left" : "right";
-    if (typeof localStorage !== "undefined") {
-      localStorage.setItem("pax-controls-side", controlsSide);
-    }
+    setUiPreference("controlsSide", controlsSide);
   }
 
   function toggleSettingsRibbonExpanded() {
     settingsRibbonExpanded = !settingsRibbonExpanded;
-    if (typeof localStorage !== "undefined") {
-      localStorage.setItem(
-        "pax-settings-ribbon-expanded",
-        String(settingsRibbonExpanded),
-      );
-    }
+    setUiPreference("settingsRibbonExpanded", settingsRibbonExpanded);
   }
 
   function toggleLeaderboardCollapsed() {
     leaderboardCollapsed = !leaderboardCollapsed;
-    if (typeof localStorage !== "undefined") {
-      localStorage.setItem(
-        "pax-leaderboard-collapsed",
-        String(leaderboardCollapsed),
-      );
-    }
+    setUiPreference("leaderboardCollapsed", leaderboardCollapsed);
   }
 
   function openAudioSettings() {
@@ -242,10 +211,6 @@
   // All theme state is now in the shared themeStore
 
   if (typeof window !== "undefined") {
-    window.addEventListener("pax-star-info-toggle", ((e: CustomEvent) => {
-      showStarInfoPanel = e.detail;
-    }) as EventListener);
-
     // F hotkey — fit game to viewport
     window.addEventListener("keydown", (e: KeyboardEvent) => {
       if (e.key === "f" || e.key === "F") {
@@ -259,45 +224,21 @@
   }
 
   // ── Resizable sidebar (F-53) ──
-  const SIDEBAR_STORAGE_KEY = "pax-sidebar-width";
+  // Width persistence is owned by uiPreferences; these bounds drive live drag
+  // clamping (the store re-validates on write).
   const SIDEBAR_MIN = 340;
   const SIDEBAR_MAX = 600;
-  const SIDEBAR_DEFAULT = 390;
-  const SETTINGS_PANEL_STORAGE_KEY = "pax-settings-panel-width";
   const SETTINGS_PANEL_MIN = 420;
   const SETTINGS_PANEL_MAX = 720;
-  const SETTINGS_PANEL_DEFAULT = 520;
   const SETTINGS_CHROME_COMPACT_WIDTH = 68;
   const SETTINGS_CHROME_EXPANDED_WIDTH = 216;
   // Matches .pf-settings-ribbon's 12px horizontal padding on each side.
   const SETTINGS_CHROME_OUTER_PADDING_X = 24;
   const SETTINGS_PANEL_SECTION_DEFAULT = 640;
 
-  function loadSidebarWidth(): number {
-    if (typeof localStorage === "undefined") return SIDEBAR_DEFAULT;
-    const v = localStorage.getItem(SIDEBAR_STORAGE_KEY);
-    if (v) {
-      const n = parseInt(v);
-      if (!isNaN(n)) return Math.max(SIDEBAR_MIN, Math.min(SIDEBAR_MAX, n));
-    }
-    return SIDEBAR_DEFAULT;
-  }
-
-  function loadSettingsPanelWidth(): number {
-    if (typeof localStorage === "undefined") return SETTINGS_PANEL_DEFAULT;
-    const v = localStorage.getItem(SETTINGS_PANEL_STORAGE_KEY);
-    if (v) {
-      const n = parseInt(v);
-      if (!isNaN(n)) {
-        return Math.max(SETTINGS_PANEL_MIN, Math.min(SETTINGS_PANEL_MAX, n));
-      }
-    }
-    return SETTINGS_PANEL_DEFAULT;
-  }
-
-  let sidebarWidth = $state(loadSidebarWidth());
+  let sidebarWidth = $state(uiPreferences.sidebarWidth);
   let isResizing = $state(false);
-  let settingsPanelWidth = $state(loadSettingsPanelWidth());
+  let settingsPanelWidth = $state(uiPreferences.settingsPanelWidth);
   let isSettingsResizing = $state(false);
   let settingsHasOpenSections = $state(false);
   let forceOpenSettingsSection = $state<SettingsSectionId | null>(null);
@@ -319,12 +260,7 @@
       settingsPanelWidth < SETTINGS_PANEL_SECTION_DEFAULT
     ) {
       settingsPanelWidth = SETTINGS_PANEL_SECTION_DEFAULT;
-      if (typeof localStorage !== "undefined") {
-        localStorage.setItem(
-          SETTINGS_PANEL_STORAGE_KEY,
-          String(settingsPanelWidth),
-        );
-      }
+      setUiPreference("settingsPanelWidth", settingsPanelWidth);
     }
   }
 
@@ -337,12 +273,7 @@
     setSettingsPanelOpen(true);
     if (settingsPanelWidth < SETTINGS_PANEL_SECTION_DEFAULT) {
       settingsPanelWidth = SETTINGS_PANEL_SECTION_DEFAULT;
-      if (typeof localStorage !== "undefined") {
-        localStorage.setItem(
-          SETTINGS_PANEL_STORAGE_KEY,
-          String(settingsPanelWidth),
-        );
-      }
+      setUiPreference("settingsPanelWidth", settingsPanelWidth);
     }
     revealSettingsSection(section);
   }
@@ -370,7 +301,7 @@
       isResizing = false;
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
-      localStorage.setItem(SIDEBAR_STORAGE_KEY, String(sidebarWidth));
+      setUiPreference("sidebarWidth", sidebarWidth);
     }
 
     window.addEventListener("pointermove", onMove);
@@ -396,12 +327,7 @@
       isSettingsResizing = false;
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
-      if (typeof localStorage !== "undefined") {
-        localStorage.setItem(
-          SETTINGS_PANEL_STORAGE_KEY,
-          String(settingsPanelWidth),
-        );
-      }
+      setUiPreference("settingsPanelWidth", settingsPanelWidth);
     }
 
     window.addEventListener("pointermove", onMove);
@@ -704,12 +630,10 @@
   }
 
   $effect(() => {
+    // menuTheme persistence stays here until the Phase 6 menu skin cutover;
+    // settingsRibbonExpanded is now owned by uiPreferences (persisted in its toggle).
     if (typeof localStorage !== "undefined") {
       localStorage.setItem("pax-fluxia-menuTheme", JSON.stringify(menuTheme));
-      localStorage.setItem(
-        "pax-settings-ribbon-expanded",
-        String(settingsRibbonExpanded),
-      );
     }
   });
 

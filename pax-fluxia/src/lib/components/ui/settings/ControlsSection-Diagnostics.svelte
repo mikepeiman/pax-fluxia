@@ -7,6 +7,7 @@
     import { selectedStarStore } from "$lib/stores/selectedStarStore.svelte";
     import { gameStore } from "$lib/stores/gameStore.svelte";
     import { mapTranspose } from "$lib/stores/mapTranspose.svelte";
+    import { uiPreferences, setUiPreference } from "$lib/stores/uiPreferences.svelte";
     import { territoryRenderStatus } from "$lib/stores/territoryRenderStatusStore";
     import { territoryTuningStatus } from "$lib/stores/territoryTuningStatusStore";
     import { cellGridStats } from "$lib/territory/families/cellGrid/cellGridStats";
@@ -333,21 +334,12 @@
     />
     <PaxSettingsToggleRow
         label="Star Inspector"
-        checked={typeof localStorage !== "undefined" &&
-            localStorage.getItem("pax-show-star-info") === "true"}
+        checked={uiPreferences.showStarInfo}
         description="Click a star to inspect."
-        meta={typeof localStorage !== "undefined" &&
-            localStorage.getItem("pax-show-star-info") === "true"
-            ? "On"
-            : "Off"}
+        meta={uiPreferences.showStarInfo ? "On" : "Off"}
         settingConfigKey="local.ui.starInspectorVisible"
         onChange={(value) => {
-            localStorage.setItem("pax-show-star-info", value ? "true" : "false");
-            window.dispatchEvent(
-                new CustomEvent("pax-star-info-toggle", {
-                    detail: value,
-                }),
-            );
+            setUiPreference("showStarInfo", value);
         }}
     />
     <PaxSettingsToggleRow

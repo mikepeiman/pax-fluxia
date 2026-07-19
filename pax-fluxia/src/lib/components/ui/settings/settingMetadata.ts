@@ -547,7 +547,7 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Star Inspector': {
             key: 'local.ui.starInspectorVisible',
             description:
-                'Local-only toggle persisted in localStorage as pax-show-star-info.',
+                'Local-only toggle owned by the uiPreferences store (pax-ui-prefs-v1).',
         },
         'Rotate Map (Transpose)': {
             key: 'local.mapTranspose.active',
