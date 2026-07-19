@@ -20,6 +20,7 @@
         PaxHudTextInput,
     } from "$lib/design-system";
     import { log } from "$lib/utils/logger";
+    import { Portal } from "@ark-ui/svelte/portal";
 
     interface Props {
         category: ThemeCategory;
@@ -232,6 +233,10 @@
 </div>
 
 {#if showEditModal}
+    <!-- Portaled to <body>: the settings panel uses clip-path/overflow:clip, which
+         would otherwise clip this fixed-position modal to the narrow settings
+         column (backdrop blur visible, panel clipped away → "blur with no modal"). -->
+    <Portal>
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
@@ -291,6 +296,7 @@
             {/if}
         </section>
     </div>
+    </Portal>
 {/if}
 
 <style>
