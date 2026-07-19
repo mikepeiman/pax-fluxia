@@ -22,9 +22,6 @@
   } from "$lib/components/ui/hud";
   import {
     BottomCommandBar,
-    GameSpeedPanel,
-    HudTopbar,
-    PlayerStandingsPanel,
     QuickAccessDock,
     SelectedStarPanel,
     SettingsRibbon,
@@ -33,6 +30,11 @@
     type BottomCommandBarAction,
     type QuickAccessAction,
   } from "$lib/components/game-hud";
+  import {
+    PaxHudSpeedPanel,
+    PaxHudStandingsPanel,
+    PaxHudTopbar,
+  } from "$lib/components/hud";
   import GameCanvas from "$lib/components/game/GameCanvas.svelte";
   import AudioSettings from "$lib/components/ui/AudioSettings.svelte";
   import {
@@ -727,7 +729,7 @@
       style:--quick-access-width={`${quickAccessWidth}px`}
       style:--settings-ribbon-col={`${settingsEffectiveWidth}px`}>
       <div class="area-topbar">
-        <HudTopbar
+        <PaxHudTopbar
           settingsOpen={showSettingsPanel}
           standingsCollapsed={leaderboardCollapsed}
           players={playerStandings}
@@ -856,7 +858,7 @@
 
         {#if !leaderboardCollapsed}
           <div class="sidebar-leaderboard">
-            <PlayerStandingsPanel
+            <PaxHudStandingsPanel
               players={playerStandings}
               dockSide={sidebarSide}
               highlightedPlayerId={selectedEnemyStandingId}
@@ -868,7 +870,7 @@
 
         <div class="sidebar-quicktools">
           <div class="sidebar-controls">
-            <GameSpeedPanel
+            <PaxHudSpeedPanel
               speed={activeGameStore.speed}
               isPaused={activeGameStore.isPaused}
               hasStarted={true}

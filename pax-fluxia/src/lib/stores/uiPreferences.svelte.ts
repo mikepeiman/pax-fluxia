@@ -15,7 +15,7 @@ import {
   type UiPreferences,
 } from "./uiPreferences";
 
-export type { DockSide, UiDensity, UiPreferences } from "./uiPreferences";
+export type { DockSide, ShipFocus, UiDensity, UiPreferences } from "./uiPreferences";
 export {
   DEFAULT_UI_PREFERENCES,
   UI_PREFERENCE_BOUNDS,

@@ -19,6 +19,7 @@
 
 export type DockSide = "left" | "right";
 export type UiDensity = "comfortable" | "compact";
+export type ShipFocus = "active" | "total";
 
 export interface UiPreferences {
   version: number;
@@ -40,6 +41,8 @@ export interface UiPreferences {
   sidebarWidth: number;
   /** Resizable settings panel width, px. */
   settingsPanelWidth: number;
+  /** Player standings: emphasize active vs total ships. */
+  leaderboardShipFocus: ShipFocus;
   /** Interface density (forward-looking; wired by later HUD/settings slices). */
   density: UiDensity;
   /** Honor prefers-reduced-motion override (forward-looking). */
@@ -66,6 +69,7 @@ export const DEFAULT_UI_PREFERENCES: UiPreferences = {
   settingsRibbonExpanded: true,
   sidebarWidth: UI_PREFERENCE_BOUNDS.sidebarWidth.default,
   settingsPanelWidth: UI_PREFERENCE_BOUNDS.settingsPanelWidth.default,
+  leaderboardShipFocus: "total",
   density: "comfortable",
   reducedMotion: false,
 };
@@ -85,6 +89,7 @@ export const LEGACY_UI_PREFERENCE_KEYS = {
   "pax-settings-ribbon-expanded": "settingsRibbonExpanded",
   "pax-sidebar-width": "sidebarWidth",
   "pax-settings-panel-width": "settingsPanelWidth",
+  "pax-leaderboard-ship-focus": "leaderboardShipFocus",
 } as const satisfies Record<string, keyof UiPreferences>;
 
 function clampWidth(
@@ -106,6 +111,10 @@ function coerceBool(value: unknown, fallback: boolean): boolean {
 
 function coerceDensity(value: unknown, fallback: UiDensity): UiDensity {
   return value === "comfortable" || value === "compact" ? value : fallback;
+}
+
+function coerceShipFocus(value: unknown, fallback: ShipFocus): ShipFocus {
+  return value === "active" || value === "total" ? value : fallback;
 }
 
 /** Validate one field in isolation (used by both hydrate and per-field setters). */
@@ -130,6 +139,8 @@ export function normalizeUiPreferenceField<K extends keyof UiPreferences>(
       return clampWidth(value, UI_PREFERENCE_BOUNDS.sidebarWidth) as UiPreferences[K];
     case "settingsPanelWidth":
       return clampWidth(value, UI_PREFERENCE_BOUNDS.settingsPanelWidth) as UiPreferences[K];
+    case "leaderboardShipFocus":
+      return coerceShipFocus(value, d.leaderboardShipFocus) as UiPreferences[K];
     case "density":
       return coerceDensity(value, d.density) as UiPreferences[K];
     case "version":
@@ -202,6 +213,9 @@ export function adoptLegacyUiPreferences(storage: Storage): UiPreferences {
         break;
       case "settingsPanelWidth":
         out.settingsPanelWidth = clampWidth(raw, UI_PREFERENCE_BOUNDS.settingsPanelWidth);
+        break;
+      case "leaderboardShipFocus":
+        out.leaderboardShipFocus = coerceShipFocus(raw, out.leaderboardShipFocus);
         break;
       default:
         // Remaining fields are booleans persisted as "true"/"false".
