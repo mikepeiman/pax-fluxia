@@ -17,7 +17,6 @@ import type { StarState } from '$lib/types/game.types';
 import { log } from '$lib/utils/logger';
 import type { RenderFamilyActiveTransition } from '../../families/RenderFamilyTypes';
 import type { PowerCoreEndpointComputation } from './buildPowerCoreAuthoritySnapshot';
-import { buildSurfaceFromCells } from './buildSurfaceFromCells';
 import { KineticTransitionRuntime } from './kineticTransitionRuntime';
 import type { KineticFrame } from './kineticTypes';
 import type { PowerCell } from './powerCoreTypes';
@@ -33,50 +32,6 @@ let activeStartedAtMs = 0;
 let activeDurationMs = 0;
 /** Log the full-diagram failure once per session, not per frame. */
 let fullDiagramFailureLogged = false;
-
-// ── END_SNAP_FIX_EVAL ────────────────────────────────────────────────────────
-// Mode toggle for the two candidate end-snap fixes (see buildSurfaceFromCells
-// banner + the 2026-07-12 post-mortem). Injected per-frame from GameCanvas
-// (same pattern as setMorphCompleteAt) so powerCore modules stay config-free.
-export type EndSnapFixMode = 'off' | 'converge' | 'round_cut' | 'soft_pins';
-let endSnapFixMode: EndSnapFixMode = 'off';
-
-export function setEndSnapFixMode(mode: EndSnapFixMode): void {
-    endSnapFixMode =
-        mode === 'converge' || mode === 'round_cut' || mode === 'soft_pins'
-            ? mode
-            : 'off';
-}
-export function getEndSnapFixMode(): EndSnapFixMode {
-    return endSnapFixMode;
-}
-
-/** Cached SETTLED surface for 'converge' (rebuilt on version/passes change). */
-let settledSurfaceCache: {
-    version: string;
-    passes: number;
-    surface: import('./buildSurfaceFromCells').CellSurface;
-} | null = null;
-
-/**
- * The settled endpoint rendered through the SAME assembly the morph uses —
- * the converge target. Same coordinate space, same per-cell fills (siteId-
- * keyed) ⇒ like-to-like projection everywhere. Null when nothing is committed.
- */
-export function getSettledSurfaceForConverge(
-    passes: number,
-): import('./buildSurfaceFromCells').CellSurface | null {
-    const settled = runtime?.settledState;
-    if (!settled) return null;
-    const version = `${lastCommitFp ?? ''}#${passes}`;
-    if (settledSurfaceCache && settledSurfaceCache.version === version) {
-        return settledSurfaceCache.surface;
-    }
-    // Lazy import avoided — direct import is fine (both are powerCore modules).
-    const surface = buildSurfaceFromCells(settled.cells, passes);
-    settledSurfaceCache = { version, passes, surface };
-    return surface;
-}
 
 function round2(n: number): number {
     return Math.round(n * 100) / 100;
@@ -160,7 +115,6 @@ export function resetKineticRuntimeBridge(): void {
     costWindow = [];
     activeKey = null;
     fullDiagramFailureLogged = false;
-    settledSurfaceCache = null; // END_SNAP_FIX_EVAL
 }
 
 /**
@@ -265,11 +219,7 @@ export function sampleKineticForFrame(
     // the settled POST border "pops in" at conquest start.
     let frame: KineticFrame | null = null;
     try {
-        // END_SNAP_FIX_EVAL 'round_cut': the graph/smoothing must see UNSPLIT
-        // cells; the cut records travel on the frame for post-rounding apply.
-        frame = runtime.sampleFull(nowMs, {
-            deferConquestCuts: endSnapFixMode === 'round_cut',
-        });
+        frame = runtime.sampleFull(nowMs);
     } catch (error) {
         if (!fullDiagramFailureLogged) {
             fullDiagramFailureLogged = true;

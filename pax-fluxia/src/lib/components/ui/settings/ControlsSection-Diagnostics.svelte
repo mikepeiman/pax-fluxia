@@ -318,23 +318,6 @@
         return "Phase Field runs as its own cell-grid family variant. It keeps the shared deterministic cell classifier and frontier timing, but replaces metaball presentation with conquest-local PRE/POST territory compositing plus a highlighted frontier pass.";
     }
 
-    // END_SNAP_FIX evaluation — relocated here from the public HUD topbar
-    // (developer-only). Temporary scaffolding until a winner is chosen.
-    const SNAP_FIX_MODES = [
-        { id: "off", label: "Off" },
-        { id: "converge", label: "Converge" },
-        { id: "round_cut", label: "Round-cut" },
-        { id: "soft_pins", label: "Soft pins" },
-    ] as const;
-    let snapFixMode = $state<string>(
-        (GAME_CONFIG as { TERRITORY_END_SNAP_FIX?: string }).TERRITORY_END_SNAP_FIX ?? "off",
-    );
-    function setSnapFix(mode: string): void {
-        snapFixMode = mode;
-        (GAME_CONFIG as { TERRITORY_END_SNAP_FIX: string }).TERRITORY_END_SNAP_FIX = mode;
-        bumpTerritoryVisualConfig();
-    }
-
 </script>
 
 <section data-subsection-id="overlays">
@@ -359,22 +342,6 @@
             setUiPreference("showStarInfo", value);
         }}
     />
-    <div class="snapfix-row">
-        <span class="snapfix-row__label">
-            End-Snap Fix
-            <PaxInfoHint text="Developer eval of end-of-conquest snap-fix candidates (territory geometry). Moved out of the public HUD topbar." />
-        </span>
-        <div class="snapfix-row__options" role="group" aria-label="End-snap fix mode">
-            {#each SNAP_FIX_MODES as mode}
-                <PaxHudButton
-                    label={mode.label}
-                    size="sm"
-                    active={snapFixMode === mode.id}
-                    onclick={() => setSnapFix(mode.id)}
-                />
-            {/each}
-        </div>
-    </div>
     <PaxSettingsToggleRow
         label="Rotate Map (Transpose)"
         checked={mapTranspose.active}
@@ -1098,25 +1065,5 @@
         color: color-mix(in srgb, var(--pax-ui-accent-warm) 90%, transparent);
         margin-left: var(--pax-space-1);
         font-size: var(--pax-type-3xs);
-    }
-
-    .snapfix-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: var(--pax-space-2);
-        flex-wrap: wrap;
-        padding: var(--pax-space-2) 0;
-    }
-    .snapfix-row__label {
-        display: inline-flex;
-        align-items: center;
-        font-size: var(--pax-type-xs);
-        color: var(--pax-ui-text-soft);
-    }
-    .snapfix-row__options {
-        display: flex;
-        gap: var(--pax-gap-xs);
-        flex-wrap: wrap;
     }
 </style>

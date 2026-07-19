@@ -10,7 +10,6 @@ export const territoryConfigDefaults = {
     TERRITORY_TRANSITION_BIND_TO_TICK: true,
     TERRITORY_CONQUEST_FRONT_MODE: 'radial' as const,
     TERRITORY_MORPH_COMPLETE_PCT: 92,
-    TERRITORY_END_SNAP_FIX: 'off' as const, // END_SNAP_FIX_EVAL — topbar SNAPFIX toggle
     TERRITORY_FILL_MODE: 'frontier' as const,
     TERRITORY_FILL_TRANSITION_MODE: 'pv_frontline' as const,
     TERRITORY_BORDER_TRANSITION_MODE: 'off' as const,

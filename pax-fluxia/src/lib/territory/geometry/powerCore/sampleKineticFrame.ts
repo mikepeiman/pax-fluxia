@@ -69,22 +69,6 @@ export function getMorphCompleteAt(): number {
     return morphCompleteAt;
 }
 
-// ── END_SNAP_FIX_EVAL ('converge' mode) ──────────────────────────────────────
-// Blend weight for projecting a morph frame's surface onto the SETTLED surface
-// over the conquest's final approach (buildSurfaceFromCells SurfaceConvergeTarget).
-// Driven by the same rampProgress the front uses, so it tracks completion for
-// ANY morphCompleteAt: 0 until CONVERGE_Q_START (pure sweep), smoothstep to 1
-// as q→1 so the transition LANDS on the settled map with no pop.
-const CONVERGE_Q_START = 0.8;
-
-/** Convergence blend (0..1) at aggregate frame progress `p`. */
-export function conquestConvergeBlend(p: number): number {
-    const q = Math.min(1, smoothstep(p < 0 ? 0 : p > 1 ? 1 : p) / morphCompleteAt);
-    const t = (q - CONVERGE_Q_START) / (1 - CONVERGE_Q_START);
-    const c = t < 0 ? 0 : t > 1 ? 1 : t;
-    return c * c * (3 - 2 * c);
-}
-
 function conquestFrontQ(ramp: SiteRamp, p: number): number {
     return rampProgress(ramp, p); // early-completion lives in rampProgress
 }
@@ -347,16 +331,6 @@ export function sampleFullDiagramMulti(
     parts: readonly FullDiagramPart[],
     frozenSites: readonly { site: PowerCoreSite; starId: string }[],
     clip: [number, number][],
-    options?: {
-        /**
-         * END_SNAP_FIX_EVAL 'round_cut': do NOT apply conquest splits here —
-         * emit the captured cell UNSPLIT (victor-owned, idle-identical input for
-         * the border graph + Chaikin) and return the cut records in
-         * KineticFrame.conquestCuts for the presentation layer to apply AFTER
-         * rounding (cutSurfaceByFront).
-         */
-        readonly deferConquestCuts?: boolean;
-    },
 ): KineticFrame {
     const clampedP = parts.map((part) =>
         part.p <= 0 ? 1e-4 : part.p >= 1 ? 1 - 1e-4 : part.p,
@@ -402,7 +376,6 @@ export function sampleFullDiagramMulti(
     }
 
     const bubbleCells: PowerCell[] = [];
-    const conquestCuts: import('./kineticTypes').ConquestCut[] = [];
     for (const cell of cells) {
         const kMatch = /^m(\d+)k(\d+)/.exec(cell.siteId);
         const part = kMatch ? parts[Number(kMatch[1])] : undefined;
@@ -427,13 +400,6 @@ export function sampleFullDiagramMulti(
                 ownerOld: ramp.ownerA,
                 subdiv: 6,
             };
-            if (options?.deferConquestCuts) {
-                // 'round_cut': the graph + smoothing must see the UNSPLIT cell
-                // (idle-identical tessellation); the cut applies after rounding.
-                bubbleCells.push({ ...cell, siteId: ramp.starId, ownerId: ramp.ownerB });
-                conquestCuts.push({ siteId: ramp.starId, front, q });
-                continue;
-            }
             for (const partCell of splitCellByFront(cell, front, q)) bubbleCells.push(partCell);
             continue;
         }
@@ -450,9 +416,6 @@ export function sampleFullDiagramMulti(
     for (const part of parts) {
         const p = part.p <= 0 ? 0 : part.p >= 1 ? 1 : part.p;
         if (p > maxP) maxP = p;
-    }
-    if (conquestCuts.length > 0) {
-        return { p: maxP, frozenCells: [], bubbleCells, conquestCuts };
     }
     return { p: maxP, frozenCells: [], bubbleCells };
 }

@@ -133,20 +133,6 @@ export interface TransitionBubble {
     readonly bounds: { minX: number; minY: number; maxX: number; maxY: number };
 }
 
-/**
- * A conquest cut DEFERRED past rounding (END_SNAP_FIX_EVAL 'round_cut' mode):
- * the frame carries the captured cell UNSPLIT (so the border graph + Chaikin
- * see idle-identical input) plus this record; the presentation layer applies
- * the split to the ROUNDED surface (buildSurfaceFromCells → cutSurfaceByFront).
- */
-export interface ConquestCut {
-    /** The captured cell's siteId (== starId). */
-    readonly siteId: string;
-    readonly front: import('./conquestFrontField').ConquestFront;
-    /** Front progress at this frame (rampProgress output, 0..1). */
-    readonly q: number;
-}
-
 /** One sampled frame: frozen cells (S1 refs) + the morphing bubble cells. */
 export interface KineticFrame {
     /** p passed in, clamped to [0,1]. */
@@ -161,9 +147,4 @@ export interface KineticFrame {
      * (p=0/1), which return the endpoint cells directly.
      */
     readonly miniSites?: readonly import('./buildPowerCellsFromSites').PowerCoreSite[];
-    /**
-     * Present ONLY when the frame was sampled with deferConquestCuts (the
-     * 'round_cut' end-snap fix): conquest splits NOT yet applied to bubbleCells.
-     */
-    readonly conquestCuts?: readonly ConquestCut[];
 }

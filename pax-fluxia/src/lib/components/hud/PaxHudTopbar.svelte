@@ -45,8 +45,6 @@
   const tacticalOverview = $derived(
     [...players].sort((a, b) => b.totalShips - a.totalShips).slice(0, 5),
   );
-  // The temporary END_SNAP_FIX evaluation control lives in Developer →
-  // Diagnostics (dev tier), not the public topbar — see ControlsSection-Diagnostics.
 </script>
 
 <header class="pf-hud-topbar">

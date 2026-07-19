@@ -27,16 +27,8 @@
 import * as PIXI from 'pixi.js';
 import type { ColorUtils } from '$lib/renderers/RenderContext';
 import { adjustColorHSL, blendColors } from '$lib/utils/colorUtils';
-import {
-    getActiveKineticFrame,
-    getEndSnapFixMode,
-    getSettledSurfaceForConverge,
-} from '../../geometry/powerCore/kineticRuntimeBridge';
-import {
-    buildSurfaceFromCells,
-    cutSurfaceByFront,
-} from '../../geometry/powerCore/buildSurfaceFromCells';
-import { conquestConvergeBlend } from '../../geometry/powerCore/sampleKineticFrame';
+import { getActiveKineticFrame } from '../../geometry/powerCore/kineticRuntimeBridge';
+import { buildSurfaceFromCells } from '../../geometry/powerCore/buildSurfaceFromCells';
 import {
     WORLD_OWNER,
     type PowerCell,
@@ -358,28 +350,7 @@ export class PowerVectorFamily implements RenderFamily {
             // frame here would classify no world edges ⇒ empty regions ⇒ fills
             // vanish mid-morph). dx/dy still localizes rendering to the container.
             const cells: PowerCell[] = [...frame.frozenCells, ...frame.bubbleCells];
-            // END_SNAP_FIX_EVAL: three-way switch (topbar SNAPFIX toggle).
-            //  off      — today's pipeline (split-then-round; known ~9px end-snap)
-            //  converge — project the final approach onto the SETTLED surface
-            //             (like-to-like: per-siteId fills, per-pair frontiers)
-            //  round_cut— cells arrived UNSPLIT (idle-identical rounding); apply
-            //             the conquest cut AFTER rounding (field classification)
-            const endSnapMode = getEndSnapFixMode();
-            let convergeTarget;
-            if (endSnapMode === 'converge') {
-                const settled = getSettledSurfaceForConverge(smoothPasses);
-                const blend = settled ? conquestConvergeBlend(frame.p) : 0;
-                if (settled && blend > 0) convergeTarget = { settled, blend };
-            }
-            let surface = buildSurfaceFromCells(
-                cells,
-                smoothPasses,
-                convergeTarget,
-                endSnapMode === 'soft_pins',
-            );
-            if (endSnapMode === 'round_cut' && frame.conquestCuts?.length) {
-                surface = cutSurfaceByFront(surface, frame.conquestCuts);
-            }
+            const surface = buildSurfaceFromCells(cells, smoothPasses);
 
             // Fills: SMOOTHED per-cell (single-owner ⇒ no bucket-fill; owner edges
             // rounded to match the borders). POOLED: unchanged cells keep their
