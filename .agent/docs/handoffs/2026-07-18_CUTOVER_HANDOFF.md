@@ -67,7 +67,57 @@ A  pax-fluxia/src/routes/dev/settings-slice/+page.svelte            # dev harnes
 
 ## 3. Resume point — exact next steps
 
-### Step A (next): Phase 2 — `uiPreferences.svelte.ts`
+### Step A — Phase 2 `uiPreferences` — DONE (2026-07-18, `opus-ui-cutover`, `678aa4aef`)
+
+Delivered as a clean slice on a disentangled tree (the interrupted HUD WIP was
+reverted from GameContainer back to HEAD and kept on disk as untracked files;
+patch saved to the session scratchpad — Phase 3 re-mounts it properly).
+
+**Shipped:**
+- `src/lib/stores/uiPreferences.ts` (pure, Bun-testable, injected `Storage`) +
+  `uiPreferences.svelte.ts` (thin reactive `$state` singleton) — split the way
+  `animLockMath.ts` splits pure calc from reactive glue, because `bun test` runs
+  Bun's native runner (no Svelte compiler) so a test cannot import a `$state`
+  module.
+- One namespace `pax-ui-prefs-v1`, versioned, field-by-field normalization +
+  width clamping, corrupt-blob fallback, idempotent browser-guarded hydrate,
+  targeted reset that clears ONLY the namespace.
+- Migrated GameContainer's **9 exclusive keys**: `pax-show-star-info`,
+  `pax-pause-on-settings`, `pax-settings-open`, `pax-sidebar-side`,
+  `pax-controls-side`, `pax-leaderboard-collapsed`, `pax-settings-ribbon-expanded`,
+  `pax-sidebar-width`, `pax-settings-panel-width`. First-run adoption reads the
+  legacy keys (additive — legacy keys left in place for safe rollback).
+- **Removed the `pax-star-info-toggle` event entirely** — sole producer
+  (`ControlsSection-Diagnostics` Star Inspector toggle) and sole consumer
+  (`GameContainer`) now share `uiPreferences.showStarInfo`.
+- 11 store tests incl. the **protected-persistence sentinel** (reset preserves
+  `pax_savedMaps`/`pax_savedGames`/gameplay presets/map-editor/`pax_defaultMap`
+  byte-for-byte; only the UI namespace clears). check 0/0; 92 targeted tests
+  pass; production build ✓.
+
+**Deliberately deferred (not avoided — coupling/scope):**
+- `pax-tick-interval-changed` (TICK_INTERVAL_CHANGED_EVENT) — config-mirror of the
+  non-reactive `GAME_CONFIG.BASE_TICK_MS` Proxy; a clean typed derived needs a
+  reactive tick source that lives in the settings/config layer → **Phase 4**. Event kept, works.
+- `pax-settings-config-sync-requested` → **Phase 4** (`settingsStore.syncFromConfig`).
+- `pax-bg-change` / `pax-bg-alpha-change` → **Phase 4** typed settings effect
+  adapter (consumer is `GameCanvas` = out-of-scope render engine).
+- `pax-theme-applied` (dead, no consumer) — producer is `themeStore` (Phase 7
+  preset-rename territory); delete then.
+- `star-info-toggle` (no `pax` prefix, `GameCanvas:~4356`) — dead orphan (wrong
+  event name, never had a listener). GameCanvas is out of scope; left, flagged.
+- `pax-fluxia-menuTheme` → **Phase 6** (menu skin cutover), per the plan.
+- `pax-icon-set` / `pax-ui-theme-id` — already owned by dedicated stores
+  (`iconSetStore.svelte.ts`, `theme.ts`/paxThemeState); NOT direct localStorage in
+  a presentation component, so no Phase 2 action. Consolidation optional/later.
+- `pax-leaderboard-ship-focus` → **Phase 3** (lands with the new standings component).
+- Overlay primitives (dialog/sheet/popover) → built when a Phase 3 slice needs one.
+
+### Step B (next): Phase 0 tail — Playwright + axe dev deps + viewport matrix
+
+Then Phase 3 (HUD slices). Original Step A notes preserved below for reference.
+
+<details><summary>Original Phase 2 plan (now completed above)</summary>
 
 This is the highest-value unblocker. Pure store/test work, no browser verification needed, quota-efficient. Unblocks Phase 3 (HUD slices) and Phase 6 (menu).
 
@@ -87,7 +137,9 @@ This is the highest-value unblocker. Pure store/test work, no browser verificati
 4. Add protected-persistence sentinel test: populate `pax_savedMaps`, `pax_savedGames`, `pax-game-themes`, `pax_composedThemes`, `pax_categoryThemes_*`, `pax_starredThemes_*`, `pax-map-editor-*` with sentinel values; call `uiPreferences.reset()`; assert all protected keys byte-identical; assert only the UI namespace cleared.
 5. Gate: persistence round-trip, invalid-payload fallback, reset protection, listener cleanup, focus/Escape/backdrop (if overlay primitives added), reduced-motion, Tauri-safe guards.
 
-### Step B: Phase 0 tail — Playwright + axe dev deps + viewport matrix
+</details>
+
+### Step B (original): Phase 0 tail — Playwright + axe dev deps + viewport matrix
 
 The repo's own automated browser/a11y suite (distinct from the Playwright MCP in `.devin/config.json` which is for ad-hoc Devin use). Needed before any Phase 3 slice gate.
 
