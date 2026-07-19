@@ -152,6 +152,7 @@ const PROTECTED_CONTENT_KEYS = new Set([
     "pax-game-themes",
     "pax_composedThemes",
     "pax_themePresets",
+    "pax_fullConfigPresets",
 ]);
 
 const PROTECTED_CONTENT_PREFIXES = [
