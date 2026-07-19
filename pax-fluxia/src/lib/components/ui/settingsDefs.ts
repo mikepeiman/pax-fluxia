@@ -209,6 +209,12 @@ const TERRITORY_VISUAL_KEYS: ReadonlySet<string> = new Set([
     'MIN_COLOR_LIGHTNESS',
     'BG_IMAGE_URL',
     'BG_IMAGE_ALPHA',
+    // Topology-geometry inputs (no family prefix) — must invalidate territory so
+    // preset load / config import / theme apply recompile the geometry, matching
+    // what the live topology sliders do via bumpTerritoryVisualConfig().
+    'FRONTIER_RESOLUTION',
+    'CHAIKIN_BOUNDARY_PAD',
+    'CHAIKIN_BOUNDARY_EPS',
 ]);
 
 /** True when a territory renderer reads this key. */
