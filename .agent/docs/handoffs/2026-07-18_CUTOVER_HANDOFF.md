@@ -113,9 +113,45 @@ patch saved to the session scratchpad — Phase 3 re-mounts it properly).
 - `pax-leaderboard-ship-focus` → **Phase 3** (lands with the new standings component).
 - Overlay primitives (dialog/sheet/popover) → built when a Phase 3 slice needs one.
 
-### Step B (next): Phase 0 tail — Playwright + axe dev deps + viewport matrix
+### Step B — Phase 0 tail (Playwright + axe) — DONE (2026-07-19, `opus-ui-cutover`, `33eee15d2`)
 
-Then Phase 3 (HUD slices). Original Step A notes preserved below for reference.
+Per explicit user decision to run the automated suite (overriding the "human
+eyes only" rule for this gate).
+
+- Pinned dev deps `@playwright/test@1.61.1` + `@axe-core/playwright@4.12.1` (both
+  published 2026-06-23, >7 days old, exact-pinned + lockfile).
+- `pax-fluxia/playwright.config.ts` — viewport matrix 1440×900 / 1024×768 /
+  768×1024 / 390×844 / 844×390, Chromium, `webServer` boots the Vite client
+  (port 1420). **Specs are `*.e2e.ts`** so `bun test` (matches `.test`/`.spec`)
+  ignores them (verified). Safe-area insets can't be truly emulated → manual.
+- `e2e/smoke.e2e.ts` — landing Play CTA; `/play` shell mount via
+  `__PAX_HOME_ROUTE_READY__` + `__PAX_GAME_SHELL_DIAG__`, no shell error / no
+  uncaught page errors. Green on all 5 viewports (12 passed / 8 a11y-skipped).
+- `e2e/a11y.e2e.ts` — WCAG2 A/AA axe baseline on desktop-1440, **debt capture**
+  (records violations, stays green). Phase 1 flips covered chrome to a hard gate
+  (`expect(violations).toEqual([])`).
+- Scripts: `test` / `test:ci` (`bun test`), `test:e2e`, `test:e2e:report`.
+- Run with `bunx playwright install chromium` once, then
+  `bun run --cwd pax-fluxia test:e2e`.
+
+**Accessibility debt baseline (fix in Phase 1+):**
+- Landing `/`: `color-contrast` (serious), `meta-viewport` (moderate — user-scalable).
+- `/play`: `label` (critical), `select-name` (critical), `meta-viewport` (moderate).
+- ~20 `svelte-ignore a11y` suppressions across 4 `.svelte` files (mostly
+  `a11y_no_static_element_interactions`, `a11y_click_events_have_key_events`).
+
+### Step C (next): Phase 3 — HUD vertical slices
+
+Slice 1 = Shell (`PaxHudLayout`→`PaxHudShell` parity proof, then mount). Each
+slice: parity proof → switch one renderer → `check`+unit+`test:e2e` → **user
+visual approval** → delete replaced component + barrel + `hud.css` selectors in
+the same slice. The interrupted HUD WIP is still untracked on disk (patch in the
+session scratchpad) — `PaxHudTopbar` needs its rewrite (drop GAME_CONFIG mutation
++ public SNAPFIX chip → Diagnostics; Tier-1 tokens → Tier-2) before it mounts.
+
+<details><summary>Original Phase 0 tail / Phase 3 notes (reference)</summary>
+
+Original Step B: Phase 0 tail — Playwright + axe dev deps + viewport matrix
 
 <details><summary>Original Phase 2 plan (now completed above)</summary>
 
@@ -169,6 +205,8 @@ Slice order (from the plan):
 - **Phase 6:** main-menu `menuSetupStore` + responsive cutover; delete `menuTheme.ts`/`MenuThemeRail`/`--pf-*`.
 - **Phase 7:** theme→preset rename (behavior-preserving; preserve `pax-game-themes` etc.).
 - **Phase 8:** CSS deletion + hard cutover + final gates.
+
+</details>
 
 ---
 
