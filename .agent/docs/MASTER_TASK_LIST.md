@@ -28,6 +28,62 @@ superseding docs:
 
 ---
 
+## 2026-07-20
+
+### Open
+- [ ] **⭐ FULL SETTINGS UI REFACTOR — the visible redesign (Phase 5) is STILL NOT DONE** `[ui][settings][design]`
+  User (2026-07-20): "The entire surface is essentially what it was… it is a VERY BAD UI." Backend/data work
+  (cutover Phases 0–4-ish) landed but the PRESENTATION is unchanged. Concrete problem areas the user named:
+  (1) overall theming applied to settings; (2) settings-specific styles — controls, labels, spacing;
+  (3) redundant/obsolete features to remove (audit carefully — see the Territory-Topology + snapfix lessons:
+  do NOT remove wired controls without tracing); (4) inconsistent subsection-chip styling. Blocker for a GOOD
+  job: agent has never SEEN the surface (human-eyes-only) — needs user screenshots to anchor the visual redesign
+  (memory [[images-are-full-design-reviews]]). Do concrete code-verifiable parts (chip consistency, dead-feature
+  audit) from source; do the subjective visual parts (theming/spacing/feel) WITH user screenshots. Ref
+  [[design-fix-the-system-not-the-instance]], settings live under `components/ui/settings/**` + `panel-shared.css`.
+- [ ] **Theme/Preset Manager — one-shot full-screen UI** `[ui][settings][design]` — build per the vision
+  `.agent/docs/game/design/2026-07-19_THEME_MANAGER_VISION.md`: full-screen modal managing BOTH per-section and
+  full-config presets, inline tuning, a snapshot/inspect view of a preset's saved contents; gated as an
+  advanced/developer feature (out of the default UI). Data foundation already exists (`categoryKeys.ts` partition
+  + `fullConfigPresets.ts`).
+- [ ] **#1 Topology tuning breaks/doesn't reach transitions** `[territory][transitions]` — user report: topology
+  tuning "not wired into the transition engine." Investigate whether the transition (kinetic morph) geometry uses
+  the same topology constraints (MSR/CX/FRONTIER_RESOLUTION/CHAIKIN) as the steady-state geometry. Territory-engine
+  domain — scope before touching the hard-won morph pipeline.
+- [ ] **HUD final deletion** `[ui][hud]` — after the new PaxHud* panels are user-approved, remove the superseded
+  old families (`components/game-hud/`, `components/ui/hud/`) + old barrels/`hud.css` selectors (cutover Phase 3
+  tail). Old topbar/standings/speed dupes being deleted 2026-07-20 (parity confirmed "looks normal").
+- [ ] **#3 settings subsection-memory fix — awaiting user verify** `[ui][settings]` `727b19ce0` — made stored
+  subsection choice sacred (display-only fallback, no persist-wipe). Two `log.ui("settings-nav",…)` diagnostics
+  left in for a close→reopen capture; REMOVE once confirmed.
+- [ ] **PaxHudLayout → PaxHudShell (Phase 3 shell slice)** `[ui][hud]` — the higher-risk canvas-resize/black-strip
+  slice; still parked on disk (`design-system/components/PaxHudLayout.svelte`, untracked). Prove resize/dock/
+  collapse/mobile parity in an isolated harness before mounting.
+- [ ] **Remaining cutover phases** `[ui][arch]` — Phase 4 settings ownership completion (settingsNav store, shrink
+  KNOWN_UNWIRED), Phase 6 main-menu cutover (menuSetupStore, delete menuTheme.ts/`--pf-*`), Phase 7 theme→preset
+  rename, Phase 8 CSS deletion + final gates. See the megaplan.
+- [ ] **Accessibility debt (from Playwright/axe baseline)** `[ui][a11y]` — landing: color-contrast + meta-viewport;
+  /play: form label + select-name (critical) + meta-viewport; ~20 `svelte-ignore a11y` suppressions. Fix as
+  covered chrome is redesigned (Phase 1 gate flips a11y from debt-capture to hard gate).
+
+### Done
+- [x] **Cutover Phase 2 — uiPreferences store** `[ui][state]` `678aa4aef` — versioned `pax-ui-prefs-v1` store
+  (pure `uiPreferences.ts` + reactive `.svelte.ts`); migrated GameContainer's 9 localStorage keys + removed the
+  `pax-star-info-toggle` event; protected-persistence sentinel test.
+- [x] **Cutover Phase 0 tail — Playwright + axe suite** `[test][ui]` `33eee15d2` — pinned deps, viewport matrix,
+  smoke green, a11y baseline captured as debt. Scripts test/test:e2e.
+- [x] **Issue #2 — preset save/load "not saving 99%"** `[settings][presets]` `a4684d5b8` `1fa74b553` `86d86229b` —
+  completed CATEGORY_KEYS partition (`categoryKeys.ts` + coverage test; topology now in territory), full-config
+  named presets (`fullConfigPresets.ts` + Config Presets UI), FRONTIER/CHAIKIN → territory invalidation.
+- [x] **Removed obsolete END_SNAP_FIX / SNAPFIX eval scaffolding** `[territory][transitions]` `5ca1ab721` —
+  15 files, −1640 LOC; production always ran 'off' so behavior-neutral; user visually confirmed transitions clean.
+- [x] **Settings bug fixes — import icon + Manage-Themes modal** `[ui][settings]` `c25eaf763` — import→upload glyph;
+  portaled the category modal (was blur with no panel).
+- [x] **Mounted new PaxHud topbar/standings/speed (Phase 3 panel slice)** `[ui][hud]` `199c1872c` — drop-in,
+  same look; SNAPFIX removed from topbar; ship-focus → uiPreferences.
+- [x] **Territory Topology settings — KEEP verdict** `[settings][territory]` — traced ~12 controls; ACTIVE (feed the
+  live power-vector generator), not dead; user confirmed keep. No change.
+
 ## 2026-07-18
 
 ### Open
