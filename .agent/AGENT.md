@@ -227,7 +227,7 @@ Required pattern:
 1. Add entry to `PANEL_CONFIG_MAP` in `settingsDefs.ts`
 2. Template reads `panel.xxx`
 3. Template writes through `updatePanel(key, value)`
-4. `syncPanelFromConfig()` in `panelSync.ts` handles import/theme sync
+4. `settingsStore.syncFromConfig()` handles import/theme sync
 
 `GAME_CONFIG` is not reactive in templates.
 

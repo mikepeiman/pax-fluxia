@@ -10,7 +10,7 @@
 1. **Every slider variable** must have an entry in `PANEL_CONFIG_MAP` (in `settingsDefs.ts`)
 2. **Display/value** must read from `panel.xxx` (which is `$state` and therefore reactive)
 3. **oninput** must call `updatePanel(key, value)` which writes to both `panel` AND `GAME_CONFIG`
-4. **After theme/import**, `syncPanelFromConfig()` reads `GAME_CONFIG` back into `panel`, triggering reactivity
+4. **After theme/import**, `settingsStore.syncFromConfig()` reads `GAME_CONFIG` back into `panel`, triggering reactivity
 
 ### ❌ NEVER do this:
 ```svelte
@@ -32,4 +32,4 @@
 1. Add entry to `PANEL_CONFIG_MAP` in `settingsDefs.ts`: `{ panelKey: 'myKey', configKey: 'MY_CONFIG_KEY' }`
 2. If the display is inverse of config (like Defense = 1/AGGRESSOR_ADVANTAGE), add `transform: 'inverse'`
 3. Template reads `panel.myKey`, writes via `updatePanel("myKey", v)`
-4. `syncPanelFromConfig()` automatically handles sync after theme apply
+4. `settingsStore.syncFromConfig()` automatically handles sync after theme apply
