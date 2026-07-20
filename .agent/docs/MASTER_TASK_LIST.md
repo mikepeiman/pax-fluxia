@@ -41,6 +41,25 @@ superseding docs:
   (memory [[images-are-full-design-reviews]]). Do concrete code-verifiable parts (chip consistency, dead-feature
   audit) from source; do the subjective visual parts (theming/spacing/feel) WITH user screenshots. Ref
   [[design-fix-the-system-not-the-instance]], settings live under `components/ui/settings/**` + `panel-shared.css`.
+  **REDUNDANT-FEATURE AUDIT DONE 2026-07-20 (removals NOT yet executed — surfaced controls + visible; awaiting user
+  go per AGENT.md 4.4).** Three proven live duplicates (same config key + panel key rendered twice on the same
+  `view==="all"` screen):
+  (1) `CELL_GRID_*` Phase-Field rows (shape/inset/corner/inward-offset/border-mode/border-blend) — duplicated between
+      `CellGridTuning.svelte:704-779` and `TerritorySurfaceStyleTuning.svelte`; the latter is the newer "single style
+      home" (Ember already migrated off CellGridTuning, Phase Field left behind). REMOVE the CellGridTuning copies.
+  (2) `TERRITORY_CONQUEST_FRONT_MODE` "Front Shape" — duplicated: top always-on "Conquest Transition" card
+      (`ControlsSection-Territory.svelte:521-539`, shown for ALL modes though it's power-vector-specific) vs the
+      family-gated copy in `TerritorySurfaceStyleTuning.svelte:479-505`. REMOVE the top-card copy.
+  (3) `VORONOI_BORDER_SMOOTH` "Border Rounding" — same two homes (`ControlsSection-Territory.svelte:541-556` vs
+      `TerritorySurfaceStyleTuning.svelte:444-462`). REMOVE the top-card copy. NB removing (2)+(3) empties most of the
+      "Conquest Transition" card except "Motion Completion" (`TERRITORY_MORPH_COMPLETE_PCT`) which is NOT a dup — keep.
+  KEEP verdicts (looked dead, are not): `TERRITORY_MSR_STAR_POWER_*` (5 keys, legacy-compat import shim in
+  `deriveMsrStarBias`); `GRID_GRADIENT_DRAW_BACKEND` (no UI but heavily consumed in GridGradientFamily — live knob).
+  Already-clean (no action): `panelSync.syncPanelFromConfig` (deleted `3b1e57eda`), `TERRITORY_END_SNAP_FIX` (deleted
+  `5ca1ab721`). `KNOWN_UNWIRED` (21 keys) = tracked debt in settingsWiringInvariant.test.ts, all real working controls
+  missing only a derived search/persist registration — not dead. `debouncedConfigUpdate` renamed→`applyConfigUpdate`
+  + dead `_delayMs` dropped (`62794a7b1`); its redundant double-write of GAME_CONFIG left in place (behavior-neutral,
+  risky to collapse — some prop-routed keys may be unmapped).
 - [ ] **Theme/Preset Manager — one-shot full-screen UI** `[ui][settings][design]` — build per the vision
   `.agent/docs/game/design/2026-07-19_THEME_MANAGER_VISION.md`: full-screen modal managing BOTH per-section and
   full-config presets, inline tuning, a snapshot/inspect view of a preset's saved contents; gated as an
