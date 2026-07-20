@@ -46,10 +46,29 @@ superseding docs:
   full-config presets, inline tuning, a snapshot/inspect view of a preset's saved contents; gated as an
   advanced/developer feature (out of the default UI). Data foundation already exists (`categoryKeys.ts` partition
   + `fullConfigPresets.ts`).
-- [ ] **#1 Topology tuning breaks/doesn't reach transitions** `[territory][transitions]` — user report: topology
-  tuning "not wired into the transition engine." Investigate whether the transition (kinetic morph) geometry uses
-  the same topology constraints (MSR/CX/FRONTIER_RESOLUTION/CHAIKIN) as the steady-state geometry. Territory-engine
-  domain — scope before touching the hard-won morph pipeline.
+- [ ] **#1 Topology tuning breaks/doesn't reach transitions — SCOPED 2026-07-20 (root cause found; awaiting user
+  decision, NOT yet fixed)** `[territory][transitions]` — user report: topology tuning "not wired into the transition
+  engine." Investigation verdict (2 independent findings; morph builders `buildTransitionBubble`/`sampleKineticFrame`/
+  `kineticTransitionRuntime`/`conquestFrontField` are pure/config-free — topology can only reach the morph by being
+  baked into the S0/S1 endpoints at build time):
+  • **REAL BUG — stale morph anchor.** All 13 live topology keys (MSR `MODIFIED_VORONOI_STAR_MARGIN`, `TERRITORY_MSR_STAR_BIAS`,
+    CX×6, DX×3, `CHAIKIN_BOUNDARY_PAD`) ARE read identically by both idle and morph — both ultimately call
+    `computePowerCoreEndpoint`/`buildGeometry0319SitesAndClip` with live GAME_CONFIG. Idle rebuilds every frame so the
+    visible map re-tunes correctly. BUT `KineticTransitionRuntime.settled` (the morph's S0 start anchor for the NEXT
+    conquest) is refreshed ONLY on ownership change: the gate is `ownershipFingerprint(stars)` = star:owner pairs only,
+    no config awareness (`kineticRuntimeBridge.ts:40-46,126-128,144-145`; redundant 2nd gate `kineticTransitionRuntime.ts:108`).
+    Repro: tune topology while idle → idle map updates, but the commit that would refresh `settled` early-returns
+    (`fp===lastCommitFp`) → S0 stays old-topology → next conquest morphs FROM stale topology → visible pop/mismatch at
+    sweep start. FIX (territory pipeline; needs user OK + visual sign-off): make the commit gate also account for the
+    topology fingerprint already computed in `buildTerritoryGeometryFingerprint`
+    (`powerVoronoiTerritoryGeometryGenerator.ts:964-983`) so `settled` stays current between conquests.
+  • **LYING-KNOB — `FRONTIER_RESOLUTION` (slider, ControlsSection-Territory.svelte:692) + `CHAIKIN_BOUNDARY_EPS` are DEAD.**
+    Plumbed through `geometryTuning.ts` + `TerritoryGeneratorSettings` but consumed by NOTHING except a debug log line
+    (`Geometry_0319.ts:645,663`). The only eps-aware smoother (`chaikinSmoothPolygon` via `generateVoronoiTerritoryGeometry`)
+    has zero callers — superseded generator. So tuning these does nothing on EITHER path (a lying knob per
+    [[cleanup-campaign-contract]]). USER DECISION NEEDED: wire them into a real resampling/eps step, or remove the knob +
+    the `frontierResolution`/`boundaryEps` tunable fields. NOTE `VORONOI_BORDER_SMOOTH` (chaikin PASSES) is correctly live
+    on both paths (`PowerVectorFamily.ts:82-85,343,353`) — no bug there.
 - [ ] **HUD final deletion** `[ui][hud]` — after the new PaxHud* panels are user-approved, remove the superseded
   old families (`components/game-hud/`, `components/ui/hud/`) + old barrels/`hud.css` selectors (cutover Phase 3
   tail). Old topbar/standings/speed dupes being deleted 2026-07-20 (parity confirmed "looks normal").
