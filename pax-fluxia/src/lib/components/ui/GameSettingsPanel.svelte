@@ -327,6 +327,16 @@
         );
     });
 
+    // DIAG (#3 settings-nav memory): log what was restored on (re)mount so a
+    // close→reopen shows whether the stored section/subsection survived.
+    onMount(() => {
+        log.ui(
+            "settings-nav",
+            `RESTORE on mount: section="${activeSectionId}" category="${openCategoryId}" ` +
+                `showAll=${showAllSections} subsections=${JSON.stringify(activeSubsections)}`,
+        );
+    });
+
     $effect(() => {
         if (typeof window === "undefined") return;
         if (openCategoryId) {
@@ -555,21 +565,28 @@
     // LIST (every match, ranked); clicking a result opens its native location.
     let searchActive = $derived(settingsSearchQuery.trim().length > 0);
 
-    $effect(() => {
-        let next = activeSubsections;
-        let changed = false;
-        for (const section of sections) {
-            const active = activeSubsections[section.id] ?? "all";
-            if (active === "all") continue;
-            const allowed = sectionSubsections[section.id] ?? [];
-            if (allowed.some((subsection) => subsection.id === active)) continue;
-            next = { ...next, [section.id]: "all" };
-            changed = true;
-        }
-        if (changed) {
-            activeSubsections = next;
-        }
-    });
+    // The STORED subsection choice (activeSubsections) is SACRED — it is only
+    // ever written by an explicit user toggle, never pruned/reset here. If a
+    // stored value is (temporarily or after a registry change) not among the
+    // section's current chips, we fall back for DISPLAY ONLY, exactly like the
+    // section-level fallback below. Persisting a prune here would permanently
+    // erase the user's choice on a transient mismatch — the "settings don't
+    // remember my subsection" bug. `territory_styles` chips are render modes, so
+    // its display fallback is the live render mode; other sections fall back to
+    // "all".
+    function resolveEffectiveSubsection(sectionId: string): string {
+        const fallback =
+            sectionId === "territory_styles"
+                ? (activeTerritoryRenderMode ?? "all")
+                : "all";
+        const stored = activeSubsections[sectionId];
+        if (stored == null) return fallback;
+        if (stored === "all") return "all";
+        const allowed = sectionSubsections[sectionId] ?? [];
+        return allowed.some((subsection) => subsection.id === stored)
+            ? stored
+            : fallback;
+    }
 
     function getSectionDefinition(sectionId: SectionId): SettingsSectionDefinition {
         return sections.find((section) => section.id === sectionId) ?? sections[0];
@@ -731,10 +748,13 @@
 
     function toggleSubsection(sectionId: ActiveSectionId, subsectionId: string) {
         const current = activeSubsections[sectionId] ?? "all";
+        const nextValue = current === subsectionId ? "all" : subsectionId;
         activeSubsections = {
             ...activeSubsections,
-            [sectionId]: current === subsectionId ? "all" : subsectionId,
+            [sectionId]: nextValue,
         };
+        // DIAG (#3 settings-nav memory): record the user's explicit subsection pick.
+        log.ui("settings-nav", `WRITE subsection: section="${sectionId}" -> "${nextValue}"`);
     }
 
 </script>
@@ -886,9 +906,7 @@
                 {#if !showAllSections && activePanel && !isUtilityPanelId(activePanel.id) && (sectionSubsections[activePanel.id]?.length ?? 0) > 1}
                     {@const sec = activePanel}
                     {@const isRenderSection = sec?.id === "territory_styles"}
-                    {@const effectiveSub =
-                        activeSubsections[sec?.id] ??
-                        (isRenderSection ? (activeTerritoryRenderMode ?? "all") : "all")}
+                    {@const effectiveSub = resolveEffectiveSubsection(sec?.id)}
                     <div class="section-subnav section-subnav--secondary">
                         {#if !isRenderSection}
                         <PaxHudButton
@@ -949,7 +967,7 @@
                     class="section-body"
                     use:registerSectionBody={{
                         sectionId: sec?.id,
-                        activeSubsection: activeSubsections[sec?.id] ?? "all",
+                        activeSubsection: resolveEffectiveSubsection(sec?.id),
                     }}
                     use:enhanceSettingMetadata={{
                         scope: isUtilityPanelId(sec?.id) ? null : getSectionDefinition(sec?.id).scope,
@@ -1021,8 +1039,7 @@
                     <ControlsSectionTerritory
                         view="styles"
                         showCategoryThemeBar={true}
-                        activeSubsection={activeSubsections[sec?.id] ??
-                            (activeTerritoryRenderMode ?? "all")}
+                        activeSubsection={resolveEffectiveSubsection(sec?.id)}
                     />
                 {:else if sec?.id === "frontier_fx"}
                     <ControlsSectionFrontierFx />
