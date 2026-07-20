@@ -169,12 +169,13 @@
     return "Power Vector Surface";
   }
 
-  // Bridge compatibility: writes to both GAME_CONFIG (for runtime reads) and panel state (for UI reactivity).
-  function debouncedConfigUpdate(
+  // Immediate bridge write: sets GAME_CONFIG (for runtime reads) AND panel state (for UI
+  // reactivity), then bumps the territory visual config. NOT debounced — the deferred/topology
+  // path is queueTopologySliderUpdate / queueTopologyToggleUpdate below.
+  function applyConfigUpdate(
     configKey: string,
     panelKey: string,
     value: any,
-    _delayMs = 100,
   ) {
     const prev = (GAME_CONFIG as any)[configKey];
     (GAME_CONFIG as any)[configKey] = value;
@@ -331,7 +332,7 @@
         !panelHasExplicitValue &&
         (configValue === undefined || configValue === entry.familyDefault);
       if (shouldPrime) {
-        debouncedConfigUpdate(
+        applyConfigUpdate(
           entry.configKey,
           entry.panelKey,
           entry.phaseEdgesDefault,
@@ -341,7 +342,7 @@
   }
 
   function selectTerritoryStyle(styleId: string) {
-    debouncedConfigUpdate(
+    applyConfigUpdate(
       "TERRITORY_RENDER_MODE",
       "territoryRenderMode",
       styleId,
@@ -398,7 +399,7 @@
   }
 
   function selectFrontierTransition(transitionId: string) {
-    debouncedConfigUpdate(
+    applyConfigUpdate(
       "TERRITORY_FILL_TRANSITION_MODE",
       "territoryFillTransitionMode",
       transitionId,
@@ -532,7 +533,7 @@
               ]}
               settingConfigKey="TERRITORY_CONQUEST_FRONT_MODE"
               onValueChange={(value) =>
-                debouncedConfigUpdate(
+                applyConfigUpdate(
                   "TERRITORY_CONQUEST_FRONT_MODE",
                   "territoryConquestFrontMode",
                   value,
@@ -548,7 +549,7 @@
               step={1}
               settingConfigKey="VORONOI_BORDER_SMOOTH"
               onInput={(value) =>
-                debouncedConfigUpdate(
+                applyConfigUpdate(
                   "VORONOI_BORDER_SMOOTH",
                   "voronoiBorderSmooth",
                   value,
@@ -566,7 +567,7 @@
               format="percent"
               settingConfigKey="TERRITORY_MORPH_COMPLETE_PCT"
               onInput={(value) =>
-                debouncedConfigUpdate(
+                applyConfigUpdate(
                   "TERRITORY_MORPH_COMPLETE_PCT",
                   "territoryMorphCompletePct",
                   value,
@@ -583,7 +584,7 @@
               suffix="ms"
               settingConfigKey="TERRITORY_TRANSITION_MS"
               onInput={(value) =>
-                debouncedConfigUpdate(
+                applyConfigUpdate(
                   "TERRITORY_TRANSITION_MS",
                   "territoryTransitionMs",
                   value,
@@ -596,7 +597,7 @@
                 GAME_CONFIG.TERRITORY_TRANSITION_BIND_TO_TICK}
               settingConfigKey="TERRITORY_TRANSITION_BIND_TO_TICK"
               onChange={(value) =>
-                debouncedConfigUpdate(
+                applyConfigUpdate(
                   "TERRITORY_TRANSITION_BIND_TO_TICK",
                   "territoryTransitionBindToTick",
                   value,
@@ -1002,7 +1003,7 @@
         {/if}
         <TerritorySurfaceStyleTuning
           {panel}
-          onUpdate={debouncedConfigUpdate}
+          onUpdate={applyConfigUpdate}
           sectionHeading={null}
           activeSection={resolvedStyleSubsection()}
           styleFamily={isEmberLatticeStyle()
