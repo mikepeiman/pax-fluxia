@@ -213,22 +213,25 @@ export type HudFieldVariants = VariantProps<typeof hudField>;
 
 // Sliders are a single horizontal row: LABEL [−][====][+] value.
 // Tone: muted + elegant — halfway to utilitarian, not bold/busy.
+// Neutral slider palette (2026-07-21): no gold accent, no glow. Label raised
+// from text-dim to text-soft for legibility; track/thumb/nudge are quiet
+// neutrals so the row reads as data, not decoration.
 export const hudRange = tv({
   slots: {
     root: "flex min-w-0 items-center gap-1.5",
     label: [
       "shrink-0 basis-[4.75rem] min-w-0 truncate",
-      "font-pax-ui text-[0.64rem] font-bold uppercase tracking-[0.05em] text-pax-text-dim",
+      "font-pax-ui text-[0.64rem] font-bold uppercase tracking-[0.05em] text-pax-text-soft",
     ],
     nudge: [
-      "shrink-0 grid h-5 w-5 place-items-center rounded border border-pax-gold/12 bg-transparent",
+      "shrink-0 grid h-5 w-5 place-items-center rounded border border-pax-text-soft/20 bg-transparent",
       "text-[0.82rem] leading-none text-pax-text-dim",
-      "hover:border-pax-gold/30 hover:text-pax-text",
+      "hover:border-pax-text-soft/40 hover:text-pax-text",
       "disabled:pointer-events-none disabled:opacity-30",
     ],
     input: [
-      "h-1.5 min-w-0 flex-1 cursor-pointer appearance-none rounded-full border border-pax-gold/12",
-      "bg-pax-panel-muted accent-pax-gold/80",
+      "h-1.5 min-w-0 flex-1 cursor-pointer appearance-none rounded-full border border-pax-text-soft/20",
+      "bg-pax-panel-muted accent-pax-text-soft/70",
     ],
     output: [
       "shrink-0 w-11 text-right font-pax-data text-[0.66rem] font-semibold tabular-nums text-pax-text-soft",

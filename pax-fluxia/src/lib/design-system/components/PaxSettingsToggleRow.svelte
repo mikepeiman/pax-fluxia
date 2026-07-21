@@ -128,12 +128,10 @@
   .pax-settings-toggle-row--checked .pax-settings-toggle-row__switch {
     border-color: color-mix(in srgb, var(--pax-ui-accent) 65%, transparent);
     background: color-mix(in srgb, var(--pax-ui-accent) 22%, rgba(1, 12, 16, 0.9));
-    box-shadow: 0 0 16px color-mix(in srgb, var(--pax-ui-accent) 18%, transparent);
   }
 
   .pax-settings-toggle-row--checked .pax-settings-toggle-row__knob {
     background: var(--pax-ui-accent);
-    box-shadow: 0 0 10px color-mix(in srgb, var(--pax-ui-accent) 42%, transparent);
     transform: translateX(16px);
   }
 
