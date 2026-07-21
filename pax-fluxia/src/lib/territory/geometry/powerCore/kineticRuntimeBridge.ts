@@ -22,7 +22,11 @@ import type { KineticFrame } from './kineticTypes';
 import type { PowerCell } from './powerCoreTypes';
 
 let runtime: KineticTransitionRuntime | null = null;
+/** Combined ownership+topology fingerprint of the last committed endpoint. */
 let lastCommitFp: string | null = null;
+/** Ownership-only portion of the last commit — distinguishes a topology-only
+ *  refresh (same owners, geometry retuned) from a real conquest. */
+let lastCommitOwnFp: string | null = null;
 let lastFrame: KineticFrame | null = null;
 let framesSampled = 0;
 let lastCostMs = 0;
@@ -41,6 +45,33 @@ function ownershipFingerprint(stars: readonly StarState[]): string {
     let fp = '';
     for (const s of stars) {
         if (s.ownerId) fp += `${s.id}:${s.ownerId}|`;
+    }
+    return fp;
+}
+
+/**
+ * TOPOLOGY fingerprint of a settled endpoint — the part of its identity that is
+ * NOT ownership: site geometry (positions + weights) and the clip ring. The
+ * live topology sliders (MSR / star bias / CX contest+corridor / DX / boundary
+ * pad) all feed the diagram through these — MSR/bias/CX/DX reshape the sites,
+ * boundaryPad reshapes the clip — so any topology retune changes this string.
+ *
+ * ownerId is DELIBERATELY excluded: ownership is fingerprinted separately from
+ * `stars`, and keeping the two orthogonal is what lets the commit gate tell a
+ * conquest (ownership changed) apart from an idle retune (topology changed).
+ * Rounded to absorb sub-pixel numerical jitter between otherwise-equal builds.
+ * Cheap: runs only on a geometry (re)build's commit, never per render frame.
+ */
+function endpointTopologyFingerprint(
+    endpoint: PowerCoreEndpointComputation,
+): string {
+    let fp = `n${endpoint.sites.length}`;
+    for (const s of endpoint.sites) {
+        fp += `|${Math.round(s.x)},${Math.round(s.y)},${Math.round((s.weight ?? 0) * 100)}`;
+    }
+    fp += '#c';
+    for (const pt of endpoint.clip) {
+        fp += `|${Math.round(pt[0])},${Math.round(pt[1])}`;
     }
     return fp;
 }
@@ -109,6 +140,7 @@ function buildConquestOrigins(
 export function resetKineticRuntimeBridge(): void {
     runtime = null;
     lastCommitFp = null;
+    lastCommitOwnFp = null;
     lastFrame = null;
     framesSampled = 0;
     lastCostMs = 0;
@@ -121,10 +153,14 @@ export function resetKineticRuntimeBridge(): void {
  * True iff `stars` carry an ownership the runtime has NOT committed yet — the
  * caller can then run the CHEAP endpoint-only commit on the conquest frame and
  * defer the expensive snapshot assembly to a light mid-morph frame (the
- * conquest-frame spike fix). Mirrors commitKineticEndpoint's fingerprint guard.
+ * conquest-frame spike fix). Ownership-ONLY by design: this is the conquest
+ * fast-path gate; topology-only retunes are refreshed separately via the idle
+ * rebuild's collectEndpoint (see commitKineticEndpoint's combined gate), so it
+ * compares against the ownership portion of the last commit, not the combined
+ * fingerprint.
  */
 export function kineticEndpointNeedsCommit(stars: readonly StarState[]): boolean {
-    return ownershipFingerprint(stars) !== lastCommitFp;
+    return ownershipFingerprint(stars) !== lastCommitOwnFp;
 }
 
 /**
@@ -141,8 +177,15 @@ export function commitKineticEndpoint(params: {
     durationMs: number;
     conquestFrontMode?: import('./conquestFrontField').ConquestFrontMode;
 }): void {
-    const fp = ownershipFingerprint(params.stars);
+    const ownFp = ownershipFingerprint(params.stars);
+    const fp = `${ownFp}##${endpointTopologyFingerprint(params.endpoint)}`;
     if (fp === lastCommitFp) return;
+
+    // Topology-only refresh (owners unchanged, geometry retuned) MID-MORPH:
+    // defer. Committing here with transitionKey===null would SNAP the settled
+    // state and drop the in-flight conquest animation. Leave lastCommitFp stale
+    // so the next idle rebuild after the morph settles picks up the retune.
+    if (runtime?.activeKey && ownFp === lastCommitOwnFp) return;
 
     if (!runtime) runtime = new KineticTransitionRuntime();
     const active = params.activeTransition;
@@ -162,6 +205,7 @@ export function commitKineticEndpoint(params: {
         conquestFrontMode: params.conquestFrontMode,
     });
     lastCommitFp = fp;
+    lastCommitOwnFp = ownFp;
 
     // Render-order snap fix: sampleKineticForFrame() runs EARLY in the frame,
     // BEFORE this commit (which fires later, inside the geometry build). Without

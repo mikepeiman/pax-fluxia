@@ -18,6 +18,7 @@ import {
     commitKineticEndpoint,
     getActiveKineticFrame,
     getKineticDiagnostics,
+    getKineticRenderCells,
     resetKineticRuntimeBridge,
     sampleKineticForFrame,
 } from './kineticRuntimeBridge';
@@ -109,6 +110,41 @@ describe('kineticRuntimeBridge', () => {
         // Original window still governs: settles at the ORIGINAL start + DUR.
         expect(sampleKineticForFrame(1000 + DUR - 1, true)).not.toBeNull();
         expect(sampleKineticForFrame(1000 + DUR, true)).toBeNull();
+    });
+
+    it('topology-only retune refreshes the settled anchor (issue #1)', () => {
+        // Idle snap with the default topology.
+        commitKineticEndpoint({ endpoint: S0.endpoint, stars: S0.stars, activeTransition: null, nowMs: 0, durationMs: DUR });
+        const before = getKineticRenderCells();
+        expect(before).toBe(S0.endpoint.cells);
+
+        // SAME ownership, RETUNED topology (star margin + world-clip pad both
+        // moved) → a different diagram. Pre-fix, the ownership-only gate
+        // early-returned here and the morph anchor stayed stale.
+        const savedMsr = GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN;
+        const savedPad = GAME_CONFIG.CHAIKIN_BOUNDARY_PAD;
+        GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN = savedMsr + 25;
+        GAME_CONFIG.CHAIKIN_BOUNDARY_PAD = savedPad + 80;
+        let retuned: ReturnType<typeof endpoint>;
+        try {
+            retuned = endpoint({});
+        } finally {
+            GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN = savedMsr;
+            GAME_CONFIG.CHAIKIN_BOUNDARY_PAD = savedPad;
+        }
+        commitKineticEndpoint({ endpoint: retuned.endpoint, stars: retuned.stars, activeTransition: null, nowMs: 10, durationMs: DUR });
+
+        // Anchor now reflects the retuned topology, not the stale S0 geometry.
+        expect(getKineticRenderCells()).toBe(retuned.endpoint.cells);
+        expect(getKineticRenderCells()).not.toBe(before);
+    });
+
+    it('unchanged endpoint does not re-settle (gate stays idempotent)', () => {
+        commitKineticEndpoint({ endpoint: S0.endpoint, stars: S0.stars, activeTransition: null, nowMs: 0, durationMs: DUR });
+        const first = getKineticRenderCells();
+        // Identical ownership AND topology → no-op; the anchor must be untouched.
+        commitKineticEndpoint({ endpoint: S0.endpoint, stars: S0.stars, activeTransition: null, nowMs: 5, durationMs: DUR });
+        expect(getKineticRenderCells()).toBe(first);
     });
 
     it('reset clears all state', () => {
