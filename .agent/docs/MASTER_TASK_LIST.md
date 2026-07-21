@@ -31,7 +31,15 @@ superseding docs:
 ## 2026-07-20
 
 ### Open
-- [ ] **⭐ FULL SETTINGS UI REFACTOR — the visible redesign (Phase 5) is STILL NOT DONE** `[ui][settings][design]`
+- [ ] **⭐ FULL SETTINGS IA REWRITE — plan `.agent/docs/game/design/2026-07-21_SETTINGS_IA_REWRITE_PLAN.md`** `[ui][settings][design]`
+  User (2026-07-21): rewrite the ENTIRE Settings information architecture (semantics, subsection groupings,
+  duplicate controls, labels/descriptions) — everything below the 8 soft-locked top categories. Root cause =
+  THREE parallel structures (settingsRegistry sections + settingMetadata search map + hand-rolled ControlsSection
+  controls) that drift. Fix = ONE control-level registry; panel/search/infotips are projections; totality test.
+  Phases A(inventory, running)→B(design+user sign-off)→C(build)→D(migrate)→E(derive search/infotips)→F(polish:
+  slider restyle, 50ms infotip, remove #2 knobs, resolve #3 dups). Model discipline (user 2026-07-21): Haiku
+  subagents, Sonnet only when needed; token-conservative so the user keeps budget for planning/review.
+- [ ] **(superseded framing) FULL SETTINGS UI REFACTOR — now the IA rewrite above** `[ui][settings][design]`
   User (2026-07-20): "The entire surface is essentially what it was… it is a VERY BAD UI." Backend/data work
   (cutover Phases 0–4-ish) landed but the PRESENTATION is unchanged. Concrete problem areas the user named:
   (1) overall theming applied to settings; (2) settings-specific styles — controls, labels, spacing;
