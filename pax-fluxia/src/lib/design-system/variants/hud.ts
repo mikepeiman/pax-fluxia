@@ -216,12 +216,15 @@ export type HudFieldVariants = VariantProps<typeof hudField>;
 // Neutral slider palette (2026-07-21): no gold accent, no glow. Label raised
 // from text-dim to text-soft for legibility; track/thumb/nudge are quiet
 // neutrals so the row reads as data, not decoration.
+// Readable, uncrowded slider row (2026-07-21): label is normal-case, larger,
+// full-contrast and WRAPS instead of truncating (long labels were being cut
+// off — "cannot read text"); more gap between label / track / value.
 export const hudRange = tv({
   slots: {
-    root: "flex min-w-0 items-center gap-1.5",
+    root: "flex min-w-0 items-center gap-2.5",
     label: [
-      "shrink-0 basis-[4.75rem] min-w-0 truncate",
-      "font-pax-ui text-[0.64rem] font-bold uppercase tracking-[0.05em] text-pax-text-soft",
+      "shrink-0 basis-[7rem] min-w-0",
+      "font-pax-ui text-[0.76rem] font-semibold leading-tight text-pax-text",
     ],
     nudge: [
       "shrink-0 grid h-5 w-5 place-items-center rounded border border-pax-text-soft/20 bg-transparent",
@@ -234,7 +237,7 @@ export const hudRange = tv({
       "bg-pax-panel-muted accent-pax-text-soft/70",
     ],
     output: [
-      "shrink-0 w-11 text-right font-pax-data text-[0.66rem] font-semibold tabular-nums text-pax-text-soft",
+      "shrink-0 w-12 text-right font-pax-data text-[0.74rem] font-semibold tabular-nums text-pax-text",
     ],
   },
 });

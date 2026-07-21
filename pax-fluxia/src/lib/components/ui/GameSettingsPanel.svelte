@@ -667,19 +667,17 @@
         await tick();
         const sectionNode = sectionBodyNodes.get(result.sectionId);
         if (!sectionNode) return;
-        const target =
-            resolveSearchTargetElement(sectionNode, result) ?? sectionNode;
-        const scrollTarget =
-            target.closest(
-                "[data-setting-config-key], .var-row, .toggle-row, .engine-control-group, .theme-card, section",
-            ) ?? target;
-        // Bring the matched control to the TOP of the panel view (not centered)
-        // so it lands where the eye expects it, then flash it for ~1.5s.
-        (scrollTarget as HTMLElement).scrollIntoView({
-            behavior: "smooth",
-            block: "start",
-        });
-        flashSearchTarget(scrollTarget as HTMLElement);
+        const resolved = resolveSearchTargetElement(sectionNode, result);
+        const scrollTarget = ((resolved ?? sectionNode).closest(
+            "[data-setting-config-key], .var-row, .toggle-row, .engine-control-group, .theme-card, section",
+        ) ?? resolved ?? sectionNode) as HTMLElement;
+        // Bring the target to the TOP of the panel view (not centered).
+        scrollTarget.scrollIntoView({ behavior: "smooth", block: "start" });
+        // Flash ONLY when a real control resolved. Flashing the section/panel
+        // fallback (mode-gated control absent, or a section-level result) reads
+        // as "the whole panel flashed and nothing was there" — worse than a
+        // quiet scroll.
+        if (resolved) flashSearchTarget(scrollTarget);
     }
 
     async function handleSearchSubmit() {
@@ -1848,18 +1846,23 @@
         }
     }
     @keyframes settings-search-hit-flash {
+        /* The leading `transparent` spread is a spacer: it pushes the accent
+           ring ~5px off the control so the highlight has breathing room instead
+           of hugging the border. */
         0%,
         12% {
-            background: color-mix(in srgb, var(--flash-accent) 40%, transparent);
+            background: color-mix(in srgb, var(--flash-accent) 34%, transparent);
             box-shadow:
-                0 0 0 3px var(--flash-accent),
-                0 0 24px 6px color-mix(in srgb, var(--flash-accent) 55%, transparent);
+                0 0 0 5px transparent,
+                0 0 0 8px var(--flash-accent),
+                0 0 24px 10px color-mix(in srgb, var(--flash-accent) 50%, transparent);
         }
         55% {
-            background: color-mix(in srgb, var(--flash-accent) 16%, transparent);
+            background: color-mix(in srgb, var(--flash-accent) 14%, transparent);
             box-shadow:
-                0 0 0 2px color-mix(in srgb, var(--flash-accent) 55%, transparent),
-                0 0 14px 3px color-mix(in srgb, var(--flash-accent) 30%, transparent);
+                0 0 0 5px transparent,
+                0 0 0 7px color-mix(in srgb, var(--flash-accent) 55%, transparent),
+                0 0 14px 5px color-mix(in srgb, var(--flash-accent) 28%, transparent);
         }
         100% {
             background: transparent;
