@@ -442,24 +442,10 @@
             />
 
             {#if isPowerVectorFamily()}
-                <div class="sub-heading territory-style-subheading">
-                    Border Rounding
-                    <PaxInfoHint text="Chaikin smoothing passes applied to the vector borders and merged fills. 0 = crisp straight edges; higher = rounder." />
-                </div>
-                <PaxSettingsRangeRow
-                    label="Geometry Smooth Passes"
-                    value={numVal("voronoiBorderSmooth", "VORONOI_BORDER_SMOOTH", 0)}
-                    min={0}
-                    max={5}
-                    step={1}
-                    settingConfigKey="VORONOI_BORDER_SMOOTH"
-                    onInput={(value) =>
-                        onUpdate(
-                            "VORONOI_BORDER_SMOOTH",
-                            "voronoiBorderSmooth",
-                            value,
-                        )}
-                />
+                <!-- Border Rounding + Front Shape live in the Transition section
+                     (their all-mode canonical home); the duplicate copies that
+                     were here are retired. Blended Opponent Borders is a
+                     power-vector border style and stays. -->
                 <PaxSettingsToggleRow
                     label="Blended Opponent Borders"
                     checked={boolVal(
@@ -475,33 +461,6 @@
                             "territorySurfaceBorderBlend",
                             value,
                         )}
-                />
-                <div class="sub-heading territory-style-subheading">
-                    Conquest Front
-                    <PaxInfoHint text="Shape of the conquest split applied in the geometry. Radial (default) = curved front advancing from the attack origin. Linear = straight sweep." />
-                </div>
-                <PaxSettingsSegmentedRow
-                    label="Front Shape"
-                    value={stringVal(
-                        "territoryConquestFrontMode",
-                        "TERRITORY_CONQUEST_FRONT_MODE",
-                        "radial",
-                    )}
-                    options={[
-                        { value: "radial", label: "Radial" },
-                        { value: "linear", label: "Linear" },
-                    ]}
-                    settingConfigKey="TERRITORY_CONQUEST_FRONT_MODE"
-                    onValueChange={(value) => {
-                        GAME_CONFIG.TERRITORY_CONQUEST_FRONT_MODE = value as
-                            | "linear"
-                            | "radial";
-                        onUpdate(
-                            "TERRITORY_CONQUEST_FRONT_MODE",
-                            "territoryConquestFrontMode",
-                            value,
-                        );
-                    }}
                 />
             {/if}
 
