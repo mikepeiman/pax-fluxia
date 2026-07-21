@@ -28,6 +28,38 @@ superseding docs:
 
 ---
 
+## 2026-07-21
+
+### Done
+- [x] **Settings search: highlight fires + de-noised + labels reconciled** `[ui][settings]` `fix(settings): search…` —
+  root cause of the never-firing highlight: the flash keyed on a SCOPED `--accent` that is undefined when the flash
+  lands on the section fallback / an uncolored row (color-mix on an undefined var paints nothing) → gave it a
+  self-contained `--flash-accent` + hard fallback + brighter ring. Toggle rows: moved `data-setting-config-key` to the
+  OUTER row so scroll/flash hit the full row. Search filter now matches VISIBLE text only (section+label+description),
+  not raw config keys → "chaikin" no longer hits CHAIKIN_BOUNDARY_PAD; removed duplicate `Frontier Chaikin`/`Conquest
+  Front` entries; renamed stale "Geometry Smooth Passes" → rendered "Border Rounding (Chaikin passes)".
+- [x] **Infotips open at 50ms** `[ui][settings]` — added `openDelay` prop to PaxHudTooltip (default 100), PaxInfoHint
+  passes 50.
+- [x] **Neutral slider palette + remove toggle glow** `[ui][settings]` — hudRange dropped gold accent (neutral
+  track/thumb/nudge), label text-dim→text-soft for legibility; PaxSettingsToggleRow lost its accent glow box-shadows.
+- [x] **#2 dead knobs removed** `[settings][territory]` — Frontier Resolution slider + its search/panel-map/invalidation
+  gone; FRONTIER_RESOLUTION + CHAIKIN_BOUNDARY_EPS moved to EXCLUDED_FROM_CATEGORIES (config keys retained for old-config
+  import; internal geometryTuning plumbing folds into the territory migration).
+- [x] **#3 dedup — Front Shape + Border Rounding** `[settings][territory]` — removed the power-vector-gated duplicate
+  copies from TerritorySurfaceStyleTuning; each key now resolves to ONE control (Transition card = registry canonical
+  home). Blended Opponent Borders (unique) kept.
+- [x] **Settings control registry backbone** `[settings][arch]` — `settingsControlRegistry.ts` + integrity test; the
+  single source of truth the panel/search/infotips will project from. Seeded with Territory Topology + Transition.
+
+### Open
+- [ ] **#3 dedup — CELL_GRID copies: NOT a clean cut (registry migration)** `[settings][territory]` — CellGridTuning's
+  phase-field rows and TerritorySurfaceStyleTuning's cell-grid rows write the same CELL_GRID_* keys but with DIFFERENT
+  disabled logic, mode-family-aware defaults (cellGridPhaseEdgesModeDefaults vs cellGridFamilyConfigDefaults) and gating.
+  Unify in the registry migration, not by deleting one.
+- [ ] **Registry migration continues** `[settings][arch]` — populate remaining sections from inventory; wire search +
+  infotips to derive from `settingsControlRegistry`; delete settingMetadata's parallel map; migrate render section-by-
+  section. Plan: 2026-07-21_SETTINGS_IA_REWRITE_PLAN.md.
+
 ## 2026-07-20
 
 ### Open
