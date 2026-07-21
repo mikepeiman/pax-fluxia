@@ -276,7 +276,6 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         },
         // 'Geometry Source' selector RETIRED (2026-07-08): unified on PowerCore.
         'Minimum Star Margin': { key: 'MODIFIED_VORONOI_STAR_MARGIN' },
-  'MSR as star power': { key: 'TERRITORY_MSR_STAR_BIAS' },
   'Star Bias': { key: 'TERRITORY_MSR_STAR_BIAS' },
         'Corridor Virtual Sites (CX)': { key: 'MODIFIED_VORONOI_CORRIDOR_ENABLED' },
         'Lane Midpoint Pairs': {
@@ -332,21 +331,13 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Inward Offset': { key: 'CELL_GRID_INWARD_OFFSET_PX' },
         'Cell Shape': { key: 'CELL_GRID_CELL_SHAPE' },
         'Cell Inset': { key: 'CELL_GRID_CELL_INSET_PX' },
-        'Cell Inset (px)': { key: 'CELL_GRID_CELL_INSET_PX' },
         'Square Corner': { key: 'CELL_GRID_CELL_CORNER_PX' },
-        'Square Corner (px)': { key: 'CELL_GRID_CELL_CORNER_PX' },
         'Border Mode': { key: 'CELL_GRID_BORDER_MODE' },
         'Centered-blended borders': { key: 'CELL_GRID_BORDER_BLEND' },
-        'Singular blended territory border': {
-            key: 'CELL_GRID_BORDER_BLEND',
-        },
         'Shared Edge Smoothing': {
             key: 'CELL_GRID_EDGE_SMOOTHING_PASSES',
         },
         'Shared Edge Trim': {
-            key: 'CELL_GRID_EDGE_TRIM_PX',
-        },
-        'Shared Edge Trim (px)': {
             key: 'CELL_GRID_EDGE_TRIM_PX',
         },
         'Border Chaikin Passes': {
@@ -355,8 +346,6 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         Adjacency: { key: 'CELL_GRID_ADJACENCY' },
         'Wave Geometry': { key: 'CELL_GRID_WAVE_GEOMETRY' },
         'Wave Seeding': { key: 'CELL_GRID_WAVE_SEEDING' },
-        'Propagation Shape': { key: 'CELL_GRID_WAVE_GEOMETRY' },
-        'Propagation Source': { key: 'CELL_GRID_WAVE_SEEDING' },
         'Flip Transition': { key: 'CELL_GRID_FLIP_TRANSITION' },
         'Flip Window': { key: 'CELL_GRID_FLIP_WINDOW' },
         'Wave Easing': { key: 'CELL_GRID_WAVE_EASE' },
@@ -376,9 +365,6 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Size Collapse End': {
             key: 'CELL_GRID_PHASE_FIELD_SIZE_COLLAPSE_END',
         },
-        'Final Cell Size (px)': {
-            key: 'CELL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX',
-        },
         'Final Cell Size': {
             key: 'CELL_GRID_PHASE_FIELD_FINAL_CELL_SIZE_PX',
         },
@@ -389,25 +375,28 @@ const SCOPE_LABEL_META: LabelScopeMap = {
             key: 'CELL_GRID_PHASE_FIELD_FRONTIER_FADE_END',
         },
         'Grid Gradient Enabled': { key: 'GRID_GRADIENT_ENABLED' },
-        'Grid Gradient Spacing': { key: 'GRID_GRADIENT_SPACING_PX' },
-        'Grid Gradient Max Cells': { key: 'GRID_GRADIENT_MAX_CELLS' },
-        'Grid Gradient Shape': { key: 'GRID_GRADIENT_CELL_SHAPE' },
-        'Grid Gradient Center Size': { key: 'GRID_GRADIENT_CENTER_SIZE_PX' },
-        'Grid Gradient Edge Size': { key: 'GRID_GRADIENT_EDGE_SIZE_PX' },
-        'Grid Gradient Curve': { key: 'GRID_GRADIENT_CURVE_POWER' },
-        'Fill Hue Shift': { key: 'GRID_GRADIENT_FILL_HUE_SHIFT_DEG' },
-        'Grid Gradient Border Offset': { key: 'GRID_GRADIENT_BORDER_OFFSET_PX' },
-        'Grid Gradient Vector Borders': {
+        'Grid Spacing': { key: 'GRID_GRADIENT_SPACING_PX' },
+        // Collision: CELL_GRID_MAX_CELLS also renders as "Max Cells". The flat
+        // label→key map can't hold two identical keys; disambiguated until the
+        // registry (section/subsection-scoped) carries both.
+        'Max Cells (Grid Gradient)': { key: 'GRID_GRADIENT_MAX_CELLS' },
+        'Shape': { key: 'GRID_GRADIENT_CELL_SHAPE' },
+        'Center Size': { key: 'GRID_GRADIENT_CENTER_SIZE_PX' },
+        'Edge Size': { key: 'GRID_GRADIENT_EDGE_SIZE_PX' },
+        'Gradient Curve': { key: 'GRID_GRADIENT_CURVE_POWER' },
+        'Hue Shift': { key: 'GRID_GRADIENT_FILL_HUE_SHIFT_DEG' },
+        'Border Offset': { key: 'GRID_GRADIENT_BORDER_OFFSET_PX' },
+        'Vector borders': {
             key: 'GRID_GRADIENT_VECTOR_BORDERS_ENABLED',
         },
-        'Grid Gradient Border Dots': { key: 'GRID_GRADIENT_BORDER_DOTS_ENABLED' },
+        'Border dots': { key: 'GRID_GRADIENT_BORDER_DOTS_ENABLED' },
         'Fill Style': { key: 'GRID_GRADIENT_FILL_STYLE' },
-        'Grid Gradient Dot Size': { key: 'GRID_GRADIENT_BORDER_DOT_SIZE_PX' },
-        'Grid Gradient Dot Style': { key: 'GRID_GRADIENT_BORDER_DOT_STYLE' },
+        'Dot Size': { key: 'GRID_GRADIENT_BORDER_DOT_SIZE_PX' },
+        'Dot Style': { key: 'GRID_GRADIENT_BORDER_DOT_STYLE' },
         'Shader Neighbor Mode': { key: 'GRID_GRADIENT_SHADER_NEIGHBOR_MODE' },
         'Shader Mark Softness': { key: 'GRID_GRADIENT_SHADER_MARK_SOFTNESS' },
         'Edge Feather': { key: 'GRID_GRADIENT_SHADER_EDGE_SOFTNESS_PX' },
-        'Noise Roughness': { key: 'GRID_GRADIENT_SHADER_NOISE_STRENGTH' },
+        'Shader Noise Roughness (Noise)': { key: 'GRID_GRADIENT_SHADER_NOISE_STRENGTH' },
         'Shader Pulse': { key: 'GRID_GRADIENT_SHADER_PULSE_STRENGTH' },
         'Shader Pulse Speed': { key: 'GRID_GRADIENT_SHADER_PULSE_SPEED' },
         'Shader Drift': { key: 'GRID_GRADIENT_SHADER_FIELD_DRIFT_PX' },
@@ -420,18 +409,8 @@ const SCOPE_LABEL_META: LabelScopeMap = {
             key: 'TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE',
         },
         'Phase Sampling': { key: 'TERRITORY_FRONTIER_PHASE_SAMPLING' },
-        'Frontier Blur Passes': { key: 'TERRITORY_FRONTIER_BLUR_PASSES' },
-        'Triangle Diagonal Policy': {
-            key: 'TERRITORY_FRONTIER_TRIANGLE_DIAGONAL_POLICY',
-        },
-        'Frontier Chaikin Passes': {
+        'Frontier Chaikin': {
             key: 'TERRITORY_FRONTIER_CHAIKIN_PASSES',
-        },
-        'Frontier Shader Softness': {
-            key: 'TERRITORY_FRONTIER_SHADER_SOFTNESS_PX',
-        },
-        'Frontier Band Width': {
-            key: 'TERRITORY_FRONTIER_BAND_WIDTH_PX',
         },
         'Blur Passes': { key: 'TERRITORY_FRONTIER_BLUR_PASSES' },
         'Triangle Diagonal': {
@@ -446,24 +425,21 @@ const SCOPE_LABEL_META: LabelScopeMap = {
             key: 'TERRITORY_FRONTIER_JUNCTION_RENDER_MODE',
         },
         'Junction Gap Trim': { key: 'CELL_GRID_EDGE_TRIM_PX' },
-        'Junction Radius': {
-            key: 'TERRITORY_FRONTIER_JUNCTION_RADIUS_PX',
-        },
         'Junction Bubble Radius': {
             key: 'TERRITORY_FRONTIER_JUNCTION_RADIUS_PX',
         },
         'Frontier FX Mode': { key: 'TERRITORY_FRONTIER_FX_MODE' },
-        'Frontier FX Width': { key: 'TERRITORY_FRONTIER_FX_WIDTH_PX' },
-        'Frontier FX Strength': { key: 'TERRITORY_FRONTIER_FX_STRENGTH' },
-        'Frontier FX Softness': { key: 'TERRITORY_FRONTIER_FX_SOFTNESS' },
-        'Frontier FX Steps': { key: 'TERRITORY_FRONTIER_FX_STEPS' },
-        'Frontier FX Glow / Emissive': {
+        'Width': { key: 'TERRITORY_FRONTIER_FX_WIDTH_PX' },
+        'Strength': { key: 'TERRITORY_FRONTIER_FX_STRENGTH' },
+        'Softness': { key: 'TERRITORY_FRONTIER_FX_SOFTNESS' },
+        'Steps': { key: 'TERRITORY_FRONTIER_FX_STEPS' },
+        'Glow / Emissive': {
             key: 'TERRITORY_FRONTIER_FX_EMISSIVE',
         },
-        'Frontier FX Particle Density': {
+        'Particle Density': {
             key: 'TERRITORY_FRONTIER_FX_PARTICLE_DENSITY',
         },
-        'Frontier FX Pulse Speed': {
+        'Pulse Speed': {
             key: 'TERRITORY_FRONTIER_FX_PULSE_SPEED',
         },
         'Apply in steady state': {
@@ -473,18 +449,7 @@ const SCOPE_LABEL_META: LabelScopeMap = {
             key: 'TERRITORY_FRONTIER_FX_APPLY_TRANSITION',
         },
         'Use dedicated lane margin': { key: 'MAPGEN_LANE_MARGIN_ENABLED' },
-        'Use lane margin': { key: 'MAPGEN_LANE_MARGIN_ENABLED' },
-        'Lane margin (mapgen)': { key: 'MAPGEN_LANE_MARGIN_PX' },
-        'CX Corridors': { key: 'MODIFIED_VORONOI_CORRIDOR_ENABLED' },
-        'Contest midpoint pair': {
-            key: 'TERRITORY_CX_CONTEST_MIDPOINT_VSTARS',
-        },
-        'CX Count': { key: 'TERRITORY_CX_COUNT' },
-        'CX Weight': { key: 'TERRITORY_CX_WEIGHT' },
-        'CX Spacing': { key: 'MODIFIED_VORONOI_CORRIDOR_SPACING' },
-        'DX Disconnect': { key: 'MODIFIED_VORONOI_DISCONNECT_ENABLED' },
-        'DX Weight': { key: 'TERRITORY_DX_WEIGHT' },
-        'DX Distance': { key: 'MODIFIED_VORONOI_DISCONNECT_DISTANCE' },
+        'Lane margin (mapgen)': { key: 'MAPGEN_LANE_MARGIN_PX' },
         'Fill Path': { key: 'TERRITORY_FILL_TRANSITION_MODE' },
         'Border Path': { key: 'TERRITORY_BORDER_TRANSITION' },
         'Fill Alpha': { key: 'VORONOI_ALPHA' },
@@ -493,8 +458,7 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Border Rounding (Chaikin passes)': { key: 'VORONOI_BORDER_SMOOTH' },
         'Blended Opponent Borders': { key: 'TERRITORY_SURFACE_BORDER_BLEND' },
         'Front Shape': { key: 'TERRITORY_CONQUEST_FRONT_MODE' },
-        'Motion Completion': { key: 'TERRITORY_MORPH_COMPLETE_PCT' },
-        'MSR (Star Margin)': { key: 'MODIFIED_VORONOI_STAR_MARGIN' },
+        'Motion Completion (% of window)': { key: 'TERRITORY_MORPH_COMPLETE_PCT' },
     },
     timing: {
         'Tick Interval': {
@@ -506,7 +470,6 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Bind Territory Transition To Tick': {
             key: 'TERRITORY_TRANSITION_BIND_TO_TICK',
         },
-        'Territory Transition': { key: 'TERRITORY_TRANSITION_MS' },
     },
     travel: {
         'Travel Mode': { key: 'TRAVEL_MODE' },
@@ -551,11 +514,7 @@ const SCOPE_LABEL_META: LabelScopeMap = {
             description:
                 'Local-only transpose flag that swaps display axes without mutating star data.',
         },
-        'MSR (territory boundaries)': { key: 'MODIFIED_VORONOI_STAR_MARGIN' },
         'Use dedicated lane margin': {
-            key: 'MAPGEN_LANE_MARGIN_ENABLED',
-        },
-        'Use lane margin': {
             key: 'MAPGEN_LANE_MARGIN_ENABLED',
         },
         'Lane margin (mapgen)': { key: 'MAPGEN_LANE_MARGIN_PX' },
