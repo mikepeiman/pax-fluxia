@@ -60,13 +60,24 @@ superseding docs:
   missing only a derived search/persist registration — not dead. `debouncedConfigUpdate` renamed→`applyConfigUpdate`
   + dead `_delayMs` dropped (`62794a7b1`); its redundant double-write of GAME_CONFIG left in place (behavior-neutral,
   risky to collapse — some prop-routed keys may be unmapped).
+  **#3 DEDUP RE-SCOPED 2026-07-21 — NOT a clean mechanical removal (regression trap found).** The three "duplicates"
+  live in DIFFERENT subsection views (Modes vs Styles), so deleting either copy degrades one filtered view; and the
+  audit's "remove the top Modes-card copy" is WRONG for Border Rounding: `VORONOI_BORDER_SMOOTH` is read by the SHARED
+  `buildFamilyGeometry`/PowerCore path (`buildFamilyGeometry.ts:192`) AND CellGridPhaseEdges (`CellGridPhaseEdgesFamily.ts:4078`)
+  — i.e. ALL-MODE, and the Modes-card copy is its only all-mode home (the Styles copy is `isPowerVectorFamily()`-gated).
+  `TERRITORY_CONQUEST_FRONT_MODE` appears PV/transition-only (no non-PV family reads it) but is a conquest-transition
+  concept that arguably belongs in the "Conquest Transition" (Modes) card, not the style card. The CELL_GRID copies in
+  `CellGridTuning.svelte:704-779` carry phase-field-specific disabled logic + dynamic labels the `TerritorySurfaceStyleTuning`
+  copies may not replicate. CONCLUSION: consolidation = a subsection-IA/placement decision (which subsection owns each
+  control), best folded into the "reconcile searchable text + subsection consistency" task since it edits the same
+  controls. Awaiting user's placement call; do NOT blind-delete (control-loss regression in non-PV modes / filtered views).
 - [ ] **Theme/Preset Manager — one-shot full-screen UI** `[ui][settings][design]` — build per the vision
   `.agent/docs/game/design/2026-07-19_THEME_MANAGER_VISION.md`: full-screen modal managing BOTH per-section and
   full-config presets, inline tuning, a snapshot/inspect view of a preset's saved contents; gated as an
   advanced/developer feature (out of the default UI). Data foundation already exists (`categoryKeys.ts` partition
   + `fullConfigPresets.ts`).
-- [ ] **#1 Topology tuning breaks/doesn't reach transitions — SCOPED 2026-07-20 (root cause found; awaiting user
-  decision, NOT yet fixed)** `[territory][transitions]` — user report: topology tuning "not wired into the transition
+- [~] **#1 Topology tuning breaks/doesn't reach transitions — REAL BUG FIXED 2026-07-21 `806587a66`; lying-knobs
+  awaiting user decision** `[territory][transitions]` — user report: topology tuning "not wired into the transition
   engine." Investigation verdict (2 independent findings; morph builders `buildTransitionBubble`/`sampleKineticFrame`/
   `kineticTransitionRuntime`/`conquestFrontField` are pure/config-free — topology can only reach the morph by being
   baked into the S0/S1 endpoints at build time):
@@ -78,9 +89,11 @@ superseding docs:
     no config awareness (`kineticRuntimeBridge.ts:40-46,126-128,144-145`; redundant 2nd gate `kineticTransitionRuntime.ts:108`).
     Repro: tune topology while idle → idle map updates, but the commit that would refresh `settled` early-returns
     (`fp===lastCommitFp`) → S0 stays old-topology → next conquest morphs FROM stale topology → visible pop/mismatch at
-    sweep start. FIX (territory pipeline; needs user OK + visual sign-off): make the commit gate also account for the
-    topology fingerprint already computed in `buildTerritoryGeometryFingerprint`
-    (`powerVoronoiTerritoryGeometryGenerator.ts:964-983`) so `settled` stays current between conquests.
+    sweep start. FIXED `806587a66`: the commit gate in `kineticRuntimeBridge.ts` now keys on the endpoint's FULL
+    identity (ownership + topology). Topology signal derived from the endpoint itself (site x/y/weight + clip,
+    ownerId excluded) to keep the bridge config-free; a topology-only retune while a morph is in-flight defers to
+    post-settle (never snaps the active animation). +2 vitest cases, powerCore 126/126, check 0/0. USER VERIFY:
+    tune a topology slider while idle, then conquer a star — the transition should no longer snap at sweep start.
   • **LYING-KNOB — `FRONTIER_RESOLUTION` (slider, ControlsSection-Territory.svelte:692) + `CHAIKIN_BOUNDARY_EPS` are DEAD.**
     Plumbed through `geometryTuning.ts` + `TerritoryGeneratorSettings` but consumed by NOTHING except a debug log line
     (`Geometry_0319.ts:645,663`). The only eps-aware smoother (`chaikinSmoothPolygon` via `generateVoronoiTerritoryGeometry`)
