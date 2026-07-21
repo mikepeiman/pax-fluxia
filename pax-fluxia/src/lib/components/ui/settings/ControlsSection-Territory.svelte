@@ -680,26 +680,6 @@
         )} />
   </div>
 
-  <h5 class="territory-inline-heading">Frontier Sampling</h5>
-
-  <div class="var-row territory-range-note">
-    <PaxSettingsRangeRow
-      label="Frontier Resolution"
-      value={panel.frontierResolution ?? GAME_CONFIG.FRONTIER_RESOLUTION ?? 5}
-      min={topologyLimits.frontierResolution.min}
-      max={topologyLimits.frontierResolution.max}
-      step={1}
-      suffix="px"
-      settingConfigKey="FRONTIER_RESOLUTION"
-      onInput={(value) =>
-        queueTopologySliderUpdate(
-          "FRONTIER_RESOLUTION",
-          "frontierResolution",
-          value,
-          "Frontier Resolution",
-        )} />
-  </div>
-
   <h5 class="territory-inline-heading">World Boundary</h5>
 
   <div

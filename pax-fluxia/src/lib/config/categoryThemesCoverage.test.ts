@@ -40,7 +40,6 @@ describe("CATEGORY_KEYS is a complete, non-overlapping partition of GAME_CONFIG"
   it("captures the topology tuning keys under the territory category", () => {
     const territory = new Set(CATEGORY_KEYS.territory);
     for (const key of [
-      "FRONTIER_RESOLUTION",
       "CHAIKIN_BOUNDARY_PAD",
       "TERRITORY_CX_COUNT",
       "TERRITORY_CX_CONTEST_PAIR_COUNT",

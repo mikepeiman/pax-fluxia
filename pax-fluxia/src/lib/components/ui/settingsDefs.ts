@@ -212,9 +212,7 @@ const TERRITORY_VISUAL_KEYS: ReadonlySet<string> = new Set([
     // Topology-geometry inputs (no family prefix) — must invalidate territory so
     // preset load / config import / theme apply recompile the geometry, matching
     // what the live topology sliders do via bumpTerritoryVisualConfig().
-    'FRONTIER_RESOLUTION',
     'CHAIKIN_BOUNDARY_PAD',
-    'CHAIKIN_BOUNDARY_EPS',
 ]);
 
 /** True when a territory renderer reads this key. */
@@ -365,7 +363,6 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'TERRITORY_BORDER_TRANSITION' },
     // DY4 Isolation
     // Territory invariants (MSR / CX / DX)
-    { configKey: 'FRONTIER_RESOLUTION' },
     { panelKey: 'worldExtentPx', configKey: 'CHAIKIN_BOUNDARY_PAD' },
     { panelKey: 'starMargin', configKey: 'MODIFIED_VORONOI_STAR_MARGIN' },
     {

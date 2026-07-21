@@ -269,7 +269,6 @@ const SCOPE_LABEL_META: LabelScopeMap = {
             description:
                 'The active renderer family for territory fills and borders. Each family exposes its own tuning below.',
         },
-        'Frontier Resolution': { key: 'FRONTIER_RESOLUTION' },
         'Extent Beyond Map': {
             key: 'CHAIKIN_BOUNDARY_PAD',
             description:

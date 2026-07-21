@@ -320,9 +320,7 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'TERRITORY_FRONTIER_FX_APPLY_STEADY_STATE',
         'TERRITORY_FRONTIER_FX_APPLY_TRANSITION',
         // Topology rules (MSR / CX / DX) — the "Territory Topology" settings
-        'FRONTIER_RESOLUTION',
         'CHAIKIN_BOUNDARY_PAD',
-        'CHAIKIN_BOUNDARY_EPS',
         'TERRITORY_MSR_STAR_POWER_ENABLED',
         'TERRITORY_MSR_STAR_POWER_MODE',
         'TERRITORY_MSR_STAR_POWER_GAIN',
@@ -552,6 +550,11 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
  * drift again.
  */
 export const EXCLUDED_FROM_CATEGORIES: ReadonlySet<string> = new Set([
+    // Dead topology knobs (2026-07-21): read by nothing but a debug log line;
+    // their UI sliders + search + invalidation were removed. Config keys are
+    // retained only so old exported configs still import without loss.
+    'FRONTIER_RESOLUTION',
+    'CHAIKIN_BOUNDARY_EPS',
     // Map-generation structure — applied at map creation, not live-tunable.
     'STARS_PER_PLAYER',
     'MIN_LINKS_PER_STAR',
