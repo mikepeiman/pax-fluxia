@@ -19,6 +19,7 @@
 <PaxHudTooltip
   label={text}
   {placement}
+  openDelay={50}
   class={`pax-info-hint ${className}`.trim()}
 >
   <span class="pax-info-hint__glyph">i</span>

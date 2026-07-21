@@ -8,13 +8,21 @@
     label: string;
     placement?: "top" | "right" | "bottom" | "left";
     class?: string;
+    /** Hover-open delay in ms. Settings infotips pass 50 for a snappy reveal. */
+    openDelay?: number;
     children?: Snippet;
   }
 
-  let { label, placement = "top", class: className = "", children }: Props = $props();
+  let {
+    label,
+    placement = "top",
+    class: className = "",
+    openDelay = 100,
+    children,
+  }: Props = $props();
 </script>
 
-<Tooltip.Root openDelay={100} closeDelay={50} positioning={{ placement, gutter: 10 }}>
+<Tooltip.Root {openDelay} closeDelay={50} positioning={{ placement, gutter: 10 }}>
   <Tooltip.Trigger class={className} aria-label={label}>
     {#if children}
       {@render children()}

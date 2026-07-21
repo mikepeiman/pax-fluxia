@@ -233,13 +233,14 @@ function buildSettingEntries(
     activeTerritoryRenderMode?: string | null,
 ): SearchIndexEntry[] {
     return getResolvedSettingRecords(activeTerritoryRenderMode).map((record) => {
+        // Match VISIBLE text only (section + label + description). The raw
+        // config key / panel key are deliberately excluded from the filter
+        // haystack — indexing them made "chaikin" hit CHAIKIN_BOUNDARY_PAD
+        // ("Extent Beyond Map") and every underscored key a false positive.
+        // Exact-key lookups still boost ranking via normalizedConfig below.
         const searchText = [
             record.sectionLabel,
             record.label,
-            record.key,
-            record.key.replace(/_/g, " "),
-            record.panelKey,
-            record.panelKey.replace(/([A-Z])/g, " $1"),
             record.description ?? "",
         ]
             .filter(Boolean)
@@ -289,11 +290,11 @@ function buildSectionEntries(
         const sectionText = [
             section.label,
             ...subsectionLabels,
+            // Visible text only — see buildSettingEntries: raw keys excluded so a
+            // key substring can't drag a whole section in as a false positive.
             ...sectionRecords.flatMap((record) => [
                 record.label,
                 record.description ?? "",
-                record.key,
-                record.key.replace(/_/g, " "),
             ]),
         ]
             .filter(Boolean)

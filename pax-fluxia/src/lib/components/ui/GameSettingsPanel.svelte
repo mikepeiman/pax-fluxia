@@ -1384,8 +1384,14 @@
     }
 
     :global(.settings-search-hit) {
-        animation: settings-search-hit-flash 1.5s ease-out;
-        border-radius: var(--pax-radius-sm, 6px);
+        /* Self-contained accent with a hard fallback: the scoped `--accent`
+           is undefined when the flash lands on the whole-section fallback or a
+           row outside a colored section, which silently killed the animation
+           (color-mix on an undefined var → no paint). This guarantees a
+           visible flash wherever the target resolves. */
+        --flash-accent: var(--pax-ui-accent, #37e6ff);
+        animation: settings-search-hit-flash 1.6s ease-out;
+        border-radius: var(--pax-ui-radius-sm, 6px);
     }
 
     /* Flat search results list — every match as a clickable row (setting +
@@ -1842,17 +1848,18 @@
         }
     }
     @keyframes settings-search-hit-flash {
-        0% {
-            background: color-mix(in srgb, var(--accent) 32%, transparent);
+        0%,
+        12% {
+            background: color-mix(in srgb, var(--flash-accent) 40%, transparent);
             box-shadow:
-                0 0 0 3px color-mix(in srgb, var(--accent) 60%, transparent),
-                0 0 20px 5px color-mix(in srgb, var(--accent) 45%, transparent);
+                0 0 0 3px var(--flash-accent),
+                0 0 24px 6px color-mix(in srgb, var(--flash-accent) 55%, transparent);
         }
-        45% {
-            background: color-mix(in srgb, var(--accent) 18%, transparent);
+        55% {
+            background: color-mix(in srgb, var(--flash-accent) 16%, transparent);
             box-shadow:
-                0 0 0 2px color-mix(in srgb, var(--accent) 42%, transparent),
-                0 0 14px 3px color-mix(in srgb, var(--accent) 30%, transparent);
+                0 0 0 2px color-mix(in srgb, var(--flash-accent) 55%, transparent),
+                0 0 14px 3px color-mix(in srgb, var(--flash-accent) 30%, transparent);
         }
         100% {
             background: transparent;

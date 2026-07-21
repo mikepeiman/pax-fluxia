@@ -438,7 +438,6 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Triangle Diagonal': {
             key: 'TERRITORY_FRONTIER_TRIANGLE_DIAGONAL_POLICY',
         },
-        'Frontier Chaikin': { key: 'TERRITORY_FRONTIER_CHAIKIN_PASSES' },
         'Shader Softness': { key: 'TERRITORY_FRONTIER_SHADER_SOFTNESS_PX' },
         'Band Width': { key: 'TERRITORY_FRONTIER_BAND_WIDTH_PX' },
         'Outer perimeter border': {
@@ -492,9 +491,8 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Fill Alpha': { key: 'VORONOI_ALPHA' },
         'Border Width': { key: 'VORONOI_BORDER_WIDTH' },
         'Border Alpha': { key: 'VORONOI_BORDER_ALPHA' },
-        'Geometry Smooth Passes': { key: 'VORONOI_BORDER_SMOOTH' },
+        'Border Rounding (Chaikin passes)': { key: 'VORONOI_BORDER_SMOOTH' },
         'Blended Opponent Borders': { key: 'TERRITORY_SURFACE_BORDER_BLEND' },
-        'Conquest Front': { key: 'TERRITORY_CONQUEST_FRONT_MODE' },
         'Front Shape': { key: 'TERRITORY_CONQUEST_FRONT_MODE' },
         'Motion Completion': { key: 'TERRITORY_MORPH_COMPLETE_PCT' },
         'MSR (Star Margin)': { key: 'MODIFIED_VORONOI_STAR_MARGIN' },

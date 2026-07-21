@@ -35,6 +35,8 @@
   class={`pax-settings-toggle-row ${className}`}
   class:pax-settings-toggle-row--checked={checked}
   class:pax-settings-toggle-row--disabled={disabled}
+  data-setting-config-key={settingConfigKey}
+  data-setting-description={description}
 >
   <input
     class="pax-settings-toggle-row__input"
@@ -47,11 +49,7 @@
     <span class="pax-settings-toggle-row__knob"></span>
   </span>
   <span class="pax-settings-toggle-row__copy">
-    <strong
-      class="pax-settings-toggle-row__label"
-      data-setting-config-key={settingConfigKey}
-      data-setting-description={description}
-    >
+    <strong class="pax-settings-toggle-row__label">
       {label}
     </strong>
     {#if description}
