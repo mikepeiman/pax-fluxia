@@ -159,10 +159,22 @@ export default defineConfig(async () => ({
   },
   plugins: [tailwindcss(), browserBenchPlugin(), sveltekit(), settingsDumpPlugin(), mapPersistPlugin()],
   optimizeDeps: {
+    // Pre-bundle EVERY runtime dep Vite's cold-start scanner can't reach on its
+    // own, so the first `vite dev` load doesn't discover a new dep mid-init,
+    // re-optimize, and force a full reload that kills the game bootstrap (the
+    // "first run doesn't load, kill + rerun works" bug). Scanner blind spots:
+    //   - @pax/common is imported DYNAMICALLY (import("@pax/common")) → the
+    //     scanner never sees it or its deps (@colyseus/schema, d3-delaunay).
+    //   - d3-weighted-voronoi / jszip are CJS and only statically imported deep
+    //     in the graph.
     include: [
       "pixi.js",
       "txtgen",
       "@colyseus/sdk",
+      "@colyseus/schema",
+      "d3-delaunay",
+      "d3-weighted-voronoi",
+      "jszip",
     ],
   },
   resolve: {
