@@ -28,6 +28,26 @@ superseding docs:
 
 ---
 
+## 2026-07-22
+
+### Done / In progress — Settings RENDER PROJECTION (registry-driven renderer)
+- [x] **Registry-driven `SettingsControlRenderer`** — projects registry controls onto the shared `Pax*Row`
+  components; transform-safe write (mapped keys route through settingsStore so PANEL_CONFIG_MAP transforms are
+  respected; unmapped keys → derived panelKey + raw GAME_CONFIG). Presentation the generator can't extract
+  (percent `scale`, `format`, `unit`, `zeroLabel` like "unlimited"/"auto") lives in a `CONTROL_PRESENTATION`
+  override map applied onto the registry; pure value helper `settingsControlValue.ts` (toShown/toStored/
+  displayOutput) is unit-tested.
+- [x] **Migrated: AI, Combat, Economy** to thin sections (grouping/gates + `<SettingsControlRenderer>`). AI/Combat
+  sourced straight from AI_VARIABLES/COMBAT_VARIABLES (one definition). Economy percent transforms round-trip
+  tested. Commits `1419ad25b` + Economy. check 0/0, 21/21.
+- [ ] **In progress: Travel, Conquest, Surge, Timing** — user approved migrating all five "migratable-with-care"
+  sections (keep `{#if}` mode gates as thin wrappers, keep genuinely-custom controls inline). Verification =
+  tests + user spot-check.
+- [ ] **Stays BESPOKE (correctly, not projectable):** Players (palette gen + color apply), Logging (logFlags
+  mutation + refresh state), FrontierFx (mode-predicate disabled + bumpTerritoryVisualConfig side-effect).
+- KEY FINDING: no section is a clean generic sweep — every one has real per-control logic; projection is
+  incremental with bespoke bits kept inline. Renderer = `SettingsControlRenderer.svelte`.
+
 ## 2026-07-21
 
 ### Done
