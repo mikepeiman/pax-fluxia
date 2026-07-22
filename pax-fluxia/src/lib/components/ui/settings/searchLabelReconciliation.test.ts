@@ -2,6 +2,7 @@ import { describe, it } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { getSearchableSettingRecords } from "./settingMetadata";
+import { registryOwnedConfigKeys } from "./settingsControlRegistry";
 
 /**
  * SEARCH ↔ RENDERED-CONTROL RECONCILIATION AUDIT.
@@ -76,8 +77,12 @@ const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
 describe("search ↔ rendered-control reconciliation", () => {
     it("reports the full drift/dead/dup/missing diff", () => {
         const { labelsByKey, dynamicKeyFiles } = extractRenderedControls();
+        // Registry-owned keys are authoritative (search reads them from the
+        // control registry, not this hand map), so exclude them — the remaining
+        // legacy hand-map entries are what still needs reconciling/migrating.
+        const owned = registryOwnedConfigKeys();
         const records = getSearchableSettingRecords().filter(
-            (r) => !r.key.startsWith("local."),
+            (r) => !r.key.startsWith("local.") && !owned.has(r.key),
         );
 
         // DUP: one config key surfaced under multiple distinct search labels.
@@ -105,8 +110,9 @@ describe("search ↔ rendered-control reconciliation", () => {
             }
         }
 
-        // MISSING: a rendered control with no search entry at all.
-        const searched = new Set(records.map((r) => r.key));
+        // MISSING: a rendered control with no search entry at all (registry-owned
+        // keys are covered by the registry, so count them as searched).
+        const searched = new Set([...records.map((r) => r.key), ...owned]);
         const missing = [...labelsByKey.keys()]
             .filter((k) => !searched.has(k))
             .map((k) => `${k}  (${[...labelsByKey.get(k)!].join(", ")})`);

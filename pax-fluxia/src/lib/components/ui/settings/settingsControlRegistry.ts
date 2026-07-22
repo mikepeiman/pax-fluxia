@@ -65,7 +65,7 @@ export interface SettingsControl {
  * they are dead knobs slated for removal (user 2026-07-21).
  */
 const TERRITORY_TOPOLOGY_CONTROLS: readonly SettingsControl[] = [
-    { configKey: "MODIFIED_VORONOI_STAR_MARGIN", panelKey: "starMargin", section: "territory_tuning", subsection: null, label: "Minimum Star Margin (MSR)", description: "Minimum clear radius kept around each star before neighbouring territory can encroach.", controlType: "range", range: { min: 0, max: 200, step: 1 } },
+    { configKey: "MODIFIED_VORONOI_STAR_MARGIN", panelKey: "starMargin", section: "territory_tuning", subsection: null, label: "Minimum Star Margin", description: "Minimum clear radius kept around each star before neighbouring territory can encroach.", controlType: "range", range: { min: 0, max: 200, step: 1 }, aliases: ["msr"] },
     { configKey: "TERRITORY_MSR_STAR_BIAS", panelKey: "territoryMsrStarBias", section: "territory_tuning", subsection: null, label: "Star Bias", description: "How strongly a star's own territory is favoured over its neighbours' near the margin.", controlType: "range", range: { min: 0, max: 4, step: 0.05 } },
     { configKey: "MODIFIED_VORONOI_CORRIDOR_ENABLED", panelKey: "corridorEnabled", section: "territory_tuning", subsection: null, label: "Corridor Virtual Sites (CX)", description: "Adds virtual sites along lanes so contested corridors between stars form clean boundaries.", controlType: "toggle" },
     { configKey: "TERRITORY_CX_CONTEST_MIDPOINT_VSTARS", panelKey: "cxContestMidpointVstars", section: "territory_tuning", subsection: null, label: "Lane Midpoint Pairs", description: "Places paired virtual sites at lane midpoints to sharpen the contested split between two owners.", controlType: "toggle" },
@@ -88,16 +88,46 @@ const TERRITORY_TOPOLOGY_CONTROLS: readonly SettingsControl[] = [
  */
 const TERRITORY_TRANSITION_CONTROLS: readonly SettingsControl[] = [
     { configKey: "TERRITORY_CONQUEST_FRONT_MODE", panelKey: "territoryConquestFrontMode", section: "transition", subsection: null, label: "Front Shape", description: "Shape of the conquest split as it sweeps across a captured star. Radial = curved front from the attack origin; Linear = straight sweep.", controlType: "segmented", options: ["radial", "linear"] },
-    { configKey: "VORONOI_BORDER_SMOOTH", panelKey: "voronoiBorderSmooth", section: "transition", subsection: null, label: "Border Rounding", description: "How many rounding passes are applied to territory borders. 0 = angular; higher = smoother, more rounded corners.", controlType: "range", range: { min: 0, max: 5, step: 1 }, aliases: ["chaikin", "smooth passes", "geometry smooth"] },
+    { configKey: "VORONOI_BORDER_SMOOTH", panelKey: "voronoiBorderSmooth", section: "transition", subsection: null, label: "Border Rounding (Chaikin passes)", description: "How many rounding passes are applied to territory borders. 0 = angular; higher = smoother, more rounded corners.", controlType: "range", range: { min: 0, max: 5, step: 1 }, aliases: ["chaikin", "smooth passes", "geometry smooth"] },
     { configKey: "TERRITORY_MORPH_COMPLETE_PCT", panelKey: "territoryMorphCompletePct", section: "transition", subsection: null, label: "Motion Completion (% of window)", description: "Fraction of the transition window over which the conquest sweep completes; the remainder holds the settled map.", controlType: "range", range: { min: 50, max: 100, step: 1 } },
     { configKey: "TERRITORY_TRANSITION_MS", panelKey: "territoryTransitionMs", section: "transition", subsection: null, label: "Transition Duration", description: "Length of a conquest transition animation in milliseconds.", controlType: "range", range: { min: 0, max: 3000, step: 50 } },
     { configKey: "TERRITORY_TRANSITION_BIND_TO_TICK", panelKey: "territoryTransitionBindToTick", section: "transition", subsection: null, label: "Bind duration to tick", description: "Lock the transition duration to the game's tick interval instead of a fixed millisecond value.", controlType: "toggle" },
+];
+
+/**
+ * Territory → Render (territory_styles). These are RENDER-MODE-GATED: they only
+ * mount when their mode's tuning card is shown. The `subsection` is the render
+ * mode that surfaces the control, so a search click selects that mode's chip and
+ * the control actually mounts (resolveActiveStyleId follows the selected chip) —
+ * the fix for "search lands on a mode where the control isn't there". Keying by
+ * configKey lets same-label controls coexist (e.g. "Max Cells" here AND in the
+ * cell-grid family) — impossible in the flat label→key search map.
+ */
+const TERRITORY_STYLE_CONTROLS: readonly SettingsControl[] = [
+    // Grid Gradient family.
+    { configKey: "GRID_GRADIENT_SPACING_PX", section: "territory_styles", subsection: "grid_gradient", label: "Grid Spacing", description: "Spacing between grid-gradient cells, in pixels.", controlType: "range", range: { min: 2, max: 200, step: 1 } },
+    { configKey: "GRID_GRADIENT_MAX_CELLS", section: "territory_styles", subsection: "grid_gradient", label: "Max Cells", description: "Upper bound on the number of grid-gradient cells drawn.", controlType: "range", range: { min: 100, max: 200000, step: 1000 } },
+    { configKey: "GRID_GRADIENT_CELL_SHAPE", section: "territory_styles", subsection: "grid_gradient", label: "Shape", description: "Cell primitive drawn for the grid-gradient fill.", controlType: "custom" },
+    { configKey: "GRID_GRADIENT_CENTER_SIZE_PX", section: "territory_styles", subsection: "grid_gradient", label: "Center Size", description: "Cell size at a territory's core (near its star).", controlType: "range", range: { min: 0, max: 100, step: 1 } },
+    { configKey: "GRID_GRADIENT_EDGE_SIZE_PX", section: "territory_styles", subsection: "grid_gradient", label: "Edge Size", description: "Cell size at a territory's outer edge.", controlType: "range", range: { min: 0, max: 100, step: 1 } },
+    { configKey: "GRID_GRADIENT_CURVE_POWER", section: "territory_styles", subsection: "grid_gradient", label: "Gradient Curve", description: "How sharply cell size ramps from centre to edge.", controlType: "range", range: { min: 0.1, max: 8, step: 0.1 } },
+    { configKey: "GRID_GRADIENT_FILL_HUE_SHIFT_DEG", section: "territory_styles", subsection: "grid_gradient", label: "Hue Shift", description: "Hue rotation applied across the grid-gradient fill, in degrees.", controlType: "range", range: { min: -180, max: 180, step: 1 } },
+    { configKey: "GRID_GRADIENT_BORDER_OFFSET_PX", section: "territory_styles", subsection: "grid_gradient", label: "Border Offset", description: "Inward offset of the border from the fill edge.", controlType: "range", range: { min: 0, max: 20, step: 0.5 } },
+    { configKey: "GRID_GRADIENT_VECTOR_BORDERS_ENABLED", section: "territory_styles", subsection: "grid_gradient", label: "Vector borders", description: "Draw crisp vector borders instead of cell-derived edges.", controlType: "toggle" },
+    { configKey: "GRID_GRADIENT_BORDER_DOTS_ENABLED", section: "territory_styles", subsection: "grid_gradient", label: "Border dots", description: "Stipple the border with dots.", controlType: "toggle" },
+    { configKey: "GRID_GRADIENT_BORDER_DOT_SIZE_PX", section: "territory_styles", subsection: "grid_gradient", label: "Dot Size", description: "Size of the border stipple dots.", controlType: "range", range: { min: 0.5, max: 10, step: 0.5 } },
+    { configKey: "GRID_GRADIENT_BORDER_DOT_STYLE", section: "territory_styles", subsection: "grid_gradient", label: "Dot Style", description: "Style of the border stipple dots.", controlType: "custom" },
+    { configKey: "GRID_GRADIENT_SHADER_NOISE_STRENGTH", section: "territory_styles", subsection: "grid_gradient", label: "Shader Noise Roughness (Noise)", description: "Amount of per-pixel noise roughness in the shader-field fill.", controlType: "range", range: { min: 0, max: 1, step: 0.01 } },
+    // Cell-grid family border smoothing (mounts under any cell-grid mode; phase_edges chosen as the canonical entry).
+    { configKey: "CELL_GRID_BORDER_CHAIKIN_PASSES", section: "territory_styles", subsection: "phase_edges", label: "Border Chaikin Passes", description: "Chaikin rounding passes on the cell-grid territory border.", controlType: "range", range: { min: 0, max: 4, step: 1 }, aliases: ["chaikin"] },
+    { configKey: "TERRITORY_FRONTIER_CHAIKIN_PASSES", section: "territory_styles", subsection: "phase_edges", label: "Frontier Chaikin", description: "Chaikin rounding passes on the phase-edges frontier line.", controlType: "range", range: { min: 0, max: 4, step: 1 }, aliases: ["chaikin"] },
 ];
 
 /** The full control registry (grows as sections are reconciled). */
 export const SETTINGS_CONTROLS: readonly SettingsControl[] = [
     ...TERRITORY_TOPOLOGY_CONTROLS,
     ...TERRITORY_TRANSITION_CONTROLS,
+    ...TERRITORY_STYLE_CONTROLS,
 ];
 
 /** Search record projected from a control — label + description + aliases only. */

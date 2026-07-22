@@ -1,7 +1,11 @@
 import type { SettingsSectionId } from "./settingsRegistry";
 import { SETTINGS_SECTIONS } from "./settingsRegistry";
-import type { SearchableSettingRecord } from "./settingMetadata";
+import type { SearchableSettingRecord, SettingScope } from "./settingMetadata";
 import { getSearchableSettingRecords } from "./settingMetadata";
+import {
+    deriveRegistrySearchRecords,
+    registryOwnedConfigKeys,
+} from "./settingsControlRegistry";
 
 type SearchResultKind = "setting" | "section";
 
@@ -30,6 +34,10 @@ type SearchIndexEntry = SettingsSearchResult & {
 const SECTION_LABEL_BY_ID = Object.fromEntries(
     SETTINGS_SECTIONS.map((section) => [section.id, section.label]),
 ) as Record<SettingsSectionId, string>;
+
+const SECTION_SCOPE_BY_ID = Object.fromEntries(
+    SETTINGS_SECTIONS.map((section) => [section.id, section.scope]),
+) as Record<SettingsSectionId, SettingScope | null>;
 
 function normalizeSearchText(value: string): string {
     return value
@@ -215,7 +223,27 @@ type ResolvedSettingRecord = SearchableSettingRecord & {
 function getResolvedSettingRecords(
     activeTerritoryRenderMode?: string | null,
 ): ResolvedSettingRecord[] {
-    return getSearchableSettingRecords().flatMap((record) => {
+    const owned = registryOwnedConfigKeys();
+    // AUTHORITATIVE: registry-derived records carry the correct section +
+    // subsection + rendered label by construction. Keyed by configKey, so a
+    // control gated behind a render mode gets that mode as its subsection (the
+    // click mounts it) and same-label controls coexist — neither is possible in
+    // the flat label→key hand map.
+    const registryRecords: ResolvedSettingRecord[] = deriveRegistrySearchRecords().map(
+        (record) => ({
+            scope: (SECTION_SCOPE_BY_ID[record.section] ?? "territory") as SettingScope,
+            label: record.label,
+            key: record.configKey,
+            panelKey: record.panelKey ?? "",
+            description: record.description,
+            sectionId: record.section,
+            subsectionId: record.subsection ?? undefined,
+            sectionLabel: SECTION_LABEL_BY_ID[record.section],
+        }),
+    );
+    // Legacy hand-map records — only for keys the registry does NOT yet own.
+    const legacyRecords = getSearchableSettingRecords().flatMap((record) => {
+        if (owned.has(record.key)) return [];
         const target = resolveSectionTarget(record, activeTerritoryRenderMode);
         if (!target) return [];
         return [
@@ -227,6 +255,7 @@ function getResolvedSettingRecords(
             },
         ];
     });
+    return [...registryRecords, ...legacyRecords];
 }
 
 function buildSettingEntries(
