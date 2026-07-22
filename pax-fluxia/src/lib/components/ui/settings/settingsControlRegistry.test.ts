@@ -51,7 +51,7 @@ describe("settingsControlRegistry integrity", () => {
         expect(records.length).toBe(SETTINGS_CONTROLS.length);
         for (const record of records) {
             expect(record.label.length).toBeGreaterThan(0);
-            expect(record.description.length).toBeGreaterThan(0);
+            // description is optional (generated entries may lack one).
             expect(record.searchText).toContain(record.label.toLowerCase());
         }
     });

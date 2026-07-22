@@ -1,8 +1,8 @@
-import { describe, it } from "vitest";
+import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { getSearchableSettingRecords } from "./settingMetadata";
-import { registryOwnedConfigKeys } from "./settingsControlRegistry";
+import { registryOwnedConfigKeys, SETTINGS_CONTROLS } from "./settingsControlRegistry";
 
 /**
  * SEARCH ↔ RENDERED-CONTROL RECONCILIATION AUDIT.
@@ -110,6 +110,18 @@ describe("search ↔ rendered-control reconciliation", () => {
             }
         }
 
+        // REGISTRY DRIFT: a registered control's label must match a rendered
+        // label too (guards the generated file going stale vs the components).
+        const registryDrift: string[] = [];
+        for (const control of SETTINGS_CONTROLS) {
+            const rendered = labelsByKey.get(control.configKey);
+            if (!rendered || rendered.size === 0) continue; // dynamic/hand-rolled
+            if (!rendered.has(control.label) && !rendered.has(control.label.trim())
+                && ![...rendered].map(norm).includes(norm(control.label))) {
+                registryDrift.push(`${control.configKey}: registry="${control.label}"  rendered=${[...rendered].map((l) => `"${l}"`).join(", ")}`);
+            }
+        }
+
         // MISSING: a rendered control with no search entry at all (registry-owned
         // keys are covered by the registry, so count them as searched).
         const searched = new Set([...records.map((r) => r.key), ...owned]);
@@ -122,11 +134,25 @@ describe("search ↔ rendered-control reconciliation", () => {
             `rendered static controls: ${labelsByKey.size} keys | search records: ${records.length}`,
             `\n-- DUPLICATE search labels for one key (${dup.length}) --\n${dup.join("\n")}`,
             `\n-- LABEL DRIFT: search label ≠ rendered label (${drift.length}) --\n${drift.join("\n")}`,
+            `\n-- REGISTRY DRIFT: registry label ≠ rendered label (${registryDrift.length}) --\n${registryDrift.join("\n")}`,
             `\n-- NOT RENDERED: search key has no static control (${notRendered.length}) --\n${notRendered.join("\n")}`,
             `\n-- MISSING: rendered control with no search entry (${missing.length}) --\n${missing.join("\n")}`,
             `\n(dynamic settingConfigKey in: ${[...new Set(dynamicKeyFiles)].join(", ")})`,
         ].join("\n");
         // eslint-disable-next-line no-console
         console.log(report);
+
+        // HARD GUARD: no label may drift from what the control renders — the
+        // whole point of the registry migration. (Duplicates / not-rendered /
+        // missing are logged above but not yet asserted: they're structural
+        // flat-map limits or dynamic labels awaiting further migration.)
+        expect(
+            drift,
+            `search labels that no longer match the rendered control:\n${drift.join("\n")}`,
+        ).toEqual([]);
+        expect(
+            registryDrift,
+            `registry labels stale vs the components — re-run tools/gen-settings-registry.mjs:\n${registryDrift.join("\n")}`,
+        ).toEqual([]);
     });
 });

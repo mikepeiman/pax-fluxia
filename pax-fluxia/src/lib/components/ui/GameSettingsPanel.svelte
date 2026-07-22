@@ -654,10 +654,13 @@
         if (category) openCategoryId = category;
         activeSectionId = result.sectionId;
         showAllSections = false;
-        if (result.subsectionId) {
+        if (result.kind === "setting") {
+            // Reset to the control's subsection, or "all" so a control with no
+            // specific subsection is guaranteed visible (not hidden behind a
+            // stale filter) when we scroll + flash it.
             activeSubsections = {
                 ...activeSubsections,
-                [result.sectionId]: result.subsectionId,
+                [result.sectionId]: result.subsectionId ?? "all",
             };
         }
         persistActiveSection();

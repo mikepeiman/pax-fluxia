@@ -21,6 +21,7 @@
  */
 
 import type { SettingsSectionId } from "./settingsRegistry";
+import { GENERATED_CONTROLS } from "./settingsControlRegistry.generated";
 
 export type ControlType =
     | "range"
@@ -42,8 +43,9 @@ export interface SettingsControl {
     subsection: string | null;
     /** Visible label — the SAME string the rendered row shows (no drift). */
     label: string;
-    /** Infotip + search description. Purpose-clear, plain language. */
-    description: string;
+    /** Infotip + search description. Purpose-clear, plain language. Optional:
+     *  generated entries may have none (search falls back to label + section). */
+    description?: string;
     controlType: ControlType;
     /** Numeric range for `range` controls. */
     range?: { min: number; max: number; step: number };
@@ -123,11 +125,18 @@ const TERRITORY_STYLE_CONTROLS: readonly SettingsControl[] = [
     { configKey: "TERRITORY_FRONTIER_CHAIKIN_PASSES", section: "territory_styles", subsection: "phase_edges", label: "Frontier Chaikin", description: "Chaikin rounding passes on the phase-edges frontier line.", controlType: "range", range: { min: 0, max: 4, step: 1 }, aliases: ["chaikin"] },
 ];
 
-/** The full control registry (grows as sections are reconciled). */
+/**
+ * The full control registry. Hand-authored territory entries above (curated
+ * labels/descriptions/subsections for the mode-gated + topology/transition
+ * controls); GENERATED_CONTROLS below is machine-extracted from the remaining
+ * ControlsSection components (one section per file) — rendered label is ground
+ * truth, so those labels cannot drift. Regenerate with tools/gen-settings-registry.mjs.
+ */
 export const SETTINGS_CONTROLS: readonly SettingsControl[] = [
     ...TERRITORY_TOPOLOGY_CONTROLS,
     ...TERRITORY_TRANSITION_CONTROLS,
     ...TERRITORY_STYLE_CONTROLS,
+    ...GENERATED_CONTROLS,
 ];
 
 /** Search record projected from a control — label + description + aliases only. */
@@ -150,8 +159,8 @@ export function deriveRegistrySearchRecords(): RegistrySearchRecord[] {
         section: control.section,
         subsection: control.subsection,
         label: control.label,
-        description: control.description,
-        searchText: [control.label, control.description, ...(control.aliases ?? [])]
+        description: control.description ?? "",
+        searchText: [control.label, control.description ?? "", ...(control.aliases ?? [])]
             .join(" ")
             .toLowerCase(),
     }));
