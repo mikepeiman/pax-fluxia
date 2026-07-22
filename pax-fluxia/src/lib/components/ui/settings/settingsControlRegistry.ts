@@ -123,6 +123,12 @@ const TERRITORY_STYLE_CONTROLS: readonly SettingsControl[] = [
     // Cell-grid family border smoothing (mounts under any cell-grid mode; phase_edges chosen as the canonical entry).
     { configKey: "CELL_GRID_BORDER_CHAIKIN_PASSES", section: "territory_styles", subsection: "phase_edges", label: "Border Chaikin Passes", description: "Chaikin rounding passes on the cell-grid territory border.", controlType: "range", range: { min: 0, max: 4, step: 1 }, aliases: ["chaikin"] },
     { configKey: "TERRITORY_FRONTIER_CHAIKIN_PASSES", section: "territory_styles", subsection: "phase_edges", label: "Frontier Chaikin", description: "Chaikin rounding passes on the phase-edges frontier line.", controlType: "range", range: { min: 0, max: 4, step: 1 }, aliases: ["chaikin"] },
+    // Grid-gradient surface colour + jitter (rendered in GridGradientTuning).
+    { configKey: "TERRITORY_SURFACE_SATURATION", section: "territory_styles", subsection: "grid_gradient", label: "Saturation", description: "Colour saturation of the grid-gradient territory fill.", controlType: "custom" },
+    { configKey: "TERRITORY_SURFACE_LIGHTNESS", section: "territory_styles", subsection: "grid_gradient", label: "Lightness", description: "Colour lightness of the grid-gradient territory fill.", controlType: "custom" },
+    { configKey: "TERRITORY_SURFACE_ALPHA", section: "territory_styles", subsection: "grid_gradient", label: "Alpha", description: "Opacity of the grid-gradient territory fill.", controlType: "custom" },
+    { configKey: "GRID_GRADIENT_POSITION_JITTER", section: "territory_styles", subsection: "grid_gradient", label: "Position Jitter", description: "Random positional offset applied to grid-gradient cells.", controlType: "custom" },
+    { configKey: "CELL_GRID_BOUNDARY_FILL_FLUSH", section: "territory_styles", subsection: "phase_edges", label: "Boundary fill matches border", description: "Flush the cell-grid fill to the territory border so no gap shows.", controlType: "toggle" },
 ];
 
 /**

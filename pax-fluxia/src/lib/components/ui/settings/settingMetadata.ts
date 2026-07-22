@@ -151,11 +151,6 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Repair Suppress (Attacking)': { key: 'REPAIR_SUPPRESS_ATTACKER' },
         'Repair Suppress (Defending)': { key: 'REPAIR_SUPPRESS_DEFENDER' },
         'Starting Ships': { key: 'STARTING_SHIPS' },
-        'Defense Multiplier': {
-            key: 'AGGRESSOR_ADVANTAGE',
-            description:
-                'Inverse UI for AGGRESSOR_ADVANTAGE. Higher defense multiplier means defenders survive better.',
-        },
     },
     logging: LOGGING_META,
     players: {
@@ -449,7 +444,7 @@ const SCOPE_LABEL_META: LabelScopeMap = {
             key: 'TERRITORY_FRONTIER_FX_APPLY_TRANSITION',
         },
         'Use dedicated lane margin': { key: 'MAPGEN_LANE_MARGIN_ENABLED' },
-        'Lane margin (mapgen)': { key: 'MAPGEN_LANE_MARGIN_PX' },
+        'Lane margin (mapgen)': { key: 'MAPGEN_LANE_MARGIN_PX' },
         'Fill Path': { key: 'TERRITORY_FILL_TRANSITION_MODE' },
         'Border Path': { key: 'TERRITORY_BORDER_TRANSITION' },
         'Fill Alpha': { key: 'VORONOI_ALPHA' },
