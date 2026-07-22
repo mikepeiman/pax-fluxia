@@ -30,6 +30,22 @@ superseding docs:
 
 ## 2026-07-22
 
+### Done — control WIRING audit (dead + missing knobs)
+- [x] **Dead-control guard** `f42238460` — `settingsControlWiring.test.ts` fails CI if a control's config key is read
+  by no consuming code, scanning client renderers + shared sim (`common/src`) + server (`pax-server/src`). The audit
+  class prior passes missed (they only checked settings-internal consistency). Allowlist = 2 legit machinery keys.
+- [x] **Removed 4 dead controls** `refactor(settings)` — CONQUEST_TRAVEL_SPEED, CONQUEST_LERP_DELAY_MS (no consumer),
+  LANE_CONVERGENCE / LANE_CONVERGENCE_POINT (convergence blend disabled as a bug-fix). REMOVED_KEYS filter + keys→EXCLUDED.
+  Residual (safe follow-up): inert LANE_CONVERGENCE reads in strategies/transferHandler/applyLaneTravelPath left in place.
+- [x] **Exposed orb wobble freq/phase** `feat(travel)` — the orb-judder the user flagged: WOBBLE_FREQ / WOBBLE_FREQ_SPREAD
+  / WOBBLE_PHASE_SPREAD (was hardcoded 2.5/0.3/full-circle in behaviors.ts). Threaded via PhaseContext; 3 Travel controls;
+  defaults reproduce prior behavior; dead computeWobble helper removed.
+- [x] **Wired ARROW_EASING** `d21b5f6a3` — into the arrowhead settle ease (isArrowSettle-gated); default flipped to
+  'easeOut' so the look is unchanged; now a live control.
+- [ ] **NOT exposed (user chose only orb wobble):** CONQUEST_SURGE_RADIUS, CONQUEST_SLOWMO_ENABLED/FACTOR/DURATION_MS,
+  ORB_DRAW_MODE — still runtime-read with no control; available to expose later.
+
+
 ### Done / In progress — Settings RENDER PROJECTION (registry-driven renderer)
 - [x] **Registry-driven `SettingsControlRenderer`** — projects registry controls onto the shared `Pax*Row`
   components; transform-safe write (mapped keys route through settingsStore so PANEL_CONFIG_MAP transforms are
