@@ -230,8 +230,6 @@ const CONTROL_PRESENTATION: Record<
     ARRIVAL_ARC_INTENSITY: { format: "fixed2" },
     WOBBLE_AMP: { unit: "px" },
     LANE_OFFSET_PX: { unit: "px" },
-    LANE_CONVERGENCE: { format: "percentOfFraction" },
-    LANE_CONVERGENCE_POINT: { format: "percent" },
     ORBIT_BIAS_STRENGTH: { format: "fixed2" },
     ORBIT_BIAS_MIN: { format: "fixed2" },
     ORBIT_BIAS_MAX: { format: "fixed2" },
@@ -248,6 +246,7 @@ const CONTROL_PRESENTATION: Record<
     CONQUEST_SETTLE_MS: { unit: "ms" },
     CONQUEST_SURGE_STAGGER_MS: { unit: "ms" },
     CONQUEST_FORCE_GLOW_MULT: { format: "fixed2" },
+    // (CONQUEST_TRAVEL_SPEED / CONQUEST_LERP_DELAY_MS removed — dead knobs, 2026-07-22)
     ARROW_TAPER: { format: "fixed2" },
     ARROW_WIDTH: { unit: "px", zeroLabel: "auto" },
     ARROW_SPEED: { format: "multiplier" },
@@ -289,11 +288,25 @@ const RAW_CONTROLS: readonly SettingsControl[] = [
     ...GENERATED_CONTROLS,
 ];
 
-export const SETTINGS_CONTROLS: readonly SettingsControl[] = RAW_CONTROLS.map(
-    (control) =>
-        CONTROL_PRESENTATION[control.configKey]
-            ? { ...control, ...CONTROL_PRESENTATION[control.configKey] }
-            : control,
+/**
+ * Dead knobs removed from the UI (2026-07-22 wiring audit, user-approved): the
+ * config keys stay in game.config (excluded from categories) but they surface no
+ * control. Filtering here also drops any stale generated/legacy entry so the
+ * removal survives a registry regeneration.
+ */
+const REMOVED_KEYS = new Set<string>([
+    "CONQUEST_TRAVEL_SPEED",
+    "CONQUEST_LERP_DELAY_MS",
+    "LANE_CONVERGENCE",
+    "LANE_CONVERGENCE_POINT",
+]);
+
+export const SETTINGS_CONTROLS: readonly SettingsControl[] = RAW_CONTROLS.filter(
+    (control) => !REMOVED_KEYS.has(control.configKey),
+).map((control) =>
+    CONTROL_PRESENTATION[control.configKey]
+        ? { ...control, ...CONTROL_PRESENTATION[control.configKey] }
+        : control,
 );
 
 /** Search record projected from a control — label + description + aliases only. */

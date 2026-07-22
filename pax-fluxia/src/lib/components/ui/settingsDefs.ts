@@ -100,8 +100,6 @@ export const ANIM_SLIDERS: AnimSliderDef[] = [
     // Conquest
     { key: 'CONQUEST_SETTLE_MS', label: 'Conquest Settle', min: 0, max: 5000, step: 10, unit: 'ms', group: 'Conquest' },
     { key: 'CONQUEST_SURGE_STAGGER_MS', label: 'Surge Stagger', min: 0, max: 5000, step: 1, unit: 'ms', group: 'Conquest' },
-    { key: 'CONQUEST_TRAVEL_SPEED', label: 'Conquest Speed', min: 0.1, max: 10, step: 0.1, unit: '×', group: 'Conquest' },
-    { key: 'CONQUEST_LERP_DELAY_MS', label: 'Lerp Delay', min: 0, max: 5000, step: 10, unit: 'ms', group: 'Conquest' },
     { key: 'CONQUEST_COLOR_DELAY_TICKS', label: 'Color Delay', min: 0, max: 10, step: 0.5, unit: 'ticks', group: 'Conquest' },
     { key: 'CONQUEST_FLASH_TICKS', label: 'Flash Duration', min: 0, max: 10, step: 0.5, unit: 'ticks', group: 'Conquest' },
     // Arrow
@@ -269,8 +267,6 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'ATTACK_SURGE_RAMP_MS' },
     { configKey: 'ATTACK_SURGE_SHAPE' },
     { configKey: 'SURGE_PULSE_BIND_TO_TICK' },
-    { configKey: 'CONQUEST_TRAVEL_SPEED' },
-    { configKey: 'CONQUEST_LERP_DELAY_MS' },
     { configKey: 'CONQUEST_COLOR_DELAY_TICKS' },
     { configKey: 'CONQUEST_FLASH_TICKS' },
     { panelKey: 'conquestAnimMode', configKey: 'CONQUEST_ANIMATION_MODE' },
@@ -338,8 +334,6 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'STATIC_ORBITS' },
     { configKey: 'SHOW_SELECTION_HEX' },
     { configKey: 'LANE_OFFSET_PX' },
-    { configKey: 'LANE_CONVERGENCE' },
-    { configKey: 'LANE_CONVERGENCE_POINT' },
     { configKey: 'SHOW_STAR_POWER' },
     { configKey: 'STAR_POWER_ALPHA' },
     { configKey: 'STAR_POWER_RADIUS_MULT' },

@@ -51,7 +51,7 @@
 
 <h4 class="sub-heading">Lane Pathing</h4>
 <SettingsControlRenderer
-  controls={controlsFor(["LANE_OFFSET_PX", "LANE_CONVERGENCE", "LANE_CONVERGENCE_POINT"])}
+  controls={controlsFor(["LANE_OFFSET_PX"])}
 />
 
 <h4 class="sub-heading">Orbit Bias</h4>

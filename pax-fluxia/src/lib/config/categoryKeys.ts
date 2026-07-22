@@ -99,8 +99,6 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'TRAVEL_EASING_POWER',
         'TRAVEL_DURATION_MULT',
         'TRAVEL_ARC_INTENSITY',
-        'LANE_CONVERGENCE',
-        'LANE_CONVERGENCE_POINT',
         'LANE_OFFSET_PX',
         'DEPART_MODE',
         'DEPART_FRACTION',
@@ -149,8 +147,6 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'CONQUEST_SETTLE_MS',
         'CONQUEST_SURGE_RADIUS',
         'CONQUEST_SURGE_STAGGER_MS',
-        'CONQUEST_TRAVEL_SPEED',
-        'CONQUEST_LERP_DELAY_MS',
         'CONQUEST_COLOR_DELAY_TICKS',
         'CONQUEST_FLASH_TICKS',
         'CONQUEST_SLOWMO_ENABLED',
@@ -555,6 +551,12 @@ export const EXCLUDED_FROM_CATEGORIES: ReadonlySet<string> = new Set([
     // retained only so old exported configs still import without loss.
     'FRONTIER_RESOLUTION',
     'CHAIKIN_BOUNDARY_EPS',
+    // Dead travel/conquest knobs (2026-07-22 wiring audit): controls removed
+    // (no runtime consumer, or read-but-inert). Keys retained for import.
+    'CONQUEST_TRAVEL_SPEED',
+    'CONQUEST_LERP_DELAY_MS',
+    'LANE_CONVERGENCE',
+    'LANE_CONVERGENCE_POINT',
     // Map-generation structure — applied at map creation, not live-tunable.
     'STARS_PER_PLAYER',
     'MIN_LINKS_PER_STAR',

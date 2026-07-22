@@ -61,13 +61,8 @@ const ALLOWED_UNCONSUMED = new Set<string>([
     // Alive, but only via settings machinery / a bespoke settings handler:
     "STAR_SYSTEM_SCALE", // master rescale handler in ControlsSection-Ships
     "BIND_ANIMATION_TO_TICK", // drives the anim-lock in settingsStore/animLockMath
-    // Confirmed DEAD, awaiting user decision (remove vs wire) — 2026-07-22 wiring audit:
+    // Dead but pending a WIRE (into the arrowhead settle ease) — 2026-07-22:
     "ARROW_EASING",
-    "CONQUEST_TRAVEL_SPEED",
-    "CONQUEST_LERP_DELAY_MS",
-    // Read-but-inert (both branches identical / value discarded) — grep can't see:
-    "LANE_CONVERGENCE",
-    "LANE_CONVERGENCE_POINT",
 ]);
 
 describe("settings control wiring — no dead knobs", () => {
