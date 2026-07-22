@@ -50,8 +50,10 @@ export interface SettingsControl {
     controlType: ControlType;
     /** Numeric range for `range` controls. */
     range?: { min: number; max: number; step: number };
-    /** Display format passed to the range row (percent / fixed2 / multiplier …). */
-    format?: "raw" | "percent" | "fixed2" | "fixed1" | "multiplier";
+    /** Display format. "percentOfFraction" shows a stored 0–1 value as N% on a
+     *  0–1 slider (distinct from `scale`, which is a 0–100 slider over a 0–1
+     *  config). The rest map to the range row's own format prop. */
+    format?: "raw" | "percent" | "fixed2" | "fixed1" | "multiplier" | "percentOfFraction";
     /**
      * Display scale: the slider shows `stored * scale` and stores `input / scale`.
      * For a config that holds a 0–1 fraction but is shown as a 0–100 slider, scale
@@ -63,8 +65,9 @@ export interface SettingsControl {
     /** Label shown INSTEAD of the number when the shown value is 0 (e.g. a
      *  MAX_SHIPS of 0 reads "unlimited", an auto-width reads "auto"). */
     zeroLabel?: string;
-    /** Option values for `segmented` / `select` / `picker`. */
-    options?: readonly string[];
+    /** Options for `segmented` / `select`: a bare value (label = value) or an
+     *  explicit `{ value, label }` pair. */
+    options?: readonly (string | { value: string; label: string })[];
     /** Rendered by a bespoke widget in its owning component (not the projector). */
     custom?: boolean;
     /**
@@ -192,7 +195,12 @@ const COMBAT_CONTROLS = controlsFromVariables(COMBAT_VARIABLES, "combat_tuning")
  */
 const CONTROL_PRESENTATION: Record<
     string,
-    Partial<Pick<SettingsControl, "format" | "scale" | "unit" | "zeroLabel">>
+    Partial<
+        Pick<
+            SettingsControl,
+            "format" | "scale" | "unit" | "zeroLabel" | "controlType" | "options"
+        >
+    >
 > = {
     // Economy
     BASE_PRODUCTION: { format: "fixed2" },
@@ -201,6 +209,75 @@ const CONTROL_PRESENTATION: Record<
     REPAIR_RATE: { format: "percent" },
     REPAIR_SUPPRESS_ATTACKER: { format: "percent", scale: 100 },
     REPAIR_SUPPRESS_DEFENDER: { format: "percent", scale: 100 },
+
+    // Travel
+    TRAVEL_MODE: { controlType: "segmented", options: [
+        { value: "bezier", label: "Bezier Arc" }, { value: "lane", label: "Lane Spine" }] },
+    TRAVEL_EASING: { controlType: "segmented", options: [
+        { value: "linear", label: "Linear" }, { value: "easeIn", label: "In" },
+        { value: "easeOut", label: "Out" }, { value: "easeInOut", label: "In-out" }] },
+    TRAVEL_EASING_POWER: { format: "fixed1" },
+    TRAVEL_DURATION_MULT: { format: "multiplier", unit: " tick" },
+    TRAVEL_ARC_INTENSITY: { format: "fixed2" },
+    DEPART_MODE: { controlType: "segmented", options: [
+        { value: "nearside", label: "Nearside" }, { value: "lifo", label: "LIFO" },
+        { value: "fifo", label: "FIFO" }] },
+    DEPART_FRACTION: { format: "percentOfFraction" },
+    DEPART_ARC_INTENSITY: { format: "fixed2" },
+    DEPART_JITTER_MS: { unit: "ms" },
+    SETTLE_DURATION_MS: { unit: "ms" },
+    ARRIVAL_SPREAD: { format: "multiplier", unit: " tick" },
+    ARRIVAL_ARC_INTENSITY: { format: "fixed2" },
+    WOBBLE_AMP: { unit: "px" },
+    LANE_OFFSET_PX: { unit: "px" },
+    LANE_CONVERGENCE: { format: "percentOfFraction" },
+    LANE_CONVERGENCE_POINT: { format: "percent" },
+    ORBIT_BIAS_STRENGTH: { format: "fixed2" },
+    ORBIT_BIAS_MIN: { format: "fixed2" },
+    ORBIT_BIAS_MAX: { format: "fixed2" },
+    ORBIT_BIAS_FREQ: { format: "multiplier", unit: " tick" },
+
+    // Conquest
+    CONQUEST_ANIMATION_MODE: { controlType: "segmented", options: [
+        { value: "immediate", label: "Immediate" }, { value: "surge", label: "Surge" },
+        { value: "travel", label: "Travel" }, { value: "arrowhead", label: "Arrowhead" }] },
+    CONQUEST_COLOR_DELAY_TICKS: { unit: " ticks" },
+    CONQUEST_FLASH_TICKS: { unit: " ticks" },
+    CONQUEST_LERP_DELAY_MS: { unit: "ms" },
+    CONQUEST_TRAVEL_SPEED: { format: "multiplier" },
+    CONQUEST_SETTLE_MS: { unit: "ms" },
+    CONQUEST_SURGE_STAGGER_MS: { unit: "ms" },
+    CONQUEST_FORCE_GLOW_MULT: { format: "fixed2" },
+    ARROW_TAPER: { format: "fixed2" },
+    ARROW_WIDTH: { unit: "px", zeroLabel: "auto" },
+    ARROW_SPEED: { format: "multiplier" },
+    ARROW_EASING: { controlType: "segmented", options: [
+        { value: "easeIn", label: "In" }, { value: "easeInOut", label: "In-out" },
+        { value: "linear", label: "Linear" }] },
+    ARROW_ENGULF_MODE: { controlType: "segmented", options: [
+        { value: "fan", label: "Fan" }, { value: "collapse", label: "Collapse" },
+        { value: "ring", label: "Ring" }, { value: "swarm", label: "Swarm" }] },
+    ARROW_ENGULF_RADIUS: { unit: "px" },
+    ARROW_SPIRAL_MIN_DEG: { unit: "deg" },
+    ARROW_SPIRAL_MAX_DEG: { unit: "deg" },
+    ARROW_SPIRAL_DURATION_MS: { unit: "ms" },
+
+    // Surge
+    ATTACK_SURGE_MULT: { format: "multiplier" },
+    ATTACK_SURGE_FORCE_COFACTOR: { format: "fixed2" },
+    ATTACK_SURGE_RAMP_MS: { unit: "ms" },
+    ATTACK_SURGE_SHAPE: { format: "fixed1" },
+    SURGE_PULSE_DURATION_MS: { unit: "ms" },
+    ORB_BASE_RADIUS: { unit: "px" },
+    ORB_RADIUS_SCALE: { format: "fixed2" },
+    ORB_GLOW_MULT: { format: "fixed2" },
+    ORB_OUTER_ALPHA: { format: "fixed2" },
+    ORB_OUTER_SCALE: { format: "fixed1" },
+    ORB_MID_ALPHA: { format: "fixed2" },
+    ORB_MID_SCALE: { format: "fixed1" },
+    ORB_CORE_ALPHA: { format: "fixed2" },
+    ORB_CORE_SCALE: { format: "fixed1" },
+    ORB_CENTER_ALPHA: { format: "fixed2" },
 };
 
 const RAW_CONTROLS: readonly SettingsControl[] = [

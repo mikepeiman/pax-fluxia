@@ -63,7 +63,7 @@
       min={c.range.min}
       max={c.range.max}
       step={c.range.step}
-      format={c.format ?? "raw"}
+      format={c.format === "percentOfFraction" ? "raw" : (c.format ?? "raw")}
       output={displayOutput(c, shownNumber(c))}
       settingConfigKey={c.configKey}
       settingDescription={c.description}
@@ -81,7 +81,9 @@
     <PaxSettingsSegmentedRow
       label={c.label}
       value={String(rawValue(c))}
-      options={c.options.map((option) => ({ value: option, label: option }))}
+      options={c.options.map((option) =>
+        typeof option === "string" ? { value: option, label: option } : option,
+      )}
       hint={c.description}
       settingConfigKey={c.configKey}
       onValueChange={(value) => write(c, value)}
