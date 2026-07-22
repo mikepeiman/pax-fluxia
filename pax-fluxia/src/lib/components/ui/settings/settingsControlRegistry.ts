@@ -179,6 +179,17 @@ const AI_CONTROLS = controlsFromVariables(AI_VARIABLES, "ai");
 const COMBAT_CONTROLS = controlsFromVariables(COMBAT_VARIABLES, "combat_tuning");
 
 /**
+ * Orb/travel wobble shaping (2026-07-22 wiring audit): exposes the previously-
+ * hardcoded per-ship wobble frequency + phase spread so the orb-path judder can
+ * be tuned, not just zeroed via WOBBLE_AMP. Wired in fx/phases/behaviors.ts.
+ */
+const WOBBLE_CONTROLS: readonly SettingsControl[] = [
+    { configKey: "WOBBLE_FREQ", section: "travel_orders", subsection: null, label: "Wobble Frequency", description: "Base speed of the sinusoidal wobble on the ship / orb travel path.", controlType: "range", range: { min: 0, max: 8, step: 0.1 }, format: "fixed1" },
+    { configKey: "WOBBLE_FREQ_SPREAD", section: "travel_orders", subsection: null, label: "Wobble Freq Spread", description: "How much each ship's wobble speed varies — 0 = all in lockstep, higher = more chaotic orb judder.", controlType: "range", range: { min: 0, max: 1, step: 0.02 }, format: "fixed2" },
+    { configKey: "WOBBLE_PHASE_SPREAD", section: "travel_orders", subsection: null, label: "Wobble Phase Spread", description: "How much ships' wobble phases fan out — 0 = synchronized, 1 = fully staggered.", controlType: "range", range: { min: 0, max: 1, step: 0.05 }, format: "fixed2" },
+];
+
+/**
  * The full control registry. Hand-authored territory entries above (curated
  * labels/descriptions/subsections for the mode-gated + topology/transition
  * controls); GENERATED_CONTROLS below is machine-extracted from the remaining
@@ -285,6 +296,7 @@ const RAW_CONTROLS: readonly SettingsControl[] = [
     ...TERRITORY_STYLE_CONTROLS,
     ...AI_CONTROLS,
     ...COMBAT_CONTROLS,
+    ...WOBBLE_CONTROLS,
     ...GENERATED_CONTROLS,
 ];
 

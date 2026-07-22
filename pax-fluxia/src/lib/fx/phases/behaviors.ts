@@ -197,38 +197,25 @@ export const laneDepart: DepartBehavior = {
 // TRAVEL BEHAVIORS
 // ════════════════════════════════════════════════════════════════════════════
 
-/** Compute wobble offset common to both ORB and LANE travel */
-function computeWobble(
-    ship: VisualShipState,
-    travelProgress: number,
-    wobbleAmp: number,
-): { perpX: number; perpY: number; edgeFade: number; wobble: number } {
-    const laneNdx = ship.laneEndX - ship.laneStartX;
-    const laneNdy = ship.laneEndY - ship.laneStartY;
-    const laneDist = Math.sqrt(laneNdx * laneNdx + laneNdy * laneNdy) || 1;
-    const perpX = -laneNdy / laneDist;
-    const perpY = laneNdx / laneDist;
-    const edgeFade = Math.min(travelProgress * 4, (1 - travelProgress) * 4, 1);
-
-    const wobbleFreq = 2.5 + (ship.id % 7) * 0.3;
-    const wobblePhase = ((ship.id % 13) / 13) * Math.PI * 2;
-    const wobble = wobbleAmp > 0
-        ? Math.sin(travelProgress * wobbleFreq * Math.PI * 2 + wobblePhase) * wobbleAmp * edgeFade
-        : 0;
-
-    return { perpX, perpY, edgeFade, wobble };
-}
-
+/**
+ * Per-ship sinusoidal wobble on the travel/orb path. The frequency BASE + per-
+ * ship frequency SPREAD and PHASE spread are configurable so the orb path's
+ * character (speed, and how staggered/chaotic the members are) can be tuned —
+ * previously the 2.5 / 0.3 / full-circle constants were hardcoded, so the orb's
+ * judder could only be zeroed via wobbleAmp, never shaped. Defaults reproduce
+ * the original constants exactly.
+ */
 function computeWobbleWithPerp(
     ship: VisualShipState,
     travelProgress: number,
     wobbleAmp: number,
-    perpX: number,
-    perpY: number,
+    freqBase: number,
+    freqSpread: number,
+    phaseSpread: number,
 ): { edgeFade: number; wobble: number } {
     const edgeFade = Math.min(travelProgress * 4, (1 - travelProgress) * 4, 1);
-    const wobbleFreq = 2.5 + (ship.id % 7) * 0.3;
-    const wobblePhase = ((ship.id % 13) / 13) * Math.PI * 2;
+    const wobbleFreq = freqBase + (ship.id % 7) * freqSpread;
+    const wobblePhase = ((ship.id % 13) / 13) * Math.PI * 2 * phaseSpread;
     const wobble = wobbleAmp > 0
         ? Math.sin(travelProgress * wobbleFreq * Math.PI * 2 + wobblePhase) * wobbleAmp * edgeFade
         : 0;
@@ -263,8 +250,9 @@ export const orbTravel: TravelBehavior = {
             ship,
             travelProgress,
             ctx.wobbleAmp,
-            spine.perpX,
-            spine.perpY,
+            ctx.wobbleFreq,
+            ctx.wobbleFreqSpread,
+            ctx.wobblePhaseSpread,
         );
         const lateralOffset = computeLaneTravelOffset(
             ship,
@@ -293,8 +281,9 @@ export const laneTravel: TravelBehavior = {
             ship,
             travelProgress,
             ctx.wobbleAmp,
-            spine.perpX,
-            spine.perpY,
+            ctx.wobbleFreq,
+            ctx.wobbleFreqSpread,
+            ctx.wobblePhaseSpread,
         );
         const lateralOffset = computeLaneTravelOffset(
             ship,

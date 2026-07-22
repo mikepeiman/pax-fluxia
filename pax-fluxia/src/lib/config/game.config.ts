@@ -147,6 +147,9 @@ interface GameConfigType {
     SETTLE_DURATION_MS: number;    // How fast ships snap into orbit slot (ms, default 150)
     ARRIVAL_SPREAD: number;        // Fraction of tick used to stagger arrivals (0=instant, 1=full tick, 2=2 ticks)
     WOBBLE_AMP: number;            // Amplitude of sinusoidal wobble on travel path (px, default 12)
+    WOBBLE_FREQ: number;          // Base wobble oscillation frequency (default 2.5)
+    WOBBLE_FREQ_SPREAD: number;   // Per-ship wobble frequency variation (0=lockstep, default 0.3)
+    WOBBLE_PHASE_SPREAD: number;  // Per-ship wobble phase fan-out (0=synced, 1=full, default 1)
     TRAVEL_FOLLOW_LANE_PATHS: boolean; // Follow published lane polylines for travel/surge when available
     // Travel animation mode
     TRAVEL_MODE: 'bezier' | 'lane';  // 'bezier' = single-pass arc, 'lane' = old convergence+straight

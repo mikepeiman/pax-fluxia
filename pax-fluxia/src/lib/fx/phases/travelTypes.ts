@@ -36,6 +36,9 @@ export interface PhaseContext {
     departArcIntensity: number;
     arrivalArcIntensity: number;
     wobbleAmp: number;
+    wobbleFreq: number;
+    wobbleFreqSpread: number;
+    wobblePhaseSpread: number;
     followLanePath: boolean;
 }
 

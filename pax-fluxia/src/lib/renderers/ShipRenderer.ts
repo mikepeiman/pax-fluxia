@@ -493,6 +493,9 @@ export function renderTravelingShips(
         departArcIntensity: GAME_CONFIG.DEPART_ARC_INTENSITY ?? 0,
         arrivalArcIntensity: GAME_CONFIG.ARRIVAL_ARC_INTENSITY ?? 0,
         wobbleAmp: GAME_CONFIG.WOBBLE_AMP ?? 12,
+        wobbleFreq: GAME_CONFIG.WOBBLE_FREQ ?? 2.5,
+        wobbleFreqSpread: GAME_CONFIG.WOBBLE_FREQ_SPREAD ?? 0.3,
+        wobblePhaseSpread: GAME_CONFIG.WOBBLE_PHASE_SPREAD ?? 1,
         followLanePath: GAME_CONFIG.TRAVEL_FOLLOW_LANE_PATHS ?? true,
     };
 
