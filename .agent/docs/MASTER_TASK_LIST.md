@@ -40,11 +40,16 @@ superseding docs:
 - [x] **Migrated: AI, Combat, Economy** to thin sections (grouping/gates + `<SettingsControlRenderer>`). AI/Combat
   sourced straight from AI_VARIABLES/COMBAT_VARIABLES (one definition). Economy percent transforms round-trip
   tested. Commits `1419ad25b` + Economy. check 0/0, 21/21.
-- [ ] **In progress: Travel, Conquest, Surge, Timing** — user approved migrating all five "migratable-with-care"
-  sections (keep `{#if}` mode gates as thin wrappers, keep genuinely-custom controls inline). Verification =
-  tests + user spot-check.
-- [ ] **Stays BESPOKE (correctly, not projectable):** Players (palette gen + color apply), Logging (logFlags
-  mutation + refresh state), FrontierFx (mode-predicate disabled + bumpTerritoryVisualConfig side-effect).
+- [x] **Migrated: Travel, Conquest, Surge** `82d7317dc` — Travel fully projected; Conquest keeps only the
+  auto/two-field Arrowhead Stagger inline; Surge keeps the bespoke Pulse-Timing (bind + disabled duration) inline;
+  gates + orb-pair layouts preserved as thin wrappers. Presentation layer extended: percentOfFraction, format-aware
+  unit output, segmented value+label options (labels pulled from source — my guesses were wrong). drift 0, 21/21.
+- [x] **Renderer migration COMPLETE for tractable sections.** Migrated (6): AI, Battle, Economy, Travel, Conquest,
+  Surge. The remaining ~200 controls fixed for search/labels earlier via the generator remain hand-rolled for
+  RENDER but are single-sourced for search/labels.
+- [ ] **Stays BESPOKE (correctly, not render-projectable):** Players (palette gen + color apply), Logging (logFlags
+  mutation + refresh state), FrontierFx (mode-predicate disabled + bumpTerritoryVisualConfig), **Timing** (all 5
+  controls bespoke: updateTick side-effects, anim-lock card, HudRange). These keep their hand-rolled form.
 - KEY FINDING: no section is a clean generic sweep — every one has real per-control logic; projection is
   incremental with bespoke bits kept inline. Renderer = `SettingsControlRenderer.svelte`.
 
