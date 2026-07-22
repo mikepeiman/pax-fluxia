@@ -54,7 +54,7 @@ export const rendererConfigDefaults = {
     ARROW_TAPER: 0.8,
     ARROW_WIDTH: 35,
     ARROW_SPEED: 0.6,
-    ARROW_EASING: 'easeIn' as const,
+    ARROW_EASING: 'easeOut' as const,
     ARROW_ENGULF_MODE: 'swarm' as const,
     ARROW_ENGULF_RADIUS: 45,
     ARROW_SPIRAL_MIN_DEG: 120,

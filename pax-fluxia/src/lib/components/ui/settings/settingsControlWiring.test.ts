@@ -61,8 +61,6 @@ const ALLOWED_UNCONSUMED = new Set<string>([
     // Alive, but only via settings machinery / a bespoke settings handler:
     "STAR_SYSTEM_SCALE", // master rescale handler in ControlsSection-Ships
     "BIND_ANIMATION_TO_TICK", // drives the anim-lock in settingsStore/animLockMath
-    // Dead but pending a WIRE (into the arrowhead settle ease) — 2026-07-22:
-    "ARROW_EASING",
 ]);
 
 describe("settings control wiring — no dead knobs", () => {

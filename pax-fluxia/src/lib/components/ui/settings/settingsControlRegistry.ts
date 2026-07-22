@@ -262,8 +262,8 @@ const CONTROL_PRESENTATION: Record<
     ARROW_WIDTH: { unit: "px", zeroLabel: "auto" },
     ARROW_SPEED: { format: "multiplier" },
     ARROW_EASING: { controlType: "segmented", options: [
-        { value: "easeIn", label: "In" }, { value: "easeInOut", label: "In-out" },
-        { value: "linear", label: "Linear" }] },
+        { value: "easeOut", label: "Out" }, { value: "easeIn", label: "In" },
+        { value: "easeInOut", label: "In-out" }, { value: "linear", label: "Linear" }] },
     ARROW_ENGULF_MODE: { controlType: "segmented", options: [
         { value: "fan", label: "Fan" }, { value: "collapse", label: "Collapse" },
         { value: "ring", label: "Ring" }, { value: "swarm", label: "Swarm" }] },

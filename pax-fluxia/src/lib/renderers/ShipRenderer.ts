@@ -1045,7 +1045,12 @@ export function renderShips(
                     }
                 } else {
                     const t = Math.max(0, Math.min(1, elapsed / settleDur));
-                    const ease = 1 - Math.pow(1 - t, 3);
+                    // Arrowhead conquest settle eases per ARROW_EASING; every
+                    // other settle keeps the easeOut cubic. Default ARROW_EASING
+                    // is 'easeOut', so the arrowhead default is unchanged.
+                    const ease = isArrowSettle
+                        ? applyTravelEasing(t, GAME_CONFIG.ARROW_EASING, 3)
+                        : 1 - Math.pow(1 - t, 3);
 
                     if (t < 1) {
                         const targetAngle = Math.atan2(targetY - star.y, targetX - star.x);
@@ -1486,7 +1491,12 @@ function renderShipsOptimized(
                             }
                         } else {
                             const t = Math.max(0, Math.min(1, elapsed / settleDur));
-                            const ease = 1 - Math.pow(1 - t, 3);
+                            // Arrowhead conquest settle eases per ARROW_EASING; every
+                    // other settle keeps the easeOut cubic. Default ARROW_EASING
+                    // is 'easeOut', so the arrowhead default is unchanged.
+                    const ease = isArrowSettle
+                        ? applyTravelEasing(t, GAME_CONFIG.ARROW_EASING, 3)
+                        : 1 - Math.pow(1 - t, 3);
 
                             if (t < 1) {
                                 const curRadius =
