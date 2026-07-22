@@ -22,6 +22,7 @@
 
 import type { SettingsSectionId } from "./settingsRegistry";
 import { GENERATED_CONTROLS } from "./settingsControlRegistry.generated";
+import { AI_VARIABLES, COMBAT_VARIABLES } from "../settingsDefs";
 
 export type ControlType =
     | "range"
@@ -49,6 +50,14 @@ export interface SettingsControl {
     controlType: ControlType;
     /** Numeric range for `range` controls. */
     range?: { min: number; max: number; step: number };
+    /** Display format passed to the range row (percent / fixed2 / multiplier …). */
+    format?: "raw" | "percent" | "fixed2" | "fixed1" | "multiplier";
+    /**
+     * Display scale: the slider shows `stored * scale` and stores `input / scale`.
+     * For a config that holds a 0–1 fraction but is shown as a 0–100 slider, scale
+     * = 100. Omitted = 1 (no transform). Round-trip-tested per migrated section.
+     */
+    scale?: number;
     /** Option values for `segmented` / `select` / `picker`. */
     options?: readonly string[];
     /** Rendered by a bespoke widget in its owning component (not the projector). */
@@ -132,6 +141,36 @@ const TERRITORY_STYLE_CONTROLS: readonly SettingsControl[] = [
 ];
 
 /**
+ * AI / Combat sliders are already clean data arrays (key/label/min/max/step/desc)
+ * that the sections render in a loop — source registry entries straight from them
+ * so there is exactly one definition. `fixed2` matches the sections' format.
+ */
+function controlsFromVariables(
+    vars: ReadonlyArray<{
+        key: string;
+        label: string;
+        min: number;
+        max: number;
+        step: number;
+        desc?: string;
+    }>,
+    section: SettingsSectionId,
+): SettingsControl[] {
+    return vars.map((v) => ({
+        configKey: v.key,
+        section,
+        subsection: null,
+        label: v.label,
+        description: v.desc,
+        controlType: "range" as const,
+        range: { min: v.min, max: v.max, step: v.step },
+        format: "fixed2" as const,
+    }));
+}
+const AI_CONTROLS = controlsFromVariables(AI_VARIABLES, "ai");
+const COMBAT_CONTROLS = controlsFromVariables(COMBAT_VARIABLES, "combat_tuning");
+
+/**
  * The full control registry. Hand-authored territory entries above (curated
  * labels/descriptions/subsections for the mode-gated + topology/transition
  * controls); GENERATED_CONTROLS below is machine-extracted from the remaining
@@ -142,6 +181,8 @@ export const SETTINGS_CONTROLS: readonly SettingsControl[] = [
     ...TERRITORY_TOPOLOGY_CONTROLS,
     ...TERRITORY_TRANSITION_CONTROLS,
     ...TERRITORY_STYLE_CONTROLS,
+    ...AI_CONTROLS,
+    ...COMBAT_CONTROLS,
     ...GENERATED_CONTROLS,
 ];
 

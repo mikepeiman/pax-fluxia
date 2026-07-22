@@ -4,6 +4,7 @@ import {
     deriveRegistrySearchRecords,
 } from "./settingsControlRegistry";
 import { SETTINGS_SECTIONS } from "./settingsRegistry";
+import { AI_VARIABLES, COMBAT_VARIABLES } from "../settingsDefs";
 
 const SECTION_BY_ID = new Map(SETTINGS_SECTIONS.map((s) => [s.id, s]));
 
@@ -43,6 +44,16 @@ describe("settingsControlRegistry integrity", () => {
                     `${control.configKey} needs options`,
                 ).toBeGreaterThan(0);
             }
+        }
+    });
+
+    it("registers every AI + Combat variable with matching label + range (renderer migration)", () => {
+        const byKey = new Map(SETTINGS_CONTROLS.map((c) => [c.configKey, c]));
+        for (const v of [...AI_VARIABLES, ...COMBAT_VARIABLES]) {
+            const control = byKey.get(v.key);
+            expect(control, `${v.key} not registered`).toBeDefined();
+            expect(control!.label).toBe(v.label);
+            expect(control!.range).toEqual({ min: v.min, max: v.max, step: v.step });
         }
     });
 
