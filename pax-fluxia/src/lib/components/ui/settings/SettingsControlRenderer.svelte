@@ -13,6 +13,7 @@
   import PaxSettingsToggleRow from "$lib/design-system/components/PaxSettingsToggleRow.svelte";
   import PaxSettingsSegmentedRow from "$lib/design-system/components/PaxSettingsSegmentedRow.svelte";
   import type { SettingsControl } from "./settingsControlRegistry";
+  import { toShown, toStored, displayOutput } from "./settingsControlValue";
 
   interface Props {
     controls: readonly SettingsControl[];
@@ -33,7 +34,7 @@
     return pv ?? (GAME_CONFIG as unknown as Record<string, unknown>)[c.configKey];
   }
   function shownNumber(c: SettingsControl): number {
-    return Number(rawValue(c) ?? 0) * (c.scale ?? 1);
+    return toShown(c, Number(rawValue(c) ?? 0));
   }
   // Faithful to the hand-rolled sections' update path, and transform-safe: if the
   // key has a PANEL_CONFIG_MAP entry, route through the store (it writes
@@ -50,7 +51,7 @@
     }
   }
   function commitNumber(c: SettingsControl, shown: number) {
-    write(c, shown / (c.scale ?? 1));
+    write(c, toStored(c, shown));
   }
 </script>
 
@@ -63,6 +64,7 @@
       max={c.range.max}
       step={c.range.step}
       format={c.format ?? "raw"}
+      output={displayOutput(c, shownNumber(c))}
       settingConfigKey={c.configKey}
       settingDescription={c.description}
       onInput={(value) => commitNumber(c, value)}

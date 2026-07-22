@@ -58,6 +58,11 @@ export interface SettingsControl {
      * = 100. Omitted = 1 (no transform). Round-trip-tested per migrated section.
      */
     scale?: number;
+    /** Suffix appended to the displayed value (e.g. "px", "ms", "x"). */
+    unit?: string;
+    /** Label shown INSTEAD of the number when the shown value is 0 (e.g. a
+     *  MAX_SHIPS of 0 reads "unlimited", an auto-width reads "auto"). */
+    zeroLabel?: string;
     /** Option values for `segmented` / `select` / `picker`. */
     options?: readonly string[];
     /** Rendered by a bespoke widget in its owning component (not the projector). */
@@ -177,7 +182,28 @@ const COMBAT_CONTROLS = controlsFromVariables(COMBAT_VARIABLES, "combat_tuning")
  * ControlsSection components (one section per file) — rendered label is ground
  * truth, so those labels cannot drift. Regenerate with tools/gen-settings-registry.mjs.
  */
-export const SETTINGS_CONTROLS: readonly SettingsControl[] = [
+/**
+ * Presentation the generator can't extract because it lives in a control's
+ * onInput/output LOGIC, not its static props: percent `scale` (config stores a
+ * 0–1 fraction shown on a 0–100 slider), display `format`, `unit` suffix, and
+ * `zeroLabel` (a sentinel like "unlimited"/"auto" shown at 0). Applied onto the
+ * generated/authored entries below so the renderer reproduces the section
+ * faithfully. Added per section as it migrates to SettingsControlRenderer.
+ */
+const CONTROL_PRESENTATION: Record<
+    string,
+    Partial<Pick<SettingsControl, "format" | "scale" | "unit" | "zeroLabel">>
+> = {
+    // Economy
+    BASE_PRODUCTION: { format: "fixed2" },
+    TRANSFER_RATE: { format: "percent", scale: 100 },
+    MAX_SHIPS_PER_TRANSFER: { zeroLabel: "unlimited" },
+    REPAIR_RATE: { format: "percent" },
+    REPAIR_SUPPRESS_ATTACKER: { format: "percent", scale: 100 },
+    REPAIR_SUPPRESS_DEFENDER: { format: "percent", scale: 100 },
+};
+
+const RAW_CONTROLS: readonly SettingsControl[] = [
     ...TERRITORY_TOPOLOGY_CONTROLS,
     ...TERRITORY_TRANSITION_CONTROLS,
     ...TERRITORY_STYLE_CONTROLS,
@@ -185,6 +211,13 @@ export const SETTINGS_CONTROLS: readonly SettingsControl[] = [
     ...COMBAT_CONTROLS,
     ...GENERATED_CONTROLS,
 ];
+
+export const SETTINGS_CONTROLS: readonly SettingsControl[] = RAW_CONTROLS.map(
+    (control) =>
+        CONTROL_PRESENTATION[control.configKey]
+            ? { ...control, ...CONTROL_PRESENTATION[control.configKey] }
+            : control,
+);
 
 /** Search record projected from a control — label + description + aliases only. */
 export interface RegistrySearchRecord {

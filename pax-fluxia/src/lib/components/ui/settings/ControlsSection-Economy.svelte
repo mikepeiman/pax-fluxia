@@ -1,141 +1,36 @@
 <script lang="ts">
   import "./panel-shared.css";
-    import { settingsStore } from "../settingsStore.svelte";
-    import { GAME_CONFIG } from "$lib/config/game.config";
-    import { PaxSettingsRangeRow } from "$lib/design-system";
-    import CategoryThemeBar from "./CategoryThemeBar.svelte";
+  import { settingsStore } from "../settingsStore.svelte";
+  import { SETTINGS_CONTROLS } from "./settingsControlRegistry";
+  import CategoryThemeBar from "./CategoryThemeBar.svelte";
+  import SettingsControlRenderer from "./SettingsControlRenderer.svelte";
 
-    // Settings data comes from the store, not props (2026-07-15 audit phase 2b).
-    const panel = $derived(settingsStore.panel);
-    const updatePanel = settingsStore.set;
-    const syncFromConfig = settingsStore.syncFromConfig;
+  const syncFromConfig = settingsStore.syncFromConfig;
+
+  const byKey = new Map(SETTINGS_CONTROLS.map((control) => [control.configKey, control]));
+  const controlsFor = (keys: string[]) =>
+    keys.map((key) => byKey.get(key)).filter((c): c is NonNullable<typeof c> => Boolean(c));
 </script>
 
 <CategoryThemeBar category="economy" onApply={() => syncFromConfig?.()} />
 
-<h4 class="sub-heading">Production & Flow</h4>
-<PaxSettingsRangeRow
-    label="Production"
-    value={panel.production}
-    min={0}
-    max={5}
-    step={0.1}
-    format="fixed2"
-    settingConfigKey="BASE_PRODUCTION"
-    onInput={(value) => {
-        GAME_CONFIG.BASE_PRODUCTION = value;
-        updatePanel("production", value);
-    }}
-/>
-
-<!-- Config stores a 0-1 fraction; the slider speaks percent. The conversion is
-     local, exactly like the Repair Suppress rows below — it used to live in
-     GameSettingsPanel as a `transferRate` state mirror threaded down as props
-     (2026-07-15 audit). settingConfigKey was missing too, so settings-search
-     could match this row but never scroll to or flash it. -->
-<PaxSettingsRangeRow
-    label="Transfer Rate"
-    value={Math.round(
-        ((panel.transferRate ?? GAME_CONFIG.TRANSFER_RATE ?? 0.1) as number) * 100,
-    )}
-    min={1}
-    max={100}
-    step={1}
-    format="percent"
-    settingConfigKey="TRANSFER_RATE"
-    onInput={(value) => {
-        const next = value / 100;
-        GAME_CONFIG.TRANSFER_RATE = next;
-        updatePanel("transferRate", next);
-    }}
-/>
+<h4 class="sub-heading">Production &amp; Flow</h4>
+<SettingsControlRenderer controls={controlsFor(["BASE_PRODUCTION", "TRANSFER_RATE"])} />
 
 <div class="orb-pair">
-    <PaxSettingsRangeRow
-        label="Min Transfer"
-        value={panel.minShipsPerTransfer ?? GAME_CONFIG.MIN_SHIPS_PER_TRANSFER}
-        min={0}
-        max={100}
-        step={1}
-        settingConfigKey="MIN_SHIPS_PER_TRANSFER"
-        onInput={(value) => {
-            GAME_CONFIG.MIN_SHIPS_PER_TRANSFER = value;
-            updatePanel("minShipsPerTransfer", value);
-        }}
-    />
-    <PaxSettingsRangeRow
-        label="Max Transfer"
-        value={panel.maxShipsPerTransfer ?? GAME_CONFIG.MAX_SHIPS_PER_TRANSFER}
-        min={0}
-        max={200}
-        step={1}
-        output={(panel.maxShipsPerTransfer ?? GAME_CONFIG.MAX_SHIPS_PER_TRANSFER)
-            ? `${panel.maxShipsPerTransfer ?? GAME_CONFIG.MAX_SHIPS_PER_TRANSFER}`
-            : "unlimited"}
-        settingConfigKey="MAX_SHIPS_PER_TRANSFER"
-        onInput={(value) => {
-            GAME_CONFIG.MAX_SHIPS_PER_TRANSFER = value;
-            updatePanel("maxShipsPerTransfer", value);
-        }}
-    />
+  <SettingsControlRenderer
+    controls={controlsFor(["MIN_SHIPS_PER_TRANSFER", "MAX_SHIPS_PER_TRANSFER"])}
+  />
 </div>
 
 <h4 class="sub-heading">Repair Discipline</h4>
-<PaxSettingsRangeRow
-    label="Repair Rate"
-    value={panel.repair}
-    min={0}
-    max={100}
-    step={1}
-    format="percent"
-    settingConfigKey="REPAIR_RATE"
-    onInput={(value) => {
-        GAME_CONFIG.REPAIR_RATE = value;
-        updatePanel("repair", value);
-    }}
-/>
-
-<PaxSettingsRangeRow
-    label="Repair Suppress (Attacking)"
-    value={Math.round(((panel.repairSuppressAttacker ?? 0.5) as number) * 100)}
-    min={0}
-    max={100}
-    step={5}
-    format="percent"
-    settingConfigKey="REPAIR_SUPPRESS_ATTACKER"
-    onInput={(value) => {
-        const next = value / 100;
-        GAME_CONFIG.REPAIR_SUPPRESS_ATTACKER = next;
-        updatePanel("repairSuppressAttacker", next);
-    }}
-/>
-
-<PaxSettingsRangeRow
-    label="Repair Suppress (Defending)"
-    value={Math.round(((panel.repairSuppressDefender ?? 0.1) as number) * 100)}
-    min={0}
-    max={100}
-    step={5}
-    format="percent"
-    settingConfigKey="REPAIR_SUPPRESS_DEFENDER"
-    onInput={(value) => {
-        const next = value / 100;
-        GAME_CONFIG.REPAIR_SUPPRESS_DEFENDER = next;
-        updatePanel("repairSuppressDefender", next);
-    }}
+<SettingsControlRenderer
+  controls={controlsFor([
+    "REPAIR_RATE",
+    "REPAIR_SUPPRESS_ATTACKER",
+    "REPAIR_SUPPRESS_DEFENDER",
+  ])}
 />
 
 <h4 class="sub-heading">Starting Pressure</h4>
-<PaxSettingsRangeRow
-    label="Starting Ships"
-    value={panel.startingShips ?? GAME_CONFIG.STARTING_SHIPS}
-    min={0}
-    max={200}
-    step={5}
-    settingConfigKey="STARTING_SHIPS"
-    onInput={(value) => {
-        GAME_CONFIG.STARTING_SHIPS = value;
-        updatePanel("startingShips", value);
-    }}
-/>
-
+<SettingsControlRenderer controls={controlsFor(["STARTING_SHIPS"])} />
