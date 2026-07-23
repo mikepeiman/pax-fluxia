@@ -919,6 +919,16 @@
         style:background-size={bgImage ? "cover" : "auto"}
         style:background-position={bgImage ? "center" : "auto"}
     >
+        <a
+            class="theme-lab-link"
+            href="/themes"
+            onclick={() => audioManager.play("click")}
+            title="Open the Theme Lab"
+        >
+            <span class="theme-lab-link__swatch" aria-hidden="true"></span>
+            Theme Lab
+        </a>
+
         <svg
             class="hex-grid-overlay"
             xmlns="http://www.w3.org/2000/svg"
@@ -1316,6 +1326,64 @@
         pointer-events: none;
         color: var(--pf-overlay-grid);
         filter: drop-shadow(0 0 18px var(--pf-overlay-grid-glow));
+    }
+
+    .theme-lab-link {
+        position: fixed;
+        top: var(--pax-space-4);
+        left: var(--pax-space-4);
+        z-index: 5;
+        display: inline-flex;
+        align-items: center;
+        gap: var(--pax-space-2);
+        min-height: 40px;
+        padding: 0 var(--pax-gap-md) 0 var(--pax-space-3);
+        border-radius: var(--pf-button-radius);
+        border: 1px solid var(--pf-border-soft);
+        background: var(--pf-frame-control), var(--pf-surface-pill);
+        color: var(--pf-muted-strong);
+        font-family: var(--pf-font-body);
+        font-size: var(--pax-type-sm);
+        font-weight: var(--pax-weight-bold);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        text-decoration: none;
+        box-shadow: var(--pf-shadow-panel);
+        transition:
+            border-color 0.15s ease,
+            color 0.15s ease,
+            transform 0.15s ease;
+    }
+
+    .theme-lab-link:hover {
+        border-color: var(--pf-accent-soft);
+        color: var(--pf-text);
+        transform: translateY(-1px);
+    }
+
+    .theme-lab-link__swatch {
+        width: 16px;
+        height: 16px;
+        border-radius: 5px;
+        background: conic-gradient(
+            from 210deg,
+            #f6c469,
+            #55e7ef,
+            #3aa0ff,
+            #9d8bff,
+            #ff3cc0,
+            #f6c469
+        );
+        box-shadow: 0 0 8px rgba(85, 231, 239, 0.35);
+    }
+
+    @media (max-width: 767px) {
+        .theme-lab-link {
+            top: var(--pax-space-3);
+            left: var(--pax-space-3);
+            min-height: 34px;
+            font-size: var(--pax-type-xs);
+        }
     }
 
     .menu-shell {
