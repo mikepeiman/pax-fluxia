@@ -42,8 +42,14 @@ superseding docs:
   defaults reproduce prior behavior; dead computeWobble helper removed.
 - [x] **Wired ARROW_EASING** `d21b5f6a3` — into the arrowhead settle ease (isArrowSettle-gated); default flipped to
   'easeOut' so the look is unchanged; now a live control.
-- [ ] **NOT exposed (user chose only orb wobble):** CONQUEST_SURGE_RADIUS, CONQUEST_SLOWMO_ENABLED/FACTOR/DURATION_MS,
-  ORB_DRAW_MODE — still runtime-read with no control; available to expose later.
+- [x] **Wiring cleanup** `25f53fd23` — removed inert LANE_CONVERGENCE dead code (applyLaneTravelPath no-op branch +
+  transferHandler discarded compute + trace); exposed CONQUEST_SURGE_RADIUS (Conquest control).
+- [ ] **CONQUEST_SLOWMO — obsolete, ABANDON (user 2026-07-23):** don't expose; the slowmo machinery
+  (conquestHandler.ts:71-79 + config keys + MainMenu debug-b override) is a removal candidate — offer to delete it.
+- [ ] **ORB_DRAW_MODE — skipped (only one draw mode registered):** a picker would have nothing to choose; revisit if a
+  second mode is added.
+- [ ] **DESIGN PROCESS proposed (user to kick off):** in-app UI gallery (`/dev/ui-gallery`) as the real-fidelity
+  preview + Artifacts for cheap direction-setting; user uploads screenshots here to start. Build the gallery on go.
 
 
 ### Done / In progress — Settings RENDER PROJECTION (registry-driven renderer)
