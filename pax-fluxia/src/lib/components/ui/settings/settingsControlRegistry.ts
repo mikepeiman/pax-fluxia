@@ -189,6 +189,11 @@ const WOBBLE_CONTROLS: readonly SettingsControl[] = [
     { configKey: "WOBBLE_PHASE_SPREAD", section: "travel_orders", subsection: null, label: "Wobble Phase Spread", description: "How much ships' wobble phases fan out — 0 = synchronized, 1 = fully staggered.", controlType: "range", range: { min: 0, max: 1, step: 0.05 }, format: "fixed2" },
 ];
 
+/** Previously-unexposed keys the runtime already reads (2026-07-22 wiring audit). */
+const MISSING_EXPOSED_CONTROLS: readonly SettingsControl[] = [
+    { configKey: "CONQUEST_SURGE_RADIUS", section: "conquest", subsection: null, label: "Surge Radius", description: "Radius of the burst in the Surge conquest animation (read by the surge strategy).", controlType: "range", range: { min: 0, max: 150, step: 5 }, unit: "px" },
+];
+
 /**
  * The full control registry. Hand-authored territory entries above (curated
  * labels/descriptions/subsections for the mode-gated + topology/transition
@@ -297,6 +302,7 @@ const RAW_CONTROLS: readonly SettingsControl[] = [
     ...AI_CONTROLS,
     ...COMBAT_CONTROLS,
     ...WOBBLE_CONTROLS,
+    ...MISSING_EXPOSED_CONTROLS,
     ...GENERATED_CONTROLS,
 ];
 

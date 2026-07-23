@@ -194,19 +194,15 @@ export const coreTransferHandler: FXHandler<TransferEvent> = {
         }
         const { ndx, ndy } = computeLaneHeadingForNearside(sourceRef, targetRef, pretrimmed);
 
-        // Lane convergence: how tightly ships converge to the lane
-        const convergence = GAME_CONFIG.LANE_CONVERGENCE ?? 1.0;
-        const convergencePoint = (GAME_CONFIG.LANE_CONVERGENCE_POINT ?? 0) / 100; // 0-1
-
-        // Base / effective lane starts (for trace only when polyline — assignShipLaneGeometry owns real values)
+        // Base lane starts/ends (trace-only fallback — assignShipLaneGeometry
+        // owns the real values). The LANE_CONVERGENCE blend was a no-op by
+        // default and its control was removed (2026-07-22), so effective == base.
         const baseLaneStartX = source.x + ndx * (source.radius + 5);
         const baseLaneStartY = source.y + ndy * (source.radius + 5);
         const baseLaneEndX = target.x - ndx * (target.radius + 5);
         const baseLaneEndY = target.y - ndy * (target.radius + 5);
-        const convStartX = source.x + (target.x - source.x) * convergencePoint;
-        const convStartY = source.y + (target.y - source.y) * convergencePoint;
-        const effectiveLaneStartX = baseLaneStartX + (convStartX - baseLaneStartX) * convergencePoint;
-        const effectiveLaneStartY = baseLaneStartY + (convStartY - baseLaneStartY) * convergencePoint;
+        const effectiveLaneStartX = baseLaneStartX;
+        const effectiveLaneStartY = baseLaneStartY;
 
         // Tick-synchronized timing
         const halfTick = ctx.effectiveTickMs / 2;
@@ -301,7 +297,6 @@ export const coreTransferHandler: FXHandler<TransferEvent> = {
                 laneEndX: departingShips[0]?.laneEndX ?? baseLaneEndX,
                 laneEndY: departingShips[0]?.laneEndY ?? baseLaneEndY,
                 halfTick, departDuration, travelDuration, departFraction,
-                convergencePoint, convergence,
                 shipsToMove, streamMode, streamInterval,
                 shipDetails: departingShips.map(s => ({
                     id: s.id,

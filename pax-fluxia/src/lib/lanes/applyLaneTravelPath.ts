@@ -60,7 +60,6 @@ export function assignShipLaneGeometry(
     ndx: number;
     ndy: number;
 } {
-    const convergence = GAME_CONFIG.LANE_CONVERGENCE ?? 1.0;
     const trimmed = resolveTrimmedPolyline(source, target, pretrimmed);
 
     const { ndx, ndy } = computeLaneHeadingForNearside(source, target, trimmed);
@@ -110,22 +109,15 @@ export function assignShipLaneGeometry(
         effectiveLaneStartY = baseLaneStartY;
     }
 
-    if (convergence >= 1) {
-        ship.laneStartX = effectiveLaneStartX;
-        ship.laneStartY = effectiveLaneStartY;
-        ship.laneEndX = baseLaneEndX;
-        ship.laneEndY = baseLaneEndY;
-    } else {
-        // Keep the travel geometry on the actual lane even when the old
-        // convergence knob is below 1. Blending start/end toward per-ship
-        // departure or spread points shortens the travel segment and can push
-        // laneStart past laneEnd on short links, which shows up as a visible
-        // backward hop during the travel phase.
-        ship.laneStartX = effectiveLaneStartX;
-        ship.laneStartY = effectiveLaneStartY;
-        ship.laneEndX = baseLaneEndX;
-        ship.laneEndY = baseLaneEndY;
-    }
+    // Travel geometry always stays on the actual lane. The old LANE_CONVERGENCE
+    // blend (start/end toward per-ship departure/spread points) was disabled —
+    // it shortened the travel segment and could push laneStart past laneEnd on
+    // short links, a visible backward hop — and the control was removed
+    // 2026-07-22. Both branches had already collapsed to this identical result.
+    ship.laneStartX = effectiveLaneStartX;
+    ship.laneStartY = effectiveLaneStartY;
+    ship.laneEndX = baseLaneEndX;
+    ship.laneEndY = baseLaneEndY;
 
     return { ndx, ndy };
 }

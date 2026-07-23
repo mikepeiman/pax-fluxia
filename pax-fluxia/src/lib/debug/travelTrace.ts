@@ -90,8 +90,6 @@ export function traceTransferSetup(meta: {
     departDuration: number;
     travelDuration: number;
     departFraction: number;
-    convergencePoint: number;
-    convergence: number;
     shipsToMove: number;
     streamMode: boolean;
     streamInterval: number;
@@ -256,7 +254,6 @@ function formatTraceMarkdown(): string {
         lines.push(`- **Lane end**: (${meta.laneEndX.toFixed(1)}, ${meta.laneEndY.toFixed(1)})`);
         lines.push(`- **Timing**: halfTick=${meta.halfTick.toFixed(0)}ms, depart=${meta.departDuration.toFixed(0)}ms, travel=${meta.travelDuration.toFixed(0)}ms`);
         lines.push(`- **departFraction**: ${meta.departFraction}`);
-        lines.push(`- **convergence**: ${meta.convergence}, convergencePoint: ${meta.convergencePoint}`);
         lines.push(`- **Stream mode**: ${meta.streamMode}, interval=${meta.streamInterval.toFixed(0)}ms`);
         lines.push(`- **Ships**: ${meta.shipsToMove}`);
         lines.push('');
