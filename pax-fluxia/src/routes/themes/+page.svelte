@@ -104,11 +104,6 @@
       <div class="tb-diag" title="Diagnostics — hidden outside dev by default">
         <span class="tag">Dev</span><span class="m">120 fps</span><span class="m">2,569 ships</span>
       </div>
-      <div class="tb-modes" role="group" aria-label="Territory render mode">
-        <button class="tb-mode tb-mode--active">Vector</button>
-        <button class="tb-mode">Edges</button><button class="tb-mode">Ember</button>
-        <button class="tb-mode">Field</button><button class="tb-mode">Grad</button><button class="tb-mode">Off</button>
-      </div>
       <div class="tb-badge" title="Collapse player standings">
         <span class="dot"></span><span>You</span><span class="n">686</span><span aria-hidden="true">▾</span>
       </div>
@@ -496,11 +491,6 @@
   .tb-diag { display: flex; align-items: center; gap: 10px; flex-shrink: 0; padding: 4px 10px; border-radius: calc(var(--panel-radius) - 2px); background: color-mix(in srgb, var(--text-dim) 10%, transparent); }
   .tb-diag .tag { font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim); border: 1px solid var(--divider); border-radius: 4px; padding: 1px 5px; }
   .tb-diag .m { font-family: var(--font-data); font-size: 12px; color: var(--text-dim); }
-
-  .tb-modes { display: flex; gap: 4px; flex-shrink: 0; }
-  .tb-mode { font-family: var(--font-ui); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); cursor: pointer; background: var(--inset); border: 1px solid var(--divider); border-radius: calc(var(--panel-radius) - 2px); padding: 6px 10px; transition: all .15s ease; }
-  .tb-mode:hover { color: var(--text-strong); border-color: var(--panel-border); }
-  .tb-mode--active { color: var(--on-accent); background: var(--accent); border-color: var(--accent); font-weight: 600; box-shadow: 0 0 calc(var(--glow) + 2px) color-mix(in srgb, var(--accent) 50%, transparent); }
 
   .tb-badge { display: inline-flex; align-items: center; gap: 9px; flex-shrink: 0; cursor: pointer; font-family: var(--font-ui); font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-strong); padding: 7px 14px; border-radius: 999px; border: 1px solid var(--panel-border-strong); background: color-mix(in srgb, var(--frame) 12%, var(--inset)); }
   .tb-badge .dot { width: 9px; height: 9px; border-radius: 999px; background: var(--p-blue); box-shadow: 0 0 var(--glow) var(--p-blue); }
