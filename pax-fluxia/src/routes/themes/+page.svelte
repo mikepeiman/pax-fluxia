@@ -73,6 +73,11 @@
           </button>
         {/each}
       </div>
+      <a class="gold-cta" href="/themes/nebula-veil">
+        <span class="gold-cta__dot"></span>
+        <span><b>Nebula Veil</b> is the lead theme — see it taken to gold-standard fidelity</span>
+        <span class="gold-cta__arrow" aria-hidden="true">→</span>
+      </a>
     </div>
 
     <div class="laws">
@@ -450,6 +455,12 @@
   .theme-btn__name { display: block; font-size: 13.5px; font-weight: 600; color: var(--text-strong); letter-spacing: 0.02em; }
   .theme-btn__mood { display: block; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-dim); margin-top: 2px; }
   .theme-btn__tag { display: inline-block; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); border: 1px solid var(--chip-border); border-radius: 4px; padding: 1px 5px; margin-top: 8px; }
+
+  .gold-cta { display: flex; align-items: center; gap: 11px; margin-top: 12px; padding: 12px 16px; border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); border-radius: var(--panel-radius); background: color-mix(in srgb, var(--accent) 7%, transparent); color: var(--text); font-size: 13.5px; text-decoration: none; transition: border-color .15s, background .15s, transform .15s; }
+  .gold-cta:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); transform: translateY(-1px); }
+  .gold-cta b { color: var(--text-strong); font-weight: 600; }
+  .gold-cta__dot { width: 8px; height: 8px; border-radius: 999px; background: var(--accent); box-shadow: 0 0 8px var(--accent); flex-shrink: 0; }
+  .gold-cta__arrow { margin-left: auto; color: var(--accent); font-size: 16px; }
 
   /* laws */
   .laws { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 1180px; margin: 22px auto 0; }
