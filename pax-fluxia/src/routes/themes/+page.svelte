@@ -102,7 +102,8 @@
   let dsSelect = $state("balanced");
   let dsToggleA = $state(true);
   let dsToggleB = $state(false);
-  let dsRange = $state(64);
+  let dsTickMs = $state(1400);
+  let dsFleetSpread = $state(64);
   let dsSettingRange = $state(1.35);
   let dsPrimary = $state(true);
 
@@ -280,7 +281,7 @@
       <!-- ===================== RAIL ===================== -->
       <div class="rail">
         <!-- speed -->
-        <section class="panel">
+        <section class="panel" data-shot="speed">
           <div class="panel__head"><div><p class="panel__eyebrow">Tempo</p><h3 class="panel__title">Game Speed</h3></div></div>
           <div class="seg seg--speed" role="group" aria-label="Game speed">
             {#each speeds as s}
@@ -294,7 +295,7 @@
         </section>
 
         <!-- standings -->
-        <section class="panel">
+        <section class="panel" data-shot="standings">
           <div class="panel__head">
             <div><p class="panel__eyebrow"><span class="livedot"></span>Live match</p><h3 class="panel__title">Player Standings</h3></div>
             <div class="tools">
@@ -343,7 +344,7 @@
         </section>
 
         <!-- star view -->
-        <section class="panel">
+        <section class="panel" data-shot="star">
           <div class="panel__head">
             <div><p class="panel__eyebrow">Selection</p><h3 class="panel__title">Star View</h3></div>
             <div class="tools">
@@ -371,7 +372,7 @@
             </div>
             <div class="star__id">
               <div class="star__name">{star.name}</div>
-              <div class="star__meta"><span class="star__type" style="color:#34e0a0">{@render icon("atk-star", 13)} {star.type}</span></div>
+              <div class="star__meta"><span class="star__type" style="color:var(--star-attack)">{@render icon("atk-star", 13)} {star.type}</span></div>
               <div class="star__owner"><span class="std__chip star__ownerchip" style="--pc:{star.owner.color}">{@render sigil(star.owner.sigil, 12)}</span> {star.owner.name}</div>
             </div>
           </div>
@@ -407,7 +408,7 @@
     </header>
 
     <div class="ds__grid">
-      <div class="ds__cell">
+      <div data-shot="ds-buttons" class="ds__cell">
         <span class="ds__label">PaxHudButton</span>
         <div class="ds__row">
           <PaxHudButton label="Primary" active={dsPrimary} onclick={() => (dsPrimary = !dsPrimary)} />
@@ -417,7 +418,7 @@
         </div>
       </div>
 
-      <div class="ds__cell">
+      <div data-shot="ds-icons" class="ds__cell">
         <span class="ds__label">PaxHudIconButton</span>
         <div class="ds__row">
           <PaxHudIconButton icon="menu" title="Menu" onclick={() => {}} />
@@ -428,7 +429,7 @@
         </div>
       </div>
 
-      <div class="ds__cell">
+      <div data-shot="ds-segmented" class="ds__cell">
         <span class="ds__label">PaxHudSegmentedControl</span>
         <div class="ds__stack">
           <PaxHudSegmentedControl value={dsSegment} options={dsSegmentOptions} ariaLabel="Example segments" onValueChange={(v) => (dsSegment = v)} />
@@ -436,7 +437,7 @@
         </div>
       </div>
 
-      <div class="ds__cell">
+      <div data-shot="ds-fields" class="ds__cell">
         <span class="ds__label">PaxHudTextInput · PaxHudSelect</span>
         <div class="ds__stack">
           <PaxHudTextInput value={dsText} label="Map name" placeholder="Search systems…" onInput={(v) => (dsText = v)} />
@@ -444,12 +445,12 @@
         </div>
       </div>
 
-      <div class="ds__cell">
+      <div data-shot="ds-range" class="ds__cell">
         <span class="ds__label">PaxHudRange</span>
-        <PaxHudRange label="Tick Duration" value={dsRange} min={0} max={100} step={1} output={`${dsRange}%`} ariaLabel="Example range" onInput={(v) => (dsRange = v)} />
+        <PaxHudRange label="Tick Duration" value={dsTickMs} min={100} max={5000} step={50} output={`${dsTickMs} ms`} ariaLabel="Tick duration" onInput={(v) => (dsTickMs = v)} />
       </div>
 
-      <div class="ds__cell">
+      <div data-shot="ds-chips" class="ds__cell">
         <span class="ds__label">PaxInfoHint <PaxInfoHint text="Tooltips open after 50ms — hover the ⓘ." /></span>
         <div class="ds__row ds__row--wrap">
           <span class="ds__chip">Alpha</span>
@@ -459,7 +460,7 @@
         </div>
       </div>
 
-      <div class="ds__cell ds__cell--wide">
+      <div data-shot="ds-rows" class="ds__cell ds__cell--wide">
         <span class="ds__label">Settings rows — PaxSettingsToggleRow · PaxSettingsRangeRow · PaxSettingsInfoRow</span>
         <PaxSettingsToggleRow label="Blended Opponent Borders" checked={dsToggleA} description="Blend the seam where two players meet." onChange={(c) => (dsToggleA = c)} />
         <PaxSettingsToggleRow label="Bind Duration To Tick" checked={dsToggleB} meta={dsToggleB ? "On" : "Off"} onChange={(c) => (dsToggleB = c)} />
@@ -467,7 +468,7 @@
         <PaxSettingsInfoRow label="Render mode" value={activeModeMeta?.label ?? "—"} />
       </div>
 
-      <div class="ds__cell ds__cell--wide">
+      <div data-shot="ds-panel" class="ds__cell ds__cell--wide">
         <span class="ds__label">PaxHudPanel — the real panel shell</span>
         <PaxHudPanel title="Fleet Command" eyebrow="Live match">
           {#snippet actions()}
@@ -477,7 +478,7 @@
             The panel shell renders its own eyebrow, title and action slot. Under each theme it
             picks up that theme's surface, border and type — proving the token contract end to end.
           </p>
-          <PaxHudRange label="Fleet spread" value={dsRange} min={0} max={100} step={1} output={`${dsRange}%`} ariaLabel="Fleet spread" onInput={(v) => (dsRange = v)} />
+          <PaxHudRange label="Fleet spread" value={dsFleetSpread} min={0} max={100} step={1} output={`${dsFleetSpread}%`} ariaLabel="Fleet spread" onInput={(v) => (dsFleetSpread = v)} />
         </PaxHudPanel>
       </div>
     </div>
@@ -519,12 +520,16 @@
 
     --text-strong: #f2f6ff;
     --text: rgba(214,224,246,0.94);
-    --muted: rgba(160,175,208,0.86);
-    --dim: rgba(112,126,160,0.82);
+    --muted: #b7c2dc;
+    --dim: #97a3c2;
 
     --accent: #3aa0ff;
     --accent-strong: #8ac7ff;
     --accent-glow: rgba(58,160,255,0.55);
+    /* accent used for TEXT on the page ground (must clear AA there) */
+    --accent-text: var(--accent-strong);
+    --star-attack: #34e0a0;
+    --danger: #ff5a6a;
     --frame: #8b93b8;
     --frame-strong: #b7c0e0;
     --on-accent: #04070f;
@@ -559,6 +564,8 @@
     --bracket: 0.7;
     --edge-spread: 30%;
     --edge-op: 1;
+    /* control-shape scale — each theme sets its own physical language */
+    --ctl-radius-xs: 4px; --ctl-radius-sm: 5px; --ctl-radius-md: 6px; --ctl-radius-lg: 8px;
     --panel-drop: drop-shadow(0 10px 22px rgba(0,0,0,0.45));
     --chip-radius: 6px;
 
@@ -588,15 +595,90 @@
     --pax-ui-font-copy: var(--font-ui);
     --pax-ui-font-data: var(--font-data);
     --pax-ui-font-brand: var(--font-brand);
-    --pax-ui-danger: #ff5a6a;
+    --pax-ui-danger: var(--danger);
     --pax-ui-success: #34e0a0;
     --pax-ui-border-gradient: linear-gradient(135deg, var(--brd-hi), transparent 62%);
     --pax-ui-control-border-gradient: linear-gradient(135deg, var(--brd-hi), transparent 62%);
     --pax-ui-shadow: 0 14px 34px rgba(0,0,0,0.42);
     --pax-ui-shadow-soft: 0 6px 16px rgba(0,0,0,0.3);
+    /* Tier 1. The shipped components style themselves with Tailwind utilities
+       (text-pax-text, bg-pax-panel, …) which resolve through @theme to these
+       --pax-color and --pax-font primitives, NOT the --pax-ui roles above.
+       Aliasing only Tier 2 left real text at 1.22:1 on Broadcast. Alias both. */
     --pax-color-void: var(--screen-solid);
+    --pax-color-void-mid: var(--screen-solid);
+    --pax-color-void-raised: var(--inset);
+    --pax-color-panel: var(--panel-fill);
+    --pax-color-panel-strong: var(--panel-fill);
+    --pax-color-panel-muted: var(--inset);
     --pax-color-control: var(--inset);
     --pax-color-control-hover: color-mix(in srgb, var(--accent) 14%, var(--inset));
+    --pax-color-control-active: var(--accent);
+    --pax-color-text: var(--text);
+    --pax-color-text-strong: var(--text-strong);
+    --pax-color-text-muted: var(--muted);
+    --pax-color-text-dim: var(--dim);
+    --pax-color-accent-cyan: var(--accent);
+    --pax-color-accent-cyan-strong: var(--accent-strong);
+    --pax-color-accent-gold: var(--frame);
+    --pax-color-accent-gold-strong: var(--frame-strong);
+    --pax-color-danger: var(--danger);
+    --pax-color-success: #34e0a0;
+    --pax-color-warning: #ffc24a;
+    /* Tailwind's @theme emits `--color-pax-text: var(--pax-color-text)` at :root,
+       so it resolves ONCE there — overriding --pax-color-* on a descendant does
+       not re-resolve it. Utilities like `text-pax-text` therefore keep the root
+       theme's value. These are the names the utilities actually read. */
+    --color-pax-void: var(--screen-solid);
+    --color-pax-panel: var(--panel-fill);
+    --color-pax-panel-strong: var(--panel-fill);
+    --color-pax-panel-muted: var(--inset);
+    --color-pax-text: var(--text);
+    --color-pax-text-strong: var(--text-strong);
+    --color-pax-text-muted: var(--muted);
+    --color-pax-text-dim: var(--dim);
+    --color-pax-cyan: var(--accent);
+    --color-pax-cyan-strong: var(--accent-strong);
+    --color-pax-gold: var(--frame);
+    --color-pax-gold-strong: var(--frame-strong);
+    --color-pax-danger: var(--danger);
+    /* SHAPE is themed too, not just colour: these drive the real components'
+       corner geometry, so Broadcast reads square-ish, Starglass pill-soft and
+       Neon Arcade hard-edged — same component, different physical language. */
+    --radius-pax-xs: var(--ctl-radius-xs);
+    --radius-pax-sm: var(--ctl-radius-sm);
+    --radius-pax-md: var(--ctl-radius-md);
+    --radius-pax-lg: var(--ctl-radius-lg);
+    --pax-radius-xs: var(--ctl-radius-xs);
+    --pax-radius-sm: var(--ctl-radius-sm);
+    --pax-radius-md: var(--ctl-radius-md);
+    --pax-radius-lg: var(--ctl-radius-lg);
+    --shadow-pax-panel: var(--pax-ui-shadow);
+    --shadow-pax-panel-soft: var(--pax-ui-shadow-soft);
+
+    --font-pax-brand: var(--font-brand);
+    --font-pax-ui: var(--font-ui);
+    --font-pax-copy: var(--font-ui);
+    --font-pax-data: var(--font-data);
+    --font-pax-display: var(--font-brand);
+    --font-pax-techno: var(--font-brand);
+
+    --pax-font-brand: var(--font-brand);
+    --pax-font-ui: var(--font-ui);
+    --pax-font-label: var(--font-ui);
+    --pax-font-copy: var(--font-ui);
+    --pax-font-data: var(--font-data);
+    --pax-font-display: var(--font-brand);
+    --pax-font-techno: var(--font-brand);
+    --pax-border-panel: var(--brd);
+    --pax-border-panel-strong: var(--brd-hi);
+    --pax-border-divider: var(--hair);
+    --pax-surface-panel: var(--panel-fill);
+    --pax-surface-panel-strong: var(--panel-fill);
+    --pax-surface-panel-muted: var(--inset);
+    --pax-surface-control: var(--inset);
+    --pax-surface-control-hover: color-mix(in srgb, var(--accent) 14%, var(--inset));
+    --pax-surface-control-active: var(--accent);
 
     min-height: 100vh;
     background:
@@ -617,6 +699,7 @@
      Deliberately the "before": flat cards, no lit edge, no bracket, no
      scanline, no atmospheric depth, muted accent, plain map. */
   .stage[data-theme="nebula-veil-v1"] {
+    --ctl-radius-xs: 8px; --ctl-radius-sm: 10px; --ctl-radius-md: 12px; --ctl-radius-lg: 16px;
     --ground: #0a0c16; --screen-bg: #0a0c16; --screen-solid: #0a0c16;
     --map-bg:
       radial-gradient(circle 1px at 40% 40%, rgba(255,255,255,0.16) 1px, transparent 0),
@@ -627,7 +710,7 @@
     --brd: rgba(126,150,210,0.18); --brd-hi: rgba(126,166,255,0.34); --hair: rgba(126,150,210,0.12);
     --inset: #171c33; --track: #1b2138;
     --text-strong: #dde4f2; --text: rgba(198,208,230,0.9);
-    --muted: rgba(150,162,190,0.82); --dim: rgba(106,116,144,0.8);
+    --muted: #aab4cc; --dim: #8d97b4;
     --accent: #4a86c8; --accent-strong: #7aa9dd; --accent-glow: rgba(74,134,200,0.18);
     --panel-clip: none; --panel-radius: 10px; --cut: 0px;
     --screen-clip: none; --screen-radius: 12px;
@@ -650,6 +733,7 @@
 
   /* ============================ AURELIA DRIFT ============================ */
   .stage[data-theme="aurelia-drift"] {
+    --ctl-radius-xs: 8px; --ctl-radius-sm: 11px; --ctl-radius-md: 14px; --ctl-radius-lg: 20px;
     --ground: #03080b; --screen-bg: #03080b; --screen-solid: #03080b;
     --map-bg:
       radial-gradient(ellipse at 28% 30%, rgba(85,231,239,0.16), transparent 42%),
@@ -664,7 +748,7 @@
     --brd: rgba(246,196,105,0.34); --brd-hi: rgba(246,196,105,0.66); --hair: rgba(246,196,105,0.18);
     --inset: rgba(5,24,29,0.72); --track: #101c21;
     --text-strong: rgba(255,247,224,0.98); --text: rgba(224,232,232,0.92);
-    --muted: rgba(180,188,188,0.88); --dim: rgba(128,141,145,0.8);
+    --muted: #b9c2c2; --dim: #93a0a4;
     --accent: #55e7ef; --accent-strong: #9ff8ff; --accent-glow: rgba(85,231,239,0.5);
     --frame: #f6c469; --frame-strong: #ffe3a3; --on-accent: #03080b;
     --you-hi: #f6c469; --you-hi-strong: #ffe3a3; --you-ink: #fdf4e2;
@@ -679,6 +763,7 @@
      glowing stroke with real bloom. Synthwave grid horizon on the map. The
      opposite construction to Cyber Flux, which fills its panels. */
   .stage[data-theme="neon-arcade"] {
+    --ctl-radius-xs: 0px; --ctl-radius-sm: 0px; --ctl-radius-md: 2px; --ctl-radius-lg: 2px;
     --ground: #05010c; --screen-bg: #06010e; --screen-solid: #06010e;
     --map-bg:
       linear-gradient(0deg, rgba(255,43,187,0.22), transparent 46%),
@@ -693,11 +778,11 @@
     --brd: rgba(255,43,187,0.62); --brd-hi: #ff6bd0; --hair: rgba(255,43,187,0.28);
     --inset: rgba(20,2,34,0.72); --track: #2a0740;
     --text-strong: #ffffff; --text: rgba(255,235,250,0.94);
-    --muted: rgba(226,178,232,0.88); --dim: rgba(163,116,190,0.85);
+    --muted: #dcbde4; --dim: #b48ec8;
     --accent: #ff2bbb; --accent-strong: #ff8ade; --accent-glow: rgba(255,43,187,0.85);
     --frame: #00e5ff; --frame-strong: #a6f6ff; --on-accent: #0a0014;
     --you-hi: #ffe23c; --you-hi-strong: #fff7b0; --you-ink: #fffbe4;
-    --spd-pause: #9a7ab8; --spd-normal: #00e5ff; --spd-fast: #38ffb0; --spd-high: #c04bff; --spd-extreme: #ff8a2b;
+    --spd-pause: #b294cc; --spd-normal: #00e5ff; --spd-fast: #38ffb0; --spd-high: #c04bff; --spd-extreme: #ff8a2b;
     --font-brand: "Agency FB", "Haettenschweiler", "Rajdhani", sans-serif;
     --brand-weight: 700; --brand-spacing: 0.2em;
     --panel-clip: none; --panel-radius: 4px; --cut: 0px;
@@ -734,6 +819,7 @@
 
   /* ============================ CYBER FLUX ============================ */
   .stage[data-theme="cyber-flux"] {
+    --ctl-radius-xs: 0px; --ctl-radius-sm: 1px; --ctl-radius-md: 3px; --ctl-radius-lg: 4px;
     --ground: #06030c; --screen-bg: #06030c; --screen-solid: #06030c;
     --map-bg:
       linear-gradient(0deg, rgba(255,58,192,0.14), transparent 42%),
@@ -745,17 +831,18 @@
     --brd: rgba(255,90,200,0.5); --brd-hi: rgba(255,120,215,0.85); --hair: rgba(255,90,200,0.24);
     --inset: rgba(30,8,42,0.72); --track: #1c0a2a;
     --text-strong: #ffe9fb; --text: rgba(238,225,245,0.92);
-    --muted: rgba(206,180,214,0.85); --dim: rgba(150,120,165,0.82);
+    --muted: #d3b9db; --dim: #ab8cbe;
     --accent: #ff3cc0; --accent-strong: #ff8fe0; --accent-glow: rgba(255,60,190,0.6);
     --frame: #22e6ff; --frame-strong: #9ff8ff; --on-accent: #0a0012;
     --you-hi: #ffd23c; --you-hi-strong: #ffe98a; --you-ink: #fff6df;
-    --spd-normal: #22e6ff; --spd-fast: #4dff9e; --spd-high: #c86bff; --spd-extreme: #ff8f3c; --spd-pause: #7d6fa0;
+    --spd-normal: #22e6ff; --spd-fast: #4dff9e; --spd-high: #c86bff; --spd-extreme: #ff8f3c; --spd-pause: #9d8fc4;
     --font-brand: "Agency FB", "Bahnschrift", sans-serif; --brand-weight: 700; --brand-spacing: 0.1em;
     --cut: 9px; --panel-radius: 0px; --scan: 0.035; --bracket: 0.85; --edge-spread: 42%;
   }
 
   /* ============================ STARGLASS PRIME ============================ */
   .stage[data-theme="starglass-prime"] {
+    --ctl-radius-xs: 12px; --ctl-radius-sm: 16px; --ctl-radius-md: 22px; --ctl-radius-lg: 28px;
     --ground: radial-gradient(ellipse at 50% -10%, #16204e, #0b1030 60%);
     --screen-bg: linear-gradient(180deg, #0e1642, #0a0f2e); --screen-solid: #0b1030;
     --map-bg:
@@ -769,8 +856,9 @@
     --brd: rgba(185,208,255,0.32); --brd-hi: rgba(210,226,255,0.6); --hair: rgba(185,208,255,0.18);
     --inset: rgba(130,160,235,0.14); --track: rgba(130,160,235,0.2);
     --text-strong: #f4f7ff; --text: rgba(222,232,255,0.94);
-    --muted: rgba(188,202,238,0.9); --dim: rgba(150,166,210,0.82);
+    --muted: #c3cfef; --dim: #9fb0d8;
     --accent: #6fe6ff; --accent-strong: #c2f4ff; --accent-glow: rgba(111,230,255,0.5);
+    --accent-text: #a8eeff;
     --frame: #9d8bff; --frame-strong: #c7b8ff; --on-accent: #0b1030;
     --you-hi: #ffd884; --you-hi-strong: #ffeec4; --you-ink: #fff7e6;
     --spd-normal: #6fbcff; --spd-fast: #63e6c4; --spd-high: #b79cff; --spd-extreme: #ffab6b; --spd-pause: #8b9cc8;
@@ -781,6 +869,7 @@
 
   /* ============================ BROADCAST MINIMAL (light) ============================ */
   .stage[data-theme="broadcast-minimal"] {
+    --ctl-radius-xs: 2px; --ctl-radius-sm: 3px; --ctl-radius-md: 4px; --ctl-radius-lg: 6px;
     color-scheme: light;
     --ground: #eaecef; --screen-bg: #f5f6f7; --screen-solid: #f5f6f7;
     --map-bg:
@@ -791,10 +880,11 @@
     --panel-fill: #ffffff;
     --brd: rgba(24,30,42,0.14); --brd-hi: rgba(24,30,42,0.34); --hair: rgba(24,30,42,0.10);
     --inset: #eef1f4; --track: #dfe4ea;
-    --text-strong: #111620; --text: #2b323d; --muted: #5a6472; --dim: #8b95a4;
-    --accent: #2f6fe0; --accent-strong: #1b57c8; --accent-glow: rgba(47,111,224,0.28);
-    --frame: #45536b; --frame-strong: #2c374a; --on-accent: #ffffff;
+    --text-strong: #0d121a; --text: #222933; --muted: #333b47; --dim: #3d4552;
+    --accent: #1a56c4; --accent-strong: #123f96; --accent-glow: rgba(26,86,196,0.26);
+    --frame: #38455a; --frame-strong: #232c3b; --on-accent: #ffffff;
     --you-hi: #c98a12; --you-hi-strong: #8a5c00; --you-ink: #2a1f04;
+    --accent-text: #123f96; --star-attack: #0b6644; --danger: #b3182b;
     --spd-normal: #2f6fe0; --spd-fast: #1f9e63; --spd-high: #7b52d8; --spd-extreme: #e07a1f; --spd-pause: #8b95a4;
     --font-brand: "Haettenschweiler", "Franklin Gothic Demi", "Rajdhani", sans-serif; --brand-weight: 400; --brand-spacing: 0.03em;
     --panel-clip: none; --panel-radius: 8px; --cut: 0px;
@@ -814,14 +904,14 @@
     display: inline-flex; align-items: center; gap: 6px; line-height: 1;
     font: 600 13px/1 var(--font-ui); letter-spacing: 0.08em; text-transform: uppercase;
     color: var(--muted); background: var(--inset); cursor: pointer;
-    border: 1px solid var(--brd); border-radius: 999px; padding: 8px 15px 8px 11px;
+    border: 1px solid var(--brd); border-radius: 999px; padding: 9px 16px;
     transition: color .15s, border-color .15s, transform .15s;
   }
   .back:hover { color: var(--text-strong); border-color: var(--brd-hi); transform: translateX(-2px); }
 
   /* lead */
   .lead { max-width: 1200px; margin: 0 auto 22px; }
-  .lead__kicker { margin: 0 0 10px; font-size: 12px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--accent); }
+  .lead__kicker { margin: 0 0 10px; font-size: 12px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--accent-text); }
   .lead__brand { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
   .lead__brand h1 { margin: 0; font-family: var(--font-brand); font-weight: var(--brand-weight); font-size: clamp(30px, 5vw, 52px); letter-spacing: var(--brand-spacing); text-transform: uppercase; color: var(--text-strong); text-shadow: 0 0 28px color-mix(in srgb, var(--accent) 30%, transparent); }
   .lead__tag { font-size: 13px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--frame); }
@@ -875,7 +965,7 @@
   .tb__diag { display: flex; align-items: center; gap: 9px; padding: 4px 9px; border-radius: 8px; background: color-mix(in srgb, var(--dim) 12%, transparent); }
   .tb__tag { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); border: 1px solid var(--hair); border-radius: 4px; padding: 1px 5px; }
   .tb__diag .mono { font-size: 12px; color: var(--dim); }
-  .tb__badge { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; line-height: 1; font-family: var(--font-ui); font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-strong); padding: 6px 12px; border-radius: 999px; border: 1px solid var(--brd-hi); background: color-mix(in srgb, var(--accent) 10%, transparent); transition: background .15s; }
+  .tb__badge { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; line-height: 1; font-family: var(--font-ui); font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-strong); padding: 9px 14px; border-radius: 999px; border: 1px solid var(--brd-hi); background: color-mix(in srgb, var(--accent) 10%, transparent); transition: background .15s; }
   .tb__badge:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
   .tb__badge .mono { color: var(--accent-strong); }
   .tb__badge-sig { display: inline-flex; }
@@ -885,25 +975,25 @@
 
   /* settings */
   .settings { background: var(--panel-fill); border-right: 1px solid var(--hair); padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-  .search { display: flex; align-items: center; gap: 9px; border: 1px solid var(--brd); border-radius: 9px; padding: 0 11px; height: 38px; color: var(--dim); background: var(--inset); }
-  .search input { flex: 1; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 13px; outline: none; }
+  .search { display: flex; align-items: center; gap: 9px; border: 1px solid var(--brd); border-radius: 9px; padding: 0 12px; height: 40px; color: var(--dim); background: var(--inset); }
+  .search input { flex: 1; align-self: stretch; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 13px; outline: none; }
   .search input::placeholder { color: var(--dim); }
   .cat { display: flex; align-items: center; gap: 9px; color: var(--accent); }
   .cat h2 { margin: 0; font-family: var(--font-brand); font-size: 15px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-strong); }
   .subtabs { display: flex; gap: 5px; flex-wrap: wrap; }
-  .subtab { line-height: 1; font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); padding: 6px 11px; border-radius: 999px; border: 1px solid var(--hair); cursor: pointer; background: transparent; transition: color .15s, border-color .15s; }
+  .subtab { line-height: 1; font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); padding: 8px 13px; border-radius: 999px; border: 1px solid var(--hair); cursor: pointer; background: transparent; transition: color .15s, border-color .15s; }
   .subtab:hover { color: var(--text-strong); border-color: var(--brd); }
   .subtab--active { color: var(--on-accent); background: var(--accent); border-color: var(--accent); font-weight: 600; box-shadow: 0 0 14px var(--accent-glow); }
 
   .eyebrow { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent-strong); }
   .eyebrow__ix { font-family: var(--font-data); font-size: 10px; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); border-radius: 4px; padding: 1px 4px; }
   .hint { margin: 0; font-size: 11.5px; line-height: 1.45; color: var(--dim); }
-  .mode-desc { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
+  .mode-desc { margin: 4px 0 2px; font-size: 12px; color: var(--muted); }
   .mode-desc strong { color: var(--accent-strong); }
 
   /* render-mode preview tiles */
   .modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  .mtile { display: flex; flex-direction: column; gap: 6px; padding: 5px; cursor: pointer; background: var(--inset); border: 1px solid var(--brd); border-radius: 9px; transition: border-color .15s, box-shadow .15s, transform .1s; }
+  .mtile { display: flex; flex-direction: column; gap: 7px; padding: 7px; cursor: pointer; background: var(--inset); border: 1px solid var(--brd); border-radius: 9px; transition: border-color .15s, box-shadow .15s, transform .1s; }
   .mtile:hover { border-color: var(--brd-hi); transform: translateY(-1px); }
   .mtile.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 0 16px var(--accent-glow); }
   .mtile__vis { position: relative; height: 42px; border-radius: 6px; overflow: hidden; background: #0a0e1a; }
@@ -941,7 +1031,7 @@
   .ctrl__head span:first-child { font-size: 13.5px; color: var(--text); }
   .val { font-size: 13px; color: var(--text-strong); }
 
-  .range { -webkit-appearance: none; appearance: none; width: 100%; height: 18px; background: transparent; cursor: pointer; margin: 0; }
+  .range { -webkit-appearance: none; appearance: none; width: 100%; height: 30px; background: transparent; cursor: pointer; margin: 0; }
   .range::-webkit-slider-runnable-track { height: 4px; border-radius: 999px; background: linear-gradient(90deg, var(--accent) 0 var(--val), var(--track) var(--val) 100%); }
   .range::-moz-range-track { height: 4px; border-radius: 999px; background: var(--track); }
   .range::-moz-range-progress { height: 4px; border-radius: 999px; background: var(--accent); }
@@ -953,7 +1043,7 @@
   .switch::after { content: ""; position: absolute; width: 15px; height: 15px; border-radius: 999px; background: var(--dim); top: 2px; left: 2px; transition: left .18s cubic-bezier(.3,1.4,.5,1), background .15s; }
   .switch--on { background: color-mix(in srgb, var(--accent) 28%, transparent); border-color: var(--accent); }
   .switch--on::after { left: 19px; background: var(--accent-strong); box-shadow: 0 0 8px var(--accent-glow); }
-  .togglerow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 0 0; margin-top: 2px; border-top: 1px solid var(--hair); background: none; border-left: 0; border-right: 0; border-bottom: 0; cursor: pointer; color: var(--text); font: inherit; }
+  .togglerow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 0; margin-top: 2px; border-top: 1px solid var(--hair); background: none; border-left: 0; border-right: 0; border-bottom: 0; cursor: pointer; color: var(--text); font: inherit; }
   .togglerow > span:first-child { font-size: 13.5px; }
 
   /* map — reacts to render mode */
@@ -969,7 +1059,7 @@
   .rail { background: var(--screen-bg); border-left: 1px solid var(--hair); padding: 14px; display: flex; flex-direction: column; gap: 16px; }
 
   /* signature panel */
-  .panel { position: relative; background: var(--panel-fill); backdrop-filter: var(--panel-blur); clip-path: var(--panel-clip); border-radius: var(--panel-radius); padding: 15px 16px 16px; filter: var(--panel-drop); transition: background .45s ease; }
+  .panel { position: relative; background: var(--panel-fill); backdrop-filter: var(--panel-blur); clip-path: var(--panel-clip); border-radius: var(--panel-radius); padding: 16px 18px 18px; filter: var(--panel-drop); transition: background .45s ease; }
   .panel::before { content: ""; position: absolute; top: 0; left: 0; right: var(--cut); height: 2px; opacity: var(--edge-op); background: linear-gradient(90deg, var(--accent) 0 var(--edge-spread), transparent 82%); box-shadow: 0 0 10px var(--accent-glow); }
   .panel::after { content: ""; position: absolute; left: 10px; bottom: 10px; width: 12px; height: 12px; border-left: 1.5px solid var(--brd-hi); border-bottom: 1.5px solid var(--brd-hi); opacity: var(--bracket); }
   .panel__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
@@ -981,13 +1071,13 @@
 
   /* segmented controls — icon+label optically centred */
   .seg { display: flex; gap: 3px; border: 1px solid var(--hair); border-radius: 999px; padding: 3px; }
-  .seg button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px; line-height: 1; font-family: var(--font-ui); font-size: 11.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); cursor: pointer; background: transparent; border: 0; border-radius: 999px; padding: 7px 6px; transition: color .15s, background .15s, box-shadow .15s; }
+  .seg button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; line-height: 1; font-family: var(--font-ui); font-size: 11.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); cursor: pointer; background: transparent; border: 0; border-radius: 999px; padding: 8px 10px; transition: color .15s, background .15s, box-shadow .15s; }
   .seg button > span { line-height: 1; display: inline-block; }
   .seg button:hover { color: var(--text-strong); }
   .seg button.on { color: var(--on-accent); background: var(--accent); font-weight: 600; box-shadow: 0 0 12px var(--accent-glow); }
   .seg--sm { width: 128px; flex: none; }
   /* game speed: active pill uses its semantic tone */
-  .seg--speed button { padding: 8px 6px; }
+  .seg--speed button { padding: 9px 8px; }
   .seg--speed button.on { background: var(--spd); color: #06080e; box-shadow: 0 0 12px color-mix(in srgb, var(--spd) 55%, transparent); }
 
   .sliderlbl { display: flex; align-items: baseline; justify-content: space-between; margin: 14px 2px 8px 0; }
@@ -995,16 +1085,16 @@
   .sliderlbl .mono { font-size: 13px; color: var(--text-strong); }
 
   /* standings ladder */
-  .std__bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  .std__bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
   .std__tick { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
   .std__tick strong { color: var(--text); margin-left: 4px; font-weight: 500; }
-  .std__cols { display: grid; grid-template-columns: 1.9fr 0.85fr 0.85fr 0.7fr 0.8fr; gap: 4px; padding: 0 9px 6px; font-size: 9.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--dim); }
+  .std__cols { display: grid; grid-template-columns: 1.9fr 0.85fr 0.85fr 0.7fr 0.8fr; gap: 6px; padding: 0 10px 8px; font-size: 9.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--dim); }
   .std__cols span:not(:first-child) { text-align: right; }
   .std__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
   .std__list li { display: block; }
   .std__row {
-    position: relative; width: 100%; display: grid; grid-template-columns: 1.9fr 0.85fr 0.85fr 0.7fr 0.8fr; gap: 4px; align-items: center;
-    padding: 9px 9px 12px; border: 0; border-left: 2px solid var(--pc); border-radius: 8px; cursor: pointer;
+    position: relative; width: 100%; display: grid; grid-template-columns: 1.9fr 0.85fr 0.85fr 0.7fr 0.8fr; gap: 6px; align-items: center;
+    padding: 10px 10px 13px; border: 0; border-left: 2px solid var(--pc); border-radius: 8px; cursor: pointer;
     font-family: var(--font-data); font-size: 12.5px; color: var(--text);
     background: linear-gradient(90deg, color-mix(in srgb, var(--pc) 13%, transparent), transparent 66%);
     transition: background .15s, box-shadow .15s; overflow: hidden;
@@ -1054,11 +1144,11 @@
   .std__name { color: var(--text-strong); font-weight: 500; }
   .std__prod { color: var(--muted); }
   /* underline-as-gauge — flush to the row's bottom edge */
-  .std__meter { position: absolute; left: 9px; right: 9px; bottom: 0; height: 2.5px; border-radius: 999px 999px 0 0; background: color-mix(in srgb, var(--pc) 20%, transparent); overflow: hidden; }
+  .std__meter { position: absolute; left: 10px; right: 10px; bottom: 0; height: 2.5px; border-radius: 999px 999px 0 0; background: color-mix(in srgb, var(--pc) 20%, transparent); overflow: hidden; }
   .std__meter::after { content: ""; position: absolute; left: 0; top: 0; height: 100%; width: var(--w); border-radius: 999px 999px 0 0; background: var(--pc); box-shadow: 0 0 8px var(--pc); transition: width .32s cubic-bezier(.3,.9,.3,1); }
   .std__row.is-local .std__meter { background: color-mix(in srgb, var(--you-hi) 26%, transparent); }
   .std__row.is-local .std__meter::after { background: var(--you-hi-strong); box-shadow: 0 0 8px var(--you-hi); }
-  .std__totals { display: grid; grid-template-columns: 1.9fr 0.85fr 0.85fr 0.7fr 0.8fr; gap: 4px; padding: 11px 9px 2px; margin-top: 6px; border-top: 1px solid var(--hair); font-family: var(--font-data); font-size: 12px; color: var(--muted); }
+  .std__totals { display: grid; grid-template-columns: 1.9fr 0.85fr 0.85fr 0.7fr 0.8fr; gap: 6px; padding: 12px 10px 2px; margin-top: 6px; border-top: 1px solid var(--hair); font-family: var(--font-data); font-size: 12px; color: var(--muted); }
   .std__totals span:not(:first-child) { text-align: right; }
   .std__totals span:first-child { font-family: var(--font-ui); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
 
@@ -1081,7 +1171,7 @@
   .star__owner { display: inline-flex; align-items: center; gap: 7px; margin-top: 7px; font-size: 12.5px; color: var(--muted); }
   .star__ownerchip { width: 20px; height: 20px; }
   .star__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--hair); border-radius: 9px; overflow: hidden; }
-  .cell { background: var(--inset); padding: 9px 10px; }
+  .cell { background: var(--inset); padding: 11px 12px; }
   .cell__k { display: flex; align-items: center; gap: 5px; font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
   .cell__v { display: block; font-size: 18px; color: var(--text-strong); margin-top: 3px; }
   .star__targets { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hair); display: flex; flex-direction: column; gap: 7px; }
@@ -1095,7 +1185,7 @@
   .ds__head h2 { margin: 0 0 6px; font-family: var(--font-brand); font-size: 15px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-strong); }
   .ds__head p { margin: 0 0 18px; max-width: 78ch; font-size: 13.5px; line-height: 1.6; color: var(--muted); }
   .ds__head strong { color: var(--text-strong); font-weight: 600; }
-  .ds__head code { font-family: var(--font-data); font-size: 12.5px; color: var(--accent); }
+  .ds__head code { font-family: var(--font-data); font-size: 12.5px; color: var(--accent-text); }
   .ds__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .ds__cell { display: flex; flex-direction: column; gap: 10px; padding: 14px 15px 16px; border: 1px solid var(--hair); border-radius: var(--panel-radius, 10px); background: var(--panel-fill); }
   .ds__cell--wide { grid-column: 1 / -1; }

@@ -13,7 +13,8 @@
     "test:ci": "bun test",
     "test:e2e": "playwright test",
     "test:e2e:report": "playwright show-report",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "ui:audit": "node tools/ui-audit.mjs"
   },
   "license": "MIT",
   "dependencies": {

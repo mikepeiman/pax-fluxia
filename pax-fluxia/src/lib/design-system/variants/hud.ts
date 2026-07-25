@@ -73,9 +73,9 @@ export const hudButton = tv({
     },
     size: {
       icon: "h-9 w-9 rounded-pax-md p-0",
-      sm: "h-8 rounded-pax-md px-3.5 text-[0.7rem]",
-      md: "h-10 rounded-pax-md px-4 text-[0.74rem]",
-      lg: "h-12 rounded-pax-md px-5 text-[0.82rem]",
+      sm: "h-8 rounded-pax-md px-4 text-[0.7rem]",
+      md: "h-10 rounded-pax-md px-5 text-[0.74rem]",
+      lg: "h-12 rounded-pax-md px-6 text-[0.82rem]",
     },
   },
   defaultVariants: {
@@ -126,7 +126,7 @@ export const hudRail = tv({
       },
       expanded: {
         root: "gap-3 p-3",
-        item: "h-10 justify-start px-3",
+        item: "h-10 justify-start px-4",
       },
     },
   },
@@ -159,15 +159,15 @@ export const hudSegmentedControl = tv({
     density: {
       compact: {
         root: "grid-flow-col auto-cols-fr",
-        item: "h-8 px-2 text-[0.66rem]",
+        item: "h-8 px-3 text-[0.66rem]",
       },
       balanced: {
         root: "grid-flow-col auto-cols-fr",
-        item: "h-9 px-3 text-[0.72rem]",
+        item: "h-9 px-4 text-[0.72rem]",
       },
       vertical: {
         root: "grid-flow-row",
-        item: "h-9 justify-start px-3 text-[0.72rem]",
+        item: "h-9 justify-start px-4 text-[0.72rem]",
       },
     },
   },
@@ -188,7 +188,7 @@ export const hudField = tv({
     ],
     input: [
       "min-w-0 rounded-pax-xs border border-pax-gold/30 bg-pax-panel-muted",
-      "px-3 font-pax-ui font-bold text-pax-text",
+      "px-3.5 font-pax-ui font-bold text-pax-text",
       "outline-none transition-[background,border-color,box-shadow,color] duration-150",
       "placeholder:text-pax-text-dim hover:border-pax-gold/55 focus:border-pax-gold/75",
       "focus:shadow-pax-panel-soft",

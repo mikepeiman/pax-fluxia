@@ -50,7 +50,7 @@
 
 <button
   type="button"
-  class={buttonClass}
+  class={`pax-hud-btn ${buttonClass}`}
   class:active={active}
   {style}
   {disabled}
@@ -70,3 +70,14 @@
     {@render children()}
   {/if}
 </button>
+
+<style>
+  /* Horizontal padding lives here, not on a Tailwind px-* utility: utilities sit
+     in @layer utilities and were losing to unlayered rules, so the label ended up
+     flush against the border. Scoped component CSS is unlayered and always wins. */
+  .pax-hud-btn { padding-inline: var(--pax-btn-pad-x, 1.15rem); }
+  :global(.pax-hud-btn.h-8) { --pax-btn-pad-x: 0.95rem; }
+  :global(.pax-hud-btn.h-12) { --pax-btn-pad-x: 1.5rem; }
+  /* icon-only buttons stay square */
+  :global(.pax-hud-btn.w-9) { --pax-btn-pad-x: 0; }
+</style>
