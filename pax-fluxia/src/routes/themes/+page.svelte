@@ -2,6 +2,23 @@
   import "../../app.css";
   import { goto } from "$app/navigation";
   import { flip } from "svelte/animate";
+  // The REAL shipped design-system components. They read --pax-ui-* tokens,
+  // which the .stage block below aliases onto each lab theme — so what you see
+  // here is the actual component under the actual theme, not a lookalike.
+  import {
+    PaxHudButton,
+    PaxHudIconButton,
+    PaxHudPanel,
+    PaxHudRange,
+    PaxHudSegmentedControl,
+    PaxHudSelect,
+    PaxHudTextInput,
+    PaxInfoHint,
+    PaxSettingsToggleRow,
+    PaxSettingsRangeRow,
+    PaxSettingsInfoRow,
+    type PaxHudSegmentedOption,
+  } from "$lib/design-system";
 
   type SigilName = "command" | "hex" | "tri" | "pent" | "diamond" | "ring";
   interface Player {
@@ -22,6 +39,7 @@
     { id: "nebula-veil", name: "Nebula Veil", tag: "Lead", sw: ["#080a14", "#3aa0ff", "#b16bff"] },
     { id: "nebula-veil-v1", name: "Nebula Veil", tag: "v1 · predecessor", sw: ["#0a0c16", "#3aa0ff", "#8b93b8"] },
     { id: "aurelia-drift", name: "Aurelia Drift", tag: "Regal", sw: ["#081216", "#f6c469", "#55e7ef"] },
+    { id: "neon-arcade", name: "Neon Arcade", tag: "Synthwave", sw: ["#05010c", "#ff2bbb", "#00e5ff"] },
     { id: "cyber-flux", name: "Cyber Flux", tag: "Neon", sw: ["#08040f", "#ff3cc0", "#22e6ff"] },
     { id: "starglass-prime", name: "Starglass Prime", tag: "Glass", sw: ["#0c1238", "#6fe6ff", "#9d8bff"] },
     { id: "broadcast-minimal", name: "Broadcast Minimal", tag: "Light", sw: ["#eceef1", "#2f6fe0", "#45536b"] },
@@ -76,6 +94,34 @@
   const gaugeOff = GC * (1 - integrity / 100);
 
   const activeModeMeta = $derived(renderModes.find((m) => m.id === activeMode));
+
+  // ---- live state for the real design-system components ----
+  let dsSegment = $state("two");
+  let dsSpeed = $state("1");
+  let dsText = $state("Kepler Reach");
+  let dsSelect = $state("balanced");
+  let dsToggleA = $state(true);
+  let dsToggleB = $state(false);
+  let dsRange = $state(64);
+  let dsSettingRange = $state(1.35);
+  let dsPrimary = $state(true);
+
+  const dsSegmentOptions: PaxHudSegmentedOption[] = [
+    { value: "one", label: "One" },
+    { value: "two", label: "Two" },
+    { value: "three", label: "Three" },
+  ];
+  const dsSpeedOptions: PaxHudSegmentedOption[] = [
+    { value: "0", label: "Pause", icon: "pause" },
+    { value: "1", label: "1x", icon: "play-1" },
+    { value: "2", label: "2x", icon: "play-2" },
+    { value: "4", label: "4x", icon: "play-4" },
+  ];
+  const dsSelectOptions = [
+    { value: "balanced", label: "Balanced" },
+    { value: "aggressive", label: "Aggressive" },
+    { value: "turtle", label: "Turtle" },
+  ];
 
   function back() {
     if (typeof history !== "undefined" && history.length > 1) history.back();
@@ -348,8 +394,97 @@
     </div>
   </section>
 
+  <!-- ============ REAL design-system components under the active theme ============ -->
+  <section class="ds">
+    <header class="ds__head">
+      <h2>Live design-system components</h2>
+      <p>
+        These are the <strong>actual shipped components</strong> from
+        <code>$lib/design-system</code> — not redraws. The lab aliases each theme onto the
+        <code>--pax-ui-*</code> tokens they consume, so this is a true read on how the real UI
+        behaves under every identity. All of it is interactive.
+      </p>
+    </header>
+
+    <div class="ds__grid">
+      <div class="ds__cell">
+        <span class="ds__label">PaxHudButton</span>
+        <div class="ds__row">
+          <PaxHudButton label="Primary" active={dsPrimary} onclick={() => (dsPrimary = !dsPrimary)} />
+          <PaxHudButton label="Secondary" onclick={() => {}} />
+          <PaxHudButton label="Danger" danger onclick={() => {}} />
+          <PaxHudButton label="Disabled" disabled onclick={() => {}} />
+        </div>
+      </div>
+
+      <div class="ds__cell">
+        <span class="ds__label">PaxHudIconButton</span>
+        <div class="ds__row">
+          <PaxHudIconButton icon="menu" title="Menu" onclick={() => {}} />
+          <PaxHudIconButton icon="settings" title="Settings" onclick={() => {}} />
+          <PaxHudIconButton icon="dock-left" title="Dock left" onclick={() => {}} />
+          <PaxHudIconButton icon="chevron-up" title="Collapse" onclick={() => {}} />
+          <PaxHudIconButton icon="atlas-star" title="Stars" onclick={() => {}} />
+        </div>
+      </div>
+
+      <div class="ds__cell">
+        <span class="ds__label">PaxHudSegmentedControl</span>
+        <div class="ds__stack">
+          <PaxHudSegmentedControl value={dsSegment} options={dsSegmentOptions} ariaLabel="Example segments" onValueChange={(v) => (dsSegment = v)} />
+          <PaxHudSegmentedControl value={dsSpeed} options={dsSpeedOptions} ariaLabel="Speed" density="compact" iconSize={15} onValueChange={(v) => (dsSpeed = v)} />
+        </div>
+      </div>
+
+      <div class="ds__cell">
+        <span class="ds__label">PaxHudTextInput · PaxHudSelect</span>
+        <div class="ds__stack">
+          <PaxHudTextInput value={dsText} label="Map name" placeholder="Search systems…" onInput={(v) => (dsText = v)} />
+          <PaxHudSelect value={dsSelect} options={dsSelectOptions} label="AI strategy" hint="How the AI weighs attack vs defence." onValueChange={(v) => (dsSelect = v)} />
+        </div>
+      </div>
+
+      <div class="ds__cell">
+        <span class="ds__label">PaxHudRange</span>
+        <PaxHudRange label="Tick Duration" value={dsRange} min={0} max={100} step={1} output={`${dsRange}%`} ariaLabel="Example range" onInput={(v) => (dsRange = v)} />
+      </div>
+
+      <div class="ds__cell">
+        <span class="ds__label">PaxInfoHint <PaxInfoHint text="Tooltips open after 50ms — hover the ⓘ." /></span>
+        <div class="ds__row ds__row--wrap">
+          <span class="ds__chip">Alpha</span>
+          <span class="ds__chip">Beta</span>
+          <span class="ds__chip ds__chip--live"><i></i>Live</span>
+          <span class="ds__chip ds__chip--num">42</span>
+        </div>
+      </div>
+
+      <div class="ds__cell ds__cell--wide">
+        <span class="ds__label">Settings rows — PaxSettingsToggleRow · PaxSettingsRangeRow · PaxSettingsInfoRow</span>
+        <PaxSettingsToggleRow label="Blended Opponent Borders" checked={dsToggleA} description="Blend the seam where two players meet." onChange={(c) => (dsToggleA = c)} />
+        <PaxSettingsToggleRow label="Bind Duration To Tick" checked={dsToggleB} meta={dsToggleB ? "On" : "Off"} onChange={(c) => (dsToggleB = c)} />
+        <PaxSettingsRangeRow label="Star Bias" value={dsSettingRange} min={0.5} max={2} step={0.05} onInput={(v) => (dsSettingRange = v)} />
+        <PaxSettingsInfoRow label="Render mode" value={activeModeMeta?.label ?? "—"} />
+      </div>
+
+      <div class="ds__cell ds__cell--wide">
+        <span class="ds__label">PaxHudPanel — the real panel shell</span>
+        <PaxHudPanel title="Fleet Command" eyebrow="Live match">
+          {#snippet actions()}
+            <PaxHudIconButton icon="chevron-up" title="Collapse" onclick={() => {}} />
+          {/snippet}
+          <p class="ds__panelcopy">
+            The panel shell renders its own eyebrow, title and action slot. Under each theme it
+            picks up that theme's surface, border and type — proving the token contract end to end.
+          </p>
+          <PaxHudRange label="Fleet spread" value={dsRange} min={0} max={100} step={1} output={`${dsRange}%`} ariaLabel="Fleet spread" onInput={(v) => (dsRange = v)} />
+        </PaxHudPanel>
+      </div>
+    </div>
+  </section>
+
   <footer class="foot">
-    <p><b>One screen, every theme.</b> Nothing is hidden on a separate route — the switcher above reskins this exact console. The component structure is shared; each theme re-casts material (shape, depth, glow, brand type) and the accent roles.</p>
+    <p><b>One screen, every theme.</b> Nothing is hidden on a separate route — the switcher above reskins this exact console <em>and</em> the real components below. Each theme re-casts material (shape, depth, glow, brand type) and the two accent roles.</p>
   </footer>
 </div>
 
@@ -394,13 +529,12 @@
     --frame-strong: #b7c0e0;
     --on-accent: #04070f;
 
-    /* the "you" highlight — an opaque warm band, distinct from every faction
-       colour (leaderboards-3.png). Always light band + dark ink, every theme. */
+    /* the "you" highlight — a translucent warm wash, distinct from every
+       faction colour (leaderboards-3.png). --you-ink must follow the theme's
+       own contrast direction: light on dark grounds, dark on light grounds. */
     --you-hi: #f2c05e;
     --you-hi-strong: #ffe3a3;
-    --you-hi-deep: #c8922f;
-    --you-hi-edge: #6d4d14;
-    --you-ink: #170f02;
+    --you-ink: #fbf2e0;
 
     /* semantic game-speed tones */
     --spd-pause: #8b93b8;
@@ -427,6 +561,42 @@
     --edge-op: 1;
     --panel-drop: drop-shadow(0 10px 22px rgba(0,0,0,0.45));
     --chip-radius: 6px;
+
+    /* ---- alias the shipped design-system tokens onto the active lab theme,
+       so the REAL Pax* components reskin with everything else ---- */
+    --pax-ui-accent: var(--accent);
+    --pax-ui-accent-strong: var(--accent-strong);
+    --pax-ui-accent-warm: var(--frame);
+    --pax-ui-accent-warm-strong: var(--frame-strong);
+    --pax-ui-border: var(--brd);
+    --pax-ui-border-strong: var(--brd-hi);
+    --pax-ui-border-warm: var(--brd-hi);
+    --pax-ui-divider: var(--hair);
+    --pax-ui-text: var(--text);
+    --pax-ui-text-strong: var(--text-strong);
+    --pax-ui-text-soft: var(--muted);
+    --pax-ui-text-muted: var(--muted);
+    --pax-ui-text-dim: var(--dim);
+    --pax-ui-panel-bg: var(--panel-fill);
+    --pax-ui-panel-bg-strong: var(--panel-fill);
+    --pax-ui-panel-bg-muted: var(--inset);
+    --pax-ui-button-bg: var(--inset);
+    --pax-ui-button-bg-hover: color-mix(in srgb, var(--accent) 14%, var(--inset));
+    --pax-ui-button-bg-active: var(--accent);
+    --pax-ui-font-ui: var(--font-ui);
+    --pax-ui-font-label: var(--font-ui);
+    --pax-ui-font-copy: var(--font-ui);
+    --pax-ui-font-data: var(--font-data);
+    --pax-ui-font-brand: var(--font-brand);
+    --pax-ui-danger: #ff5a6a;
+    --pax-ui-success: #34e0a0;
+    --pax-ui-border-gradient: linear-gradient(135deg, var(--brd-hi), transparent 62%);
+    --pax-ui-control-border-gradient: linear-gradient(135deg, var(--brd-hi), transparent 62%);
+    --pax-ui-shadow: 0 14px 34px rgba(0,0,0,0.42);
+    --pax-ui-shadow-soft: 0 6px 16px rgba(0,0,0,0.3);
+    --pax-color-void: var(--screen-solid);
+    --pax-color-control: var(--inset);
+    --pax-color-control-hover: color-mix(in srgb, var(--accent) 14%, var(--inset));
 
     min-height: 100vh;
     background:
@@ -497,12 +667,70 @@
     --muted: rgba(180,188,188,0.88); --dim: rgba(128,141,145,0.8);
     --accent: #55e7ef; --accent-strong: #9ff8ff; --accent-glow: rgba(85,231,239,0.5);
     --frame: #f6c469; --frame-strong: #ffe3a3; --on-accent: #03080b;
-    --you-hi: #f6c469; --you-hi-strong: #ffe3a3; --you-hi-deep: #cf9833; --you-hi-edge: #70501a; --you-ink: #1a1204;
+    --you-hi: #f6c469; --you-hi-strong: #ffe3a3; --you-ink: #fdf4e2;
     --font-brand: "Cinzel", Georgia, serif; --brand-weight: 700; --brand-spacing: 0.13em;
     --panel-clip: none; --panel-radius: 14px; --cut: 0px;
     --screen-clip: none; --screen-radius: 18px;
     --scan: 0; --bracket: 0;
   }
+
+  /* ============================ NEON ARCADE SYNTHWAVE ============================
+     Outline-first: near-black ground, transparent fills, everything drawn as a
+     glowing stroke with real bloom. Synthwave grid horizon on the map. The
+     opposite construction to Cyber Flux, which fills its panels. */
+  .stage[data-theme="neon-arcade"] {
+    --ground: #05010c; --screen-bg: #06010e; --screen-solid: #06010e;
+    --map-bg:
+      linear-gradient(0deg, rgba(255,43,187,0.22), transparent 46%),
+      repeating-linear-gradient(0deg, transparent 0 38px, rgba(0,229,255,0.10) 38px 39px),
+      repeating-linear-gradient(90deg, transparent 0 38px, rgba(255,43,187,0.09) 38px 39px),
+      radial-gradient(ellipse at 50% 108%, rgba(255,43,187,0.35), transparent 52%),
+      radial-gradient(circle 1px at 26% 22%, rgba(255,255,255,0.5) 1px, transparent 0),
+      radial-gradient(circle 1px at 68% 34%, rgba(0,229,255,0.55) 1px, transparent 0),
+      #07010f;
+    /* transparent panels — the neon outline does the work */
+    --panel-fill: linear-gradient(180deg, rgba(255,43,187,0.07), rgba(0,229,255,0.04));
+    --brd: rgba(255,43,187,0.62); --brd-hi: #ff6bd0; --hair: rgba(255,43,187,0.28);
+    --inset: rgba(20,2,34,0.72); --track: #2a0740;
+    --text-strong: #ffffff; --text: rgba(255,235,250,0.94);
+    --muted: rgba(226,178,232,0.88); --dim: rgba(163,116,190,0.85);
+    --accent: #ff2bbb; --accent-strong: #ff8ade; --accent-glow: rgba(255,43,187,0.85);
+    --frame: #00e5ff; --frame-strong: #a6f6ff; --on-accent: #0a0014;
+    --you-hi: #ffe23c; --you-hi-strong: #fff7b0; --you-ink: #fffbe4;
+    --spd-pause: #9a7ab8; --spd-normal: #00e5ff; --spd-fast: #38ffb0; --spd-high: #c04bff; --spd-extreme: #ff8a2b;
+    --font-brand: "Agency FB", "Haettenschweiler", "Rajdhani", sans-serif;
+    --brand-weight: 700; --brand-spacing: 0.2em;
+    --panel-clip: none; --panel-radius: 4px; --cut: 0px;
+    --screen-clip: none; --screen-radius: 6px;
+    --scan: 0.05; --bracket: 0; --edge-op: 0;
+    --panel-drop: drop-shadow(0 0 14px rgba(255,43,187,0.35));
+  }
+  /* outline + bloom everywhere */
+  .stage[data-theme="neon-arcade"] .panel {
+    border: 1.5px solid var(--brd);
+    box-shadow: 0 0 12px rgba(255,43,187,0.5), inset 0 0 18px rgba(255,43,187,0.10);
+  }
+  .stage[data-theme="neon-arcade"] .screen { border: 1.5px solid var(--brd); box-shadow: 0 0 26px rgba(255,43,187,0.4); }
+  .stage[data-theme="neon-arcade"] .panel__title,
+  .stage[data-theme="neon-arcade"] .tb__title,
+  .stage[data-theme="neon-arcade"] .lead__brand h1 { text-shadow: 0 0 12px var(--accent-glow), 0 0 26px rgba(255,43,187,0.5); }
+  .stage[data-theme="neon-arcade"] .panel__eyebrow { color: var(--frame); text-shadow: 0 0 9px rgba(0,229,255,0.8); }
+  /* segmented/tab actives are OUTLINED, not filled — the arcade signature */
+  .stage[data-theme="neon-arcade"] .seg button.on,
+  .stage[data-theme="neon-arcade"] .subtab--active {
+    background: rgba(255,43,187,0.14); color: var(--accent-strong);
+    box-shadow: inset 0 0 0 1.5px var(--accent), 0 0 12px var(--accent-glow);
+    text-shadow: 0 0 8px var(--accent-glow);
+  }
+  .stage[data-theme="neon-arcade"] .seg--speed button.on {
+    background: color-mix(in srgb, var(--spd) 16%, transparent); color: var(--spd);
+    box-shadow: inset 0 0 0 1.5px var(--spd), 0 0 14px color-mix(in srgb, var(--spd) 75%, transparent);
+    text-shadow: 0 0 8px color-mix(in srgb, var(--spd) 80%, transparent);
+  }
+  .stage[data-theme="neon-arcade"] .iconbtn,
+  .stage[data-theme="neon-arcade"] .mtile { border-color: var(--brd); box-shadow: 0 0 8px rgba(255,43,187,0.28); }
+  .stage[data-theme="neon-arcade"] .std__chip { box-shadow: inset 0 0 0 1.5px var(--pc), 0 0 10px color-mix(in srgb, var(--pc) 60%, transparent); }
+  .stage[data-theme="neon-arcade"] .livedot { box-shadow: 0 0 12px var(--accent), 0 0 4px #fff; }
 
   /* ============================ CYBER FLUX ============================ */
   .stage[data-theme="cyber-flux"] {
@@ -520,7 +748,7 @@
     --muted: rgba(206,180,214,0.85); --dim: rgba(150,120,165,0.82);
     --accent: #ff3cc0; --accent-strong: #ff8fe0; --accent-glow: rgba(255,60,190,0.6);
     --frame: #22e6ff; --frame-strong: #9ff8ff; --on-accent: #0a0012;
-    --you-hi: #ffd23c; --you-hi-strong: #ffe98a; --you-hi-deep: #e0a316; --you-hi-edge: #6f4f06; --you-ink: #1f1403;
+    --you-hi: #ffd23c; --you-hi-strong: #ffe98a; --you-ink: #fff6df;
     --spd-normal: #22e6ff; --spd-fast: #4dff9e; --spd-high: #c86bff; --spd-extreme: #ff8f3c; --spd-pause: #7d6fa0;
     --font-brand: "Agency FB", "Bahnschrift", sans-serif; --brand-weight: 700; --brand-spacing: 0.1em;
     --cut: 9px; --panel-radius: 0px; --scan: 0.035; --bracket: 0.85; --edge-spread: 42%;
@@ -544,7 +772,7 @@
     --muted: rgba(188,202,238,0.9); --dim: rgba(150,166,210,0.82);
     --accent: #6fe6ff; --accent-strong: #c2f4ff; --accent-glow: rgba(111,230,255,0.5);
     --frame: #9d8bff; --frame-strong: #c7b8ff; --on-accent: #0b1030;
-    --you-hi: #ffd884; --you-hi-strong: #ffeec4; --you-hi-deep: #e0ab4e; --you-hi-edge: #6a4d1b; --you-ink: #1d1503;
+    --you-hi: #ffd884; --you-hi-strong: #ffeec4; --you-ink: #fff7e6;
     --spd-normal: #6fbcff; --spd-fast: #63e6c4; --spd-high: #b79cff; --spd-extreme: #ffab6b; --spd-pause: #8b9cc8;
     --font-brand: "Copperplate Gothic Light", "Rajdhani", sans-serif; --brand-weight: 400; --brand-spacing: 0.26em;
     --panel-clip: none; --panel-radius: 18px; --cut: 0px;
@@ -566,7 +794,7 @@
     --text-strong: #111620; --text: #2b323d; --muted: #5a6472; --dim: #8b95a4;
     --accent: #2f6fe0; --accent-strong: #1b57c8; --accent-glow: rgba(47,111,224,0.28);
     --frame: #45536b; --frame-strong: #2c374a; --on-accent: #ffffff;
-    --you-hi: #f0bc4a; --you-hi-strong: #ffd97a; --you-hi-deep: #d69a1e; --you-hi-edge: #9a6c10; --you-ink: #1a1200;
+    --you-hi: #c98a12; --you-hi-strong: #8a5c00; --you-ink: #2a1f04;
     --spd-normal: #2f6fe0; --spd-fast: #1f9e63; --spd-high: #7b52d8; --spd-extreme: #e07a1f; --spd-pause: #8b95a4;
     --font-brand: "Haettenschweiler", "Franklin Gothic Demi", "Rajdhani", sans-serif; --brand-weight: 400; --brand-spacing: 0.03em;
     --panel-clip: none; --panel-radius: 8px; --cut: 0px;
@@ -785,22 +1013,35 @@
   .std__row:hover { background: linear-gradient(90deg, color-mix(in srgb, var(--pc) 22%, transparent), transparent 70%); }
   .std__row.is-leader:not(.is-local) { background: linear-gradient(90deg, color-mix(in srgb, var(--pc) 24%, transparent), transparent 78%); }
 
-  /* THE active-player highlight (leaderboards-3.png): an OPAQUE warm band
-     across the full row. Opaque because the row sits on a gradient panel —
-     a translucent tint reads as "slightly different", not "that's me". */
+  /* THE active-player highlight (leaderboards-3.png): a TRANSLUCENT warm
+     gradient wash — the panel still reads through it. Legibility comes from
+     the lit left edge, the inset ring and the glow, not from an opaque fill. */
   .std__row.is-local {
     border-left-color: var(--you-hi-strong);
-    background: linear-gradient(90deg, var(--you-hi) 0%, var(--you-hi-deep) 62%, var(--you-hi-edge) 100%);
-    box-shadow: inset 0 0 0 1px var(--you-hi-strong), 0 0 20px color-mix(in srgb, var(--you-hi) 40%, transparent);
+    border-left-width: 3px;
+    background:
+      linear-gradient(90deg,
+        color-mix(in srgb, var(--you-hi) 34%, transparent) 0%,
+        color-mix(in srgb, var(--you-hi) 14%, transparent) 46%,
+        color-mix(in srgb, var(--you-hi) 3%, transparent) 100%);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--you-hi) 42%, transparent),
+      inset 10px 0 24px -12px var(--you-hi-strong),
+      0 0 18px color-mix(in srgb, var(--you-hi) 22%, transparent);
   }
-  .std__row.is-local:hover { background: linear-gradient(90deg, var(--you-hi-strong) 0%, var(--you-hi) 62%, var(--you-hi-deep) 100%); }
-  /* dark ink on the light band — the whole row, not just the name */
-  .std__row.is-local .std__name,
+  .std__row.is-local:hover {
+    background:
+      linear-gradient(90deg,
+        color-mix(in srgb, var(--you-hi) 46%, transparent) 0%,
+        color-mix(in srgb, var(--you-hi) 20%, transparent) 46%,
+        color-mix(in srgb, var(--you-hi) 5%, transparent) 100%);
+  }
+  /* ink follows the theme's own contrast direction; the name takes the highlight hue */
   .std__row.is-local > span.mono,
   .std__row.is-local .std__rank,
   .std__row.is-local .std__prod { color: var(--you-ink); }
-  .std__row.is-local .std__name { font-weight: 700; }
-  .std__row.is-local .std__rank { opacity: 0.75; }
+  .std__row.is-local .std__name { color: var(--you-hi-strong); font-weight: 700; }
+  .std__row.is-local .std__rank { opacity: 0.8; }
   .std__row.is-local .std__prod { opacity: 0.85; }
 
   .std__row.is-selected { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pc) 75%, transparent), 0 0 14px color-mix(in srgb, var(--pc) 22%, transparent); }
@@ -808,15 +1049,15 @@
   .std__who { display: flex; align-items: center; gap: 8px; font-family: var(--font-ui); letter-spacing: 0.02em; text-align: left; }
   .std__rank { font-size: 11px; color: var(--dim); width: 13px; text-align: center; }
   .std__chip { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; color: var(--pc); background: color-mix(in srgb, var(--pc) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pc) 45%, transparent); }
-  /* faction sigil keeps the player's colour, on a dark plate so it reads on gold */
-  .std__row.is-local .std__chip { background: color-mix(in srgb, var(--you-ink) 82%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pc) 70%, transparent); }
+  /* faction sigil keeps the player's colour; ring brightens so it reads through the wash */
+  .std__row.is-local .std__chip { background: color-mix(in srgb, var(--pc) 22%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pc) 75%, transparent); }
   .std__name { color: var(--text-strong); font-weight: 500; }
   .std__prod { color: var(--muted); }
   /* underline-as-gauge — flush to the row's bottom edge */
   .std__meter { position: absolute; left: 9px; right: 9px; bottom: 0; height: 2.5px; border-radius: 999px 999px 0 0; background: color-mix(in srgb, var(--pc) 20%, transparent); overflow: hidden; }
   .std__meter::after { content: ""; position: absolute; left: 0; top: 0; height: 100%; width: var(--w); border-radius: 999px 999px 0 0; background: var(--pc); box-shadow: 0 0 8px var(--pc); transition: width .32s cubic-bezier(.3,.9,.3,1); }
-  .std__row.is-local .std__meter { background: color-mix(in srgb, var(--you-ink) 22%, transparent); }
-  .std__row.is-local .std__meter::after { background: var(--you-ink); box-shadow: none; opacity: 0.8; }
+  .std__row.is-local .std__meter { background: color-mix(in srgb, var(--you-hi) 26%, transparent); }
+  .std__row.is-local .std__meter::after { background: var(--you-hi-strong); box-shadow: 0 0 8px var(--you-hi); }
   .std__totals { display: grid; grid-template-columns: 1.9fr 0.85fr 0.85fr 0.7fr 0.8fr; gap: 4px; padding: 11px 9px 2px; margin-top: 6px; border-top: 1px solid var(--hair); font-family: var(--font-data); font-size: 12px; color: var(--muted); }
   .std__totals span:not(:first-child) { text-align: right; }
   .std__totals span:first-child { font-family: var(--font-ui); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
@@ -849,11 +1090,30 @@
   .kv .mono { font-size: 13px; color: var(--text-strong); }
   .kv .none { color: var(--dim); }
 
+  /* ---- live design-system component board ---- */
+  .ds { max-width: 1200px; margin: 30px auto 0; }
+  .ds__head h2 { margin: 0 0 6px; font-family: var(--font-brand); font-size: 15px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-strong); }
+  .ds__head p { margin: 0 0 18px; max-width: 78ch; font-size: 13.5px; line-height: 1.6; color: var(--muted); }
+  .ds__head strong { color: var(--text-strong); font-weight: 600; }
+  .ds__head code { font-family: var(--font-data); font-size: 12.5px; color: var(--accent); }
+  .ds__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .ds__cell { display: flex; flex-direction: column; gap: 10px; padding: 14px 15px 16px; border: 1px solid var(--hair); border-radius: var(--panel-radius, 10px); background: var(--panel-fill); }
+  .ds__cell--wide { grid-column: 1 / -1; }
+  .ds__label { display: flex; align-items: center; gap: 6px; font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); font-family: var(--font-data); }
+  .ds__row { display: flex; align-items: center; gap: 8px; }
+  .ds__row--wrap { flex-wrap: wrap; }
+  .ds__stack { display: flex; flex-direction: column; gap: 10px; }
+  .ds__panelcopy { margin: 0 0 12px; font-size: 13px; line-height: 1.55; color: var(--muted); }
+  .ds__chip { display: inline-flex; align-items: center; gap: 6px; line-height: 1; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--brd); background: var(--inset); font-size: 11.5px; letter-spacing: 0.04em; color: var(--text); }
+  .ds__chip--live { color: var(--accent-strong); border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+  .ds__chip--live i { width: 7px; height: 7px; border-radius: 999px; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+  .ds__chip--num { font-family: var(--font-data); }
+
   .foot { max-width: 1200px; margin: 26px auto 0; padding-top: 18px; border-top: 1px solid var(--hair); }
   .foot p { margin: 0; max-width: 80ch; font-size: 13px; color: var(--dim); line-height: 1.6; }
   .foot b { color: var(--muted); }
 
-  @media (max-width: 1040px) { .body { grid-template-columns: 1fr; } .tb__command { display: none; } }
+  @media (max-width: 1040px) { .body { grid-template-columns: 1fr; } .tb__command { display: none; } .ds__grid { grid-template-columns: 1fr; } }
   @media (prefers-reduced-motion: reduce) {
     .livedot, .gauge__val { animation: none; }
     .stage, .screen, .map, .panel, .back, .mtile, .iconbtn, .subtab, .seg button, .std__row, .switch, .switch::after, .std__meter::after, .tsw { transition: none; }
