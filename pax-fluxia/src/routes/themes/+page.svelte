@@ -2,6 +2,7 @@
   import "../../app.css";
   import { goto } from "$app/navigation";
   import { flip } from "svelte/animate";
+  import PaxChassis from "./PaxChassis.svelte";
   // The REAL shipped design-system components. They read --pax-ui-* tokens,
   // which the .stage block below aliases onto each lab theme — so what you see
   // here is the actual component under the actual theme, not a lookalike.
@@ -94,6 +95,16 @@
   const gaugeOff = GC * (1 - integrity / 100);
 
   const activeModeMeta = $derived(renderModes.find((m) => m.id === activeMode));
+
+  /* Which themes get a drawn vector chassis rather than a CSS box. */
+  const CHASSIS = {
+    "neon-arcade": "arcade",
+    "aurelia-drift": "aurelia",
+    "starglass-prime": "glass",
+  } as const;
+  const chassisKind = $derived(
+    (CHASSIS[theme as keyof typeof CHASSIS] ?? "plain") as "arcade" | "aurelia" | "glass" | "plain",
+  );
 
   // ---- live state for the real design-system components ----
   let dsSegment = $state("two");
@@ -188,7 +199,7 @@
   <!-- ============ theme switcher (sticky) ============ -->
   <div class="switch-bar" role="group" aria-label="Theme">
     {#each THEMES as t}
-      <button class="tsw" class:on={theme === t.id} onclick={() => (theme = t.id)}>
+      <button class="tsw" data-theme-id={t.id} class:on={theme === t.id} onclick={() => (theme = t.id)}>
         <span class="tsw__sw">{#each t.sw as c}<i style="background:{c}"></i>{/each}</span>
         <span class="tsw__meta"><span class="tsw__name">{t.name}</span><span class="tsw__tag">{t.tag}</span></span>
       </button>
@@ -282,6 +293,7 @@
       <div class="rail">
         <!-- speed -->
         <section class="panel" data-shot="speed">
+          <PaxChassis kind={chassisKind} uid="ch-speed" label="Tempo" />
           <div class="panel__head"><div><p class="panel__eyebrow">Tempo</p><h3 class="panel__title">Game Speed</h3></div></div>
           <div class="seg seg--speed" role="group" aria-label="Game speed">
             {#each speeds as s}
@@ -296,6 +308,7 @@
 
         <!-- standings -->
         <section class="panel" data-shot="standings">
+          <PaxChassis kind={chassisKind} uid="ch-standings" label="Live Match" />
           <div class="panel__head">
             <div><p class="panel__eyebrow"><span class="livedot"></span>Live match</p><h3 class="panel__title">Player Standings</h3></div>
             <div class="tools">
@@ -345,6 +358,7 @@
 
         <!-- star view -->
         <section class="panel" data-shot="star">
+          <PaxChassis kind={chassisKind} uid="ch-star" label="Selection" />
           <div class="panel__head">
             <div><p class="panel__eyebrow">Selection</p><h3 class="panel__title">Star View</h3></div>
             <div class="tools">
@@ -792,8 +806,8 @@
   }
   /* outline + bloom everywhere */
   .stage[data-theme="neon-arcade"] .panel {
-    border: 1.5px solid var(--brd);
-    box-shadow: 0 0 12px rgba(255,43,187,0.5), inset 0 0 18px rgba(255,43,187,0.10);
+    border: 0; box-shadow: none; background: linear-gradient(180deg, rgba(255,43,187,0.05), rgba(0,229,255,0.03));
+    padding: 20px 22px 24px; --ch-tex-op: 0.07;
   }
   .stage[data-theme="neon-arcade"] .screen { border: 1.5px solid var(--brd); box-shadow: 0 0 26px rgba(255,43,187,0.4); }
   .stage[data-theme="neon-arcade"] .panel__title,
@@ -1062,6 +1076,7 @@
   .panel { position: relative; background: var(--panel-fill); backdrop-filter: var(--panel-blur); clip-path: var(--panel-clip); border-radius: var(--panel-radius); padding: 16px 18px 18px; filter: var(--panel-drop); transition: background .45s ease; }
   .panel::before { content: ""; position: absolute; top: 0; left: 0; right: var(--cut); height: 2px; opacity: var(--edge-op); background: linear-gradient(90deg, var(--accent) 0 var(--edge-spread), transparent 82%); box-shadow: 0 0 10px var(--accent-glow); }
   .panel::after { content: ""; position: absolute; left: 10px; bottom: 10px; width: 12px; height: 12px; border-left: 1.5px solid var(--brd-hi); border-bottom: 1.5px solid var(--brd-hi); opacity: var(--bracket); }
+  .panel > :global(*:not(.chassis)) { position: relative; z-index: 1; }
   .panel__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
   .panel__eyebrow { display: flex; align-items: center; gap: 7px; margin: 0; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent-strong); }
   .panel__title { margin: 3px 0 0; font-family: var(--font-brand); font-size: 16px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-strong); }
@@ -1198,6 +1213,23 @@
   .ds__chip--live { color: var(--accent-strong); border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
   .ds__chip--live i { width: 7px; height: 7px; border-radius: 999px; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
   .ds__chip--num { font-family: var(--font-data); }
+
+
+  /* ---- chassis-bearing themes: give the drawn shell room to breathe ---- */
+  .stage[data-theme="aurelia-drift"] .panel {
+    background: linear-gradient(180deg, rgba(4,20,24,0.9), rgba(2,10,15,0.94));
+    padding: 26px 22px 22px; --ch-tex-op: 0.04;
+  }
+  .stage[data-theme="aurelia-drift"] .panel::before,
+  .stage[data-theme="aurelia-drift"] .panel::after { display: none; }
+  .stage[data-theme="aurelia-drift"] .panel__eyebrow { visibility: hidden; height: 0; margin: 0; }
+  .stage[data-theme="starglass-prime"] .panel {
+    padding: 20px 22px 22px; --ch-tex-op: 0.06;
+    box-shadow: 0 18px 44px rgba(4,10,44,0.45);
+  }
+  .stage[data-theme="starglass-prime"] .panel::before { opacity: 0.35; }
+  .stage[data-theme="neon-arcade"] .panel::before,
+  .stage[data-theme="neon-arcade"] .panel::after { display: none; }
 
   .foot { max-width: 1200px; margin: 26px auto 0; padding-top: 18px; border-top: 1px solid var(--hair); }
   .foot p { margin: 0; max-width: 80ch; font-size: 13px; color: var(--dim); line-height: 1.6; }

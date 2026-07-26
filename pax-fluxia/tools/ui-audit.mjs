@@ -274,10 +274,18 @@ try {
 
   for (const theme of themes) {
     process.stdout.write(`• ${theme} … `);
-    await page.evaluate((t) => {
-      const stage = document.querySelector(".stage");
-      if (stage) stage.setAttribute("data-theme", t);
-    }, theme);
+    /* Click the real switcher: setting data-theme directly only drives CSS,
+       leaving Svelte state (and anything conditional on it, like the chassis)
+       on the previous theme. */
+    const sw = page.locator(`[data-theme-id="${theme}"]`);
+    if (await sw.count()) {
+      await sw.first().click();
+    } else {
+      await page.evaluate((t) => {
+        const stage = document.querySelector(".stage");
+        if (stage) stage.setAttribute("data-theme", t);
+      }, theme);
+    }
     await page.waitForTimeout(260); // let transitions settle
 
     const contrast = await page.evaluate(CONTRAST_PROBE);
