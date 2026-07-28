@@ -1231,6 +1231,40 @@
   .stage[data-theme="neon-arcade"] .panel::before,
   .stage[data-theme="neon-arcade"] .panel::after { display: none; }
 
+
+  /* ---------- Neon Arcade raster assets ---------- */
+  .stage[data-theme="neon-arcade"] .tb {
+    background:
+      linear-gradient(180deg, rgba(8,1,16,0.55), rgba(8,1,16,0.86)),
+      url("/textures/neon-arcade/bezel-top.png") center / auto 100% repeat-x,
+      #08010f;
+    border-bottom: 0;
+    height: 66px;
+  }
+  .stage[data-theme="neon-arcade"] .map {
+    background:
+      linear-gradient(180deg, rgba(7,1,15,0.55), transparent 42%),
+      url("/textures/neon-arcade/grid-horizon.png") center bottom / cover no-repeat,
+      #07010f;
+  }
+  /* additive bloom behind live/active elements. The sprite is baked on black,
+     so `screen` blending is what makes the black read as transparent. */
+  .stage[data-theme="neon-arcade"] .livedot::after,
+  .stage[data-theme="neon-arcade"] .seg button.on::after {
+    content: "";
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 320%; height: 320%;
+    transform: translate(-50%, -50%);
+    background: url("/textures/neon-arcade/glow-sprite.png") center / contain no-repeat;
+    mix-blend-mode: screen;
+    opacity: 0.55;
+    pointer-events: none;
+    z-index: -1;
+  }
+  .stage[data-theme="neon-arcade"] .seg button.on { position: relative; isolation: isolate; }
+  .stage[data-theme="neon-arcade"] .livedot { position: relative; }
+
   .foot { max-width: 1200px; margin: 26px auto 0; padding-top: 18px; border-top: 1px solid var(--hair); }
   .foot p { margin: 0; max-width: 80ch; font-size: 13px; color: var(--dim); line-height: 1.6; }
   .foot b { color: var(--muted); }

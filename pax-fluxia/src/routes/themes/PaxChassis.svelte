@@ -50,6 +50,9 @@
     </svg>
 
     {#if kind === "arcade"}
+      <!-- Raster frame (border-image 9-slice). If the texture 404s this layer is
+           simply invisible and the vector plate below still draws the shell. -->
+      <span class="ch-raster"></span>
       <!-- ARCADE CABINET PLATE -------------------------------------------- -->
       <svg class="chassis__edge" preserveAspectRatio="none" viewBox="0 0 200 120">
         <!-- outer chamfered plate: cut TL, notched TR shoulder, cut BR -->
@@ -132,6 +135,8 @@
     overflow: hidden;
     border-radius: inherit;
   }
+  /* the arcade raster frame carries its own outer bloom, which must not be clipped */
+  [data-kind="arcade"].chassis { overflow: visible; }
   .chassis__tex,
   .chassis__edge {
     position: absolute;
@@ -143,6 +148,12 @@
   .chassis__tex { opacity: var(--ch-tex-op, 0.05); mix-blend-mode: overlay; }
 
   /* ---------------- arcade ---------------- */
+  /* The raster frame now supersedes the drawn plate — rendering both doubled the
+     outline. The vector paths are kept (not deleted) so removing the texture
+     restores the fully-drawn shell. */
+  [data-kind="arcade"] .chassis__edge,
+  [data-kind="arcade"] .ch-bolt,
+  [data-kind="arcade"] .ch-vent { display: none; }
   [data-kind="arcade"] .ch-plate {
     fill: none;
     stroke: var(--accent);
@@ -175,6 +186,23 @@
     0%, 62% { transform: translateX(-100%); }
     92%, 100% { transform: translateX(100%); }
   }
+
+  /* raster frame: source is 1536x1024, ornament (bolts / chamfer / vent ribs)
+     lives in the outer ~270px, so that is the 9-slice inset. The middle is not
+     filled — the panel's own surface shows through. */
+  .ch-raster {
+    position: absolute;
+    inset: -34px;
+    border: 46px solid transparent;
+    border-image: url("/textures/neon-arcade/panel-frame.png") 270 300 300 270 / 46px / 0 stretch;
+    pointer-events: none;
+  }
+  /* the plate texture replaces the procedural grain when the file is present */
+  [data-kind="arcade"] .chassis__tex {
+    background: url("/textures/neon-arcade/plate-tile.png") repeat;
+    background-size: 300px 300px;
+  }
+  [data-kind="arcade"] .chassis__tex > rect { display: none; }
 
   /* ---------------- aurelia ---------------- */
   [data-kind="aurelia"] .ch-rule {
