@@ -71,7 +71,6 @@
       <svg class="ch-bolt ch-bolt--tr" viewBox="0 0 12 12"><circle cx="6" cy="6" r="3.2" /><circle cx="6" cy="6" r="1.1" class="ch-bolt-core" /></svg>
       <svg class="ch-bolt ch-bolt--bl" viewBox="0 0 12 12"><circle cx="6" cy="6" r="3.2" /><circle cx="6" cy="6" r="1.1" class="ch-bolt-core" /></svg>
       <svg class="ch-vent" viewBox="0 0 26 8"><path d="M0 1h26M0 4h26M0 7h20" vector-effect="non-scaling-stroke" /></svg>
-      <span class="ch-sweep"></span>
 
     {:else if kind === "aurelia"}
       <!-- ENGRAVED BRASS FRAME --------------------------------------------- -->
@@ -175,17 +174,6 @@
     position: absolute; right: 10px; bottom: 14px; width: 24px; height: 8px;
     stroke: var(--frame); stroke-width: 1; opacity: 0.45; fill: none;
   }
-  /* a slow bloom sweep — the cabinet feels powered */
-  .ch-sweep {
-    position: absolute; inset: 0;
-    background: linear-gradient(100deg, transparent 42%, color-mix(in srgb, var(--accent) 22%, transparent) 50%, transparent 58%);
-    transform: translateX(-100%);
-    animation: ch-sweep 7s ease-in-out infinite;
-  }
-  @keyframes ch-sweep {
-    0%, 62% { transform: translateX(-100%); }
-    92%, 100% { transform: translateX(100%); }
-  }
 
   /* raster frame: source is 1536x1024, ornament (bolts / chamfer / vent ribs)
      lives in the outer ~270px, so that is the 9-slice inset. The middle is not
@@ -242,6 +230,5 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .ch-sweep { animation: none; opacity: 0.25; transform: none; }
   }
 </style>

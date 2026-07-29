@@ -271,6 +271,15 @@ const report = { generatedAt: new Date().toISOString(), themes: {} };
 
 try {
   await page.goto(`${BASE}/themes`, { waitUntil: "networkidle" });
+  /* Kill transitions/animations for the whole run. The theme cross-fade is 450ms,
+     so sampling before it settled read colours that were mid-blend and reported
+     phantom contrast failures. Deterministic sampling requires a static page. */
+  await page.addStyleTag({
+    content: `*, *::before, *::after {
+      transition: none !important;
+      animation: none !important;
+    }`,
+  });
 
   for (const theme of themes) {
     process.stdout.write(`• ${theme} … `);
@@ -286,7 +295,7 @@ try {
         if (stage) stage.setAttribute("data-theme", t);
       }, theme);
     }
-    await page.waitForTimeout(260); // let transitions settle
+    await page.waitForTimeout(180); // transitions are disabled; just let layout flush
 
     const contrast = await page.evaluate(CONTRAST_PROBE);
     const spacing = await page.evaluate(SPACING_PROBE);

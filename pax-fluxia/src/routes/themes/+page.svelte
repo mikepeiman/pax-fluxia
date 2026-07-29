@@ -1233,13 +1233,27 @@
 
 
   /* ---------- Neon Arcade raster assets ---------- */
+  /* The bezel art is a tall image with the neon rail through its middle, so
+     stretching it to the bar height drove the rail straight through the content.
+     It is an EDGE treatment: a thin strip pinned to the bottom, with the source
+     scaled so only the rail band lands inside it. */
   .stage[data-theme="neon-arcade"] .tb {
-    background:
-      linear-gradient(180deg, rgba(8,1,16,0.55), rgba(8,1,16,0.86)),
-      url("/textures/neon-arcade/bezel-top.png") center / auto 100% repeat-x,
-      #08010f;
+    background: linear-gradient(180deg, #14031f 0%, #0a0114 78%);
     border-bottom: 0;
-    height: 66px;
+    height: 64px;
+    position: relative;
+  }
+  .stage[data-theme="neon-arcade"] .tb::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 16px;
+    /* Source is 724px tall with the lit rail measured at rows 279-358 (11% of
+       height, centred at 43.9%). Rendered at 120px the rail is ~13px, so
+       offsetting -45px lands it inside this 16px strip. */
+    background: url("/textures/neon-arcade/bezel-top.png") center -45px / auto 120px repeat-x;
+    pointer-events: none;
+    z-index: 3;
   }
   .stage[data-theme="neon-arcade"] .map {
     background:
