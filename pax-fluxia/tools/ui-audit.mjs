@@ -35,15 +35,7 @@ const OUT = path.join(ROOT, ".ui-audit");
 const PORT = Number(process.env.UI_AUDIT_PORT ?? 5179);
 const BASE = `http://localhost:${PORT}`;
 
-const THEMES = [
-  "nebula-veil",
-  "nebula-veil-v1",
-  "neon-arcade",
-  "aurelia-drift",
-  "cyber-flux",
-  "starglass-prime",
-  "broadcast-minimal",
-];
+const THEMES = ["nebula-veil", "aurelia-drift", "neon-arcade", "broadcast-minimal"];
 
 /** Tight crops keep the PNGs small so they are cheap to look at. */
 const TARGETS = {
@@ -302,6 +294,12 @@ try {
     report.themes[theme] = { contrast, spacing, shots: [] };
 
     if (!contrastOnly) {
+      /* Whole-screen review shot — one image per theme, for a single markup pass. */
+      if (args.sheet === "true") {
+        const file = path.join(OUT, `SHEET__${theme}.png`);
+        await page.screenshot({ path: file, fullPage: true });
+        report.themes[theme].shots.push(path.basename(file));
+      }
       for (const [name, selector] of Object.entries(targets)) {
         const el = page.locator(selector).first();
         if ((await el.count()) === 0) continue;

@@ -36,13 +36,13 @@
     { id: "ai2", name: "AI 2", color: "#ffc24a", sigil: "ring", active: 340, total: 349, stars: 11, prod: 11 },
   ];
 
+  /* Keeper set (user decision 2026-07-26). Cyber Flux, Starglass Prime and the
+     Nebula Veil v1 predecessor are retired from the switcher; their token blocks
+     remain in the stylesheet, unreferenced, so nothing is lost if we revisit. */
   const THEMES = [
     { id: "nebula-veil", name: "Nebula Veil", tag: "Lead", sw: ["#080a14", "#3aa0ff", "#b16bff"] },
-    { id: "nebula-veil-v1", name: "Nebula Veil", tag: "v1 · predecessor", sw: ["#0a0c16", "#3aa0ff", "#8b93b8"] },
     { id: "aurelia-drift", name: "Aurelia Drift", tag: "Regal", sw: ["#081216", "#f6c469", "#55e7ef"] },
     { id: "neon-arcade", name: "Neon Arcade", tag: "Synthwave", sw: ["#05010c", "#ff2bbb", "#00e5ff"] },
-    { id: "cyber-flux", name: "Cyber Flux", tag: "Neon", sw: ["#08040f", "#ff3cc0", "#22e6ff"] },
-    { id: "starglass-prime", name: "Starglass Prime", tag: "Glass", sw: ["#0c1238", "#6fe6ff", "#9d8bff"] },
     { id: "broadcast-minimal", name: "Broadcast Minimal", tag: "Light", sw: ["#eceef1", "#2f6fe0", "#45536b"] },
   ];
 
