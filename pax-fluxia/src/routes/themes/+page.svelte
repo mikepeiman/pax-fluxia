@@ -562,8 +562,8 @@
     --spd-high: #b16bff;
     --spd-extreme: #ff9a4a;
 
-    --font-ui: "Rajdhani", "Segoe UI", system-ui, sans-serif;
-    --font-brand: "Bahnschrift", "Agency FB", "Rajdhani", sans-serif;
+    --font-ui: "Barlow", "Segoe UI", system-ui, sans-serif;
+    --font-brand: "Chakra Petch", "Bahnschrift", sans-serif;
     --font-data: "JetBrains Mono", "Cascadia Mono", ui-monospace, monospace;
     --brand-weight: 700;
     --brand-spacing: 0.16em;
@@ -766,7 +766,8 @@
     --accent: #55e7ef; --accent-strong: #9ff8ff; --accent-glow: rgba(85,231,239,0.5);
     --frame: #f6c469; --frame-strong: #ffe3a3; --on-accent: #03080b;
     --you-hi: #f6c469; --you-hi-strong: #ffe3a3; --you-ink: #fdf4e2;
-    --font-brand: "Cinzel", Georgia, serif; --brand-weight: 700; --brand-spacing: 0.13em;
+    --font-brand: "Cormorant Garamond", "Cinzel", Georgia, serif; --brand-weight: 700; --brand-spacing: 0.1em;
+    --font-ui: "Spectral", Georgia, serif;
     --panel-clip: none; --panel-radius: 14px; --cut: 0px;
     --screen-clip: none; --screen-radius: 18px;
     --scan: 0; --bracket: 0;
@@ -797,8 +798,8 @@
     --frame: #00e5ff; --frame-strong: #a6f6ff; --on-accent: #0a0014;
     --you-hi: #ffe23c; --you-hi-strong: #fff7b0; --you-ink: #fffbe4;
     --spd-pause: #b294cc; --spd-normal: #00e5ff; --spd-fast: #38ffb0; --spd-high: #c04bff; --spd-extreme: #ff8a2b;
-    --font-brand: "Agency FB", "Haettenschweiler", "Rajdhani", sans-serif;
-    --brand-weight: 700; --brand-spacing: 0.2em;
+    --font-brand: "Audiowide", "Agency FB", sans-serif;
+    --brand-weight: 400; --brand-spacing: 0.12em;
     --panel-clip: none; --panel-radius: 4px; --cut: 0px;
     --screen-clip: none; --screen-radius: 6px;
     --scan: 0.05; --bracket: 0; --edge-op: 0;
@@ -900,7 +901,8 @@
     --you-hi: #c98a12; --you-hi-strong: #8a5c00; --you-ink: #2a1f04;
     --accent-text: #123f96; --star-attack: #0b6644; --danger: #b3182b;
     --spd-normal: #2f6fe0; --spd-fast: #1f9e63; --spd-high: #7b52d8; --spd-extreme: #e07a1f; --spd-pause: #8b95a4;
-    --font-brand: "Haettenschweiler", "Franklin Gothic Demi", "Rajdhani", sans-serif; --brand-weight: 400; --brand-spacing: 0.03em;
+    --font-brand: "Archivo", "Franklin Gothic Demi", sans-serif; --brand-weight: 700; --brand-spacing: 0.01em;
+    --font-ui: "Archivo", "Segoe UI", system-ui, sans-serif;
     --panel-clip: none; --panel-radius: 8px; --cut: 0px;
     --screen-clip: none; --screen-radius: 10px; --scan: 0; --bracket: 0;
   }
