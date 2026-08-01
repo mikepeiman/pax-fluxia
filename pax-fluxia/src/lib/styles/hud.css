@@ -234,12 +234,29 @@
 
 
 
+/* THE local-player row. Standings are the primary read of the whole HUD, and
+   this row is the primary read of the standings — so it carries a lit left edge,
+   a warm translucent wash and an outward glow, not just a slightly different
+   tint. Matches the treatment proven in the theme lab. */
 .pf-standings__row--local {
-  border-color: var(--pax-ui-border-warm);
+  border-color: var(--pax-ui-accent-warm-strong);
+  border-left: 3px solid var(--pax-ui-accent-warm-strong);
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--pax-ui-accent-warm) 22%, transparent), color-mix(in srgb, var(--pax-color-void) 72%, transparent) 62%),
-    color-mix(in srgb, var(--pax-color-void) 90%, transparent);
+    linear-gradient(90deg,
+      color-mix(in srgb, var(--pax-ui-accent-warm) 34%, transparent) 0%,
+      color-mix(in srgb, var(--pax-ui-accent-warm) 14%, transparent) 46%,
+      color-mix(in srgb, var(--pax-ui-accent-warm) 3%, transparent) 100%),
+    color-mix(in srgb, var(--pax-color-void) 82%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--pax-ui-accent-warm) 42%, transparent),
+    inset 10px 0 24px -12px var(--pax-ui-accent-warm-strong),
+    0 0 18px color-mix(in srgb, var(--pax-ui-accent-warm) 22%, transparent);
   color: var(--pax-ui-text-strong);
+}
+
+.pf-standings__row--local .pf-standings__name {
+  color: var(--pax-ui-accent-warm-strong);
+  font-weight: var(--pax-weight-bold);
 }
 
 /* Secondary highlight: the owner of a clicked ENEMY star, glowing in their own

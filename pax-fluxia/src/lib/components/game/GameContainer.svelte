@@ -738,12 +738,9 @@
           speed={activeGameStore.speed}
           isPaused={activeGameStore.isPaused}
           mapName={activeGameStore.activeMapName}
-          modeOptions={topbarTerritoryModeOptions}
-          activeModeId={topbarActiveTerritoryModeId}
           onMenuClick={() => gameStore.setView("menu")}
           onSettingsClick={toggleSettingsPanel}
-          onToggleStandings={toggleLeaderboardCollapsed}
-          onModeSelect={handleTopbarTerritoryModeSelect} />
+          onToggleStandings={toggleLeaderboardCollapsed} />
       </div>
       <!-- STATUSBAR (info display) -->
       <StatusBar

@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { GameSpeed } from "$lib/types/game.types";
-  import type { TerritoryModeShortcutOption } from "$lib/territory/ui/territoryModeShortcuts";
-  import HudIcon from "$lib/components/ui/hud/HudIcon.svelte";
+    import HudIcon from "$lib/components/ui/hud/HudIcon.svelte";
   import { PaxHudButton, PaxHudIconButton } from "$lib/design-system";
   import { formatHudNumber } from "$lib/components/game-hud/viewModels";
   import { gameHudStatsStore } from "$lib/stores/gameHudStatsStore";
@@ -16,12 +15,9 @@
     speed: GameSpeed;
     isPaused: boolean;
     mapName: string | null;
-    modeOptions: TerritoryModeShortcutOption[];
-    activeModeId: string;
     onMenuClick: () => void;
     onSettingsClick: () => void;
     onToggleStandings: () => void;
-    onModeSelect: (modeId: string) => void;
   }
 
   let {
@@ -33,12 +29,9 @@
     speed,
     isPaused,
     mapName,
-    modeOptions,
-    activeModeId,
     onMenuClick,
     onSettingsClick,
     onToggleStandings,
-    onModeSelect,
   }: Props = $props();
 
   const localPlayer = $derived(players.find((player) => player.isLocal) ?? players[0] ?? null);
@@ -58,29 +51,6 @@
     {/if}
   </div>
 
-  {#if localPlayer && !standingsCollapsed}
-    <div
-      class="pf-hud-topbar__player-summary"
-      style:--player-color={localPlayer.color}
-    >
-      <div class="pf-hud-topbar__summary-cell">
-        <span>You</span>
-        <strong>{localPlayer.isLocal ? "Command" : localPlayer.name}</strong>
-      </div>
-      <div class="pf-hud-topbar__summary-cell">
-        <span>Active</span>
-        <strong class="font-hud-data">{formatHudNumber(localPlayer.activeShips)}</strong>
-      </div>
-      <div class="pf-hud-topbar__summary-cell">
-        <span>Total</span>
-        <strong class="font-hud-data">{formatHudNumber(localPlayer.totalShips)}</strong>
-      </div>
-      <div class="pf-hud-topbar__summary-cell">
-        <span>Stars</span>
-        <strong class="font-hud-data">{formatHudNumber(localPlayer.starCount)}</strong>
-      </div>
-    </div>
-  {/if}
 
   {#if standingsCollapsed && tacticalOverview.length}
     <div class="pf-hud-topbar__tactical" aria-label="Tactical overview">
@@ -121,18 +91,6 @@
     </div>
   </div>
 
-  <div class="pf-hud-topbar__modes" role="group" aria-label="Territory render mode shortcuts">
-    {#each modeOptions as option}
-      <PaxHudButton
-        class="pf-hud-topbar__mode"
-        active={activeModeId === option.id}
-        onclick={() => onModeSelect(option.id)}
-        title={option.displayLabel}
-      >
-        <span>{option.shortLabel}</span>
-      </PaxHudButton>
-    {/each}
-  </div>
 
   <div class="pf-hud-topbar__actions">
     {#if localPlayer}
