@@ -26,6 +26,23 @@ export function formatStarLabel(starId: string | null | undefined): string {
   return `Star ${starId.replace(/^star-/, "")}`;
 }
 
+/**
+ * Render a stored rate FRACTION as a percentage.
+ *
+ * The star stat block mixes units: `transferRate` and `activationRate` are
+ * fractions of the garrison per tick (config ships 0.1 and 0.5), while
+ * `repairRate` is already a percentage (20). Printing the fractions straight
+ * into a `%` slot showed "0.1%" and "0.5%" where the real values are 10% and
+ * 50% — a 100x understatement, on the two numbers a player uses to decide
+ * whether a star can actually feed a front.
+ *
+ * Anything that puts a % sign after transferRate/activationRate goes through
+ * here. `repairRate` must NOT — it is already scaled.
+ */
+export function formatRatePercent(fraction: number | null | undefined, decimals = 0): string {
+  return `${(Number(fraction ?? 0) * 100).toFixed(decimals)}%`;
+}
+
 export function buildPlayerStandings(
   players: PlayerState[],
   localPlayerId?: string | null,

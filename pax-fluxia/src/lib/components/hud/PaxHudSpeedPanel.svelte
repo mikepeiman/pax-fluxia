@@ -15,12 +15,15 @@
     onTickIntervalChange,
   }: GameSpeedPanelActions = $props();
 
+  // Tempo is a colour ramp, not five interchangeable buttons: neutral at rest,
+  // then calm → steady → urgent → alarming as the clock speeds up. Each tone is
+  // a theme token, so the ramp re-casts with the rest of the HUD.
   const speedOptions: Array<PaxHudSegmentedOption & { value: `${GameSpeed}` }> = [
-    { value: "0", label: "Pause", icon: "pause" },
-    { value: "1", label: "1x", icon: "play-1" },
-    { value: "2", label: "2x", icon: "play-2" },
-    { value: "4", label: "4x", icon: "play-4" },
-    { value: "10", label: "10x", icon: "play-10" },
+    { value: "0", label: "Pause", icon: "pause", title: "Pause the clock", tone: "var(--pax-ui-speed-pause)" },
+    { value: "1", label: "1x", icon: "play-1", title: "Normal speed", tone: "var(--pax-ui-speed-normal)" },
+    { value: "2", label: "2x", icon: "play-2", title: "Double speed", tone: "var(--pax-ui-speed-fast)" },
+    { value: "4", label: "4x", icon: "play-4", title: "Quadruple speed", tone: "var(--pax-ui-speed-high)" },
+    { value: "10", label: "10x", icon: "play-10", title: "Maximum speed", tone: "var(--pax-ui-speed-extreme)" },
   ];
 
   function setSpeed(nextSpeed: GameSpeed) {

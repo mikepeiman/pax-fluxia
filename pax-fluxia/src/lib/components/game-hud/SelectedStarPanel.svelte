@@ -2,7 +2,7 @@
   import HudIcon from "$lib/components/ui/hud/HudIcon.svelte";
   import HudIconButton from "./HudIconButton.svelte";
   import HudPanel from "./HudPanel.svelte";
-  import { formatHudNumber, formatStarLabel } from "./viewModels";
+  import { formatHudNumber, formatRatePercent, formatStarLabel } from "./viewModels";
   import type { SelectedStarViewModel } from "./types";
 
   interface Props {
@@ -103,11 +103,11 @@
         </div>
         <div class="pf-star-metric">
           <span><HudIcon name="route" size={13} /> Transfer</span>
-          <strong class="font-hud-data">{formatHudNumber(star.transferRate, 1)}%</strong>
+          <strong class="font-hud-data">{formatRatePercent(star.transferRate)}</strong>
         </div>
         <div class="pf-star-metric">
           <span><HudIcon name="stopwatch" size={13} /> Activation</span>
-          <strong class="font-hud-data">{formatHudNumber(star.activationRate, 1)}%</strong>
+          <strong class="font-hud-data">{formatRatePercent(star.activationRate)}</strong>
         </div>
       </div>
 

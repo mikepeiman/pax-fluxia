@@ -4,6 +4,7 @@
     import { GAME_CONFIG } from "$lib/config/game.config";
     import { getStarProductionPerTick, STAR_TYPE_STATS } from "@pax/common";
     import type { StarType } from "@pax/common";
+    import { formatRatePercent } from "$lib/components/game-hud/viewModels";
 
     // Star type → icon name and shape
     const TYPE_INFO: Record<
@@ -155,7 +156,7 @@
             </div>
             <div class="stat-row">
                 <span class="stat-label">Transfer Rate</span>
-                <span class="stat-value">{info.transferRate.toFixed(2)}</span>
+                <span class="stat-value">{formatRatePercent(info.transferRate)}</span>
             </div>
             <div class="stat-row">
                 <span class="stat-label">Defense</span>

@@ -1,5 +1,131 @@
 /* Pax Fluxia live HUD shell: shared panel, rail, and command-surface styling. */
 
+/* ==========================================================================
+   THEME MATERIAL — how a theme is physically made, not just coloured.
+
+   The panel shell is styled HERE rather than in the tailwind-variants recipe
+   because Tailwind emits its utilities inside `@layer utilities`, which loses
+   the cascade to any unlayered rule. `bg-pax-panel` is also a background-COLOR
+   utility, so it can only ever paint a flat fill — it cannot carry a theme's
+   composed surface (gradients, glow falloff, raster plate). Unlayered CSS here
+   wins and can.
+
+   Every treatment reads a `--pax-ui-*` material role, so no rule below ever
+   branches on a theme id. Adding a fifth theme means adding a token block, not
+   editing this file.
+   ========================================================================== */
+
+.pax-hud-panel {
+  background: var(--pax-ui-panel-bg);
+  border-color: var(--pax-ui-border);
+  clip-path: var(--pax-ui-panel-clip);
+  filter: var(--pax-ui-panel-bloom);
+}
+
+/* Panel tones are variant classes on the same element; match them so `strong`
+   and `muted` still differ once the shorthand above takes over the background. */
+.pax-hud-panel.bg-pax-panel-strong {
+  background: var(--pax-ui-panel-bg-strong);
+  border-color: var(--pax-ui-border-strong);
+}
+
+.pax-hud-panel.bg-pax-panel-muted {
+  background: var(--pax-ui-panel-bg-muted);
+}
+
+/* Surface texture + scanline. `isolation: isolate` on the panel makes it a
+   stacking context, so a z-index:-1 child paints ABOVE the panel's own
+   background but BELOW all in-flow content — exactly where a material goes. */
+.pax-hud-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  clip-path: var(--pax-ui-panel-clip);
+  background-image: var(--pax-ui-panel-texture);
+  background-size: var(--pax-ui-panel-texture-size);
+  background-repeat: repeat;
+  opacity: var(--pax-ui-panel-texture-opacity);
+  mix-blend-mode: var(--pax-ui-panel-texture-blend);
+}
+
+/* Raster 9-slice frame. It rides OUTSIDE the panel box on its own pseudo, so
+   wiring a frame never changes layout or padding — and a themes with no frame
+   asset resolves to `0 solid transparent` + `none` and draws nothing at all. */
+.pax-hud-panel::after {
+  content: "";
+  position: absolute;
+  inset: var(--pax-ui-panel-frame-inset);
+  z-index: -1;
+  pointer-events: none;
+  border: var(--pax-ui-panel-frame-border);
+  border-image: var(--pax-ui-panel-frame);
+}
+
+/* Scanline sits on the command surfaces, which already isolate. */
+.pf-hud-topbar::before,
+.pf-bottom-command-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, transparent 0 3px, rgba(255, 255, 255, 0.5) 3px 4px);
+  opacity: var(--pax-ui-scanline-opacity);
+  mix-blend-mode: overlay;
+}
+
+/* The topbar's edge treatment. It is an EDGE RAIL: a measured strip pinned to
+   the bottom border, never a fill stretched over the bar. Stretching the Neon
+   Arcade bezel to full bar height is what drove its lit band straight through
+   the middle of the content. */
+.pf-hud-topbar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--pax-ui-rail-height);
+  pointer-events: none;
+  background-image: var(--pax-ui-rail);
+  background-position: var(--pax-ui-rail-position);
+  background-size: var(--pax-ui-rail-size);
+  background-repeat: repeat-x;
+}
+
+/* Semantically toned segments. Game speed is a RAMP — calm blue through to
+   urgent orange — so the selected tempo is readable at a glance instead of
+   being five identical chips told apart only by position. The tone comes from
+   the option, the treatment from the theme: Neon Arcade lights the outline and
+   leaves the fill transparent, everything else fills. */
+.pax-hud-segment[data-toned][data-state="on"] {
+  border-color: var(--pax-segment-tone);
+  background: color-mix(in srgb, var(--pax-segment-tone) 20%, var(--pax-ui-panel-solid));
+  color: var(--pax-segment-tone);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--pax-segment-tone) 70%, transparent),
+    0 0 14px color-mix(in srgb, var(--pax-segment-tone) 34%, transparent);
+}
+
+.pax-hud-segment[data-toned]:hover {
+  border-color: color-mix(in srgb, var(--pax-segment-tone) 55%, transparent);
+  color: var(--pax-segment-tone);
+}
+
+/* Brand type is a theme axis: Audiowide needs loose tracking at weight 400,
+   Archivo needs tight tracking at 700. One rule, driven by tokens. */
+.pf-hud-topbar__title {
+  font-family: var(--pax-ui-font-brand);
+  font-weight: var(--pax-ui-brand-weight);
+  letter-spacing: var(--pax-ui-brand-tracking);
+  text-transform: uppercase;
+  color: var(--pax-ui-text-strong);
+  text-shadow: var(--pax-ui-title-glow);
+  white-space: nowrap;
+}
+
 .pf-hud-panel,
 .pf-hud-topbar,
 .pf-quick-access-dock,
@@ -10,22 +136,15 @@
   color: var(--pax-ui-text);
 }
 
-
-
-
-
 .pf-hud-panel__header,
 .pf-hud-panel__actions,
 .pf-hud-topbar,
 .pf-hud-topbar__brand,
 .pf-hud-topbar__status,
-.pf-hud-topbar__modes,
 .pf-hud-topbar__actions {
   display: flex;
   align-items: center;
 }
-
-
 
 .pf-hud-panel__title-block {
   min-width: 0;
@@ -51,8 +170,6 @@
   letter-spacing: 0.14em;
 }
 
-
-
 .pf-hud-panel__actions {
   justify-content: flex-end;
   gap: var(--pax-gap-xs);
@@ -65,14 +182,6 @@
 .pf-hud-topbar__player-badge-scope {
   display: contents;
 }
-
-
-
-
-
-
-
-
 
 .pf-hud-icon-button--danger {
   color: var(--pax-ui-danger);
@@ -124,23 +233,9 @@
   background: color-mix(in srgb, var(--pax-ui-accent) 24%, transparent);
 }
 
-
-
-
-
-
-
 .pf-hud-topbar__mark {
   color: var(--pax-ui-accent-warm);
 }
-
-
-
-
-
-
-
-
 
 .pf-hud-topbar__status-item:first-child strong {
   font-size: var(--pax-type-base);
@@ -157,10 +252,6 @@
   font-size: var(--pax-type-xs);
   line-height: 1.1;
 }
-
-
-
-
 
 .pf-hud-topbar__actions {
   justify-content: flex-end;
@@ -185,12 +276,6 @@
   box-shadow: 0 0 12px var(--player-color);
 }
 
-
-
-
-
-
-
 .pf-standings__toolbar {
   display: flex;
   align-items: center;
@@ -202,8 +287,6 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
-
-
 
 .pf-standings__summary strong {
   color: var(--pax-ui-text-strong);
@@ -218,12 +301,6 @@
   background: color-mix(in srgb, var(--pax-color-void) 82%, transparent);
 }
 
-
-
-
-
-
-
 .pf-standings__list {
   list-style: none;
   display: grid;
@@ -232,30 +309,33 @@
   padding: 0;
 }
 
-
-
 /* THE local-player row. Standings are the primary read of the whole HUD, and
    this row is the primary read of the standings — so it carries a lit left edge,
    a warm translucent wash and an outward glow, not just a slightly different
    tint. Matches the treatment proven in the theme lab. */
 .pf-standings__row--local {
-  border-color: var(--pax-ui-accent-warm-strong);
-  border-left: 3px solid var(--pax-ui-accent-warm-strong);
+  /* --pax-ui-you is a DEDICATED signal, not the frame accent. Reusing the frame
+     accent made "you" the same hue as every panel border on Aurelia, and pure
+     steel on Nebula Veil — it has to stand outside the chrome AND outside every
+     faction colour. Each theme picks its own, including a darker one for the
+     light theme where a pale wash would simply vanish. */
+  border-color: var(--pax-ui-you-strong);
+  border-left: 3px solid var(--pax-ui-you-strong);
   background:
     linear-gradient(90deg,
-      color-mix(in srgb, var(--pax-ui-accent-warm) 34%, transparent) 0%,
-      color-mix(in srgb, var(--pax-ui-accent-warm) 14%, transparent) 46%,
-      color-mix(in srgb, var(--pax-ui-accent-warm) 3%, transparent) 100%),
+      color-mix(in srgb, var(--pax-ui-you) 34%, transparent) 0%,
+      color-mix(in srgb, var(--pax-ui-you) 14%, transparent) 46%,
+      color-mix(in srgb, var(--pax-ui-you) 3%, transparent) 100%),
     color-mix(in srgb, var(--pax-color-void) 82%, transparent);
   box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--pax-ui-accent-warm) 42%, transparent),
-    inset 10px 0 24px -12px var(--pax-ui-accent-warm-strong),
-    0 0 18px color-mix(in srgb, var(--pax-ui-accent-warm) 22%, transparent);
+    inset 0 0 0 1px color-mix(in srgb, var(--pax-ui-you) 42%, transparent),
+    inset 10px 0 24px -12px var(--pax-ui-you-strong),
+    0 0 18px color-mix(in srgb, var(--pax-ui-you) 22%, transparent);
   color: var(--pax-ui-text-strong);
 }
 
 .pf-standings__row--local .pf-standings__name {
-  color: var(--pax-ui-accent-warm-strong);
+  color: var(--pax-ui-you-strong);
   font-weight: var(--pax-weight-bold);
 }
 
@@ -274,12 +354,6 @@
   color: var(--pax-ui-text-strong);
 }
 
-
-
-
-
-
-
 .pf-standings__name {
   min-width: 0;
   overflow: hidden;
@@ -293,10 +367,6 @@
   color: var(--pax-ui-text-dim);
   text-align: center;
 }
-
-
-
-
 
 .pf-star-card__orb {
   width: 54px;
@@ -329,10 +399,6 @@
   white-space: nowrap;
 }
 
-
-
-
-
 .pf-star-metric span {
   display: inline-flex;
   align-items: center;
@@ -342,8 +408,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-
 
 .pf-star-card__route {
   grid-column: 1 / -1;
@@ -387,21 +451,6 @@
   font-size: var(--pax-type-xs);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 .pf-bottom-command-bar__button:first-child {
   border-left: 0;
 }
@@ -421,8 +470,7 @@
 }
 
 @media (max-width: 1320px) {
-  .pf-hud-topbar__status-item:nth-child(3),
-  .pf-hud-topbar__modes {
+  .pf-hud-topbar__status-item:nth-child(3){
     display: none;
   }
 }
@@ -513,10 +561,6 @@
     display: none;
   }
 
-  .pf-game-speed__button {
-    min-height: 34px;
-  }
-
   .pf-quick-access-dock {
     gap: var(--pax-gap-xs);
     padding: 7px;
@@ -575,7 +619,6 @@
   }
 }
 
-
 .pf-hud-panel,
 .pf-hud-topbar,
 .pf-quick-access-dock,
@@ -596,10 +639,6 @@
     0 16px 44px color-mix(in srgb, var(--pax-color-void) 38%, transparent);
 }
 
-
-
-
-
 .pf-hud-panel__eyebrow {
   color: var(--pax-ui-accent-warm);
   font-size: var(--pax-type-4xs);
@@ -615,9 +654,6 @@
 }
 
 .pf-hud-icon-button,
-.pf-game-speed__button,
-.pf-standings__focus-button,
-.pf-hud-topbar__mode,
 .pf-hud-topbar__player-badge,
 .pf-theme-library button,
 .pf-theme-library select,
@@ -630,9 +666,6 @@
 }
 
 .pf-hud-icon-button,
-.pf-game-speed__button,
-.pf-standings__focus-button,
-.pf-hud-topbar__mode,
 .pf-hud-topbar__player-badge {
   display: inline-flex;
   align-items: center;
@@ -652,66 +685,23 @@
 }
 
 .pf-hud-icon-button:hover,
-.pf-game-speed__button:hover,
-.pf-standings__focus-button:hover,
-.pf-hud-topbar__mode:hover,
 .pf-hud-topbar__player-badge:hover {
   transform: none;
   border-color: color-mix(in srgb, var(--pax-ui-accent-warm-strong) 70%, transparent);
   color: var(--pax-ui-accent-warm-strong);
-  background: linear-gradient(180deg, rgba(58, 48, 22, 0.9), color-mix(in srgb, var(--pax-color-void) 94%, transparent));
+  /* Was a hardcoded brass `rgba(58,48,22,.9)` — a dark brown smear on the light
+     theme and off-hue on every theme but Aurelia. Derived from the frame accent
+     instead, so hover follows whatever the theme's metal actually is. */
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--pax-ui-accent-warm) 22%, var(--pax-ui-panel-solid)),
+    color-mix(in srgb, var(--pax-color-void) 94%, transparent)
+  );
 }
-
-
-
-
 
 .pf-hud-topbar__brand {
   min-width: 250px;
   gap: var(--pax-gap-sm);
-}
-
-
-
-.pf-hud-topbar__player-summary {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(48px, auto));
-  align-items: center;
-  gap: 0;
-  min-height: 42px;
-  border: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 36%, transparent);
-  background: color-mix(in srgb, var(--pax-color-void) 72%, transparent);
-  clip-path: var(--pax-ui-cut-corner-sm);
-}
-
-.pf-hud-topbar__summary-cell {
-  display: grid;
-  gap: 1px;
-  min-width: 0;
-  padding: var(--pax-space-1) var(--pax-gap-sm);
-  border-left: 1px solid color-mix(in srgb, var(--pax-ui-accent-warm) 16%, transparent);
-}
-
-.pf-hud-topbar__summary-cell:first-child {
-  border-left: 0;
-}
-
-.pf-hud-topbar__summary-cell span {
-  color: color-mix(in srgb, var(--pax-ui-accent-warm) 72%, transparent);
-  font-size: var(--pax-type-4xs);
-  font-weight: var(--pax-weight-black);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.pf-hud-topbar__summary-cell strong {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: color-mix(in srgb, var(--pax-ui-accent-warm-strong) 96%, transparent);
-  font-size: var(--pax-type-xs-plus);
-  line-height: 1;
 }
 
 .pf-hud-topbar__status {
@@ -728,31 +718,6 @@
   min-width: 104px;
   padding: var(--pax-space-1) var(--pax-space-3);
 }
-
-
-
-.pf-hud-topbar__modes {
-  flex: 0 1 auto;
-  gap: var(--pax-gap-xs);
-  overflow: hidden;
-  max-width: 470px;
-}
-
-.pf-hud-topbar__mode {
-  border-radius: 10px;
-  font-weight: var(--pax-weight-black);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  min-height: 30px;
-  padding: 0 9px;
-  font-size: var(--pax-type-4xs);
-}
-
-
-
-
-
 
 .pf-standings__summary span {
   min-width: 0;
@@ -771,8 +736,6 @@
   text-transform: uppercase;
 }
 
-
-
 .pf-standings__columns span {
   display: inline-flex;
   align-items: center;
@@ -787,8 +750,6 @@
 .pf-standings__columns span:first-child {
   justify-content: flex-start;
 }
-
-
 
 .pf-standings__row > span:not(.pf-standings__player) {
   min-width: 0;
@@ -823,25 +784,6 @@
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 5px;
 }
-
-
-
-.pf-game-speed__button span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-
-
-
-
-
-
-
-
 
 .pf-quick-access-dock {
   display: grid;
@@ -933,8 +875,6 @@
   display: flex;
   align-items: center;
 }
-
-
 
 .pf-theme-library__eyebrow,
 .pf-typography-panel__eyebrow {
@@ -1232,8 +1172,6 @@
   scrollbar-gutter: stable;
 }
 
-
-
 .pf-theme-library__row-group {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1302,7 +1240,6 @@
   color: var(--pax-ui-danger);
 }
 
-
 .pf-hud-panel,
 .pf-quick-access-dock,
 .pf-bottom-command-bar,
@@ -1312,7 +1249,6 @@
   border-radius: var(--pax-ui-radius-md);
   clip-path: var(--pax-ui-rounded-corner-md);
 }
-
 
 .pf-hud-topbar {
   border-inline: none;
@@ -1358,9 +1294,6 @@
 }
 
 .pf-hud-icon-button,
-.pf-game-speed__button,
-.pf-standings__focus-button,
-.pf-hud-topbar__mode,
 .pf-hud-topbar__player-badge,
 .pf-theme-library button,
 .pf-theme-library select,
@@ -1371,17 +1304,13 @@
 .pf-theme-library__row,
 .pf-typography-row,
 .pf-star-card__type,
-.pf-star-metric,
-.pf-hud-topbar__player-summary {
+.pf-star-metric{
   border-color: transparent;
   border-radius: var(--pax-ui-radius-xs);
   clip-path: var(--pax-ui-rounded-corner-xs);
 }
 
 .pf-hud-icon-button,
-.pf-game-speed__button,
-.pf-standings__focus-button,
-.pf-hud-topbar__mode,
 .pf-hud-topbar__player-badge,
 .pf-theme-library__icon-btn,
 .pf-theme-library__actions button,
@@ -1399,7 +1328,6 @@
 .pf-typography-row,
 .pf-star-card__type,
 .pf-star-metric,
-.pf-hud-topbar__player-summary,
 .pf-theme-library__count {
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--pax-color-void) 88%, transparent), color-mix(in srgb, var(--pax-color-void) 94%, transparent)) padding-box,
@@ -1407,9 +1335,6 @@
 }
 
 .pf-hud-icon-button:hover,
-.pf-game-speed__button:hover,
-.pf-standings__focus-button:hover,
-.pf-hud-topbar__mode:hover,
 .pf-hud-topbar__player-badge:hover,
 .pf-theme-library__row:hover,
 .pf-theme-library__row.active {
@@ -1421,8 +1346,6 @@
 
 .pf-hud-icon-button--active,
 .pf-game-speed__button--active,
-.pf-standings__focus-button.active,
-.pf-hud-topbar__mode.active,
 .pf-hud-topbar__player-badge--collapsed {
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, var(--pax-ui-accent-warm) 18%, transparent),
@@ -1459,8 +1382,6 @@
 .pf-typography-panel {
   font-size: calc(1rem * var(--pax-ui-type-scale, 1));
 }
-
-
 
 .pf-hud-panel__title,
 .pf-hud-topbar__title,
@@ -1501,10 +1422,8 @@
 }
 
 .pf-hud-topbar__status-item strong,
-.pf-hud-topbar__summary-cell strong,
 .pf-standings__summary,
 .pf-standings__row,
-.pf-game-speed__button,
 .pf-star-card__identity span,
 .pf-star-card__identity small,
 .pf-star-card__route,
@@ -1530,18 +1449,6 @@
   font-size: calc(0.9rem * var(--pax-ui-data-scale, 1));
 }
 
-
-
-
-.pf-standings__focus-button {
-  border-radius: 9px;
-  width: calc(28px * var(--pax-ui-icon-scale, 1));
-  height: calc(26px * var(--pax-ui-icon-scale, 1));
-}
-
-
-
-
 .pf-hud-panel {
   display: grid;
   min-width: 0;
@@ -1561,7 +1468,6 @@
 
 .pf-hud-panel__eyebrow,
 .pf-hud-topbar__status-item span,
-.pf-hud-topbar__summary-cell span,
 .pf-standings__toolbar,
 .pf-standings__columns,
 .pf-star-metric span,
@@ -1573,7 +1479,6 @@
 }
 
 .pf-hud-panel__title,
-.pf-hud-topbar__summary-cell strong,
 .pf-hud-topbar__status-item strong,
 .pf-standings__name,
 .pf-theme-library__row-name {
@@ -1591,17 +1496,6 @@
 .pf-game-speed__buttons,
 .pf-quick-access-dock {
   gap: var(--pax-space-2);
-}
-
-.pf-game-speed__button {
-  border-radius: 10px;
-  font-weight: var(--pax-weight-extrabold);
-  letter-spacing: 0.06em;
-  white-space: nowrap;
-  min-height: 40px;
-  gap: var(--pax-gap-xs);
-  padding: 0 var(--pax-space-2);
-  font-size: calc(0.68rem * var(--pax-ui-type-scale, 1));
 }
 
 .pf-standings__summary,
@@ -1767,7 +1661,6 @@
   gap: 7px;
   padding: var(--pax-space-2) var(--pax-gap-md);
 }
-
 
 @media (max-width: 1024px) {
   .pf-hud-topbar,

@@ -3,6 +3,7 @@
     import type { PlayerState, StarState } from "$lib/types/game.types";
     import { getStarProductionPerTick, STAR_TYPE_STATS, type StarType } from "@pax/common";
     import HudIcon from "./HudIcon.svelte";
+    import { formatRatePercent } from "$lib/components/game-hud/viewModels";
 
     interface Props {
         stars: StarState[];
@@ -262,13 +263,13 @@
             <div class="star-rate">
                 <span class="star-rate__label">Transfer</span>
                 <span class="star-rate__value font-hud-data">
-                    {displayedStarDetails.transferRate}%
+                    {formatRatePercent(displayedStarDetails.transferRate)}
                 </span>
             </div>
             <div class="star-rate">
                 <span class="star-rate__label">Activation</span>
                 <span class="star-rate__value font-hud-data">
-                    {displayedStarDetails.activationRate}%
+                    {formatRatePercent(displayedStarDetails.activationRate)}
                 </span>
             </div>
         </div>

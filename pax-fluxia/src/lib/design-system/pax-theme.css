@@ -1,7 +1,18 @@
 /* Pax Fluxia design-system tokens — Tier 1 (primitive / theme) + Tier 2 (semantic UI roles).
    This file is the single CSS token root: each [data-pax-theme] block sets the raw
-   --pax-* palette and scales, and the shared :root block maps them to --pax-ui-* roles.
-   Theme identity lives in design-system/theme.ts. Contract: .agent/docs/engineering/DESIGN_SYSTEM_TOKENS.md. */
+   --pax-* palette and scales, and the shared [data-pax-theme] block maps them to
+   --pax-ui-* roles. Theme identity lives in design-system/theme.ts.
+   Contract: .agent/docs/engineering/DESIGN_SYSTEM_TOKENS.md.
+
+   FOUR KEEPER THEMES (user decision 2026-07-26):
+     nebula-veil        lead — precision instrumentation, machined and cool
+     aurelia-drift      regal — engraved brass, rounded, warm
+     neon-arcade        synthwave — outline-first, bloom, hard edges, raster chrome
+     broadcast-minimal  light — flat white, hairline rules, one accent
+
+   A theme is NOT a hue swap. Each block re-casts palette, SHAPE (radii), TYPE
+   (its own vendored pairing) and MATERIAL (surface, bloom, texture, scanline,
+   raster frame) — the four axes proven in the theme lab at /themes. */
 
 @theme {
   --color-pax-void: var(--pax-color-void);
@@ -31,52 +42,11 @@
   --shadow-pax-panel-soft: var(--pax-shadow-panel-soft);
 }
 
-:root,
-[data-pax-theme="aurelia-drift"] {
-  color-scheme: dark;
-
-  /* Theme identity */
-  --pax-theme-name: "Aurelia Drift";
-
-  /* Palette */
-  --pax-color-void: #03080b;
-  --pax-color-void-mid: #081216;
-  --pax-color-void-raised: #101c21;
-  --pax-color-panel: rgba(4, 20, 24, 0.94);
-  --pax-color-panel-strong: rgba(5, 24, 28, 0.97);
-  --pax-color-panel-muted: rgba(4, 18, 23, 0.9);
-  --pax-color-control: rgba(5, 24, 29, 0.82);
-  --pax-color-control-hover: rgba(9, 38, 43, 0.94);
-  --pax-color-control-active: rgba(87, 64, 24, 0.96);
-  --pax-color-text-strong: rgba(255, 247, 224, 0.97);
-  --pax-color-text: rgba(224, 232, 232, 0.9);
-  --pax-color-text-muted: rgba(180, 188, 188, 0.88);
-  --pax-color-text-dim: rgba(128, 141, 145, 0.78);
-  --pax-color-accent-cyan: #55e7ef;
-  --pax-color-accent-cyan-strong: #9ff8ff;
-  --pax-color-accent-gold: #f6c469;
-  --pax-color-accent-gold-strong: #ffe3a3;
-  --pax-color-danger: #ff6a7a;
-  --pax-color-success: #46d98a;
-  --pax-color-warning: #f5c542;
-
-  /* Player signals remain separate from generic chrome. */
-  --pax-color-player-blue: #4488ff;
-  --pax-color-player-red: #ff4466;
-  --pax-color-player-green: #44ff88;
-  --pax-color-player-yellow: #ffcc44;
-  --pax-color-player-purple: #aa66ff;
-  --pax-color-player-orange: #ff8844;
-
-  /* Typography roles */
-  --pax-font-brand: "Cinzel", "Pasti", "Rajdhani", serif;
-  --pax-font-ui: "Rajdhani", "Segoe UI", system-ui, sans-serif;
-  --pax-font-label: "Rajdhani", "Segoe UI", system-ui, sans-serif;
-  --pax-font-copy: "Inter", "Segoe UI", system-ui, sans-serif;
-  --pax-font-data: "JetBrains Mono", "Cascadia Mono", monospace;
-  --pax-font-display: "Exo", "Segoe UI", system-ui, sans-serif;
-  --pax-font-techno: "Orbitron", "Rajdhani", sans-serif;
-
+/* ==========================================================================
+   STRUCTURE — theme-independent. Scale, rhythm, stacking, motion.
+   Themes re-cast colour, shape, type and material; they do NOT re-cast these.
+   ========================================================================== */
+:root {
   /* Size scale — densified in the small-UI band (0.5625–1rem) so every used
      size maps to a token instead of a raw px/rem orphan. Below `base` the
      steps sit ~1px apart; near-duplicate orphans (9/10/11px, .8/.82/.84,
@@ -96,10 +66,6 @@
   --pax-type-2xl: 2rem;
   --pax-type-3xl: 3rem;
   --pax-type-title: 3.2rem;
-  --pax-type-scale: 1.08;
-  --pax-type-title-scale: 1.08;
-  --pax-type-label-scale: 1.12;
-  --pax-type-data-scale: 1.08;
 
   /* Weight tokens — the one typography axis that had NO tokens (7 raw weights
      were in use). Migrate raw font-weight numbers to these. */
@@ -132,17 +98,224 @@
   --pax-panel-gap: 18px;
   --pax-topbar-height: 64px;
 
-  /* Shape */
-  --pax-radius-xs: 8px;
-  --pax-radius-sm: 10px;
-  --pax-radius-md: 12px;
-  --pax-radius-lg: 18px;
+  /* Iconography */
+  --pax-icon-size: 18px;
+  --pax-icon-stroke: 1.85;
+  --pax-icon-scale: 1.18;
+
+  /* Motion */
+  --pax-motion-fast: 150ms ease;
+  --pax-motion-base: 250ms ease;
+  --pax-motion-slow: 400ms ease;
+
+  /* Z-index / stacking order. Structural; reskins rarely change these. */
+  --pax-z-base: 1;
+  --pax-z-raised: 5;
+  --pax-z-rail: 20;
+  --pax-z-panel: 40;
+  --pax-z-overlay: 100;
+  --pax-z-dropdown: 120;
+  --pax-z-modal: 200;
+  --pax-z-toast: 300;
+
+  /* Player signals remain separate from generic chrome — a faction colour must
+     never shift when the HUD is reskinned, or the map stops matching the ladder. */
+  --pax-color-player-blue: #4488ff;
+  --pax-color-player-red: #ff4466;
+  --pax-color-player-green: #44ff88;
+  --pax-color-player-yellow: #ffcc44;
+  --pax-color-player-purple: #aa66ff;
+  --pax-color-player-orange: #ff8844;
+}
+
+/* ==========================================================================
+   1 · NEBULA VEIL — lead. Precision instrumentation: machined, cool, restrained.
+   Deliberately the least ornamented. Restraint IS the identity; if it drifts
+   decorative it stops contrasting with Aurelia and Arcade.
+   Also the pre-hydration default, so bare :root carries it.
+   ========================================================================== */
+:root,
+[data-pax-theme="nebula-veil"] {
+  color-scheme: dark;
+  --pax-theme-name: "Nebula Veil";
+
+  /* Palette */
+  --pax-color-void: #05060e;
+  --pax-color-void-mid: #080a14;
+  --pax-color-void-raised: #131a30;
+  --pax-color-panel: rgba(22, 28, 50, 0.92);
+  --pax-color-panel-strong: rgba(26, 33, 58, 0.96);
+  --pax-color-panel-muted: rgba(14, 20, 38, 0.9);
+  --pax-color-control: rgba(14, 20, 38, 0.9);
+  --pax-color-control-hover: #1c2542;
+  --pax-color-control-active: #1d4f8f;
+  --pax-color-text-strong: #f2f6ff;
+  --pax-color-text: rgba(214, 224, 246, 0.94);
+  --pax-color-text-muted: #b7c2dc;
+  --pax-color-text-dim: #97a3c2;
+  /* The `cyan` slot is the SYSTEM accent role; the `gold` slot is the FRAME
+     role. Nebula Veil casts them azure and steel — the names are historical,
+     the roles are what matter. */
+  --pax-color-accent-cyan: #3aa0ff;
+  --pax-color-accent-cyan-strong: #8ac7ff;
+  --pax-color-accent-gold: #8b93b8;
+  --pax-color-accent-gold-strong: #b7c0e0;
+  --pax-color-danger: #ff5a6a;
+  --pax-color-success: #34e0a0;
+  --pax-color-warning: #ffc24a;
+
+  /* The local player's own row. A dedicated warm signal, deliberately outside
+     every faction hue so "you" never collides with a player colour. */
+  --pax-color-you: #f2c05e;
+  --pax-color-you-strong: #ffe3a3;
+  --pax-color-you-ink: #fbf2e0;
+
+  /* Semantic game-speed tones — tempo is read by COLOUR, not just position. */
+  --pax-color-speed-pause: #8b93b8;
+  --pax-color-speed-normal: #4aa3ff;
+  --pax-color-speed-fast: #34e0a0;
+  --pax-color-speed-high: #b16bff;
+  --pax-color-speed-extreme: #ff9a4a;
+
+  /* Typography — Chakra Petch (machined display) over Barlow (neutral UI). */
+  --pax-font-brand: "Chakra Petch", "Bahnschrift", sans-serif;
+  --pax-font-ui: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --pax-font-label: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --pax-font-copy: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --pax-font-data: "JetBrains Mono", "Cascadia Mono", monospace;
+  --pax-font-display: "Chakra Petch", "Bahnschrift", sans-serif;
+  --pax-font-techno: "Chakra Petch", "Bahnschrift", sans-serif;
+  --pax-type-scale: 1;
+  --pax-type-title-scale: 1;
+  --pax-type-label-scale: 1;
+  --pax-type-data-scale: 1;
+
+  /* Shape — small radii read as machined rather than soft. */
+  --pax-radius-xs: 4px;
+  --pax-radius-sm: 5px;
+  --pax-radius-md: 6px;
+  --pax-radius-lg: 8px;
   --pax-rounded-corner-xs: inset(0 round var(--pax-radius-xs));
   --pax-rounded-corner-sm: inset(0 round var(--pax-radius-sm));
   --pax-rounded-corner-md: inset(0 round var(--pax-radius-md));
   --pax-rounded-corner-lg: inset(0 round var(--pax-radius-lg));
 
   /* Borders and elevation */
+  --pax-border-panel: rgba(126, 150, 210, 0.22);
+  --pax-border-panel-strong: rgba(130, 175, 255, 0.5);
+  --pax-border-panel-warm: rgba(130, 175, 255, 0.4);
+  --pax-border-panel-cool: rgba(58, 160, 255, 0.34);
+  --pax-border-divider: rgba(126, 150, 210, 0.14);
+  --pax-border-width: 1px;
+  --pax-border-width-strong: 1.5px;
+  --pax-border-panel-gradient: linear-gradient(135deg, rgba(130, 175, 255, 0.55), rgba(126, 150, 210, 0.1) 62%);
+  --pax-border-control-gradient: linear-gradient(135deg, rgba(130, 175, 255, 0.44), rgba(126, 150, 210, 0.08) 62%);
+  --pax-shadow-panel: 0 18px 44px rgba(0, 0, 0, 0.5);
+  --pax-shadow-panel-soft: 0 8px 20px rgba(0, 0, 0, 0.36);
+  --pax-shadow-glow: 0 0 0 1px rgba(130, 175, 255, 0.16), 0 14px 34px rgba(0, 0, 0, 0.42);
+  --pax-shadow-cyan: 0 0 18px rgba(58, 160, 255, 0.42);
+  --pax-shadow-soft: 0 0 10px rgba(58, 160, 255, 0.28);
+  --pax-glass-blur: 14px;
+  --pax-glass-opacity: 0.9;
+
+  /* Composed surfaces */
+  --pax-surface-panel:
+    radial-gradient(130% 90% at 50% -18%, rgba(58, 160, 255, 0.12), transparent 60%),
+    linear-gradient(180deg, rgba(22, 28, 50, 0.92), rgba(11, 14, 26, 0.96));
+  --pax-surface-panel-strong:
+    radial-gradient(130% 90% at 50% -18%, rgba(58, 160, 255, 0.16), transparent 60%),
+    linear-gradient(180deg, rgba(26, 33, 58, 0.96), rgba(13, 17, 31, 0.98));
+  --pax-surface-panel-muted: linear-gradient(180deg, rgba(14, 20, 38, 0.92), rgba(10, 13, 24, 0.95));
+  --pax-surface-control: var(--pax-color-control);
+  --pax-surface-control-hover: var(--pax-color-control-hover);
+  --pax-surface-control-active: linear-gradient(180deg, #2b6ec0, #1d4f8f);
+
+  /* MATERIAL — the physical treatment layer. Every theme answers all of these
+     so a component never has to branch on theme id. */
+  --pax-material-panel-clip: none;
+  --pax-material-panel-bloom: none;
+  --pax-material-panel-frame: none;
+  --pax-material-panel-frame-inset: 0px;
+  --pax-material-panel-frame-border: 0 solid transparent;
+  --pax-material-panel-texture: none;
+  --pax-material-panel-texture-size: auto;
+  --pax-material-panel-texture-opacity: 0;
+  --pax-material-panel-texture-blend: overlay;
+  --pax-material-scanline-opacity: 0.02;
+  --pax-material-title-glow: none;
+  --pax-material-accent-glow: rgba(58, 160, 255, 0.55);
+  --pax-material-rail: linear-gradient(90deg, transparent, rgba(58, 160, 255, 0.55) 18%, rgba(58, 160, 255, 0.55) 82%, transparent);
+  --pax-material-rail-height: 1px;
+  --pax-material-rail-position: bottom center;
+  --pax-material-rail-size: 100% 1px;
+  --pax-material-brand-weight: 700;
+  --pax-material-brand-tracking: 0.16em;
+}
+
+/* ==========================================================================
+   2 · AURELIA DRIFT — regal. Engraved brass instrument: warm, rounded, ornate.
+   Antique orrery / astrolabe, not sci-fi. Serif type carries the identity.
+   ========================================================================== */
+[data-pax-theme="aurelia-drift"] {
+  color-scheme: dark;
+  --pax-theme-name: "Aurelia Drift";
+
+  --pax-color-void: #03080b;
+  --pax-color-void-mid: #081216;
+  --pax-color-void-raised: #101c21;
+  --pax-color-panel: rgba(4, 20, 24, 0.94);
+  --pax-color-panel-strong: rgba(5, 24, 28, 0.97);
+  --pax-color-panel-muted: rgba(4, 18, 23, 0.9);
+  --pax-color-control: rgba(5, 24, 29, 0.82);
+  --pax-color-control-hover: rgba(9, 38, 43, 0.94);
+  --pax-color-control-active: rgba(87, 64, 24, 0.96);
+  --pax-color-text-strong: rgba(255, 247, 224, 0.97);
+  --pax-color-text: rgba(224, 232, 232, 0.92);
+  --pax-color-text-muted: #b9c2c2;
+  --pax-color-text-dim: #93a0a4;
+  --pax-color-accent-cyan: #55e7ef;
+  --pax-color-accent-cyan-strong: #9ff8ff;
+  --pax-color-accent-gold: #f6c469;
+  --pax-color-accent-gold-strong: #ffe3a3;
+  --pax-color-danger: #ff6a7a;
+  --pax-color-success: #46d98a;
+  --pax-color-warning: #f5c542;
+
+  --pax-color-you: #f6c469;
+  --pax-color-you-strong: #ffe3a3;
+  --pax-color-you-ink: #fdf4e2;
+
+  --pax-color-speed-pause: #8fa0a4;
+  --pax-color-speed-normal: #55e7ef;
+  --pax-color-speed-fast: #46d98a;
+  --pax-color-speed-high: #c8a2ff;
+  --pax-color-speed-extreme: #f6a04a;
+
+  /* Typography — Cormorant Garamond (editorial serif display) over Spectral
+     (a serif that stays legible at UI sizes). The serif pairing IS the theme. */
+  --pax-font-brand: "Cormorant Garamond", "Cinzel", Georgia, serif;
+  --pax-font-ui: "Spectral", Georgia, serif;
+  --pax-font-label: "Spectral", Georgia, serif;
+  --pax-font-copy: "Spectral", Georgia, serif;
+  --pax-font-data: "JetBrains Mono", "Cascadia Mono", monospace;
+  --pax-font-display: "Cormorant Garamond", "Cinzel", Georgia, serif;
+  --pax-font-techno: "Cormorant Garamond", "Cinzel", Georgia, serif;
+  /* Cormorant runs small for its point size; lift display type to compensate. */
+  --pax-type-scale: 1.02;
+  --pax-type-title-scale: 1.12;
+  --pax-type-label-scale: 1.06;
+  --pax-type-data-scale: 1;
+
+  /* Shape — generous radii: an object turned on a lathe, not milled flat. */
+  --pax-radius-xs: 8px;
+  --pax-radius-sm: 11px;
+  --pax-radius-md: 14px;
+  --pax-radius-lg: 20px;
+  --pax-rounded-corner-xs: inset(0 round var(--pax-radius-xs));
+  --pax-rounded-corner-sm: inset(0 round var(--pax-radius-sm));
+  --pax-rounded-corner-md: inset(0 round var(--pax-radius-md));
+  --pax-rounded-corner-lg: inset(0 round var(--pax-radius-lg));
+
   --pax-border-panel: rgba(246, 196, 105, 0.34);
   --pax-border-panel-strong: rgba(246, 196, 105, 0.66);
   --pax-border-panel-warm: rgba(246, 196, 105, 0.58);
@@ -150,6 +323,8 @@
   --pax-border-divider: rgba(246, 196, 105, 0.18);
   --pax-border-width: 1px;
   --pax-border-width-strong: 1.5px;
+  /* The lit-metal rake: bright at both ends, dark through the middle, so the
+     border reads as a machined bevel catching light rather than a flat line. */
   --pax-border-panel-gradient:
     linear-gradient(135deg,
       rgba(255, 232, 170, 0.88) 0%,
@@ -172,45 +347,286 @@
   --pax-glass-blur: 12px;
   --pax-glass-opacity: 0.8;
 
-  /* Composed surfaces */
   --pax-surface-panel:
-    linear-gradient(180deg, var(--pax-color-panel), rgba(2, 10, 15, 0.96)),
-    radial-gradient(circle at 18% 0%, rgba(85, 231, 239, 0.09), transparent 42%),
-    radial-gradient(circle at 85% 0%, rgba(246, 196, 105, 0.1), transparent 45%);
+    linear-gradient(180deg, rgba(4, 20, 24, 0.95), rgba(2, 10, 15, 0.96)),
+    radial-gradient(circle at 16% 0%, rgba(85, 231, 239, 0.1), transparent 42%),
+    radial-gradient(circle at 86% 0%, rgba(246, 196, 105, 0.12), transparent 45%);
   --pax-surface-panel-strong:
-    linear-gradient(180deg, var(--pax-color-panel-strong), rgba(2, 9, 14, 0.98)),
+    linear-gradient(180deg, rgba(5, 24, 28, 0.97), rgba(2, 9, 14, 0.98)),
     radial-gradient(circle at top, rgba(246, 196, 105, 0.16), transparent 54%);
-  --pax-surface-panel-muted:
-    linear-gradient(180deg, var(--pax-color-panel-muted), rgba(2, 9, 14, 0.94));
+  --pax-surface-panel-muted: linear-gradient(180deg, rgba(4, 18, 23, 0.9), rgba(2, 9, 14, 0.94));
   --pax-surface-control: var(--pax-color-control);
   --pax-surface-control-hover: var(--pax-color-control-hover);
-  --pax-surface-control-active:
-    linear-gradient(180deg, var(--pax-color-control-active), rgba(23, 43, 39, 0.94));
+  --pax-surface-control-active: linear-gradient(180deg, var(--pax-color-control-active), rgba(23, 43, 39, 0.94));
 
-  /* Iconography */
-  --pax-icon-size: 18px;
-  --pax-icon-stroke: 1.85;
-  --pax-icon-scale: 1.18;
+  --pax-material-panel-clip: none;
+  --pax-material-panel-bloom: none;
+  --pax-material-panel-frame: none;
+  --pax-material-panel-frame-inset: 0px;
+  --pax-material-panel-frame-border: 0 solid transparent;
+  /* An engraved guilloche: fine crossed hairlines, the way a banknote or a
+     brass dial face is ruled. Procedural, so it re-tints with the theme. */
+  --pax-material-panel-texture:
+    repeating-linear-gradient(48deg, transparent 0 3px, rgba(246, 196, 105, 0.5) 3px 3.5px),
+    repeating-linear-gradient(-48deg, transparent 0 3px, rgba(246, 196, 105, 0.34) 3px 3.5px);
+  --pax-material-panel-texture-size: auto;
+  --pax-material-panel-texture-opacity: 0.1;
+  --pax-material-panel-texture-blend: overlay;
+  --pax-material-scanline-opacity: 0;
+  --pax-material-title-glow: none;
+  --pax-material-accent-glow: rgba(246, 196, 105, 0.5);
+  /* Engraved double rule with a diamond at centre — the divider from the brief,
+     drawn rather than fetched so it survives with no raster assets present. */
+  --pax-material-rail:
+    linear-gradient(90deg, transparent, rgba(246, 196, 105, 0.7) 12%, rgba(246, 196, 105, 0.7) 88%, transparent);
+  --pax-material-rail-height: 2px;
+  --pax-material-rail-position: bottom center;
+  --pax-material-rail-size: 100% 1px;
+  --pax-material-brand-weight: 700;
+  --pax-material-brand-tracking: 0.1em;
+}
 
-  /* Motion */
-  --pax-motion-fast: 150ms ease;
-  --pax-motion-base: 250ms ease;
-  --pax-motion-slow: 400ms ease;
+/* ==========================================================================
+   3 · NEON ARCADE — synthwave cabinet. Outline-first: near-transparent fills,
+   everything drawn as a glowing stroke, hard corners, real raster chrome.
+   The only theme with generated bitmap material (static/textures/neon-arcade).
+   ========================================================================== */
+[data-pax-theme="neon-arcade"] {
+  color-scheme: dark;
+  --pax-theme-name: "Neon Arcade";
 
-  /* Z-index / stacking order. Structural; reskins rarely change these. */
-  --pax-z-base: 1;
-  --pax-z-raised: 5;
-  --pax-z-rail: 20;
-  --pax-z-panel: 40;
-  --pax-z-overlay: 100;
-  --pax-z-dropdown: 120;
-  --pax-z-modal: 200;
-  --pax-z-toast: 300;
+  --pax-color-void: #05010c;
+  --pax-color-void-mid: #06010e;
+  --pax-color-void-raised: #2a0740;
+  --pax-color-panel: rgba(20, 2, 34, 0.86);
+  --pax-color-panel-strong: rgba(26, 3, 44, 0.93);
+  --pax-color-panel-muted: rgba(20, 2, 34, 0.72);
+  --pax-color-control: rgba(20, 2, 34, 0.72);
+  --pax-color-control-hover: rgba(46, 6, 70, 0.9);
+  --pax-color-control-active: rgba(120, 12, 88, 0.92);
+  --pax-color-text-strong: #ffffff;
+  --pax-color-text: rgba(255, 235, 250, 0.94);
+  --pax-color-text-muted: #dcbde4;
+  --pax-color-text-dim: #b48ec8;
+  --pax-color-accent-cyan: #ff2bbb;
+  --pax-color-accent-cyan-strong: #ff8ade;
+  --pax-color-accent-gold: #00e5ff;
+  --pax-color-accent-gold-strong: #a6f6ff;
+  --pax-color-danger: #ff4d6a;
+  --pax-color-success: #38ffb0;
+  --pax-color-warning: #ffd23c;
 
-  /* --------------------------------------------------------------------------
-     Tier 2 — Semantic / UI roles (migrated from app.css)
-     -------------------------------------------------------------------------- */
+  --pax-color-you: #ffe23c;
+  --pax-color-you-strong: #fff7b0;
+  --pax-color-you-ink: #fffbe4;
 
+  --pax-color-speed-pause: #b294cc;
+  --pax-color-speed-normal: #00e5ff;
+  --pax-color-speed-fast: #38ffb0;
+  --pax-color-speed-high: #c04bff;
+  --pax-color-speed-extreme: #ff8a2b;
+
+  /* Typography — Audiowide (arcade marquee) over Barlow. Audiowide is display
+     only: it has no lowercase rhythm for body copy. */
+  --pax-font-brand: "Audiowide", "Agency FB", sans-serif;
+  --pax-font-ui: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --pax-font-label: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --pax-font-copy: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --pax-font-data: "JetBrains Mono", "Cascadia Mono", monospace;
+  --pax-font-display: "Audiowide", "Agency FB", sans-serif;
+  --pax-font-techno: "Audiowide", "Agency FB", sans-serif;
+  /* Audiowide is wide and tall; pull display sizes back so titles still fit. */
+  --pax-type-scale: 1;
+  --pax-type-title-scale: 0.92;
+  --pax-type-label-scale: 1;
+  --pax-type-data-scale: 1;
+
+  /* Shape — square. A cabinet panel is cut, not moulded. */
+  --pax-radius-xs: 0px;
+  --pax-radius-sm: 0px;
+  --pax-radius-md: 2px;
+  --pax-radius-lg: 2px;
+  --pax-rounded-corner-xs: inset(0 round var(--pax-radius-xs));
+  --pax-rounded-corner-sm: inset(0 round var(--pax-radius-sm));
+  --pax-rounded-corner-md: inset(0 round var(--pax-radius-md));
+  --pax-rounded-corner-lg: inset(0 round var(--pax-radius-lg));
+
+  --pax-border-panel: rgba(255, 43, 187, 0.62);
+  --pax-border-panel-strong: #ff6bd0;
+  --pax-border-panel-warm: rgba(0, 229, 255, 0.6);
+  --pax-border-panel-cool: rgba(0, 229, 255, 0.4);
+  --pax-border-divider: rgba(255, 43, 187, 0.28);
+  --pax-border-width: 1.5px;
+  --pax-border-width-strong: 2px;
+  --pax-border-panel-gradient: linear-gradient(135deg, #ff6bd0, rgba(0, 229, 255, 0.6) 62%, rgba(255, 43, 187, 0.3));
+  --pax-border-control-gradient: linear-gradient(135deg, rgba(255, 107, 208, 0.9), rgba(0, 229, 255, 0.45) 70%);
+  --pax-shadow-panel: 0 0 26px rgba(255, 43, 187, 0.34), 0 18px 40px rgba(0, 0, 0, 0.6);
+  --pax-shadow-panel-soft: 0 0 16px rgba(255, 43, 187, 0.26), 0 8px 22px rgba(0, 0, 0, 0.45);
+  --pax-shadow-glow: 0 0 0 1px rgba(255, 43, 187, 0.5), 0 0 22px rgba(255, 43, 187, 0.4);
+  --pax-shadow-cyan: 0 0 20px rgba(0, 229, 255, 0.55);
+  --pax-shadow-soft: 0 0 12px rgba(255, 43, 187, 0.4);
+  --pax-glass-blur: 6px;
+  --pax-glass-opacity: 0.7;
+
+  /* Fills stay near-transparent: the neon outline does the work, not the box. */
+  --pax-surface-panel: linear-gradient(180deg, rgba(255, 43, 187, 0.08), rgba(0, 229, 255, 0.05));
+  --pax-surface-panel-strong: linear-gradient(180deg, rgba(255, 43, 187, 0.13), rgba(0, 229, 255, 0.07));
+  --pax-surface-panel-muted: linear-gradient(180deg, rgba(255, 43, 187, 0.05), rgba(0, 229, 255, 0.03));
+  --pax-surface-control: var(--pax-color-control);
+  --pax-surface-control-hover: var(--pax-color-control-hover);
+  --pax-surface-control-active: linear-gradient(180deg, rgba(255, 43, 187, 0.32), rgba(255, 43, 187, 0.18));
+
+  --pax-material-panel-clip: none;
+  --pax-material-panel-bloom: drop-shadow(0 0 14px rgba(255, 43, 187, 0.35));
+  /* 9-slice cabinet frame. Source is 1536x1024 with the chamfer, bolt studs and
+     vent ribs living in the outer ~270-300px, so that is the slice inset. The
+     frame rides a pseudo-element inset OUTSIDE the panel box, so wiring it
+     never changes layout — and if the file 404s the CSS border still draws. */
+  --pax-material-panel-frame: url("/textures/neon-arcade/panel-frame.png") 270 300 300 270 / 46px / 0 stretch;
+  --pax-material-panel-frame-inset: -34px;
+  --pax-material-panel-frame-border: 46px solid transparent;
+  --pax-material-panel-texture: url("/textures/neon-arcade/plate-tile.png");
+  --pax-material-panel-texture-size: 300px 300px;
+  --pax-material-panel-texture-opacity: 0.12;
+  --pax-material-panel-texture-blend: overlay;
+  --pax-material-scanline-opacity: 0.05;
+  --pax-material-title-glow: 0 0 12px rgba(255, 43, 187, 0.85), 0 0 26px rgba(255, 43, 187, 0.5);
+  --pax-material-accent-glow: rgba(255, 43, 187, 0.85);
+  /* Marquee bezel. The source strip is 724px tall with the lit band through its
+     middle (rows 279-358, centred at 43.9% of height) — measured with a canvas
+     probe, not guessed. At `auto 120px` the band lands 45px down, so a 16px
+     strip pinned to the bar's BOTTOM edge shows the rail and nothing else.
+     Stretching this to 100% of bar height is what drove it through the content. */
+  --pax-material-rail: url("/textures/neon-arcade/bezel-top.png");
+  --pax-material-rail-height: 16px;
+  --pax-material-rail-position: center -45px;
+  --pax-material-rail-size: auto 120px;
+  --pax-material-brand-weight: 400;
+  --pax-material-brand-tracking: 0.12em;
+}
+
+/* ==========================================================================
+   4 · BROADCAST MINIMAL — light. Flat white surfaces, hairline rules, ONE
+   accent, real typographic hierarchy. Its identity is the ABSENCE of material:
+   no glow, no texture, no scanline. Deliberately ships with no raster assets.
+   ========================================================================== */
+[data-pax-theme="broadcast-minimal"] {
+  color-scheme: light;
+  --pax-theme-name: "Broadcast Minimal";
+
+  --pax-color-void: #eaecef;
+  --pax-color-void-mid: #f5f6f7;
+  --pax-color-void-raised: #ffffff;
+  --pax-color-panel: #ffffff;
+  --pax-color-panel-strong: #ffffff;
+  --pax-color-panel-muted: #eef1f4;
+  --pax-color-control: #eef1f4;
+  --pax-color-control-hover: #e2e7ee;
+  --pax-color-control-active: #1a56c4;
+  --pax-color-text-strong: #0d121a;
+  --pax-color-text: #222933;
+  --pax-color-text-muted: #333b47;
+  --pax-color-text-dim: #3d4552;
+  --pax-color-accent-cyan: #1a56c4;
+  --pax-color-accent-cyan-strong: #123f96;
+  --pax-color-accent-gold: #38455a;
+  --pax-color-accent-gold-strong: #232c3b;
+  --pax-color-danger: #b3182b;
+  --pax-color-success: #0b6644;
+  --pax-color-warning: #8a5c00;
+
+  /* On a white ground the "you" signal has to go DARKER, not brighter — a pale
+     gold wash would vanish. Ink flips to near-black for the same reason. */
+  --pax-color-you: #c98a12;
+  --pax-color-you-strong: #8a5c00;
+  --pax-color-you-ink: #2a1f04;
+
+  --pax-color-speed-pause: #6b7484;
+  --pax-color-speed-normal: #2f6fe0;
+  --pax-color-speed-fast: #1f9e63;
+  --pax-color-speed-high: #7b52d8;
+  --pax-color-speed-extreme: #c2600f;
+
+  /* Typography — Archivo throughout. A single grotesque doing all the work,
+     separated by weight and size alone. That restraint is the whole point. */
+  --pax-font-brand: "Archivo", "Franklin Gothic Demi", sans-serif;
+  --pax-font-ui: "Archivo", "Segoe UI", system-ui, sans-serif;
+  --pax-font-label: "Archivo", "Segoe UI", system-ui, sans-serif;
+  --pax-font-copy: "Archivo", "Segoe UI", system-ui, sans-serif;
+  --pax-font-data: "JetBrains Mono", "Cascadia Mono", monospace;
+  --pax-font-display: "Archivo", "Franklin Gothic Demi", sans-serif;
+  --pax-font-techno: "Archivo", "Franklin Gothic Demi", sans-serif;
+  --pax-type-scale: 1;
+  --pax-type-title-scale: 1;
+  --pax-type-label-scale: 1;
+  --pax-type-data-scale: 1;
+
+  --pax-radius-xs: 2px;
+  --pax-radius-sm: 3px;
+  --pax-radius-md: 4px;
+  --pax-radius-lg: 6px;
+  --pax-rounded-corner-xs: inset(0 round var(--pax-radius-xs));
+  --pax-rounded-corner-sm: inset(0 round var(--pax-radius-sm));
+  --pax-rounded-corner-md: inset(0 round var(--pax-radius-md));
+  --pax-rounded-corner-lg: inset(0 round var(--pax-radius-lg));
+
+  --pax-border-panel: rgba(24, 30, 42, 0.14);
+  --pax-border-panel-strong: rgba(24, 30, 42, 0.34);
+  --pax-border-panel-warm: rgba(24, 30, 42, 0.28);
+  --pax-border-panel-cool: rgba(26, 86, 196, 0.3);
+  --pax-border-divider: rgba(24, 30, 42, 0.1);
+  --pax-border-width: 1px;
+  --pax-border-width-strong: 1.5px;
+  --pax-border-panel-gradient: linear-gradient(135deg, rgba(24, 30, 42, 0.26), rgba(24, 30, 42, 0.08) 62%);
+  --pax-border-control-gradient: linear-gradient(135deg, rgba(24, 30, 42, 0.2), rgba(24, 30, 42, 0.06) 62%);
+  /* Light-mode elevation is a soft grey drop, never a glow. */
+  --pax-shadow-panel: 0 10px 28px rgba(24, 30, 42, 0.12), 0 1px 2px rgba(24, 30, 42, 0.08);
+  --pax-shadow-panel-soft: 0 4px 12px rgba(24, 30, 42, 0.09), 0 1px 2px rgba(24, 30, 42, 0.06);
+  --pax-shadow-glow: 0 0 0 1px rgba(24, 30, 42, 0.08), 0 6px 18px rgba(24, 30, 42, 0.1);
+  --pax-shadow-cyan: 0 0 0 2px rgba(26, 86, 196, 0.22);
+  --pax-shadow-soft: 0 2px 8px rgba(24, 30, 42, 0.08);
+  --pax-glass-blur: 0px;
+  --pax-glass-opacity: 1;
+
+  --pax-surface-panel: linear-gradient(#ffffff, #ffffff);
+  --pax-surface-panel-strong: linear-gradient(#ffffff, #ffffff);
+  --pax-surface-panel-muted: linear-gradient(#eef1f4, #eef1f4);
+  --pax-surface-control: var(--pax-color-control);
+  --pax-surface-control-hover: var(--pax-color-control-hover);
+  --pax-surface-control-active: linear-gradient(#1a56c4, #1a56c4);
+
+  --pax-material-panel-clip: none;
+  --pax-material-panel-bloom: none;
+  --pax-material-panel-frame: none;
+  --pax-material-panel-frame-inset: 0px;
+  --pax-material-panel-frame-border: 0 solid transparent;
+  --pax-material-panel-texture: none;
+  --pax-material-panel-texture-size: auto;
+  --pax-material-panel-texture-opacity: 0;
+  --pax-material-panel-texture-blend: normal;
+  --pax-material-scanline-opacity: 0;
+  --pax-material-title-glow: none;
+  --pax-material-accent-glow: rgba(26, 86, 196, 0.26);
+  --pax-material-rail: linear-gradient(90deg, rgba(24, 30, 42, 0.16), rgba(24, 30, 42, 0.16));
+  --pax-material-rail-height: 1px;
+  --pax-material-rail-position: bottom center;
+  --pax-material-rail-size: 100% 1px;
+  --pax-material-brand-weight: 700;
+  --pax-material-brand-tracking: 0.01em;
+}
+
+/* ==========================================================================
+   Tier 2 — semantic / UI roles.
+
+   This block MUST come after every Tier-1 block AND must match every themed
+   element, not just :root. Custom properties substitute at computed-value
+   time: if `--pax-ui-accent: var(--pax-color-accent-cyan)` were declared only
+   on :root, a descendant that re-declares Tier 1 would inherit :root's ALREADY
+   RESOLVED string and silently keep the wrong theme. Matching [data-pax-theme]
+   here re-resolves every role on whichever element carries the theme.
+   ========================================================================== */
+:root,
+[data-pax-theme] {
   /* HUD Surface System */
   --pax-ui-topbar-height: var(--pax-topbar-height);
   --pax-ui-font-brand: var(--pax-font-brand);
@@ -232,6 +648,7 @@
   --pax-ui-text-strong: var(--pax-color-text-strong);
   --pax-ui-text: var(--pax-color-text);
   --pax-ui-text-soft: var(--pax-color-text-muted);
+  --pax-ui-text-muted: var(--pax-color-text-muted);
   --pax-ui-text-dim: var(--pax-color-text-dim);
   --pax-ui-panel-bg: var(--pax-surface-panel);
   --pax-ui-panel-bg-strong: var(--pax-surface-panel-strong);
@@ -249,6 +666,44 @@
   --pax-ui-shadow: var(--pax-shadow-panel);
   --pax-ui-shadow-soft: var(--pax-shadow-panel-soft);
   --pax-ui-glow: var(--pax-shadow-glow);
+
+  /* A plain-colour twin of the panel ground. color-mix() and border accept
+     COLORS only — feeding them a var that holds a gradient silently kills the
+     whole declaration, which is what made the local-player highlight invisible
+     on every dark theme. Anything doing color-mix must use this, not panel-bg. */
+  --pax-ui-panel-solid: var(--pax-color-panel);
+  --pax-ui-void-solid: var(--pax-color-void);
+
+  /* The local player's own signal, and the tempo scale. */
+  --pax-ui-you: var(--pax-color-you);
+  --pax-ui-you-strong: var(--pax-color-you-strong);
+  --pax-ui-you-ink: var(--pax-color-you-ink);
+  --pax-ui-speed-pause: var(--pax-color-speed-pause);
+  --pax-ui-speed-normal: var(--pax-color-speed-normal);
+  --pax-ui-speed-fast: var(--pax-color-speed-fast);
+  --pax-ui-speed-high: var(--pax-color-speed-high);
+  --pax-ui-speed-extreme: var(--pax-color-speed-extreme);
+
+  /* Material roles — how the theme is physically made. */
+  --pax-ui-panel-clip: var(--pax-material-panel-clip);
+  --pax-ui-panel-bloom: var(--pax-material-panel-bloom);
+  --pax-ui-panel-frame: var(--pax-material-panel-frame);
+  --pax-ui-panel-frame-inset: var(--pax-material-panel-frame-inset);
+  --pax-ui-panel-frame-border: var(--pax-material-panel-frame-border);
+  --pax-ui-panel-texture: var(--pax-material-panel-texture);
+  --pax-ui-panel-texture-size: var(--pax-material-panel-texture-size);
+  --pax-ui-panel-texture-opacity: var(--pax-material-panel-texture-opacity);
+  --pax-ui-panel-texture-blend: var(--pax-material-panel-texture-blend);
+  --pax-ui-scanline-opacity: var(--pax-material-scanline-opacity);
+  --pax-ui-title-glow: var(--pax-material-title-glow);
+  --pax-ui-accent-glow: var(--pax-material-accent-glow);
+  --pax-ui-rail: var(--pax-material-rail);
+  --pax-ui-rail-height: var(--pax-material-rail-height);
+  --pax-ui-rail-position: var(--pax-material-rail-position);
+  --pax-ui-rail-size: var(--pax-material-rail-size);
+  --pax-ui-brand-weight: var(--pax-material-brand-weight);
+  --pax-ui-brand-tracking: var(--pax-material-brand-tracking);
+
   --pax-ui-radius-xs: var(--pax-radius-xs);
   --pax-ui-radius-sm: var(--pax-radius-sm);
   --pax-ui-radius-md: var(--pax-radius-md);
@@ -291,20 +746,36 @@
   --pax-ui-icon-scale: var(--pax-icon-scale);
 }
 
-[data-pax-theme="cyber-flux"] {
-  --pax-theme-name: "Cyber Flux";
-  --pax-color-accent-cyan: #00ffff;
-  --pax-color-accent-cyan-strong: #aafcff;
-  --pax-color-accent-gold: #ffcc00;
-  --pax-color-accent-gold-strong: #ffe680;
-  --pax-border-panel: rgba(0, 255, 255, 0.25);
-  --pax-border-panel-strong: rgba(0, 255, 255, 0.55);
-  --pax-border-panel-warm: rgba(255, 204, 0, 0.48);
-  --pax-surface-panel:
-    linear-gradient(180deg, rgba(10, 10, 18, 0.93), rgba(7, 9, 18, 0.96)),
-    radial-gradient(circle at 12% 0%, rgba(0, 255, 255, 0.12), transparent 42%),
-    radial-gradient(circle at 88% 0%, rgba(170, 102, 255, 0.12), transparent 46%);
-  --pax-surface-panel-strong:
-    linear-gradient(180deg, rgba(14, 15, 29, 0.98), rgba(8, 9, 20, 0.98)),
-    radial-gradient(circle at top, rgba(0, 255, 255, 0.16), transparent 54%);
+/* Tailwind's @theme emits `--color-pax-text: var(--pax-color-text)` at :root,
+   so it resolves ONCE there — re-declaring --pax-color-* on a descendant does
+   not re-resolve it, and utilities like `text-pax-text` keep the root theme's
+   value. Re-aliasing here is what lets a theme applied below :root actually
+   reach the utility-styled components. (Aliasing only --pax-ui-* left real
+   component text at 1.22:1 on Broadcast — this block is the fix.) */
+[data-pax-theme] {
+  --color-pax-void: var(--pax-color-void);
+  --color-pax-panel: var(--pax-color-panel);
+  --color-pax-panel-strong: var(--pax-color-panel-strong);
+  --color-pax-panel-muted: var(--pax-color-panel-muted);
+  --color-pax-text: var(--pax-color-text);
+  --color-pax-text-strong: var(--pax-color-text-strong);
+  --color-pax-text-muted: var(--pax-color-text-muted);
+  --color-pax-text-dim: var(--pax-color-text-dim);
+  --color-pax-cyan: var(--pax-color-accent-cyan);
+  --color-pax-cyan-strong: var(--pax-color-accent-cyan-strong);
+  --color-pax-gold: var(--pax-color-accent-gold);
+  --color-pax-gold-strong: var(--pax-color-accent-gold-strong);
+  --color-pax-danger: var(--pax-color-danger);
+  --font-pax-brand: var(--pax-font-brand);
+  --font-pax-ui: var(--pax-font-ui);
+  --font-pax-copy: var(--pax-font-copy);
+  --font-pax-data: var(--pax-font-data);
+  --font-pax-display: var(--pax-font-display);
+  --font-pax-techno: var(--pax-font-techno);
+  --radius-pax-xs: var(--pax-radius-xs);
+  --radius-pax-sm: var(--pax-radius-sm);
+  --radius-pax-md: var(--pax-radius-md);
+  --radius-pax-lg: var(--pax-radius-lg);
+  --shadow-pax-panel: var(--pax-shadow-panel);
+  --shadow-pax-panel-soft: var(--pax-shadow-panel-soft);
 }

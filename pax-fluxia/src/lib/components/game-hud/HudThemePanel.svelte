@@ -67,6 +67,10 @@
     onValueChange={(value) => selectTheme(value as PaxThemeId)}
   />
 
+  <!-- Each card carries `data-pax-theme` for its OWN theme, so it renders in
+       that theme's real surface, border, corner radius and brand typeface. It
+       is a live preview built from the shipped tokens, not a mock-up that can
+       drift — and it puts every identity side by side on one screen. -->
   <div class="pf-hud-theme-panel__cards" aria-label="Available HUD themes">
     {#each PAX_THEME_IDS as themeId}
       {@const theme = PAX_THEMES[themeId]}
@@ -74,11 +78,15 @@
         class="pf-hud-theme-card"
         active={paxThemeState.current === themeId}
         onclick={() => selectTheme(themeId)}
+        title={`${theme.name} — ${theme.intent}`}
       >
-        <span class="pf-hud-theme-card__swatches" aria-hidden="true">
-          <span style:background={theme.accent.system}></span>
-          <span style:background={theme.accent.selection}></span>
-          <span style:background={theme.accent.danger}></span>
+        <span class="pf-hud-theme-card__preview" data-pax-theme={themeId} aria-hidden="true">
+          <span class="pf-hud-theme-card__swatches">
+            <span style:background={theme.accent.system}></span>
+            <span style:background={theme.accent.selection}></span>
+            <span style:background={theme.accent.danger}></span>
+          </span>
+          <span class="pf-hud-theme-card__specimen">Aa</span>
         </span>
         <span class="pf-hud-theme-card__copy">
           <strong>{theme.name}</strong>
@@ -211,16 +219,42 @@
       var(--pax-ui-control-border-gradient) border-box;
   }
 
+  /* The preview chip renders under its own theme, so every value inside it —
+     surface, border, radius, brand face — comes from that theme's real tokens. */
+  .pf-hud-theme-card__preview {
+    display: flex;
+    align-items: center;
+    gap: var(--pax-gap-sm);
+    flex: 0 0 auto;
+    padding: 5px 9px 5px 6px;
+    background: var(--pax-ui-panel-bg);
+    border: 1px solid var(--pax-ui-border);
+    border-radius: var(--pax-ui-radius-sm);
+  }
+
   .pf-hud-theme-card__swatches {
     gap: 3px;
     flex: 0 0 auto;
   }
 
   .pf-hud-theme-card__swatches span {
-    width: 10px;
-    height: 32px;
-    border-radius: 999px;
+    width: 8px;
+    height: 30px;
+    border-radius: var(--pax-ui-radius-xs);
     box-shadow: 0 0 12px currentColor;
+  }
+
+  /* A type specimen: shape AND typeface are theme axes now, so the picker has
+     to show them. Cormorant, Audiowide, Chakra Petch and Archivo are instantly
+     apart at this size in a way three colour bars never are. */
+  .pf-hud-theme-card__specimen {
+    font-family: var(--pax-ui-font-brand);
+    font-weight: var(--pax-ui-brand-weight);
+    letter-spacing: var(--pax-ui-brand-tracking);
+    font-size: var(--pax-type-md);
+    line-height: 1;
+    color: var(--pax-ui-text-strong);
+    text-shadow: var(--pax-ui-title-glow);
   }
 
   .pf-hud-theme-card__copy {

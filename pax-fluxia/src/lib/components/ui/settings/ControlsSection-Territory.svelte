@@ -8,6 +8,7 @@
   } from "$lib/territory/ui/territoryRenderModeCatalog";
   import CategoryThemeBar from "./CategoryThemeBar.svelte";
   import CellGridTuning from "./CellGridTuning.svelte";
+  import RenderModePicker from "./RenderModePicker.svelte";
   import GridGradientTuning from "./GridGradientTuning.svelte";
   import {
     cellGridFamilyConfigDefaults,
@@ -25,11 +26,9 @@
   import { TERRITORY_GEOMETRY_LIMITS } from "$lib/territory/geometry/geometryTuning";
   import {
     PaxHudButton,
-    PaxHudSelect,
     PaxSettingsRangeRow,
     PaxSettingsSegmentedRow,
     PaxSettingsToggleRow,
-    type PaxHudSegmentedOption,
   } from "$lib/design-system";
 
   // ControlsSection-Territory -- Territory Rendering (Voronoi + Metaball)
@@ -118,15 +117,6 @@
     (panel[TERRITORY_RENDERER_MODULE_PANEL_KEY] ??
       "all") as TerritoryRendererModuleId,
   );
-
-  function renderModeOptions(): PaxHudSegmentedOption[] {
-    return getRenderModeOptions().map((option) => ({
-      value: option.id,
-      label: option.label,
-      title: option.disabledReason ?? option.shortDescription ?? option.label,
-      disabled: !option.selectable,
-    }));
-  }
 
   function supportsSharedSurfaceStyleCard(): boolean {
     const activeStyle = resolveActiveStyleId();
@@ -501,12 +491,15 @@
         </div>
         {#if !hideRenderModeSelector}
           <div class="axis-row territory-axis territory-axis--render-mode">
-            <PaxHudSelect
+            <!-- Tiles, not a dropdown. The render-mode buttons left the topbar
+                 permanently, so this is now the ONLY place the look of the map
+                 is chosen — and six visually distinct renderers hidden behind
+                 six names is not a choice a player can make by reading. -->
+            <RenderModePicker
               label="Render mode"
-              hint="The active renderer family for territory fills/borders. Switch to compare render styles; each family exposes its own tuning below."
+              hint="The active renderer family for territory fills/borders. Each tile previews what that mode draws; every family exposes its own tuning below."
               value={resolveActiveStyleId()}
-              options={renderModeOptions()}
-              ariaLabel="Territory render mode"
+              options={getRenderModeOptions()}
               onValueChange={selectTerritoryStyle}
             />
           </div>

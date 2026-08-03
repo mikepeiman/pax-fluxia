@@ -80,4 +80,21 @@
   :global(.pax-hud-btn.h-12) { --pax-btn-pad-x: 1.5rem; }
   /* icon-only buttons stay square */
   :global(.pax-hud-btn.w-9) { --pax-btn-pad-x: 0; }
+
+  /* Optical alignment of icon against label. The icon is a block SVG centred in
+     its viewBox; the label is a text line box carrying ascender and descender
+     space, so the two centre differently unless both are forced to a 1:1 line
+     box. Uppercase tracking also adds a trailing space after the final letter,
+     which pushes the label visually left of centre — hence the negative end
+     margin. Without these two the pairing sits a pixel out on every button. */
+  .pax-hud-btn :global(svg) {
+    display: block;
+    flex-shrink: 0;
+  }
+  .pax-hud-btn > span {
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+    margin-right: -0.08em;
+  }
 </style>
