@@ -196,6 +196,7 @@
     display: flex;
     align-items: center;
     width: 100%;
+    max-width: 100%;
     gap: var(--pax-gap-sm);
     min-height: 58px;
     padding: 9px;
@@ -274,11 +275,20 @@
     text-transform: uppercase;
   }
 
+  /* The card is a PaxHudButton, whose base is uppercase + bold + tracked. That
+     is right for a label and wrong for a sentence: the intent line rendered as
+     tracked all-caps and ran off the end of the card. Opt this one element back
+     out and let it wrap. */
   .pf-hud-theme-card__copy small {
     color: var(--pax-ui-text-soft);
     font-family: var(--pax-ui-font-copy);
     font-size: calc(0.68rem * var(--pax-ui-type-scale, 1));
-    line-height: 1.25;
+    font-weight: var(--pax-weight-regular);
+    letter-spacing: normal;
+    line-height: 1.35;
+    text-transform: none;
+    white-space: normal;
+    text-wrap: pretty;
   }
 
   .pf-hud-theme-panel__status {

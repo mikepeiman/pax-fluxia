@@ -215,7 +215,10 @@
           meta={dsToggleB ? "On" : "Off"}
           onChange={(checked) => (dsToggleB = checked)}
         />
-        <PaxSettingsInfoRow label="Render mode" value={renderMode} />
+        <PaxSettingsInfoRow
+          label="Render mode"
+          value={renderModeOptions.find((option) => option.id === renderMode)?.label ?? renderMode}
+        />
       </aside>
 
       <div class="hudlab__map" aria-label="Star map stand-in">
