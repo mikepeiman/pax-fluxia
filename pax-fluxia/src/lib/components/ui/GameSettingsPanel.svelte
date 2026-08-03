@@ -50,6 +50,12 @@
         searchSettings,
         type SettingsSearchResult,
     } from "./settings/settingsSearch";
+    import {
+        SETTINGS_PANELS,
+        isSettingsPanelId,
+        settingsPanelsForCategory,
+        type SettingsPanelId,
+    } from "./settings/settingsPanels";
     import ThemeLibraryPanel from "$lib/components/game-hud/ThemeLibraryPanel.svelte";
     import HudThemePanel from "$lib/components/game-hud/HudThemePanel.svelte";
     import TypographyTokenPanel from "$lib/components/game-hud/TypographyTokenPanel.svelte";
@@ -145,35 +151,21 @@
     // The rail = the 7 categories + Restart/Quit actions. Selecting a category
     // shows its sections as top chips; one section is open at a time. The
     // Interface category surfaces UI utility panels (not config sections).
-    const INTERFACE_PANELS = [
-        { id: "ui_appearance", icon: "gem", label: "Appearance" },
-        { id: "ui_themes", icon: "library", label: "Themes" },
-        { id: "ui_savegame", icon: "save-game", label: "Save / Load" },
-        { id: "ui_config_io", icon: "export", label: "Import / Export" },
-        { id: "ui_stats", icon: "ranking-star", label: "Stats" },
-        { id: "ui_hotkeys", icon: "keyboard", label: "Hotkeys" },
-        { id: "ui_help", icon: "help", label: "Help" },
-    ] as const;
-    // Typography is its own top-level category, but renders a bespoke drawer
-    // (not a SETTINGS_SECTION) just like the Interface utility panels.
-    const TYPOGRAPHY_PANELS = [
-        { id: "ui_typography", icon: "font", label: "Typography" },
-    ] as const;
-    const UTILITY_PANELS = [...INTERFACE_PANELS, ...TYPOGRAPHY_PANELS] as const;
-    type UtilityPanelId = (typeof UTILITY_PANELS)[number]["id"];
+    // The utility panels come from SETTINGS_PANELS, not a local list. They were
+    // declared here only, which put them outside the settings search index —
+    // "theme" and "appearance" matched nothing, so the HUD skin picker could be
+    // reached only by knowing which category chip to open. Typography is its own
+    // top-level category but renders a bespoke drawer just like the rest.
+    const INTERFACE_PANELS = settingsPanelsForCategory("interface");
+    const TYPOGRAPHY_PANELS = settingsPanelsForCategory("typography");
+    const UTILITY_PANELS = SETTINGS_PANELS;
+    type UtilityPanelId = SettingsPanelId;
     type ActiveSectionId = SectionId | UtilityPanelId;
 
     // Which top-level category each bespoke utility panel belongs to.
-    const UTILITY_PANEL_CATEGORY: Record<UtilityPanelId, SettingsCategoryId> = {
-        ui_appearance: "interface",
-        ui_themes: "interface",
-        ui_savegame: "interface",
-        ui_config_io: "interface",
-        ui_stats: "interface",
-        ui_hotkeys: "interface",
-        ui_help: "interface",
-        ui_typography: "typography",
-    };
+    const UTILITY_PANEL_CATEGORY = Object.fromEntries(
+        SETTINGS_PANELS.map((panel) => [panel.id, panel.category]),
+    ) as Record<UtilityPanelId, SettingsCategoryId>;
 
     const ACTION_TOOLS = [
         { id: "restart", icon: "restart", label: "Restart", run: () => onRestartGame?.() },
@@ -190,7 +182,7 @@
     const SECTION_BY_CATEGORY_KEY = "pax-fluxia-settings-section-by-category";
 
     function isUtilityPanelId(value: string | null): value is UtilityPanelId {
-        return UTILITY_PANELS.some((panel) => panel.id === value);
+        return isSettingsPanelId(value);
     }
 
     function loadActiveSection(): ActiveSectionId | null {
@@ -647,12 +639,25 @@
     }
 
     async function navigateToSearchResult(result: SettingsSearchResult) {
+        // Utility panels are not SETTINGS_SECTIONS: they have no tier and no
+        // subsections, and getSectionDefinition would silently fall back to the
+        // first section and open the wrong place. Open the panel directly.
+        if (result.kind === "panel") {
+            const category = categoryOf(result.sectionId as SettingsPanelId);
+            if (category) openCategoryId = category;
+            activeSectionId = result.sectionId as SettingsPanelId;
+            showAllSections = false;
+            persistActiveSection();
+            clearSettingsSearch();
+            return;
+        }
+
         // Open the native location: tier → category → section → subsection.
-        const section = getSectionDefinition(result.sectionId);
+        const section = getSectionDefinition(result.sectionId as SectionId);
         if (TIER_RANK[section.tier] > TIER_RANK[activeTier]) setTier(section.tier);
-        const category = categoryOf(result.sectionId);
+        const category = categoryOf(result.sectionId as SectionId);
         if (category) openCategoryId = category;
-        activeSectionId = result.sectionId;
+        activeSectionId = result.sectionId as SectionId;
         showAllSections = false;
         if (result.kind === "setting") {
             // Reset to the control's subsection, or "all" so a control with no

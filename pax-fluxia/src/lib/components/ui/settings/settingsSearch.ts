@@ -1,5 +1,7 @@
 import type { SettingsSectionId } from "./settingsRegistry";
 import { SETTINGS_SECTIONS } from "./settingsRegistry";
+import type { SettingsPanelId } from "./settingsPanels";
+import { SETTINGS_PANELS } from "./settingsPanels";
 import type { SearchableSettingRecord, SettingScope } from "./settingMetadata";
 import { getSearchableSettingRecords } from "./settingMetadata";
 import {
@@ -7,12 +9,17 @@ import {
     registryOwnedConfigKeys,
 } from "./settingsControlRegistry";
 
-type SearchResultKind = "setting" | "section";
+/**
+ * `panel` covers the bespoke utility drawers (theme picker, typography, help).
+ * They are not `SETTINGS_SECTIONS`, so without their own kind they were absent
+ * from the index entirely — searching "theme" returned nothing.
+ */
+type SearchResultKind = "setting" | "section" | "panel";
 
 export type SettingsSearchResult = {
     id: string;
     kind: SearchResultKind;
-    sectionId: SettingsSectionId;
+    sectionId: SettingsSectionId | SettingsPanelId;
     subsectionId?: string;
     sectionLabel: string;
     title: string;
@@ -352,6 +359,32 @@ function buildSectionEntries(
     });
 }
 
+/**
+ * The utility drawers. Indexed from `SETTINGS_PANELS` so the panel rail and the
+ * search can never disagree about what exists. Priority sits above sections
+ * because a query like "theme" should land on the picker itself, not on some
+ * config section that happens to mention the word.
+ */
+function buildPanelEntries(): SearchIndexEntry[] {
+    return SETTINGS_PANELS.map((panel) => {
+        const sourceText = [panel.label, panel.summary, ...panel.keywords].join(" ");
+        return {
+            id: `panel:${panel.id}`,
+            kind: "panel" as const,
+            sectionId: panel.id,
+            sectionLabel: panel.label,
+            title: panel.label,
+            snippet: panel.summary,
+            normalizedText: normalizeSearchText(sourceText),
+            normalizedTitle: normalizeSearchText(panel.label),
+            normalizedSection: normalizeSearchText(panel.label),
+            normalizedConfig: "",
+            priority: 2,
+            sourceText,
+        };
+    });
+}
+
 function scoreEntry(entry: SearchIndexEntry, query: string, tokens: string[]): number {
     let score = entry.priority * 100;
     if (entry.normalizedTitle === query) score += 90;
@@ -377,6 +410,7 @@ export function searchSettings(
     const searchIndex = [
         ...buildSettingEntries(activeTerritoryRenderMode),
         ...buildSectionEntries(activeTerritoryRenderMode),
+        ...buildPanelEntries(),
     ];
     return searchIndex.filter((entry) =>
         tokens.every((token) => entry.normalizedText.includes(token))
