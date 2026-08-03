@@ -11,7 +11,13 @@
     accent?: boolean;
     danger?: boolean;
     disabled?: boolean;
+    /** Glyph size in px. */
     size?: number;
+    /**
+     * Button footprint. `compact` (28px) is for crowded action clusters — a
+     * five-button header beside a title does not fit a narrow rail at 36px.
+     */
+    density?: "comfortable" | "compact";
     class?: string;
     onclick?: () => void;
   }
@@ -24,6 +30,7 @@
     danger = false,
     disabled = false,
     size = 17,
+    density = "comfortable",
     class: className = "",
     onclick,
   }: Props = $props();
@@ -31,7 +38,7 @@
   const buttonClass = $derived(
     hudButton({
       intent: danger ? "danger" : active ? "selected" : accent ? "primary" : "neutral",
-      size: "icon",
+      size: density === "compact" ? "icon-sm" : "icon",
       class: `${className} ${active ? "pf-hud-icon-button--active active" : ""} ${accent ? "pf-hud-icon-button--accent" : ""} ${danger ? "pf-hud-icon-button--danger danger" : ""}`,
     }),
   );

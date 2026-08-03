@@ -45,6 +45,24 @@
       border-color var(--pax-motion-fast, 150ms ease);
   }
 
+  /* The glyph stays 14px — it is a quiet marker and must not shout — but a
+     14px target fails WCAG 2.5.8, which wants 24px. An overlay grows the
+     clickable area to 24x24 around the same visual mark, so the target is
+     honest without the mark getting bigger or the layout moving. */
+  :global(button.pax-info-hint)::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 24px;
+    height: 24px;
+    transform: translate(-50%, -50%);
+  }
+
+  :global(button.pax-info-hint) {
+    position: relative;
+  }
+
   :global(button.pax-info-hint:hover),
   :global(button.pax-info-hint:focus-visible) {
     color: var(--pax-ui-text);

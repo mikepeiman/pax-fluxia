@@ -139,6 +139,22 @@
   color-scheme: dark;
   --pax-theme-name: "Nebula Veil";
 
+  /* Opaque twins of the panel and control surfaces. The composed surfaces
+     are gradients and several palette entries carry alpha, and CSS color-mix()
+     and border accept COLORS only — feeding either a gradient silently voids
+     the whole declaration. Anything that mixes or measures uses these.
+     They are the flattened result of the real surface over the void. */
+  --pax-color-panel-solid: #151a2f;
+  --pax-color-control-solid: #0f1425;
+
+  /* How a SEMANTICALLY TONED control renders when selected. On a dark
+     ground a bright tone reads as text over a faint tint of itself; on a
+     light ground that inverts — the tone has to become the fill and the ink
+     goes white, or mid-saturation tones land at ~3.5:1 on near-white. */
+  --pax-material-tone-fill: 20%;
+  --pax-material-tone-ink-mix: 100%;
+  --pax-material-tone-ink-base: transparent;
+
   /* Palette */
   --pax-color-void: #05060e;
   --pax-color-void-mid: #080a14;
@@ -170,11 +186,13 @@
   --pax-color-you-strong: #ffe3a3;
   --pax-color-you-ink: #fbf2e0;
 
-  /* Semantic game-speed tones — tempo is read by COLOUR, not just position. */
-  --pax-color-speed-pause: #8b93b8;
+  /* Semantic game-speed tones — tempo is read by COLOUR, not just position.
+     Pause is lighter than the steel frame accent it started as: as selected-state
+     text over a 20% tint of itself, plain steel measured 4.17:1. */
+  --pax-color-speed-pause: #a3abcd;
   --pax-color-speed-normal: #4aa3ff;
   --pax-color-speed-fast: #34e0a0;
-  --pax-color-speed-high: #b16bff;
+  --pax-color-speed-high: #c79bff;
   --pax-color-speed-extreme: #ff9a4a;
 
   /* Typography — Chakra Petch (machined display) over Barlow (neutral UI). */
@@ -259,6 +277,22 @@
 [data-pax-theme="aurelia-drift"] {
   color-scheme: dark;
   --pax-theme-name: "Aurelia Drift";
+
+  /* Opaque twins of the panel and control surfaces. The composed surfaces
+     are gradients and several palette entries carry alpha, and CSS color-mix()
+     and border accept COLORS only — feeding either a gradient silently voids
+     the whole declaration. Anything that mixes or measures uses these.
+     They are the flattened result of the real surface over the void. */
+  --pax-color-panel-solid: #041317;
+  --pax-color-control-solid: #08181d;
+
+  /* How a SEMANTICALLY TONED control renders when selected. On a dark
+     ground a bright tone reads as text over a faint tint of itself; on a
+     light ground that inverts — the tone has to become the fill and the ink
+     goes white, or mid-saturation tones land at ~3.5:1 on near-white. */
+  --pax-material-tone-fill: 22%;
+  --pax-material-tone-ink-mix: 100%;
+  --pax-material-tone-ink-base: transparent;
 
   --pax-color-void: #03080b;
   --pax-color-void-mid: #081216;
@@ -395,6 +429,22 @@
   color-scheme: dark;
   --pax-theme-name: "Neon Arcade";
 
+  /* Opaque twins of the panel and control surfaces. The composed surfaces
+     are gradients and several palette entries carry alpha, and CSS color-mix()
+     and border accept COLORS only — feeding either a gradient silently voids
+     the whole declaration. Anything that mixes or measures uses these.
+     They are the flattened result of the real surface over the void. */
+  --pax-color-panel-solid: #12021f;
+  --pax-color-control-solid: #190430;
+
+  /* How a SEMANTICALLY TONED control renders when selected. On a dark
+     ground a bright tone reads as text over a faint tint of itself; on a
+     light ground that inverts — the tone has to become the fill and the ink
+     goes white, or mid-saturation tones land at ~3.5:1 on near-white. */
+  --pax-material-tone-fill: 16%;
+  --pax-material-tone-ink-mix: 100%;
+  --pax-material-tone-ink-base: transparent;
+
   --pax-color-void: #05010c;
   --pax-color-void-mid: #06010e;
   --pax-color-void-raised: #2a0740;
@@ -478,13 +528,22 @@
 
   --pax-material-panel-clip: none;
   --pax-material-panel-bloom: drop-shadow(0 0 14px rgba(255, 43, 187, 0.35));
-  /* 9-slice cabinet frame. Source is 1536x1024 with the chamfer, bolt studs and
-     vent ribs living in the outer ~270-300px, so that is the slice inset. The
-     frame rides a pseudo-element inset OUTSIDE the panel box, so wiring it
-     never changes layout — and if the file 404s the CSS border still draws. */
-  --pax-material-panel-frame: url("/textures/neon-arcade/panel-frame.png") 270 300 300 270 / 46px / 0 stretch;
-  --pax-material-panel-frame-inset: -34px;
-  --pax-material-panel-frame-border: 46px solid transparent;
+  /* 9-slice cabinet frame. The slice insets are MEASURED, not assumed: in the
+     1536x1024 source the drawn rails run x 205-1311 and y 158-836, each rail
+     ~44px thick, and the centre is fully transparent. So each slice has to
+     cover its empty margin plus its rail — 215 top / 280 right / 245 bottom /
+     265 left. The earlier 270-300 guess squashed unequal margins into one
+     band and the frame rendered as flat colour blocks at real panel sizes.
+     Band width and outset are solved, not eyeballed: the rail sits at ~85% of
+     each slice measured inward, so an outset of band x 0.85 lands it exactly on
+     the panel's own edge. A 20px band puts a ~3px rail on the
+     edge with the glow falling away outside it; at 12px the rail thinned to a
+     hairline and read as a plain border.
+     The frame rides a pseudo-element OUTSIDE the panel box, so wiring it never
+     changes layout, and if the file 404s the CSS border still draws. */
+  --pax-material-panel-frame: url("/textures/neon-arcade/panel-frame.png") 215 280 245 265 / 20px / 0 stretch;
+  --pax-material-panel-frame-inset: -17px;
+  --pax-material-panel-frame-border: 20px solid transparent;
   --pax-material-panel-texture: url("/textures/neon-arcade/plate-tile.png");
   --pax-material-panel-texture-size: 300px 300px;
   --pax-material-panel-texture-opacity: 0.12;
@@ -514,6 +573,22 @@
   color-scheme: light;
   --pax-theme-name: "Broadcast Minimal";
 
+  /* Opaque twins of the panel and control surfaces. The composed surfaces
+     are gradients and several palette entries carry alpha, and CSS color-mix()
+     and border accept COLORS only — feeding either a gradient silently voids
+     the whole declaration. Anything that mixes or measures uses these.
+     They are the flattened result of the real surface over the void. */
+  --pax-color-panel-solid: #ffffff;
+  --pax-color-control-solid: #eef1f4;
+
+  /* How a SEMANTICALLY TONED control renders when selected. On a dark
+     ground a bright tone reads as text over a faint tint of itself; on a
+     light ground that inverts — the tone has to become the fill and the ink
+     goes white, or mid-saturation tones land at ~3.5:1 on near-white. */
+  --pax-material-tone-fill: 100%;
+  --pax-material-tone-ink-mix: 0%;
+  --pax-material-tone-ink-base: #ffffff;
+
   --pax-color-void: #eaecef;
   --pax-color-void-mid: #f5f6f7;
   --pax-color-void-raised: #ffffff;
@@ -541,11 +616,15 @@
   --pax-color-you-strong: #8a5c00;
   --pax-color-you-ink: #2a1f04;
 
-  --pax-color-speed-pause: #6b7484;
-  --pax-color-speed-normal: #2f6fe0;
-  --pax-color-speed-fast: #1f9e63;
-  --pax-color-speed-high: #7b52d8;
-  --pax-color-speed-extreme: #c2600f;
+  /* Darker than the dark themes' ramp on purpose: here the tone becomes the
+     FILL and the ink goes white, so each tone has to clear 4.5:1 against white
+     rather than sit as bright text on near-black. Same hue order, same reading:
+     neutral, calm, steady, urgent, alarming. */
+  --pax-color-speed-pause: #565d6b;
+  --pax-color-speed-normal: #1d4fa8;
+  --pax-color-speed-fast: #17784b;
+  --pax-color-speed-high: #5b34a8;
+  --pax-color-speed-extreme: #a5510c;
 
   /* Typography — Archivo throughout. A single grotesque doing all the work,
      separated by weight and size alone. That restraint is the whole point. */
@@ -671,8 +750,12 @@
      COLORS only — feeding them a var that holds a gradient silently kills the
      whole declaration, which is what made the local-player highlight invisible
      on every dark theme. Anything doing color-mix must use this, not panel-bg. */
-  --pax-ui-panel-solid: var(--pax-color-panel);
+  --pax-ui-panel-solid: var(--pax-color-panel-solid);
+  --pax-ui-control-solid: var(--pax-color-control-solid);
   --pax-ui-void-solid: var(--pax-color-void);
+  --pax-ui-tone-fill: var(--pax-material-tone-fill);
+  --pax-ui-tone-ink-mix: var(--pax-material-tone-ink-mix);
+  --pax-ui-tone-ink-base: var(--pax-material-tone-ink-base);
 
   /* The local player's own signal, and the tempo scale. */
   --pax-ui-you: var(--pax-color-you);

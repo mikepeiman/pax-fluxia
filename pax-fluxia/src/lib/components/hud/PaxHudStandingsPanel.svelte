@@ -1,5 +1,4 @@
 <script lang="ts">
-  import HudIcon from "$lib/components/ui/hud/HudIcon.svelte";
   import { PaxHudIconButton, PaxHudPanel, PaxHudSegmentedControl, type PaxHudSegmentedOption } from "$lib/design-system";
   import { formatHudNumber } from "$lib/components/game-hud/viewModels";
   import type { HudDockSide, PlayerStandingViewModel } from "$lib/components/game-hud/types";
@@ -85,13 +84,16 @@
     />
   </div>
 
+  <!-- Words only. Each header carried a 12px icon that repeated what the word
+       already said, and the two together overran their column — the production
+       icon was rendering clipped. The tooltips keep the long-form meaning. -->
   <div class="pf-standings__columns">
     <span>Player</span>
-    <span title="Active ships"><HudIcon name="paper-plane" size={12} /> Act</span>
-    <span title="Total ships"><HudIcon name="circle-nodes" size={12} /> Tot</span>
-    <span title="Stars"><HudIcon name="atlas-star" size={12} /> Star</span>
-    <span title="Production"><HudIcon name="economy" size={12} /> Prod</span>
-    <span title="Active percent">%</span>
+    <span title="Active ships">Act</span>
+    <span title="Total ships">Tot</span>
+    <span title="Stars">Star</span>
+    <span title="Production per tick">Prod</span>
+    <span title="Share of this player's ships that are active">%</span>
   </div>
 
   <ul class="pf-standings__list">

@@ -30,12 +30,16 @@
   {#snippet actions()}
     <HudIconButton
       icon="chevron-left"
+      density="compact"
+      size={15}
       title="Previous owned star"
       disabled={!canCycleOwnedStars}
       onclick={onPreviousOwnedStar}
     />
     <HudIconButton
       icon="focus"
+      density="compact"
+      size={15}
       accent
       title={star ? "Zoom selected star" : "Select an owned star first"}
       disabled={!star}
@@ -45,12 +49,16 @@
     />
     <HudIconButton
       icon="fit-view"
+      density="compact"
+      size={15}
       accent
       title="Fit map"
       onclick={onFitMap}
     />
     <HudIconButton
       icon="ban"
+      density="compact"
+      size={15}
       title={star?.targetId ? "Cancel current route" : "No active route"}
       danger
       disabled={!star?.targetId}
@@ -60,6 +68,8 @@
     />
     <HudIconButton
       icon="chevron-right"
+      density="compact"
+      size={15}
       title="Next owned star"
       disabled={!canCycleOwnedStars}
       onclick={onNextOwnedStar}
@@ -80,7 +90,13 @@
 
       <div class="pf-star-card__identity">
         <h3>{star.label}</h3>
-        <span style:color={star.starType.color}>{star.starType.label}</span>
+        <!-- The type colour is an ENTITY signal, tuned for the dark map, so it
+             cannot also be the text colour: "Attack" green landed at 1.4:1 on
+             the light theme. It becomes a chip instead — colour carried by the
+             dot and the rule, the word itself in readable theme ink. -->
+        <span class="pf-star-card__typechip" style:--star-type-color={star.starType.color}>
+          <i aria-hidden="true"></i>{star.starType.label}
+        </span>
         <small>{star.owner ? (star.owner.isLocal ? "You" : star.owner.name) : star.source.ownerId}</small>
       </div>
 

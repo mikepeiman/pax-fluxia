@@ -72,6 +72,10 @@ export const hudButton = tv({
       danger: "border-pax-danger/40 bg-pax-panel-muted text-pax-danger hover:border-pax-danger hover:bg-pax-danger/10",
     },
     size: {
+      // `icon-sm` exists for crowded headers: five 36px buttons plus a title do
+      // not fit a 340px rail, and the title was truncating to "STAR V...".
+      // A secondary action cluster can go compact; the title cannot go away.
+      "icon-sm": "h-7 w-7 rounded-pax-sm p-0",
       icon: "h-9 w-9 rounded-pax-md p-0",
       sm: "h-8 rounded-pax-md px-4 text-[0.7rem]",
       md: "h-10 rounded-pax-md px-5 text-[0.74rem]",
@@ -227,7 +231,9 @@ export const hudRange = tv({
       "font-pax-ui text-[0.76rem] font-semibold leading-tight text-pax-text",
     ],
     nudge: [
-      "shrink-0 grid h-5 w-5 place-items-center rounded border border-pax-text-soft/20 bg-transparent",
+      // `pax-hud-range__nudge` is the hook the component uses to raise the hit
+      // target to 24px without changing how big the control looks.
+      "pax-hud-range__nudge shrink-0 grid h-5 w-5 place-items-center rounded border border-pax-text-soft/20 bg-transparent",
       "text-[0.82rem] leading-none text-pax-text-dim",
       "hover:border-pax-text-soft/40 hover:text-pax-text",
       "disabled:pointer-events-none disabled:opacity-30",
@@ -237,7 +243,9 @@ export const hudRange = tv({
       "bg-pax-panel-muted accent-pax-text-soft/70",
     ],
     output: [
-      "shrink-0 w-12 text-right font-pax-data text-[0.74rem] font-semibold tabular-nums text-pax-text",
+      // 48px could not hold "1400 ms" — the unit was rendering clipped on the
+      // tick-duration slider, which is the one range where the unit matters.
+      "shrink-0 w-16 text-right font-pax-data text-[0.74rem] font-semibold tabular-nums text-pax-text",
     ],
   },
 });

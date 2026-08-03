@@ -15,46 +15,54 @@
    editing this file.
    ========================================================================== */
 
+/* An OPAQUE background-color always sits under the composed surface. The
+   surfaces are gradients, i.e. background-IMAGE, which leaves background-color
+   transparent — so anything underneath shows through, and nothing downstream
+   can compute what colour the text is actually on. The solid twin fixes both:
+   the render is correct if a gradient is unsupported, and contrast becomes
+   measurable instead of a guess. */
+/* The panel's whole surface, in one place.
+
+   The texture is a background LAYER rather than a pseudo-element: the two
+   pseudos are both spoken for (raster frame, edge ring), and a layer composites
+   with the surface for free via background-blend-mode.
+
+   An OPAQUE background-color always sits under the composed surface. The
+   surfaces are gradients, i.e. background-IMAGE, which leaves background-color
+   transparent — so anything underneath shows through, and nothing downstream
+   can compute what colour the text is actually on. The solid twin fixes both:
+   the render is correct if a gradient is unsupported, and contrast becomes
+   measurable instead of a guess. */
 .pax-hud-panel {
-  background: var(--pax-ui-panel-bg);
+  background-color: var(--pax-ui-panel-solid);
+  background-image: var(--pax-ui-panel-texture), var(--pax-ui-panel-bg);
+  background-size: var(--pax-ui-panel-texture-size), auto;
+  background-repeat: repeat, no-repeat;
+  background-blend-mode: var(--pax-ui-panel-texture-blend), normal;
   border-color: var(--pax-ui-border);
   clip-path: var(--pax-ui-panel-clip);
   filter: var(--pax-ui-panel-bloom);
+  box-shadow: var(--pax-ui-shadow-soft);
 }
 
 /* Panel tones are variant classes on the same element; match them so `strong`
-   and `muted` still differ once the shorthand above takes over the background. */
+   and `muted` still differ once the rule above takes over the background. */
 .pax-hud-panel.bg-pax-panel-strong {
-  background: var(--pax-ui-panel-bg-strong);
+  background-image: var(--pax-ui-panel-texture), var(--pax-ui-panel-bg-strong);
   border-color: var(--pax-ui-border-strong);
 }
 
 .pax-hud-panel.bg-pax-panel-muted {
-  background: var(--pax-ui-panel-bg-muted);
-}
-
-/* Surface texture + scanline. `isolation: isolate` on the panel makes it a
-   stacking context, so a z-index:-1 child paints ABOVE the panel's own
-   background but BELOW all in-flow content — exactly where a material goes. */
-.pax-hud-panel::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  border-radius: inherit;
-  clip-path: var(--pax-ui-panel-clip);
-  background-image: var(--pax-ui-panel-texture);
-  background-size: var(--pax-ui-panel-texture-size);
-  background-repeat: repeat;
-  opacity: var(--pax-ui-panel-texture-opacity);
-  mix-blend-mode: var(--pax-ui-panel-texture-blend);
+  background-color: var(--pax-ui-control-solid);
+  background-image: var(--pax-ui-panel-texture), var(--pax-ui-panel-bg-muted);
 }
 
 /* Raster 9-slice frame. It rides OUTSIDE the panel box on its own pseudo, so
-   wiring a frame never changes layout or padding — and a themes with no frame
-   asset resolves to `0 solid transparent` + `none` and draws nothing at all. */
-.pax-hud-panel::after {
+   wiring a frame never changes layout or padding — and a theme with no frame
+   asset resolves to `0 solid transparent` + `none` and draws nothing at all.
+   `isolation: isolate` on the panel makes it a stacking context, so z-index:-1
+   paints above the panel's background but below all in-flow content. */
+.pax-hud-panel::before {
   content: "";
   position: absolute;
   inset: var(--pax-ui-panel-frame-inset);
@@ -62,6 +70,28 @@
   pointer-events: none;
   border: var(--pax-ui-panel-frame-border);
   border-image: var(--pax-ui-panel-frame);
+}
+
+/* The lit edge: a 1px ring painted with the theme's border gradient, masked to
+   the outline so only the rim shows. This is what gives Aurelia its bevel rake
+   and Nebula its cool machined line. */
+.pax-hud-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--pax-ui-border-gradient);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
 }
 
 /* Scanline sits on the command surfaces, which already isolate. */
@@ -102,8 +132,13 @@
    leaves the fill transparent, everything else fills. */
 .pax-hud-segment[data-toned][data-state="on"] {
   border-color: var(--pax-segment-tone);
-  background: color-mix(in srgb, var(--pax-segment-tone) 20%, var(--pax-ui-panel-solid));
-  color: var(--pax-segment-tone);
+  /* The dark themes tint faintly and colour the text; the light theme fills
+     with the tone and flips the ink to white. Both directions are theme
+     tokens, so this rule never branches on a theme id — and a mid-saturation
+     tone stops landing at ~3.5:1 as text on near-white. */
+  background-color: color-mix(in srgb, var(--pax-segment-tone) var(--pax-ui-tone-fill), var(--pax-ui-panel-solid));
+  background-image: none;
+  color: color-mix(in srgb, var(--pax-segment-tone) var(--pax-ui-tone-ink-mix), var(--pax-ui-tone-ink-base));
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, var(--pax-segment-tone) 70%, transparent),
     0 0 14px color-mix(in srgb, var(--pax-segment-tone) 34%, transparent);
@@ -112,18 +147,6 @@
 .pax-hud-segment[data-toned]:hover {
   border-color: color-mix(in srgb, var(--pax-segment-tone) 55%, transparent);
   color: var(--pax-segment-tone);
-}
-
-/* Brand type is a theme axis: Audiowide needs loose tracking at weight 400,
-   Archivo needs tight tracking at 700. One rule, driven by tokens. */
-.pf-hud-topbar__title {
-  font-family: var(--pax-ui-font-brand);
-  font-weight: var(--pax-ui-brand-weight);
-  letter-spacing: var(--pax-ui-brand-tracking);
-  text-transform: uppercase;
-  color: var(--pax-ui-text-strong);
-  text-shadow: var(--pax-ui-title-glow);
-  white-space: nowrap;
 }
 
 .pf-hud-panel,
@@ -309,49 +332,9 @@
   padding: 0;
 }
 
-/* THE local-player row. Standings are the primary read of the whole HUD, and
-   this row is the primary read of the standings — so it carries a lit left edge,
-   a warm translucent wash and an outward glow, not just a slightly different
-   tint. Matches the treatment proven in the theme lab. */
-.pf-standings__row--local {
-  /* --pax-ui-you is a DEDICATED signal, not the frame accent. Reusing the frame
-     accent made "you" the same hue as every panel border on Aurelia, and pure
-     steel on Nebula Veil — it has to stand outside the chrome AND outside every
-     faction colour. Each theme picks its own, including a darker one for the
-     light theme where a pale wash would simply vanish. */
-  border-color: var(--pax-ui-you-strong);
-  border-left: 3px solid var(--pax-ui-you-strong);
-  background:
-    linear-gradient(90deg,
-      color-mix(in srgb, var(--pax-ui-you) 34%, transparent) 0%,
-      color-mix(in srgb, var(--pax-ui-you) 14%, transparent) 46%,
-      color-mix(in srgb, var(--pax-ui-you) 3%, transparent) 100%),
-    color-mix(in srgb, var(--pax-color-void) 82%, transparent);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--pax-ui-you) 42%, transparent),
-    inset 10px 0 24px -12px var(--pax-ui-you-strong),
-    0 0 18px color-mix(in srgb, var(--pax-ui-you) 22%, transparent);
-  color: var(--pax-ui-text-strong);
-}
-
-.pf-standings__row--local .pf-standings__name {
+.pf-standings__name {
   color: var(--pax-ui-you-strong);
   font-weight: var(--pax-weight-bold);
-}
-
-/* Secondary highlight: the owner of a clicked ENEMY star, glowing in their own
-   colour so it reads as "this is who owns the star you selected". Cleared when
-   selection clears (empty space) or a self/neutral star is picked. Layers over
-   --local via box-shadow so a selected enemy that is somehow local still reads. */
-.pf-standings__row--selected {
-  border-color: color-mix(in srgb, var(--player-color) 72%, transparent);
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--player-color) 26%, transparent), color-mix(in srgb, var(--pax-color-void) 70%, transparent) 60%),
-    color-mix(in srgb, var(--pax-color-void) 88%, transparent);
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--player-color) 60%, transparent),
-    0 0 12px -2px color-mix(in srgb, var(--player-color) 65%, transparent);
-  color: var(--pax-ui-text-strong);
 }
 
 .pf-standings__name {
@@ -397,6 +380,33 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Star type as a chip: the entity colour identifies, the theme ink reads. */
+.pf-star-card__typechip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  justify-self: start;
+  padding: 2px 7px 2px 5px;
+  border: 1px solid color-mix(in srgb, var(--star-type-color) 55%, transparent);
+  border-radius: var(--pax-ui-radius-xs);
+  background: color-mix(in srgb, var(--star-type-color) 14%, var(--pax-ui-panel-solid));
+  color: var(--pax-ui-text-strong);
+  font-size: var(--pax-type-2xs);
+  font-weight: var(--pax-weight-semibold);
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.pf-star-card__typechip i {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--star-type-color);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--star-type-color) 70%, transparent);
 }
 
 .pf-star-metric span {
@@ -598,7 +608,7 @@
   }
 
   .pf-star-card__metrics {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 7px;
   }
 
@@ -619,7 +629,9 @@
   }
 }
 
-.pf-hud-panel,
+/* Command surfaces only. `.pf-hud-panel` used to be in this list, which meant a
+   panel got this theme-blind background AND the token-driven material at the top
+   of the file — and this one, being later, won. Panels are not here any more. */
 .pf-hud-topbar,
 .pf-quick-access-dock,
 .pf-bottom-command-bar {
@@ -1240,7 +1252,8 @@
   color: var(--pax-ui-danger);
 }
 
-.pf-hud-panel,
+/* Panels are excluded: a clip-path would cut off the raster frame and every
+   outward glow, which is most of what a theme's material actually is. */
 .pf-quick-access-dock,
 .pf-bottom-command-bar,
 .pf-theme-library,
@@ -1265,8 +1278,9 @@
   clip-path: none;
 }
 
-.pf-hud-panel::after,
-.pf-hud-topbar::after,
+/* The topbar is excluded: its ::after carries the themed EDGE RAIL (top of this
+   file), which is a real material and not a generic 1px outline. Two rules on
+   one pseudo meant the later one silently won and the rail never drew. */
 .pf-quick-access-dock::after,
 .pf-bottom-command-bar::after,
 .pf-theme-library::after,
@@ -1368,8 +1382,14 @@
   border-color: transparent;
   border-radius: var(--pax-ui-radius-md);
   clip-path: var(--pax-ui-rounded-corner-md);
+  /* The tick readout is the topbar's one emphasised cell. Its fill used to be a
+     hardcoded brass `rgba(45,34,15,.92)`, which rendered as a dark brown slab on
+     the light theme and was off-hue on every theme but Aurelia. Derived from the
+     theme's own frame accent over the panel surface instead. */
   background:
-    linear-gradient(180deg, rgba(45, 34, 15, 0.92), color-mix(in srgb, var(--pax-color-void) 92%, transparent)) padding-box,
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--pax-ui-accent-warm) 16%, var(--pax-ui-panel-solid)),
+      var(--pax-ui-panel-solid)) padding-box,
     var(--pax-ui-border-gradient) border-box;
 }
 
@@ -1391,14 +1411,20 @@
   font-size: calc(0.86rem * var(--pax-ui-title-scale, 1));
 }
 
+/* Brand type is a theme axis. Weight and tracking are TOKENS because the faces
+   differ: Audiowide ships one weight (400) and needs air, Archivo wants 700 and
+   tight tracking, Cormorant wants 700 with a serif's own rhythm. This rule used
+   to hardcode 800 / 0.18em, which asked Chakra Petch and Audiowide for weights
+   they do not vendor — so both silently fell back to a system face and the
+   typography axis of two themes simply did not exist. */
 .pf-hud-topbar__title {
   font-family: var(--pax-ui-font-brand);
-  color: var(--pax-ui-accent-warm-strong, var(--pax-ui-text-strong));
-  font-weight: var(--pax-weight-extrabold);
+  color: var(--pax-ui-text-strong);
+  font-weight: var(--pax-ui-brand-weight);
+  letter-spacing: var(--pax-ui-brand-tracking);
   text-transform: uppercase;
   white-space: nowrap;
-  text-shadow: 0 0 16px color-mix(in srgb, var(--pax-ui-accent-warm) 22%, transparent);
-  letter-spacing: 0.18em;
+  text-shadow: var(--pax-ui-title-glow);
   font-size: calc(1.02rem * var(--pax-ui-title-scale, 1));
 }
 
@@ -1449,12 +1475,11 @@
   font-size: calc(0.9rem * var(--pax-ui-data-scale, 1));
 }
 
+/* Layout only. The border colour belongs to the theme's material block. */
 .pf-hud-panel {
   display: grid;
   min-width: 0;
-  border-color: color-mix(in srgb, var(--pax-ui-accent-warm) 32%, transparent);
   gap: var(--pax-ui-gap-sm);
-  padding: var(--pax-ui-pad-sm);
 }
 
 .pf-hud-panel__header {
@@ -1503,13 +1528,16 @@
 .pf-standings__row {
   display: grid;
   align-items: center;
+  /* `Star` and `Prod` are 4-letter headers at black weight with 0.08em tracking;
+     their old 28/34px floors clipped the words. Sized to the label, not to the
+     digits, since the label is always the wider of the two. */
   grid-template-columns:
-    minmax(0, 1.5fr)
-    minmax(34px, 0.65fr)
-    minmax(38px, 0.7fr)
-    minmax(28px, 0.48fr)
-    minmax(34px, 0.58fr)
-    minmax(32px, 0.5fr);
+    minmax(0, 1.45fr)
+    minmax(34px, 0.62fr)
+    minmax(36px, 0.66fr)
+    minmax(36px, 0.56fr)
+    minmax(38px, 0.6fr)
+    minmax(34px, 0.5fr);
   gap: var(--pax-gap-xs);
 }
 
@@ -1521,17 +1549,75 @@
   font-size: calc(0.62rem * var(--pax-ui-type-scale, 1));
 }
 
+/* Faction colour IDENTIFIES a row; it does not shout. Every row used to carry a
+   34% player-colour outline and an 18% wash, which made the ladder a rainbow of
+   six equally loud bands — so the local row could not dominate no matter how
+   strong its own treatment got, and the standings had no hierarchy at all. The
+   colour now lives in the dot and a lit left edge; the surface stays neutral.
+   That leaves exactly two things able to draw the eye: your own row, and the
+   row whose star you just clicked. (The old border also fell back to a
+   hardcoded brass, which was off-hue everywhere but Aurelia.) */
 .pf-standings__row {
-  border: 1px solid color-mix(in srgb, var(--player-color) 34%, rgba(246, 196, 105, 0.12));
-  border-radius: 10px;
-  background:
-    linear-gradient(90deg, color-mix(in srgb, var(--player-color) 18%, transparent), color-mix(in srgb, var(--pax-color-void) 68%, transparent) 62%),
-    color-mix(in srgb, var(--pax-color-void) 86%, transparent);
+  border: 1px solid var(--pax-ui-divider);
+  border-left: 3px solid color-mix(in srgb, var(--player-color) 70%, transparent);
+  border-radius: var(--pax-ui-radius-sm);
+  background-color: color-mix(in srgb, var(--pax-ui-panel-solid) 70%, var(--pax-ui-void-solid));
   color: var(--pax-ui-text);
   align-items: center;
   min-height: 36px;
   padding: var(--pax-gap-xs) var(--pax-space-2);
   font-size: calc(0.72rem * var(--pax-ui-type-scale, 1));
+  transition: background-color var(--pax-ui-motion-fast), border-color var(--pax-ui-motion-fast);
+}
+
+.pf-standings__row:hover {
+  border-color: color-mix(in srgb, var(--player-color) 40%, var(--pax-ui-divider));
+  border-left-color: var(--player-color);
+  background-color: color-mix(in srgb, var(--player-color) 8%, var(--pax-ui-panel-solid));
+}
+
+/* THE local-player row. Standings are the primary read of the whole HUD, and
+   this row is the primary read of the standings — so it carries a lit left edge,
+   a warm translucent wash and an outward glow, not just a slightly different
+   tint. Matches the treatment proven in the theme lab. */
+.pf-standings__row--local {
+  /* --pax-ui-you is a DEDICATED signal, not the frame accent. Reusing the frame
+     accent made "you" the same hue as every panel border on Aurelia, and pure
+     steel on Nebula Veil — it has to stand outside the chrome AND outside every
+     faction colour. Each theme picks its own, including a darker one for the
+     light theme where a pale wash would simply vanish. */
+  border-color: var(--pax-ui-you-strong);
+  border-left: 3px solid var(--pax-ui-you-strong);
+  background:
+    linear-gradient(90deg,
+      color-mix(in srgb, var(--pax-ui-you) 34%, transparent) 0%,
+      color-mix(in srgb, var(--pax-ui-you) 14%, transparent) 46%,
+      color-mix(in srgb, var(--pax-ui-you) 3%, transparent) 100%),
+    color-mix(in srgb, var(--pax-color-void) 82%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--pax-ui-you) 42%, transparent),
+    inset 10px 0 24px -12px var(--pax-ui-you-strong),
+    0 0 18px color-mix(in srgb, var(--pax-ui-you) 22%, transparent);
+  color: var(--pax-ui-text-strong);
+}
+
+.pf-standings__row--local .pf-standings__name {
+  color: var(--pax-ui-you-strong);
+  font-weight: var(--pax-weight-bold);
+}
+
+/* Secondary highlight: the owner of a clicked ENEMY star, glowing in their own
+   colour so it reads as "this is who owns the star you selected". Cleared when
+   selection clears (empty space) or a self/neutral star is picked. Ranks below
+   --local deliberately: your own row must stay the loudest thing on screen. */
+.pf-standings__row--selected {
+  border-color: color-mix(in srgb, var(--player-color) 72%, transparent);
+  border-left-color: var(--player-color);
+  background-color: color-mix(in srgb, var(--player-color) 16%, var(--pax-ui-panel-solid));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--player-color) 60%, transparent),
+    0 0 12px -2px color-mix(in srgb, var(--player-color) 65%, transparent);
+  color: var(--pax-ui-text-strong);
 }
 
 .pf-standings__columns {
@@ -1561,10 +1647,14 @@
   min-height: 72px;
 }
 
+/* Two columns, not three. In a ~340px rail a third column leaves ~95px per
+   cell, and "PRODUCTION" / "ACTIVATION" / "TRANSFER" at label tracking need
+   ~110px — every one of them was rendering clipped. The rail is tall and
+   narrow, so height is the cheap axis: 2x3 gives each label room to finish. */
 .pf-star-card__metrics {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--pax-space-2);
 }
 

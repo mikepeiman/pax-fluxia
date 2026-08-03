@@ -16,7 +16,9 @@ const FAMILIES = [
   { name: "Chakra Petch", file: "ChakraPetch", weights: [500, 600, 700] },
   { name: "Barlow", file: "Barlow", weights: [400, 500, 600, 700] },
   { name: "Cormorant Garamond", file: "CormorantGaramond", weights: [600, 700] },
-  { name: "Spectral", file: "Spectral", weights: [400, 500, 600] },
+  // 700 matters: Aurelia sets bold UI labels in Spectral, and a synthetic
+  // bold on a serif smears the stems.
+  { name: "Spectral", file: "Spectral", weights: [400, 500, 600, 700] },
   { name: "Audiowide", file: "Audiowide", weights: [400] },
   { name: "Archivo", file: "Archivo", weights: [500, 600, 700] },
 ];

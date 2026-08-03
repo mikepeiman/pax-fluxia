@@ -9,6 +9,7 @@
     danger?: boolean;
     disabled?: boolean;
     size?: number;
+    density?: "comfortable" | "compact";
     class?: string;
     onclick?: () => void;
   }
@@ -21,6 +22,7 @@
     danger = false,
     disabled = false,
     size = 17,
+    density = "comfortable",
     class: className = "",
     onclick,
   }: Props = $props();
@@ -35,6 +37,7 @@
   {danger}
   {disabled}
   {size}
+  {density}
   class={`pf-hud-icon-button ${className}`}
   {onclick}
 />

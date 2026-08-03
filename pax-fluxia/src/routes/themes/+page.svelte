@@ -625,6 +625,46 @@
     --pax-color-panel: var(--panel-fill);
     --pax-color-panel-strong: var(--panel-fill);
     --pax-color-panel-muted: var(--inset);
+    /* These have to be aliased at TIER 2, not Tier 1. The shipped Tier-2 block
+       is selected by `:root, [data-pax-theme]`, and the lab stage is neither —
+       so a Tier-1 override here never re-resolves the role, and the lab would
+       inherit the ROOT theme's values. (That is how Broadcast ended up putting
+       near-black ink on Nebula Veil's dark panel.) */
+    --pax-ui-panel-solid: var(--screen-solid);
+    --pax-ui-control-solid: var(--screen-solid);
+    --pax-ui-void-solid: var(--screen-solid);
+    /* Toned-control treatment: tint + coloured ink on dark, solid fill + white
+       ink on light. Broadcast overrides these in its own block. */
+    --pax-ui-tone-fill: 20%;
+    --pax-ui-tone-ink-mix: 100%;
+    --pax-ui-tone-ink-base: transparent;
+    /* The lab draws its own chassis, so the shipped raster material stays off. */
+    --pax-ui-panel-clip: none;
+    --pax-ui-panel-bloom: none;
+    --pax-ui-panel-frame: none;
+    --pax-ui-panel-frame-inset: 0px;
+    --pax-ui-panel-frame-border: 0 solid transparent;
+    --pax-ui-panel-texture: none;
+    --pax-ui-panel-texture-size: auto;
+    --pax-ui-panel-texture-opacity: 0;
+    --pax-ui-panel-texture-blend: normal;
+    --pax-ui-scanline-opacity: 0;
+    --pax-ui-title-glow: none;
+    --pax-ui-accent-glow: var(--accent-glow);
+    --pax-ui-rail: none;
+    --pax-ui-rail-height: 1px;
+    --pax-ui-rail-position: bottom center;
+    --pax-ui-rail-size: 100% 1px;
+    --pax-ui-brand-weight: var(--brand-weight);
+    --pax-ui-brand-tracking: var(--brand-spacing);
+    --pax-ui-you: var(--you-hi);
+    --pax-ui-you-strong: var(--you-hi-strong);
+    --pax-ui-you-ink: var(--you-ink);
+    --pax-ui-speed-pause: var(--spd-pause);
+    --pax-ui-speed-normal: var(--spd-normal);
+    --pax-ui-speed-fast: var(--spd-fast);
+    --pax-ui-speed-high: var(--spd-high);
+    --pax-ui-speed-extreme: var(--spd-extreme);
     --pax-color-control: var(--inset);
     --pax-color-control-hover: color-mix(in srgb, var(--accent) 14%, var(--inset));
     --pax-color-control-active: var(--accent);
@@ -905,6 +945,10 @@
     --font-ui: "Archivo", "Segoe UI", system-ui, sans-serif;
     --panel-clip: none; --panel-radius: 8px; --cut: 0px;
     --screen-clip: none; --screen-radius: 10px; --scan: 0; --bracket: 0;
+    /* On a light ground the tone becomes the fill and the ink flips to white. */
+    --pax-ui-tone-fill: 100%;
+    --pax-ui-tone-ink-mix: 0%;
+    --pax-ui-tone-ink-base: #ffffff;
   }
 
   .mono { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
@@ -970,7 +1014,7 @@
 
   .tb__command { display: flex; align-items: center; gap: 16px; margin: 0 auto; padding: 7px 20px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 6%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent); box-shadow: inset 0 1px 0 rgba(255,255,255,0.04); }
   .cmd { display: flex; align-items: baseline; gap: 8px; }
-  .cmd--live { align-items: center; color: var(--accent); text-transform: uppercase; font-size: 12px; letter-spacing: 0.1em; line-height: 1; }
+  .cmd--live { align-items: center; color: var(--accent-text); text-transform: uppercase; font-size: 12px; letter-spacing: 0.1em; line-height: 1; }
   .cmd__k { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); }
   .cmd__v { font-family: var(--font-data); font-size: 16px; color: var(--text-strong); }
   .cmd--tick .cmd__v { font-size: 22px; color: var(--accent-strong); text-shadow: 0 0 14px var(--accent-glow); line-height: 1; }

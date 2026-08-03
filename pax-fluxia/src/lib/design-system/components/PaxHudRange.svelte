@@ -121,13 +121,28 @@
 </div>
 
 <style>
+  /* Hit targets. The nudges and the value field are deliberately small so a
+     settings list stays dense, but 20px and 22px both fail WCAG 2.5.8's 24px
+     minimum. Padding grows the target without moving anything: the row is
+     centre-aligned, so vertical padding expands around the same visual box and
+     the flex line height is already taller than these controls. */
+  .pax-hud-range__value,
+  :global(.pax-hud-range__nudge) {
+    padding-block: 3px;
+    min-height: 24px;
+  }
+  :global(.pax-hud-range__nudge) {
+    padding-inline: 2px;
+    min-width: 24px;
+  }
+
   /* Value reads as plain text; only on hover/focus does it look editable. */
   .pax-hud-range__value {
     box-sizing: border-box;
     background: transparent;
     border: 0;
     border-radius: 5px;
-    padding: 2px var(--pax-space-1);
+    padding-inline: var(--pax-space-1);
     appearance: none;
     cursor: text;
     transition:

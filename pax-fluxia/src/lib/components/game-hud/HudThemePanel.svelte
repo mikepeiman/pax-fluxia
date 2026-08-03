@@ -227,7 +227,11 @@
     gap: var(--pax-gap-sm);
     flex: 0 0 auto;
     padding: 5px 9px 5px 6px;
-    background: var(--pax-ui-panel-bg);
+    /* Opaque colour under the composed surface — the surfaces are gradients,
+       so without it the card behind shows through and the specimen sits on the
+       wrong theme's ground (dark ink on a dark card, and vice versa). */
+    background-color: var(--pax-ui-panel-solid);
+    background-image: var(--pax-ui-panel-bg);
     border: 1px solid var(--pax-ui-border);
     border-radius: var(--pax-ui-radius-sm);
   }
