@@ -362,6 +362,22 @@
     "grid_gradient",
   ]);
 
+  /**
+   * The mode the GAME is actually rendering right now.
+   *
+   * Deliberately NOT `resolveActiveStyleId()`: that one prefers the browsed
+   * subsection so you can open any mode's tuning card without switching the
+   * live renderer. The picker must show — and set — the live mode, or it would
+   * report whichever card you happened to be looking at.
+   */
+  function resolveLiveRenderModeId(): string {
+    return normalizeTerritoryRenderModeId(
+      panel.territoryRenderMode ??
+        GAME_CONFIG.TERRITORY_RENDER_MODE ??
+        "power_vector",
+    ) as string;
+  }
+
   function resolveActiveStyleId(): string {
     if (
       view === "styles" &&
@@ -489,21 +505,11 @@
         <div class="territory-card__header">
       <h4 class="axis-card-title">{hideRenderModeSelector ? "Transition" : "Mode"}</h4>
         </div>
-        {#if !hideRenderModeSelector}
-          <div class="axis-row territory-axis territory-axis--render-mode">
-            <!-- Tiles, not a dropdown. The render-mode buttons left the topbar
-                 permanently, so this is now the ONLY place the look of the map
-                 is chosen — and six visually distinct renderers hidden behind
-                 six names is not a choice a player can make by reading. -->
-            <RenderModePicker
-              label="Render mode"
-              hint="The active renderer family for territory fills/borders. Each tile previews what that mode draws; every family exposes its own tuning below."
-              value={resolveActiveStyleId()}
-              options={getRenderModeOptions()}
-              onValueChange={selectTerritoryStyle}
-            />
-          </div>
-        {/if}
+        <!-- The render-mode picker used to live here. It never rendered: the
+             only mount passing view="modes" is the Transition section, which
+             also passes hideRenderModeSelector. It now lives in the styles view
+             (the section actually labelled "Render"), which IS mounted.
+             renderModeReachability.test guards that. -->
 
         {#if $territoryRenderStatus.lastRenderFailure}
           <div class="axis-note axis-note--warning">
@@ -952,6 +958,28 @@
 {/if}
 
 {#if showStylesView}
+  <!-- The render-mode picker lives HERE, in the section actually labelled
+       "Render". It previously sat in the `modes` view, which only the Transition
+       section mounts — and that mount passes hideRenderModeSelector — so the
+       picker rendered on no screen at all. With the topbar mode buttons removed,
+       that left no way whatsoever to change how territory is drawn.
+
+       It sits ABOVE the style-surface gate on purpose: a mode with no style
+       surface (or Off) must still be escapable, and a picker hidden behind
+       "this mode exposes no controls" would strand you on it. -->
+  <!-- No section heading: the picker renders its own labelled header (which
+       carries the hint), and a shell heading above it just said "Render Mode"
+       twice in a row. -->
+  <div class="territory-section-shell territory-section-shell--system">
+    <RenderModePicker
+      label="Render mode"
+      hint="How territory is drawn on the map. Each tile previews what that renderer produces; the cards below tune whichever mode you are viewing."
+      value={resolveLiveRenderModeId()}
+      options={getRenderModeOptions()}
+      onValueChange={selectTerritoryStyle}
+    />
+  </div>
+
   {#if !hasTerritoryStyleControls()}
     <div class="axis-note">
       This render mode does not expose a separate style surface.
@@ -1084,24 +1112,8 @@
     padding-bottom: var(--pax-gap-xs);
     border-bottom: 1px solid color-mix(in srgb, var(--pax-ui-text-strong) 6%, transparent);
   }
-  .axis-row {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--pax-space-2);
-    padding: 5px 0;
-    border-bottom: 1px solid color-mix(in srgb, var(--pax-ui-text-strong) 4%, transparent);
-  }
-  .axis-row:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
-  }
-  .territory-axis {
-    align-items: stretch;
-  }
-  .territory-axis--render-mode {
-    --accent: var(--pax-color-player-purple);
-    --accent-bg: color-mix(in srgb, var(--pax-color-player-purple) 15%, transparent);
-  }
+  /* .axis-row / .territory-axis / .territory-axis--render-mode removed with the
+     dead render-mode block they wrapped — they had no other user. */
   .territory-indent {
     margin-left: var(--pax-gap-md);
   }
