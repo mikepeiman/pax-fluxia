@@ -95,7 +95,6 @@ interface GameConfigType {
     CONQUEST_TRANSFER_PERCENTAGE: number;
     CONQUEST_DAMAGED_CAPTURE_RATE: number;  // % of damaged ships captured at conquest (0-1)
     CONQUEST_DAMAGED_DESTROY_RATE: number;  // % of damaged ships destroyed at conquest (0-1)
-    OVERWHELM_THRESHOLD: number;
 
     // Order continuity compatibility
     ORDERS_PERSIST_AFTER_CONQUEST: boolean;
@@ -126,7 +125,6 @@ interface GameConfigType {
     ORBIT_RING_MULT: number;       // Orbit ring spacing = SHIP_BASE_SIZE * ORBIT_RING_MULT (default 1.4)
     DAMAGED_ORBIT_RADIUS: number;  // Radius where damaged ships orbit (default 15)
     DAMAGED_ORBIT_EVADE: boolean;  // Whether damaged ships cluster away from combat (default true)
-    TRANSFER_ANIMATION_MS: number;
     STATIC_ORBITS: boolean;  // When true, ships don't rotate around stars (performance)
     SHOW_SELECTION_HEX: boolean;  // Show hex border on selected star (above ships)
 
@@ -152,7 +150,6 @@ interface GameConfigType {
     TRAVEL_ARC_INTENSITY: number;   // How much curvature in the bezier arc (0=straight, 1=max, default 0.5)
     // Lane convergence controls
     LANE_CONVERGENCE: number;       // How tightly ships converge to lane (0=straight to orbit slot, 1=full lane, default 1)
-    LANE_CONVERGENCE_POINT: number; // Where along origin→dest center the convergence point sits (0-100, default 0)
     ORBIT_DENSITY: number;         // Ship spacing factor per ring: circumference / (BASE_SIZE * ORBIT_DENSITY). Higher = fewer per ring (default 1.5)
     ATTACK_SURGE_MULT: number;     // Attack surge displacement as fraction of star radius (default 0.4)
     ATTACK_SURGE_PROPORTIONAL: boolean; // Scale surge by force disparity ratio (default true)
@@ -166,8 +163,6 @@ interface GameConfigType {
     CONQUEST_SETTLE_MS: number;          // How long conquest ships take to settle into orbit in surge mode (ms, default 500)
     CONQUEST_SURGE_RADIUS: number;       // Initial spawn radius above orbit for surge mode (px, default 40)
     CONQUEST_SURGE_STAGGER_MS: number;   // Per-ship stagger delay for organic arrival spread (ms, default 30)
-    CONQUEST_TRAVEL_SPEED: number;       // Duration multiplier vs normal transfer (lower = faster, default 0.7)
-    CONQUEST_LERP_DELAY_MS: number;      // Delay before conquest ships start moving (ms, default 200)
     CONQUEST_COLOR_DELAY_TICKS: number;  // Delay before color change, in ticks (auto-scales with game speed, default 2)
     CONQUEST_FLASH_TICKS: number;        // Duration of flash in ticks (auto-scales with game speed, 0=disabled, default 3)
     // Arrowhead conquest animation
@@ -231,14 +226,11 @@ interface GameConfigType {
     // Star glow — radial gradient behind ships showing fleet power
     STAR_GLOW_ON: boolean;         // Enable star glow effect (default true)
     STAR_RING_RADIUS: number;       // Absolute ownership-ring radius from star center in px (default 30)
-    STAR_RING_OFFSET: number;       // LEGACY — kept for compat, prefer STAR_RING_RADIUS
     STAR_RING_WIDTH: number;        // Ownership-ring stroke width in px (default 2)
     STAR_RING_ALPHA: number;        // Ownership-ring opacity (0-1, default 0.8)
     STAR_RING_SATURATION: number;   // Ownership-ring saturation multiplier (0-2, default 1.0)
     STAR_RING_LIGHTNESS: number;    // Ownership-ring lightness multiplier (0-2, default 1.0)
     STAR_SYSTEM_SCALE: number;      // Master scale for entire star system (0.3-3.0, default 1.0)
-    STAR_LABEL_OFFSET_X: number;    // Label offset from star center X (default 45)
-    STAR_LABEL_OFFSET_Y: number;    // Label offset from star center Y (default 35)
     STAR_LABEL_FONT_SIZE: number;   // Active ships font size (default 14)
     STAR_LABEL_ID_FONT_SIZE: number;// Star ID font size (default 13)
     STAR_LABEL_DAMAGED_FONT_SIZE: number; // Damaged ships font size (default 12)
@@ -267,7 +259,6 @@ interface GameConfigType {
     STAR_HIT_RADIUS: number;        // Click/drag hit zone radius in px (default 50)
     STAR_GLOW_RADIUS_MULT: number;  // Glow radius as multiplier of outermost orbit ring (default 1.3)
     STAR_GLOW_INTENSITY: number;    // Peak glow alpha (0-1, default 0.25)
-    STAR_GLOW_LAYERS: number;       // Number of concentric gradient layers (default 4)
 
     /** How far order arrows extend along the lane (0.0-1.0, 1.0 = full distance to target edge) */
     ARROW_LENGTH: number;
@@ -318,13 +309,11 @@ interface GameConfigType {
     // Hex Grid
     HEX_RADIUS: number;
     HEX_PADDING: number;
-    CONNECTION_MAX_DISTANCE: number;
     CONNECTION_COLOR: string;
     CONNECTION_WIDTH: number;
     CONNECTION_ALPHA: number;
     CONNECTION_SHADOW_WIDTH: number;
     CONNECTION_SHADOW_ALPHA: number;
-    SHOW_CONNECTIONS: boolean;
     /**
      * Minimum distance (px) from mapgen lane chords / sampled centerlines to non-endpoint stars.
      * Drives Delaunay pass-through prune and curved-lane solver only when enabled.

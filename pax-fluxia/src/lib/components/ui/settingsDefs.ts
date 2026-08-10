@@ -87,7 +87,6 @@ export interface AnimSliderDef {
 
 export const ANIM_SLIDERS: AnimSliderDef[] = [
     // Travel & Departure
-    { key: 'TRANSFER_ANIMATION_MS', label: 'Transfer Anim', min: 0, max: 5000, step: 10, unit: 'ms', group: 'Travel & Departure' },
     { key: 'TRAVEL_DURATION_MULT', label: 'Travel Duration', min: 0.1, max: 10, step: 0.1, unit: '×tick', group: 'Travel & Departure' },
     { key: 'DEPART_JITTER_MS', label: 'Depart Jitter', min: 0, max: 5000, step: 5, unit: 'ms', group: 'Travel & Departure' },
     // Settle & Orbit
@@ -314,7 +313,6 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'STAR_SHAPE_MODE' },
     { configKey: 'STAR_ICON_SCALE' },
     { configKey: 'STAR_CORNER_RADIUS' },
-    { configKey: 'STAR_RING_OFFSET' },
     { configKey: 'STAR_RING_WIDTH' },
     { configKey: 'STAR_RING_ALPHA' },
     { configKey: 'ORBIT_RING_MULT' },
@@ -408,13 +406,11 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     // Pixel extras
     // Graph Territory
     // Connection visuals
-    { configKey: 'SHOW_CONNECTIONS' },
     { configKey: 'CONNECTION_WIDTH' },
     { configKey: 'CONNECTION_ALPHA' },
     { configKey: 'CONNECTION_SHADOW_WIDTH' },
     { configKey: 'CONNECTION_SHADOW_ALPHA' },
     // Star glow
-    { configKey: 'STAR_GLOW_LAYERS' },
     // Star ownership ring
     // Density
     { configKey: 'DENSITY_HUE_STEP' },
@@ -429,7 +425,6 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     // Anim speed
     { panelKey: 'animSpeed', configKey: 'ANIMATION_SPEED_MS' },
     // Transfer
-    { configKey: 'TRANSFER_ANIMATION_MS' },
     // Show hex selection
     // Modified Voronoi Territory (F-138)
     // Distance Field Territory (F-138)
@@ -452,7 +447,6 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'RETREAT_DAMAGED_ACTIVATION_RATE' },
     { configKey: 'DAMAGED_SHIP_EFFECTIVENESS' },
     { configKey: 'MINIMUM_DAMAGE' },
-    { configKey: 'OVERWHELM_THRESHOLD' },
     { configKey: 'MIN_REPAIR' },
     { configKey: 'REPAIR_COMBAT_PENALTY' },
     // AI
@@ -606,8 +600,6 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'STAR_LABEL_UNIVERSAL_L' },
     { configKey: 'STAR_LABEL_UNIVERSAL_A' },
     { configKey: 'STAR_LABEL_LINE_HEIGHT' },
-    { configKey: 'STAR_LABEL_OFFSET_X' },
-    { configKey: 'STAR_LABEL_OFFSET_Y' },
     // Star system
     { configKey: 'STAR_SYSTEM_SCALE' },
     { configKey: 'STAR_HIT_RADIUS' },
@@ -616,7 +608,6 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'STAR_RING_SATURATION' },
     // Visuals
     { configKey: 'CONNECTION_COLOR' },
-    { configKey: 'CONNECTION_MAX_DISTANCE' },
     { configKey: 'BG_IMAGE_URL' },
     { configKey: 'BG_IMAGE_ALPHA' },
     { configKey: 'CLASSIC_MAP_SPACING' },

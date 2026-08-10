@@ -11,8 +11,8 @@ import {
 import type { AnimSliderDef } from './settingsDefs';
 
 const MS_SLIDER: AnimSliderDef = {
-    key: 'TRANSFER_ANIMATION_MS',
-    label: 'Transfer Anim',
+    key: 'DEPART_JITTER_MS',
+    label: 'Depart Jitter',
     min: 0,
     max: 5000,
     step: 10,

@@ -349,8 +349,6 @@ const CONTROL_PRESENTATION: Record<
         { value: "travel", label: "Travel" }, { value: "arrowhead", label: "Arrowhead" }] },
     CONQUEST_COLOR_DELAY_TICKS: { unit: " ticks" },
     CONQUEST_FLASH_TICKS: { unit: " ticks" },
-    CONQUEST_LERP_DELAY_MS: { unit: "ms" },
-    CONQUEST_TRAVEL_SPEED: { format: "multiplier" },
     CONQUEST_SETTLE_MS: { unit: "ms" },
     CONQUEST_SURGE_STAGGER_MS: { unit: "ms" },
     CONQUEST_FORCE_GLOW_MULT: { format: "fixed2" },
@@ -413,10 +411,7 @@ const RAW_CONTROLS: readonly SettingsControl[] = [
  * removal survives a registry regeneration.
  */
 const REMOVED_KEYS = new Set<string>([
-    "CONQUEST_TRAVEL_SPEED",
-    "CONQUEST_LERP_DELAY_MS",
     "LANE_CONVERGENCE",
-    "LANE_CONVERGENCE_POINT",
 ]);
 
 export const SETTINGS_CONTROLS: readonly SettingsControl[] = RAW_CONTROLS.filter(

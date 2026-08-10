@@ -35,7 +35,6 @@ export const CONFIG_EXPORT_SECTIONS: Readonly<Record<string, readonly string[]>>
         "CONQUEST_TRANSFER_PERCENTAGE",
     ],
     Conquest: [
-        "OVERWHELM_THRESHOLD",
         "RETREAT_CAPTURE_RATE",
         "SCATTER_CAPTURE_RATE",
         "SCATTER_DESTROY_RATE",

@@ -69,7 +69,6 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'ANIMATION_SPEED_MS',
         'BIND_ANIMATION_TO_TICK',
         'NUMBER_TRANSITION_MS',
-        'TRANSFER_ANIMATION_MS',
     ],
 
     combat: [
@@ -377,7 +376,6 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'STAR_GLOW_ON',
         'STAR_GLOW_RADIUS_MULT',
         'STAR_GLOW_INTENSITY',
-        'STAR_GLOW_LAYERS',
         // Star shape (polygon body)
         'STAR_SHAPE_MODE',
         'STAR_ICON_SCALE',
@@ -387,15 +385,12 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'DAMAGED_SHIP_SCALE',
         // Star rings
         'STAR_RING_RADIUS',
-        'STAR_RING_OFFSET',
         'STAR_RING_WIDTH',
         'STAR_RING_ALPHA',
         'STAR_RING_SATURATION',
         'STAR_RING_LIGHTNESS',
         // Star labels
         'LABEL_ANIM_MODE',
-        'STAR_LABEL_OFFSET_X',
-        'STAR_LABEL_OFFSET_Y',
         'STAR_LABEL_FONT_SIZE',
         'STAR_LABEL_ID_FONT_SIZE',
         'STAR_LABEL_DAMAGED_FONT_SIZE',
@@ -431,13 +426,11 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         // `territory` category (they are territory-geometry topology knobs) to
         // satisfy the exactly-one-category invariant.
         // Connections / Lanes
-        'CONNECTION_MAX_DISTANCE',
         'CONNECTION_COLOR',
         'CONNECTION_WIDTH',
         'CONNECTION_ALPHA',
         'CONNECTION_SHADOW_WIDTH',
         'CONNECTION_SHADOW_ALPHA',
-        'SHOW_CONNECTIONS',
         // Selection
         'SHOW_SELECTION_HEX',
         // Hex grid
@@ -462,7 +455,6 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'CONQUEST_TRANSFER_PERCENTAGE',
         'CONQUEST_DAMAGED_CAPTURE_RATE',
         'CONQUEST_DAMAGED_DESTROY_RATE',
-        'OVERWHELM_THRESHOLD',
         'RETREAT_CAPTURE_RATE',
         'SCATTER_CAPTURE_RATE',
         'SCATTER_DESTROY_RATE',
@@ -554,10 +546,7 @@ export const EXCLUDED_FROM_CATEGORIES: ReadonlySet<string> = new Set([
     'CHAIKIN_BOUNDARY_EPS',
     // Dead travel/conquest knobs (2026-07-22 wiring audit): controls removed
     // (no runtime consumer, or read-but-inert). Keys retained for import.
-    'CONQUEST_TRAVEL_SPEED',
-    'CONQUEST_LERP_DELAY_MS',
     'LANE_CONVERGENCE',
-    'LANE_CONVERGENCE_POINT',
     // Map-generation structure — applied at map creation, not live-tunable.
     'STARS_PER_PLAYER',
     'MIN_LINKS_PER_STAR',

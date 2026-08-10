@@ -50,18 +50,15 @@ function distanceTo(point: { x: number; y: number }, star: StarLaneRef): number 
 }
 
 const originalConvergence = GAME_CONFIG.LANE_CONVERGENCE;
-const originalConvergencePoint = GAME_CONFIG.LANE_CONVERGENCE_POINT;
 
 describe('assignShipLaneGeometry', () => {
     afterEach(() => {
         clearLanePolylineCache();
         GAME_CONFIG.LANE_CONVERGENCE = originalConvergence;
-        GAME_CONFIG.LANE_CONVERGENCE_POINT = originalConvergencePoint;
     });
 
     it('converges onto the trimmed lane start instead of skipping deep into a cached polyline', () => {
         GAME_CONFIG.LANE_CONVERGENCE = 1;
-        GAME_CONFIG.LANE_CONVERGENCE_POINT = 80;
 
         seedLanePolylineCacheFromMapGen([
             {
@@ -102,7 +99,6 @@ describe('assignShipLaneGeometry', () => {
 
     it('preserves caller direction for reversed-order lane reads', () => {
         GAME_CONFIG.LANE_CONVERGENCE = 1;
-        GAME_CONFIG.LANE_CONVERGENCE_POINT = 80;
 
         seedLanePolylineCacheFromMapGen([
             {
@@ -146,7 +142,6 @@ describe('assignShipLaneGeometry', () => {
 
     it('keeps straight-line fallback lane starts near the source even with a large convergence point', () => {
         GAME_CONFIG.LANE_CONVERGENCE = 0.45;
-        GAME_CONFIG.LANE_CONVERGENCE_POINT = 80;
 
         const source: StarLaneRef = { id: 'star-a', x: 0, y: 0, radius: 10 };
         const target: StarLaneRef = { id: 'star-b', x: 100, y: 0, radius: 10 };
@@ -165,7 +160,6 @@ describe('assignShipLaneGeometry', () => {
 
     it('keeps short-link fallback lane ends anchored to the target rim under convergence blending', () => {
         GAME_CONFIG.LANE_CONVERGENCE = 0.5;
-        GAME_CONFIG.LANE_CONVERGENCE_POINT = 80;
 
         const source: StarLaneRef = { id: 'star-z', x: 245, y: 141, radius: 7 };
         const target: StarLaneRef = { id: 'star-a', x: 245, y: 193, radius: 7 };
@@ -184,7 +178,6 @@ describe('assignShipLaneGeometry', () => {
 
     it('does not let convergence blending push laneStart past laneEnd on short links', () => {
         GAME_CONFIG.LANE_CONVERGENCE = 0.45;
-        GAME_CONFIG.LANE_CONVERGENCE_POINT = 80;
 
         const source: StarLaneRef = { id: 'star-z', x: 245, y: 141, radius: 10 };
         const target: StarLaneRef = { id: 'star-a', x: 245, y: 193, radius: 25 };
@@ -202,7 +195,6 @@ describe('assignShipLaneGeometry', () => {
 
     it('collapses overlapping straight-line rim crossings onto a shared seam point', () => {
         GAME_CONFIG.LANE_CONVERGENCE = 0.45;
-        GAME_CONFIG.LANE_CONVERGENCE_POINT = 80;
 
         const source: StarLaneRef = { id: 'star-z', x: 245, y: 141, radius: 25 };
         const target: StarLaneRef = { id: 'star-a', x: 245, y: 193, radius: 25 };
