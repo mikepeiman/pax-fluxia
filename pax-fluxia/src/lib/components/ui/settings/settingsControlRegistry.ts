@@ -214,7 +214,7 @@ const CONTROL_PRESENTATION: Record<
     Partial<
         Pick<
             SettingsControl,
-            "format" | "scale" | "unit" | "zeroLabel" | "controlType" | "options"
+            "format" | "scale" | "unit" | "zeroLabel" | "controlType" | "options" | "range"
         >
     >
 > = {
@@ -283,7 +283,12 @@ const CONTROL_PRESENTATION: Record<
     ATTACK_SURGE_RAMP_MS: { unit: "ms" },
     ATTACK_SURGE_SHAPE: { format: "fixed1" },
     SURGE_PULSE_DURATION_MS: { unit: "ms" },
-    ORB_BASE_RADIUS: { unit: "px" },
+    // Range widened, not re-defaulted. The generator captured min 2 from a row
+    // written when the default was the 4 that game.config's comment still
+    // claimed; the shipped default is 1.5, so the slider opened below its own
+    // minimum and there was no way back to the default once touched. The default
+    // IS the look the game ships with, so the bound moves instead.
+    ORB_BASE_RADIUS: { unit: "px", range: { min: 0, max: 30, step: 0.5 } },
     ORB_RADIUS_SCALE: { format: "fixed2" },
     ORB_GLOW_MULT: { format: "fixed2" },
     ORB_OUTER_ALPHA: { format: "fixed2" },
@@ -291,7 +296,8 @@ const CONTROL_PRESENTATION: Record<
     ORB_MID_ALPHA: { format: "fixed2" },
     ORB_MID_SCALE: { format: "fixed1" },
     ORB_CORE_ALPHA: { format: "fixed2" },
-    ORB_CORE_SCALE: { format: "fixed1" },
+    // Same defect: min 0.5 against a shipped default of 0.4.
+    ORB_CORE_SCALE: { format: "fixed1", range: { min: 0.1, max: 3, step: 0.1 } },
     ORB_CENTER_ALPHA: { format: "fixed2" },
 };
 

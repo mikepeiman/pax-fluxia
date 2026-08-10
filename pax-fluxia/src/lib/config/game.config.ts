@@ -208,7 +208,7 @@ interface GameConfigType {
     ORB_TRAVEL: boolean;           // Ships merge into glowing orb during travel, fragment on arrival (default true)
     ORB_DRAW_MODE: string;          // Which orb draw mode to use: 'mode1' etc. (default 'mode1')
 
-    ORB_BASE_RADIUS: number;       // Base orb radius in px before ship count scaling (default 4)
+    ORB_BASE_RADIUS: number;       // Base orb radius in px before ship count scaling (default 1.5)
     ORB_RADIUS_SCALE: number;      // Sqrt multiplier for ship count → radius (default 1.6)
     ORB_GLOW_MULT: number;         // Overall glow multiplier for orb layers (default 1.0)
     ORB_OUTER_ALPHA: number;       // Outer glow ring alpha (default 0.12)
@@ -217,7 +217,7 @@ interface GameConfigType {
     ORB_CENTER_ALPHA: number;      // Bright center dot alpha (default 1.0)
     ORB_OUTER_SCALE: number;       // Outer glow ring radius multiplier (default 2.5)
     ORB_MID_SCALE: number;         // Middle glow ring radius multiplier (default 1.6)
-    ORB_CORE_SCALE: number;        // Core radius as fraction of base (default 0.75)
+    ORB_CORE_SCALE: number;        // Core radius as fraction of base (default 0.4)
 
     // Ship appearance
     SHIP_OUTLINE_ON: boolean;      // Show player-color outline behind each ship (default true)

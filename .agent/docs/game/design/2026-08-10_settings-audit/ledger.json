@@ -1,20 +1,20 @@
 {
-  "generatedAt": "2026-08-10T22:35:56.614Z",
+  "generatedAt": "2026-08-10T22:39:00.889Z",
   "generator": "pax-fluxia/tools/settings-ledger.ts",
   "totals": {
     "configKeys": 409,
     "registryControls": 242,
     "distinctControlKeys": 242,
-    "persistedKeys": 384,
+    "persistedKeys": 387,
     "searchableKeys": 334,
     "rows": 419
   },
   "statusCounts": {
-    "live": 227,
+    "live": 232,
     "runtime-only": 75,
     "startup-only": 1,
     "unregistered-control": 91,
-    "half-wired": 13,
+    "half-wired": 8,
     "orphan-config": 11,
     "settings-machinery": 1
   },
@@ -8370,11 +8370,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "half-wired",
-      "issues": [
-        "default 1.5 sits outside the slider range 2..30"
-      ],
-      "action": "RECONNECT — default 1.5 sits outside the slider range 2..30"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "ORB_CENTER_ALPHA",
@@ -8465,11 +8463,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "half-wired",
-      "issues": [
-        "default 0.4 sits outside the slider range 0.5..3"
-      ],
-      "action": "RECONNECT — default 0.4 sits outside the slider range 0.5..3"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "ORB_DRAW_MODE",
@@ -13821,8 +13817,8 @@
       "excludedFromCategories": false,
       "renderShape": "projected",
       "renderedIn": "ControlsSection-Travel.svelte",
-      "persisted": false,
-      "panelKey": null,
+      "persisted": true,
+      "panelKey": "wobbleFreq",
       "searchable": true,
       "invalidates": [],
       "effectOwners": [
@@ -13834,11 +13830,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "half-wired",
-      "issues": [
-        "not in PANEL_CONFIG_MAP — value is not persisted"
-      ],
-      "action": "RECONNECT — not in PANEL_CONFIG_MAP — value is not persisted"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "WOBBLE_FREQ_SPREAD",
@@ -13854,8 +13848,8 @@
       "excludedFromCategories": false,
       "renderShape": "projected",
       "renderedIn": "ControlsSection-Travel.svelte",
-      "persisted": false,
-      "panelKey": null,
+      "persisted": true,
+      "panelKey": "wobbleFreqSpread",
       "searchable": true,
       "invalidates": [],
       "effectOwners": [
@@ -13867,11 +13861,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "half-wired",
-      "issues": [
-        "not in PANEL_CONFIG_MAP — value is not persisted"
-      ],
-      "action": "RECONNECT — not in PANEL_CONFIG_MAP — value is not persisted"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "WOBBLE_PHASE_SPREAD",
@@ -13887,8 +13879,8 @@
       "excludedFromCategories": false,
       "renderShape": "projected",
       "renderedIn": "ControlsSection-Travel.svelte",
-      "persisted": false,
-      "panelKey": null,
+      "persisted": true,
+      "panelKey": "wobblePhaseSpread",
       "searchable": true,
       "invalidates": [],
       "effectOwners": [
@@ -13900,11 +13892,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "half-wired",
-      "issues": [
-        "not in PANEL_CONFIG_MAP — value is not persisted"
-      ],
-      "action": "RECONNECT — not in PANEL_CONFIG_MAP — value is not persisted"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "_MAP_HEIGHT",

@@ -251,6 +251,12 @@ export const PANEL_CONFIG_MAP: PanelConfigMapping[] = [
     { configKey: 'SETTLE_DURATION_MS' },
     { configKey: 'ARRIVAL_SPREAD' },
     { configKey: 'WOBBLE_AMP' },
+    // The wobble shaping exposed by the 2026-07-22 wiring audit. The controls
+    // shipped without their persistence leg, so tuning the orb judder was lost
+    // on reload.
+    { configKey: 'WOBBLE_FREQ' },
+    { configKey: 'WOBBLE_FREQ_SPREAD' },
+    { configKey: 'WOBBLE_PHASE_SPREAD' },
     { configKey: 'TRAVEL_FOLLOW_LANE_PATHS' },
     { configKey: 'TRAVEL_EASING' },
     { configKey: 'TRAVEL_MODE' },
