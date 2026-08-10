@@ -1,0 +1,37 @@
+id: settings-frozen-at-import
+language: typescript
+severity: warning
+message: 'GAME_CONFIG read at module scope — this setting is frozen at import time'
+note: |
+  A module-scope `const X = GAME_CONFIG.KEY` captures the value ONCE, when the
+  module is first imported. The settings UI then writes GAME_CONFIG.KEY happily,
+  the ledger sees a real reader, and nothing changes on screen until reload —
+  the "startup-only" failure class, and the hardest kind to spot by reading the
+  control.
+
+  Fix: read GAME_CONFIG.KEY inside the function that uses it, or subscribe
+  through the settings store so the change invalidates its owner.
+
+  Legitimate exceptions: a value used only to build a one-time constant (an
+  enum-ish lookup table, a shader constant compiled once). Silence those with an
+  ast-grep-ignore comment naming the reason.
+files:
+  - "pax-fluxia/src/lib/**/*.ts"
+  - "common/src/**/*.ts"
+  - "pax-server/src/**/*.ts"
+ignores:
+  - "**/*.test.ts"
+  - "**/components/ui/settings/**"
+  - "**/settingsStore.svelte.ts"
+  - "**/settingsState.ts"
+  - "**/settingsDefs.ts"
+rule:
+  kind: lexical_declaration
+  inside:
+    kind: program
+  has:
+    kind: variable_declarator
+    has:
+      kind: member_expression
+      pattern: GAME_CONFIG.$KEY
+      stopBy: end

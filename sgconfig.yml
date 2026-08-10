@@ -1,0 +1,21 @@
+# ast-grep project config — deterministic, project-specific structural rules.
+# Run:  bunx ast-grep scan            (all rules, all dirs)
+#       bunx ast-grep scan --json     (machine-readable, for the settings ledger)
+#       bunx ast-grep test            (rule unit tests in tools/ast-grep/rule-tests)
+#
+# Why this exists: a generic code graph cannot prove a Svelte control reaches a
+# PixiJS effect. These rules encode the project's own settings-integrity queries
+# so the audit is repeatable instead of a one-off grep session.
+
+ruleDirs:
+  - tools/ast-grep/rules
+
+testConfigs:
+  - testDir: tools/ast-grep/rule-tests
+
+# .svelte has no first-class ast-grep grammar. The markup half parses cleanly as
+# HTML, which is all the settings-control rules need (they match component tags
+# and their static attributes). Script-body analysis stays on the .ts rules.
+languageGlobs:
+  html:
+    - "*.svelte"

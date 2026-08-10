@@ -31,6 +31,7 @@
         "txtgen": "^3.0.7"
     },
     "devDependencies": {
+        "@ast-grep/cli": "^0.45.1",
         "@mariozechner/pi-coding-agent": "^0.66.1"
     }
 }

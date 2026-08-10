@@ -28,6 +28,46 @@ superseding docs:
 
 ---
 
+## 2026-08-10
+
+### Done — settings-integrity toolchain + full audit  [`opus-settings-audit`]
+Audit doc + generated ledger: `.agent/docs/game/design/2026-08-10_settings-audit/` (AUDIT.md = plan, FINDINGS.md +
+ledger.json/csv = generated evidence). Regenerate with `cd pax-fluxia && bun run settings:ledger`.
+- [x] **Toolchain installed + evaluated** — ast-grep 0.45.1 (dev dep, `sgconfig.yml`, rules in `tools/ast-grep/rules/`);
+  Serena 1.7.1 (uv tool, 520 TS files indexed, `.serena/project.yml`, registered in `.mcp.json`); Graphify graph rebuilt
+  (25,530 nodes). **codebase-memory-mcp is BLOCKED** on this machine — upstream PR #1447, AppContainer capability ACE on
+  `%LOCALAPPDATA%` makes it refuse to create its runtime endpoint. Recheck after 0.10.x. **ast-grep cannot parse Svelte
+  markup** (2 of 75 controls recovered on Ships) — TS rules only; markup uses a tag scan.
+- [x] **Settings ledger generator** `pax-fluxia/tools/settings-ledger.ts` — 419 rows, evidence chain per key
+  (control → registry → persistence → search → readers w/ file:line → subsystem → status → action).
+- [x] **CI gate** `pax-fluxia/tools/settingsIntegrity.test.ts` — runs the ast-grep rule pack, baselines the 16 known
+  violations with a reason each, fails on anything new, and fails if a baseline entry is fixed but not deleted.
+
+### Open — audit action batches (see AUDIT.md §3 for exact keys/files)
+- [ ] **Batch 1 — 14 live controls absent from the search index** [settings]. Fix by wiring the search index to
+  `deriveRegistrySearchRecords()`, not by hand-adding rows; then delete the matching `KNOWN_UNWIRED` baseline entries.
+- [ ] **Batch 2 — persistence + range defects** [settings]: WOBBLE_FREQ / WOBBLE_FREQ_SPREAD / WOBBLE_PHASE_SPREAD are
+  missing from PANEL_CONFIG_MAP (tuning is lost on reload); ORB_BASE_RADIUS (default 1.5, range 2–30) and ORB_CORE_SCALE
+  (default 0.4, range 0.5–3) cannot reach their own default.
+- [ ] **Batch 3 — 15 second-writer sites** [settings]: audioManager (11, AUDIO_*) is the risky one — two owners, no
+  arbitration; plus activeGameStore BASE_TICK_MS, gameStore RETAIN_ORDER_ON_CONQUEST / ALLOW_OPPOSING_ORDERS,
+  benchmarkBridge TERRITORY_RENDER_MODE.
+- [ ] **Batch 4 — ANIMATION_SPEED_MS is startup-only** [settings]: `animationStore.svelte.ts:36` captures it at import,
+  so Animation Speed needs a reload and the UI never says so.
+- [ ] **Batch 5 — 49 unregistered controls** [settings]: CellGridTuning (32), GridGradientTuning (11),
+  TerritorySurfaceStyleTuning (5), ControlsSection-Territory (1). Rendered but outside settingsControlRegistry — three
+  hand-kept parallel lists. Extend `tools/gen-settings-registry.mjs`, migrate to SettingsControlRenderer, then tighten
+  the registry totality test so the gap can't reopen.
+- [ ] **Batch 6 — 11 orphan config keys to delete** [settings]: CONNECTION_MAX_DISTANCE, CONQUEST_LERP_DELAY_MS,
+  CONQUEST_TRAVEL_SPEED, LANE_CONVERGENCE_POINT, OVERWHELM_THRESHOLD, SHOW_CONNECTIONS, STAR_GLOW_LAYERS,
+  STAR_LABEL_OFFSET_X/Y, STAR_RING_OFFSET, TRANSFER_ANIMATION_MS (+ their PANEL_CONFIG_MAP / CATEGORY_KEYS /
+  builtin-themes entries).
+- [ ] **Product call — 117 runtime-only keys** [settings]: 42 are the AUDIO_FILE_* family (dynamic key, keep hidden);
+  95 of the 117 are already in PANEL_CONFIG_MAP — saved and restored but never shown. Needs ONE ruling for the set.
+- [ ] **Next audit pass — runtime + effect verification** [settings]: instrument the store (reads/writes/subscriber
+  invocations) across scripted scenarios and assert PixiJS state. The only way to close "something reads this" →
+  "this changes what you see".
+
 ## 2026-07-22
 
 ### Done — control WIRING audit (dead + missing knobs)

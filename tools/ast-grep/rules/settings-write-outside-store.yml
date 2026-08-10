@@ -1,0 +1,40 @@
+id: settings-write-outside-store
+language: typescript
+severity: error
+message: 'second writer of a user-facing GAME_CONFIG key — bypasses persistence and invalidation'
+note: |
+  Writing GAME_CONFIG directly skips everything the settings write path does:
+  the panel mirror, the PANEL_CONFIG_MAP persistence, and the invalidation that
+  tells the territory renderers to re-read. A second writer also races the
+  settings store — the panel and the config drift, and the user sees a value
+  "not saving" or reverting on reload.
+
+  Route the write through settingsStore / panelSync so the key gets its panel
+  mirror, persistence and invalidation.
+
+  Scope notes:
+   - `_`-prefixed keys (`_MAP_WIDTH`, `_MAP_HEX_RADIUS`, …) are runtime-derived
+     internals, not settings; the leading underscore is the marker and the
+     constraint below excludes them.
+   - `panelSync.ts` and the settings store ARE the apply layer, so they are
+     ignored — a write there is the intended path, not a bypass.
+files:
+  - "pax-fluxia/src/lib/**/*.ts"
+  - "pax-fluxia/src/routes/**/*.ts"
+ignores:
+  - "**/*.test.ts"
+  - "**/components/ui/settings/**"
+  - "**/panelSync.ts"
+  - "**/settingsStore.svelte.ts"
+  - "**/settingsState.ts"
+  - "**/settingsDefs.ts"
+  - "**/configTransfer.ts"
+  - "**/fullConfigPresets.ts"
+rule:
+  any:
+    - pattern: GAME_CONFIG.$KEY = $VALUE
+    - pattern: GAME_CONFIG[$KEY] = $VALUE
+    - pattern: Object.assign(GAME_CONFIG, $$$ARGS)
+constraints:
+  KEY:
+    regex: '^[A-Z]'

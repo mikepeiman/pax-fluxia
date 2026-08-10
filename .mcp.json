@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "serena": {
+      "command": "serena",
+      "args": [
+        "start-mcp-server",
+        "--context",
+        "ide-assistant",
+        "--project",
+        "C:/Users/mikep/Desktop/WebDev/pax-fluxia"
+      ]
+    },
+    "atlas-harness": {
+      "command": "atlas-harness",
+      "args": ["--transport", "mcp"]
+    }
+  }
+}

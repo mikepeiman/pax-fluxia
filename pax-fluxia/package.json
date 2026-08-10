@@ -14,7 +14,9 @@
     "test:e2e": "playwright test",
     "test:e2e:report": "playwright show-report",
     "tauri": "tauri",
-    "ui:audit": "node tools/ui-audit.mjs"
+    "ui:audit": "node tools/ui-audit.mjs",
+    "settings:ledger": "bun tools/settings-ledger.ts",
+    "settings:lint": "bunx ast-grep scan -c ../sgconfig.yml"
   },
   "license": "MIT",
   "dependencies": {

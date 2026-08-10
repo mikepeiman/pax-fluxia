@@ -1,0 +1,337 @@
+---
+date created: 2026-08-10
+last updated: 2026-08-10
+last updated by: opus-settings-audit
+relevant prior docs:
+  - .agent/docs/game/design/2026-07-14_SETTINGS_HUD_AUDIT_DOSSIER.md
+  - .agent/docs/MASTER_TASK_LIST.md (2026-07-22 wiring audit)
+  - pax-fluxia/src/lib/components/ui/settings/settingsControlRegistry.ts
+superseding docs:
+---
+
+# Settings integrity audit — 2026-08-10
+
+**What this is.** A complete, re-runnable audit of every settings key: where its
+control lives, whether the value persists, whether search can find it, who reads
+it at runtime, which subsystem owns the effect, and what to do about it. The
+evidence is generated from the code, not written by hand, so it can be re-run
+after every cleanup batch and stays true.
+
+**Regenerate everything:**
+
+```bash
+cd pax-fluxia && bun run settings:ledger
+```
+
+Artifacts, all in this folder and all overwritten on each run:
+
+| File | What it is |
+| --- | --- |
+| `ledger.json` | One row per key, full evidence chain. The machine-readable source. |
+| `ledger.csv` | Same rows, spreadsheet-shaped, for sorting and triage. |
+| `FINDINGS.md` | Generated action tables, grouped by status. |
+| `AUDIT.md` | This file — the human read, the tool verdicts, and the execution plan. |
+
+---
+
+## 1. The numbers
+
+409 GAME_CONFIG keys. **291 are reachable in the UI; 118 are not.**
+
+| Status | Count | Meaning |
+| --- | --- | --- |
+| `live` | 217 | Registry control, persisted, searchable, read by real consuming code. Nothing to do. |
+| `runtime-only` | 117 | Read by code, no control. **Candidates, not defects** — exposing them is a product call. |
+| `unregistered-control` | 49 | The user can move it, but `settingsControlRegistry` has never heard of it. |
+| `half-wired` | 23 | A live control missing one wiring leg (search, persistence, or a sane range). |
+| `orphan-config` | 11 | Declared, unread, unexposed. Dead weight. |
+| `startup-only` | 1 | The control writes; the reader froze the value at import. Needs a reload to take effect. |
+| `settings-machinery` | 1 | Reaches its effect only through the panel mirror inside the settings layer. |
+| `dead-ui` / `disconnected` / `duplicate` | 0 | Clean. The 2026-07-22 wiring pass held. |
+
+Two facts worth stating plainly:
+
+- **Every existing settings guard test is green** (61 tests). All of the above is
+  invisible to them, because they check the settings layer against *itself*. The
+  new findings live in the boundary between the settings layer and the consuming
+  code — which is exactly where the recurring "it doesn't do anything" and "it
+  doesn't save" bugs come from.
+- **The registry covers 242 of the 291 exposed keys (83%).** The remaining 49 are
+  four files' worth of hand-rendered territory tuning. That gap is the single
+  biggest structural risk in the settings surface, and it is one mechanical
+  batch of work.
+
+---
+
+## 2. Toolchain — what was installed, and what each one is actually worth here
+
+| Tool | State | Verdict |
+| --- | --- | --- |
+| **ast-grep** `0.45.1` | Installed as a dev dependency; project config at `sgconfig.yml`, rules in `tools/ast-grep/rules/`, CI gate at `pax-fluxia/tools/settingsIntegrity.test.ts` | **Keep — highest value per minute of the four.** On TypeScript it found two defect classes nothing else did (below). On Svelte markup it is not usable: see the caveat. |
+| **Serena** `1.7.1` | Installed via `uv tool install`; project indexed (520 TypeScript files); registered in `.mcp.json` | **Keep.** Real LSP-grade definitions/references/renames — the right tool for executing the fixes below. Not an auditor. |
+| **Graphify** `1.0.0` | Already present; graph rebuilt — 25,530 nodes, 31,381 edges, 2,247 communities | **Keep for orientation only.** Answers "what is near this module" well. It has no notion of a config key, so it cannot answer a single question in this audit. |
+| **codebase-memory-mcp** `0.10.0` | Installed (npm + binary), **cannot run on this machine** | **Blocked upstream.** See below. |
+| **Optave Codegraph** | Not installed | **Skipped deliberately.** It is a deeper version of the tool that is already the weakest fit. The gap here was never graph depth. |
+| **Superpowers** | Not installed | Requires an interactive plugin install from the Claude Code CLI (`/plugin marketplace add obra/superpowers`). It is a process/workflow pack, not an analysis tool — nothing in this audit depended on it. Install it yourself if you want the debugging/TDD workflows. |
+
+### ast-grep: what it caught
+
+Two rules, both encoding a failure mode this project has actually shipped:
+
+- **`settings-write-outside-store`** — a second writer of a user-facing key,
+  bypassing persistence and invalidation. **15 sites.** This is the mechanism
+  behind "the value doesn't save" and "it reverts on reload".
+- **`settings-frozen-at-import`** — a config value captured into a module-scope
+  `const`, so the setting silently becomes reload-only. **1 site**, and it is
+  the Animation Speed control.
+
+Both are now enforced. `pax-fluxia/tools/settingsIntegrity.test.ts` runs the rule
+pack, baselines the 16 known sites with a reason each, and fails on anything new.
+The baseline is meant to shrink; a fourth test fails if you fix something and
+forget to delete its baseline entry.
+
+```bash
+cd pax-fluxia && bun run settings:lint     # see the violations
+```
+
+### ast-grep caveat — it cannot read Svelte markup
+
+ast-grep has no Svelte grammar. Parsing `.svelte` as HTML degrades at the first
+Svelte-only construct (`{#if}`, `{expr}`) and silently drops everything after it.
+Measured on `ControlsSection-Ships.svelte`: **2 of 75 controls recovered.** A rule
+built on that would have reported 73 controls as nonexistent.
+
+The ledger therefore uses a direct tag scan for the markup and keeps ast-grep on
+the TypeScript side, where it is exact. Worth knowing before anyone writes a
+Svelte lint rule with it.
+
+### codebase-memory-mcp — blocked, not skipped
+
+It installs and reports its version, but every command that needs its runtime —
+`index_repository`, `list_projects`, even `config list` — fails:
+
+```
+codebase-memory-mcp: secure daemon endpoint could not be created
+```
+
+Diagnosed rather than guessed. `C:\Users\mikep\AppData\Local` carries an inherited
+AppContainer capability ACE (`S-1-15-3-3557520199-…`, FullControl) — the sandbox
+grant that agent tooling puts there. CBM's permission validation rejects the
+directory and refuses to create its runtime endpoint. This is upstream open PR
+**#1447** ("fix(windows): accept AppContainer capability grants on runtime
+ancestors"), which describes exactly this setup and states the only current
+remedies are removing ACEs the sandbox depends on, or not running CBM.
+
+Named pipes, security-descriptor pipes, `Global\` objects and TCP listeners all
+create fine on this machine, so it is CBM's validation and not a machine
+restriction. Nothing about the audit was lost — the ledger derives its graph from
+the real modules and the real reader scan. **Recheck after 0.10.x ships #1447.**
+
+Note also that `codebase-memory-mcp install` without `--skip-config` writes MCP
+config, `AGENTS.md` instructions, skills, agents and hooks into ~43 separate
+agent-tool config directories across the machine, and edits the user PATH. It was
+run with `--skip-config` only; the MCP registration is scoped to this repo's
+`.mcp.json`.
+
+### MCP registration
+
+`.mcp.json` now registers **serena** (with `--project` pinned to this repo) and
+keeps the existing **atlas-harness**. MCP servers load at session start, so they
+become available in your *next* session, not this one.
+
+---
+
+## 3. Execution plan
+
+Ordered by ratio of user-visible correctness to effort. Each batch is
+independently shippable; re-run `bun run settings:ledger` after each one and the
+status counts should move in the stated direction.
+
+### Batch 1 — Search gaps (14 keys, ~1 hour, zero risk)
+
+Fourteen live, working, persisted controls are absent from the search index. The
+user cannot find them by typing their name; they only exist for someone who
+already knows which panel to open.
+
+```
+CELL_GRID_BOUNDARY_FILL_FLUSH   CONQUEST_SURGE_RADIUS
+DAMAGED_ORBIT_EVADE             DAMAGED_ORBIT_RADIUS
+GRID_GRADIENT_POSITION_JITTER   STAR_GLOW_INTENSITY
+STAR_GLOW_RADIUS_MULT           STAR_POWER_EDGE_BAND_STRENGTH
+STAR_POWER_EDGE_BAND_WIDTH      STAR_POWER_LAYER_CURVE
+SURGE_PULSE_BIND_TO_TICK        TERRITORY_SURFACE_ALPHA
+TERRITORY_SURFACE_LIGHTNESS     TERRITORY_SURFACE_SATURATION
+```
+
+Ten of these are already the `KNOWN_UNWIRED` baseline in
+`settingsWiringInvariant.test.ts`, where the note says the entries "are deleted
+for free when the search index becomes a DERIVATION of the rendered controls".
+That derivation exists now: `deriveRegistrySearchRecords()`. Wire the search index
+to it and delete the baseline entries — do not hand-add fourteen rows.
+
+Note that the **utility drawers are fine** — all eight resolve on their own label
+through `searchSettings`. An earlier version of the ledger reported them as
+unfindable because it asked the wrong index: settings and panels live in two
+separate indexes (`settingMetadata` and `settingsSearch`), and the 2026-08-08
+drawer fix put the panels in the latter. Worth remembering before trusting any
+"not searchable" claim about a panel.
+
+### Batch 2 — Persistence and range defects (5 keys, ~30 minutes)
+
+Three controls write a value that is never saved — `WOBBLE_FREQ`,
+`WOBBLE_FREQ_SPREAD`, `WOBBLE_PHASE_SPREAD` are missing from `PANEL_CONFIG_MAP`.
+They were added in the 2026-07-22 wiring pass and the persistence leg was missed.
+Tune the orb judder, reload, it is gone.
+
+Two sliders cannot reach their own default:
+
+| Key | Default | Slider range |
+| --- | --- | --- |
+| `ORB_BASE_RADIUS` | 1.5 | 2 – 30 |
+| `ORB_CORE_SCALE` | 0.4 | 0.5 – 3 |
+
+The value shown on first open is not the value in effect, and there is no way
+back to the default once the user touches it. Either widen the range or change
+the default — both are one-line fixes, but they must agree.
+
+### Batch 3 — Second writers (15 sites, ~2 hours, needs judgement)
+
+The rule pack lists all fifteen with file and line; the test baselines them.
+
+- **`audioManager.svelte.ts` — 11 sites** across `AUDIO_MASTER_VOLUME`,
+  `AUDIO_MUTED`, `AUDIO_SEPARATE_CONQUEST`. The manager keeps its own state and
+  mirrors it into `GAME_CONFIG` from load, from setters, from reset and from
+  theme apply. The settings panel writes the same keys through the store. Two
+  owners, no arbitration. This is the highest-risk item in the audit and the most
+  likely cause of any audio setting that "won't stick".
+- **`activeGameStore.svelte.ts:602` — `BASE_TICK_MS`.** Server-authoritative tick
+  written straight into config. Probably correct; make it explicit.
+- **`gameStore.svelte.ts:2056/2060` — `RETAIN_ORDER_ON_CONQUEST`,
+  `ALLOW_OPPOSING_ORDERS`.** Scenario load overriding user settings, silently.
+- **`benchmarkBridge.ts:702` — `TERRITORY_RENDER_MODE`.** Bench harness; fine,
+  keep it baselined.
+
+Decide per site: route through the store, or declare the key
+server/scenario-owned and stop offering it as a user setting. Do not leave two
+writers with no rule.
+
+### Batch 4 — Startup-only (1 site, ~15 minutes)
+
+`animationStore.svelte.ts:36` — `const DEFAULT_SPEED_MS = GAME_CONFIG.ANIMATION_SPEED_MS`
+is evaluated once at import. Move the read inside the function that uses it.
+Until then, the Animation Speed control needs a page reload to take effect, and
+nothing in the UI says so.
+
+### Batch 5 — Registry migration (49 keys, ~half a day, the structural one)
+
+Forty-nine rendered controls are outside the registry:
+
+| File | Keys |
+| --- | --- |
+| `CellGridTuning.svelte` | 32 |
+| `GridGradientTuning.svelte` | 11 |
+| `TerritorySurfaceStyleTuning.svelte` | 5 |
+| `ControlsSection-Territory.svelte` | 1 |
+
+Each one maintains its label in the markup, its search text in `settingMetadata`,
+and its persisted key in `settingsDefs` — three hand-kept lists that drift
+independently. That is the exact mechanism behind every "searchable but
+unreachable" and "reachable but not searchable" bug in this project's history.
+
+All 49 are persisted and searchable today, so **this is not a user-visible bug —
+it is the removal of an entire bug class.** Extend `tools/gen-settings-registry.mjs`
+to cover these four files, then flip them to `SettingsControlRenderer` the way
+Travel and Battle already are.
+
+Finish by tightening `settingsControlRegistry.test.ts` to assert what its own
+header promises: every exposed key appears in the registry exactly once. Then the
+gap cannot reopen.
+
+### Batch 6 — Removals (11 keys, ~30 minutes)
+
+Declared, unread by any code, exposed by no control. Verified individually by
+whole-repo grep, not just by the tool:
+
+```
+CONNECTION_MAX_DISTANCE   CONQUEST_LERP_DELAY_MS    CONQUEST_TRAVEL_SPEED
+LANE_CONVERGENCE_POINT    OVERWHELM_THRESHOLD       SHOW_CONNECTIONS
+STAR_GLOW_LAYERS          STAR_LABEL_OFFSET_X       STAR_LABEL_OFFSET_Y
+STAR_RING_OFFSET          TRANSFER_ANIMATION_MS
+```
+
+`CONQUEST_TRAVEL_SPEED`, `CONQUEST_LERP_DELAY_MS` and `LANE_CONVERGENCE_POINT`
+are already in the registry's `REMOVED_KEYS` — their controls are gone but the
+config keys, the defaults and the theme entries remain. Delete the keys, their
+`PANEL_CONFIG_MAP` rows, their `CATEGORY_KEYS` entries and their occurrences in
+`config/builtin-themes/*.json`.
+
+`OVERWHELM_THRESHOLD` appears only in `configTransfer.ts`'s key list — that is
+import/export plumbing, not a reader.
+
+---
+
+## 4. What the audit will not decide for you
+
+**117 runtime-only keys.** Code reads them; no control exists. Whether any of them
+*should* be a setting is a product question, and static analysis has no opinion.
+Shape of the set:
+
+- **42** are the `AUDIO_FILE_*` family, read through a constructed key
+  (`` `AUDIO_FILE_${type}` ``) in `audioManager.svelte.ts:110`. They are sound-file
+  paths. They should almost certainly stay out of the settings UI.
+- **~51** are `pixi-render`-owned territory internals.
+- **95 of the 117 are already in `PANEL_CONFIG_MAP`** — registered to be saved and
+  restored, but never shown. That is either a deliberate hidden-tunable pattern or
+  leftover from controls that were removed without cleaning up. Worth one decision
+  covering the whole set rather than 95 individual ones.
+
+The strongest exposure candidates by reader count are in `FINDINGS.md` §8, led by
+`TERRITORY_RENDER_MODE` (30 reads), `PERIMETER_FIELD_GEOMETRY_SOURCE` (20) and the
+`CELL_GRID_*` family (10–13 each).
+
+**Two duplicate labels** inside `fleet_star_visuals` — "Glow Intensity"
+(`SHIP_GLOW_INTENSITY` / `STAR_GLOW_INTENSITY`) and "Glow Radius"
+(`SHIP_GLOW_RADIUS` / `STAR_GLOW_RADIUS_MULT`). Both pairs are real and distinct
+(ship vs star); the labels just do not say so. A naming fix, not a merge.
+
+---
+
+## 5. What this audit does not cover
+
+Static evidence only. There was no runtime instrumentation pass and no PixiJS
+effect verification — the two remaining passes in the model this audit follows.
+Concretely, a key can be `live` here and still not move a pixel if its reader is
+behind a branch that never runs. The classes that *are* proven: registration,
+persistence, searchability, category coverage, type/range agreement, second
+writers, import-time freezing, and the existence of at least one real reader with
+file and line.
+
+Adding a runtime pass would mean instrumenting the settings store to log reads,
+writes and subscriber invocations while scripted scenarios visit each view, then
+asserting renderer state. That is the natural next step once these six batches
+land — and it is the only way to close the gap between "something reads this" and
+"this changes what you see".
+
+---
+
+## 6. Recommended durable shape
+
+Everything above converges on one change already half-built in this repo:
+
+**One typed registry; every other layer a projection of it.**
+
+`settingsControlRegistry` is that registry, and `SettingsControlRenderer`,
+`deriveRegistrySearchRecords()` and `PANEL_CONFIG_MAP` are the projections. The
+recurring bugs come from the three places where projection has not replaced a
+hand-kept parallel list. Batch 5 closes the last big one. After that the registry
+should carry two more fields the audit had to infer:
+
+- **effect owner** — which subsystem consumes the key. The ledger derives it today
+  from reader paths; declaring it makes "a setting with no owner" a CI failure.
+- **apply semantics** — immediate / reload / restart. `ANIMATION_SPEED_MS` is
+  reload-only right now and the UI does not say so.
+
+CI checks worth adding once those fields exist, on top of the three already
+enforced by `settingsIntegrity.test.ts`: unknown or duplicate keys, controls
+without registry entries, type/default/range disagreement, and any `live` setting
+with no subscriber or apply handler.
