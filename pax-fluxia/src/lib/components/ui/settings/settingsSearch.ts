@@ -398,6 +398,29 @@ function scoreEntry(entry: SearchIndexEntry, query: string, tokens: string[]): n
     return score + tokenBoost;
 }
 
+/**
+ * Every config key the settings search can actually reach.
+ *
+ * There are TWO indexes in this codebase — `settingMetadata`'s hand-authored
+ * `SCOPE_LABEL_META`, and the registry-derived index built here — and the second
+ * one supersedes the first for every key the registry owns. Asking
+ * `getSearchableSettingRecords()` alone therefore reports registry-owned
+ * controls as unfindable when they are perfectly findable, which is exactly the
+ * false alarm the 2026-08-10 audit first raised about 14 controls.
+ *
+ * This is the honest answer to "can the user find this setting?", and it is what
+ * the wiring invariant and the settings ledger both assert against.
+ */
+export function searchableConfigKeys(
+    activeTerritoryRenderMode?: string | null,
+): ReadonlySet<string> {
+    return new Set(
+        buildSettingEntries(activeTerritoryRenderMode)
+            .map((entry) => entry.configKey)
+            .filter((key): key is string => Boolean(key)),
+    );
+}
+
 export function searchSettings(
     query: string,
     limit = 24,

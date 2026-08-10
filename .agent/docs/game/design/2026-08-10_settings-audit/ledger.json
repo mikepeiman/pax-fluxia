@@ -1,20 +1,20 @@
 {
-  "generatedAt": "2026-08-10T19:41:59.925Z",
+  "generatedAt": "2026-08-10T22:35:56.614Z",
   "generator": "pax-fluxia/tools/settings-ledger.ts",
   "totals": {
     "configKeys": 409,
     "registryControls": 242,
     "distinctControlKeys": 242,
     "persistedKeys": 384,
-    "searchableKeys": 312,
+    "searchableKeys": 334,
     "rows": 419
   },
   "statusCounts": {
-    "live": 213,
+    "live": 227,
     "runtime-only": 75,
     "startup-only": 1,
     "unregistered-control": 91,
-    "half-wired": 27,
+    "half-wired": 13,
     "orphan-config": 11,
     "settings-machinery": 1
   },
@@ -3461,7 +3461,7 @@
       "renderedIn": "TerritorySurfaceStyleTuning.svelte",
       "persisted": true,
       "panelKey": "cellGridBoundaryFillFlush",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [
         "territory"
       ],
@@ -3478,11 +3478,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "half-wired",
-      "issues": [
-        "absent from the search index — unfindable via search"
-      ],
-      "action": "RECONNECT — absent from the search index — unfindable via search"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CELL_GRID_CELL_CORNER_PX",
@@ -5237,7 +5235,7 @@
       "renderedIn": "ControlsSection-Conquest.svelte",
       "persisted": true,
       "panelKey": "conquestSurgeRadius",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "pixi-render"
@@ -5248,11 +5246,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "half-wired",
-      "issues": [
-        "absent from the search index — unfindable via search"
-      ],
-      "action": "RECONNECT — absent from the search index — unfindable via search"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CONQUEST_SURGE_STAGGER_MS",
@@ -5399,7 +5395,7 @@
       "renderedIn": "ControlsSection-Ships.svelte",
       "persisted": true,
       "panelKey": "damagedOrbitEvade",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "pixi-render",
@@ -5414,11 +5410,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "half-wired",
-      "issues": [
-        "absent from the search index — unfindable via search"
-      ],
-      "action": "RECONNECT — absent from the search index — unfindable via search"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "DAMAGED_ORBIT_RADIUS",
@@ -5436,7 +5430,7 @@
       "renderedIn": "ControlsSection-Ships.svelte",
       "persisted": true,
       "panelKey": "damagedOrbitRadius",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "pixi-render",
@@ -5449,11 +5443,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "half-wired",
-      "issues": [
-        "absent from the search index — unfindable via search"
-      ],
-      "action": "RECONNECT — absent from the search index — unfindable via search"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "DAMAGED_SHIP_EFFECTIVENESS",
@@ -6537,7 +6529,7 @@
       "renderedIn": "GridGradientTuning.svelte",
       "persisted": true,
       "panelKey": "gridGradientPositionJitter",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [
         "territory"
       ],
@@ -6553,11 +6545,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "half-wired",
-      "issues": [
-        "absent from the search index — unfindable via search"
-      ],
-      "action": "RECONNECT — absent from the search index — unfindable via search"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "GRID_GRADIENT_SHADER_EDGE_ALPHA_BOOST",
@@ -9735,7 +9725,7 @@
       "renderedIn": "ControlsSection-Ships.svelte",
       "persisted": true,
       "panelKey": "starGlowIntensity",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "pixi-render",
@@ -9748,11 +9738,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "half-wired",
-      "issues": [
-        "absent from the search index — unfindable via search"
-      ],
-      "action": "RECONNECT — absent from the search index — unfindable via search"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "STAR_GLOW_LAYERS",
@@ -9830,7 +9818,7 @@
       "renderedIn": "ControlsSection-Ships.svelte",
       "persisted": true,
       "panelKey": "starGlowRadiusMult",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "pixi-render",
@@ -9843,11 +9831,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "half-wired",
-      "issues": [
-        "absent from the search index — unfindable via search"
-      ],
-      "action": "RECONNECT — absent from the search index — unfindable via search"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "STAR_HIT_RADIUS",
@@ -10818,7 +10804,7 @@
       "renderedIn": "ControlsSection-Ships.svelte",
       "persisted": true,
       "panelKey": "starPowerEdgeBandStrength",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "pixi-render",
@@ -10830,11 +10816,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "half-wired",
-      "issues": [
-        "absent from the search index — unfindable via search"
-      ],
-      "action": "RECONNECT — absent from the search index — unfindable via search"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "STAR_POWER_EDGE_BAND_WIDTH",
@@ -10852,7 +10836,7 @@
       "renderedIn": "ControlsSection-Ships.svelte",
       "persisted": true,
       "panelKey": "starPowerEdgeBandWidth",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "pixi-render",
@@ -10864,11 +10848,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "half-wired",
-      "issues": [
-        "absent from the search index — unfindable via search"
-      ],
-      "action": "RECONNECT — absent from the search index — unfindable via search"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "STAR_POWER_LAYERS",
@@ -10918,7 +10900,7 @@
       "renderedIn": "ControlsSection-Ships.svelte",
       "persisted": true,
       "panelKey": "starPowerLayerCurve",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "pixi-render",
@@ -10930,11 +10912,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "half-wired",
-      "issues": [
-        "absent from the search index — unfindable via search"
-      ],
-      "action": "RECONNECT — absent from the search index — unfindable via search"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "STAR_POWER_RADIUS_MULT",
@@ -11316,7 +11296,7 @@
       "renderedIn": "ControlsSection-Surge.svelte",
       "persisted": true,
       "panelKey": "surgePulseBindToTick",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "pixi-render",
@@ -11329,11 +11309,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "half-wired",
-      "issues": [
-        "absent from the search index — unfindable via search"
-      ],
-      "action": "RECONNECT — absent from the search index — unfindable via search"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "SURGE_PULSE_DURATION_MS",
@@ -12985,7 +12963,7 @@
       "renderedIn": "GridGradientTuning.svelte",
       "persisted": true,
       "panelKey": "territorySurfaceAlpha",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [
         "territory"
       ],
@@ -13001,11 +12979,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "half-wired",
-      "issues": [
-        "absent from the search index — unfindable via search"
-      ],
-      "action": "RECONNECT — absent from the search index — unfindable via search"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "TERRITORY_SURFACE_BORDER_ALPHA",
@@ -13275,7 +13251,7 @@
       "renderedIn": "GridGradientTuning.svelte",
       "persisted": true,
       "panelKey": "territorySurfaceLightness",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [
         "territory"
       ],
@@ -13291,11 +13267,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "half-wired",
-      "issues": [
-        "absent from the search index — unfindable via search"
-      ],
-      "action": "RECONNECT — absent from the search index — unfindable via search"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "TERRITORY_SURFACE_SATURATION",
@@ -13313,7 +13287,7 @@
       "renderedIn": "GridGradientTuning.svelte",
       "persisted": true,
       "panelKey": "territorySurfaceSaturation",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [
         "territory"
       ],
@@ -13329,11 +13303,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "half-wired",
-      "issues": [
-        "absent from the search index — unfindable via search"
-      ],
-      "action": "RECONNECT — absent from the search index — unfindable via search"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "TERRITORY_TRANSITION_BIND_TO_TICK",
@@ -13348,7 +13320,7 @@
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
-      "renderedIn": "ControlsSection-Territory.svelte",
+      "renderedIn": "ControlsSection-Timing.svelte",
       "persisted": true,
       "panelKey": "territoryTransitionBindToTick",
       "searchable": true,
@@ -13851,7 +13823,7 @@
       "renderedIn": "ControlsSection-Travel.svelte",
       "persisted": false,
       "panelKey": null,
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "pixi-render"
@@ -13864,8 +13836,7 @@
       "secondWriters": [],
       "status": "half-wired",
       "issues": [
-        "not in PANEL_CONFIG_MAP — value is not persisted",
-        "absent from the search index — unfindable via search"
+        "not in PANEL_CONFIG_MAP — value is not persisted"
       ],
       "action": "RECONNECT — not in PANEL_CONFIG_MAP — value is not persisted"
     },
@@ -13885,7 +13856,7 @@
       "renderedIn": "ControlsSection-Travel.svelte",
       "persisted": false,
       "panelKey": null,
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "pixi-render"
@@ -13898,8 +13869,7 @@
       "secondWriters": [],
       "status": "half-wired",
       "issues": [
-        "not in PANEL_CONFIG_MAP — value is not persisted",
-        "absent from the search index — unfindable via search"
+        "not in PANEL_CONFIG_MAP — value is not persisted"
       ],
       "action": "RECONNECT — not in PANEL_CONFIG_MAP — value is not persisted"
     },
@@ -13919,7 +13889,7 @@
       "renderedIn": "ControlsSection-Travel.svelte",
       "persisted": false,
       "panelKey": null,
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "pixi-render"
@@ -13932,8 +13902,7 @@
       "secondWriters": [],
       "status": "half-wired",
       "issues": [
-        "not in PANEL_CONFIG_MAP — value is not persisted",
-        "absent from the search index — unfindable via search"
+        "not in PANEL_CONFIG_MAP — value is not persisted"
       ],
       "action": "RECONNECT — not in PANEL_CONFIG_MAP — value is not persisted"
     },
@@ -14127,7 +14096,7 @@
       "renderedIn": "ControlsSection-Diagnostics.svelte",
       "persisted": false,
       "panelKey": null,
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [],
       "readerCount": 0,
@@ -14262,7 +14231,7 @@
       "renderedIn": "ControlsSection-Diagnostics.svelte",
       "persisted": false,
       "panelKey": null,
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [],
       "readerCount": 0,
@@ -14289,7 +14258,7 @@
       "renderedIn": "ControlsSection-Diagnostics.svelte",
       "persisted": false,
       "panelKey": null,
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [],
       "readerCount": 0,
@@ -14316,7 +14285,7 @@
       "renderedIn": "ControlsSection-Diagnostics.svelte",
       "persisted": false,
       "panelKey": null,
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [],
       "readerCount": 0,
@@ -14343,7 +14312,7 @@
       "renderedIn": "ControlsSection-Diagnostics.svelte",
       "persisted": false,
       "panelKey": null,
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [],
       "readerCount": 0,

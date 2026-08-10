@@ -37,9 +37,8 @@ import {
 import { SETTINGS_CONTROLS } from "../src/lib/components/ui/settings/settingsControlRegistry";
 import { SETTINGS_SECTIONS } from "../src/lib/components/ui/settings/settingsRegistry";
 import { SETTINGS_PANELS } from "../src/lib/components/ui/settings/settingsPanels";
-import { searchSettings } from "../src/lib/components/ui/settings/settingsSearch";
+import { searchSettings, searchableConfigKeys } from "../src/lib/components/ui/settings/settingsSearch";
 import { scanSvelte } from "./svelte-tsx/sg-svelte";
-import { getSearchableSettingRecords } from "../src/lib/components/ui/settings/settingMetadata";
 
 // ── Layout ──────────────────────────────────────────────────────────────────
 
@@ -150,7 +149,16 @@ const persistedKeys = new Set(PANEL_CONFIG_MAP.map((m) => m.configKey));
 const panelKeyOf = new Map(
     PANEL_CONFIG_MAP.map((m) => [m.configKey, m.panelKey ?? derivePanelKey(m.configKey)]),
 );
-const searchableKeys = new Set(getSearchableSettingRecords().map((r) => r.key));
+/**
+ * What the SEARCH BOX can reach, not what one of the two indexes knows.
+ *
+ * `getSearchableSettingRecords()` is the legacy hand-authored map; the
+ * registry-derived index in settingsSearch supersedes it for every key the
+ * registry owns. Measuring the legacy map alone made this audit's first pass
+ * report 14 perfectly findable controls as unfindable — the same mistake it made
+ * about the utility drawers. Ask the union both times.
+ */
+const searchableKeys = searchableConfigKeys();
 
 const categoryOf = new Map<string, string>();
 for (const [category, keys] of Object.entries(CATEGORY_KEYS)) {
