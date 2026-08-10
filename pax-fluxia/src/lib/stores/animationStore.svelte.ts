@@ -33,7 +33,22 @@ function saveSetting(key: string, value: unknown) {
 }
 
 // --- State ---
-const DEFAULT_SPEED_MS = GAME_CONFIG.ANIMATION_SPEED_MS; // Snapshot default at init
+/**
+ * The REFERENCE speed the multiplier is measured against — deliberately captured
+ * once, at import, and deliberately never updated.
+ *
+ * `speedMultiplier` answers "how much faster or slower than the shipped default
+ * are we running", so its numerator has to stay fixed. Re-reading GAME_CONFIG
+ * live would make the ratio permanently 1.0 and silently disable animation-speed
+ * scaling in ShipRenderer.
+ *
+ * This is NOT the startup-only defect it looks like: the settings apply path
+ * calls `animationStore.setAnimationSpeed(GAME_CONFIG.ANIMATION_SPEED_MS)`
+ * (settingsStore), so a change to Animation Speed moves `speedMs` immediately —
+ * no reload involved.
+ */
+// ast-grep-ignore: settings-frozen-at-import
+const DEFAULT_SPEED_MS = GAME_CONFIG.ANIMATION_SPEED_MS;
 let speedMs = $state(loadSetting('speedMs', DEFAULT_SPEED_MS));
 
 // --- Actions ---

@@ -1,20 +1,19 @@
 {
-  "generatedAt": "2026-08-10T22:39:00.889Z",
+  "generatedAt": "2026-08-10T22:48:27.390Z",
   "generator": "pax-fluxia/tools/settings-ledger.ts",
   "totals": {
-    "configKeys": 409,
+    "configKeys": 407,
     "registryControls": 242,
     "distinctControlKeys": 242,
     "persistedKeys": 387,
     "searchableKeys": 334,
-    "rows": 419
+    "rows": 417
   },
   "statusCounts": {
-    "live": 232,
-    "runtime-only": 75,
-    "startup-only": 1,
+    "live": 237,
+    "runtime-only": 73,
     "unregistered-control": 91,
-    "half-wired": 8,
+    "half-wired": 4,
     "orphan-config": 11,
     "settings-machinery": 1
   },
@@ -53,8 +52,8 @@
       "readerCount": 12,
       "topReaders": [
         "pax-fluxia/src/lib/components/ui/panelSync.ts:194",
-        "pax-fluxia/src/lib/config/game.config.ts:53",
-        "pax-fluxia/src/lib/config/game.config.ts:768",
+        "pax-fluxia/src/lib/config/game.config.ts:52",
+        "pax-fluxia/src/lib/config/game.config.ts:760",
         "common/src/combat.ts:47"
       ],
       "frozenAt": [],
@@ -274,48 +273,6 @@
       "action": "KEEP"
     },
     {
-      "key": "ALLOW_OPPOSING_ORDERS",
-      "default": false,
-      "valueType": "boolean",
-      "hasControl": false,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
-      "category": "rules",
-      "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
-      "persisted": false,
-      "panelKey": null,
-      "searchable": false,
-      "invalidates": [],
-      "effectOwners": [
-        "client-services",
-        "client-ui",
-        "config-helper",
-        "shared-sim"
-      ],
-      "readerCount": 6,
-      "topReaders": [
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:716",
-        "pax-fluxia/src/lib/config/game.config.ts:57",
-        "pax-fluxia/src/lib/stores/gameStore.svelte.ts:1859",
-        "pax-fluxia/src/lib/stores/gameStore.svelte.ts:2060"
-      ],
-      "frozenAt": [],
-      "secondWriters": [
-        "pax-fluxia/src/lib/stores/gameStore.svelte.ts:2060",
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:716"
-      ],
-      "status": "runtime-only",
-      "issues": [
-        "written outside the settings apply layer (2x, e.g. pax-fluxia/src/lib/stores/gameStore.svelte.ts:2060) — races the store"
-      ],
-      "action": "CANDIDATE — read by client-services/client-ui/config-helper/shared-sim, no control (product call)"
-    },
-    {
       "key": "ANIMATION_SPEED_MS",
       "default": 1450,
       "valueType": "number",
@@ -337,22 +294,18 @@
         "client-services",
         "client-ui"
       ],
-      "readerCount": 10,
+      "readerCount": 11,
       "topReaders": [
         "pax-fluxia/src/lib/components/ui/panelSync.ts:453",
         "pax-fluxia/src/lib/components/ui/panelSync.ts:455",
         "pax-fluxia/src/lib/components/ui/panelSync.ts:554",
         "pax-fluxia/src/lib/components/ui/panelSync.ts:589"
       ],
-      "frozenAt": [
-        "pax-fluxia/src/lib/stores/animationStore.svelte.ts:36"
-      ],
+      "frozenAt": [],
       "secondWriters": [],
-      "status": "startup-only",
-      "issues": [
-        "read into a module-scope const at pax-fluxia/src/lib/stores/animationStore.svelte.ts:36 — frozen at import, changes need a reload"
-      ],
-      "action": "RECONNECT — move the read at pax-fluxia/src/lib/stores/animationStore.svelte.ts:36 inside the using function"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "ARRIVAL_ARC_INTENSITY",
@@ -4923,8 +4876,8 @@
       "readerCount": 4,
       "topReaders": [
         "pax-fluxia/src/lib/config/game.config.ts:42",
-        "common/src/config.ts:62",
-        "common/src/config.ts:96",
+        "common/src/config.ts:61",
+        "common/src/config.ts:100",
         "common/src/conquest.ts:219"
       ],
       "frozenAt": [],
@@ -4958,8 +4911,8 @@
       "readerCount": 4,
       "topReaders": [
         "pax-fluxia/src/lib/config/game.config.ts:43",
-        "common/src/config.ts:63",
-        "common/src/config.ts:97",
+        "common/src/config.ts:62",
+        "common/src/config.ts:101",
         "common/src/conquest.ts:220"
       ],
       "frozenAt": [],
@@ -5175,17 +5128,13 @@
       ],
       "readerCount": 2,
       "topReaders": [
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:738",
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:737",
         "pax-fluxia/src/lib/fx/handlers/conquestHandler.ts:71"
       ],
       "frozenAt": [],
-      "secondWriters": [
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:738"
-      ],
+      "secondWriters": [],
       "status": "runtime-only",
-      "issues": [
-        "written outside the settings apply layer (1x, e.g. pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:738) — races the store"
-      ],
+      "issues": [],
       "action": "CANDIDATE — read by client-ui/pixi-render, no control (product call)"
     },
     {
@@ -5306,7 +5255,7 @@
       ],
       "readerCount": 7,
       "topReaders": [
-        "pax-fluxia/src/lib/config/game.config.ts:55",
+        "pax-fluxia/src/lib/config/game.config.ts:54",
         "common/src/combat.ts:70",
         "common/src/combat.ts:122",
         "common/src/combat.ts:219"
@@ -5343,7 +5292,7 @@
       "topReaders": [
         "pax-fluxia/src/lib/config/game.config.ts:41",
         "common/src/config.ts:59",
-        "common/src/config.ts:93",
+        "common/src/config.ts:98",
         "common/src/conquest.ts:229"
       ],
       "frozenAt": [],
@@ -5474,7 +5423,7 @@
       "topReaders": [
         "pax-fluxia/src/lib/components/ui/hud/StarsPanel.svelte:47",
         "pax-fluxia/src/lib/components/ui/hud/StarsPanel.svelte:69",
-        "pax-fluxia/src/lib/config/game.config.ts:50",
+        "pax-fluxia/src/lib/config/game.config.ts:49",
         "common/src/combat.ts:62"
       ],
       "frozenAt": [],
@@ -5856,8 +5805,8 @@
       ],
       "readerCount": 10,
       "topReaders": [
-        "pax-fluxia/src/lib/config/game.config.ts:54",
-        "pax-fluxia/src/lib/config/game.config.ts:769",
+        "pax-fluxia/src/lib/config/game.config.ts:53",
+        "pax-fluxia/src/lib/config/game.config.ts:761",
         "common/src/combat.ts:55",
         "common/src/combat.ts:96"
       ],
@@ -5924,8 +5873,8 @@
       ],
       "readerCount": 11,
       "topReaders": [
-        "pax-fluxia/src/lib/config/game.config.ts:51",
-        "pax-fluxia/src/lib/config/game.config.ts:766",
+        "pax-fluxia/src/lib/config/game.config.ts:50",
+        "pax-fluxia/src/lib/config/game.config.ts:758",
         "common/src/combat.ts:31",
         "common/src/combat.ts:94"
       ],
@@ -7408,8 +7357,8 @@
       ],
       "readerCount": 14,
       "topReaders": [
-        "pax-fluxia/src/lib/config/game.config.ts:52",
-        "pax-fluxia/src/lib/config/game.config.ts:767",
+        "pax-fluxia/src/lib/config/game.config.ts:51",
+        "pax-fluxia/src/lib/config/game.config.ts:759",
         "common/src/combat.ts:34",
         "common/src/combat.ts:38"
       ],
@@ -7444,24 +7393,18 @@
         "server",
         "settings-machinery"
       ],
-      "readerCount": 11,
+      "readerCount": 9,
       "topReaders": [
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:441",
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:459",
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:486",
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:719"
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:442",
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:462",
+        "pax-fluxia/src/lib/lanes/laneMargin.ts:20",
+        "pax-fluxia/src/lib/stores/gameStore.svelte.ts:824"
       ],
       "frozenAt": [],
-      "secondWriters": [
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:459",
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:486",
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:719"
-      ],
-      "status": "half-wired",
-      "issues": [
-        "written outside the settings apply layer (3x, e.g. pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:459) — races the store"
-      ],
-      "action": "RECONNECT — written outside the settings apply layer (3x, e.g. pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:459) — races the store"
+      "secondWriters": [],
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "MAPGEN_LANE_MARGIN_ENABLED",
@@ -7488,8 +7431,8 @@
       ],
       "readerCount": 6,
       "topReaders": [
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:475",
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:521",
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:480",
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:523",
         "pax-fluxia/src/lib/lanes/laneMargin.ts:2",
         "pax-fluxia/src/lib/lanes/laneMargin.ts:9"
       ],
@@ -7523,24 +7466,18 @@
         "server",
         "settings-machinery"
       ],
-      "readerCount": 13,
+      "readerCount": 11,
       "topReaders": [
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:433",
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:458",
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:485",
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:522"
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:434",
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:461",
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:524",
+        "pax-fluxia/src/lib/lanes/laneMargin.ts:3"
       ],
       "frozenAt": [],
-      "secondWriters": [
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:458",
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:485",
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:718"
-      ],
-      "status": "half-wired",
-      "issues": [
-        "written outside the settings apply layer (3x, e.g. pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:458) — races the store"
-      ],
-      "action": "RECONNECT — written outside the settings apply layer (3x, e.g. pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:458) — races the store"
+      "secondWriters": [],
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "MAPGEN_LANE_MODE",
@@ -7566,23 +7503,17 @@
         "server",
         "settings-machinery"
       ],
-      "readerCount": 13,
+      "readerCount": 11,
       "topReaders": [
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:423",
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:460",
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:487",
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:720"
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:424",
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:463",
+        "pax-fluxia/src/lib/stores/gameStore.svelte.ts:801",
+        "pax-fluxia/src/lib/stores/gameStore.svelte.ts:837"
       ],
       "frozenAt": [],
-      "secondWriters": [
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:460",
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:487",
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:720"
-      ],
+      "secondWriters": [],
       "status": "runtime-only",
-      "issues": [
-        "written outside the settings apply layer (3x, e.g. pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:460) — races the store"
-      ],
+      "issues": [],
       "action": "CANDIDATE — read by client-services/client-ui/server/settings-machinery, no control (product call)"
     },
     {
@@ -7608,16 +7539,12 @@
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:714"
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:717"
       ],
       "frozenAt": [],
-      "secondWriters": [
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:714"
-      ],
+      "secondWriters": [],
       "status": "runtime-only",
-      "issues": [
-        "written outside the settings apply layer (1x, e.g. pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:714) — races the store"
-      ],
+      "issues": [],
       "action": "CANDIDATE — read by client-ui, no control (product call)"
     },
     {
@@ -7643,8 +7570,8 @@
       ],
       "readerCount": 2,
       "topReaders": [
-        "pax-fluxia/src/lib/config/game.config.ts:727",
-        "pax-fluxia/src/lib/config/game.config.ts:728"
+        "pax-fluxia/src/lib/config/game.config.ts:719",
+        "pax-fluxia/src/lib/config/game.config.ts:720"
       ],
       "frozenAt": [],
       "secondWriters": [],
@@ -7743,16 +7670,12 @@
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:713"
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:716"
       ],
       "frozenAt": [],
-      "secondWriters": [
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:713"
-      ],
+      "secondWriters": [],
       "status": "runtime-only",
-      "issues": [
-        "written outside the settings apply layer (1x, e.g. pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:713) — races the store"
-      ],
+      "issues": [],
       "action": "CANDIDATE — read by client-ui, no control (product call)"
     },
     {
@@ -7781,7 +7704,7 @@
       "topReaders": [
         "pax-fluxia/src/lib/config/game.config.ts:35",
         "common/src/config.ts:49",
-        "common/src/config.ts:87",
+        "common/src/config.ts:92",
         "common/src/production.ts:68"
       ],
       "frozenAt": [],
@@ -7815,9 +7738,9 @@
       "readerCount": 5,
       "topReaders": [
         "pax-fluxia/src/lib/config/game.config.ts:40",
-        "pax-fluxia/src/lib/config/game.config.ts:725",
+        "pax-fluxia/src/lib/config/game.config.ts:717",
         "common/src/config.ts:56",
-        "common/src/config.ts:91"
+        "common/src/config.ts:96"
       ],
       "frozenAt": [],
       "secondWriters": [],
@@ -7849,7 +7772,7 @@
       ],
       "readerCount": 4,
       "topReaders": [
-        "pax-fluxia/src/lib/config/game.config.ts:717",
+        "pax-fluxia/src/lib/config/game.config.ts:709",
         "pax-fluxia/src/lib/stores/activeGameStore.svelte.ts:546",
         "pax-fluxia/src/lib/stores/gameStore.svelte.ts:399",
         "pax-fluxia/src/lib/stores/gameStore.svelte.ts:1824"
@@ -8033,24 +7956,18 @@
         "server",
         "settings-machinery"
       ],
-      "readerCount": 14,
+      "readerCount": 12,
       "topReaders": [
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:428",
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:457",
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:484",
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:717"
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:429",
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:460",
+        "pax-fluxia/src/lib/stores/gameStore.svelte.ts:939",
+        "pax-fluxia/src/lib/stores/gameStore.svelte.ts:971"
       ],
       "frozenAt": [],
-      "secondWriters": [
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:457",
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:484",
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:717"
-      ],
-      "status": "half-wired",
-      "issues": [
-        "written outside the settings apply layer (3x, e.g. pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:457) — races the store"
-      ],
-      "action": "RECONNECT — written outside the settings apply layer (3x, e.g. pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:457) — races the store"
+      "secondWriters": [],
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "NUMBER_TRANSITION_MS",
@@ -8743,9 +8660,9 @@
       ],
       "readerCount": 3,
       "topReaders": [
-        "pax-fluxia/src/lib/config/game.config.ts:45",
-        "common/src/config.ts:61",
-        "common/src/config.ts:95"
+        "pax-fluxia/src/lib/config/game.config.ts:44",
+        "common/src/config.ts:60",
+        "common/src/config.ts:99"
       ],
       "frozenAt": [],
       "secondWriters": [],
@@ -8913,7 +8830,7 @@
       "topReaders": [
         "pax-fluxia/src/lib/config/game.config.ts:36",
         "common/src/config.ts:50",
-        "common/src/config.ts:88",
+        "common/src/config.ts:93",
         "common/src/production.ts:76"
       ],
       "frozenAt": [],
@@ -8948,7 +8865,7 @@
       "topReaders": [
         "pax-fluxia/src/lib/config/game.config.ts:34",
         "common/src/config.ts:48",
-        "common/src/config.ts:86",
+        "common/src/config.ts:91",
         "common/src/production.ts:68"
       ],
       "frozenAt": [],
@@ -8983,7 +8900,7 @@
       "topReaders": [
         "pax-fluxia/src/lib/config/game.config.ts:37",
         "common/src/config.ts:51",
-        "common/src/config.ts:89",
+        "common/src/config.ts:94",
         "common/src/production.ts:79"
       ],
       "frozenAt": [],
@@ -9018,7 +8935,7 @@
       "topReaders": [
         "pax-fluxia/src/lib/config/game.config.ts:38",
         "common/src/config.ts:52",
-        "common/src/config.ts:90",
+        "common/src/config.ts:95",
         "common/src/production.ts:76"
       ],
       "frozenAt": [],
@@ -9026,48 +8943,6 @@
       "status": "live",
       "issues": [],
       "action": "KEEP"
-    },
-    {
-      "key": "RETAIN_ORDER_ON_CONQUEST",
-      "default": true,
-      "valueType": "boolean",
-      "hasControl": false,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
-      "category": "rules",
-      "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
-      "persisted": false,
-      "panelKey": null,
-      "searchable": false,
-      "invalidates": [],
-      "effectOwners": [
-        "client-services",
-        "client-ui",
-        "config-helper",
-        "shared-sim"
-      ],
-      "readerCount": 5,
-      "topReaders": [
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:715",
-        "pax-fluxia/src/lib/config/game.config.ts:44",
-        "pax-fluxia/src/lib/stores/gameStore.svelte.ts:2056",
-        "common/src/config.ts:60"
-      ],
-      "frozenAt": [],
-      "secondWriters": [
-        "pax-fluxia/src/lib/stores/gameStore.svelte.ts:2056",
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:715"
-      ],
-      "status": "runtime-only",
-      "issues": [
-        "written outside the settings apply layer (2x, e.g. pax-fluxia/src/lib/stores/gameStore.svelte.ts:2056) — races the store"
-      ],
-      "action": "CANDIDATE — read by client-services/client-ui/config-helper/shared-sim, no control (product call)"
     },
     {
       "key": "RETREAT_CAPTURE_RATE",
@@ -9093,9 +8968,9 @@
       ],
       "readerCount": 5,
       "topReaders": [
-        "pax-fluxia/src/lib/config/game.config.ts:46",
-        "common/src/config.ts:66",
-        "common/src/config.ts:98",
+        "pax-fluxia/src/lib/config/game.config.ts:45",
+        "common/src/config.ts:65",
+        "common/src/config.ts:102",
         "common/src/conquest.ts:53"
       ],
       "frozenAt": [],
@@ -9128,9 +9003,9 @@
       ],
       "readerCount": 5,
       "topReaders": [
-        "pax-fluxia/src/lib/config/game.config.ts:49",
-        "common/src/config.ts:69",
-        "common/src/config.ts:101",
+        "pax-fluxia/src/lib/config/game.config.ts:48",
+        "common/src/config.ts:68",
+        "common/src/config.ts:105",
         "common/src/conquest.ts:134"
       ],
       "frozenAt": [],
@@ -9163,9 +9038,9 @@
       ],
       "readerCount": 5,
       "topReaders": [
-        "pax-fluxia/src/lib/config/game.config.ts:47",
-        "common/src/config.ts:67",
-        "common/src/config.ts:99",
+        "pax-fluxia/src/lib/config/game.config.ts:46",
+        "common/src/config.ts:66",
+        "common/src/config.ts:103",
         "common/src/conquest.ts:54"
       ],
       "frozenAt": [],
@@ -9198,9 +9073,9 @@
       ],
       "readerCount": 6,
       "topReaders": [
-        "pax-fluxia/src/lib/config/game.config.ts:48",
-        "common/src/config.ts:68",
-        "common/src/config.ts:100",
+        "pax-fluxia/src/lib/config/game.config.ts:47",
+        "common/src/config.ts:67",
+        "common/src/config.ts:104",
         "common/src/conquest.ts:54"
       ],
       "frozenAt": [],
@@ -9619,18 +9494,14 @@
       ],
       "readerCount": 3,
       "topReaders": [
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:711",
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:714",
         "pax-fluxia/src/lib/stores/gameStore.svelte.ts:964",
         "pax-fluxia/src/lib/stores/gameStore.svelte.ts:993"
       ],
       "frozenAt": [],
-      "secondWriters": [
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:711"
-      ],
+      "secondWriters": [],
       "status": "runtime-only",
-      "issues": [
-        "written outside the settings apply layer (1x, e.g. pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:711) — races the store"
-      ],
+      "issues": [],
       "action": "CANDIDATE — read by client-services/client-ui, no control (product call)"
     },
     {
@@ -9657,20 +9528,16 @@
       ],
       "readerCount": 7,
       "topReaders": [
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:712",
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:715",
         "pax-fluxia/src/lib/stores/gameStore.svelte.ts:620",
         "pax-fluxia/src/lib/stores/gameStore.svelte.ts:1029",
         "pax-fluxia/src/lib/stores/gameStore.svelte.ts:1314"
       ],
       "frozenAt": [],
-      "secondWriters": [
-        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:712"
-      ],
-      "status": "half-wired",
-      "issues": [
-        "written outside the settings apply layer (1x, e.g. pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:712) — races the store"
-      ],
-      "action": "RECONNECT — written outside the settings apply layer (1x, e.g. pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:712) — races the store"
+      "secondWriters": [],
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "STAR_CORNER_RADIUS",
@@ -13433,9 +13300,9 @@
       "readerCount": 6,
       "topReaders": [
         "pax-fluxia/src/lib/config/game.config.ts:39",
-        "pax-fluxia/src/lib/config/game.config.ts:724",
+        "pax-fluxia/src/lib/config/game.config.ts:716",
         "common/src/config.ts:55",
-        "common/src/config.ts:92"
+        "common/src/config.ts:97"
       ],
       "frozenAt": [],
       "secondWriters": [],

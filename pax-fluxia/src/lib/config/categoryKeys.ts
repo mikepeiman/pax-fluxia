@@ -470,8 +470,6 @@ export const CATEGORY_KEYS: Record<ThemeCategory, string[]> = {
         'STARTING_SHIPS',
         // Order persistence rules
         'ORDERS_PERSIST_AFTER_CONQUEST',
-        'RETAIN_ORDER_ON_CONQUEST',
-        'ALLOW_OPPOSING_ORDERS',
     ],
 
     logging: [

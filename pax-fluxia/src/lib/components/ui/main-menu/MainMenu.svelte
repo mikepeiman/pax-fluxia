@@ -12,6 +12,7 @@
         savePanelSettings,
         panelDefaultsFromConfig,
     } from "$lib/components/ui/panelSync";
+    import { settingsStore } from "$lib/components/ui/settingsStore.svelte";
     import type { GameSettings } from "$lib/types/game.types";
     import { multiplayerStore, type RoomListing } from "$lib/stores/multiplayerStore.svelte";
     import { audioManager } from "$lib/services/audioManager.svelte";
@@ -446,18 +447,22 @@
         };
     }
 
-    function persistMenuLaneKnobs() {
-        const panelSettings = loadPanelSettings(panelDefaultsFromConfig());
-        panelSettings.starMargin = menuStarMargin;
-        panelSettings.mapgenLaneMarginPx = menuLaneMargin;
-        panelSettings.mapgenLaneCurveVsPruneBias = menuCurveVsPruneBias;
-        panelSettings.mapgenLaneMode = menuLaneMode;
-        savePanelSettings(panelSettings);
-
-        GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN = menuStarMargin;
-        GAME_CONFIG.MAPGEN_LANE_MARGIN_PX = menuLaneMargin;
-        GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS = menuCurveVsPruneBias;
-        GAME_CONFIG.MAPGEN_LANE_MODE = menuLaneMode;
+    /**
+     * The menu's map knobs are the SAME settings the Settings panel offers, so
+     * they go through the same write path: `applyPatch` mirrors the panel,
+     * persists it and fires the invalidation the renderers listen for. Writing
+     * GAME_CONFIG directly (which this did in three separate places) made the
+     * menu a second writer racing the settings store — the audit's largest
+     * second-writer cluster, 19 sites over 13 keys.
+     */
+    function applyMenuMapConfig(extra: Record<string, unknown> = {}) {
+        settingsStore.applyPatch({
+            MODIFIED_VORONOI_STAR_MARGIN: menuStarMargin,
+            MAPGEN_LANE_MARGIN_PX: menuLaneMargin,
+            MAPGEN_LANE_CURVE_VS_PRUNE_BIAS: menuCurveVsPruneBias,
+            MAPGEN_LANE_MODE: menuLaneMode,
+            ...extra,
+        });
     }
 
     function previewKey(): string {
@@ -481,10 +486,7 @@
     }
 
     function generatePreview(): string {
-        GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN = menuStarMargin;
-        GAME_CONFIG.MAPGEN_LANE_MARGIN_PX = menuLaneMargin;
-        GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS = menuCurveVsPruneBias;
-        GAME_CONFIG.MAPGEN_LANE_MODE = menuLaneMode;
+        applyMenuMapConfig();
 
         const { stars, connections } = gameStore.generateMapPreview({
             playerCount,
@@ -671,7 +673,7 @@
         saveSetting("playerName", playerName);
         saveSetting("colorSat", colorSat);
         saveSetting("colorLig", colorLig);
-        persistMenuLaneKnobs();
+        applyMenuMapConfig();
     }
 
     function getClassicMaps() {
@@ -708,16 +710,12 @@
     }
 
     function applyConfig() {
-        GAME_CONFIG.STARS_PER_PLAYER = starsPerPlayer;
-        GAME_CONFIG.STARTING_SHIPS = shipsPerStar;
-        GAME_CONFIG.MIN_LINKS_PER_STAR = minLinks;
-        GAME_CONFIG.MAX_LINKS_PER_STAR = maxLinks;
-        GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST = true;
-        GAME_CONFIG.ALLOW_OPPOSING_ORDERS = false;
-        GAME_CONFIG.MODIFIED_VORONOI_STAR_MARGIN = menuStarMargin;
-        GAME_CONFIG.MAPGEN_LANE_MARGIN_PX = menuLaneMargin;
-        GAME_CONFIG.MAPGEN_LANE_CURVE_VS_PRUNE_BIAS = menuCurveVsPruneBias;
-        GAME_CONFIG.MAPGEN_LANE_MODE = menuLaneMode;
+        applyMenuMapConfig({
+            STARS_PER_PLAYER: starsPerPlayer,
+            STARTING_SHIPS: shipsPerStar,
+            MIN_LINKS_PER_STAR: minLinks,
+            MAX_LINKS_PER_STAR: maxLinks,
+        });
 
         const selectedMap = MAP_DEFS.find((map) => map.id === mapType) ?? MAP_DEFS[0];
 
@@ -735,7 +733,9 @@
             specialStarPercentage,
         });
 
-        GAME_CONFIG.CONQUEST_SLOWMO_ENABLED = selectedMap.mapType === "debug-b";
+        settingsStore.applyPatch({
+            CONQUEST_SLOWMO_ENABLED: selectedMap.mapType === "debug-b",
+        });
     }
 
     async function yieldForMenuDismissPaint(): Promise<void> {
@@ -815,7 +815,6 @@
             mapBoardFit,
             minLinks,
             maxLinks,
-            retainOrderOnConquest: true,
             gameplayConfig,
             playerColors: getConfiguredPlayerColors(playerCount),
         });
@@ -1041,19 +1040,19 @@
                             onMapBoardFitChange={(value) => (mapBoardFit = value)}
                             onLaneModeChange={(value) => {
                                 menuLaneMode = value;
-                                persistMenuLaneKnobs();
+                                applyMenuMapConfig();
                             }}
                             onStarMarginChange={(value) => {
                                 menuStarMargin = value;
-                                persistMenuLaneKnobs();
+                                applyMenuMapConfig();
                             }}
                             onLaneMarginChange={(value) => {
                                 menuLaneMargin = value;
-                                persistMenuLaneKnobs();
+                                applyMenuMapConfig();
                             }}
                             onCurveVsPruneBiasChange={(value) => {
                                 menuCurveVsPruneBias = value;
-                                persistMenuLaneKnobs();
+                                applyMenuMapConfig();
                             }}
                             onSpecialStarPercentageChange={(value) => (specialStarPercentage = value)}
                             onNeutralStarCountChange={(value) => (neutralStarCount = value)}
@@ -1129,19 +1128,19 @@
                         onMapBoardFitChange={(value) => (mapBoardFit = value)}
                         onLaneModeChange={(value) => {
                             menuLaneMode = value;
-                            persistMenuLaneKnobs();
+                            applyMenuMapConfig();
                         }}
                         onStarMarginChange={(value) => {
                             menuStarMargin = value;
-                            persistMenuLaneKnobs();
+                            applyMenuMapConfig();
                         }}
                         onLaneMarginChange={(value) => {
                             menuLaneMargin = value;
-                            persistMenuLaneKnobs();
+                            applyMenuMapConfig();
                         }}
                         onCurveVsPruneBiasChange={(value) => {
                             menuCurveVsPruneBias = value;
-                            persistMenuLaneKnobs();
+                            applyMenuMapConfig();
                         }}
                         onSpecialStarPercentageChange={(value) => (specialStarPercentage = value)}
                         onNeutralStarCountChange={(value) => (neutralStarCount = value)}

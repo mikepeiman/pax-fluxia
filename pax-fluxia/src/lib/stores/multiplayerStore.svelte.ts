@@ -34,7 +34,6 @@ export type CreateRoomOptions = {
     mapBoardFit?: number;
     minLinks?: number;
     maxLinks?: number;
-    retainOrderOnConquest?: boolean;
     playerColors?: string[];
     gameplayConfig?: Partial<EngineConfig>;
 };

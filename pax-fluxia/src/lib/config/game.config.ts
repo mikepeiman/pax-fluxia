@@ -41,7 +41,6 @@ export function buildEngineConfig(): EngineConfig {
         CONQUEST_TRANSFER_PERCENTAGE: GAME_CONFIG.CONQUEST_TRANSFER_PERCENTAGE,
         CONQUEST_DAMAGED_CAPTURE_RATE: GAME_CONFIG.CONQUEST_DAMAGED_CAPTURE_RATE,
         CONQUEST_DAMAGED_DESTROY_RATE: GAME_CONFIG.CONQUEST_DAMAGED_DESTROY_RATE,
-        RETAIN_ORDER_ON_CONQUEST: GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST,
         ORDERS_PERSIST_AFTER_CONQUEST: GAME_CONFIG.ORDERS_PERSIST_AFTER_CONQUEST,
         RETREAT_CAPTURE_RATE: GAME_CONFIG.RETREAT_CAPTURE_RATE,
         SCATTER_CAPTURE_RATE: GAME_CONFIG.SCATTER_CAPTURE_RATE,
@@ -54,7 +53,6 @@ export function buildEngineConfig(): EngineConfig {
         FORCE_RATIO_EFFECT: GAME_CONFIG.FORCE_RATIO_EFFECT,
         CONQUEST_THRESHOLD: GAME_CONFIG.CONQUEST_THRESHOLD,
         MINIMUM_DAMAGE: 1,
-        ALLOW_OPPOSING_ORDERS: GAME_CONFIG.ALLOW_OPPOSING_ORDERS,
     };
 }
 /**
@@ -101,12 +99,6 @@ interface GameConfigType {
 
     // Order continuity compatibility
     ORDERS_PERSIST_AFTER_CONQUEST: boolean;
-
-    /** When attacker conquers defender, retain attack order as movement order */
-    RETAIN_ORDER_ON_CONQUEST: boolean;
-
-    /** Allow A→B and B→A movement orders to coexist (default: false = opposing cancels) */
-    ALLOW_OPPOSING_ORDERS: boolean;
 
     // Scatter/Retreat (on conquest)
     RETREAT_CAPTURE_RATE: number;      // % captured when defender is retreating (default 0.35)

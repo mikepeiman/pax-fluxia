@@ -38,52 +38,36 @@ const REPO_ROOT = path.resolve(process.cwd(), "..");
  * the 2026-08-10 audit and why each is still here.
  */
 const BASELINE: Record<string, { count: number; why: string }> = {
+    // ── Owned families ──────────────────────────────────────────────────────
+    // audioManager is the SINGLE writer of the audio keys: every audio control
+    // in both Settings and the menu calls audioManager.setMasterVolume /
+    // toggleMute / setSeparateConquestSounds, and the rows carry
+    // settingConfigKey only as a data attribute for search and telemetry.
+    // GAME_CONFIG is the manager's mirror, and it has its own persistence
+    // (AUDIO_STORAGE_KEY over CATEGORY_KEYS.audio). One owner, no race.
     "settings-write-outside-store|pax-fluxia/src/lib/services/audioManager.svelte.ts|AUDIO_MASTER_VOLUME":
-        { count: 4, why: "audioManager owns audio state and mirrors it back into GAME_CONFIG" },
+        { count: 4, why: "audioManager owns the audio family; every UI path delegates to it" },
     "settings-write-outside-store|pax-fluxia/src/lib/services/audioManager.svelte.ts|AUDIO_MUTED":
         { count: 4, why: "as above" },
     "settings-write-outside-store|pax-fluxia/src/lib/services/audioManager.svelte.ts|AUDIO_SEPARATE_CONQUEST":
         { count: 3, why: "as above" },
+
+    // activeGameStore owns BASE_TICK_MS: settingsStore.updateTickInterval
+    // delegates to it rather than writing config itself.
+    "settings-write-outside-store|pax-fluxia/src/lib/stores/activeGameStore.svelte.ts|BASE_TICK_MS":
+        { count: 1, why: "sole owner; settingsStore.updateTickInterval delegates here" },
+
+    // ── Canonicalisation in place ───────────────────────────────────────────
+    // Not competing writes: each reads the key, normalises a legacy value, and
+    // writes the canonical form back so downstream reads agree. Idempotent.
+    "settings-write-outside-store|pax-fluxia/src/lib/components/game/GameCanvas.svelte|TERRITORY_RENDER_MODE":
+        { count: 1, why: "normalises a legacy render-mode id in place" },
+    "settings-write-outside-store|pax-fluxia/src/lib/components/game/GameCanvas.svelte|BG_IMAGE_URL":
+        { count: 1, why: "normalises the background path in place" },
+
+    // ── Deliberate override ─────────────────────────────────────────────────
     "settings-write-outside-store|pax-fluxia/src/lib/perf/benchmarkBridge.ts|TERRITORY_RENDER_MODE":
         { count: 1, why: "bench harness deliberately forces a render mode" },
-    "settings-write-outside-store|pax-fluxia/src/lib/stores/activeGameStore.svelte.ts|BASE_TICK_MS":
-        { count: 1, why: "server-authoritative tick pushed back into config" },
-    "settings-write-outside-store|pax-fluxia/src/lib/stores/gameStore.svelte.ts|RETAIN_ORDER_ON_CONQUEST":
-        { count: 1, why: "map/scenario load forces the rule" },
-    "settings-write-outside-store|pax-fluxia/src/lib/stores/gameStore.svelte.ts|ALLOW_OPPOSING_ORDERS":
-        { count: 1, why: "map/scenario load forces the rule" },
-    "settings-frozen-at-import|pax-fluxia/src/lib/stores/animationStore.svelte.ts|ANIMATION_SPEED_MS":
-        { count: 1, why: "DEFAULT_SPEED_MS captured at import — the Animation Speed control needs a reload" },
-
-    // Found only through the Svelte→TSX mirror: the TypeScript rules glob *.ts,
-    // so every component writing GAME_CONFIG from a script block was invisible.
-    // MainMenu is a whole second-writer cluster nothing had ever flagged.
-    "settings-write-outside-store|pax-fluxia/src/lib/components/game/GameCanvas.svelte|TERRITORY_RENDER_MODE":
-        { count: 1, why: "canvas normalises the render mode it was handed" },
-    "settings-write-outside-store|pax-fluxia/src/lib/components/game/GameCanvas.svelte|BG_IMAGE_URL":
-        { count: 1, why: "canvas resolves the background path it loaded" },
-    "settings-write-outside-store|pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte|MODIFIED_VORONOI_STAR_MARGIN":
-        { count: 3, why: "main-menu map setup writes generation config directly" },
-    "settings-write-outside-store|pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte|MAPGEN_LANE_MARGIN_PX":
-        { count: 3, why: "as above" },
-    "settings-write-outside-store|pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte|MAPGEN_LANE_CURVE_VS_PRUNE_BIAS":
-        { count: 3, why: "as above" },
-    "settings-write-outside-store|pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte|MAPGEN_LANE_MODE":
-        { count: 3, why: "as above" },
-    "settings-write-outside-store|pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte|STARS_PER_PLAYER":
-        { count: 1, why: "new-game setup" },
-    "settings-write-outside-store|pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte|STARTING_SHIPS":
-        { count: 1, why: "new-game setup" },
-    "settings-write-outside-store|pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte|MIN_LINKS_PER_STAR":
-        { count: 1, why: "new-game setup" },
-    "settings-write-outside-store|pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte|MAX_LINKS_PER_STAR":
-        { count: 1, why: "new-game setup" },
-    "settings-write-outside-store|pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte|RETAIN_ORDER_ON_CONQUEST":
-        { count: 1, why: "map/scenario load forces the rule" },
-    "settings-write-outside-store|pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte|ALLOW_OPPOSING_ORDERS":
-        { count: 1, why: "map/scenario load forces the rule" },
-    "settings-write-outside-store|pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte|CONQUEST_SLOWMO_ENABLED":
-        { count: 1, why: "debug-b map toggle; the slowmo machinery is itself a removal candidate" },
 };
 
 interface Finding {

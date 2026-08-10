@@ -52,7 +52,6 @@ interface RoomOptions {
     mapBoardFit?: number;
     minLinks?: number;
     maxLinks?: number;
-    retainOrderOnConquest?: boolean;
     playerColors?: string[];
     isPublicAnchor?: boolean;
     publicRoomLabel?: string;

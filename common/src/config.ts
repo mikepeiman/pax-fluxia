@@ -57,7 +57,6 @@ export interface EngineConfig {
 
     // Conquest
     CONQUEST_TRANSFER_PERCENTAGE: number;  // % of attacker ships transferred on conquest
-    RETAIN_ORDER_ON_CONQUEST: boolean;     // Keep attacker order post-conquest
     ORDERS_PERSIST_AFTER_CONQUEST: boolean; // Queued/deferred orders survive ownership change
     CONQUEST_DAMAGED_CAPTURE_RATE: number; // % of damaged ships captured at conquest (0-1, default 1)
     CONQUEST_DAMAGED_DESTROY_RATE: number; // % of damaged ships destroyed at conquest (0-1, default 0)
@@ -78,7 +77,13 @@ export interface EngineConfig {
     MINIMUM_DAMAGE: number;                // Floor damage per combat tick
 
     // Orders
-    ALLOW_OPPOSING_ORDERS: boolean;    // Allow A→B and B→A simultaneously (default false)
+    //
+    // ALLOW_OPPOSING_ORDERS and RETAIN_ORDER_ON_CONQUEST used to live here.
+    // Neither was ever read: GameEngine.issueOrder breaks same-player opposing
+    // loops unconditionally, and order retention is carried per-order by
+    // IssueOrderInput.persist. They were config-shaped constants — declared,
+    // threaded through buildEngineConfig, written from three places, consulted
+    // nowhere. Removed 2026-08-10; the behaviour they described is the rule.
 }
 
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
@@ -91,7 +96,6 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
     MIN_SHIPS_PER_TRANSFER: 1,
     TRANSFER_RATE: 0.1,
     CONQUEST_TRANSFER_PERCENTAGE: 50,
-    RETAIN_ORDER_ON_CONQUEST: true,
     ORDERS_PERSIST_AFTER_CONQUEST: true,
     CONQUEST_DAMAGED_CAPTURE_RATE: 1.0,
     CONQUEST_DAMAGED_DESTROY_RATE: 0,
@@ -106,5 +110,4 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
     FORCE_RATIO_EFFECT: 0,
     CONQUEST_THRESHOLD: 20,
     MINIMUM_DAMAGE: 1,
-    ALLOW_OPPOSING_ORDERS: false,
 };

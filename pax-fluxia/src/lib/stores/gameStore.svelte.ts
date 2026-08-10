@@ -1855,9 +1855,10 @@ function issueOrder(sourceId: StarId, targetId: StarId, persistAfterConquest?: b
         persist: persistAfterConquest,
     };
     measurePerf('game.order.issue.engine', () => {
-        SharedEngine.processInput(state!, input, {
-            ALLOW_OPPOSING_ORDERS: false,
-        });
+        // No config override: breaking same-player opposing loops is an engine
+        // rule, not a setting. The ALLOW_OPPOSING_ORDERS flag this used to pass
+        // was never read by issueOrder.
+        SharedEngine.processInput(state!, input);
     }, {
         sourceId,
         targetId,
@@ -2052,14 +2053,6 @@ function updateConfig(): void {
     }
 }
 
-function toggleRetainOrderOnConquest(): void {
-    GAME_CONFIG.RETAIN_ORDER_ON_CONQUEST = true;
-}
-
-function toggleAllowOpposingOrders(): void {
-    GAME_CONFIG.ALLOW_OPPOSING_ORDERS = false;
-}
-
 function debugSetStarShips(starId: string, count: number): void {
     if (!state) return;
     const star = state.stars.get(starId);
@@ -2099,8 +2092,6 @@ export const gameStore = {
     get leaderboard() { return leaderboard; },
     get sessionId() { return sessionId; },
     get hasStarted() { return hasStarted; },
-    get retainOrderOnConquest() { return true; },
-    get allowOpposingOrders() { return false; },
 
     // Actions
     setView,
@@ -2123,8 +2114,6 @@ export const gameStore = {
     getTickDiagnostics,
     updateConfig,
     beginGame,
-    toggleRetainOrderOnConquest,
-    toggleAllowOpposingOrders,
     debugSetStarShips,
     debugSetStarForce,
 

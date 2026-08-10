@@ -696,7 +696,6 @@
       mapBoardFit: gameStore.settings.mapBoardFit ?? 0.55,
       minLinks: gameStore.settings.minLinksPerStar ?? 1,
       maxLinks: gameStore.settings.maxLinksPerStar ?? 6,
-      retainOrderOnConquest: gameStore.retainOrderOnConquest,
       gameplayConfig: buildEngineConfig(),
       playerColors: gameStore.settings.playerColors,
     });
