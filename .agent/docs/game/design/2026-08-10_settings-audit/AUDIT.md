@@ -40,9 +40,54 @@ Artifacts, all in this folder and all overwritten on each run:
 
 ---
 
-## 1. The numbers
+## 0. Status — all six batches landed
 
-409 GAME_CONFIG keys. **333 are reachable in the UI; 76 are not.**
+Executed 2026-08-10. The plan in §3 is history; this is where it ended up.
+
+| Status | Before | After |
+| --- | --- | --- |
+| `live` | 213 | **334** |
+| `unregistered-control` | 91 | **0** |
+| `runtime-only` | 75 | 67 |
+| `half-wired` | 27 | **4** |
+| `orphan-config` | 11 | **0** |
+| `startup-only` | 1 | **0** |
+| `settings-machinery` | 1 | 1 |
+| rows | 419 | 406 |
+
+The 4 remaining `half-wired` are the audio family plus `BASE_TICK_MS`: single
+owners, not races (§3 batch 3). The 67 `runtime-only` are the product decision
+in §4, untouched on purpose.
+
+**Two of the six batches turned out to be measurement bugs, not defects**, and
+that is the most useful thing in this document:
+
+- **Batch 1** — the 14 "unsearchable" controls were all findable. The ledger
+  asked `getSearchableSettingRecords()` (the legacy hand map) instead of
+  `searchSettings` (the union the search box queries). Same error this audit made
+  about the utility drawers. Fixed by giving both callers one honest source,
+  `searchableConfigKeys()`, which also emptied 16 of the 22 `KNOWN_UNWIRED`
+  baseline entries.
+- **Batch 4** — `ANIMATION_SPEED_MS` was never reload-only. `DEFAULT_SPEED_MS` is
+  a deliberate fixed reference for the speed *ratio*; reading it live would pin
+  the ratio at 1.0 and disable animation-speed scaling. The settings apply path
+  already pushes the new speed into the store. Annotated and suppressed, not
+  "fixed".
+
+A third correction landed mid-batch: regenerating the control registry was
+**destructive**. Extraction only sees controls that still have a Pax row, so a
+section that had migrated to projection lost its entries — 19 live controls
+would have vanished from the UI. The generator now merges.
+
+Guards added, so none of this can reopen: registry totality
+(`settingsControlRegistry.test.ts`), the ast-grep rule pack over both TypeScript
+and Svelte markup (`settingsIntegrity.test.ts`), and an empty `KNOWN_UNWIRED`.
+
+## 1. The numbers (as audited, before the batches ran)
+
+Kept as the starting picture; §0 has the outcome.
+
+409 GAME_CONFIG keys. **333 were reachable in the UI; 76 were not.**
 
 | Status | Count | Meaning |
 | --- | --- | --- |
