@@ -1,0 +1,16 @@
+# ast-grep config for the Svelte MARKUP rules.
+#
+# These rules run against `pax-fluxia/.sg-svelte/`, the generated TSX mirror of
+# every .svelte file (tools/svelte-tsx/). The mirror keeps line numbers identical
+# to the source, so a hit at mirror line N is a hit at .svelte line N.
+#
+# Do not run this config by hand — `bun run svelte:lint` rebuilds the mirror
+# first and maps every hit back to its .svelte path before printing. Running
+# ast-grep directly against the mirror reports generated paths.
+#
+# Separate from sgconfig.yml on purpose: the TypeScript rules must not scan the
+# generated tree (they would double-report every script block), and the markup
+# rules must not scan real source (there is no markup there).
+
+ruleDirs:
+  - tools/ast-grep/rules-svelte

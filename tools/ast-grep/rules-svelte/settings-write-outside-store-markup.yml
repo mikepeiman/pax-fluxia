@@ -1,0 +1,33 @@
+id: settings-write-outside-store-markup
+language: tsx
+severity: error
+message: 'second writer of a user-facing GAME_CONFIG key, inside a .svelte file'
+note: |
+  The same defect as `settings-write-outside-store`, in the half of the codebase
+  that rule cannot reach: its globs are `*.ts`, so every component that writes
+  GAME_CONFIG from a script block or an event handler was invisible to it. That
+  includes GameCanvas.svelte — the PixiJS host.
+
+  Writing GAME_CONFIG directly skips the panel mirror, the PANEL_CONFIG_MAP
+  persistence and the invalidation that tells the territory renderers to
+  re-read. Route it through settingsStore / panelSync.
+
+  Scope notes:
+   - `_`-prefixed keys are runtime-derived internals, not settings (constraint
+     below excludes them).
+   - `components/ui/settings/**` IS the apply layer — a section writing its own
+     key through its local handler is the intended path, not a bypass.
+files:
+  - "pax-fluxia/.sg-svelte/**/*.tsx"
+ignores:
+  - "**/.sg-svelte/lib/components/ui/settings/**"
+  - "**/.sg-svelte/lib/components/ui/GameSettingsPanel.svelte.tsx"
+  - "**/.sg-svelte/lib/components/ui/AudioSettings.svelte.tsx"
+rule:
+  any:
+    - pattern: GAME_CONFIG.$KEY = $VALUE
+    - pattern: GAME_CONFIG[$KEY] = $VALUE
+    - pattern: Object.assign(GAME_CONFIG, $$$ARGS)
+constraints:
+  KEY:
+    regex: '^[A-Z]'

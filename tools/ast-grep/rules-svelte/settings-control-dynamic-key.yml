@@ -1,0 +1,27 @@
+id: settings-control-dynamic-key
+language: tsx
+severity: warning
+message: 'settings control whose config key is computed, not literal'
+note: |
+  A control written as `settingConfigKey={`AUDIO_FILE_${type}`}` or
+  `settingConfigKey={v.key}` is invisible to every static settings guard in this
+  repo — `settingsWiringInvariant.test.ts` collects rendered keys with a regex
+  that only matches QUOTED literals, so these controls are never checked for
+  searchability or persistence, and the ledger cannot see that the key is
+  exposed at all.
+
+  These controls are not wrong. The point is that they need their key set
+  declared somewhere a tool can read: give the loop an explicit key list (as the
+  registry sections do) rather than building the name from a value at runtime.
+
+  The ledger resolves the template-literal form by prefix so the family is not
+  reported as unexposed; the `{v.key}` form cannot be resolved statically at all.
+files:
+  - "pax-fluxia/.sg-svelte/**/*.tsx"
+rule:
+  kind: jsx_self_closing_element
+  all:
+    - has:
+        field: name
+        regex: '^Pax'
+    - pattern: <$COMPONENT $$$BEFORE settingConfigKey={$EXPR} $$$AFTER/>

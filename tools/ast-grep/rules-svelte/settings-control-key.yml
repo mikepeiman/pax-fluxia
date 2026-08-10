@@ -1,0 +1,22 @@
+id: settings-control-key
+language: tsx
+severity: hint
+message: 'settings control with a literal config key'
+note: |
+  Inventory rule, not a lint. Every hand-rendered settings row (one NOT projected
+  from settingsControlRegistry through SettingsControlRenderer) is matched here,
+  so the ledger can tell `hand-rendered` from `projected` structurally.
+
+  This runs on the generated TSX mirror of the .svelte tree. On the raw markup it
+  is impossible: ast-grep has no Svelte grammar, and parsing .svelte as HTML
+  recovers 2 of 75 controls in ControlsSection-Ships. Through the mirror it
+  recovers all of them.
+files:
+  - "pax-fluxia/.sg-svelte/**/*.tsx"
+rule:
+  kind: jsx_self_closing_element
+  all:
+    - has:
+        field: name
+        regex: '^Pax'
+    - pattern: <$COMPONENT $$$BEFORE settingConfigKey="$KEY" $$$AFTER/>

@@ -16,7 +16,9 @@
     "tauri": "tauri",
     "ui:audit": "node tools/ui-audit.mjs",
     "settings:ledger": "bun tools/settings-ledger.ts",
-    "settings:lint": "bunx ast-grep scan -c ../sgconfig.yml"
+    "settings:lint": "bunx ast-grep scan -c ../sgconfig.yml",
+    "svelte:tsx": "bun tools/svelte-tsx/build.ts",
+    "svelte:lint": "bun tools/svelte-tsx/sg-svelte.ts"
   },
   "license": "MIT",
   "dependencies": {

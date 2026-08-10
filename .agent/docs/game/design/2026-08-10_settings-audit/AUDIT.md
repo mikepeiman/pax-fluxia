@@ -17,6 +17,12 @@ it at runtime, which subsystem owns the effect, and what to do about it. The
 evidence is generated from the code, not written by hand, so it can be re-run
 after every cleanup batch and stays true.
 
+**Ownership.** All six batches in §3 belong to this session. An earlier revision
+deferred batches 1, 2 and 5 to an `opus-ui-cutover` lane; that claim had sat on
+the coordination board since 2026-07-18 with no matching activity and there is no
+concurrent agent. Active Claims are cleared and `components/ui/settings/**` is in
+scope.
+
 **Regenerate everything:**
 
 ```bash
@@ -36,18 +42,27 @@ Artifacts, all in this folder and all overwritten on each run:
 
 ## 1. The numbers
 
-409 GAME_CONFIG keys. **291 are reachable in the UI; 118 are not.**
+409 GAME_CONFIG keys. **333 are reachable in the UI; 76 are not.**
 
 | Status | Count | Meaning |
 | --- | --- | --- |
-| `live` | 217 | Registry control, persisted, searchable, read by real consuming code. Nothing to do. |
-| `runtime-only` | 117 | Read by code, no control. **Candidates, not defects** — exposing them is a product call. |
-| `unregistered-control` | 49 | The user can move it, but `settingsControlRegistry` has never heard of it. |
-| `half-wired` | 23 | A live control missing one wiring leg (search, persistence, or a sane range). |
+| `live` | 213 | Registry control, persisted, searchable, read by real consuming code. Nothing to do. |
+| `unregistered-control` | 91 | The user can move it, but `settingsControlRegistry` has never heard of it. |
+| `runtime-only` | 75 | Read by code, no control. **Candidates, not defects** — exposing them is a product call. |
+| `half-wired` | 27 | A live control missing one wiring leg (search, persistence, a sane range, or a second writer racing it). |
 | `orphan-config` | 11 | Declared, unread, unexposed. Dead weight. |
 | `startup-only` | 1 | The control writes; the reader froze the value at import. Needs a reload to take effect. |
 | `settings-machinery` | 1 | Reaches its effect only through the panel mirror inside the settings layer. |
 | `dead-ui` / `disconnected` / `duplicate` | 0 | Clean. The 2026-07-22 wiring pass held. |
+
+> These numbers are the SECOND pass. The first pass read the markup with a tag
+> scan and reported 291 exposed / 49 unregistered / 117 runtime-only. Once the
+> Svelte→TSX bridge (§2) let ast-grep read the markup structurally, 42 audio
+> controls turned out to be exposed through computed keys, one control keyed
+> `local.playerPalette.nudges[selected]` turned out to be invisible to the tag
+> scan's character class, and 13 more second-writer sites surfaced in MainMenu.
+> The direction of every correction was the same: the cruder tool under-reported
+> what the user can actually reach.
 
 Two facts worth stating plainly:
 
@@ -67,7 +82,7 @@ Two facts worth stating plainly:
 
 | Tool | State | Verdict |
 | --- | --- | --- |
-| **ast-grep** `0.45.1` | Installed as a dev dependency; project config at `sgconfig.yml`, rules in `tools/ast-grep/rules/`, CI gate at `pax-fluxia/tools/settingsIntegrity.test.ts` | **Keep — highest value per minute of the four.** On TypeScript it found two defect classes nothing else did (below). On Svelte markup it is not usable: see the caveat. |
+| **ast-grep** `0.45.1` | Installed as a dev dependency; `sgconfig.yml` + `sgconfig.svelte.yml`, rules in `tools/ast-grep/rules{,-svelte}/`, Svelte bridge at `pax-fluxia/tools/svelte-tsx/`, CI gate at `pax-fluxia/tools/settingsIntegrity.test.ts` | **Keep — by a wide margin the most valuable of the four.** Found three defect classes nothing else did. Its one real limit (no Svelte grammar) is removed by the TSX bridge below, which took it from 2-of-75 to 219-of-219 on the markup. |
 | **Serena** `1.7.1` | Installed via `uv tool install`; project indexed (520 TypeScript files); registered in `.mcp.json` | **Keep.** Real LSP-grade definitions/references/renames — the right tool for executing the fixes below. Not an auditor. |
 | **Graphify** `1.0.0` | Already present; graph rebuilt — 25,530 nodes, 31,381 edges, 2,247 communities | **Keep for orientation only.** Answers "what is near this module" well. It has no notion of a config key, so it cannot answer a single question in this audit. |
 | **codebase-memory-mcp** `0.10.0` | Installed (npm + binary), **cannot run on this machine** | **Blocked upstream.** See below. |
@@ -76,34 +91,71 @@ Two facts worth stating plainly:
 
 ### ast-grep: what it caught
 
-Two rules, both encoding a failure mode this project has actually shipped:
+Rules encoding failure modes this project has actually shipped:
 
 - **`settings-write-outside-store`** — a second writer of a user-facing key,
-  bypassing persistence and invalidation. **15 sites.** This is the mechanism
-  behind "the value doesn't save" and "it reverts on reload".
+  bypassing persistence and invalidation. **15 sites in TypeScript, plus 21 more
+  in `.svelte` files** once the bridge existed. This is the mechanism behind "the
+  value doesn't save" and "it reverts on reload".
 - **`settings-frozen-at-import`** — a config value captured into a module-scope
-  `const`, so the setting silently becomes reload-only. **1 site**, and it is
-  the Animation Speed control.
+  `const`, so the setting silently becomes reload-only. **1 site**, and it is the
+  Animation Speed control.
+- **`settings-control-dynamic-key`** — a control whose key is computed, and so is
+  exempt from every existing wiring guard. **16 sites.**
 
-Both are now enforced. `pax-fluxia/tools/settingsIntegrity.test.ts` runs the rule
-pack, baselines the 16 known sites with a reason each, and fails on anything new.
+All are enforced. `pax-fluxia/tools/settingsIntegrity.test.ts` runs both rule
+packs, baselines the known sites with a reason each, and fails on anything new.
 The baseline is meant to shrink; a fourth test fails if you fix something and
 forget to delete its baseline entry.
 
 ```bash
-cd pax-fluxia && bun run settings:lint     # see the violations
+cd pax-fluxia && bun run settings:lint     # TypeScript violations
+cd pax-fluxia && bun run svelte:lint       # Svelte markup violations
 ```
 
-### ast-grep caveat — it cannot read Svelte markup
+### ast-grep and Svelte — the limit, and the bridge that removes it
 
 ast-grep has no Svelte grammar. Parsing `.svelte` as HTML degrades at the first
 Svelte-only construct (`{#if}`, `{expr}`) and silently drops everything after it.
 Measured on `ControlsSection-Ships.svelte`: **2 of 75 controls recovered.** A rule
 built on that would have reported 73 controls as nonexistent.
 
-The ledger therefore uses a direct tag scan for the markup and keeps ast-grep on
-the TypeScript side, where it is exact. Worth knowing before anyone writes a
-Svelte lint rule with it.
+`pax-fluxia/tools/svelte-tsx/` fixes this instead of working around it. Rather
+than approximate the grammar, it parses each file with **Svelte's own compiler**
+— the one that builds the app, so it is right by construction — and re-emits the
+markup as TSX, which ast-grep parses natively and exactly. The parts that look
+hostile turn out not to be: `on:click`, `bind:value` and `<svelte:window>` are
+all valid JSX *namespaced* names, so directives survive verbatim and rules match
+them exactly as written in the `.svelte` file.
+
+The generated mirror keeps **the same number of lines as the source, with every
+construct on its original line**, so a hit at mirror line N is a hit at `.svelte`
+line N — no source map. `sg-svelte.ts` maps paths back and prints the original
+source line as evidence (columns do not map, and it does not pretend they do).
+
+```bash
+cd pax-fluxia && bun run svelte:lint          # rules over Svelte markup
+cd pax-fluxia && bun run svelte:tsx           # just rebuild the mirror
+```
+
+**Result: 219 of 219 controls, versus 2 of 75.** Asserted, not asserted-about —
+`tools/svelte-tsx/convert.test.ts` checks line-count preservation across all 121
+files and compares ast-grep's recall against an independent text scan, so a
+regression in the bridge fails CI rather than quietly shrinking the audit.
+
+Three markup rules now run that were previously impossible:
+
+- **`settings-control-key`** — the control inventory the ledger runs on.
+- **`settings-control-dynamic-key`** — controls keyed by a computed name
+  (`` settingConfigKey={`AUDIO_VOL_${type}`} ``). 16 sites. These are invisible to
+  `settingsWiringInvariant.test.ts`, whose regex only collects *quoted literals*,
+  so they have never been checked for searchability or persistence.
+- **`settings-write-outside-store-markup`** — second writers inside `.svelte`
+  files. 21 sites the TypeScript rule could not see because its globs are `*.ts`.
+
+The one thing the bridge does not recover is a key that is not derivable at all:
+`settingConfigKey={v.key}`. Template literals resolve by prefix; a bare variable
+cannot. Those five sites are reported so they can be made declarative.
 
 ### codebase-memory-mcp — blocked, not skipped
 
@@ -194,26 +246,36 @@ The value shown on first open is not the value in effect, and there is no way
 back to the default once the user touches it. Either widen the range or change
 the default — both are one-line fixes, but they must agree.
 
-### Batch 3 — Second writers (15 sites, ~2 hours, needs judgement)
+### Batch 3 — Second writers (36 sites, ~3 hours, needs judgement)
 
-The rule pack lists all fifteen with file and line; the test baselines them.
+Both rule packs list every site with file and line; the test baselines them all.
 
 - **`audioManager.svelte.ts` — 11 sites** across `AUDIO_MASTER_VOLUME`,
   `AUDIO_MUTED`, `AUDIO_SEPARATE_CONQUEST`. The manager keeps its own state and
   mirrors it into `GAME_CONFIG` from load, from setters, from reset and from
   theme apply. The settings panel writes the same keys through the store. Two
-  owners, no arbitration. This is the highest-risk item in the audit and the most
-  likely cause of any audio setting that "won't stick".
+  owners, no arbitration — the most likely cause of any audio setting that
+  "won't stick".
+- **`MainMenu.svelte` — 19 sites, 13 keys** (`MODIFIED_VORONOI_STAR_MARGIN`,
+  `MAPGEN_LANE_*`, `STARS_PER_PLAYER`, `STARTING_SHIPS`, `MIN/MAX_LINKS_PER_STAR`,
+  `RETAIN_ORDER_ON_CONQUEST`, `ALLOW_OPPOSING_ORDERS`, `CONQUEST_SLOWMO_ENABLED`).
+  New-game setup writing generation config straight into `GAME_CONFIG`, three
+  times over in some cases. **Nothing had ever flagged this** — it only became
+  visible through the Svelte bridge. The user's map settings and the settings
+  panel's map settings are two writers of one set of keys.
+- **`GameCanvas.svelte:1008/1530` — `TERRITORY_RENDER_MODE`, `BG_IMAGE_URL`.** The
+  PixiJS host writing back its own resolved values.
 - **`activeGameStore.svelte.ts:602` — `BASE_TICK_MS`.** Server-authoritative tick
   written straight into config. Probably correct; make it explicit.
 - **`gameStore.svelte.ts:2056/2060` — `RETAIN_ORDER_ON_CONQUEST`,
-  `ALLOW_OPPOSING_ORDERS`.** Scenario load overriding user settings, silently.
+  `ALLOW_OPPOSING_ORDERS`.** Scenario load overriding user settings, silently —
+  and MainMenu writes the same two keys, so that pair has *three* writers.
 - **`benchmarkBridge.ts:702` — `TERRITORY_RENDER_MODE`.** Bench harness; fine,
   keep it baselined.
 
 Decide per site: route through the store, or declare the key
-server/scenario-owned and stop offering it as a user setting. Do not leave two
-writers with no rule.
+server/scenario/menu-owned and stop offering it as a user setting. Do not leave
+two writers with no rule.
 
 ### Batch 4 — Startup-only (1 site, ~15 minutes)
 
@@ -222,16 +284,23 @@ is evaluated once at import. Move the read inside the function that uses it.
 Until then, the Animation Speed control needs a page reload to take effect, and
 nothing in the UI says so.
 
-### Batch 5 — Registry migration (49 keys, ~half a day, the structural one)
+### Batch 5 — Registry migration (91 keys, ~a day, the structural one)
 
-Forty-nine rendered controls are outside the registry:
+Ninety-one rendered controls are outside the registry:
 
-| File | Keys |
-| --- | --- |
-| `CellGridTuning.svelte` | 32 |
-| `GridGradientTuning.svelte` | 11 |
-| `TerritorySurfaceStyleTuning.svelte` | 5 |
-| `ControlsSection-Territory.svelte` | 1 |
+| File | Keys | Shape |
+| --- | --- | --- |
+| `CellGridTuning.svelte` | 24 | literal keys |
+| `TerritorySurfaceStyleTuning.svelte` | 13 | literal keys |
+| `GridGradientTuning.svelte` | 11 | literal keys |
+| `ControlsSection-Territory.svelte` | 1 | literal keys |
+| `ControlsSection-Audio.svelte` | 42 | **computed keys** — `AUDIO_VOL_*`, `AUDIO_FILE_*`, `AUDIO_OFFSET_*`, three per sound type |
+
+The audio 42 are a different job from the other 49. They are rendered by looping
+sound types and building the key with a template literal, so no static tool —
+including this repo's own `settingsWiringInvariant.test.ts` — has ever verified
+them. Give the loop an explicit key list (the pattern the registry sections
+already use) and they become ordinary registry entries.
 
 Each one maintains its label in the markup, its search text in `settingMetadata`,
 and its persisted key in `settingsDefs` — three hand-kept lists that drift
@@ -272,18 +341,22 @@ import/export plumbing, not a reader.
 
 ## 4. What the audit will not decide for you
 
-**117 runtime-only keys.** Code reads them; no control exists. Whether any of them
+**75 runtime-only keys.** Code reads them; no control exists. Whether any of them
 *should* be a setting is a product question, and static analysis has no opinion.
-Shape of the set:
+Most are `pixi-render`-owned territory internals, and most are already in
+`PANEL_CONFIG_MAP` — registered to be saved and restored, but never shown. That
+is either a deliberate hidden-tunable pattern or leftover from controls that were
+removed without cleaning up. Worth one ruling for the set rather than 75
+individual ones.
 
-- **42** are the `AUDIO_FILE_*` family, read through a constructed key
-  (`` `AUDIO_FILE_${type}` ``) in `audioManager.svelte.ts:110`. They are sound-file
-  paths. They should almost certainly stay out of the settings UI.
-- **~51** are `pixi-render`-owned territory internals.
-- **95 of the 117 are already in `PANEL_CONFIG_MAP`** — registered to be saved and
-  restored, but never shown. That is either a deliberate hidden-tunable pattern or
-  leftover from controls that were removed without cleaning up. Worth one decision
-  covering the whole set rather than 95 individual ones.
+I had this wrong in the first pass and it is worth stating plainly: I reported
+117 runtime-only keys and wrote that the `AUDIO_FILE_*` family "should almost
+certainly stay out of the settings UI". They are already **in** it — every sound
+type gets volume, file and offset controls in the Audio section, keyed by
+template literal. The tag scan could not see a computed key, so 42 live controls
+read as unreachable. The lesson is not about audio: **a settings surface with
+computed keys cannot be audited by any tool that only reads literals**, which is
+most of them, including this repo's own guard.
 
 The strongest exposure candidates by reader count are in `FINDINGS.md` §8, led by
 `TERRITORY_RENDER_MODE` (30 reads), `PERIMETER_FIELD_GEOMETRY_SOURCE` (20) and the

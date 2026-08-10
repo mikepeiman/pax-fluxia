@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-10T19:15:06.965Z",
+  "generatedAt": "2026-08-10T19:41:59.925Z",
   "generator": "pax-fluxia/tools/settings-ledger.ts",
   "totals": {
     "configKeys": 409,
@@ -10,11 +10,11 @@
     "rows": 419
   },
   "statusCounts": {
-    "live": 217,
-    "runtime-only": 117,
+    "live": 213,
+    "runtime-only": 75,
     "startup-only": 1,
-    "half-wired": 23,
-    "unregistered-control": 49,
+    "unregistered-control": 91,
+    "half-wired": 27,
     "orphan-config": 11,
     "settings-machinery": 1
   },
@@ -306,11 +306,12 @@
       ],
       "frozenAt": [],
       "secondWriters": [
-        "pax-fluxia/src/lib/stores/gameStore.svelte.ts:2060"
+        "pax-fluxia/src/lib/stores/gameStore.svelte.ts:2060",
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:716"
       ],
       "status": "runtime-only",
       "issues": [
-        "written outside the settings apply layer (1x, e.g. pax-fluxia/src/lib/stores/gameStore.svelte.ts:2060) — races the store"
+        "written outside the settings apply layer (2x, e.g. pax-fluxia/src/lib/stores/gameStore.svelte.ts:2060) — races the store"
       ],
       "action": "CANDIDATE — read by client-services/client-ui/config-helper/shared-sim, no control (product call)"
     },
@@ -1595,7 +1596,7 @@
       "key": "AUDIO_FILE_ATTACK",
       "default": "attack/attack.wav",
       "valueType": "string",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -1603,8 +1604,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169",
       "persisted": true,
       "panelKey": "audioFileAttack",
       "searchable": false,
@@ -1618,15 +1619,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169)"
     },
     {
       "key": "AUDIO_FILE_CHAT",
       "default": "ui/chat.wav",
       "valueType": "string",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -1634,8 +1637,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169",
       "persisted": true,
       "panelKey": "audioFileChat",
       "searchable": false,
@@ -1649,15 +1652,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169)"
     },
     {
       "key": "AUDIO_FILE_CLICK",
       "default": "ui/click.wav",
       "valueType": "string",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -1665,8 +1670,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169",
       "persisted": true,
       "panelKey": "audioFileClick",
       "searchable": false,
@@ -1680,15 +1685,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169)"
     },
     {
       "key": "AUDIO_FILE_CONQUEST",
       "default": "conquest/mixkit-fast-small-sweep-transition-166.wav",
       "valueType": "string",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -1696,8 +1703,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169",
       "persisted": true,
       "panelKey": "audioFileConquest",
       "searchable": false,
@@ -1711,15 +1718,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169)"
     },
     {
       "key": "AUDIO_FILE_CONQUEST_COMPLETE",
       "default": "conquest/SWSH_Swish Crisp Large 01_RSCPC_PX.wav",
       "valueType": "string",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -1727,8 +1736,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169",
       "persisted": true,
       "panelKey": "audioFileConquestComplete",
       "searchable": false,
@@ -1742,15 +1751,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169)"
     },
     {
       "key": "AUDIO_FILE_CONQUEST_RETREAT",
       "default": "conquest/SWSH_Swish Fused Small 04_RSCPC_PX.wav",
       "valueType": "string",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -1758,8 +1769,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169",
       "persisted": true,
       "panelKey": "audioFileConquestRetreat",
       "searchable": false,
@@ -1773,15 +1784,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169)"
     },
     {
       "key": "AUDIO_FILE_CONQUEST_SCATTER",
       "default": "conquest/WHSH_Whoosh Plasma 04_RSCPC_SFEW.wav",
       "valueType": "string",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -1789,8 +1802,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169",
       "persisted": true,
       "panelKey": "audioFileConquestScatter",
       "searchable": false,
@@ -1804,15 +1817,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169)"
     },
     {
       "key": "AUDIO_FILE_LOSE",
       "default": "gameloss/lose.ogg",
       "valueType": "string",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -1820,8 +1835,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169",
       "persisted": true,
       "panelKey": "audioFileLose",
       "searchable": false,
@@ -1835,15 +1850,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169)"
     },
     {
       "key": "AUDIO_FILE_MOVE",
       "default": "move/move.wav",
       "valueType": "string",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -1851,8 +1868,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169",
       "persisted": true,
       "panelKey": "audioFileMove",
       "searchable": false,
@@ -1866,15 +1883,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169)"
     },
     {
       "key": "AUDIO_FILE_NEW_PLAYER",
       "default": "ui/new_player.ogg",
       "valueType": "string",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -1882,8 +1901,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169",
       "persisted": true,
       "panelKey": "audioFileNewPlayer",
       "searchable": false,
@@ -1897,15 +1916,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169)"
     },
     {
       "key": "AUDIO_FILE_PLAY",
       "default": "ui/PLAY.WAV",
       "valueType": "string",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -1913,8 +1934,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169",
       "persisted": true,
       "panelKey": "audioFilePlay",
       "searchable": false,
@@ -1928,15 +1949,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169)"
     },
     {
       "key": "AUDIO_FILE_STARLOSS",
       "default": "starloss/mixkit-arcade-mechanical-bling-210.wav",
       "valueType": "string",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -1944,8 +1967,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169",
       "persisted": true,
       "panelKey": "audioFileStarloss",
       "searchable": false,
@@ -1959,15 +1982,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169)"
     },
     {
       "key": "AUDIO_FILE_TICK",
       "default": "tick/tick.wav",
       "valueType": "string",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -1975,8 +2000,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169",
       "persisted": true,
       "panelKey": "audioFileTick",
       "searchable": false,
@@ -1990,15 +2015,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169)"
     },
     {
       "key": "AUDIO_FILE_WIN",
       "default": "gamewin/win.ogg",
       "valueType": "string",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2006,8 +2033,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169",
       "persisted": true,
       "panelKey": "audioFileWin",
       "searchable": false,
@@ -2021,9 +2048,11 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169)"
     },
     {
       "key": "AUDIO_MASTER_VOLUME",
@@ -2111,7 +2140,7 @@
       "key": "AUDIO_OFFSET_ATTACK",
       "default": 0,
       "valueType": "number",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2119,8 +2148,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184",
       "persisted": true,
       "panelKey": "audioOffsetAttack",
       "searchable": false,
@@ -2134,15 +2163,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184)"
     },
     {
       "key": "AUDIO_OFFSET_CHAT",
       "default": 0,
       "valueType": "number",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2150,8 +2181,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184",
       "persisted": true,
       "panelKey": "audioOffsetChat",
       "searchable": false,
@@ -2165,15 +2196,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184)"
     },
     {
       "key": "AUDIO_OFFSET_CLICK",
       "default": 0,
       "valueType": "number",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2181,8 +2214,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184",
       "persisted": true,
       "panelKey": "audioOffsetClick",
       "searchable": false,
@@ -2196,15 +2229,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184)"
     },
     {
       "key": "AUDIO_OFFSET_CONQUEST",
       "default": 0.21,
       "valueType": "number",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2212,8 +2247,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184",
       "persisted": true,
       "panelKey": "audioOffsetConquest",
       "searchable": false,
@@ -2227,15 +2262,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184)"
     },
     {
       "key": "AUDIO_OFFSET_CONQUEST_COMPLETE",
       "default": 0,
       "valueType": "number",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2243,8 +2280,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184",
       "persisted": true,
       "panelKey": "audioOffsetConquestComplete",
       "searchable": false,
@@ -2258,15 +2295,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184)"
     },
     {
       "key": "AUDIO_OFFSET_CONQUEST_RETREAT",
       "default": 0,
       "valueType": "number",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2274,8 +2313,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184",
       "persisted": true,
       "panelKey": "audioOffsetConquestRetreat",
       "searchable": false,
@@ -2289,15 +2328,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184)"
     },
     {
       "key": "AUDIO_OFFSET_CONQUEST_SCATTER",
       "default": 0,
       "valueType": "number",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2305,8 +2346,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184",
       "persisted": true,
       "panelKey": "audioOffsetConquestScatter",
       "searchable": false,
@@ -2320,15 +2361,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184)"
     },
     {
       "key": "AUDIO_OFFSET_LOSE",
       "default": 0,
       "valueType": "number",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2336,8 +2379,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184",
       "persisted": true,
       "panelKey": "audioOffsetLose",
       "searchable": false,
@@ -2351,15 +2394,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184)"
     },
     {
       "key": "AUDIO_OFFSET_MOVE",
       "default": 0,
       "valueType": "number",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2367,8 +2412,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184",
       "persisted": true,
       "panelKey": "audioOffsetMove",
       "searchable": false,
@@ -2382,15 +2427,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184)"
     },
     {
       "key": "AUDIO_OFFSET_NEW_PLAYER",
       "default": 0,
       "valueType": "number",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2398,8 +2445,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184",
       "persisted": true,
       "panelKey": "audioOffsetNewPlayer",
       "searchable": false,
@@ -2413,15 +2460,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184)"
     },
     {
       "key": "AUDIO_OFFSET_PLAY",
       "default": 0,
       "valueType": "number",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2429,8 +2478,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184",
       "persisted": true,
       "panelKey": "audioOffsetPlay",
       "searchable": false,
@@ -2444,15 +2493,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184)"
     },
     {
       "key": "AUDIO_OFFSET_STARLOSS",
       "default": 0,
       "valueType": "number",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2460,8 +2511,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184",
       "persisted": true,
       "panelKey": "audioOffsetStarloss",
       "searchable": false,
@@ -2475,15 +2526,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184)"
     },
     {
       "key": "AUDIO_OFFSET_TICK",
       "default": 0,
       "valueType": "number",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2491,8 +2544,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184",
       "persisted": true,
       "panelKey": "audioOffsetTick",
       "searchable": false,
@@ -2506,15 +2559,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184)"
     },
     {
       "key": "AUDIO_OFFSET_WIN",
       "default": 0,
       "valueType": "number",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2522,8 +2577,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184",
       "persisted": true,
       "panelKey": "audioOffsetWin",
       "searchable": false,
@@ -2537,9 +2592,11 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184)"
     },
     {
       "key": "AUDIO_SEPARATE_CONQUEST",
@@ -2585,7 +2642,7 @@
       "key": "AUDIO_VOL_ATTACK",
       "default": 0.3,
       "valueType": "number",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2593,8 +2650,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157",
       "persisted": true,
       "panelKey": "audioVolAttack",
       "searchable": false,
@@ -2608,15 +2665,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157)"
     },
     {
       "key": "AUDIO_VOL_CHAT",
       "default": 0.6,
       "valueType": "number",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2624,8 +2683,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157",
       "persisted": true,
       "panelKey": "audioVolChat",
       "searchable": false,
@@ -2639,15 +2698,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157)"
     },
     {
       "key": "AUDIO_VOL_CLICK",
       "default": 0.3,
       "valueType": "number",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2655,8 +2716,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157",
       "persisted": true,
       "panelKey": "audioVolClick",
       "searchable": false,
@@ -2670,15 +2731,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157)"
     },
     {
       "key": "AUDIO_VOL_CONQUEST",
       "default": 0.2,
       "valueType": "number",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2686,8 +2749,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157",
       "persisted": true,
       "panelKey": "audioVolConquest",
       "searchable": false,
@@ -2701,15 +2764,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157)"
     },
     {
       "key": "AUDIO_VOL_CONQUEST_COMPLETE",
       "default": 0.35,
       "valueType": "number",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2717,8 +2782,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157",
       "persisted": true,
       "panelKey": "audioVolConquestComplete",
       "searchable": false,
@@ -2732,15 +2797,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157)"
     },
     {
       "key": "AUDIO_VOL_CONQUEST_RETREAT",
       "default": 0.35,
       "valueType": "number",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2748,8 +2815,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157",
       "persisted": true,
       "panelKey": "audioVolConquestRetreat",
       "searchable": false,
@@ -2763,15 +2830,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157)"
     },
     {
       "key": "AUDIO_VOL_CONQUEST_SCATTER",
       "default": 0.35,
       "valueType": "number",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2779,8 +2848,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157",
       "persisted": true,
       "panelKey": "audioVolConquestScatter",
       "searchable": false,
@@ -2794,15 +2863,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157)"
     },
     {
       "key": "AUDIO_VOL_LOSE",
       "default": 0.6,
       "valueType": "number",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2810,8 +2881,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157",
       "persisted": true,
       "panelKey": "audioVolLose",
       "searchable": false,
@@ -2825,15 +2896,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157)"
     },
     {
       "key": "AUDIO_VOL_MOVE",
       "default": 0.5,
       "valueType": "number",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2841,8 +2914,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157",
       "persisted": true,
       "panelKey": "audioVolMove",
       "searchable": false,
@@ -2856,15 +2929,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157)"
     },
     {
       "key": "AUDIO_VOL_NEW_PLAYER",
       "default": 0.8,
       "valueType": "number",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2872,8 +2947,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157",
       "persisted": true,
       "panelKey": "audioVolNewPlayer",
       "searchable": false,
@@ -2887,15 +2962,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157)"
     },
     {
       "key": "AUDIO_VOL_PLAY",
       "default": 0.6,
       "valueType": "number",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2903,8 +2980,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157",
       "persisted": true,
       "panelKey": "audioVolPlay",
       "searchable": false,
@@ -2918,15 +2995,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157)"
     },
     {
       "key": "AUDIO_VOL_STARLOSS",
       "default": 0.15,
       "valueType": "number",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2934,8 +3013,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157",
       "persisted": true,
       "panelKey": "audioVolStarloss",
       "searchable": false,
@@ -2949,15 +3028,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157)"
     },
     {
       "key": "AUDIO_VOL_TICK",
       "default": 0.4,
       "valueType": "number",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2965,8 +3046,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157",
       "persisted": true,
       "panelKey": "audioVolTick",
       "searchable": false,
@@ -2980,15 +3061,17 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157)"
     },
     {
       "key": "AUDIO_VOL_WIN",
       "default": 0.6,
       "valueType": "number",
-      "hasControl": false,
+      "hasControl": true,
       "controlCount": 0,
       "controlType": null,
       "label": null,
@@ -2996,8 +3079,8 @@
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
-      "renderShape": "none",
-      "renderedIn": null,
+      "renderShape": "dynamic-key",
+      "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157",
       "persisted": true,
       "panelKey": "audioVolWin",
       "searchable": false,
@@ -3011,9 +3094,11 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
-      "issues": [],
-      "action": "CANDIDATE — read by dynamic, no control (product call)"
+      "status": "unregistered-control",
+      "issues": [
+        "rendered control with NO settingsControlRegistry entry"
+      ],
+      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157)"
     },
     {
       "key": "BASE_PRODUCTION",
@@ -3167,9 +3252,13 @@
         "pax-fluxia/src/lib/components/game/GameCanvas.svelte:1530"
       ],
       "frozenAt": [],
-      "secondWriters": [],
+      "secondWriters": [
+        "pax-fluxia/src/lib/components/game/GameCanvas.svelte:1530"
+      ],
       "status": "runtime-only",
-      "issues": [],
+      "issues": [
+        "written outside the settings apply layer (1x, e.g. pax-fluxia/src/lib/components/game/GameCanvas.svelte:1530) — races the store"
+      ],
       "action": "CANDIDATE — read by client-services/client-ui/pixi-host/settings-machinery, no control (product call)"
     },
     {
@@ -3254,7 +3343,7 @@
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
-      "renderedIn": "CellGridTuning.svelte",
+      "renderedIn": "TerritorySurfaceStyleTuning.svelte",
       "persisted": true,
       "panelKey": "cellGridBorderBlend",
       "searchable": true,
@@ -3278,7 +3367,7 @@
       "issues": [
         "rendered control with NO settingsControlRegistry entry"
       ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "action": "REGISTER — add to settingsControlRegistry (rendered in TerritorySurfaceStyleTuning.svelte)"
     },
     {
       "key": "CELL_GRID_BORDER_CHAIKIN_PASSES",
@@ -3293,7 +3382,7 @@
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
-      "renderedIn": "CellGridTuning.svelte",
+      "renderedIn": "TerritorySurfaceStyleTuning.svelte",
       "persisted": true,
       "panelKey": "cellGridBorderChaikinPasses",
       "searchable": true,
@@ -3330,7 +3419,7 @@
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
-      "renderedIn": "CellGridTuning.svelte",
+      "renderedIn": "TerritorySurfaceStyleTuning.svelte",
       "persisted": true,
       "panelKey": "cellGridBorderMode",
       "searchable": true,
@@ -3354,7 +3443,7 @@
       "issues": [
         "rendered control with NO settingsControlRegistry entry"
       ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "action": "REGISTER — add to settingsControlRegistry (rendered in TerritorySurfaceStyleTuning.svelte)"
     },
     {
       "key": "CELL_GRID_BOUNDARY_FILL_FLUSH",
@@ -3408,7 +3497,7 @@
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
-      "renderedIn": "CellGridTuning.svelte",
+      "renderedIn": "TerritorySurfaceStyleTuning.svelte",
       "persisted": true,
       "panelKey": "cellGridCellCornerPx",
       "searchable": true,
@@ -3432,7 +3521,7 @@
       "issues": [
         "rendered control with NO settingsControlRegistry entry"
       ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "action": "REGISTER — add to settingsControlRegistry (rendered in TerritorySurfaceStyleTuning.svelte)"
     },
     {
       "key": "CELL_GRID_CELL_INSET_PX",
@@ -3447,7 +3536,7 @@
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
-      "renderedIn": "CellGridTuning.svelte",
+      "renderedIn": "TerritorySurfaceStyleTuning.svelte",
       "persisted": true,
       "panelKey": "cellGridCellInsetPx",
       "searchable": true,
@@ -3471,7 +3560,7 @@
       "issues": [
         "rendered control with NO settingsControlRegistry entry"
       ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "action": "REGISTER — add to settingsControlRegistry (rendered in TerritorySurfaceStyleTuning.svelte)"
     },
     {
       "key": "CELL_GRID_CELL_SHAPE",
@@ -3486,7 +3575,7 @@
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
-      "renderedIn": "CellGridTuning.svelte",
+      "renderedIn": "TerritorySurfaceStyleTuning.svelte",
       "persisted": true,
       "panelKey": "cellGridCellShape",
       "searchable": true,
@@ -3510,7 +3599,7 @@
       "issues": [
         "rendered control with NO settingsControlRegistry entry"
       ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "action": "REGISTER — add to settingsControlRegistry (rendered in TerritorySurfaceStyleTuning.svelte)"
     },
     {
       "key": "CELL_GRID_DISTRIBUTION",
@@ -3564,7 +3653,7 @@
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
-      "renderedIn": "CellGridTuning.svelte",
+      "renderedIn": "TerritorySurfaceStyleTuning.svelte",
       "persisted": true,
       "panelKey": "cellGridEdgeSmoothingPasses",
       "searchable": true,
@@ -3588,7 +3677,7 @@
       "issues": [
         "rendered control with NO settingsControlRegistry entry"
       ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "action": "REGISTER — add to settingsControlRegistry (rendered in TerritorySurfaceStyleTuning.svelte)"
     },
     {
       "key": "CELL_GRID_EDGE_TRIM_PX",
@@ -3603,7 +3692,7 @@
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
-      "renderedIn": "CellGridTuning.svelte",
+      "renderedIn": "TerritorySurfaceStyleTuning.svelte",
       "persisted": true,
       "panelKey": "cellGridEdgeTrimPx",
       "searchable": true,
@@ -3627,7 +3716,7 @@
       "issues": [
         "rendered control with NO settingsControlRegistry entry"
       ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "action": "REGISTER — add to settingsControlRegistry (rendered in TerritorySurfaceStyleTuning.svelte)"
     },
     {
       "key": "CELL_GRID_ENABLED",
@@ -3795,7 +3884,7 @@
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
-      "renderedIn": "CellGridTuning.svelte",
+      "renderedIn": "TerritorySurfaceStyleTuning.svelte",
       "persisted": true,
       "panelKey": "cellGridInwardOffsetPx",
       "searchable": true,
@@ -3819,7 +3908,7 @@
       "issues": [
         "rendered control with NO settingsControlRegistry entry"
       ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "action": "REGISTER — add to settingsControlRegistry (rendered in TerritorySurfaceStyleTuning.svelte)"
     },
     {
       "key": "CELL_GRID_MAX_CELLS",
@@ -5092,9 +5181,13 @@
         "pax-fluxia/src/lib/fx/handlers/conquestHandler.ts:71"
       ],
       "frozenAt": [],
-      "secondWriters": [],
+      "secondWriters": [
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:738"
+      ],
       "status": "runtime-only",
-      "issues": [],
+      "issues": [
+        "written outside the settings apply layer (1x, e.g. pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:738) — races the store"
+      ],
       "action": "CANDIDATE — read by client-ui/pixi-render, no control (product call)"
     },
     {
@@ -7369,10 +7462,16 @@
         "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:719"
       ],
       "frozenAt": [],
-      "secondWriters": [],
-      "status": "live",
-      "issues": [],
-      "action": "KEEP"
+      "secondWriters": [
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:459",
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:486",
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:719"
+      ],
+      "status": "half-wired",
+      "issues": [
+        "written outside the settings apply layer (3x, e.g. pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:459) — races the store"
+      ],
+      "action": "RECONNECT — written outside the settings apply layer (3x, e.g. pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:459) — races the store"
     },
     {
       "key": "MAPGEN_LANE_MARGIN_ENABLED",
@@ -7442,10 +7541,16 @@
         "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:522"
       ],
       "frozenAt": [],
-      "secondWriters": [],
-      "status": "live",
-      "issues": [],
-      "action": "KEEP"
+      "secondWriters": [
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:458",
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:485",
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:718"
+      ],
+      "status": "half-wired",
+      "issues": [
+        "written outside the settings apply layer (3x, e.g. pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:458) — races the store"
+      ],
+      "action": "RECONNECT — written outside the settings apply layer (3x, e.g. pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:458) — races the store"
     },
     {
       "key": "MAPGEN_LANE_MODE",
@@ -7479,9 +7584,15 @@
         "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:720"
       ],
       "frozenAt": [],
-      "secondWriters": [],
+      "secondWriters": [
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:460",
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:487",
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:720"
+      ],
       "status": "runtime-only",
-      "issues": [],
+      "issues": [
+        "written outside the settings apply layer (3x, e.g. pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:460) — races the store"
+      ],
       "action": "CANDIDATE — read by client-services/client-ui/server/settings-machinery, no control (product call)"
     },
     {
@@ -7510,9 +7621,13 @@
         "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:714"
       ],
       "frozenAt": [],
-      "secondWriters": [],
+      "secondWriters": [
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:714"
+      ],
       "status": "runtime-only",
-      "issues": [],
+      "issues": [
+        "written outside the settings apply layer (1x, e.g. pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:714) — races the store"
+      ],
       "action": "CANDIDATE — read by client-ui, no control (product call)"
     },
     {
@@ -7641,9 +7756,13 @@
         "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:713"
       ],
       "frozenAt": [],
-      "secondWriters": [],
+      "secondWriters": [
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:713"
+      ],
       "status": "runtime-only",
-      "issues": [],
+      "issues": [
+        "written outside the settings apply layer (1x, e.g. pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:713) — races the store"
+      ],
       "action": "CANDIDATE — read by client-ui, no control (product call)"
     },
     {
@@ -7932,10 +8051,16 @@
         "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:717"
       ],
       "frozenAt": [],
-      "secondWriters": [],
-      "status": "live",
-      "issues": [],
-      "action": "KEEP"
+      "secondWriters": [
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:457",
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:484",
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:717"
+      ],
+      "status": "half-wired",
+      "issues": [
+        "written outside the settings apply layer (3x, e.g. pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:457) — races the store"
+      ],
+      "action": "RECONNECT — written outside the settings apply layer (3x, e.g. pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:457) — races the store"
     },
     {
       "key": "NUMBER_TRANSITION_MS",
@@ -8949,11 +9074,12 @@
       ],
       "frozenAt": [],
       "secondWriters": [
-        "pax-fluxia/src/lib/stores/gameStore.svelte.ts:2056"
+        "pax-fluxia/src/lib/stores/gameStore.svelte.ts:2056",
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:715"
       ],
       "status": "runtime-only",
       "issues": [
-        "written outside the settings apply layer (1x, e.g. pax-fluxia/src/lib/stores/gameStore.svelte.ts:2056) — races the store"
+        "written outside the settings apply layer (2x, e.g. pax-fluxia/src/lib/stores/gameStore.svelte.ts:2056) — races the store"
       ],
       "action": "CANDIDATE — read by client-services/client-ui/config-helper/shared-sim, no control (product call)"
     },
@@ -9512,9 +9638,13 @@
         "pax-fluxia/src/lib/stores/gameStore.svelte.ts:993"
       ],
       "frozenAt": [],
-      "secondWriters": [],
+      "secondWriters": [
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:711"
+      ],
       "status": "runtime-only",
-      "issues": [],
+      "issues": [
+        "written outside the settings apply layer (1x, e.g. pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:711) — races the store"
+      ],
       "action": "CANDIDATE — read by client-services/client-ui, no control (product call)"
     },
     {
@@ -9547,10 +9677,14 @@
         "pax-fluxia/src/lib/stores/gameStore.svelte.ts:1314"
       ],
       "frozenAt": [],
-      "secondWriters": [],
-      "status": "live",
-      "issues": [],
-      "action": "KEEP"
+      "secondWriters": [
+        "pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:712"
+      ],
+      "status": "half-wired",
+      "issues": [
+        "written outside the settings apply layer (1x, e.g. pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:712) — races the store"
+      ],
+      "action": "RECONNECT — written outside the settings apply layer (1x, e.g. pax-fluxia/src/lib/components/ui/main-menu/MainMenu.svelte:712) — races the store"
     },
     {
       "key": "STAR_CORNER_RADIUS",
@@ -12793,11 +12927,12 @@
       ],
       "frozenAt": [],
       "secondWriters": [
-        "pax-fluxia/src/lib/perf/benchmarkBridge.ts:702"
+        "pax-fluxia/src/lib/perf/benchmarkBridge.ts:702",
+        "pax-fluxia/src/lib/components/game/GameCanvas.svelte:1008"
       ],
       "status": "runtime-only",
       "issues": [
-        "written outside the settings apply layer (1x, e.g. pax-fluxia/src/lib/perf/benchmarkBridge.ts:702) — races the store"
+        "written outside the settings apply layer (2x, e.g. pax-fluxia/src/lib/perf/benchmarkBridge.ts:702) — races the store"
       ],
       "action": "CANDIDATE — read by client-services/client-ui/pixi-host/pixi-render/settings-machinery, no control (product call)"
     },

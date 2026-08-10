@@ -38,6 +38,7 @@ import { SETTINGS_CONTROLS } from "../src/lib/components/ui/settings/settingsCon
 import { SETTINGS_SECTIONS } from "../src/lib/components/ui/settings/settingsRegistry";
 import { SETTINGS_PANELS } from "../src/lib/components/ui/settings/settingsPanels";
 import { searchSettings } from "../src/lib/components/ui/settings/settingsSearch";
+import { scanSvelte } from "./svelte-tsx/sg-svelte";
 import { getSearchableSettingRecords } from "../src/lib/components/ui/settings/settingMetadata";
 
 // ── Layout ──────────────────────────────────────────────────────────────────
@@ -160,31 +161,47 @@ const sectionMeta = new Map(SETTINGS_SECTIONS.map((s) => [s.id, s]));
 
 // ── Pass 3: how the control RENDERS (ast-grep over the markup) ──────────────
 
-type RenderShape = "projected" | "hand-rendered" | "custom-widget" | "none";
+type RenderShape = "projected" | "hand-rendered" | "dynamic-key" | "custom-widget" | "none";
 
 /**
- * Hand-rendered rows: a literal settingConfigKey on a Pax* tag.
- *
- * Deliberately NOT ast-grep. ast-grep has no Svelte grammar; parsing .svelte as
- * HTML degrades at the first Svelte-only construct ({#if}, {expr}) and silently
- * drops everything after it — measured 2 of 75 controls recovered in
- * ControlsSection-Ships.svelte. A tag scan over the same markup is exact here,
- * because the attribute we need is always a static literal on an opening tag.
- * ast-grep earns its place on the TypeScript side instead (tools/ast-grep/rules).
+ * Markup findings, from the Svelte rule pack running over the TSX mirror
+ * (tools/svelte-tsx). ast-grep has no Svelte grammar and parsing .svelte as HTML
+ * recovers 2 of 75 controls — so the markup is re-emitted as TSX by Svelte's own
+ * parser, line for line, and ast-grep's TSX engine scans that. Result: 219 of 219
+ * controls, and structural rules over markup that a tag scan could never express.
  */
+const svelteFindings = scanSvelte({ rebuild: true });
+
+/** Hand-rendered rows: a literal settingConfigKey on a Pax* tag. */
 function handRenderedKeys(): Map<string, string> {
     const found = new Map<string, string>();
-    const TAG_RE = /<(Pax[A-Za-z]*)\b([^>]*?)\/?>/g;
-    for (const file of walk(path.join(CLIENT_ROOT, "src/lib/components"), []).filter((f) =>
-        f.endsWith(".svelte"),
-    )) {
-        const src = readFileSync(file, "utf-8");
-        for (const tag of src.matchAll(TAG_RE)) {
-            const key = /settingConfigKey=["']([A-Za-z0-9_.]+)["']/.exec(tag[2]!)?.[1];
-            if (key && !found.has(key)) found.set(key, path.basename(file));
-        }
+    for (const finding of svelteFindings) {
+        if (finding.ruleId !== "settings-control-key") continue;
+        const key = finding.captures.KEY;
+        if (key && !found.has(key)) found.set(key, path.basename(finding.file));
     }
     return found;
+}
+
+/**
+ * Controls whose config key is BUILT at runtime — `settingConfigKey={`AUDIO_VOL_${type}`}`.
+ * The whole per-sound audio surface is rendered this way, so treating only
+ * literal keys as "exposed" reports three live families (AUDIO_VOL_*,
+ * AUDIO_FILE_*, AUDIO_OFFSET_*) as settings the user cannot reach — when they
+ * are sitting right there in the Audio section.
+ *
+ * Only the template-literal form is resolvable: a static prefix plus an
+ * interpolation. `settingConfigKey={v.key}` cannot be resolved at all and is
+ * reported by the rule as something to make declarative.
+ */
+function dynamicallyExposedPrefixes(): { prefix: string; at: string }[] {
+    const out: { prefix: string; at: string }[] = [];
+    for (const finding of svelteFindings) {
+        if (finding.ruleId !== "settings-control-dynamic-key") continue;
+        const prefix = /^`([A-Z][A-Z0-9_]*_)\$\{/.exec(finding.captures.EXPR ?? "")?.[1];
+        if (prefix) out.push({ prefix, at: `${finding.file}:${finding.line}` });
+    }
+    return out;
 }
 
 /**
@@ -290,12 +307,30 @@ function astGrepFindings(): Map<string, { rule: string; at: string }[]> {
 }
 
 const handRendered = handRenderedKeys();
+const dynamicExposure = dynamicallyExposedPrefixes();
 const projected = projectedKeys();
 const structural = astGrepFindings();
+
+// The markup rule pack finds second writers the TypeScript rules cannot reach:
+// their globs are `*.ts`, so every component writing GAME_CONFIG from a script
+// block was invisible — including GameCanvas.svelte, the PixiJS host.
+for (const finding of svelteFindings) {
+    if (finding.ruleId !== "settings-write-outside-store-markup") continue;
+    const key = finding.captures.KEY;
+    if (!key) continue;
+    const list = structural.get(key) ?? [];
+    list.push({ rule: "settings-write-outside-store", at: `${finding.file}:${finding.line}` });
+    structural.set(key, list);
+}
+
+/** Controls reached through a runtime-built key, resolved by static prefix. */
+const dynamicKeySite = (key: string): string | null =>
+    dynamicExposure.find((entry) => key.startsWith(entry.prefix))?.at ?? null;
 
 function renderShapeOf(key: string): RenderShape {
     if (projected.has(key)) return "projected";
     if (handRendered.has(key)) return "hand-rendered";
+    if (dynamicKeySite(key)) return "dynamic-key";
     if (controlsByKey.get(key)?.some((c) => c.custom || c.controlType === "custom"))
         return "custom-widget";
     return "none";
@@ -456,7 +491,8 @@ for (const key of [...allKeys].sort()) {
      * families (every CELL_GRID_* knob in CellGridTuning) as "runtime-only" when
      * the user is looking straight at them.
      */
-    const rendered = handRendered.has(key);
+    const dynamicSite = dynamicKeySite(key);
+    const rendered = handRendered.has(key) || Boolean(dynamicSite);
     const exposed = Boolean(control) || rendered;
     const inConfig = configKeySet.has(key);
     const localOnly = key.startsWith("local.");
@@ -560,7 +596,7 @@ for (const key of [...allKeys].sort()) {
             action = "DECIDE: wire it to its subsystem, or remove the control + the key";
             break;
         case "unregistered-control":
-            action = `REGISTER — add to settingsControlRegistry (rendered in ${handRendered.get(key)})`;
+            action = `REGISTER — add to settingsControlRegistry (rendered in ${handRendered.get(key) ?? dynamicSite})`;
             break;
         case "settings-machinery":
             action = "VERIFY BY HAND — effect flows through the panel mirror, not the config key";
@@ -597,7 +633,7 @@ for (const key of [...allKeys].sort()) {
         category: categoryOf.get(key) ?? null,
         excludedFromCategories: EXCLUDED_FROM_CATEGORIES.has(key),
         renderShape: shape,
-        renderedIn: projected.get(key) ?? handRendered.get(key) ?? null,
+        renderedIn: projected.get(key) ?? handRendered.get(key) ?? dynamicSite,
         persisted: persistedKeys.has(key),
         panelKey: panelKeyOf.get(key) ?? null,
         searchable: searchableKeys.has(key),
