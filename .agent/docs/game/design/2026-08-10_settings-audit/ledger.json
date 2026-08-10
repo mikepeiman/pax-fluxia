@@ -1,24 +1,25 @@
 {
-  "generatedAt": "2026-08-10T22:48:27.390Z",
+  "generatedAt": "2026-08-10T22:57:45.313Z",
   "generator": "pax-fluxia/tools/settings-ledger.ts",
   "totals": {
     "configKeys": 407,
-    "registryControls": 242,
-    "distinctControlKeys": 242,
+    "registryControls": 339,
+    "distinctControlKeys": 339,
     "persistedKeys": 387,
-    "searchableKeys": 334,
+    "searchableKeys": 382,
     "rows": 417
   },
   "statusCounts": {
-    "live": 237,
-    "runtime-only": 73,
-    "unregistered-control": 91,
+    "live": 334,
+    "runtime-only": 67,
     "half-wired": 4,
     "orphan-config": 11,
     "settings-machinery": 1
   },
   "crossCutting": {
     "duplicateLabels": [
+      "territory_styles::max cells → GRID_GRADIENT_MAX_CELLS, CELL_GRID_MAX_CELLS",
+      "territory_styles::position jitter → GRID_GRADIENT_POSITION_JITTER, CELL_GRID_POSITION_JITTER",
       "fleet_star_visuals::glow intensity → SHIP_GLOW_INTENSITY, STAR_GLOW_INTENSITY",
       "fleet_star_visuals::glow radius → SHIP_GLOW_RADIUS, STAR_GLOW_RADIUS_MULT"
     ],
@@ -1550,10 +1551,10 @@
       "default": "attack/attack.wav",
       "valueType": "string",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Attack Order File",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -1561,32 +1562,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169",
       "persisted": true,
       "panelKey": "audioFileAttack",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:110 (dynamic AUDIO_FILE_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:86 (dynamic AUDIO_FILE_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_FILE_CHAT",
       "default": "ui/chat.wav",
       "valueType": "string",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Chat Message File",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -1594,32 +1593,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169",
       "persisted": true,
       "panelKey": "audioFileChat",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:110 (dynamic AUDIO_FILE_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:86 (dynamic AUDIO_FILE_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_FILE_CLICK",
       "default": "ui/click.wav",
       "valueType": "string",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "UI Click File",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -1627,32 +1624,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169",
       "persisted": true,
       "panelKey": "audioFileClick",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:110 (dynamic AUDIO_FILE_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:86 (dynamic AUDIO_FILE_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_FILE_CONQUEST",
       "default": "conquest/mixkit-fast-small-sweep-transition-166.wav",
       "valueType": "string",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Conquest (Any) File",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -1660,32 +1655,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169",
       "persisted": true,
       "panelKey": "audioFileConquest",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:110 (dynamic AUDIO_FILE_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:86 (dynamic AUDIO_FILE_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_FILE_CONQUEST_COMPLETE",
       "default": "conquest/SWSH_Swish Crisp Large 01_RSCPC_PX.wav",
       "valueType": "string",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Conquest: Complete File",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -1693,32 +1686,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169",
       "persisted": true,
       "panelKey": "audioFileConquestComplete",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:110 (dynamic AUDIO_FILE_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:86 (dynamic AUDIO_FILE_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_FILE_CONQUEST_RETREAT",
       "default": "conquest/SWSH_Swish Fused Small 04_RSCPC_PX.wav",
       "valueType": "string",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Conquest: Retreat File",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -1726,32 +1717,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169",
       "persisted": true,
       "panelKey": "audioFileConquestRetreat",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:110 (dynamic AUDIO_FILE_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:86 (dynamic AUDIO_FILE_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_FILE_CONQUEST_SCATTER",
       "default": "conquest/WHSH_Whoosh Plasma 04_RSCPC_SFEW.wav",
       "valueType": "string",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Conquest: Scatter File",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -1759,32 +1748,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169",
       "persisted": true,
       "panelKey": "audioFileConquestScatter",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:110 (dynamic AUDIO_FILE_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:86 (dynamic AUDIO_FILE_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_FILE_LOSE",
       "default": "gameloss/lose.ogg",
       "valueType": "string",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Defeat File",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -1792,32 +1779,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169",
       "persisted": true,
       "panelKey": "audioFileLose",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:110 (dynamic AUDIO_FILE_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:86 (dynamic AUDIO_FILE_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_FILE_MOVE",
       "default": "move/move.wav",
       "valueType": "string",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Move Order File",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -1825,32 +1810,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169",
       "persisted": true,
       "panelKey": "audioFileMove",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:110 (dynamic AUDIO_FILE_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:86 (dynamic AUDIO_FILE_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_FILE_NEW_PLAYER",
       "default": "ui/new_player.ogg",
       "valueType": "string",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Player Joined File",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -1858,32 +1841,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169",
       "persisted": true,
       "panelKey": "audioFileNewPlayer",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:110 (dynamic AUDIO_FILE_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:86 (dynamic AUDIO_FILE_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_FILE_PLAY",
       "default": "ui/PLAY.WAV",
       "valueType": "string",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Game Start File",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -1891,32 +1872,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169",
       "persisted": true,
       "panelKey": "audioFilePlay",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:110 (dynamic AUDIO_FILE_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:86 (dynamic AUDIO_FILE_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_FILE_STARLOSS",
       "default": "starloss/mixkit-arcade-mechanical-bling-210.wav",
       "valueType": "string",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Star Lost File",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -1924,32 +1903,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169",
       "persisted": true,
       "panelKey": "audioFileStarloss",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:110 (dynamic AUDIO_FILE_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:86 (dynamic AUDIO_FILE_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_FILE_TICK",
       "default": "tick/tick.wav",
       "valueType": "string",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Game Tick File",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -1957,32 +1934,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169",
       "persisted": true,
       "panelKey": "audioFileTick",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:110 (dynamic AUDIO_FILE_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:86 (dynamic AUDIO_FILE_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_FILE_WIN",
       "default": "gamewin/win.ogg",
       "valueType": "string",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Victory File",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -1990,22 +1965,20 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169",
       "persisted": true,
       "panelKey": "audioFileWin",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:110 (dynamic AUDIO_FILE_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:86 (dynamic AUDIO_FILE_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:169)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_MASTER_VOLUME",
@@ -2030,23 +2003,23 @@
       ],
       "readerCount": 5,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:132",
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:255",
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:346",
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:420"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:108",
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:231",
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:322",
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:396"
       ],
       "frozenAt": [],
       "secondWriters": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:132",
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:346",
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:420",
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:477"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:108",
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:322",
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:396",
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:453"
       ],
       "status": "half-wired",
       "issues": [
-        "written outside the settings apply layer (4x, e.g. pax-fluxia/src/lib/services/audioManager.svelte.ts:132) — races the store"
+        "written outside the settings apply layer (4x, e.g. pax-fluxia/src/lib/services/audioManager.svelte.ts:108) — races the store"
       ],
-      "action": "RECONNECT — written outside the settings apply layer (4x, e.g. pax-fluxia/src/lib/services/audioManager.svelte.ts:132) — races the store"
+      "action": "RECONNECT — written outside the settings apply layer (4x, e.g. pax-fluxia/src/lib/services/audioManager.svelte.ts:108) — races the store"
     },
     {
       "key": "AUDIO_MUTED",
@@ -2071,33 +2044,33 @@
       ],
       "readerCount": 5,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:136",
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:256",
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:406",
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:421"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:112",
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:232",
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:382",
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:397"
       ],
       "frozenAt": [],
       "secondWriters": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:136",
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:406",
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:421",
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:478"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:112",
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:382",
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:397",
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:454"
       ],
       "status": "half-wired",
       "issues": [
-        "written outside the settings apply layer (4x, e.g. pax-fluxia/src/lib/services/audioManager.svelte.ts:136) — races the store"
+        "written outside the settings apply layer (4x, e.g. pax-fluxia/src/lib/services/audioManager.svelte.ts:112) — races the store"
       ],
-      "action": "RECONNECT — written outside the settings apply layer (4x, e.g. pax-fluxia/src/lib/services/audioManager.svelte.ts:136) — races the store"
+      "action": "RECONNECT — written outside the settings apply layer (4x, e.g. pax-fluxia/src/lib/services/audioManager.svelte.ts:112) — races the store"
     },
     {
       "key": "AUDIO_OFFSET_ATTACK",
       "default": 0,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Attack Order Offset",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -2105,32 +2078,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184",
       "persisted": true,
       "panelKey": "audioOffsetAttack",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:114 (dynamic AUDIO_OFFSET_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:90 (dynamic AUDIO_OFFSET_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_OFFSET_CHAT",
       "default": 0,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Chat Message Offset",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -2138,32 +2109,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184",
       "persisted": true,
       "panelKey": "audioOffsetChat",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:114 (dynamic AUDIO_OFFSET_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:90 (dynamic AUDIO_OFFSET_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_OFFSET_CLICK",
       "default": 0,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "UI Click Offset",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -2171,32 +2140,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184",
       "persisted": true,
       "panelKey": "audioOffsetClick",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:114 (dynamic AUDIO_OFFSET_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:90 (dynamic AUDIO_OFFSET_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_OFFSET_CONQUEST",
       "default": 0.21,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Conquest (Any) Offset",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -2204,32 +2171,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184",
       "persisted": true,
       "panelKey": "audioOffsetConquest",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:114 (dynamic AUDIO_OFFSET_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:90 (dynamic AUDIO_OFFSET_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_OFFSET_CONQUEST_COMPLETE",
       "default": 0,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Conquest: Complete Offset",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -2237,32 +2202,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184",
       "persisted": true,
       "panelKey": "audioOffsetConquestComplete",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:114 (dynamic AUDIO_OFFSET_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:90 (dynamic AUDIO_OFFSET_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_OFFSET_CONQUEST_RETREAT",
       "default": 0,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Conquest: Retreat Offset",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -2270,32 +2233,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184",
       "persisted": true,
       "panelKey": "audioOffsetConquestRetreat",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:114 (dynamic AUDIO_OFFSET_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:90 (dynamic AUDIO_OFFSET_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_OFFSET_CONQUEST_SCATTER",
       "default": 0,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Conquest: Scatter Offset",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -2303,32 +2264,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184",
       "persisted": true,
       "panelKey": "audioOffsetConquestScatter",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:114 (dynamic AUDIO_OFFSET_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:90 (dynamic AUDIO_OFFSET_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_OFFSET_LOSE",
       "default": 0,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Defeat Offset",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -2336,32 +2295,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184",
       "persisted": true,
       "panelKey": "audioOffsetLose",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:114 (dynamic AUDIO_OFFSET_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:90 (dynamic AUDIO_OFFSET_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_OFFSET_MOVE",
       "default": 0,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Move Order Offset",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -2369,32 +2326,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184",
       "persisted": true,
       "panelKey": "audioOffsetMove",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:114 (dynamic AUDIO_OFFSET_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:90 (dynamic AUDIO_OFFSET_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_OFFSET_NEW_PLAYER",
       "default": 0,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Player Joined Offset",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -2402,32 +2357,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184",
       "persisted": true,
       "panelKey": "audioOffsetNewPlayer",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:114 (dynamic AUDIO_OFFSET_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:90 (dynamic AUDIO_OFFSET_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_OFFSET_PLAY",
       "default": 0,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Game Start Offset",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -2435,32 +2388,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184",
       "persisted": true,
       "panelKey": "audioOffsetPlay",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:114 (dynamic AUDIO_OFFSET_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:90 (dynamic AUDIO_OFFSET_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_OFFSET_STARLOSS",
       "default": 0,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Star Lost Offset",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -2468,32 +2419,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184",
       "persisted": true,
       "panelKey": "audioOffsetStarloss",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:114 (dynamic AUDIO_OFFSET_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:90 (dynamic AUDIO_OFFSET_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_OFFSET_TICK",
       "default": 0,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Game Tick Offset",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -2501,32 +2450,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184",
       "persisted": true,
       "panelKey": "audioOffsetTick",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:114 (dynamic AUDIO_OFFSET_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:90 (dynamic AUDIO_OFFSET_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_OFFSET_WIN",
       "default": 0,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Victory Offset",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -2534,22 +2481,20 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184",
       "persisted": true,
       "panelKey": "audioOffsetWin",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:114 (dynamic AUDIO_OFFSET_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:90 (dynamic AUDIO_OFFSET_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:184)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_SEPARATE_CONQUEST",
@@ -2574,32 +2519,32 @@
       ],
       "readerCount": 4,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:140",
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:257",
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:400",
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:422"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:116",
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:233",
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:376",
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:398"
       ],
       "frozenAt": [],
       "secondWriters": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:140",
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:400",
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:422"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:116",
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:376",
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:398"
       ],
       "status": "half-wired",
       "issues": [
-        "written outside the settings apply layer (3x, e.g. pax-fluxia/src/lib/services/audioManager.svelte.ts:140) — races the store"
+        "written outside the settings apply layer (3x, e.g. pax-fluxia/src/lib/services/audioManager.svelte.ts:116) — races the store"
       ],
-      "action": "RECONNECT — written outside the settings apply layer (3x, e.g. pax-fluxia/src/lib/services/audioManager.svelte.ts:140) — races the store"
+      "action": "RECONNECT — written outside the settings apply layer (3x, e.g. pax-fluxia/src/lib/services/audioManager.svelte.ts:116) — races the store"
     },
     {
       "key": "AUDIO_VOL_ATTACK",
       "default": 0.3,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Attack Order Volume",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -2607,32 +2552,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157",
       "persisted": true,
       "panelKey": "audioVolAttack",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:106 (dynamic AUDIO_VOL_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:82 (dynamic AUDIO_VOL_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_VOL_CHAT",
       "default": 0.6,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Chat Message Volume",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -2640,32 +2583,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157",
       "persisted": true,
       "panelKey": "audioVolChat",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:106 (dynamic AUDIO_VOL_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:82 (dynamic AUDIO_VOL_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_VOL_CLICK",
       "default": 0.3,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "UI Click Volume",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -2673,32 +2614,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157",
       "persisted": true,
       "panelKey": "audioVolClick",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:106 (dynamic AUDIO_VOL_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:82 (dynamic AUDIO_VOL_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_VOL_CONQUEST",
       "default": 0.2,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Conquest (Any) Volume",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -2706,32 +2645,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157",
       "persisted": true,
       "panelKey": "audioVolConquest",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:106 (dynamic AUDIO_VOL_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:82 (dynamic AUDIO_VOL_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_VOL_CONQUEST_COMPLETE",
       "default": 0.35,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Conquest: Complete Volume",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -2739,32 +2676,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157",
       "persisted": true,
       "panelKey": "audioVolConquestComplete",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:106 (dynamic AUDIO_VOL_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:82 (dynamic AUDIO_VOL_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_VOL_CONQUEST_RETREAT",
       "default": 0.35,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Conquest: Retreat Volume",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -2772,32 +2707,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157",
       "persisted": true,
       "panelKey": "audioVolConquestRetreat",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:106 (dynamic AUDIO_VOL_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:82 (dynamic AUDIO_VOL_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_VOL_CONQUEST_SCATTER",
       "default": 0.35,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Conquest: Scatter Volume",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -2805,32 +2738,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157",
       "persisted": true,
       "panelKey": "audioVolConquestScatter",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:106 (dynamic AUDIO_VOL_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:82 (dynamic AUDIO_VOL_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_VOL_LOSE",
       "default": 0.6,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Defeat Volume",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -2838,32 +2769,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157",
       "persisted": true,
       "panelKey": "audioVolLose",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:106 (dynamic AUDIO_VOL_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:82 (dynamic AUDIO_VOL_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_VOL_MOVE",
       "default": 0.5,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Move Order Volume",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -2871,32 +2800,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157",
       "persisted": true,
       "panelKey": "audioVolMove",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:106 (dynamic AUDIO_VOL_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:82 (dynamic AUDIO_VOL_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_VOL_NEW_PLAYER",
       "default": 0.8,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Player Joined Volume",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -2904,32 +2831,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157",
       "persisted": true,
       "panelKey": "audioVolNewPlayer",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:106 (dynamic AUDIO_VOL_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:82 (dynamic AUDIO_VOL_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_VOL_PLAY",
       "default": 0.6,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Game Start Volume",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -2937,32 +2862,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157",
       "persisted": true,
       "panelKey": "audioVolPlay",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:106 (dynamic AUDIO_VOL_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:82 (dynamic AUDIO_VOL_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_VOL_STARLOSS",
       "default": 0.15,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Star Lost Volume",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -2970,32 +2893,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157",
       "persisted": true,
       "panelKey": "audioVolStarloss",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:106 (dynamic AUDIO_VOL_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:82 (dynamic AUDIO_VOL_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_VOL_TICK",
       "default": 0.4,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Game Tick Volume",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -3003,32 +2924,30 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157",
       "persisted": true,
       "panelKey": "audioVolTick",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:106 (dynamic AUDIO_VOL_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:82 (dynamic AUDIO_VOL_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "AUDIO_VOL_WIN",
       "default": 0.6,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Victory Volume",
+      "section": "audio",
       "subsection": null,
       "category": "audio",
       "excludedFromCategories": false,
@@ -3036,22 +2955,20 @@
       "renderedIn": "pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157",
       "persisted": true,
       "panelKey": "audioVolWin",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [],
       "effectOwners": [
         "dynamic"
       ],
       "readerCount": 1,
       "topReaders": [
-        "pax-fluxia/src/lib/services/audioManager.svelte.ts:106 (dynamic AUDIO_VOL_*)"
+        "pax-fluxia/src/lib/services/audioManager.svelte.ts:82 (dynamic AUDIO_VOL_*)"
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in pax-fluxia/src/lib/components/ui/settings/ControlsSection-Audio.svelte:157)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "BASE_PRODUCTION",
@@ -3249,11 +3166,11 @@
       "default": "8",
       "valueType": "string",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Adjacency",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -3277,22 +3194,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CELL_GRID_BORDER_BLEND",
       "default": true,
       "valueType": "boolean",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "toggle",
+      "label": "Centered-blended borders",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -3316,11 +3231,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in TerritorySurfaceStyleTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CELL_GRID_BORDER_CHAIKIN_PASSES",
@@ -3364,11 +3277,11 @@
       "default": "territory_edge",
       "valueType": "string",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Border Mode",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -3392,11 +3305,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in TerritorySurfaceStyleTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CELL_GRID_BOUNDARY_FILL_FLUSH",
@@ -3440,11 +3351,11 @@
       "default": 0,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Square Corner",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -3468,22 +3379,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in TerritorySurfaceStyleTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CELL_GRID_CELL_INSET_PX",
       "default": 0,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Cell Inset",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -3507,22 +3416,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in TerritorySurfaceStyleTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CELL_GRID_CELL_SHAPE",
       "default": "square",
       "valueType": "string",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Cell Shape",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -3546,22 +3453,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in TerritorySurfaceStyleTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CELL_GRID_DISTRIBUTION",
       "default": "square",
       "valueType": "string",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Distribution",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -3585,22 +3490,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CELL_GRID_EDGE_SMOOTHING_PASSES",
       "default": 0,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Shared Edge Smoothing",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -3624,22 +3527,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in TerritorySurfaceStyleTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CELL_GRID_EDGE_TRIM_PX",
       "default": 0,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Shared Edge Trim",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -3663,11 +3564,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in TerritorySurfaceStyleTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CELL_GRID_ENABLED",
@@ -3710,11 +3609,11 @@
       "default": "dual_pass_blend",
       "valueType": "string",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Flip Transition",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -3738,22 +3637,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CELL_GRID_FLIP_WINDOW",
       "default": 0.14,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Flip Window",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -3777,22 +3674,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CELL_GRID_FLIP_WINDOW_JITTER",
       "default": 0.275,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "FlipTime Jitter",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -3816,22 +3711,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CELL_GRID_INWARD_OFFSET_PX",
       "default": 0,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Inward Offset",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -3855,22 +3748,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in TerritorySurfaceStyleTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CELL_GRID_MAX_CELLS",
       "default": 0,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Max Cells",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -3894,22 +3785,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CELL_GRID_ORIGIN_MODE",
       "default": "centered",
       "valueType": "string",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Origin Mode",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -3933,11 +3822,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CELL_GRID_PATTERN_SPACING_PX",
@@ -3980,11 +3867,11 @@
       "default": 1,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Final Cell Size",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -4008,22 +3895,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CELL_GRID_PHASE_FIELD_FINISH_FADE_END",
       "default": 1,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Finish Fade End",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -4047,22 +3932,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CELL_GRID_PHASE_FIELD_FINISH_FADE_START",
       "default": 0.82,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Finish Fade Start",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -4086,22 +3969,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CELL_GRID_PHASE_FIELD_FRONTIER_FADE_END",
       "default": 0.96,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Frontier Fade End",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -4125,22 +4006,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CELL_GRID_PHASE_FIELD_FRONTIER_FADE_START",
       "default": 0.8,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Frontier Fade Start",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -4164,22 +4043,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CELL_GRID_PHASE_FIELD_FRONTIER_HIGHLIGHT",
       "default": true,
       "valueType": "boolean",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "toggle",
+      "label": "Frontier Highlight",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -4203,22 +4080,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CELL_GRID_PHASE_FIELD_SIZE_COLLAPSE_END",
       "default": 1,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Size Collapse End",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -4242,22 +4117,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CELL_GRID_PHASE_FIELD_SIZE_COLLAPSE_START",
       "default": 0.72,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Size Collapse Start",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -4281,22 +4154,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CELL_GRID_POSITION_JITTER",
       "default": 0,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Position Jitter",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -4320,22 +4191,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CELL_GRID_SPACING_PX",
       "default": 12,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Cell Spacing",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -4359,11 +4228,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CELL_GRID_WAVE_EASE",
@@ -4407,11 +4274,11 @@
       "default": "euclidean_band",
       "valueType": "string",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Wave Geometry",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -4436,22 +4303,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CELL_GRID_WAVE_SEEDING",
       "default": "winner_natives",
       "valueType": "string",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Wave Seeding",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -4475,11 +4340,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CHAIKIN_BOUNDARY_EPS",
@@ -4519,10 +4382,10 @@
       "default": 50,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Extent Beyond Map",
+      "section": "territory_tuning",
       "subsection": null,
       "category": "territory",
       "excludedFromCategories": false,
@@ -4546,11 +4409,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in ControlsSection-Territory.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "CLASSIC_MAP_SPACING",
@@ -6357,11 +6218,11 @@
       "default": "pointillist",
       "valueType": "string",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Fill Style",
+      "section": "territory_styles",
+      "subsection": "grid_gradient",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -6384,11 +6245,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in GridGradientTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "GRID_GRADIENT_MAX_CELLS",
@@ -6503,11 +6362,11 @@
       "default": 0.88,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Shader Edge Alpha",
+      "section": "territory_styles",
+      "subsection": "grid_gradient",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -6530,22 +6389,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in GridGradientTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "GRID_GRADIENT_SHADER_EDGE_SOFTNESS_PX",
       "default": 0.85,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Edge Feather",
+      "section": "territory_styles",
+      "subsection": "grid_gradient",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -6568,22 +6425,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in GridGradientTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "GRID_GRADIENT_SHADER_FIELD_DRIFT_PX",
       "default": 0,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Shader Drift",
+      "section": "territory_styles",
+      "subsection": "grid_gradient",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -6606,22 +6461,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in GridGradientTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "GRID_GRADIENT_SHADER_FIELD_DRIFT_SPEED",
       "default": 0.25,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Shader Drift Speed",
+      "section": "territory_styles",
+      "subsection": "grid_gradient",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -6644,22 +6497,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in GridGradientTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "GRID_GRADIENT_SHADER_GLOW_STRENGTH",
       "default": 0.08,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Shader Glow",
+      "section": "territory_styles",
+      "subsection": "grid_gradient",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -6682,22 +6533,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in GridGradientTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "GRID_GRADIENT_SHADER_INTERIOR_ALPHA_BOOST",
       "default": 1,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Shader Interior Alpha",
+      "section": "territory_styles",
+      "subsection": "grid_gradient",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -6720,22 +6569,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in GridGradientTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "GRID_GRADIENT_SHADER_MARK_SOFTNESS",
       "default": 0.18,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Shader Mark Softness",
+      "section": "territory_styles",
+      "subsection": "grid_gradient",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -6758,22 +6605,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in GridGradientTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "GRID_GRADIENT_SHADER_NEIGHBOR_MODE",
       "default": "eight",
       "valueType": "string",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Shader Neighbor Mode",
+      "section": "territory_styles",
+      "subsection": "grid_gradient",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -6796,11 +6641,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in GridGradientTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "GRID_GRADIENT_SHADER_NOISE_STRENGTH",
@@ -6843,11 +6686,11 @@
       "default": 3,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Shader Pulse Speed",
+      "section": "territory_styles",
+      "subsection": "grid_gradient",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -6870,22 +6713,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in GridGradientTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "GRID_GRADIENT_SHADER_PULSE_STRENGTH",
       "default": 0.06,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Shader Pulse",
+      "section": "territory_styles",
+      "subsection": "grid_gradient",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -6908,11 +6749,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in GridGradientTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "GRID_GRADIENT_SPACING_PX",
@@ -11680,11 +11519,11 @@
       "default": 2,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Band Width",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -11708,22 +11547,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "TERRITORY_FRONTIER_BLUR_PASSES",
       "default": 0,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Blur Passes",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -11747,22 +11584,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "TERRITORY_FRONTIER_BORDER_GEOMETRY_MODE",
       "default": "shared_edge",
       "valueType": "string",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Frontier Border Geometry",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -11786,11 +11621,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in TerritorySurfaceStyleTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "TERRITORY_FRONTIER_CHAIKIN_PASSES",
@@ -12194,11 +12027,11 @@
       "default": 6,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Junction Bubble Radius",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -12221,22 +12054,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in TerritorySurfaceStyleTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "TERRITORY_FRONTIER_JUNCTION_RENDER_MODE",
       "default": "gap",
       "valueType": "string",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Junction Render",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -12259,22 +12090,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in TerritorySurfaceStyleTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "TERRITORY_FRONTIER_OUTER_BORDER_ENABLED",
       "default": false,
       "valueType": "boolean",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "toggle",
+      "label": "Outer perimeter border",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -12298,22 +12127,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in TerritorySurfaceStyleTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "TERRITORY_FRONTIER_PHASE_SAMPLING",
       "default": "linear",
       "valueType": "string",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Phase Sampling",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -12337,22 +12164,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "TERRITORY_FRONTIER_SHADER_SOFTNESS_PX",
       "default": 5,
       "valueType": "number",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "range",
+      "label": "Shader Softness",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -12376,11 +12201,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "TERRITORY_FRONTIER_TECHNIQUE",
@@ -12424,11 +12247,11 @@
       "default": "fixed",
       "valueType": "string",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Triangle Diagonal",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -12452,11 +12275,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in CellGridTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "TERRITORY_GEOMETRY_MODE",
@@ -12850,19 +12671,19 @@
       "key": "TERRITORY_SURFACE_BORDER_ALPHA",
       "default": 1,
       "valueType": "number",
-      "hasControl": false,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "hasControl": true,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Border Alpha",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
-      "renderShape": "none",
+      "renderShape": "custom-widget",
       "renderedIn": null,
       "persisted": true,
       "panelKey": "territorySurfaceBorderAlpha",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [
         "territory"
       ],
@@ -12878,20 +12699,20 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
+      "status": "live",
       "issues": [],
-      "action": "CANDIDATE — read by pixi-render, no control (product call)"
+      "action": "KEEP"
     },
     {
       "key": "TERRITORY_SURFACE_BORDER_BLEND",
       "default": true,
       "valueType": "boolean",
       "hasControl": true,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "controlCount": 1,
+      "controlType": "toggle",
+      "label": "Blended Opponent Borders",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
@@ -12912,29 +12733,27 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "unregistered-control",
-      "issues": [
-        "rendered control with NO settingsControlRegistry entry"
-      ],
-      "action": "REGISTER — add to settingsControlRegistry (rendered in TerritorySurfaceStyleTuning.svelte)"
+      "status": "live",
+      "issues": [],
+      "action": "KEEP"
     },
     {
       "key": "TERRITORY_SURFACE_BORDER_ENABLED",
       "default": true,
       "valueType": "boolean",
-      "hasControl": false,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "hasControl": true,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Show border",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
-      "renderShape": "none",
+      "renderShape": "custom-widget",
       "renderedIn": null,
       "persisted": true,
       "panelKey": "territorySurfaceBorderEnabled",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [
         "territory"
       ],
@@ -12950,27 +12769,27 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
+      "status": "live",
       "issues": [],
-      "action": "CANDIDATE — read by pixi-render, no control (product call)"
+      "action": "KEEP"
     },
     {
       "key": "TERRITORY_SURFACE_BORDER_LIGHTNESS",
       "default": 0.35,
       "valueType": "number",
-      "hasControl": false,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "hasControl": true,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Border Lightness",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
-      "renderShape": "none",
+      "renderShape": "custom-widget",
       "renderedIn": null,
       "persisted": true,
       "panelKey": "territorySurfaceBorderLightness",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [
         "territory"
       ],
@@ -12986,27 +12805,27 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
+      "status": "live",
       "issues": [],
-      "action": "CANDIDATE — read by pixi-render, no control (product call)"
+      "action": "KEEP"
     },
     {
       "key": "TERRITORY_SURFACE_BORDER_SATURATION",
       "default": 2,
       "valueType": "number",
-      "hasControl": false,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "hasControl": true,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Border Saturation",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
-      "renderShape": "none",
+      "renderShape": "custom-widget",
       "renderedIn": null,
       "persisted": true,
       "panelKey": "territorySurfaceBorderSaturation",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [
         "territory"
       ],
@@ -13022,27 +12841,27 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
+      "status": "live",
       "issues": [],
-      "action": "CANDIDATE — read by pixi-render, no control (product call)"
+      "action": "KEEP"
     },
     {
       "key": "TERRITORY_SURFACE_BORDER_WIDTH",
       "default": 5,
       "valueType": "number",
-      "hasControl": false,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "hasControl": true,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Border Width (px)",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
-      "renderShape": "none",
+      "renderShape": "custom-widget",
       "renderedIn": null,
       "persisted": true,
       "panelKey": "territorySurfaceBorderWidth",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [
         "territory"
       ],
@@ -13058,27 +12877,27 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
+      "status": "live",
       "issues": [],
-      "action": "CANDIDATE — read by pixi-render, no control (product call)"
+      "action": "KEEP"
     },
     {
       "key": "TERRITORY_SURFACE_FILL_ENABLED",
       "default": true,
       "valueType": "boolean",
-      "hasControl": false,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
-      "subsection": null,
+      "hasControl": true,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Show fill",
+      "section": "territory_styles",
+      "subsection": "phase_edges",
       "category": "territory",
       "excludedFromCategories": false,
-      "renderShape": "none",
+      "renderShape": "custom-widget",
       "renderedIn": null,
       "persisted": true,
       "panelKey": "territorySurfaceFillEnabled",
-      "searchable": false,
+      "searchable": true,
       "invalidates": [
         "territory"
       ],
@@ -13094,9 +12913,9 @@
       ],
       "frozenAt": [],
       "secondWriters": [],
-      "status": "runtime-only",
+      "status": "live",
       "issues": [],
-      "action": "CANDIDATE — read by pixi-render, no control (product call)"
+      "action": "KEEP"
     },
     {
       "key": "TERRITORY_SURFACE_LIGHTNESS",

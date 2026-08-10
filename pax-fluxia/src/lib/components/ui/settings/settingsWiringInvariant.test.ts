@@ -71,14 +71,7 @@ function collectRenderedKeys(): Map<string, string> {
  * rendered by TerritorySurfaceStyleTuning but absent from the registry, so
  * neither index knows them. Registering them (audit batch 5) empties this list.
  */
-const KNOWN_UNWIRED: Record<string, string> = {
-    TERRITORY_SURFACE_FILL_ENABLED: 'unregistered control (TerritorySurfaceStyleTuning)',
-    TERRITORY_SURFACE_BORDER_ENABLED: 'unregistered control (TerritorySurfaceStyleTuning)',
-    TERRITORY_SURFACE_BORDER_WIDTH: 'unregistered control (TerritorySurfaceStyleTuning)',
-    TERRITORY_SURFACE_BORDER_SATURATION: 'unregistered control (TerritorySurfaceStyleTuning)',
-    TERRITORY_SURFACE_BORDER_LIGHTNESS: 'unregistered control (TerritorySurfaceStyleTuning)',
-    TERRITORY_SURFACE_BORDER_ALPHA: 'unregistered control (TerritorySurfaceStyleTuning)',
-};
+const KNOWN_UNWIRED: Record<string, string> = {};
 
 describe('settings wiring invariant', () => {
     const rendered = collectRenderedKeys();

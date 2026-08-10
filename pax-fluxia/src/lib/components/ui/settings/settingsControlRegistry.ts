@@ -13,16 +13,32 @@
  * search so those layers stay data-driven, while the render stays in its owning
  * ControlsSection component until it is migrated to the projection renderer.
  *
- * MIGRATION STATUS: seeded with the Territory Topology + Transition controls
- * (the messiest cluster). Remaining sections populate from the Phase-A inventory
- * as each is reconciled; the integrity test guards uniqueness/placement as they
- * land. Full completeness (every user-facing GAME_CONFIG key present exactly
- * once) is enforced once population is complete.
+ * MIGRATION STATUS: COMPLETE (2026-08-10 settings audit, batch 5). Every control
+ * the user can reach is registered exactly once, and
+ * `settingsControlRegistry.test.ts` now enforces it — the totality check this
+ * header used to promise "once population is complete". The last 91 were the
+ * four render-mode tuning cards (CellGridTuning, GridGradientTuning,
+ * TerritorySurfaceStyleTuning, ControlsSection-Territory) plus the 42 per-sound
+ * audio controls, which are keyed by template literal and so were invisible to
+ * every literal-only guard in the repo.
+ *
+ * Three ways an entry gets here, in order of preference:
+ *   1. EXTRACTED by tools/gen-settings-registry.mjs from a `<Pax*Row
+ *      settingConfigKey="...">` tag — rendered label is ground truth.
+ *   2. DERIVED from the same data the markup loops (AI_VARIABLES,
+ *      COMBAT_VARIABLES, ALL_SOUND_TYPES) — cannot drift by construction.
+ *   3. HAND-AUTHORED, when the row's label or key is computed and no tool can
+ *      read it (the SLA composite widget, CELL_GRID_SPACING_PX's dynamic label).
  */
 
 import type { SettingsSectionId } from "./settingsRegistry";
 import { GENERATED_CONTROLS } from "./settingsControlRegistry.generated";
 import { AI_VARIABLES, COMBAT_VARIABLES } from "../settingsDefs";
+import {
+    ALL_SOUND_TYPES,
+    SOUND_LABELS,
+    soundTypeConfigSuffix,
+} from "$lib/config/soundTypes";
 
 export type ControlType =
     | "range"
@@ -147,6 +163,82 @@ const TERRITORY_STYLE_CONTROLS: readonly SettingsControl[] = [
     { configKey: "GRID_GRADIENT_POSITION_JITTER", section: "territory_styles", subsection: "grid_gradient", label: "Position Jitter", description: "Random positional offset applied to grid-gradient cells.", controlType: "custom" },
     { configKey: "CELL_GRID_BOUNDARY_FILL_FLUSH", section: "territory_styles", subsection: "phase_edges", label: "Boundary fill matches border", description: "Flush the cell-grid fill to the territory border so no gap shows.", controlType: "toggle" },
 ];
+
+/**
+ * Territory surface fill + border (TerritorySurfaceStyleTuning → TerritorySlaWidget).
+ *
+ * A composite widget: ONE `<TerritorySlaWidget>` tag renders a whole group of
+ * rows, each keyed by a prop (`configEnabled`, `configSat`, …) rather than by a
+ * `settingConfigKey` on a Pax row. The registry generator matches Pax rows, so it
+ * cannot see these — which is why all six border keys stayed unsearchable long
+ * after the rest of the drift was fixed. Declared by hand here (the `custom`
+ * path the registry header describes for bespoke widgets), with the labels the
+ * widget actually renders.
+ */
+const TERRITORY_SURFACE_CONTROLS: readonly SettingsControl[] = [
+    // The cell-grid resolution knob. Hand-authored because its row renders a
+    // COMPUTED label (`label={currentPlannerSpacingLabel()}`), which the
+    // generator cannot extract — the one control in the four tuning cards it
+    // could not pick up. The label here is the stable searchable identity.
+    { configKey: "CELL_GRID_SPACING_PX", section: "territory_styles", subsection: "phase_edges", label: "Cell Spacing", description: "Base grid resolution for the cell-grid modes: the spacing between cells, in pixels.", controlType: "range", range: { min: 1, max: 64, step: 1 }, unit: "px", aliases: ["resolution", "cell size", "pattern spacing"] },
+    { configKey: "TERRITORY_SURFACE_FILL_ENABLED", section: "territory_styles", subsection: "phase_edges", label: "Show fill", description: "Draw the territory fill at all. Off leaves borders only.", controlType: "custom", custom: true, aliases: ["territory fill"] },
+    { configKey: "TERRITORY_SURFACE_BORDER_ENABLED", section: "territory_styles", subsection: "phase_edges", label: "Show border", description: "Draw the territory border at all.", controlType: "custom", custom: true, aliases: ["territory border"] },
+    { configKey: "TERRITORY_SURFACE_BORDER_WIDTH", section: "territory_styles", subsection: "phase_edges", label: "Border Width (px)", description: "Thickness of the territory border, in pixels.", controlType: "custom", custom: true },
+    { configKey: "TERRITORY_SURFACE_BORDER_SATURATION", section: "territory_styles", subsection: "phase_edges", label: "Border Saturation", description: "Colour saturation of the territory border.", controlType: "custom", custom: true },
+    { configKey: "TERRITORY_SURFACE_BORDER_LIGHTNESS", section: "territory_styles", subsection: "phase_edges", label: "Border Lightness", description: "Colour lightness of the territory border.", controlType: "custom", custom: true },
+    { configKey: "TERRITORY_SURFACE_BORDER_ALPHA", section: "territory_styles", subsection: "phase_edges", label: "Border Alpha", description: "Opacity of the territory border.", controlType: "custom", custom: true },
+];
+
+/**
+ * Audio → per-sound cards. Three controls per sound event, keyed by TEMPLATE
+ * LITERAL in the markup (`` settingConfigKey={`AUDIO_VOL_${type.toUpperCase()}`} ``).
+ *
+ * That made all 42 invisible to every static guard in this repo — the wiring
+ * invariant collects rendered keys with a regex that only matches quoted
+ * literals — so they were never checked for searchability or persistence, and
+ * the audit's first pass reported them as hidden runtime tunables the user
+ * could not reach. They are live controls in the Audio section.
+ *
+ * Derived from the SAME list the markup loops (`ALL_SOUND_TYPES` / `SOUND_LABELS`
+ * from the leaf `config/soundTypes`), so the registry cannot drift from what is
+ * rendered: adding a sound event adds its three controls automatically.
+ */
+const AUDIO_SOUND_CONTROLS: readonly SettingsControl[] = ALL_SOUND_TYPES.flatMap((type) => {
+    const suffix = soundTypeConfigSuffix(type);
+    const name = SOUND_LABELS[type];
+    return [
+        {
+            configKey: `AUDIO_VOL_${suffix}`,
+            section: "audio" as const,
+            subsection: null,
+            label: `${name} Volume`,
+            description: "Volume multiplier for this sound event.",
+            controlType: "custom" as const,
+            custom: true,
+            aliases: [name, "sound", "volume"],
+        },
+        {
+            configKey: `AUDIO_FILE_${suffix}`,
+            section: "audio" as const,
+            subsection: null,
+            label: `${name} File`,
+            description: "Selected sound file for this sound event.",
+            controlType: "custom" as const,
+            custom: true,
+            aliases: [name, "sound", "file"],
+        },
+        {
+            configKey: `AUDIO_OFFSET_${suffix}`,
+            section: "audio" as const,
+            subsection: null,
+            label: `${name} Offset`,
+            description: "Playback offset applied to this sound event, in seconds.",
+            controlType: "custom" as const,
+            custom: true,
+            aliases: [name, "sound", "offset", "delay"],
+        },
+    ];
+});
 
 /**
  * AI / Combat sliders are already clean data arrays (key/label/min/max/step/desc)
@@ -305,6 +397,8 @@ const RAW_CONTROLS: readonly SettingsControl[] = [
     ...TERRITORY_TOPOLOGY_CONTROLS,
     ...TERRITORY_TRANSITION_CONTROLS,
     ...TERRITORY_STYLE_CONTROLS,
+    ...TERRITORY_SURFACE_CONTROLS,
+    ...AUDIO_SOUND_CONTROLS,
     ...AI_CONTROLS,
     ...COMBAT_CONTROLS,
     ...WOBBLE_CONTROLS,

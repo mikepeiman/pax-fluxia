@@ -2,6 +2,11 @@ import { log } from "$lib/utils/logger";
 import { getFilesForSoundType, type SoundFileEntry } from "$lib/config/soundManifest";
 import { GAME_CONFIG } from "$lib/config/game.config";
 import { CATEGORY_KEYS } from "$lib/config/categoryThemes";
+import {
+    ALL_SOUND_TYPES,
+    SOUND_LABELS,
+    type SoundType,
+} from "$lib/config/soundTypes";
 
 const AUDIO_STORAGE_KEY = 'pax-fluxia-audio-config';
 
@@ -34,39 +39,11 @@ function loadAudioConfig(): boolean {
     } catch { return false; }
 }
 
-export type SoundType =
-    | "click"
-    | "move"
-    | "attack"
-    | "chat"
-    | "tick"
-    | "play"
-    | "lose"
-    | "win"
-    | "new_player"
-    | "conquest"
-    | "conquest_retreat"
-    | "conquest_scatter"
-    | "conquest_complete"
-    | "starloss";
-
-/** Human-readable labels for UI */
-export const SOUND_LABELS: Record<SoundType, string> = {
-    click: "UI Click",
-    move: "Move Order",
-    attack: "Attack Order",
-    chat: "Chat Message",
-    tick: "Game Tick",
-    play: "Game Start",
-    lose: "Defeat",
-    win: "Victory",
-    new_player: "Player Joined",
-    conquest: "Conquest (Any)",
-    conquest_retreat: "Conquest: Retreat",
-    conquest_scatter: "Conquest: Scatter",
-    conquest_complete: "Conquest: Complete",
-    starloss: "Star Lost",
-};
+// The sound vocabulary lives in a leaf module so anything that only needs to
+// NAME a sound event (the settings registry) does not pull in the audio
+// subsystem. Re-exported here so existing importers are unchanged.
+export type { SoundType } from "$lib/config/soundTypes";
+export { SOUND_LABELS, ALL_SOUND_TYPES };
 
 interface SoundConfig {
     file: string;
@@ -91,8 +68,7 @@ const SOUND_CONFIGS: Record<SoundType, SoundConfig> = {
     starloss: { file: "starloss/mixkit-arcade-mechanical-bling-210.wav", defaultVolume: 0.6, poolSize: 2 },
 };
 
-/** All sound type keys, exported for UI iteration */
-export const ALL_SOUND_TYPES: SoundType[] = Object.keys(SOUND_CONFIGS) as SoundType[];
+
 
 // ── Config Key Helpers ──────────────────────────────────────────────────────
 // Convert between SoundType and GAME_CONFIG key names.
