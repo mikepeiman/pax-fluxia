@@ -149,16 +149,16 @@
     }: Props = $props();
 
     // ── Settings navigation — single source of truth: SETTINGS_CATEGORIES ──
-    // The rail = the 7 categories + Restart/Quit actions. Selecting a category
-    // shows its sections as top chips; one section is open at a time. The
-    // Interface category surfaces UI utility panels (not config sections).
+    // The rail = the top-level categories + Restart/Quit actions. Selecting a
+    // category shows its chips; one is open at a time. Most categories show
+    // SETTINGS_SECTIONS; Themes, Interface and Typography show bespoke utility
+    // drawers instead, and chipsForCategory derives which from SETTINGS_PANELS
+    // rather than naming those categories.
+    //
     // The utility panels come from SETTINGS_PANELS, not a local list. They were
     // declared here only, which put them outside the settings search index —
     // "theme" and "appearance" matched nothing, so the HUD skin picker could be
-    // reached only by knowing which category chip to open. Typography is its own
-    // top-level category but renders a bespoke drawer just like the rest.
-    const INTERFACE_PANELS = settingsPanelsForCategory("interface");
-    const TYPOGRAPHY_PANELS = settingsPanelsForCategory("typography");
+    // reached only by knowing which category chip to open.
     const UTILITY_PANELS = SETTINGS_PANELS;
     type UtilityPanelId = SettingsPanelId;
     type ActiveSectionId = SectionId | UtilityPanelId;
@@ -425,25 +425,22 @@
     }
 
     function chipsForCategory(catId: SettingsCategoryId): NavChip[] {
-        if (catId === "interface") {
-            return INTERFACE_PANELS.map((panel) => ({
-                id: panel.id,
-                label: panel.label,
-                icon: panel.icon,
-            }));
-        }
-        if (catId === "typography") {
-            return TYPOGRAPHY_PANELS.map((panel) => ({
-                id: panel.id,
-                label: panel.label,
-                icon: panel.icon,
-            }));
-        }
+        // Panel-backed categories (Themes, Interface, Typography) show bespoke
+        // drawers; the rest show SETTINGS_SECTIONS. Derived from the panel
+        // registry rather than a branch per category id — that hardcoding is
+        // exactly what a new category has to edit, and forgetting it makes the
+        // category vanish from the rail with no error.
+        const panelChips: NavChip[] = settingsPanelsForCategory(catId).map((panel) => ({
+            id: panel.id,
+            label: panel.label,
+            icon: panel.icon,
+        }));
         const category = SETTINGS_CATEGORIES.find((c) => c.id === catId);
-        return (category?.sections ?? [])
+        const sectionChips = (category?.sections ?? [])
             .map((sid) => visibleSections.find((s) => s.id === sid))
             .filter(Boolean)
             .map((s) => ({ id: s!.id, label: s!.label, icon: s!.icon }));
+        return [...panelChips, ...sectionChips];
     }
 
     // A category appears in the rail only if it has something to show.

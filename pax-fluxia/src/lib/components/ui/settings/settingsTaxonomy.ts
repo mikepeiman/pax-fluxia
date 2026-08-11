@@ -23,6 +23,7 @@ export type SettingsCategoryId =
     | "territory"
     | "map_effects"
     | "audio"
+    | "themes"
     | "interface"
     | "typography"
     | "developer";
@@ -85,12 +86,25 @@ export const SETTINGS_CATEGORIES: readonly SettingsCategory[] = [
         sections: ["audio"],
     },
     {
-        id: "interface",
+        id: "themes",
         icon: "theme",
+        label: "Themes",
+        color: "#f472b6",
+        // Panel-backed, like Typography: the theme library renders a bespoke
+        // drawer (ThemeLibraryPanel), not a SETTINGS_SECTION. Its chips come
+        // from SETTINGS_PANELS via settingsPanelsForCategory.
+        sections: [],
+    },
+    {
+        id: "interface",
+        // Was "theme" — that icon belongs to the Themes category now, and two
+        // rail entries wearing it read as the same thing.
+        icon: "settings",
         label: "Interface",
         color: "#5ee6ff",
-        // NOTE: themes/appearance/stats/hotkeys render as utility drawers, not
-        // SETTINGS_SECTIONS. Migration step 2 unifies them as section-like panels.
+        // NOTE: appearance/save-load/import-export/stats/hotkeys/help render as
+        // utility drawers, not SETTINGS_SECTIONS. Migration step 2 unifies them
+        // as section-like panels.
         sections: [],
     },
     {

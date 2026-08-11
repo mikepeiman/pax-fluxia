@@ -68,7 +68,10 @@ export const SETTINGS_PANELS: readonly SettingsPanelDefinition[] = [
     },
     {
         id: "ui_themes",
-        category: "interface",
+        // Top-level category of its own (2026-08-11), not a drawer buried under
+        // Interface: themes are a first-class surface in this game, not one of
+        // Interface's odds and ends.
+        category: "themes",
         icon: "library",
         label: "Themes",
         summary: "Saved theme library — store, load and manage your own theme presets.",

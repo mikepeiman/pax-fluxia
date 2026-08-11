@@ -78,11 +78,27 @@ describe('settings utility panels', () => {
         expect(orphans.map((panel) => panel.id)).toEqual([]);
     });
 
-    it('every category that renders panels actually has some', () => {
-        // `chipsForCategory` returns panels for these two categories instead of
-        // sections; if the list were empty the category would vanish from the rail.
-        expect(settingsPanelsForCategory('interface').length).toBeGreaterThan(0);
-        expect(settingsPanelsForCategory('typography').length).toBeGreaterThan(0);
+    it('every category has chips — sections or panels — so none vanishes from the rail', () => {
+        // A category shows SETTINGS_SECTIONS or bespoke panels; `chipsForCategory`
+        // concatenates both. With neither it renders nothing and silently
+        // disappears from the rail, which is how a new category gets lost.
+        // Asserted over ALL categories rather than the two that happened to be
+        // panel-backed when this was written.
+        const empty = SETTINGS_CATEGORIES.filter(
+            (category) =>
+                category.sections.length === 0 &&
+                settingsPanelsForCategory(category.id).length === 0,
+        );
+        expect(
+            empty.map((category) => category.id),
+            'categories with no sections and no panels would not appear in the rail',
+        ).toEqual([]);
+    });
+
+    it('keeps the theme surfaces where a player would look for them', () => {
+        const themePanels = settingsPanelsForCategory('themes').map((panel) => panel.id);
+        expect(themePanels, 'Themes is a top-level category and must own the theme library')
+            .toContain('ui_themes');
     });
 
     it('panel ids never collide with section ids', () => {
