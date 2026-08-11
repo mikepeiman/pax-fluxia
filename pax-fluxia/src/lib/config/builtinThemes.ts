@@ -288,26 +288,86 @@ export function getBuiltinGameThemes() {
     return _builtinGameThemesCache;
 }
 
-export function getBuiltinCategoryPresets(category: ThemeCategory) {
-    const presets: Array<{
-        name: string;
-        category: ThemeCategory;
-        values: Record<string, unknown>;
-        createdAt: string;
-        builtIn: true;
-    }> = [];
+/**
+ * Built-in presets authored FOR one category, loaded from
+ * `builtin-category-presets/<category>/*.json`.
+ *
+ * These are deliberately NOT slices of the full themes. Deriving them that way
+ * (which this did until 2026-08-11) put the same list of full-theme names —
+ * Classic 3, Clean Voronoi, Nebula Veil … — into every category's preset
+ * dropdown, so "Travel presets" and "Audio presets" offered identical choices
+ * that were really whole-game themes wearing a category label. A category
+ * preset is its own kind of thing: a tuning of that category alone, named for
+ * what it does to that category.
+ *
+ * There are no such files yet, so every category starts empty. That is correct
+ * and expected — an empty list is honest, a list of mislabelled full themes was
+ * not. Full themes remain available in their own picker.
+ *
+ * File shape (the folder decides the category; a `category` field, if present,
+ * must agree):
+ *   { "name": "Snappy", "createdAt": "2026-08-11T00:00:00Z", "values": { … } }
+ */
+const categoryPresetModules = import.meta.glob<Record<string, unknown>>(
+    './builtin-category-presets/**/*.json',
+    { eager: true },
+);
 
-    for (const theme of getBuiltinThemes()) {
-        const categoryValues = theme.categories[category];
-        if (!categoryValues || Object.keys(categoryValues).length === 0) continue;
-        presets.push({
-            name: theme.name,
-            category,
-            values: { ...categoryValues },
-            createdAt: theme.createdAt,
+export interface BuiltinCategoryPreset {
+    name: string;
+    category: ThemeCategory;
+    values: Record<string, unknown>;
+    createdAt: string;
+    builtIn: true;
+}
+
+let _builtinCategoryPresetCache: Map<string, BuiltinCategoryPreset[]> | null = null;
+
+function buildBuiltinCategoryPresets(): Map<string, BuiltinCategoryPreset[]> {
+    const byCategory = new Map<string, BuiltinCategoryPreset[]>();
+
+    for (const [filePath, module] of Object.entries(categoryPresetModules)) {
+        const raw = ((module as { default?: unknown }).default ?? module) as Record<string, unknown>;
+        // ./builtin-category-presets/<category>/<file>.json
+        const folder = filePath.split('/').at(-2);
+        if (!folder) continue;
+        const declared = typeof raw.category === 'string' ? raw.category : null;
+        if (declared && declared !== folder) {
+            // A preset filed under the wrong category would show up in a list it
+            // cannot correctly apply to. Skip it rather than mislabel it.
+            continue;
+        }
+        const values = raw.values;
+        if (!values || typeof values !== 'object') continue;
+
+        const fileName = filePath.split('/').at(-1)?.replace(/\.json$/, '') ?? 'preset';
+        const list = byCategory.get(folder) ?? [];
+        list.push({
+            name: typeof raw.name === 'string' && raw.name.trim() ? raw.name : fileName,
+            category: folder as ThemeCategory,
+            values: { ...(values as Record<string, unknown>) },
+            createdAt:
+                typeof raw.createdAt === 'string'
+                    ? raw.createdAt
+                    : typeof raw.created === 'string'
+                      ? raw.created
+                      : '',
             builtIn: true,
         });
+        byCategory.set(folder, list);
     }
 
-    return presets;
+    for (const list of byCategory.values()) {
+        list.sort(
+            (a, b) => b.createdAt.localeCompare(a.createdAt) || a.name.localeCompare(b.name),
+        );
+    }
+    return byCategory;
+}
+
+export function getBuiltinCategoryPresets(category: ThemeCategory): BuiltinCategoryPreset[] {
+    if (!_builtinCategoryPresetCache) {
+        _builtinCategoryPresetCache = buildBuiltinCategoryPresets();
+    }
+    return _builtinCategoryPresetCache.get(category) ?? [];
 }
