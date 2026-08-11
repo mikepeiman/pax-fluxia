@@ -14,6 +14,7 @@
     import { LOG_CATEGORIES } from "./settingsDefs";
     import { warnOnMissingTerritorySchemaCoverage } from "./settingsState";
     import { settingsStore } from "./settingsStore.svelte";
+    import { resolveCategoryOpenState } from "./settings/settingsNav";
     import ControlsSectionTiming from "./settings/ControlsSection-Timing.svelte";
     import ControlsSectionBattle from "./settings/ControlsSection-Battle.svelte";
     import ControlsSectionEconomy from "./settings/ControlsSection-Economy.svelte";
@@ -280,6 +281,28 @@
         };
     }
 
+    /**
+     * Drop this category's remembered section, so it reopens on "All".
+     *
+     * Choosing All is a real choice and has to survive leaving the category —
+     * without this the remembered section outlived it, so All never stuck: pick
+     * All, switch category, come back, and a section was selected again. "No
+     * remembered section" IS the All state (see selectCategory), so forgetting
+     * is the whole mechanism.
+     */
+    function forgetSectionForCategory(category: SettingsCategoryId) {
+        const { [category]: _dropped, ...rest } = sectionMemoryByCategory;
+        sectionMemoryByCategory = rest;
+    }
+
+    /** The "All" chip: show every section in the open category, and remember it. */
+    function showAllSectionsInCategory() {
+        showAllSections = true;
+        activeSectionId = null;
+        if (openCategoryId) forgetSectionForCategory(openCategoryId);
+        persistActiveSection();
+    }
+
     $effect(() => {
         if (typeof window === "undefined") return;
         localStorage.setItem(
@@ -458,19 +481,16 @@
             return;
         }
         openCategoryId = catId;
-        showAllSections = false;
-        // Restore this category's remembered section (the one the user was on
-        // last time — e.g. Timing), not blindly the first chip. Set directly
-        // instead of via selectSection: its toggle semantics could deselect
-        // the remembered section instead of opening it.
-        const chips = chipsForCategory(catId);
-        const remembered = sectionMemoryByCategory[catId];
-        activeSectionId =
-            remembered === null
-                ? null
-                : remembered && chips.some((chip) => chip.id === remembered)
-                  ? remembered
-                  : (chips[0]?.id ?? null);
+        // What a category opens on is a DECISION, and it lives in settingsNav
+        // with a test — default All, an explicit past choice wins. Assigning
+        // directly rather than going through selectSection: its toggle
+        // semantics would deselect a remembered section instead of opening it.
+        const next = resolveCategoryOpenState(
+            chipsForCategory(catId).map((chip) => chip.id),
+            sectionMemoryByCategory[catId],
+        );
+        showAllSections = next.showAll;
+        activeSectionId = next.sectionId as ActiveSectionId | null;
         persistActiveSection();
     }
 
@@ -890,7 +910,7 @@
                         <PaxHudButton
                             class="subsection-chip"
                             active={showAllSections}
-                            onclick={() => (showAllSections = true)}
+                            onclick={showAllSectionsInCategory}
                             title="Show all sections in this category"
                         >
                             <span class="subsection-chip__icon"><HudIcon name="phase-field" size={14} /></span>

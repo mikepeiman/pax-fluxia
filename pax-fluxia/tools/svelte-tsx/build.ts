@@ -57,12 +57,23 @@ export interface BuildResult {
     failed: { file: string; error: string }[];
 }
 
+/**
+ * Rebuild the mirror IN PLACE, never by wiping it first.
+ *
+ * The obvious implementation — `rmSync` the tree, then write it — races itself:
+ * two callers rebuilding concurrently (the integrity test and the converter
+ * test run in separate vitest workers) means one deletes the tree while the
+ * other is writing into it or ast-grep is reading it, and tests vanish or fail
+ * at random. Writing every file over its old contents is idempotent, so
+ * concurrent builders producing identical output are harmless; stale files are
+ * pruned afterwards against the set we just wrote, which is equally identical.
+ */
 export function build(clientRoot: string, srcDir = "src"): BuildResult {
     const root = path.join(clientRoot, srcDir);
     const outRoot = path.join(clientRoot, MIRROR_DIR);
-    rmSync(outRoot, { recursive: true, force: true });
 
     const failed: BuildResult["failed"] = [];
+    const written = new Set<string>();
     let converted = 0;
 
     for (const file of svelteFiles(root)) {
@@ -77,8 +88,28 @@ export function build(clientRoot: string, srcDir = "src"): BuildResult {
         const target = mirrorPathFor(clientRoot, file);
         mkdirSync(path.dirname(target), { recursive: true });
         writeFileSync(target, code, "utf-8");
+        written.add(path.resolve(target));
         converted += 1;
     }
+
+    // Prune mirrors whose .svelte source is gone, so a deleted component cannot
+    // keep reporting findings.
+    const prune = (dir: string) => {
+        let entries: string[];
+        try {
+            entries = readdirSync(dir);
+        } catch {
+            return;
+        }
+        for (const entry of entries) {
+            const full = path.join(dir, entry);
+            if (statSync(full).isDirectory()) prune(full);
+            else if (entry.endsWith(".tsx") && !written.has(path.resolve(full))) {
+                rmSync(full, { force: true });
+            }
+        }
+    };
+    prune(outRoot);
 
     // A generated tree that TypeScript picks up would flood `bun run check` with
     // nonsense errors. The mirror is for ast-grep only.
