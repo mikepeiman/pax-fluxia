@@ -15,7 +15,7 @@ import type { SettingsCategoryId } from "./settingsTaxonomy";
  * `settingsPanels.test.ts` proves every panel is reachable by searching its name.
  */
 export type SettingsPanelId =
-    | "ui_appearance"
+    | "ui_theme_system"
     | "ui_themes"
     | "ui_savegame"
     | "ui_config_io"
@@ -41,12 +41,12 @@ export interface SettingsPanelDefinition {
 
 export const SETTINGS_PANELS: readonly SettingsPanelDefinition[] = [
     {
-        id: "ui_appearance",
-        category: "interface",
+        id: "ui_theme_system",
+        category: "themes",
         icon: "gem",
-        label: "Appearance",
+        label: "Theme System",
         summary:
-            "HUD skin and theme picker — switch between Nebula Veil, Aurelia Drift, Neon Arcade and Broadcast Minimal, plus the visual controls.",
+            "HUD skin picker — switch between Nebula Veil, Aurelia Drift, Neon Arcade and Broadcast Minimal.",
         keywords: [
             "theme",
             "themes",
@@ -87,7 +87,7 @@ export const SETTINGS_PANELS: readonly SettingsPanelDefinition[] = [
     },
     {
         id: "ui_savegame",
-        category: "interface",
+        category: "save_load",
         icon: "save-game",
         label: "Save / Load",
         summary: "Save the current match or load a previous one.",
@@ -95,7 +95,9 @@ export const SETTINGS_PANELS: readonly SettingsPanelDefinition[] = [
     },
     {
         id: "ui_config_io",
-        category: "interface",
+        // Lives with Themes: what it imports and exports IS the look — configs,
+        // themes and presets are the same snapshot under three names.
+        category: "themes",
         icon: "export",
         label: "Import / Export",
         summary: "Import and export settings and config bundles.",

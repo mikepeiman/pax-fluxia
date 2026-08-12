@@ -1,18 +1,18 @@
 {
-  "generatedAt": "2026-08-10T23:00:37.547Z",
+  "generatedAt": "2026-08-12T14:31:05.899Z",
   "generator": "pax-fluxia/tools/settings-ledger.ts",
   "totals": {
     "configKeys": 396,
-    "registryControls": 339,
-    "distinctControlKeys": 339,
+    "registryControls": 340,
+    "distinctControlKeys": 340,
     "persistedKeys": 379,
     "searchableKeys": 382,
     "rows": 406
   },
   "statusCounts": {
     "live": 334,
-    "runtime-only": 67,
-    "half-wired": 4,
+    "runtime-only": 66,
+    "half-wired": 5,
     "settings-machinery": 1
   },
   "crossCutting": {
@@ -3056,12 +3056,12 @@
       "controlCount": 1,
       "controlType": "range",
       "label": "BG Opacity",
-      "section": "map_options",
+      "section": "background",
       "subsection": null,
       "category": "visuals",
       "excludedFromCategories": false,
       "renderShape": "hand-rendered",
-      "renderedIn": "ControlsSection-Visuals.svelte",
+      "renderedIn": "ControlsSection-Background.svelte",
       "persisted": true,
       "panelKey": "bgImageAlpha",
       "searchable": true,
@@ -3078,7 +3078,7 @@
       "topReaders": [
         "pax-fluxia/src/lib/components/game/GameCanvas.svelte:1534",
         "pax-fluxia/src/lib/components/game/GameCanvas.svelte:1570",
-        "pax-fluxia/src/lib/stores/themeStore.svelte.ts:138"
+        "pax-fluxia/src/lib/stores/themeStore.svelte.ts:139"
       ],
       "frozenAt": [],
       "secondWriters": [],
@@ -3090,15 +3090,15 @@
       "key": "BG_IMAGE_URL",
       "default": "",
       "valueType": "string",
-      "hasControl": false,
-      "controlCount": 0,
-      "controlType": null,
-      "label": null,
-      "section": null,
+      "hasControl": true,
+      "controlCount": 1,
+      "controlType": "custom",
+      "label": "Background Asset",
+      "section": "background",
       "subsection": null,
       "category": "visuals",
       "excludedFromCategories": false,
-      "renderShape": "none",
+      "renderShape": "custom-widget",
       "renderedIn": null,
       "persisted": true,
       "panelKey": "bgImageUrl",
@@ -3124,11 +3124,11 @@
       "secondWriters": [
         "pax-fluxia/src/lib/components/game/GameCanvas.svelte:1530"
       ],
-      "status": "runtime-only",
+      "status": "half-wired",
       "issues": [
         "written outside the settings apply layer (1x, e.g. pax-fluxia/src/lib/components/game/GameCanvas.svelte:1530) — races the store"
       ],
-      "action": "CANDIDATE — read by client-services/client-ui/pixi-host/settings-machinery, no control (product call)"
+      "action": "RECONNECT — written outside the settings apply layer (1x, e.g. pax-fluxia/src/lib/components/game/GameCanvas.svelte:1530) — races the store"
     },
     {
       "key": "BIND_ANIMATION_TO_TICK",

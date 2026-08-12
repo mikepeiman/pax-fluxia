@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { getSearchableSettingRecords } from './settingMetadata';
+import { SETTINGS_CONTROLS } from './settingsControlRegistry';
+import { searchSettings } from './settingsSearch';
 import { GAME_CONFIG } from '$lib/config/game.config';
 
 /**
@@ -45,5 +47,30 @@ describe('settings search index integrity', () => {
         // isTerritoryRenderModeRecord() classifier expecting exactly that key.
         expect(records.length).toBeGreaterThan(50);
         expect(records.some((r) => r.key === 'TERRITORY_RENDER_MODE')).toBe(true);
+    });
+
+    /**
+     * `aliases` exist so a control is findable by a word that is deliberately NOT
+     * in its visible label — "msr" for Minimum Star Margin, "backdrop" for
+     * Background Asset. They were inert: the registry computed them into a
+     * searchText the search never used, so every alias in the registry was
+     * decoration and "msr" returned unrelated fuzzy hits.
+     */
+    it('every alias actually finds its own control', () => {
+        const misses: string[] = [];
+        for (const control of SETTINGS_CONTROLS) {
+            for (const alias of control.aliases ?? []) {
+                // Generous limit: a word shared by a whole family ("chaikin")
+                // must not fail merely because 24 slots ran out.
+                const hits = searchSettings(alias, 200);
+                if (!hits.some((hit) => hit.configKey === control.configKey)) {
+                    misses.push(`${control.configKey} <- "${alias}"`);
+                }
+            }
+        }
+        expect(
+            misses,
+            `aliases that do not reach their control — the field promises findability it does not deliver:\n${misses.join('\n')}`,
+        ).toEqual([]);
     });
 });

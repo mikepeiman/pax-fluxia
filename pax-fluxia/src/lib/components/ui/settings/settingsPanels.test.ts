@@ -49,26 +49,28 @@ describe('settings utility panels', () => {
         const hits = searchSettings('theme', 24);
         expect(hits.length).toBeGreaterThan(0);
 
-        const appearanceRank = hits.findIndex(
-            (hit) => hit.kind === 'panel' && hit.sectionId === 'ui_appearance',
+        const themeSystemRank = hits.findIndex(
+            (hit) => hit.kind === 'panel' && hit.sectionId === 'ui_theme_system',
         );
-        expect(appearanceRank, 'Appearance not in results for "theme"').toBeGreaterThanOrEqual(0);
+        expect(themeSystemRank, 'Theme System not in results for "theme"').toBeGreaterThanOrEqual(0);
 
         const firstNonPanel = hits.findIndex((hit) => hit.kind !== 'panel');
         if (firstNonPanel >= 0) {
             expect(
-                appearanceRank,
-                `a ${hits[firstNonPanel]!.kind} result outranked the Appearance panel for "theme"`,
+                themeSystemRank,
+                `a ${hits[firstNonPanel]!.kind} result outranked the Theme System panel for "theme"`,
             ).toBeLessThan(firstNonPanel);
         }
     });
 
     it('a partial query still reaches the panel', () => {
-        // Users type fragments. "appea" must work, not just the whole word.
+        // Users type fragments. "appea" must work, not just the whole word —
+        // and it must keep working now the panel is called "Theme System": the
+        // word people used to navigate by lives on in its keywords.
         const hits = searchSettings('appea', 24);
         expect(
-            hits.some((hit) => hit.kind === 'panel' && hit.sectionId === 'ui_appearance'),
-            'partial query "appea" did not reach Appearance',
+            hits.some((hit) => hit.kind === 'panel' && hit.sectionId === 'ui_theme_system'),
+            'partial query "appea" did not reach Theme System',
         ).toBe(true);
     });
 

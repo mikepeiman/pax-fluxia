@@ -175,6 +175,16 @@ const TERRITORY_STYLE_CONTROLS: readonly SettingsControl[] = [
  * path the registry header describes for bespoke widgets), with the labels the
  * widget actually renders.
  */
+/**
+ * Background (Themes → Background). BG_IMAGE_URL is a thumbnail grid, not a Pax
+ * row, so the generator cannot see it and only the legacy settingMetadata map
+ * knew it — which still routed it to Map Options after the section moved.
+ * Registered here so search opens the place it now lives.
+ */
+const BACKGROUND_CONTROLS: readonly SettingsControl[] = [
+    { configKey: "BG_IMAGE_URL", section: "background", subsection: null, label: "Background Asset", description: "Background image shown behind the battlefield.", controlType: "custom", custom: true, aliases: ["backdrop", "wallpaper", "image", "nebula"] },
+];
+
 const TERRITORY_SURFACE_CONTROLS: readonly SettingsControl[] = [
     // The cell-grid resolution knob. Hand-authored because its row renders a
     // COMPUTED label (`label={currentPlannerSpacingLabel()}`), which the
@@ -215,7 +225,7 @@ const AUDIO_SOUND_CONTROLS: readonly SettingsControl[] = ALL_SOUND_TYPES.flatMap
             description: "Volume multiplier for this sound event.",
             controlType: "custom" as const,
             custom: true,
-            aliases: [name, "sound", "volume"],
+            aliases: ["volume"],
         },
         {
             configKey: `AUDIO_FILE_${suffix}`,
@@ -225,7 +235,7 @@ const AUDIO_SOUND_CONTROLS: readonly SettingsControl[] = ALL_SOUND_TYPES.flatMap
             description: "Selected sound file for this sound event.",
             controlType: "custom" as const,
             custom: true,
-            aliases: [name, "sound", "file"],
+            aliases: ["file", "sample"],
         },
         {
             configKey: `AUDIO_OFFSET_${suffix}`,
@@ -235,7 +245,7 @@ const AUDIO_SOUND_CONTROLS: readonly SettingsControl[] = ALL_SOUND_TYPES.flatMap
             description: "Playback offset applied to this sound event, in seconds.",
             controlType: "custom" as const,
             custom: true,
-            aliases: [name, "sound", "offset", "delay"],
+            aliases: ["offset", "delay"],
         },
     ];
 });
@@ -395,6 +405,7 @@ const RAW_CONTROLS: readonly SettingsControl[] = [
     ...TERRITORY_TOPOLOGY_CONTROLS,
     ...TERRITORY_TRANSITION_CONTROLS,
     ...TERRITORY_STYLE_CONTROLS,
+    ...BACKGROUND_CONTROLS,
     ...TERRITORY_SURFACE_CONTROLS,
     ...AUDIO_SOUND_CONTROLS,
     ...AI_CONTROLS,
@@ -430,6 +441,9 @@ export interface RegistrySearchRecord {
     subsection: string | null;
     label: string;
     description: string;
+    /** Synonyms not present in the label — the search folds these into its own
+     *  haystack, so they have to survive the projection. */
+    aliases?: readonly string[];
     /** Combined haystack (label + description + aliases), lowercased. */
     searchText: string;
 }
@@ -443,6 +457,7 @@ export function deriveRegistrySearchRecords(): RegistrySearchRecord[] {
         subsection: control.subsection,
         label: control.label,
         description: control.description ?? "",
+        aliases: control.aliases,
         searchText: [control.label, control.description ?? "", ...(control.aliases ?? [])]
             .join(" ")
             .toLowerCase(),

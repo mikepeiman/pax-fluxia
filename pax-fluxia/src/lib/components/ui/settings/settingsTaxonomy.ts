@@ -24,6 +24,7 @@ export type SettingsCategoryId =
     | "map_effects"
     | "audio"
     | "themes"
+    | "save_load"
     | "interface"
     | "typography"
     | "developer";
@@ -90,9 +91,19 @@ export const SETTINGS_CATEGORIES: readonly SettingsCategory[] = [
         icon: "theme",
         label: "Themes",
         color: "#f472b6",
-        // Panel-backed, like Typography: the theme library renders a bespoke
-        // drawer (ThemeLibraryPanel), not a SETTINGS_SECTION. Its chips come
-        // from SETTINGS_PANELS via settingsPanelsForCategory.
+        // Everything that decides how the game LOOKS, in one place: the HUD
+        // theme picker and the theme library are bespoke drawers (from
+        // SETTINGS_PANELS), and Background is an ordinary section. A category
+        // can carry both — chipsForCategory concatenates panels and sections.
+        sections: ["background"],
+    },
+    {
+        id: "save_load",
+        icon: "save-game",
+        label: "Save / Load",
+        color: "#7dd3fc",
+        // Saving and loading a match is not an "interface" preference; it is
+        // its own errand, and it was buried among Appearance, Stats and Help.
         sections: [],
     },
     {

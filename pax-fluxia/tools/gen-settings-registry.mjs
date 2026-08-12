@@ -34,6 +34,7 @@ const FILE_SECTION = {
   "ControlsSection-Audio.svelte": "audio",
   "ControlsSection-Ships.svelte": "fleet_star_visuals",
   "ControlsSection-Visuals.svelte": "map_options",
+  "ControlsSection-Background.svelte": "background",
   "ControlsSection-Diagnostics.svelte": "diagnostics",
   "ControlsSection-Logging.svelte": "logging",
   "ControlsSection-AI.svelte": "ai",

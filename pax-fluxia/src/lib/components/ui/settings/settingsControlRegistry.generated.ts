@@ -45,7 +45,7 @@ export const GENERATED_CONTROLS: readonly SettingsControl[] = [
   { configKey: "AUDIO_SEPARATE_CONQUEST", section: "audio", subsection: null, label: "Separate", description: "Use subtype-specific conquest sounds instead of a shared clip.", controlType: "toggle" },
   { configKey: "BASE_PRODUCTION", section: "economy", subsection: null, label: "Production", controlType: "range", range: { min: 0, max: 5, step: 0.1 } },
   { configKey: "BASE_TICK_MS", section: "match_flow", subsection: null, label: "Tick Interval", controlType: "range", range: { min: 100, max: 5000, step: 50 } },
-  { configKey: "BG_IMAGE_ALPHA", section: "map_options", subsection: null, label: "BG Opacity", controlType: "range", range: { min: 0, max: 1, step: 0.05 } },
+  { configKey: "BG_IMAGE_ALPHA", section: "background", subsection: null, label: "BG Opacity", controlType: "range", range: { min: 0, max: 1, step: 0.05 } },
   { configKey: "BIND_ANIMATION_TO_TICK", section: "match_flow", subsection: null, label: "Bind Animation Speed To Tick", description: "Keep animation speed synchronized with the simulation tick interval.", controlType: "toggle" },
   { configKey: "CELL_GRID_ADJACENCY", section: "territory_styles", subsection: "phase_edges", label: "Adjacency", description: "Grid connectivity for wave propagation: 8-way includes diagonals; 4-way is orthogonal only.", controlType: "custom" },
   { configKey: "CELL_GRID_BORDER_BLEND", section: "territory_styles", subsection: "phase_edges", label: "Centered-blended borders", description: "Draws a single shared stroke where opposing owners meet.", controlType: "toggle" },

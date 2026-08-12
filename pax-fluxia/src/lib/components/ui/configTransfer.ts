@@ -151,6 +151,9 @@ const PROTECTED_CONTENT_KEYS = new Set([
     "pax-game-themes",
     "pax_composedThemes",
     "pax_themePresets",
+    // Retired feature (2026-08-12): its presets migrate into the theme library
+    // on next load. Kept protected so a settings reset before that migration
+    // cannot destroy them first.
     "pax_fullConfigPresets",
 ]);
 

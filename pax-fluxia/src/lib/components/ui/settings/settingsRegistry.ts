@@ -22,6 +22,7 @@ export type SettingsSectionId =
     | "transition"
     | "frontier_fx"
     | "territory_tuning"
+    | "background"
     | "territory_styles"
     | "fleet_star_visuals"
     | "audio"
@@ -111,6 +112,18 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         scope: "surge",
     },
     {
+        // The battlefield backdrop. Split out of Map Options (2026-08-12) and
+        // filed under Themes: the backdrop is part of how the game LOOKS, not
+        // part of map layout.
+        id: "background",
+        icon: "theme",
+        label: "Background",
+        color: "#f472b6",
+        tier: "basic",
+        audience: "public",
+        scope: "visuals",
+    },
+    {
         id: "map_options",
         icon: "draw-polygon",
         label: "Map Options & Tuning",
@@ -119,7 +132,6 @@ export const SETTINGS_SECTIONS: readonly SettingsSectionDefinition[] = [
         audience: "public",
         scope: "visuals",
         subsections: [
-            { id: "background", label: "Background", icon: "theme" },
             { id: "map-layout", label: "Map Layout", icon: "map-location" },
             { id: "labels-inspector", label: "Labels & Inspector", icon: "font" },
             { id: "connections", label: "Connections", icon: "link" },

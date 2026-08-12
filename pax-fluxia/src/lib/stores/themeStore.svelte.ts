@@ -34,6 +34,7 @@ import { audioManager } from '$lib/services/audioManager.svelte';
 import { activeGameStore } from '$lib/stores/activeGameStore.svelte';
 import { animationStore } from '$lib/stores/animationStore.svelte';
 import { bumpTerritoryVisualConfig } from '$lib/territory/bumpTerritoryVisualConfig';
+import { log } from '$lib/utils/logger';
 
 
 // ── One-time migration from old themePresets system ─────────────────────────
@@ -179,11 +180,59 @@ function migrateOldPresets(): void {
     }
 }
 
+/**
+ * The "Config Presets" block in Import / Export stored NAMED SNAPSHOTS OF THE
+ * WHOLE CONFIG under `pax_fullConfigPresets` — which is what a theme is. Two
+ * libraries, two storage keys, one concept, and once Import / Export moved into
+ * the Themes category they sat side by side.
+ *
+ * The theme library wins (it is the category's headline surface, and it has
+ * built-ins, an active selection, and file import/export). Saved presets are
+ * MIGRATED rather than orphaned: same shape, so each becomes a theme, and the
+ * old key is cleared only after they land.
+ */
+const FULL_CONFIG_PRESETS_KEY = 'pax_fullConfigPresets';
+
+function migrateFullConfigPresets(): void {
+    if (typeof localStorage === 'undefined') return;
+    try {
+        const raw = localStorage.getItem(FULL_CONFIG_PRESETS_KEY);
+        if (!raw) return;
+        const presets = JSON.parse(raw) as Array<{
+            name: string;
+            createdAt?: string;
+            values: Record<string, unknown>;
+        }>;
+        if (!Array.isArray(presets) || presets.length === 0) {
+            localStorage.removeItem(FULL_CONFIG_PRESETS_KEY);
+            return;
+        }
+        const existingNames = new Set(loadThemes().map((theme) => theme.name));
+        let migrated = 0;
+        for (const preset of presets) {
+            if (!preset?.name || !preset.values) continue;
+            if (existingNames.has(preset.name)) continue; // never overwrite a theme
+            persistTheme({
+                name: preset.name,
+                description: 'Migrated from Config Presets',
+                created: preset.createdAt ?? new Date().toISOString(),
+                values: preset.values as Record<string, number | string | boolean>,
+            });
+            migrated += 1;
+        }
+        localStorage.removeItem(FULL_CONFIG_PRESETS_KEY);
+        log.sys('themeStore', `Migrated ${migrated} config preset(s) into the theme library`);
+    } catch (error) {
+        log.error('themeStore', `Failed to migrate config presets: ${String(error)}`);
+    }
+}
+
 // ── Reactive State ──────────────────────────────────────────────────────────
 
-// Run migration on first load
+// Run migrations on first load
 if (typeof window !== 'undefined') {
     migrateOldPresets();
+    migrateFullConfigPresets();
 }
 
 let _userThemes = $state<GameTheme[]>(

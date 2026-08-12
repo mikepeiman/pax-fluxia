@@ -27,6 +27,7 @@
     import ControlsSectionShips from "./settings/ControlsSection-Ships.svelte";
     import ControlsSectionPlayers from "./settings/ControlsSection-Players.svelte";
     import ControlsSectionVisuals from "./settings/ControlsSection-Visuals.svelte";
+    import ControlsSectionBackground from "./settings/ControlsSection-Background.svelte";
     import ControlsSectionLogging from "./settings/ControlsSection-Logging.svelte";
     import ControlsSectionAudio from "./settings/ControlsSection-Audio.svelte";
     import ControlsSectionDiagnostics from "./settings/ControlsSection-Diagnostics.svelte";
@@ -1011,9 +1012,8 @@
     {/if}
 
 {#snippet sectionContent(sec: NavChip)}
-                {#if sec?.id === "ui_appearance"}
+                {#if sec?.id === "ui_theme_system"}
                     <HudThemePanel />
-                    <ControlsSectionVisuals />
                 {:else if sec?.id === "ui_typography"}
                     <TypographyTokenPanel />
                 {:else if sec?.id === "ui_themes"}
@@ -1072,6 +1072,8 @@
                     <ControlsSectionPlayers />
                 {:else if sec?.id === "map_options"}
                     <ControlsSectionVisuals />
+                {:else if sec?.id === "background"}
+                    <ControlsSectionBackground />
                 {:else if sec?.id === "logging"}
                     <ControlsSectionLogging />
                 {:else if sec?.id === "audio"}

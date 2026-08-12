@@ -8,15 +8,7 @@
         parseConfigImport,
     } from "../configTransfer";
     import { exportConfigJSON } from "../panelSync";
-    import {
-        type FullConfigPreset,
-        deleteFullConfigPreset,
-        getFullConfigPreset,
-        importFullConfigPreset,
-        listFullConfigPresets,
-        saveFullConfigPreset,
-    } from "$lib/config/fullConfigPresets";
-    import { PaxHudButton, PaxHudSelect, PaxHudTextInput } from "$lib/design-system";
+    import { PaxHudButton } from "$lib/design-system";
     import { log } from "$lib/utils/logger";
 
     // The "config mod" surface: export the full live config as a shareable
@@ -32,82 +24,6 @@
     let fileInput = $state<HTMLInputElement | null>(null);
     let resetArmed = $state(false);
     let resetDisarmTimer: ReturnType<typeof setTimeout> | null = null;
-
-    // ── Full-config presets (named, in-app; captures ALL categories at once) ──
-    let presetVersion = $state(0);
-    let fullPresets = $derived.by<FullConfigPreset[]>(() => {
-        presetVersion;
-        return listFullConfigPresets();
-    });
-    let fullPresetOptions = $derived(
-        fullPresets.map((preset) => ({ value: preset.name, label: preset.name })),
-    );
-    let selectedPresetName = $state("");
-    let newPresetName = $state("");
-
-    function downloadFullPreset(preset: FullConfigPreset) {
-        const blob = new Blob([JSON.stringify(preset, null, 2)], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement("a");
-        const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-        const safe = preset.name.replace(/[^a-z0-9]/gi, "_").toLowerCase();
-        anchor.href = url;
-        anchor.download = `pax-config-preset-${safe}-${ts}.json`;
-        anchor.click();
-        URL.revokeObjectURL(url);
-    }
-
-    function saveFullPreset() {
-        const name = newPresetName.trim();
-        if (!name) return;
-        const preset = saveFullConfigPreset(name);
-        newPresetName = "";
-        selectedPresetName = name;
-        presetVersion++;
-        downloadFullPreset(preset);
-        status = `Saved preset "${name}" (${Object.keys(preset.values).length} settings)`;
-        statusIsError = false;
-    }
-
-    function loadFullPreset() {
-        if (!selectedPresetName) return;
-        const preset = getFullConfigPreset(selectedPresetName);
-        if (!preset) return;
-        applyConfigPatch(preset.values);
-        status = `Loaded preset "${preset.name}" (${Object.keys(preset.values).length} settings)`;
-        statusIsError = false;
-    }
-
-    function deleteSelectedPreset() {
-        if (!selectedPresetName) return;
-        deleteFullConfigPreset(selectedPresetName);
-        selectedPresetName = "";
-        presetVersion++;
-    }
-
-    function onImportPresetFile(file: File) {
-        const reader = new FileReader();
-        reader.onload = () => {
-            try {
-                const preset = importFullConfigPreset(JSON.parse(reader.result as string));
-                if (!preset) {
-                    status = "Not a valid full-config preset file";
-                    statusIsError = true;
-                    return;
-                }
-                selectedPresetName = preset.name;
-                presetVersion++;
-                status = `Imported preset "${preset.name}"`;
-                statusIsError = false;
-            } catch (error) {
-                log.error("ConfigTransferPanel", "Failed to import preset", error);
-                status = "Failed to import preset file";
-                statusIsError = true;
-            }
-        };
-        reader.readAsText(file);
-    }
-    let presetFileInput = $state<HTMLInputElement | null>(null);
 
     function exportMD() {
         const md = buildConfigMarkdown(
@@ -205,65 +121,10 @@
     {/if}
 </section>
 
-<section>
-    <h4 class="sub-heading">Config Presets</h4>
-    <p class="config-io-hint">
-        Save your entire current tuning as a named preset and reload it anytime.
-        Unlike the per-section preset bars, this captures every category at once —
-        AI, territory topology, ships, timing, everything.
-    </p>
-    <div class="actions-row">
-        <PaxHudTextInput
-            class="config-preset-name"
-            value={newPresetName}
-            placeholder="Preset name…"
-            size="sm"
-            onInput={(value) => (newPresetName = value)}
-            onKeydown={(event) => {
-                if (event.key === "Enter") saveFullPreset();
-            }}
-        />
-        <PaxHudButton label="Save preset" size="sm" intent="primary" onclick={saveFullPreset} />
-    </div>
-    {#if fullPresets.length > 0}
-        <div class="actions-row">
-            <PaxHudSelect
-                class="config-preset-select"
-                value={selectedPresetName}
-                options={fullPresetOptions}
-                placeholder="Select preset…"
-                ariaLabel="Select full-config preset"
-                size="sm"
-                onValueChange={(value) => (selectedPresetName = value)}
-            />
-            <PaxHudButton label="Load" size="sm" disabled={!selectedPresetName} onclick={loadFullPreset} />
-            <PaxHudButton
-                label="Download"
-                size="sm"
-                disabled={!selectedPresetName}
-                onclick={() => {
-                    const preset = getFullConfigPreset(selectedPresetName);
-                    if (preset) downloadFullPreset(preset);
-                }}
-            />
-            <PaxHudButton label="Delete" size="sm" danger disabled={!selectedPresetName} onclick={deleteSelectedPreset} />
-        </div>
-    {/if}
-    <div class="actions-row">
-        <PaxHudButton label="Import preset…" size="sm" onclick={() => presetFileInput?.click()} />
-        <input
-            bind:this={presetFileInput}
-            class="config-io-file"
-            type="file"
-            accept=".json,application/json"
-            onchange={(event) => {
-                const file = (event.target as HTMLInputElement)?.files?.[0];
-                if (file) onImportPresetFile(file);
-                (event.target as HTMLInputElement).value = "";
-            }}
-        />
-    </div>
-</section>
+<!-- "Config Presets" removed 2026-08-12: named snapshots of the whole config
+     are what the Theme Library already is, and once this panel moved into the
+     Themes category the two sat side by side. Saved presets are migrated into
+     the library by themeStore.migrateFullConfigPresets, not discarded. -->
 
 <section>
     <h4 class="sub-heading">Reset</h4>

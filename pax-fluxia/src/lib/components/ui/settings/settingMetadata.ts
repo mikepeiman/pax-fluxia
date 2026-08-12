@@ -488,12 +488,9 @@ const SCOPE_LABEL_META: LabelScopeMap = {
         'Oscillation Frequency': { key: 'ORBIT_BIAS_FREQ' },
     },
     visuals: {
-        'Background Asset': {
-            key: 'BG_IMAGE_URL',
-            description:
-                'Background image asset path shown behind the battlefield.',
-        },
-        'BG Opacity': { key: 'BG_IMAGE_ALPHA' },
+        // Background Asset / BG Opacity removed: both are registry-owned under
+        // the `background` section now. Left here they kept routing "background"
+        // to Map Options, where the controls no longer are.
         'Show Hex Grid': { key: 'SHOW_HEX_GRID' },
         'Star Inspector': {
             key: 'local.ui.starInspectorVisible',

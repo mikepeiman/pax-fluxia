@@ -225,6 +225,14 @@ type ResolvedSettingRecord = SearchableSettingRecord & {
     sectionId: SettingsSectionId;
     subsectionId?: string;
     sectionLabel: string;
+    /**
+     * Search synonyms that are deliberately NOT in the visible label — "msr" for
+     * Minimum Star Margin, "chaikin" for Border Rounding. The registry has
+     * carried these all along and the search dropped them on the floor, so the
+     * field promised findability it did not deliver: "msr" and "wallpaper"
+     * matched nothing. Folded into the haystack below.
+     */
+    aliases?: readonly string[];
 };
 
 function getResolvedSettingRecords(
@@ -246,6 +254,7 @@ function getResolvedSettingRecords(
             sectionId: record.section,
             subsectionId: record.subsection ?? undefined,
             sectionLabel: SECTION_LABEL_BY_ID[record.section],
+            aliases: record.aliases,
         }),
     );
     // Legacy hand-map records — only for keys the registry does NOT yet own.
@@ -278,6 +287,7 @@ function buildSettingEntries(
             record.sectionLabel,
             record.label,
             record.description ?? "",
+            ...(record.aliases ?? []),
         ]
             .filter(Boolean)
             .join(" ");

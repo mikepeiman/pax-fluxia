@@ -2,7 +2,6 @@
   import "./panel-shared.css";
     import { settingsStore } from "../settingsStore.svelte";
     import { GAME_CONFIG } from "$lib/config/game.config";
-    import { BG_IMAGES } from "$lib/config/bgManifest";
     import { resolveEffectiveLaneMarginPx } from "$lib/lanes/laneMargin";
     import { gameStore } from "$lib/stores/gameStore.svelte";
     import {
@@ -20,7 +19,6 @@
     // Settings data comes from the store, not props (2026-07-15 audit phase 2b).
     const panel = $derived(settingsStore.panel);
     const updatePanel = settingsStore.set;
-    const updateBgImage = settingsStore.updateBgImage;
     const syncFromConfig = settingsStore.syncFromConfig;
 
     // Lane + background values are ordinary panel keys (2026-07-15 audit): they
@@ -34,14 +32,11 @@
     let shadowAlpha = $derived(
         panel.connectionShadowAlpha ?? GAME_CONFIG.CONNECTION_SHADOW_ALPHA,
     );
-    let bgImage = $derived(panel.bgImageUrl ?? GAME_CONFIG.BG_IMAGE_URL);
-
     function updateLaneValue(configKey: string, panelKey: string, value: number) {
         (GAME_CONFIG as any)[configKey] = value;
         updatePanel(panelKey, value);
     }
 
-    const bgImages = BG_IMAGES;
     const mapConfig = GAME_CONFIG as typeof GAME_CONFIG & {
         MAPGEN_LANE_MARGIN_ENABLED?: boolean;
     };
@@ -87,18 +82,6 @@
 
     function rebuildLaneConstraints() {
         (gameStore as any).rebuildLaneConstraintsFromConfig?.();
-    }
-
-    function changeBg(img: string) {
-        updateBgImage(img);
-    }
-
-    function updateBgAlpha(value: number) {
-        GAME_CONFIG.BG_IMAGE_ALPHA = value;
-        updatePanel("bgImageAlpha", value);
-        window.dispatchEvent(
-            new CustomEvent("pax-bg-alpha-change", { detail: value }),
-        );
     }
 
     function updateLaneMarginEnabled(value: boolean) {
@@ -158,58 +141,6 @@
 </script>
 
 <CategoryThemeBar category="visuals" onApply={() => syncFromConfig?.()} />
-
-<section data-subsection-id="background" class="visuals-section">
-    <h4 class="sub-heading">Background</h4>
-    <div class="visuals-summary">
-        <span
-            data-setting-config-key="BG_IMAGE_URL"
-            data-setting-description="Background image asset path displayed behind the battlefield."
-        >
-            Background Asset
-        </span>
-        <strong>{bgImage || "none"}</strong>
-    </div>
-
-    <div class="visuals-bg-grid">
-        <PaxHudButton
-            class="visuals-bg-thumb"
-            active={!bgImage}
-            title="No background"
-            onclick={() => changeBg("")}
-        >
-            <span class="visuals-bg-none">None</span>
-        </PaxHudButton>
-        {#each bgImages as img}
-            <PaxHudButton
-                class="visuals-bg-thumb"
-                active={bgImage === img}
-                title={img
-                    .replace(/\.(png|jpe?g|webp|avif)$/i, "")
-                    .replace(/^pax-fluxia-/, "")}
-                onclick={() => changeBg(img)}
-            >
-                <img
-                    src="/assets/{img}"
-                    alt={img}
-                    class="visuals-bg-thumb__img"
-                    loading="lazy"
-                />
-            </PaxHudButton>
-        {/each}
-    </div>
-
-    <PaxSettingsRangeRow
-        label="BG Opacity"
-        value={panel.bgImageAlpha ?? GAME_CONFIG.BG_IMAGE_ALPHA ?? 0.35}
-        min={0}
-        max={1}
-        step={0.05}
-        format="fixed2"
-        settingConfigKey="BG_IMAGE_ALPHA"
-        onInput={updateBgAlpha}
-    />
-</section>
 
 <section data-subsection-id="map-layout" class="visuals-section">
     <h4 class="sub-heading">Map Layout</h4>
@@ -403,7 +334,6 @@
     }
 
 
-    .visuals-summary,
     .visuals-control-card {
         min-width: 0;
         display: grid;
@@ -417,12 +347,6 @@
             var(--pax-ui-control-border-gradient) border-box;
     }
 
-    .visuals-summary {
-        grid-template-columns: minmax(0, 1fr) auto;
-        align-items: center;
-    }
-
-    .visuals-summary span,
     .visuals-control-card__label {
         min-width: 0;
         overflow: hidden;
@@ -436,42 +360,4 @@
         white-space: nowrap;
     }
 
-    .visuals-summary strong {
-        max-width: 160px;
-        overflow: hidden;
-        color: var(--pax-ui-accent-warm-strong);
-        font-family: var(--pax-ui-font-data);
-        font-size: calc(0.68rem * var(--pax-ui-data-scale, 1));
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .visuals-bg-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));
-        gap: var(--pax-space-2);
-    }
-
-    :global(.visuals-bg-thumb) {
-        width: 100%;
-        height: 38px;
-        min-height: 38px;
-        padding: 0;
-        overflow: hidden;
-    }
-
-    .visuals-bg-thumb__img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-
-    .visuals-bg-none {
-        color: var(--pax-ui-text-soft);
-        font-family: var(--pax-ui-font-ui);
-        font-size: calc(0.66rem * var(--pax-ui-type-scale, 1));
-        font-weight: var(--pax-weight-extrabold);
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-    }
 </style>
